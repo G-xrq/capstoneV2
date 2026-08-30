@@ -1,0 +1,241 @@
+/* ============================================================
+   BBDRTS Institutional 4-Column Mega Footer Styles
+   ============================================================ */
+
+.bbdrts-footer-root {
+  background: var(--surface-header, #080c14);
+  border-top: 1px solid var(--border, rgba(255, 255, 255, 0.08));
+  color: var(--text-secondary, #cbd5e1);
+  margin-top: auto;
+  position: relative;
+  overflow: hidden;
+  user-select: none;
+}
+
+.bbdrts-footer-top-accent {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent 0%, #22c55e 30%, #38bdf8 70%, transparent 100%);
+  opacity: 0.6;
+}
+
+.bbdrts-footer-main {
+  padding: 56px 0 36px;
+}
+
+.bbdrts-footer-grid {
+  display: grid;
+  grid-template-columns: 1.6fr 1fr 1fr 1.2fr;
+  gap: 40px;
+}
+
+@media (max-width: 1080px) {
+  .bbdrts-footer-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 32px;
+  }
+}
+
+@media (max-width: 640px) {
+  .bbdrts-footer-grid {
+    grid-template-columns: 1fr;
+    gap: 28px;
+  }
+}
+
+/* ── Column 1: Brand & Mission ── */
+.bbdrts-footer-brand-col {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.bbdrts-footer-logo-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.bbdrts-footer-logo-img {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+  border-radius: 10px;
+  background: rgba(34, 197, 94, 0.1);
+  border: 1px solid rgba(34, 197, 94, 0.3);
+  padding: 4px;
+}
+
+.bbdrts-footer-brand-name {
+  font-size: 1.22rem;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  color: var(--text-primary, #ffffff);
+  line-height: 1.1;
+}
+
+.bbdrts-footer-brand-sub {
+  font-size: 0.72rem;
+  color: var(--text-muted, #94a3b8);
+  margin-top: 2px;
+}
+
+.bbdrts-footer-mission {
+  font-size: 0.82rem;
+  line-height: 1.65;
+  color: var(--text-muted, #94a3b8);
+  margin: 0;
+}
+
+/* Contract Chip */
+.bbdrts-footer-contract-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-card, rgba(255, 255, 255, 0.03));
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.1));
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 0.76rem;
+  color: var(--text-secondary, #cbd5e1);
+  width: fit-content;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.bbdrts-footer-contract-chip:hover {
+  border-color: rgba(34, 197, 94, 0.5);
+  background: rgba(34, 197, 94, 0.06);
+  color: #22c55e;
+}
+
+.bbdrts-contract-addr {
+  font-family: var(--font-mono, monospace);
+  font-weight: 600;
+}
+
+/* Trust Seals Bar */
+.bbdrts-footer-trust-seals {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+.bbdrts-trust-seal-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-muted, #94a3b8);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+
+/* ── Columns 2, 3, 4: Section Titles & Lists ── */
+.bbdrts-footer-col-title {
+  font-size: 0.88rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--text-primary, #ffffff);
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.bbdrts-footer-links {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.bbdrts-footer-link-item a {
+  color: var(--text-muted, #94a3b8);
+  text-decoration: none;
+  font-size: 0.82rem;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s ease;
+}
+
+.bbdrts-footer-link-item a:hover {
+  color: #22c55e;
+  transform: translateX(3px);
+}
+
+.bbdrts-footer-academic-card {
+  background: var(--bg-card, rgba(255, 255, 255, 0.03));
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.08));
+  padding: 14px;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: var(--text-secondary, #cbd5e1);
+}
+
+.bbdrts-academic-title {
+  font-weight: 700;
+  color: var(--text-primary, #ffffff);
+  margin-bottom: 4px;
+  font-size: 0.84rem;
+}
+
+.bbdrts-academic-sub {
+  color: var(--text-muted, #94a3b8);
+  font-size: 0.74rem;
+}
+
+/* ── Bottom Operational Strip ── */
+.bbdrts-footer-bottom {
+  border-top: 1px solid var(--border, rgba(255, 255, 255, 0.06));
+  padding: 18px 0;
+  background: rgba(0, 0, 0, 0.25);
+  font-size: 0.76rem;
+  color: var(--text-muted, #64748b);
+}
+
+.bbdrts-footer-bottom-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.bbdrts-footer-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #22c55e;
+  font-weight: 600;
+}
+
+.bbdrts-footer-legal-links {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.bbdrts-footer-legal-links a {
+  color: var(--text-muted, #64748b);
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.bbdrts-footer-legal-links a:hover {
+  color: var(--text-primary, #ffffff);
+}

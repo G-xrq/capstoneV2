@@ -1,0 +1,454 @@
+/* ============================================================
+   BBDRTS Institutional NGO Profile & Campaigns Hub Styles
+   ============================================================ */
+
+.ngo-profile-backdrop {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(5, 7, 12, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 99999;
+  padding: 20px;
+  animation: authModalFadeIn 0.25s ease-out forwards;
+}
+
+[data-theme="light"] .ngo-profile-backdrop {
+  background: rgba(240, 244, 250, 0.88);
+}
+
+.ngo-profile-modal {
+  position: relative;
+  background: var(--bg-card);
+  border: 1.5px solid var(--border-strong);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6), 0 0 30px rgba(34, 197, 94, 0.1);
+  border-radius: 20px;
+  max-width: 760px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  animation: authCardScaleUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+[data-theme="light"] .ngo-profile-modal {
+  background: #ffffff;
+  border-color: rgba(0, 0, 0, 0.12);
+  box-shadow: 0 30px 70px rgba(0, 0, 0, 0.12), 0 0 30px rgba(22, 163, 74, 0.1);
+}
+
+/* Modal Topbar */
+.ngo-modal-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--border-subtle);
+  background: var(--bg-surface);
+}
+
+.ngo-modal-topbar-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.ngo-profile-close-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.ngo-profile-close-btn:hover {
+  background: #ef4444;
+  color: #ffffff;
+  border-color: #ef4444;
+}
+
+/* Loading & Error States */
+.ngo-profile-loading,
+.ngo-profile-error {
+  padding: 50px 24px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  color: var(--text-secondary);
+}
+
+/* ── Profile Header Bar ── */
+.ngo-profile-header {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 24px 28px;
+  background: var(--bg-subcard);
+  border-bottom: 1px solid var(--border);
+}
+
+[data-theme="light"] .ngo-profile-header {
+  background: #f8fafc;
+}
+
+.ngo-avatar-circle {
+  width: 72px;
+  height: 72px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #15803d, #0284c7);
+  color: #ffffff;
+  font-size: 1.6rem;
+  font-weight: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+  border: 2px solid rgba(255, 255, 255, 0.15);
+}
+
+.ngo-profile-identity {
+  flex: 1;
+  min-width: 0;
+}
+
+.ngo-name-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+  flex-wrap: wrap;
+}
+
+.ngo-profile-title {
+  margin: 0;
+  font-size: 1.3rem;
+  color: var(--text-primary);
+  font-weight: 800;
+}
+
+.ngo-verified-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(34, 197, 94, 0.15);
+  color: #22c55e;
+  border: 1px solid rgba(34, 197, 94, 0.3);
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+.ngo-meta-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 14px;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+
+.ngo-meta-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.ngo-meta-item .material-symbols-outlined {
+  font-size: 15px;
+  color: var(--text-muted);
+}
+
+/* ── Key Relief Statistics Grid ── */
+.ngo-metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  padding: 16px 28px;
+}
+
+.ngo-metric-card {
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+[data-theme="light"] .ngo-metric-card {
+  background: #ffffff;
+  border-color: #e2e8f0;
+}
+
+.ngo-metric-label {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.ngo-metric-value {
+  font-size: 1.15rem;
+  color: var(--text-primary);
+  font-weight: 800;
+}
+
+.ngo-metric-sub {
+  font-size: 0.72rem;
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* ── Tabs Navigation ── */
+.ngo-profile-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+  padding: 0 28px;
+  gap: 8px;
+  background: var(--bg-surface);
+}
+
+.ngo-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 14px;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-secondary);
+  font-size: 0.84rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.ngo-tab-btn:hover {
+  color: var(--text-primary);
+}
+
+.ngo-tab-btn.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+/* ── Tab Content ── */
+.ngo-tab-content {
+  padding: 20px 28px;
+  max-height: 380px;
+  overflow-y: auto;
+}
+
+.ngo-tab-intro {
+  margin-bottom: 14px;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+}
+
+/* Campaign Card in NGO Profile */
+.ngo-campaigns-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.ngo-campaign-card {
+  background: var(--bg-subcard);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+[data-theme="light"] .ngo-campaign-card {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+}
+
+.ngo-campaign-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.ngo-camp-category {
+  font-size: 0.7rem;
+  color: var(--accent);
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.ngo-camp-title {
+  margin: 2px 0 0 0;
+  font-size: 1rem;
+  color: var(--text-primary);
+  font-weight: 800;
+}
+
+.ngo-camp-urgency {
+  font-size: 0.7rem;
+  font-weight: 700;
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.ngo-camp-desc {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
+
+.ngo-camp-progress-bar {
+  width: 100%;
+  height: 6px;
+  background: var(--bg-input);
+  border-radius: 999px;
+  overflow: hidden;
+  margin-bottom: 6px;
+}
+
+.ngo-camp-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent-blue), var(--accent));
+  border-radius: 999px;
+}
+
+.ngo-camp-progress-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.74rem;
+  color: var(--text-secondary);
+}
+
+.ngo-camp-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 4px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.ngo-camp-loc {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Governance Panel */
+.ngo-gov-card {
+  background: var(--bg-subcard);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 18px;
+}
+
+[data-theme="light"] .ngo-gov-card {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+}
+
+.ngo-gov-card-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.ngo-gov-card-header h4 {
+  margin: 0 0 2px 0;
+  color: var(--text-primary);
+  font-size: 0.95rem;
+}
+
+.ngo-gov-card-header p {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+
+.ngo-gov-details-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.ngo-gov-detail-item label {
+  display: block;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  font-weight: 700;
+  text-transform: uppercase;
+  margin-bottom: 2px;
+}
+
+.ngo-gov-detail-item span {
+  font-size: 0.85rem;
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.ngo-board-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ngo-board-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  color: var(--text-primary);
+}
+
+[data-theme="light"] .ngo-board-item {
+  background: #ffffff;
+  border-color: #e2e8f0;
+}
+
+@media (max-width: 640px) {
+  .ngo-metrics-grid {
+    grid-template-columns: 1fr;
+  }
+  .ngo-gov-details-grid {
+    grid-template-columns: 1fr;
+  }
+  .ngo-profile-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

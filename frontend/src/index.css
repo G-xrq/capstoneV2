@@ -1,0 +1,943 @@
+/* ============================================================
+   BDRS Design System — Layered Dark & Inverted Light Themes
+   ============================================================ */
+
+/* --- Default & Dark Theme: Layered Mix of #111, #1a1a1a, #222, #333, Black & White --- */
+:root,
+[data-theme="dark"],
+[data-theme="default"],
+[data-theme="theme-111"],
+[data-theme="theme-222"],
+[data-theme="theme-333"] {
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-mono: ui-monospace, 'Cascadia Code', Consolas, monospace;
+
+  /* Layered Dark Surfaces */
+  --bg-base:        #111111; /* Deep Canvas Background */
+  --bg-surface:     #1a1a1a; /* Header & Top Navigation */
+  --bg-card:        #222222; /* Primary Cards & Sidebar */
+  --bg-card-hover:  #2a2a2a; /* Card Hover Lift */
+  --bg-subcard:     #282828; /* Sub-containers & Modules */
+  --bg-input:       #181818; /* Inset Fields & Inputs */
+  --bg-inset:       #333333; /* Inset Boxes & Detail Panels */
+
+  /* Borders */
+  --border:         rgba(255, 255, 255, 0.08);
+  --border-subtle:  rgba(255, 255, 255, 0.04);
+  --border-strong:  rgba(255, 255, 255, 0.16);
+  --border-focus:   rgba(34, 197, 94, 0.6);
+
+  /* Accents */
+  --accent:         #22c55e;
+  --accent-dim:     rgba(34, 197, 94, 0.12);
+  --accent-glow:    rgba(34, 197, 94, 0.25);
+
+  --accent-blue:    #0284c7;
+  --accent-purple:  #9333ea;
+  --accent-orange:  #f59e0b;
+  --accent-green:   #22c55e;
+
+  --danger:         #ef4444;
+  --warning:        #f59e0b;
+  --info:           #0284c7;
+
+  /* Typography */
+  --text-primary:   #ffffff;
+  --text-secondary: #a3a3a3;
+  --text-muted:     #737373;
+
+  /* High Contrast Capsule Pill Badges (White on Dark) */
+  --pill-bg:        #ffffff;
+  --pill-text:      #111111;
+
+  /* Surface Aliases */
+  --surface:        #222222;
+  --surface-header: #1a1a1a;
+  --surface-nav:    #161616;
+  --surface-sidebar:#222222;
+  --surface-input:  #181818;
+
+  /* Misc */
+  --radius-sm:      6px;
+  --radius-md:      12px;
+  --radius-lg:      16px;
+  --radius-pill:    9999px;
+  --transition:     0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  --shadow-card:    0 4px 20px rgba(0, 0, 0, 0.45);
+  --shadow-glow:    0 0 16px rgba(34, 197, 94, 0.2);
+}
+
+/* --- Light Theme: Crisp High-Contrast Inverted Palette --- */
+[data-theme="light"] {
+  /* Inverted Light Surfaces */
+  --bg-base:        #f4f5f8; /* Crisp light grey canvas */
+  --bg-surface:     #ffffff; /* Top Header & Nav */
+  --bg-card:        #ffffff; /* Primary Cards & Sidebar */
+  --bg-card-hover:  #e8ecf2; /* Solid darker hover shade for light mode */
+  --bg-subcard:     #edf0f4; /* Sub-containers & Modules */
+  --bg-input:       #ffffff; /* Inset Fields & Inputs */
+  --bg-inset:       #e2e8f0; /* Inset Boxes & Detail Panels */
+
+  /* Borders */
+  --border:         rgba(0, 0, 0, 0.1);
+  --border-subtle:  rgba(0, 0, 0, 0.05);
+  --border-strong:  rgba(0, 0, 0, 0.2);
+  --border-focus:   rgba(22, 163, 74, 0.8);
+
+  /* Accents */
+  --accent:         #16a34a;
+  --accent-dim:     rgba(22, 163, 74, 0.12);
+  --accent-glow:    rgba(22, 163, 74, 0.25);
+
+  --accent-blue:    #0284c7;
+  --accent-purple:  #9333ea;
+  --accent-orange:  #d97706;
+  --accent-green:   #16a34a;
+
+  --danger:         #dc2626;
+  --warning:        #d97706;
+  --info:           #0284c7;
+
+  /* Typography */
+  --text-primary:   #0f172a;
+  --text-secondary: #334155;
+  --text-muted:     #64748b;
+
+  /* High Contrast Capsule Pill Badges (Dark on Light) */
+  --pill-bg:        #0f172a;
+  --pill-text:      #ffffff;
+
+  /* Surface Aliases */
+  --surface:        #ffffff;
+  --surface-header: #ffffff;
+  --surface-nav:    #f8fafc;
+  --surface-sidebar:#ffffff;
+  --surface-input:  #ffffff;
+
+  --shadow-card:    0 4px 20px rgba(0, 0, 0, 0.06);
+  --shadow-glow:    0 0 16px rgba(22, 163, 74, 0.15);
+}
+
+/* --- Theme 3: Cyber Navy (Original System Glass & Neon Mint) --- */
+[data-theme="cyber"],
+[data-theme="navy"] {
+  --bg-base:        #0a0b0f; /* Deep Cyber Navy */
+  --bg-surface:     #111217; /* Slate Glass Header */
+  --bg-card:        #16181f; /* Navy Cards */
+  --bg-card-hover:  #1c1e28;
+  --bg-subcard:     #181a24;
+  --bg-input:       #0e0f14;
+  --bg-inset:       #181a24;
+
+  --border:         rgba(255, 255, 255, 0.07);
+  --border-subtle:  rgba(255, 255, 255, 0.04);
+  --border-strong:  rgba(255, 255, 255, 0.16);
+  --border-focus:   rgba(0, 255, 163, 0.5);
+
+  --accent:         #00ffa3;
+  --accent-dim:     rgba(0, 255, 163, 0.12);
+  --accent-glow:    rgba(0, 255, 163, 0.25);
+
+  --accent-blue:    #38bdf8;
+  --accent-purple:  #a78bfa;
+  --accent-orange:  #f5a623;
+  --accent-green:   #00ffa3;
+
+  --danger:         #ff4e6a;
+  --warning:        #f5a623;
+  --info:           #38bdf8;
+
+  --text-primary:   #ffffff;
+  --text-secondary: #cbd5e1;
+  --text-muted:     #94a3b8;
+
+  --pill-bg:        #00ffa3;
+  --pill-text:      #0a0b0f;
+
+  --surface:        #16181f;
+  --surface-header: #111217;
+  --surface-nav:    #0e0f14;
+  --surface-sidebar:#181a24;
+  --surface-input:  #0e0f14;
+
+  --shadow-card:    0 4px 24px rgba(0, 0, 0, 0.5);
+  --shadow-glow:    0 0 20px rgba(0, 255, 163, 0.2);
+}
+
+/* --- Global Reset & High-Performance 0.2s Color Transition --- */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  transition-property: background-color, border-color, color, fill, stroke, box-shadow;
+  transition-duration: 0.2s;
+  transition-timing-function: ease;
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--bg-base);
+  color: var(--text-primary);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* --- Typography --- */
+h1, h2, h3, h4 { line-height: 1.25; color: var(--text-primary); }
+
+/* --- Scrollbar --- */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: var(--radius-pill); }
+::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.15); }
+
+/* ============================================================
+   Layout Utilities
+   ============================================================ */
+.container {
+  width: 94%;
+  max-width: 1750px;
+  margin: 0 auto;
+  padding: 0 16px;
+}
+
+/* ============================================================
+   Cards
+   ============================================================ */
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 28px;
+  box-shadow: var(--shadow-card);
+  transition: border-color var(--transition), box-shadow var(--transition), background var(--transition);
+}
+.card:hover {
+  border-color: rgba(255,255,255,0.12);
+  background: var(--bg-card-hover);
+}
+.card.glow:hover {
+  box-shadow: var(--shadow-card), var(--shadow-glow);
+  border-color: rgba(0,255,163,0.2);
+}
+
+/* ============================================================
+   Buttons
+   ============================================================ */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: 0.875rem;
+  letter-spacing: 0.3px;
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: background var(--transition), box-shadow var(--transition), opacity var(--transition), transform var(--transition);
+  white-space: nowrap;
+  padding: 11px 22px;
+  text-decoration: none;
+}
+.btn:active:not(:disabled) { transform: scale(0.97); }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.btn-primary {
+  background: var(--accent);
+  color: #000;
+}
+.btn-primary:hover:not(:disabled) { box-shadow: 0 0 18px var(--accent-glow); }
+
+.btn-outline {
+  background: transparent;
+  color: var(--accent);
+  border: 1px solid var(--accent);
+}
+.btn-outline:hover:not(:disabled) {
+  background: var(--accent-dim);
+  box-shadow: 0 0 12px var(--accent-glow);
+}
+
+.btn-ghost {
+  background: rgba(255,255,255,0.05);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+}
+.btn-ghost:hover:not(:disabled) {
+  background: rgba(255,255,255,0.08);
+  color: var(--text-primary);
+}
+
+.btn-danger {
+  background: var(--danger);
+  color: #fff;
+}
+
+.btn-sm { padding: 7px 14px; font-size: 0.8rem; border-radius: var(--radius-sm); }
+.btn-lg { padding: 15px 36px; font-size: 1rem; border-radius: var(--radius-md); }
+.btn-full { width: 100%; }
+
+/* ============================================================
+   Inputs
+   ============================================================ */
+.input {
+  width: 100%;
+  font-family: var(--font-sans);
+  font-size: 0.925rem;
+  background: var(--bg-input);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 11px 14px;
+  transition: border-color var(--transition), box-shadow var(--transition);
+  outline: none;
+}
+.input::placeholder { color: var(--text-muted); }
+.input:focus {
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 3px rgba(0,255,163,0.08);
+}
+.input:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* ============================================================
+   Badges
+   ============================================================ */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+}
+.badge-active  { background: rgba(34, 197, 94, 0.12); color: var(--accent); border: 1px solid rgba(34, 197, 94, 0.3); }
+.badge-closed  { background: rgba(239, 68, 68, 0.12); color: var(--danger);  border: 1px solid rgba(239, 68, 68, 0.3); }
+.badge-info    { background: rgba(2, 132, 199, 0.12); color: var(--info);    border: 1px solid rgba(2, 132, 199, 0.3); }
+
+/* Reference White Pill Badge (0 classes today, 10 enrolled, etc.) */
+.ref-pill-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--pill-bg, #ffffff);
+  color: var(--pill-text, #121212);
+  font-weight: 700;
+  font-size: 0.78rem;
+  padding: 4px 14px;
+  border-radius: var(--radius-pill);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+  letter-spacing: -0.2px;
+}
+
+/* ============================================================
+   Progress Bar
+   ============================================================ */
+.progress-wrap {
+  width: 100%;
+  height: 6px;
+  background: rgba(255,255,255,0.07);
+  border-radius: var(--radius-pill);
+  overflow: hidden;
+  margin: 10px 0 6px;
+}
+.progress-bar {
+  height: 100%;
+  border-radius: var(--radius-pill);
+  background: linear-gradient(90deg, #22c55e, #10b981);
+  transition: width 0.6s ease;
+  position: relative;
+}
+.progress-bar.full {
+  background: linear-gradient(90deg, #f5a623, #ff4e6a);
+}
+
+/* ============================================================
+   Divider
+   ============================================================ */
+.divider {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 20px 0;
+}
+.divider-dashed {
+  border-top-style: dashed;
+}
+
+/* ============================================================
+   Spinner
+   ============================================================ */
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(0,0,0,0.25);
+  border-top-color: #000;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+.spinner-light {
+  border: 2px solid rgba(255,255,255,0.15);
+  border-top-color: var(--accent);
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ============================================================
+   Animations
+   ============================================================ */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.fade-in { animation: fadeIn 0.35s ease forwards; }
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 8px var(--accent-glow); }
+  50%       { box-shadow: 0 0 22px rgba(0,255,163,0.4); }
+}
+.pulse { animation: pulse-glow 2.5s ease-in-out infinite; }
+
+/* ============================================================
+   Light Theme Explicit Overrides for Clarity & Contrast
+   ============================================================ */
+[data-theme="light"] .card {
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.05);
+}
+
+[data-theme="light"] .card:hover {
+  background: #e8ecf2;
+  border-color: #16a34a;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="light"] .card.glow:hover {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08) !important;
+  border-color: #16a34a !important;
+}
+
+[data-theme="light"] .input,
+[data-theme="light"] select.input,
+[data-theme="light"] select {
+  background-color: #ffffff;
+  color: #0f172a;
+  border: 1px solid rgba(0, 0, 0, 0.16);
+}
+
+[data-theme="light"] .input:focus,
+[data-theme="light"] select.input:focus {
+  border-color: #16a34a;
+  box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.12);
+}
+
+[data-theme="light"] .btn-ghost {
+  background-color: rgba(0, 0, 0, 0.04);
+  color: #0f172a;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+[data-theme="light"] .btn-ghost:hover {
+  background-color: rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="light"] .progress-wrap {
+  background: rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="light"] .ref-pill-badge {
+  background: #0f172a;
+  color: #ffffff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+}
+
+[data-theme="light"] .campaign-media-tag-top,
+[data-theme="light"] .campaign-media-tag-bottom {
+  background-color: rgba(255, 255, 255, 0.92);
+  color: #0f172a;
+  border: 1px solid rgba(0, 0, 0, 0.15);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="light"] .donate-box-card {
+  background-color: #f1f5f9;
+  border-color: rgba(0, 0, 0, 0.12);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+}
+
+[data-theme="light"] .donate-focus-popover {
+  background-color: #ffffff;
+  border-color: rgba(0, 0, 0, 0.15);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12);
+}
+
+[data-theme="light"] .donate-preset-chip {
+  background-color: #ffffff;
+  color: #0f172a;
+  border-color: rgba(0, 0, 0, 0.14);
+}
+
+[data-theme="light"] .donate-preset-chip:hover {
+  background-color: rgba(22, 163, 74, 0.12);
+  border-color: #16a34a;
+  color: #16a34a;
+}
+
+[data-theme="light"] .campaign-tag-pill {
+  background-color: #f1f5f9;
+  color: #334155;
+  border-color: rgba(0, 0, 0, 0.12);
+}
+
+[data-theme="light"] .campaign-tag-pill:hover {
+  background-color: rgba(22, 163, 74, 0.1);
+  color: #16a34a;
+  border-color: #16a34a;
+}
+
+[data-theme="light"] .campaign-card.campaign-closed {
+  background-color: #e2e8f0 !important;
+  opacity: 0.65;
+  filter: grayscale(0.35) brightness(0.92);
+  border-color: rgba(0, 0, 0, 0.15) !important;
+  box-shadow: none !important;
+}
+
+[data-theme="light"] .campaign-card.campaign-closed:hover {
+  opacity: 0.88;
+}
+
+[data-theme="light"] .campaign-org-badge {
+  background-color: #f1f5f9;
+  border-color: rgba(0, 0, 0, 0.12);
+}
+
+[data-theme="light"] .campaign-org-addr-tag {
+  background: #e2e8f0;
+  color: #475569;
+  border-color: rgba(0, 0, 0, 0.1);
+}
+
+[data-theme="light"] .ledger-record-card {
+  background-color: #ffffff;
+  border-color: rgba(0, 0, 0, 0.12);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+[data-theme="light"] .ledger-record-bottom {
+  border-top-color: rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="light"] .ledger-wallet-tag {
+  background-color: #f1f5f9;
+  color: #64748b;
+  border-color: rgba(0, 0, 0, 0.1);
+}
+
+[data-theme="light"] .ledger-proof-link {
+  background-color: #f0f9ff;
+  border-color: rgba(2, 132, 199, 0.3);
+  color: #0284c7;
+}
+
+[data-theme="light"] .ledger-proof-link:hover {
+  background-color: #e0f2fe;
+  border-color: #0284c7;
+}
+
+[data-theme="light"] .contribution-receipt-card {
+  background: #ffffff !important;
+  border: 1px solid rgba(0, 0, 0, 0.1) !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04) !important;
+}
+
+[data-theme="light"] .receipt-proof-bar {
+  border-top-color: rgba(0, 0, 0, 0.08) !important;
+}
+
+[data-theme="light"] .receipt-amount-box {
+  background: rgba(34, 197, 94, 0.08) !important;
+  border-color: rgba(34, 197, 94, 0.25) !important;
+}
+
+[data-theme="light"] .receipt-copy-btn {
+  background: #f1f5f9 !important;
+  border-color: rgba(0, 0, 0, 0.12) !important;
+  color: #334155 !important;
+}
+
+[data-theme="light"] .receipt-copy-btn:hover {
+  background: #e2e8f0 !important;
+}
+
+[data-theme="light"] .receipt-proof-view-btn {
+  background: #f0f9ff !important;
+  border-color: rgba(2, 132, 199, 0.3) !important;
+  color: #0284c7 !important;
+}
+
+[data-theme="light"] .receipt-proof-view-btn:hover {
+  background: #e0f2fe !important;
+  border-color: #0284c7 !important;
+  color: #0369a1 !important;
+}
+
+[data-theme="light"] .settings-section-glass {
+  background: #ffffff !important;
+  border: 1px solid rgba(0, 0, 0, 0.08) !important;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.04) !important;
+}
+
+[data-theme="light"] .payment-order-summary-card {
+  background: #f8fafc !important;
+  border-color: rgba(0, 0, 0, 0.1) !important;
+}
+
+[data-theme="light"] .payment-option-btn {
+  background: #ffffff !important;
+  border-color: rgba(0, 0, 0, 0.1) !important;
+  color: #0f172a !important;
+}
+
+[data-theme="light"] .payment-option-btn:hover {
+  background: #f0fdf4 !important;
+  border-color: #16a34a !important;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.06) !important;
+}
+
+[data-theme="light"] .payment-quick-msg-chip {
+  background: #f1f5f9 !important;
+  border-color: rgba(0, 0, 0, 0.12) !important;
+  color: #334155 !important;
+}
+
+[data-theme="light"] .payment-quick-msg-chip:hover {
+  background: #f0fdf4 !important;
+  border-color: #16a34a !important;
+  color: #16a34a !important;
+}
+
+[data-theme="light"] .settings-label {
+  color: #334155;
+}
+
+[data-theme="light"] .spinner-light {
+  border: 2px solid rgba(0, 0, 0, 0.15);
+  border-top-color: #16a34a;
+}
+
+[data-theme="light"] .card-autofill-btn {
+  background: rgba(22, 163, 74, 0.1) !important;
+  border-color: rgba(22, 163, 74, 0.3) !important;
+  color: #16a34a !important;
+}
+
+[data-theme="light"] .card-autofill-btn:hover {
+  background: #16a34a !important;
+  color: #ffffff !important;
+}
+
+[data-theme="light"] .card-field-label {
+  color: #475569 !important;
+}
+
+[data-theme="light"] select.input option {
+  background: #ffffff;
+  color: #0f172a;
+}
+
+[data-theme="light"] .ewallet-tab-bar {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+}
+
+[data-theme="light"] .ewallet-tab-btn {
+  color: #64748b;
+}
+
+[data-theme="light"] .ewallet-tab-btn.active {
+  background: #ffffff;
+  color: #0f172a;
+  border-color: #cbd5e1;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+}
+
+[data-theme="light"] .ewallet-otp-cell {
+  background: #ffffff;
+  color: #0f172a;
+  border-color: #cbd5e1;
+}
+
+[data-theme="light"] .ewallet-balance-ticket {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+}
+
+/* ── Dynamic Typography Scaling System (Text Size Preference) ── */
+html {
+  font-size: 16px;
+  transition: font-size 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+html[data-text-size="compact"],
+body[data-text-size="compact"] {
+  font-size: 14.5px;
+}
+
+html[data-text-size="normal"],
+body[data-text-size="normal"] {
+  font-size: 16px;
+}
+
+html[data-text-size="large"],
+body[data-text-size="large"] {
+  font-size: 17.5px;
+}
+
+html[data-text-size="extra-large"],
+body[data-text-size="extra-large"] {
+  font-size: 19px;
+}
+
+/* ── Auth Login/Logout Transition Modal Animations (Cinematic Web3 Experience) ── */
+@keyframes authModalFadeIn {
+  from {
+    opacity: 0;
+    backdrop-filter: blur(0px);
+  }
+  to {
+    opacity: 1;
+    backdrop-filter: blur(20px);
+  }
+}
+
+@keyframes authCardScaleUp {
+  0% {
+    opacity: 0;
+    transform: scale(0.88) translateY(20px);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.02) translateY(-2px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes spinClockwise {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes spinCounterClockwise {
+  from {
+    transform: rotate(360deg);
+  }
+  to {
+    transform: rotate(0deg);
+  }
+}
+
+@keyframes stageCheckPop {
+  0% {
+    transform: scale(0.5);
+    opacity: 0;
+  }
+  70% {
+    transform: scale(1.25);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes ambientGlowPulse {
+  0%, 100% {
+    opacity: 0.4;
+    transform: scale(0.95);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.1);
+  }
+}
+
+/* Smooth Entrance for Dashboards */
+.dashboard-enter-reveal {
+  animation: dashboardFadeReveal 0.45s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes dashboardFadeReveal {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.99);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* ── Theme-Aware Auth Transition Modal ── */
+.auth-transition-backdrop {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(5, 7, 12, 0.85);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999999;
+  animation: authModalFadeIn 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.auth-transition-backdrop.closing {
+  animation: authModalFadeOut 0.32s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  pointer-events: none;
+}
+
+.auth-transition-backdrop.closing .auth-transition-card {
+  animation: authCardScaleDown 0.32s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+@keyframes authModalFadeOut {
+  from {
+    opacity: 1;
+    backdrop-filter: blur(24px);
+  }
+  to {
+    opacity: 0;
+    backdrop-filter: blur(0px);
+  }
+}
+
+@keyframes authCardScaleDown {
+  from {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.93) translateY(10px);
+  }
+}
+
+[data-theme="light"] .auth-transition-backdrop {
+  background: rgba(240, 244, 250, 0.88);
+}
+
+.auth-transition-card {
+  position: relative;
+  background: #181818;
+  border: 1.5px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 30px 70px rgba(0, 0, 0, 0.8), 0 0 50px rgba(34, 197, 94, 0.15);
+  border-radius: 24px;
+  padding: 36px 36px 28px 36px;
+  max-width: 470px;
+  width: 92%;
+  text-align: center;
+  animation: authCardScaleUp 0.38s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  overflow: hidden;
+}
+
+[data-theme="light"] .auth-transition-card {
+  background: #ffffff;
+  border-color: rgba(0, 0, 0, 0.1);
+  box-shadow: 0 30px 70px rgba(0, 0, 0, 0.12), 0 0 40px rgba(22, 163, 74, 0.15);
+}
+
+[data-theme="cyber"] .auth-transition-card {
+  background: #111420;
+  border-color: rgba(0, 255, 163, 0.25);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.85), 0 0 60px rgba(0, 255, 163, 0.2);
+}
+
+.auth-transition-title {
+  margin: 0 0 6px 0;
+  font-size: 1.25rem;
+  color: var(--text-primary);
+  font-weight: 800;
+}
+
+.auth-transition-subtitle {
+  margin: 0 0 16px 0;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+}
+
+.auth-transition-checklist {
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 16px 18px;
+  margin-bottom: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  text-align: left;
+}
+
+[data-theme="light"] .auth-transition-checklist {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+}
+
+[data-theme="cyber"] .auth-transition-checklist {
+  background: rgba(0, 0, 0, 0.5);
+  border-color: rgba(0, 255, 163, 0.15);
+}
+
+.auth-transition-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.auth-transition-footer-hash {
+  margin-top: 14px;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 12px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+  border: 1px solid var(--border-subtle);
+}
+
+[data-theme="light"] .auth-transition-footer-hash {
+  background: #f1f5f9;
+  border-color: #e2e8f0;
+}
+
+
+
+
