@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import './AuthView.css';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+import { API_URL, apiFetch } from '../config';
 
 // ── 6-Digit Individual Box PIN Input Component ────────────────
 function OtpPinBoxes({ value = '', onChange, autoFocus = true }) {
@@ -380,7 +380,7 @@ export default function AuthView({ onLoginSuccess, onBack, theme }) {
           : orgName.trim();
 
         const [response] = await Promise.all([
-          fetch(`${API_URL}/api/auth/register-request`, {
+          apiFetch(`${API_URL}/api/auth/register-request`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -428,7 +428,7 @@ export default function AuthView({ onLoginSuccess, onBack, theme }) {
     setLoading(true);
     try {
       const [response] = await Promise.all([
-        fetch(`${API_URL}/api/auth/login`, {
+        apiFetch(`${API_URL}/api/auth/login`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email, password, role })
@@ -462,7 +462,7 @@ export default function AuthView({ onLoginSuccess, onBack, theme }) {
 
     try {
       const [response] = await Promise.all([
-        fetch(`${API_URL}/api/auth/register-verify`, {
+        apiFetch(`${API_URL}/api/auth/register-verify`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
@@ -494,7 +494,7 @@ export default function AuthView({ onLoginSuccess, onBack, theme }) {
         : orgName.trim();
 
       const [response] = await Promise.all([
-        fetch(`${API_URL}/api/auth/register-request`, {
+        apiFetch(`${API_URL}/api/auth/register-request`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -536,7 +536,7 @@ export default function AuthView({ onLoginSuccess, onBack, theme }) {
 
     try {
       const [response] = await Promise.all([
-        fetch(`${API_URL}/api/auth/login-otp-request`, {
+        apiFetch(`${API_URL}/api/auth/login-otp-request`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email: otpLoginEmail, role })
@@ -568,7 +568,7 @@ export default function AuthView({ onLoginSuccess, onBack, theme }) {
     setOtpLoginResendLoading(true);
     try {
       const [response] = await Promise.all([
-        fetch(`${API_URL}/api/auth/login-otp-request`, {
+        apiFetch(`${API_URL}/api/auth/login-otp-request`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email: otpLoginEmail, role })
@@ -595,7 +595,7 @@ export default function AuthView({ onLoginSuccess, onBack, theme }) {
 
     try {
       const [response] = await Promise.all([
-        fetch(`${API_URL}/api/auth/login-otp-verify`, {
+        apiFetch(`${API_URL}/api/auth/login-otp-verify`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email: otpLoginEmail, otp: otpLoginCode })
@@ -636,7 +636,7 @@ export default function AuthView({ onLoginSuccess, onBack, theme }) {
 
     try {
       const [response] = await Promise.all([
-        fetch(`${API_URL}/api/auth/forgot-password`, {
+        apiFetch(`${API_URL}/api/auth/forgot-password`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email: forgotEmail })
@@ -668,7 +668,7 @@ export default function AuthView({ onLoginSuccess, onBack, theme }) {
     setForgotResendLoading(true);
     try {
       const [response] = await Promise.all([
-        fetch(`${API_URL}/api/auth/forgot-password`, {
+        apiFetch(`${API_URL}/api/auth/forgot-password`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email: forgotEmail })
@@ -706,7 +706,7 @@ export default function AuthView({ onLoginSuccess, onBack, theme }) {
 
     try {
       const [response] = await Promise.all([
-        fetch(`${API_URL}/api/auth/reset-password`, {
+        apiFetch(`${API_URL}/api/auth/reset-password`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -1349,7 +1349,7 @@ export default function AuthView({ onLoginSuccess, onBack, theme }) {
                 {otpLoginDevCode && (
                   <div className="dev-otp-pill">
                     <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>terminal</span>
-                    <span>Dev Helper Code: <strong>{otpLoginDevCode}</strong></span>
+                    {/*<span>Dev Helper Code: <strong>{otpLoginDevCode}</strong></span>*/}
                   </div>
                 )}
 
@@ -1479,7 +1479,7 @@ export default function AuthView({ onLoginSuccess, onBack, theme }) {
                 regVerifyDevCode && (
                   <div className="dev-otp-pill">
                     <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>terminal</span>
-                    <span>Dev Helper Code: <strong>{regVerifyDevCode}</strong></span>
+                    {/*<span>Dev Helper Code: <strong>{regVerifyDevCode}</strong></span>*/}
                   </div>
                 )
               )}
@@ -1756,7 +1756,7 @@ export default function AuthView({ onLoginSuccess, onBack, theme }) {
                 {forgotDevCode && (
                   <div className="dev-otp-pill">
                     <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>terminal</span>
-                    <span>Dev Helper Code: <strong>{forgotDevCode}</strong></span>
+                    {/*<span>Dev Helper Code: <strong>{forgotDevCode}</strong></span>*/}
                   </div>
                 )}
 
