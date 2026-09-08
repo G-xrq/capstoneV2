@@ -1,9 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import './SettingsPanel.css';
 import { ROLES, ROLE_META } from '../roleConfig';
 import { shortAddr } from './CampaignCard';
 import { useToast } from '../context/ToastContext';
+
+import EditProfileModal from './EditProfileModal';
+import DonorBadge from './DonorBadge';
 
 export default function SettingsPanel({ 
   contract, 
@@ -15,7 +18,11 @@ export default function SettingsPanel({
   theme, 
   setTheme,
   textSize,
-  setTextSize
+  setTextSize,
+  onProfileUpdated,
+  totalDonatedEth = 0,
+  totalDonatedPhp = 0,
+  onOpenHonorsLadder
 }) {
   const { showSuccess, showError } = useToast();
   const [manualWallet, setManualWallet] = useState('');
@@ -75,10 +82,17 @@ export default function SettingsPanel({
 
   // Edit Profile Modal State
   const [editModalOpen, setEditModalOpen] = useState(false);
-  const [profileName, setProfileName] = useState(currentUser?.name || currentUser?.email || 'Valued User');
+  const [profileName, setProfileName] = useState(currentUser?.display_name || currentUser?.name || currentUser?.email || 'Valued User');
   const [profilePhone, setProfilePhone] = useState(currentUser?.phone || '+63 912 345 6789');
   const [profileLocation, setProfileLocation] = useState(currentUser?.location || 'Southern Leyte, Philippines');
   const [profileBio, setProfileBio] = useState(currentUser?.bio || 'Committed to transparent and verifiable blockchain disaster relief.');
+
+  useEffect(() => {
+    setProfileName(currentUser?.display_name || currentUser?.name || currentUser?.email || 'Valued User');
+    setProfilePhone(currentUser?.phone || '+63 912 345 6789');
+    setProfileLocation(currentUser?.location || 'Southern Leyte, Philippines');
+    setProfileBio(currentUser?.bio || 'Committed to transparent and verifiable blockchain disaster relief.');
+  }, [currentUser]);
 
   if (!currentUser) return null;
   const roleMeta = ROLE_META[currentUser.role] || ROLE_META[ROLES.PUBLIC];
@@ -167,14 +181,32 @@ export default function SettingsPanel({
                 color: '#fff', fontWeight: '800', fontSize: '1.6rem',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 boxShadow: '0 0 20px rgba(22, 163, 74, 0.35)',
-                border: '2px solid rgba(255,255,255,0.2)'
+                border: '2px solid rgba(255,255,255,0.2)',
+                overflow: 'hidden'
               }}>
-                {userInitials}
+                {currentUser?.avatar_url && (currentUser.avatar_url.startsWith('data:') || currentUser.avatar_url.startsWith('http')) ? (
+                  <img src={currentUser.avatar_url} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                ) : currentUser?.avatar_url && currentUser.avatar_url.length < 30 ? (
+                  <span className="material-symbols-outlined" style={{ fontSize: '32px', color: '#fff' }}>{currentUser.avatar_url}</span>
+                ) : (
+                  userInitials
+                )}
               </div>
 
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
                   <h3 style={{ margin: 0, fontSize: '1.35rem', color: 'var(--text-primary, #fff)', fontWeight: 800 }}>{displayName}</h3>
+                  {!isOrg && (
+                    <DonorBadge
+                      size="md"
+                      walletAddress={walletAddress || currentUser?.wallet_address}
+                      donorId={currentUser?.id}
+                      amountEth={totalDonatedEth}
+                      amountPhp={totalDonatedPhp}
+                      showProgress={false}
+                      onClick={onOpenHonorsLadder}
+                    />
+                  )}
                   <span style={{ background: 'rgba(34, 197, 94, 0.15)', color: '#22c55e', border: '1px solid rgba(34, 197, 94, 0.3)', padding: '2px 10px', borderRadius: '12px', fontSize: '0.72rem', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
                     <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>verified</span>
                     VERIFIED {isOrg ? 'NGO PROTOCOL ENTITY' : 'RELIEF DONOR'}
@@ -200,6 +232,27 @@ export default function SettingsPanel({
                 <div style={{ fontSize: '0.7rem', color: 'var(--text-muted, #94a3b8)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Smart Contract</div>
                 <strong style={{ fontSize: '0.9rem', color: '#22c55e' }}>● 100% Online</strong>
               </div>
+              {!isOrg && (
+                <div 
+                  onClick={onOpenHonorsLadder}
+                  style={{ 
+                    background: 'var(--bg-input, rgba(0,0,0,0.3))', 
+                    padding: '10px 16px', 
+                    borderRadius: '10px', 
+                    border: '1px solid var(--border, rgba(255,255,255,0.05))', 
+                    textAlign: 'center', 
+                    minWidth: '120px',
+                    cursor: onOpenHonorsLadder ? 'pointer' : 'default'
+                  }}
+                  title="Click to view 12-Tier Honors Ladder"
+                >
+                  <div style={{ fontSize: '0.7rem', color: 'var(--text-muted, #94a3b8)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Honors Standing</div>
+                  <strong style={{ fontSize: '0.9rem', color: '#10b981', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
+                    <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>military_tech</span>
+                    <span>Honors</span>
+                  </strong>
+                </div>
+              )}
             </div>
 
           </div>
@@ -645,157 +698,17 @@ export default function SettingsPanel({
 
       </div>
 
-      {/* ── 5. EDIT PROFILE DETAILS MODAL ── */}
-      {editModalOpen && createPortal(
-        <div style={{
-          position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
-          background: 'rgba(5, 7, 12, 0.82)', backdropFilter: 'blur(12px)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999
-        }} className="fade-in">
-          
-          <div className="card bounce-in" style={{ 
-            width: '520px', 
-            maxWidth: '92vw', 
-            padding: '28px', 
-            background: 'var(--bg-card, #0f172a)', 
-            border: '1px solid var(--border, rgba(34, 197, 94, 0.3))', 
-            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.7), 0 0 20px rgba(34, 197, 94, 0.15)', 
-            borderRadius: '20px',
-            color: 'var(--text-primary, #f8fafc)'
-          }}>
-
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border, rgba(255,255,255,0.1))', paddingBottom: '14px', marginBottom: '18px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span className="material-symbols-outlined" style={{ color: '#22c55e', fontSize: '1.4rem' }}>manage_accounts</span>
-                <h3 style={{ margin: 0, fontSize: '1.25rem', color: 'var(--text-primary, #fff)', fontWeight: 700 }}>
-                  Edit Profile & Contact Details
-                </h3>
-              </div>
-              <button 
-                onClick={() => setEditModalOpen(false)}
-                style={{
-                  background: 'rgba(255, 255, 255, 0.05)',
-                  border: '1px solid var(--border, rgba(255, 255, 255, 0.1))',
-                  color: 'var(--text-muted, #94a3b8)',
-                  width: '32px',
-                  height: '32px',
-                  borderRadius: '50%',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '1rem'
-                }}
-              >
-                ✕
-              </button>
-            </div>
-
-            <form onSubmit={handleSaveProfile} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '0.78rem', color: 'var(--text-muted, #94a3b8)', marginBottom: '4px', fontWeight: 600 }}>
-                  Full Name / Entity Identifier
-                </label>
-                <input 
-                  type="text" 
-                  value={profileName}
-                  onChange={(e) => setProfileName(e.target.value)}
-                  required
-                  style={{
-                    width: '100%',
-                    padding: '8px 12px',
-                    borderRadius: '8px',
-                    background: 'var(--bg-input, rgba(30, 41, 59, 0.8))',
-                    border: '1px solid var(--border, rgba(255, 255, 255, 0.15))',
-                    color: 'var(--text-primary, #fff)',
-                    fontSize: '0.88rem'
-                  }}
-                />
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '0.78rem', color: 'var(--text-muted, #94a3b8)', marginBottom: '4px', fontWeight: 600 }}>
-                  Contact Phone Number
-                </label>
-                <input 
-                  type="text" 
-                  value={profilePhone}
-                  onChange={(e) => setProfilePhone(e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '8px 12px',
-                    borderRadius: '8px',
-                    background: 'var(--bg-input, rgba(30, 41, 59, 0.8))',
-                    border: '1px solid var(--border, rgba(255, 255, 255, 0.15))',
-                    color: 'var(--text-primary, #fff)',
-                    fontSize: '0.88rem'
-                  }}
-                />
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '0.78rem', color: 'var(--text-muted, #94a3b8)', marginBottom: '4px', fontWeight: 600 }}>
-                  Operational Base / Location
-                </label>
-                <input 
-                  type="text" 
-                  value={profileLocation}
-                  onChange={(e) => setProfileLocation(e.target.value)}
-                  style={{
-                    width: '100%',
-                    padding: '8px 12px',
-                    borderRadius: '8px',
-                    background: 'var(--bg-input, rgba(30, 41, 59, 0.8))',
-                    border: '1px solid var(--border, rgba(255, 255, 255, 0.15))',
-                    color: 'var(--text-primary, #fff)',
-                    fontSize: '0.88rem'
-                  }}
-                />
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '0.78rem', color: 'var(--text-muted, #94a3b8)', marginBottom: '4px', fontWeight: 600 }}>
-                  Advocacy / Bio Note
-                </label>
-                <textarea 
-                  value={profileBio}
-                  onChange={(e) => setProfileBio(e.target.value)}
-                  rows={3}
-                  style={{
-                    width: '100%',
-                    padding: '8px 12px',
-                    borderRadius: '8px',
-                    background: 'var(--bg-input, rgba(30, 41, 59, 0.8))',
-                    border: '1px solid var(--border, rgba(255, 255, 255, 0.15))',
-                    color: 'var(--text-primary, #fff)',
-                    fontSize: '0.85rem',
-                    resize: 'none'
-                  }}
-                />
-              </div>
-
-              <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
-                <button 
-                  type="button" 
-                  className="btn btn-outline" 
-                  style={{ flex: 1 }}
-                  onClick={() => setEditModalOpen(false)}
-                >
-                  Cancel
-                </button>
-                <button 
-                  type="submit" 
-                  className="btn btn-primary" 
-                  style={{ flex: 1.5 }}
-                >
-                  Save Profile
-                </button>
-              </div>
-            </form>
-
-          </div>
-        </div>,
-        document.body
+      {/* ── 5. COMPREHENSIVE EDIT PROFILE MODAL ── */}
+      {editModalOpen && (
+        <EditProfileModal
+          currentUser={currentUser}
+          onClose={() => setEditModalOpen(false)}
+          onProfileUpdated={(updated) => {
+            if (onProfileUpdated) onProfileUpdated(updated);
+          }}
+          theme={theme}
+          setTheme={setTheme}
+        />
       )}
 
     </div>

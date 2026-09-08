@@ -795,8 +795,22 @@ body[data-text-size="extra-large"] {
   }
   to {
     opacity: 1;
-    transform: translateY(0) scale(1);
+    transform: none;
   }
+}
+
+/* Ensure radar fullscreen overlay completely escapes any dashboard transform or stacking containment */
+body.radar-fullscreen-active {
+  overflow: hidden !important;
+}
+
+body.radar-fullscreen-active .dashboard-enter-reveal {
+  transform: none !important;
+  animation: none !important;
+  filter: none !important;
+  perspective: none !important;
+  contain: none !important;
+  z-index: auto !important;
 }
 
 /* ── Theme-Aware Auth Transition Modal ── */
@@ -936,6 +950,17 @@ body[data-text-size="extra-large"] {
 [data-theme="light"] .auth-transition-footer-hash {
   background: #f1f5f9;
   border-color: #e2e8f0;
+}
+
+/* ── Global Leaflet & SVG Path Focus Outline Reset ── */
+path.leaflet-interactive:focus,
+path.leaflet-interactive:focus-visible,
+.leaflet-container path:focus,
+.leaflet-container path:focus-visible,
+.leaflet-container svg:focus,
+.leaflet-container svg:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
 }
 
 

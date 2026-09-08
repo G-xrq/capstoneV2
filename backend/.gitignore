@@ -1,0 +1,10 @@
+node_modules/
+.env
+.env.*
+!.env.example
+*.sqlite
+*.sqlite3
+*.db
+!blockchain_relief.db
+logs/
+*.log

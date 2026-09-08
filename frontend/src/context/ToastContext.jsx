@@ -10,7 +10,7 @@ export function ToastProvider({ children }) {
     setToasts((prevToasts) => prevToasts.filter((toast) => toast.id !== id));
   }, []);
 
-  const showToast = useCallback((type, message, title = '', duration = 4000) => {
+  const showToast = useCallback((type, message, title = '', duration = 4000, action = null, icon = null) => {
     const id = Date.now() + Math.random().toString(36).substring(2, 9);
     
     // Auto title defaults if not specified
@@ -22,7 +22,7 @@ export function ToastProvider({ children }) {
       else toastTitle = 'System Notice';
     }
 
-    const newToast = { id, type, title: toastTitle, message, duration };
+    const newToast = { id, type, title: toastTitle, message, duration, action, icon };
 
     setToasts((prevToasts) => [...prevToasts.slice(-4), newToast]); // Keep max 5 active toasts
 
@@ -35,14 +35,14 @@ export function ToastProvider({ children }) {
     return id;
   }, [removeToast]);
 
-  const showSuccess = useCallback((message, title, duration) => showToast('success', message, title, duration), [showToast]);
-  const showError   = useCallback((message, title, duration) => showToast('error', message, title, duration), [showToast]);
-  const showWarning = useCallback((message, title, duration) => showToast('warning', message, title, duration), [showToast]);
-  const showInfo    = useCallback((message, title, duration) => showToast('info', message, title, duration), [showToast]);
+  const showSuccess = useCallback((message, title, duration, action, icon) => showToast('success', message, title, duration, action, icon), [showToast]);
+  const showError   = useCallback((message, title, duration, action, icon) => showToast('error', message, title, duration, action, icon), [showToast]);
+  const showWarning = useCallback((message, title, duration, action, icon) => showToast('warning', message, title, duration, action, icon), [showToast]);
+  const showInfo    = useCallback((message, title, duration, action, icon) => showToast('info', message, title, duration, action, icon), [showToast]);
 
   // Bind global window dispatcher fallback so non-React helpers (like web3Connection.js) can dispatch toasts
   if (typeof window !== 'undefined') {
-    window.showToast = (type, message, title, duration) => showToast(type, message, title, duration);
+    window.showToast = (type, message, title, duration, action, icon) => showToast(type, message, title, duration, action, icon);
   }
 
   return (
@@ -58,17 +58,17 @@ export function useToast() {
   if (!context) {
     // Fallback if component is outside ToastProvider
     return {
-      showToast: (type, msg, title, dur) => {
+      showToast: (type, msg, title, dur, action, icon) => {
         if (typeof window !== 'undefined' && window.showToast) {
-          window.showToast(type, msg, title, dur);
+          window.showToast(type, msg, title, dur, action, icon);
         } else {
           console.log(`[Toast ${type.toUpperCase()}]: ${msg}`);
         }
       },
-      showSuccess: (msg, title, dur) => (window.showToast ? window.showToast('success', msg, title, dur) : console.log(msg)),
-      showError:   (msg, title, dur) => (window.showToast ? window.showToast('error', msg, title, dur) : console.error(msg)),
-      showWarning: (msg, title, dur) => (window.showToast ? window.showToast('warning', msg, title, dur) : console.warn(msg)),
-      showInfo:    (msg, title, dur) => (window.showToast ? window.showToast('info', msg, title, dur) : console.log(msg)),
+      showSuccess: (msg, title, dur, action, icon) => (window.showToast ? window.showToast('success', msg, title, dur, action, icon) : console.log(msg)),
+      showError:   (msg, title, dur, action, icon) => (window.showToast ? window.showToast('error', msg, title, dur, action, icon) : console.error(msg)),
+      showWarning: (msg, title, dur, action, icon) => (window.showToast ? window.showToast('warning', msg, title, dur, action, icon) : console.warn(msg)),
+      showInfo:    (msg, title, dur, action, icon) => (window.showToast ? window.showToast('info', msg, title, dur, action, icon) : console.log(msg)),
       removeToast: () => {}
     };
   }

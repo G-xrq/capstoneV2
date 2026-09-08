@@ -11,6 +11,7 @@ import SettingsPanel from './components/SettingsPanel';
 import Header from './components/Header';
 import Footer from './components/Footer';
 import NgoProfileModal from './components/NgoProfileModal';
+import ErrorBoundary from './components/ErrorBoundary';
 import './App.css';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
@@ -105,6 +106,16 @@ export default function App() {
       clearTimeout(failsafeTimer);
       setAuthLoading(false);
     }
+
+    const handleLiveProfileUpdate = (e) => {
+      if (e.detail) {
+        setDbUser(e.detail);
+      }
+    };
+    window.addEventListener('bbdrts_profile_updated', handleLiveProfileUpdate);
+    return () => {
+      window.removeEventListener('bbdrts_profile_updated', handleLiveProfileUpdate);
+    };
   }, []);
 
   /* ── 2. Handle Wallet Changes ───────────────────────── */
@@ -347,7 +358,7 @@ export default function App() {
       setFetchingCampaigns(true);
       let dbCampaigns = [];
       try {
-        const res = await fetch(`${API_URL}/api/campaigns`);
+        const res = await fetch(`${API_URL}/api/campaigns?_t=${Date.now()}`, { cache: 'no-store' });
         if (res.ok) {
           dbCampaigns = await res.json();
         }
@@ -355,9 +366,10 @@ export default function App() {
         console.error('Offline DB Sync failed:', e);
       }
 
-      // Merge client-side localStorage cached campaigns
+      // Merge client-side localStorage cached campaigns (only enrich existing DB campaigns; do not inject ghost campaigns)
       try {
         const localCreated = JSON.parse(localStorage.getItem('bbdrts_created_campaigns') || '[]');
+        const validLocal = [];
         localCreated.forEach(lc => {
           const lcTitle = (lc.title || '').trim().toLowerCase();
           const dbIndex = dbCampaigns.findIndex(d => (d.title || '').trim().toLowerCase() === lcTitle);
@@ -365,6 +377,7 @@ export default function App() {
           const enriched = {
             title: lc.title,
             targetAmount: lc.targetAmount || lc.target_amount,
+            tags: lc.tags || lc.tags_json || lc.tagsJson,
             locationRegion: lc.locationRegion || lc.location_region,
             gpsCoordinates: lc.gpsCoordinates || lc.gps_coordinates,
             beneficiariesImpact: lc.beneficiariesImpact || lc.beneficiaries_impact,
@@ -381,6 +394,7 @@ export default function App() {
             // Overwrite any empty DB fields with local cache
             dbCampaigns[dbIndex] = {
               ...dbCampaigns[dbIndex],
+              tags: dbCampaigns[dbIndex].tags || enriched.tags,
               locationRegion: dbCampaigns[dbIndex].locationRegion || enriched.locationRegion,
               gpsCoordinates: dbCampaigns[dbIndex].gpsCoordinates || enriched.gpsCoordinates,
               beneficiariesImpact: dbCampaigns[dbIndex].beneficiariesImpact || enriched.beneficiariesImpact,
@@ -391,10 +405,11 @@ export default function App() {
               targetDate: dbCampaigns[dbIndex].targetDate || enriched.targetDate,
               documentUrl: dbCampaigns[dbIndex].documentUrl || enriched.documentUrl
             };
-          } else {
-            dbCampaigns.unshift(enriched);
+            validLocal.push(lc);
           }
         });
+        // Prune orphan/stale campaigns from localStorage so ghost causes never persist
+        localStorage.setItem('bbdrts_created_campaigns', JSON.stringify(validLocal));
       } catch (e) {
         console.warn('Failed to load local campaign cache:', e);
       }
@@ -425,11 +440,15 @@ export default function App() {
             }
 
             if (onChainData) {
+              const onChainEth = parseFloat(ethers.formatEther(onChainData[3])) || 0;
+              const dbEth = parseFloat(dbCamp.currentAmount || 0) || 0;
+              const finalCurrent = Math.max(onChainEth, dbEth);
+
               synced.push({
                 ...dbCamp,
                 orgAddress: onChainData[0] || dbCamp.orgAddress,
                 targetAmount: ethers.formatEther(onChainData[2]),
-                currentAmount: ethers.formatEther(onChainData[3]),
+                currentAmount: finalCurrent.toString(),
                 isActive: onChainData[4]
               });
             } else {
@@ -497,59 +516,62 @@ export default function App() {
         onOpenNgoProfile={(id) => setSelectedNgoForProfile(id || 3)}
       />
 
-      {/* ── Unauthenticated Views: Default Landing Page vs Auth Portal ── */}
-      {!dbUser && !showAuth && (
-        <LandingView
-          onConnect={() => setShowAuth(true)}
-          hasMetaMask={hasMetaMask}
-          contract={activeContract}
-          onOpenNgoProfile={(id) => setSelectedNgoForProfile(id || 3)}
-        />
-      )}
+      <ErrorBoundary>
+        {/* ── Unauthenticated Views: Default Landing Page vs Auth Portal ── */}
+        {!dbUser && !showAuth && (
+          <LandingView
+            onConnect={() => setShowAuth(true)}
+            hasMetaMask={hasMetaMask}
+            contract={activeContract}
+            onOpenNgoProfile={(id) => setSelectedNgoForProfile(id || 3)}
+            theme={theme}
+          />
+        )}
 
-      {!dbUser && showAuth && (
-        <AuthView
-          onLoginSuccess={handleLoginSuccess}
-          onConnectWallet={handleConnectWallet}
-          hasMetaMask={hasMetaMask}
-          onBack={() => setShowAuth(false)}
-          theme={theme}
-        />
-      )}
+        {!dbUser && showAuth && (
+          <AuthView
+            onLoginSuccess={handleLoginSuccess}
+            onConnectWallet={handleConnectWallet}
+            hasMetaMask={hasMetaMask}
+            onBack={() => setShowAuth(false)}
+            theme={theme}
+          />
+        )}
 
-      {/* ── Role-based Dashboards (Require Wallet for Actions) ── */}
-      {dbUser && (
-        <div className="dashboard-enter-reveal">
-          {/* Global requirement to connect wallet if they are signed into the DB but have no active Web3 session */}
-          {!walletAddress && (
-            <div className="container" style={{ marginTop: '20px' }}>
-              <div className="metamask-alert-banner">
-                <span className="material-symbols-outlined metamask-icon">warning</span>
-                <div className="metamask-alert-content">
-                  <strong>MetaMask Required for Financial Actions</strong>
-                  <span>You are signed securely into your account ({dbUser.email}), but to deploy campaigns or make donations, you must connect your Web3 wallet.</span>
+        {/* ── Role-based Dashboards (Require Wallet for Actions) ── */}
+        {dbUser && (
+          <div className="dashboard-enter-reveal">
+            {/* Global requirement to connect wallet if they are signed into the DB but have no active Web3 session */}
+            {!walletAddress && (
+              <div className="container" style={{ marginTop: '20px' }}>
+                <div className="metamask-alert-banner">
+                  <span className="material-symbols-outlined metamask-icon">warning</span>
+                  <div className="metamask-alert-content">
+                    <strong>MetaMask Required for Financial Actions</strong>
+                    <span>You are signed securely into your account ({dbUser.email}), but to deploy campaigns or make donations, you must connect your Web3 wallet.</span>
+                  </div>
+                  <button className="btn btn-primary btn-sm metamask-connect-btn" onClick={handleConnectWallet}>
+                    <span className="material-symbols-outlined icon-sm">link</span>
+                    Connect MetaMask
+                  </button>
                 </div>
-                <button className="btn btn-primary btn-sm metamask-connect-btn" onClick={handleConnectWallet}>
-                  <span className="material-symbols-outlined icon-sm">link</span>
-                  Connect MetaMask
-                </button>
               </div>
-            </div>
-          )}
+            )}
 
-          {uiRole === ROLES.ADMIN && <AdminView {...sharedProps} />}
-          {uiRole === ROLES.ORGANIZATION && <OrganizationView {...sharedProps} />}
-          {uiRole === ROLES.DONOR && <DonorView {...sharedProps} />}
-        </div>
-      )}
+            {uiRole === ROLES.ADMIN && <AdminView {...sharedProps} />}
+            {uiRole === ROLES.ORGANIZATION && <OrganizationView {...sharedProps} />}
+            {uiRole === ROLES.DONOR && <DonorView {...sharedProps} />}
+          </div>
+        )}
+      </ErrorBoundary>
 
       {/* ── Account Settings Modal Overlay ── */}
       {showSettingsModal && (
         <div className="modal-overlay" onClick={() => setShowSettingsModal(false)} style={{ zIndex: 10000 }}>
-          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '680px', width: '90%', background: '#131622', border: '1px solid #242a3c', borderRadius: '16px', padding: '24px', position: 'relative' }}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '720px', width: '90%', maxHeight: '90vh', overflowY: 'auto', background: theme === 'light' ? '#ffffff' : '#131622', border: theme === 'light' ? '1px solid rgba(0,0,0,0.12)' : '1px solid #242a3c', borderRadius: '16px', padding: '24px', position: 'relative' }}>
             <button
               onClick={() => setShowSettingsModal(false)}
-              style={{ position: 'absolute', top: '16px', right: '16px', background: 'transparent', border: 'none', color: '#94a3b8', fontSize: '24px', cursor: 'pointer' }}
+              style={{ position: 'absolute', top: '16px', right: '16px', background: 'transparent', border: 'none', color: '#94a3b8', fontSize: '24px', cursor: 'pointer', zIndex: 10 }}
             >
               ×
             </button>
@@ -564,6 +586,7 @@ export default function App() {
               setTheme={setTheme}
               textSize={textSize}
               setTextSize={setTextSize}
+              onProfileUpdated={(updated) => setDbUser(updated)}
             />
           </div>
         </div>

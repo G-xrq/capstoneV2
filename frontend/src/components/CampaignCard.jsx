@@ -4,6 +4,8 @@ import { ethers } from 'ethers';
 import { ROLES } from '../roleConfig';
 import LocationMapPicker from './LocationMapPicker';
 import { useToast } from '../context/ToastContext';
+import DonorBadge, { globalDonorRegistry } from './DonorBadge';
+import './MultiRailProgress.css';
 
 const SEPOLIA_EXPLORER = 'https://sepolia.etherscan.io/tx/';
 
@@ -13,8 +15,19 @@ export const shortAddr = (addr) =>
 export const progressPct = (current, target) => {
   const c = parseFloat(current);
   const t = parseFloat(target);
-  if (!t) return 0;
-  return Math.min(100, ((c / t) * 100).toFixed(1));
+  if (!t || isNaN(c) || c <= 0) return '0';
+  const rawPct = (c / t) * 100;
+  if (rawPct > 0 && rawPct < 1) {
+    return rawPct.toFixed(2).replace(/\.?0+$/, '');
+  }
+  return Math.min(100, rawPct).toFixed(1).replace(/\.0$/, '');
+};
+
+export const formatEthAmt = (val) => {
+  const n = parseFloat(val || 0);
+  if (isNaN(n) || n === 0) return '0.00';
+  if (n < 0.0001) return n.toFixed(6).replace(/\.?0+$/, '');
+  return n.toFixed(4).replace(/\.?0+$/, '');
 };
 
 export const getOrgDisplayName = (orgAddress, orgName, campaignId) => {
@@ -163,7 +176,8 @@ export const getCampaignCoverData = (camp = {}) => {
   let imageUrl = camp.imageUrl || camp.image_url;
   let categoryIcon = 'volunteer_activism';
   let categoryTag = 'Relief Cause';
-  let locationTag = camp.locationRegion || camp.location_region || camp.location || 'Southern Leyte, PH';
+  const rawLocation = camp.locationRegion || camp.location_region || camp.location || camp.region;
+  let locationTag = rawLocation || 'Southern Leyte, PH';
 
   if (imageUrl) {
     return { imageUrl, categoryIcon, categoryTag, locationTag };
@@ -174,54 +188,54 @@ export const getCampaignCoverData = (camp = {}) => {
     imageUrl = 'https://images.unsplash.com/photo-1544551763-46a013bb70d5?auto=format&fit=crop&w=600&q=80';
     categoryIcon = 'sailing';
     categoryTag = 'Livelihood Aid';
-    locationTag = camp.locationRegion || 'Northern Palawan';
+    locationTag = rawLocation || 'Northern Palawan';
   }
   // 2. Volcano / Ashfall Evacuees
   else if (/kanlaon|volcano|ashfall|blanket|tremor/i.test(fullText)) {
     imageUrl = 'https://images.unsplash.com/photo-1532629345422-7515f3d16bb6?auto=format&fit=crop&w=600&q=80';
     categoryIcon = 'volcano';
     categoryTag = 'Volcano Evacuees';
-    locationTag = camp.locationRegion || 'Canlaon, Negros Oriental';
+    locationTag = rawLocation || 'Canlaon, Negros Oriental';
   }
   // 3. Medical & Hygiene Aid
   else if (/medical|hygiene|medicine|doctor|clinic|sanitation|antibiotic/i.test(fullText)) {
     imageUrl = 'https://images.unsplash.com/photo-1584515979956-d9f6e5d09982?auto=format&fit=crop&w=600&q=80';
     categoryIcon = 'medical_services';
     categoryTag = 'Medical Aid';
-    locationTag = camp.locationRegion || 'Mindanao Disaster Zone';
+    locationTag = rawLocation || 'Mindanao Disaster Zone';
   }
   // 4. Shelter & Reconstruction
   else if (/shelter|reconstruct|rebuild|roof|lumber|tarpaulin|housing/i.test(fullText)) {
     imageUrl = 'https://images.unsplash.com/photo-1509099836639-18ba1795216d?auto=format&fit=crop&w=600&q=80';
     categoryIcon = 'roofing';
     categoryTag = 'Shelter Recovery';
-    locationTag = camp.locationRegion || 'Samar & Biliran Islands';
+    locationTag = rawLocation || 'Samar & Biliran Islands';
   }
   // 5. Flood Emergency
   else if (/flood|baha|inundat/i.test(fullText)) {
     imageUrl = 'https://images.unsplash.com/photo-1547683905-f686c993aae5?auto=format&fit=crop&w=600&q=80';
     categoryIcon = 'flood';
     categoryTag = 'Flood Emergency';
-    locationTag = camp.locationRegion || 'Davao & Agusan del Sur';
+    locationTag = rawLocation || 'Davao & Agusan del Sur';
   }
   // 6. Typhoon / Super Typhoon / Storm
   else if (/typhoon|bagyo|storm|odette|salin|luzon/i.test(fullText)) {
     imageUrl = 'https://images.unsplash.com/photo-1527482797697-8795b05a13fe?auto=format&fit=crop&w=600&q=80';
     categoryIcon = 'cyclone';
     categoryTag = 'Typhoon Relief';
-    locationTag = camp.locationRegion || 'Southern Leyte, PH';
+    locationTag = rawLocation || 'Southern Leyte, PH';
   }
   // 7. Food & Water Emergency
   else if (/food|water|meal|rice|nutrition|ration/i.test(fullText)) {
     imageUrl = 'https://images.unsplash.com/photo-1488521787991-ed7bbaae773c?auto=format&fit=crop&w=600&q=80';
     categoryIcon = 'nutrition';
     categoryTag = 'Food & Water';
-    locationTag = camp.locationRegion || 'Southern Leyte, PH';
+    locationTag = rawLocation || 'Southern Leyte, PH';
   } else {
     imageUrl = 'https://images.unsplash.com/photo-1532629345422-7515f3d16bb6?auto=format&fit=crop&w=600&q=80';
     categoryIcon = 'handshake';
     categoryTag = 'Disaster Relief';
-    locationTag = camp.locationRegion || 'Philippines';
+    locationTag = rawLocation || 'Philippines';
   }
 
   return { imageUrl, categoryIcon, categoryTag, locationTag };
@@ -341,6 +355,30 @@ export default function CampaignCard(props) {
   const [cardEmail, setCardEmail] = useState('');
   const [cardCountry, setCardCountry] = useState('Philippines');
   const [hideCardDetails, setHideCardDetails] = useState(false);
+  const [showRailTelemetry, setShowRailTelemetry] = useState(false);
+  const [hoveredRail, setHoveredRail] = useState(null);
+  const railDropdownRef = useRef(null);
+
+  // Close rail telemetry dropdown popup on click outside or Escape
+  useEffect(() => {
+    if (!showRailTelemetry) return;
+    const handleClickOutside = (e) => {
+      if (railDropdownRef.current && !railDropdownRef.current.contains(e.target)) {
+        setShowRailTelemetry(false);
+      }
+    };
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        setShowRailTelemetry(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [showRailTelemetry]);
 
   // Optical True-Zoom Magnifier Lens (280px, 1.5x Magnification, Symmetrical Invariance)
   const [magnifierActive, setMagnifierActive] = useState(false);
@@ -590,7 +628,92 @@ export default function CampaignCard(props) {
 
   const isPublic = role === ROLES.PUBLIC;
   const canDonate = role !== ROLES.ADMIN && camp.isActive;
-  const pct = progressPct(camp.currentAmount, camp.targetAmount);
+  // Multi-Rail Breakdown & Segment Calculations (Calculates from history transactions, API railBreakdown, or fallback)
+  const breakdown = useMemo(() => {
+    // 1. If history is loaded and has records, dynamically compute live telemetry directly from actual ledger transactions
+    if (Array.isArray(history) && history.length > 0) {
+      let ethAmt = 0, ethCnt = 0;
+      let gcashAmt = 0, gcashCnt = 0;
+      let mayaAmt = 0, mayaCnt = 0;
+      let bankAmt = 0, bankCnt = 0;
+
+      history.forEach((tx) => {
+        const amt = parseFloat(tx.rawAmount || tx.amount || 0) || 0;
+        const hash = (tx.txHash || tx.Tx_Hash || '').toUpperCase();
+        if (hash.startsWith('FIAT-GCAS') || hash.includes('GCASH')) {
+          gcashAmt += amt;
+          gcashCnt++;
+        } else if (hash.startsWith('FIAT-MAYA') || hash.includes('MAYA')) {
+          mayaAmt += amt;
+          mayaCnt++;
+        } else if (hash.startsWith('FIAT-BANK') || hash.startsWith('FIAT-CARD') || hash.startsWith('FIAT-CRED') || hash.includes('BANK') || hash.includes('CARD')) {
+          bankAmt += amt;
+          bankCnt++;
+        } else {
+          ethAmt += amt;
+          ethCnt++;
+        }
+      });
+
+      const totalTracked = ethAmt + gcashAmt + mayaAmt + bankAmt;
+      const currentEth = parseFloat(camp.currentAmount || 0);
+      if (currentEth > totalTracked) {
+        ethAmt += (currentEth - totalTracked);
+        if (ethCnt === 0) ethCnt = 1;
+      }
+
+      return {
+        eth: { amount: ethAmt, php: Math.round(ethAmt * 170000), count: ethCnt },
+        gcash: { amount: gcashAmt, php: Math.round(gcashAmt * 170000), count: gcashCnt },
+        maya: { amount: mayaAmt, php: Math.round(mayaAmt * 170000), count: mayaCnt },
+        bank: { amount: bankAmt, php: Math.round(bankAmt * 170000), count: bankCnt },
+        totalRaisedEth: Math.max(totalTracked, currentEth),
+        totalRaisedPhp: Math.round(Math.max(totalTracked, currentEth) * 170000),
+        totalBackers: ethCnt + gcashCnt + mayaCnt + bankCnt
+      };
+    }
+
+    // 2. If camp.railBreakdown is provided by API
+    if (camp.railBreakdown && typeof camp.railBreakdown === 'object') {
+      return camp.railBreakdown;
+    }
+
+    // 3. Fallback
+    const currentEth = parseFloat(camp.currentAmount || 0);
+    return {
+      eth: { amount: currentEth, php: Math.round(currentEth * 170000), count: currentEth > 0 ? 1 : 0 },
+      gcash: { amount: 0, php: 0, count: 0 },
+      maya: { amount: 0, php: 0, count: 0 },
+      bank: { amount: 0, php: 0, count: 0 },
+      totalRaisedEth: currentEth,
+      totalRaisedPhp: Math.round(currentEth * 170000),
+      totalBackers: currentEth > 0 ? 1 : 0
+    };
+  }, [camp.railBreakdown, camp.currentAmount, history]);
+
+  const totalRailRaised = (parseFloat(breakdown?.eth?.amount || 0)) + 
+                          (parseFloat(breakdown?.gcash?.amount || 0)) + 
+                          (parseFloat(breakdown?.maya?.amount || 0)) + 
+                          (parseFloat(breakdown?.bank?.amount || 0));
+  const displayCurrentEth = Math.max(parseFloat(camp.currentAmount || 0), parseFloat(breakdown?.totalRaisedEth || 0), totalRailRaised);
+  const targetGoal = Math.max(0.0001, parseFloat(camp.targetAmount || 1));
+  const currentTotal = Math.max(0.000001, displayCurrentEth);
+  const pct = progressPct(displayCurrentEth, camp.targetAmount);
+  const totalBarPct = Math.min(100, Math.max(0, (displayCurrentEth / targetGoal) * 100));
+
+  // Compute segment widths on the bar proportional to target goal
+  const rawSumPct = targetGoal > 0 ? (totalRailRaised / targetGoal) * 100 : 0;
+  const scale = rawSumPct > 100 ? (100 / rawSumPct) : 1;
+  const ethSegmentPct = ((parseFloat(breakdown?.eth?.amount || 0) / targetGoal) * 100) * scale;
+  const gcashSegmentPct = ((parseFloat(breakdown?.gcash?.amount || 0) / targetGoal) * 100) * scale;
+  const mayaSegmentPct = ((parseFloat(breakdown?.maya?.amount || 0) / targetGoal) * 100) * scale;
+  const bankSegmentPct = ((parseFloat(breakdown?.bank?.amount || 0) / targetGoal) * 100) * scale;
+
+  // Percentage shares of total funds raised (Strictly sums to 100%)
+  const ethShare = currentTotal > 0 ? Math.round(((parseFloat(breakdown?.eth?.amount || 0)) / currentTotal) * 100) : 0;
+  const gcashShare = currentTotal > 0 ? Math.round(((parseFloat(breakdown?.gcash?.amount || 0)) / currentTotal) * 100) : 0;
+  const mayaShare = currentTotal > 0 ? Math.round(((parseFloat(breakdown?.maya?.amount || 0)) / currentTotal) * 100) : 0;
+  const bankShare = currentTotal > 0 ? Math.round(((parseFloat(breakdown?.bank?.amount || 0)) / currentTotal) * 100) : 0;
 
   // Fixed 4-chip incremental donation amounts (+₱50, +₱100, +₱500, +₱1000)
   const presetIncrements = [50, 100, 500, 1000];
@@ -652,6 +775,10 @@ export default function CampaignCard(props) {
         });
       } catch (err) {
         console.error("Failed to sync donation to backend:", err);
+      }
+
+      if (walletAddress) {
+        globalDonorRegistry.recordDonation(walletAddress, ethAmount, parsed);
       }
 
       setDonateStep(4); // Success Phase
@@ -921,6 +1048,9 @@ export default function CampaignCard(props) {
       setTxHash(data.tx_hash || `FIAT-${(gatewayMethod || 'GCAS').toUpperCase().substring(0,4)}-${finalRef}`);
 
       setGatewayStep(4); // Success step
+      if (walletAddress) {
+        globalDonorRegistry.recordDonation(walletAddress, finalAmount / 170000, finalAmount);
+      }
       setTimeout(() => {
         setGatewayLoading(false);
         setDonateStep(4); // Master Success Phase of CampaignCard
@@ -1035,13 +1165,36 @@ export default function CampaignCard(props) {
               ? rawEth.toFixed(7).replace(/\.?0+$/, '')
               : rawEth.toFixed(6).replace(/\.?0+$/, '');
             const approxPhp = Math.round(rawEth * 170000);
+            const globalEth = d.globalTotalEth !== undefined && d.globalTotalEth !== null
+              ? parseFloat(d.globalTotalEth)
+              : rawEth;
+            const globalPhp = Math.round(globalEth * 170000);
+
+            if (d.wallet && d.wallet !== '0x0000000000000000000000000000000000000000') {
+              globalDonorRegistry.set(d.wallet, {
+                totalEth: globalEth,
+                totalPhp: globalPhp,
+                donorName: d.donorName
+              });
+            }
+            if (d.donorId) {
+              globalDonorRegistry.set(`id_${d.donorId}`, {
+                totalEth: globalEth,
+                totalPhp: globalPhp,
+                donorName: d.donorName
+              });
+            }
+
             return {
               donor: d.Is_Anonymous ? '🕵️ Anonymous' : (d.donorName || 'Verified Supporter'),
               wallet: d.wallet,
+              donorId: d.donorId,
               isAnonymous: Boolean(d.Is_Anonymous),
               amount: ethStr,
               rawAmount: rawEth,
               phpAmount: approxPhp,
+              globalAmountEth: globalEth,
+              globalAmountPhp: globalPhp,
               txHash: d.Tx_Hash,
               createdAt: d.createdAt
             };
@@ -1067,6 +1220,9 @@ export default function CampaignCard(props) {
             const approxPhp = Math.round(rawEth * 170000);
 
             if (txHash && !list.some(item => (item.txHash || '').toLowerCase() === txHash.toLowerCase())) {
+              const regStats = donorAddr ? globalDonorRegistry.get(donorAddr) : null;
+              const gEth = regStats?.totalEth || rawEth;
+              const gPhp = regStats?.totalPhp || approxPhp;
               list.unshift({
                 donor: `${donorAddr.substring(0, 6)}...${donorAddr.substring(donorAddr.length - 4)}`,
                 wallet: donorAddr,
@@ -1074,6 +1230,8 @@ export default function CampaignCard(props) {
                 amount: ethAmt,
                 rawAmount: rawEth,
                 phpAmount: approxPhp,
+                globalAmountEth: gEth,
+                globalAmountPhp: gPhp,
                 txHash: txHash,
               });
 
@@ -1111,9 +1269,16 @@ export default function CampaignCard(props) {
     if (opening) fetchHistory(true);
   };
 
+  // Auto-fetch transaction history on mount so multi-rail breakdown and public ledger telemetry are immediately populated
+  useEffect(() => {
+    if (camp.id) {
+      fetchHistory();
+    }
+  }, [camp.id]);
+
   /* ── Render ───────────────────────────────────── */
   return (
-    <div className={`card glow campaign-card fade-in ${!camp.isActive ? 'campaign-closed' : ''}`}>
+    <div className={`card glow campaign-card fade-in ${!camp.isActive ? 'campaign-closed' : ''} ${showRailTelemetry ? 'telemetry-dropdown-active' : ''}`}>
       <div className="campaign-card-body">
 
         {/* ── Left: Campaign Cover Media ── */}
@@ -1136,12 +1301,6 @@ export default function CampaignCard(props) {
             <span>{coverData.categoryTag}</span>
           </div>
 
-          {/* Bottom Location Capsule */}
-          <div className="campaign-media-tag-bottom" title={coverData.locationTag}>
-            <span className="material-symbols-outlined" style={{ fontSize: '13px', color: '#38bdf8' }}>location_on</span>
-            <span>{coverData.locationTag}</span>
-          </div>
-
           {/* Closed State Banner Overlay */}
           {!camp.isActive && (
             <div className="campaign-media-closed-badge">
@@ -1153,7 +1312,7 @@ export default function CampaignCard(props) {
 
         {/* ── Center: Info ── */}
         <div className="campaign-info">
-          {/* Top Meta Row: Category Pill + Status Badge Grouped Together */}
+          {/* Top Meta Row: Category Pill + Status Badge */}
           <div className="campaign-header-top">
             <div className={`campaign-category-pill ${catInfo.colorClass}`}>
               <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>{catInfo.icon}</span>
@@ -1177,72 +1336,284 @@ export default function CampaignCard(props) {
             {formatCampaignTitle(camp.title, camp.id)}
           </h3>
 
-          {/* Sleek Polished Managing Org Badge (Clickable to view NGO profile & campaigns) */}
-          <div
-            className="campaign-org-badge"
-            title="Click to view verified NGO institutional profile & all campaigns"
-            onClick={(e) => {
-              e.stopPropagation();
-              if (onOpenNgoProfile) {
-                onOpenNgoProfile(camp.orgId || camp.orgAddress || camp.orgName || 3);
-              }
-            }}
-            style={{ cursor: 'pointer' }}
-          >
-            <span className="material-symbols-outlined campaign-org-icon">domain</span>
-            <span className="campaign-org-label">Managing Org:</span>
-            <span className="campaign-org-name" style={{ textDecoration: 'underline' }}>{getOrgDisplayName(camp.orgAddress, camp.orgName, camp.id)}</span>
-            <span className="campaign-org-addr-tag" style={{ background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', border: '1px solid rgba(56, 189, 248, 0.3)', display: 'inline-flex', alignItems: 'center', gap: '3px', fontWeight: 700 }}>
-              <span className="material-symbols-outlined" style={{ fontSize: '11px' }}>verified</span>
-              SEC Verified Non-Profit
-            </span>
+          {/* Managing Org Attribution & Operation Area Location Row */}
+          <div className="campaign-org-row">
+            <button
+              type="button"
+              className="campaign-org-badge"
+              title="Click to view verified NGO institutional profile & all campaigns"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (onOpenNgoProfile) {
+                  onOpenNgoProfile(camp.orgId || camp.orgAddress || camp.orgName || 3);
+                }
+              }}
+            >
+              <span className="material-symbols-outlined campaign-org-icon">domain</span>
+              <span className="campaign-org-name">{getOrgDisplayName(camp.orgAddress, camp.orgName, camp.id)}</span>
+              <span className="campaign-org-verified-badge" title="SEC Verified NGO">
+                <span className="material-symbols-outlined">verified</span>
+              </span>
+              <span className="material-symbols-outlined campaign-org-arrow">chevron_right</span>
+            </button>
+
+            {coverData.locationTag && (
+              <button
+                type="button"
+                className="campaign-location-badge"
+                title={`Relief Operation Area: ${coverData.locationTag} • Click to view GPS Audit & Map`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setDetailsOpen(true);
+                }}
+              >
+                <span className="material-symbols-outlined campaign-location-icon">location_on</span>
+                <span className="campaign-location-text">{coverData.locationTag}</span>
+              </button>
+            )}
           </div>
 
-          {/* Progress Bar */}
-          <div style={{ marginTop: '14px' }}>
-            <div className="progress-wrap">
-              <div
-                className={`progress-bar ${parseFloat(pct) >= 100 ? 'full' : ''}`}
-                style={{ width: `${pct}%` }}
-              />
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '4px' }}>
-              <span style={{ fontSize: '0.84rem', color: 'var(--text-secondary)', fontWeight: 500 }}>
-                <strong style={{ color: 'var(--text-primary)' }}>{camp.currentAmount} ETH</strong> of {camp.targetAmount} ETH goal
+          {/* Multi-Rail Interactive Progress Bar */}
+          <div className="multi-rail-wrapper" ref={railDropdownRef}>
+            {/* Header: Goal & Total Percent (Clickable trigger for dropdown) */}
+            <div className="multi-rail-header">
+              <span className="multi-rail-goal-text">
+                <strong>₱{((breakdown.gcash.php || 0) + (breakdown.maya.php || 0) + (breakdown.bank.php || 0) + (breakdown.eth.php || 0)).toLocaleString('en-US', { maximumFractionDigits: 0 })}</strong> of ₱{(parseFloat(camp.targetAmount || 0) * 170000).toLocaleString('en-US', { maximumFractionDigits: 0 })} goal
               </span>
-              <span className="progress-pct" style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--accent)' }}>{pct}% funded</span>
+
+              <div className="multi-rail-header-right">
+                <button
+                  type="button"
+                  className={`multi-rail-pct-badge ${showRailTelemetry ? 'is-active' : ''}`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowRailTelemetry(prev => !prev);
+                  }}
+                  title="Click to toggle payment rail breakdown"
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>insights</span>
+                  {pct}% funded
+                </button>
+
+                {/* Dropdown Popup anchored cleanly below % funded button */}
+                {showRailTelemetry && (
+                  <div className="multi-rail-dropdown-popup" onClick={(e) => e.stopPropagation()}>
+                    <div className="dropdown-popup-header">
+                      <div className="drawer-header-left">
+                        <div className="drawer-pulse-dot"></div>
+                        <span>Funding Sources</span>
+                        <span className="drawer-backers-badge">
+                          👥 {breakdown.totalBackers || 0}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        className="dropdown-popup-close-btn"
+                        onClick={(e) => { e.stopPropagation(); setShowRailTelemetry(false); }}
+                        title="Close breakdown"
+                      >
+                        <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>close</span>
+                      </button>
+                    </div>
+
+                    <div className="drawer-compact-list">
+                      <div className="drawer-compact-row">
+                        <div className="drawer-compact-left">
+                          <span className="drawer-compact-pip" style={{ background: '#22c55e' }}></span>
+                          <span className="drawer-compact-name">Ethereum</span>
+                        </div>
+                        <div className="drawer-compact-right">
+                          <span className="drawer-compact-val">{formatEthAmt(breakdown.eth.amount)} ETH</span>
+                          <span className="drawer-compact-pct">{ethShare}%</span>
+                        </div>
+                      </div>
+                      <div className="drawer-compact-row">
+                        <div className="drawer-compact-left">
+                          <span className="drawer-compact-pip" style={{ background: '#38bdf8' }}></span>
+                          <span className="drawer-compact-name">GCash</span>
+                        </div>
+                        <div className="drawer-compact-right">
+                          <span className="drawer-compact-val">₱{breakdown.gcash.php.toLocaleString()}</span>
+                          <span className="drawer-compact-pct">{gcashShare}%</span>
+                        </div>
+                      </div>
+                      <div className="drawer-compact-row">
+                        <div className="drawer-compact-left">
+                          <span className="drawer-compact-pip" style={{ background: '#10b981' }}></span>
+                          <span className="drawer-compact-name">Maya</span>
+                        </div>
+                        <div className="drawer-compact-right">
+                          <span className="drawer-compact-val">₱{breakdown.maya.php.toLocaleString()}</span>
+                          <span className="drawer-compact-pct">{mayaShare}%</span>
+                        </div>
+                      </div>
+                      <div className="drawer-compact-row">
+                        <div className="drawer-compact-left">
+                          <span className="drawer-compact-pip" style={{ background: '#a855f7' }}></span>
+                          <span className="drawer-compact-name">Bank / Card</span>
+                        </div>
+                        <div className="drawer-compact-right">
+                          <span className="drawer-compact-val">₱{breakdown.bank.php.toLocaleString()}</span>
+                          <span className="drawer-compact-pct">{bankShare}%</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="drawer-compact-footer">
+                      <div className="drawer-compact-status">
+                        <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>verified_user</span>
+                        <span>Cross-Ledger Verified</span>
+                      </div>
+                      <button type="button" className="drawer-ledger-link" onClick={() => { setLedgerOpen(true); fetchHistory(true); }}>
+                        <span>Ledger</span>
+                        <span className="material-symbols-outlined" style={{ fontSize: '11px' }}>arrow_forward</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Segmented Multi-Rail Track with Direct Segment Tooltips */}
+            <div 
+              className="multi-rail-track-wrap"
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowRailTelemetry(prev => !prev);
+              }}
+              title="Click to view payment rail breakdown"
+            >
+              <div className="multi-rail-track-inner">
+                {ethSegmentPct > 0 && (
+                  <div 
+                    className="multi-rail-segment rail-segment-eth" 
+                    style={{ width: `${ethSegmentPct}%` }}
+                    onMouseEnter={() => setHoveredRail('eth')}
+                    onMouseLeave={() => setHoveredRail(null)}
+                  />
+                )}
+                {gcashSegmentPct > 0 && (
+                  <div 
+                    className="multi-rail-segment rail-segment-gcash" 
+                    style={{ width: `${gcashSegmentPct}%` }}
+                    onMouseEnter={() => setHoveredRail('gcash')}
+                    onMouseLeave={() => setHoveredRail(null)}
+                  />
+                )}
+                {mayaSegmentPct > 0 && (
+                  <div 
+                    className="multi-rail-segment rail-segment-maya" 
+                    style={{ width: `${mayaSegmentPct}%` }}
+                    onMouseEnter={() => setHoveredRail('maya')}
+                    onMouseLeave={() => setHoveredRail(null)}
+                  />
+                )}
+                {bankSegmentPct > 0 && (
+                  <div 
+                    className="multi-rail-segment rail-segment-bank" 
+                    style={{ width: `${bankSegmentPct}%` }}
+                    onMouseEnter={() => setHoveredRail('bank')}
+                    onMouseLeave={() => setHoveredRail(null)}
+                  />
+                )}
+                {totalBarPct === 0 && (
+                  <div className="multi-rail-segment" style={{ width: '100%', background: 'transparent' }} />
+                )}
+              </div>
+
+              {/* Direct Segment Tooltips Positioned Right Above The Active Segment */}
+              {hoveredRail === 'eth' && (
+                <div 
+                  className="rail-pill-tooltip rail-pill-tooltip-eth is-visible"
+                  style={{ left: `${Math.max(12, Math.min(88, ethSegmentPct / 2))}%`, bottom: 'calc(100% + 8px)' }}
+                >
+                  <div className="rpt-header"><span className="rpt-pip" style={{ background: '#22c55e' }}></span>Ethereum</div>
+                  <div className="rpt-amount" style={{ color: '#22c55e' }}>{formatEthAmt(breakdown.eth.amount)} ETH</div>
+                  <div className="rpt-sub">≈ ₱{breakdown.eth.php.toLocaleString()}</div>
+                  <div className="rpt-meta">{breakdown.eth.count || 0} on-chain tx{breakdown.eth.count !== 1 ? 's' : ''} · {ethShare}% of total</div>
+                </div>
+              )}
+              {hoveredRail === 'gcash' && (
+                <div 
+                  className="rail-pill-tooltip rail-pill-tooltip-gcash is-visible"
+                  style={{ left: `${Math.max(12, Math.min(88, ethSegmentPct + (gcashSegmentPct / 2)))}%`, bottom: 'calc(100% + 8px)' }}
+                >
+                  <div className="rpt-header"><span className="rpt-pip" style={{ background: '#38bdf8' }}></span>GCash</div>
+                  <div className="rpt-amount" style={{ color: '#38bdf8' }}>₱{breakdown.gcash.php.toLocaleString()}</div>
+                  <div className="rpt-sub">Received in Philippine Peso</div>
+                  <div className="rpt-meta">{breakdown.gcash.count || 0} donor{breakdown.gcash.count !== 1 ? 's' : ''} · {gcashShare}% of total</div>
+                </div>
+              )}
+              {hoveredRail === 'maya' && (
+                <div 
+                  className="rail-pill-tooltip rail-pill-tooltip-maya is-visible"
+                  style={{ left: `${Math.max(12, Math.min(88, ethSegmentPct + gcashSegmentPct + (mayaSegmentPct / 2)))}%`, bottom: 'calc(100% + 8px)' }}
+                >
+                  <div className="rpt-header"><span className="rpt-pip" style={{ background: '#10b981' }}></span>Maya</div>
+                  <div className="rpt-amount" style={{ color: '#10b981' }}>₱{breakdown.maya.php.toLocaleString()}</div>
+                  <div className="rpt-sub">Received in Philippine Peso</div>
+                  <div className="rpt-meta">{breakdown.maya.count || 0} donor{breakdown.maya.count !== 1 ? 's' : ''} · {mayaShare}% of total</div>
+                </div>
+              )}
+              {hoveredRail === 'bank' && (
+                <div 
+                  className="rail-pill-tooltip rail-pill-tooltip-bank is-visible"
+                  style={{ left: `${Math.max(12, Math.min(88, ethSegmentPct + gcashSegmentPct + mayaSegmentPct + (bankSegmentPct / 2)))}%`, bottom: 'calc(100% + 8px)' }}
+                >
+                  <div className="rpt-header"><span className="rpt-pip" style={{ background: '#a855f7' }}></span>Bank / Card</div>
+                  <div className="rpt-amount" style={{ color: '#a855f7' }}>₱{breakdown.bank.php.toLocaleString()}</div>
+                  <div className="rpt-sub">Received in Philippine Peso</div>
+                  <div className="rpt-meta">{breakdown.bank.count || 0} deposit{breakdown.bank.count !== 1 ? 's' : ''} · {bankShare}% of total</div>
+                </div>
+              )}
             </div>
           </div>
 
-          <div className="campaign-amounts" style={{ marginTop: '12px' }}>
-            <div className="amount-block">
-              <span className="amount-label" style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 600 }}>Raised</span>
-              <span className="amount-value accent" style={{ fontSize: '1.25rem' }}>{camp.currentAmount} ETH</span>
-              <span style={{ fontSize: '0.82rem', color: '#0284c7', fontWeight: 600, marginTop: '2px' }}>
-                ≈ ₱{(parseFloat(camp.currentAmount || 0) * 170000).toLocaleString('en-US', { maximumFractionDigits: 0 })} PHP
-              </span>
-            </div>
-            <div className="amount-block">
-              <span className="amount-label" style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 600 }}>Target Goal</span>
-              <span className="amount-value" style={{ fontSize: '1.25rem', color: 'var(--text-primary)' }}>{camp.targetAmount} ETH</span>
-              <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)', fontWeight: 500, marginTop: '2px' }}>
-                ≈ ₱{(parseFloat(camp.targetAmount || 0) * 170000).toLocaleString('en-US', { maximumFractionDigits: 0 })} PHP
-              </span>
-            </div>
-            <div className="amount-block">
-              <span className="amount-label" style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 600 }}>Tracking ID</span>
-              <span className="amount-value" style={{ color: 'var(--text-secondary)', fontSize: '1.15rem' }}>
-                #{camp.id}
-              </span>
-            </div>
-          </div>
+          {/* Amounts: Uniform 3-Box Grid (Raised, Target Goal, Tracking ID) */}
+          {(() => {
+            const totalPhp = (breakdown.gcash.php || 0) + (breakdown.maya.php || 0) + (breakdown.bank.php || 0) + (breakdown.eth.php || 0);
+            const targetPhp = parseFloat(camp.targetAmount || 0) * 170000;
+            const ethAmt = breakdown.eth.amount ? formatEthAmt(breakdown.eth.amount) : '0';
+            return (
+              <div className="campaign-amounts">
+                <div
+                  className="amount-block"
+                  style={{ cursor: 'pointer' }}
+                  onClick={() => setShowRailTelemetry(prev => !prev)}
+                  title={`Click to view funding sources (${ethAmt} ETH on-chain)`}
+                >
+                  <span className="amount-label">Raised</span>
+                  <span className="amount-value accent">
+                    ₱{totalPhp.toLocaleString('en-US', { maximumFractionDigits: 0 })}
+                  </span>
+                </div>
+                <div
+                  className="amount-block"
+                  style={{ cursor: 'pointer' }}
+                  onClick={() => setShowRailTelemetry(prev => !prev)}
+                  title="Click to view funding sources"
+                >
+                  <span className="amount-label">Target Goal</span>
+                  <span className="amount-value">
+                    ₱{targetPhp.toLocaleString('en-US', { maximumFractionDigits: 0 })}
+                  </span>
+                </div>
+                <div className="amount-block">
+                  <span className="amount-label">Tracking ID</span>
+                  <span className="amount-value" style={{ color: 'var(--text-secondary)' }}>
+                    #{camp.id}
+                  </span>
+                </div>
+              </div>
+            );
+          })()}
 
-          {/* Tags row: Placed at the bottom-left corner of the card */}
+          {/* Campaign Tags Row */}
           {campaignTags && campaignTags.length > 0 && (
             <div className="campaign-tags-row">
               {campaignTags.map((tag, idx) => (
                 <span key={idx} className="campaign-tag-pill">
-                  {tag}
+                  #{tag.replace(/^#/, '')}
                 </span>
               ))}
             </div>
@@ -1332,7 +1703,7 @@ export default function CampaignCard(props) {
             </div>
           )}
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', width: '100%' }}>
+          <div className="campaign-actions-secondary-btns">
             <button
               className="btn btn-outline btn-sm btn-full"
               onClick={() => setDetailsOpen(true)}
@@ -1343,15 +1714,15 @@ export default function CampaignCard(props) {
                 display: 'inline-flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                gap: '6px'
+                gap: '5px'
               }}
             >
               <span className="material-symbols-outlined" style={{ fontSize: '1rem' }}>info</span>
-              <span>More Details & Map</span>
+              <span>Details & Map</span>
             </button>
 
             <button className="btn btn-ghost btn-sm btn-full" onClick={toggleLedger}>
-              {ledgerOpen ? '▲ Hide Public Ledger' : '▼ View Public Ledger'}
+              {ledgerOpen ? '▲ Hide Ledger' : '▼ Public Ledger'}
             </button>
           </div>
 
@@ -1407,7 +1778,27 @@ export default function CampaignCard(props) {
                         </span>
                       </div>
                       <div className="ledger-donor-text">
-                        <span className="ledger-donor-name">{rec.donor}</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                          <span className="ledger-donor-name">
+                            {rec.isAnonymous 
+                              ? '🕵️ Anonymous Patron' 
+                              : (rec.donor && !rec.donor.includes('@') 
+                                  ? rec.donor 
+                                  : (rec.donor ? rec.donor.split('@')[0].replace(/[\._\d]/g, ' ').trim().split(' ').filter(Boolean).map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ') || 'Verified Donor' : 'Verified Donor')
+                                )
+                            }
+                          </span>
+                          <DonorBadge
+                            size="sm"
+                            donorId={rec.donorId}
+                            walletAddress={rec.wallet}
+                            amountEth={rec.globalAmountEth}
+                            amountPhp={rec.globalAmountPhp}
+                            showLabel={false}
+                            showTooltip={true}
+                            showProgress={false}
+                          />
+                        </div>
                         {rec.wallet && !rec.isAnonymous && (
                           <span className="ledger-wallet-tag" title={rec.wallet}>
                             {shortAddr(rec.wallet)}
@@ -2468,6 +2859,15 @@ export default function CampaignCard(props) {
                             </strong>
                           </div>
 
+                          {((gatewayMethod === 'Maya' && (camp.mayaName || camp.maya_name)) || (gatewayMethod === 'GCash' && (camp.gcashName || camp.gcash_name))) && (
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+                              <span style={{ color: 'var(--text-muted, #94a3b8)' }}>Account Name:</span>
+                              <strong style={{ color: 'var(--text-primary, #ffffff)', textAlign: 'right', maxWidth: '160px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                {gatewayMethod === 'Maya' ? (camp.mayaName || camp.maya_name) : (camp.gcashName || camp.gcash_name)}
+                              </strong>
+                            </div>
+                          )}
+
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px', background: gatewayMethod === 'Maya' ? 'rgba(0, 214, 143, 0.08)' : 'rgba(34, 197, 94, 0.08)', padding: '6px 8px', borderRadius: '8px', border: gatewayMethod === 'Maya' ? '1.5px solid rgba(0, 214, 143, 0.3)' : '1px solid rgba(34, 197, 94, 0.2)' }}>
                             <span style={{ color: 'var(--text-secondary, #cbd5e1)', fontWeight: 600 }}>{gatewayMethod} No:</span>
                             <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
@@ -2864,7 +3264,7 @@ export default function CampaignCard(props) {
         const displayTitle = formatCampaignTitle(camp.title, camp.id);
         const catInfo = getCampaignCategoryInfo(camp);
         const targetPhp = (parseFloat(camp.targetAmount || 0) * 170000).toLocaleString('en-US', { maximumFractionDigits: 0 });
-        const currentPhp = (parseFloat(camp.currentAmount || 0) * 170000).toLocaleString('en-US', { maximumFractionDigits: 0 });
+        const currentPhp = (displayCurrentEth * 170000).toLocaleString('en-US', { maximumFractionDigits: 0 });
         const progressPercent = pct;
 
         return createPortal(
@@ -2905,20 +3305,22 @@ export default function CampaignCard(props) {
                   <h2 style={{ margin: 0, fontSize: '1.35rem', color: 'var(--text-primary, #ffffff)', fontWeight: 800, lineHeight: 1.3 }}>
                     {displayTitle}
                   </h2>
-                  <div style={{ margin: '6px 0 0 0', fontSize: '0.82rem', color: 'var(--text-muted, #94a3b8)', display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                    <span>
-                      Managed by{' '}
-                      <strong
-                        style={{ color: '#38bdf8', cursor: 'pointer', textDecoration: 'underline' }}
-                        onClick={() => {
-                          setDetailsOpen(false);
-                          if (onOpenNgoProfile) onOpenNgoProfile(camp.orgId || 3);
-                        }}
-                        title="Click to view verified NGO institutional profile & all campaigns"
-                      >
-                        {orgDisplayName}
-                      </strong>
-                    </span>
+                  <div style={{ margin: '8px 0 0 0', fontSize: '0.84rem', color: 'var(--text-muted, #94a3b8)', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                    <span>Managed by</span>
+                    <button
+                      type="button"
+                      className="campaign-modal-org-btn"
+                      onClick={() => {
+                        setDetailsOpen(false);
+                        if (onOpenNgoProfile) onOpenNgoProfile(camp.orgId || 3);
+                      }}
+                      title="Click to view verified NGO institutional profile & all campaigns"
+                    >
+                      <span className="material-symbols-outlined" style={{ fontSize: '15px', color: 'var(--accent, #22c55e)' }}>domain</span>
+                      <span>{orgDisplayName}</span>
+                      <span className="material-symbols-outlined" style={{ fontSize: '14px', color: 'var(--accent, #22c55e)' }}>verified</span>
+                      <span className="material-symbols-outlined" style={{ fontSize: '13px', opacity: 0.6 }}>chevron_right</span>
+                    </button>
                     <span>•</span>
                     <span style={{ color: '#22c55e', display: 'inline-flex', alignItems: 'center', gap: '4px', fontWeight: 600 }}>
                       <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>verified</span> Smart Contract Verified
@@ -2963,7 +3365,7 @@ export default function CampaignCard(props) {
                     Target Campaign Goal
                   </div>
                   <div style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-primary, #ffffff)', marginTop: '2px' }}>
-                    ₱{targetPhp} <span style={{ fontSize: '0.74rem', color: 'var(--text-muted, #94a3b8)', fontWeight: 600 }}>({camp.targetAmount} ETH)</span>
+                    ₱{targetPhp}
                   </div>
                 </div>
 

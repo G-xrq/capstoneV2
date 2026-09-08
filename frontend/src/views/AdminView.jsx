@@ -4,6 +4,7 @@ import CampaignCard from '../components/CampaignCard';
 import { shortAddr } from '../components/CampaignCard';
 import { ROLES, MAX_ORGANIZATIONS } from '../roleConfig';
 import SettingsPanel from '../components/SettingsPanel';
+import DisasterRadarHeatmap from '../components/DisasterRadarHeatmap';
 import { useToast } from '../context/ToastContext';
 
 export default function AdminView({ contract, walletAddress, role, campaigns, fetchCampaigns, fetchingCampaigns, currentUser, handleConnectWallet, handleLogout, updateDbWallet, theme, setTheme, textSize, setTextSize }) {
@@ -14,6 +15,31 @@ export default function AdminView({ contract, walletAddress, role, campaigns, fe
   const [title, setTitle] = useState('');
   const [targetAmount, setTargetAmount] = useState('');
   const [creating, setCreating] = useState(false);
+
+  // Global Header Navigation Listener
+  useEffect(() => {
+    const handleRadarNav = () => {
+      setActiveTab('radar-heatmap');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+    const handleCampaignsNav = () => {
+      setActiveTab('campaigns');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+    const handleHomeNav = () => {
+      setActiveTab('dashboard');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    window.addEventListener('bbdrts_navigate_radar', handleRadarNav);
+    window.addEventListener('bbdrts_navigate_campaigns', handleCampaignsNav);
+    window.addEventListener('bbdrts_navigate_home', handleHomeNav);
+    return () => {
+      window.removeEventListener('bbdrts_navigate_radar', handleRadarNav);
+      window.removeEventListener('bbdrts_navigate_campaigns', handleCampaignsNav);
+      window.removeEventListener('bbdrts_navigate_home', handleHomeNav);
+    };
+  }, []);
 
   // Moderator management (on-chain)
   const [moderators, setModerators] = useState([]);
@@ -277,6 +303,8 @@ export default function AdminView({ contract, walletAddress, role, campaigns, fe
             onClick={() => setActiveTab('dashboard')}>⚡ Dashboard</button>
           <button className={`tab-btn ${activeTab === 'campaigns' ? 'active' : ''}`}
             onClick={() => setActiveTab('campaigns')}>📋 All Campaigns</button>
+          <button className={`tab-btn ${activeTab === 'radar-heatmap' ? 'active' : ''}`}
+            onClick={() => setActiveTab('radar-heatmap')}>📡 Relief Radar</button>
           <button className={`tab-btn ${activeTab === 'create' ? 'active' : ''}`}
             onClick={() => setActiveTab('create')}>🚀 Create Campaign</button>
           <button className={`tab-btn ${activeTab === 'approvals' ? 'active' : ''}`}
@@ -706,6 +734,20 @@ export default function AdminView({ contract, walletAddress, role, campaigns, fe
                 </div>
               )}
             </div>
+          </div>
+        )}
+
+        {/* ── Relief Radar Tab ── */}
+        {activeTab === 'radar-heatmap' && (
+          <div style={{ marginTop: '14px' }}>
+            <DisasterRadarHeatmap
+              campaigns={campaigns}
+              height="620px"
+              theme={theme}
+              onSelectCampaign={(c) => {
+                setActiveTab('campaigns');
+              }}
+            />
           </div>
         )}
 

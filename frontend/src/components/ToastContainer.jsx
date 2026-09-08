@@ -16,7 +16,7 @@ export default function ToastContainer({ toasts, onDismiss }) {
         <div key={t.id} className={`toast-card toast-${t.type}`}>
           <div className="toast-icon-wrapper">
             <span className="material-symbols-outlined">
-              {ICON_MAP[t.type] || 'info'}
+              {t.icon || ICON_MAP[t.type] || 'info'}
             </span>
           </div>
 
@@ -24,6 +24,22 @@ export default function ToastContainer({ toasts, onDismiss }) {
             {t.title && <div className="toast-title">{t.title}</div>}
             <div className="toast-message">{t.message}</div>
           </div>
+
+          {t.action && (
+            <button
+              type="button"
+              className="toast-action-btn"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (typeof t.action.onClick === 'function') {
+                  t.action.onClick();
+                }
+                onDismiss(t.id);
+              }}
+            >
+              {t.action.label || 'Action'}
+            </button>
+          )}
 
           <button
             className="toast-dismiss-btn"

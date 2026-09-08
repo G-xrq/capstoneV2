@@ -1,0 +1,1397 @@
+/* ============================================================
+   BBDRTS 7-Tier Disaster Relief Donor Badge & Honors System
+   Strictly Visual-Only Custom Badge Emblems (No Text Inside)
+   ============================================================ */
+
+.donor-badge-wrapper {
+  display: inline-flex;
+  position: relative;
+  vertical-align: middle;
+  user-select: none;
+  flex-shrink: 0;
+}
+
+.donor-badge-wrapper.is-interactive {
+  cursor: pointer;
+}
+
+/* ── Base Badge Emblem (Circular / Shield Vector Medal) ── */
+.donor-badge-emblem {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  border-radius: 50%;
+  box-sizing: border-box;
+}
+
+.donor-badge-emblem.icon-only {
+  padding: 0;
+  border-radius: 50%;
+}
+
+/* ── Sizing Architecture ── */
+.size-sm .donor-badge-emblem.icon-only {
+  width: 24px;
+  height: 24px;
+}
+.size-sm .custom-donor-badge-svg {
+  width: 20px;
+  height: 20px;
+}
+
+.size-md .donor-badge-emblem.icon-only {
+  width: 32px;
+  height: 32px;
+}
+.size-md .custom-donor-badge-svg {
+  width: 26px;
+  height: 26px;
+}
+
+.size-lg .donor-badge-emblem.icon-only {
+  width: 42px;
+  height: 42px;
+}
+.size-lg .custom-donor-badge-svg {
+  width: 36px;
+  height: 36px;
+}
+
+.size-xl .donor-badge-emblem.icon-only {
+  width: 54px;
+  height: 54px;
+}
+.size-xl .custom-donor-badge-svg {
+  width: 48px;
+  height: 48px;
+}
+
+.custom-donor-badge-svg {
+  display: block;
+  flex-shrink: 0;
+  transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), filter 0.22s ease;
+}
+
+.donor-badge-wrapper.is-interactive:hover .custom-donor-badge-svg {
+  transform: scale(1.12);
+}
+
+/* ── 12 Tier Variants & Metallic Sheen ── */
+
+/* Tier 1: Contributor (₱1+) — Emerald Relief Sprout Gem */
+.tier-1 .donor-badge-emblem {
+  background: radial-gradient(circle at 35% 25%, rgba(52, 211, 153, 0.25), rgba(16, 185, 129, 0.12));
+  border: 1.5px solid rgba(16, 185, 129, 0.45);
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.2);
+}
+.tier-1.is-interactive:hover .donor-badge-emblem {
+  background: radial-gradient(circle at 35% 25%, rgba(52, 211, 153, 0.35), rgba(16, 185, 129, 0.22));
+  border-color: #10b981;
+  box-shadow: 0 0 16px rgba(16, 185, 129, 0.45);
+}
+
+/* Tier 2: Supporter (₱1,000+) — Cyan Tactical Compass Shield */
+.tier-2 .donor-badge-emblem {
+  background: radial-gradient(circle at 35% 25%, rgba(125, 211, 252, 0.25), rgba(2, 132, 199, 0.12));
+  border: 1.5px solid rgba(56, 189, 248, 0.5);
+  box-shadow: 0 2px 8px rgba(56, 189, 248, 0.25);
+}
+.tier-2.is-interactive:hover .donor-badge-emblem {
+  background: radial-gradient(circle at 35% 25%, rgba(125, 211, 252, 0.35), rgba(2, 132, 199, 0.22));
+  border-color: #38bdf8;
+  box-shadow: 0 0 16px rgba(56, 189, 248, 0.5);
+}
+
+/* Tier 3: Relief Partner (₱5,000+) — Cobalt Partnership Shield */
+.tier-3 .donor-badge-emblem {
+  background: radial-gradient(circle at 35% 25%, rgba(147, 197, 253, 0.25), rgba(59, 130, 246, 0.12));
+  border: 1.5px solid rgba(96, 165, 250, 0.5);
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.25);
+}
+.tier-3.is-interactive:hover .donor-badge-emblem {
+  background: radial-gradient(circle at 35% 25%, rgba(147, 197, 253, 0.35), rgba(59, 130, 246, 0.22));
+  border-color: #60a5fa;
+  box-shadow: 0 0 16px rgba(59, 130, 246, 0.5);
+}
+
+/* Tier 4: Benefactor (₱10,000+) — Royal Amethyst Prism */
+.tier-4 .donor-badge-emblem {
+  background: radial-gradient(circle at 35% 25%, rgba(233, 213, 255, 0.28), rgba(168, 85, 247, 0.14));
+  border: 1.5px solid rgba(192, 132, 252, 0.55);
+  box-shadow: 0 2px 10px rgba(168, 85, 247, 0.3);
+}
+.tier-4.is-interactive:hover .donor-badge-emblem {
+  background: radial-gradient(circle at 35% 25%, rgba(233, 213, 255, 0.4), rgba(168, 85, 247, 0.25));
+  border-color: #c084fc;
+  box-shadow: 0 0 18px rgba(168, 85, 247, 0.55);
+}
+
+/* Tier 5: Advocate (₱25,000+) — Phoenix Flame & Wing */
+.tier-5 .donor-badge-emblem {
+  background: radial-gradient(circle at 35% 25%, rgba(254, 205, 211, 0.28), rgba(244, 63, 94, 0.14));
+  border: 1.5px solid rgba(244, 63, 94, 0.55);
+  box-shadow: 0 2px 10px rgba(244, 63, 94, 0.3);
+}
+.tier-5.is-interactive:hover .donor-badge-emblem {
+  background: radial-gradient(circle at 35% 25%, rgba(254, 205, 211, 0.4), rgba(244, 63, 94, 0.25));
+  border-color: #f43f5e;
+  box-shadow: 0 0 20px rgba(244, 63, 94, 0.6);
+}
+
+/* Tier 6: Philanthropist (₱50,000+) — Golden Heart Medallion */
+.tier-6 .donor-badge-emblem {
+  background: radial-gradient(circle at 35% 25%, rgba(254, 240, 138, 0.3), rgba(245, 158, 11, 0.15));
+  border: 1.5px solid rgba(245, 158, 11, 0.6);
+  box-shadow: 0 2px 12px rgba(245, 158, 11, 0.35);
+}
+.tier-6.is-interactive:hover .donor-badge-emblem {
+  background: radial-gradient(circle at 35% 25%, rgba(254, 240, 138, 0.42), rgba(245, 158, 11, 0.26));
+  border-color: #f59e0b;
+  box-shadow: 0 0 22px rgba(245, 158, 11, 0.65);
+}
+
+/* Tier 7: Humanitarian (₱100,000+) — Star of Mercy Cross */
+.tier-7 .donor-badge-emblem {
+  background: radial-gradient(circle at 35% 25%, rgba(254, 202, 202, 0.32), rgba(239, 68, 68, 0.16));
+  border: 1.6px solid rgba(239, 68, 68, 0.65);
+  box-shadow: 0 2px 12px rgba(239, 68, 68, 0.38);
+}
+.tier-7.is-interactive:hover .donor-badge-emblem {
+  background: radial-gradient(circle at 35% 25%, rgba(254, 202, 202, 0.45), rgba(239, 68, 68, 0.28));
+  border-color: #ef4444;
+  box-shadow: 0 0 22px rgba(239, 68, 68, 0.7);
+}
+
+/* Tier 8: Distinguished Humanitarian (₱250,000+) — Winged Diamond Crest */
+.tier-8 .donor-badge-emblem {
+  background: radial-gradient(circle at 35% 25%, rgba(204, 251, 241, 0.32), rgba(20, 184, 166, 0.16));
+  border: 1.6px solid rgba(20, 184, 166, 0.65);
+  box-shadow: 0 2px 12px rgba(20, 184, 166, 0.38);
+}
+.tier-8.is-interactive:hover .donor-badge-emblem {
+  background: radial-gradient(circle at 35% 25%, rgba(204, 251, 241, 0.45), rgba(20, 184, 166, 0.28));
+  border-color: #14b8a6;
+  box-shadow: 0 0 24px rgba(20, 184, 166, 0.75);
+}
+
+/* Tier 9: Patron of Relief (₱500,000+) — Heraldic Patron Shield */
+.tier-9 .donor-badge-emblem {
+  background: radial-gradient(circle at 35% 25%, rgba(191, 219, 254, 0.35), rgba(59, 130, 246, 0.18));
+  border: 1.7px solid rgba(59, 130, 246, 0.7);
+  box-shadow: 0 2px 14px rgba(59, 130, 246, 0.42);
+}
+.tier-9.is-interactive:hover .donor-badge-emblem {
+  background: radial-gradient(circle at 35% 25%, rgba(191, 219, 254, 0.5), rgba(59, 130, 246, 0.3));
+  border-color: #3b82f6;
+  box-shadow: 0 0 26px rgba(59, 130, 246, 0.8);
+}
+
+/* Tier 10: Grand Benefactor (₱1,000,000+) — Sovereign Monarch Crown */
+.tier-10 .donor-badge-emblem {
+  background: radial-gradient(circle at 35% 25%, rgba(254, 240, 138, 0.4), rgba(234, 179, 8, 0.2));
+  border: 1.8px solid rgba(234, 179, 8, 0.75);
+  box-shadow: 0 2px 16px rgba(234, 179, 8, 0.48);
+}
+.tier-10.is-interactive:hover .donor-badge-emblem {
+  background: radial-gradient(circle at 35% 25%, rgba(254, 240, 138, 0.55), rgba(234, 179, 8, 0.35));
+  border-color: #eab308;
+  box-shadow: 0 0 28px rgba(234, 179, 8, 0.9);
+}
+
+/* Tier 11: Principal Benefactor (₱2,500,000+) — Celestial Solar Nova */
+.tier-11 .donor-badge-emblem {
+  background: radial-gradient(circle at 35% 25%, rgba(245, 208, 254, 0.4), rgba(168, 85, 247, 0.22));
+  border: 1.8px solid rgba(168, 85, 247, 0.8);
+  box-shadow: 0 2px 18px rgba(168, 85, 247, 0.52);
+}
+.tier-11.is-interactive:hover .donor-badge-emblem {
+  background: radial-gradient(circle at 35% 25%, rgba(245, 208, 254, 0.55), rgba(168, 85, 247, 0.38));
+  border-color: #a855f7;
+  box-shadow: 0 0 30px rgba(168, 85, 247, 0.95);
+}
+
+/* Tier 12: Legacy Benefactor (₱5,000,000+) — Eternal Transcendence Diamond (Apex Mythic) */
+.tier-12 .donor-badge-emblem {
+  background: radial-gradient(circle at 35% 25%, rgba(167, 243, 208, 0.45), rgba(0, 255, 163, 0.25));
+  border: 2px solid rgba(0, 255, 163, 0.85);
+  box-shadow: 0 2px 20px rgba(0, 255, 163, 0.55), 0 0 12px rgba(192, 132, 252, 0.4);
+}
+.tier-12.is-interactive:hover .donor-badge-emblem {
+  background: radial-gradient(circle at 35% 25%, rgba(167, 243, 208, 0.6), rgba(0, 255, 163, 0.4));
+  border-color: #00ffa3;
+  box-shadow: 0 0 34px rgba(0, 255, 163, 1), 0 0 20px rgba(250, 204, 21, 0.6);
+}
+
+/* ── True Floating Portal Overlay Tooltip (Immune to parent overflow:hidden and stacking contexts) ── */
+.donor-badge-tooltip-overlay {
+  position: fixed;
+  width: 220px;
+  background: var(--bg-surface, #131722);
+  border: 1px solid var(--border-strong, rgba(255, 255, 255, 0.16));
+  border-radius: 12px;
+  padding: 10px 14px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.75), 0 0 0 1px rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  z-index: 999999;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  text-align: left;
+  box-sizing: border-box;
+}
+
+[data-theme="light"] .donor-badge-tooltip-overlay {
+  background: #ffffff;
+  border-color: rgba(0, 0, 0, 0.12);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.16), 0 0 0 1px rgba(0, 0, 0, 0.05);
+}
+
+.donor-badge-tooltip-overlay.place-above {
+  transform: translate(-50%, -100%);
+  animation: dbtFadeInOverlayAbove 0.14s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.donor-badge-tooltip-overlay.place-below {
+  transform: translate(-50%, 0);
+  animation: dbtFadeInOverlayBelow 0.14s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Arrow pointers pointing directly at badge */
+.donor-badge-tooltip-overlay.place-above::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 6px solid transparent;
+  border-top-color: var(--bg-surface, #131722);
+}
+
+.donor-badge-tooltip-overlay.place-below::after {
+  content: '';
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 6px solid transparent;
+  border-bottom-color: var(--bg-surface, #131722);
+}
+
+[data-theme="light"] .donor-badge-tooltip-overlay.place-above::after {
+  border-top-color: #ffffff;
+}
+
+[data-theme="light"] .donor-badge-tooltip-overlay.place-below::after {
+  border-bottom-color: #ffffff;
+}
+
+@keyframes dbtFadeInOverlayAbove {
+  from {
+    opacity: 0;
+    transform: translate(-50%, calc(-100% + 5px));
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -100%);
+  }
+}
+
+@keyframes dbtFadeInOverlayBelow {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -5px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+/* ── Interactive Tooltip Card (Legacy inline fallback) ── */
+.donor-badge-tooltip {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: 250px;
+  background: var(--bg-surface, #131722);
+  border: 1px solid var(--border-strong, rgba(255, 255, 255, 0.15));
+  border-radius: 12px;
+  padding: 12px 14px;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.65), 0 0 1px rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  z-index: 1000;
+  animation: dbtFadeIn 0.16s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-align: left;
+}
+
+[data-theme="light"] .donor-badge-tooltip {
+  background: #ffffff;
+  border-color: rgba(0, 0, 0, 0.12);
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.12);
+}
+
+.donor-badge-tooltip::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 6px solid transparent;
+  border-top-color: var(--bg-surface, #131722);
+}
+
+[data-theme="light"] .donor-badge-tooltip::after {
+  border-top-color: #ffffff;
+}
+
+@keyframes dbtFadeIn {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+.dbt-header {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding-bottom: 5px;
+  border-bottom: 1px solid var(--border, rgba(255, 255, 255, 0.08));
+}
+
+[data-theme="light"] .dbt-header {
+  border-bottom-color: rgba(0, 0, 0, 0.06);
+}
+
+.dbt-tier-title {
+  font-size: 0.82rem;
+  font-weight: 800;
+  letter-spacing: -0.2px;
+  flex: 1;
+}
+
+.dbt-rank-tag {
+  font-size: 0.62rem;
+  font-weight: 800;
+  color: #10b981;
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  padding: 1px 5px;
+  border-radius: 4px;
+  letter-spacing: 0.5px;
+}
+
+.dbt-subtitle {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-muted, #94a3b8);
+  margin-top: 1px;
+}
+
+.dbt-desc {
+  font-size: 0.7rem;
+  line-height: 1.35;
+  color: var(--text-secondary, #cbd5e1);
+  margin-top: 2px;
+}
+
+[data-theme="light"] .dbt-desc {
+  color: #475569;
+}
+
+.dbt-stats-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 6px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: var(--bg-card, rgba(255, 255, 255, 0.03));
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.06));
+}
+
+[data-theme="light"] .dbt-stats-row {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+}
+
+.dbt-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.dbt-stat-label {
+  font-size: 0.6rem;
+  font-weight: 600;
+  color: var(--text-muted, #94a3b8);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.dbt-stat-val {
+  font-size: 0.76rem;
+  font-weight: 800;
+  color: var(--text-primary, #ffffff);
+}
+
+[data-theme="light"] .dbt-stat-val {
+  color: #0f172a;
+}
+
+.dbt-stat-val small {
+  font-size: 0.65rem;
+  color: var(--text-muted, #94a3b8);
+  font-weight: 500;
+}
+
+/* Next Tier Progress in Tooltip */
+.dbt-progress-block {
+  margin-top: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.dbt-progress-header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.68rem;
+  color: var(--text-secondary, #cbd5e1);
+}
+
+[data-theme="light"] .dbt-progress-header {
+  color: #475569;
+}
+
+.dbt-progress-track {
+  width: 100%;
+  height: 5px;
+  background: var(--bg-input, rgba(255, 255, 255, 0.08));
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+[data-theme="light"] .dbt-progress-track {
+  background: #e2e8f0;
+}
+
+.dbt-progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.3s ease;
+}
+
+.dbt-progress-hint {
+  font-size: 0.64rem;
+  color: var(--text-muted, #94a3b8);
+  margin-top: 1px;
+}
+
+.dbt-max-badge {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #00ffa3;
+  margin-top: 5px;
+}
+
+.dbt-footer-cta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.64rem;
+  font-weight: 600;
+  color: var(--text-muted, #94a3b8);
+  margin-top: 5px;
+  padding-top: 4px;
+  border-top: 1px solid var(--border, rgba(255, 255, 255, 0.06));
+}
+
+/* ============================================================
+   Donor Progress Card Component (Profile Dashboard Display)
+   ============================================================ */
+.donor-progress-card {
+  position: relative;
+  background: var(--bg-card, #161a23);
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.09));
+  border-radius: 16px;
+  padding: 18px 22px;
+  margin-bottom: 20px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
+  transition: all 0.25s ease;
+  overflow: hidden;
+}
+
+[data-theme="light"] .donor-progress-card {
+  background: #ffffff;
+  border-color: rgba(0, 0, 0, 0.08);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+}
+
+.donor-progress-card.unranked {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+}
+
+.dpc-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.dpc-unranked-icon-wrap {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px dashed rgba(255, 255, 255, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dpc-unranked-ghost {
+  opacity: 0.4;
+  filter: grayscale(1);
+}
+
+.dpc-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.dpc-eyebrow {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--text-muted, #94a3b8);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.dpc-title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--text-primary, #ffffff);
+}
+
+[data-theme="light"] .dpc-title {
+  color: #0f172a;
+}
+
+.dpc-desc {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--text-secondary, #94a3b8);
+}
+
+.dpc-ladder-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--bg-input, rgba(255, 255, 255, 0.05));
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.12));
+  color: var(--text-primary, #ffffff);
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.dpc-ladder-btn:hover {
+  background: rgba(16, 185, 129, 0.12);
+  border-color: #10b981;
+  color: #10b981;
+}
+
+/* Ranked Card Layout */
+.dpc-main {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.dpc-badge-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.dpc-badge-emblem-wrap {
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s ease;
+}
+
+.dpc-badge-col:hover .dpc-badge-emblem-wrap {
+  transform: scale(1.08);
+}
+
+.dpc-badge-tier-tag {
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.dpc-content-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.dpc-header-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.dpc-badge-meta-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 2px;
+}
+
+.dpc-standing-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--text-muted, #94a3b8);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.dpc-verified-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 0.64rem;
+  font-weight: 700;
+  color: #10b981;
+  background: rgba(16, 185, 129, 0.1);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  padding: 1px 6px;
+  border-radius: 999px;
+}
+
+.dpc-tier-name {
+  margin: 0;
+  font-size: 1.35rem;
+  font-weight: 800;
+  letter-spacing: -0.3px;
+  line-height: 1.2;
+}
+
+.dpc-tier-subtitle {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-secondary, #94a3b8);
+}
+
+.dpc-impact-metric {
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.dpc-metric-num {
+  display: block;
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--text-primary, #ffffff);
+  letter-spacing: -0.3px;
+}
+
+[data-theme="light"] .dpc-metric-num {
+  color: #0f172a;
+}
+
+.dpc-metric-lbl {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--text-muted, #94a3b8);
+}
+
+/* Progress Track in Progress Card */
+.dpc-prog-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.dpc-prog-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.76rem;
+}
+
+.dpc-next-tier-target {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-secondary, #cbd5e1);
+}
+
+[data-theme="light"] .dpc-next-tier-target {
+  color: #334155;
+}
+
+.dpc-next-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--bg-input, rgba(255, 255, 255, 0.05));
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.1));
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 0.74rem;
+}
+
+[data-theme="light"] .dpc-next-pill {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+}
+
+.dpc-goal-amount {
+  color: var(--text-muted, #94a3b8);
+  font-weight: 500;
+}
+
+.dpc-pct-text {
+  font-size: 0.84rem;
+  font-weight: 800;
+  font-family: var(--font-mono, monospace);
+}
+
+.dpc-prog-track {
+  width: 100%;
+  height: 8px;
+  background: var(--bg-input, rgba(0, 0, 0, 0.35));
+  border-radius: 999px;
+  overflow: hidden;
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.06));
+}
+
+[data-theme="light"] .dpc-prog-track {
+  background: #e2e8f0;
+  border-color: #cbd5e1;
+}
+
+.dpc-prog-bar {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 0 10px currentColor;
+}
+
+.dpc-prog-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.74rem;
+}
+
+.dpc-prog-remaining {
+  color: var(--text-muted, #94a3b8);
+}
+
+.dpc-prog-remaining strong {
+  color: var(--text-primary, #ffffff);
+}
+
+[data-theme="light"] .dpc-prog-remaining strong {
+  color: #0f172a;
+}
+
+.dpc-ladder-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: none;
+  border: none;
+  color: #10b981;
+  font-size: 0.74rem;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0;
+  transition: all 0.2s ease;
+}
+
+.dpc-ladder-link:hover {
+  text-decoration: underline;
+  transform: translateX(2px);
+}
+
+/* Apex Banner */
+.dpc-apex-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(0, 255, 163, 0.08);
+  border: 1px solid rgba(0, 255, 163, 0.25);
+  border-radius: 10px;
+  padding: 10px 14px;
+}
+
+.dpc-apex-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.dpc-apex-left strong {
+  display: block;
+  font-size: 0.82rem;
+  color: #00ffa3;
+}
+
+.dpc-apex-left p {
+  margin: 0;
+  font-size: 0.74rem;
+  color: var(--text-secondary, #cbd5e1);
+}
+
+/* ============================================================
+   Badge Upgrade Celebration Modal (Subtle & Dignified)
+   ============================================================ */
+.donor-upgrade-backdrop {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(5, 8, 14, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  z-index: 999999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overscroll-behavior: contain;
+  animation: dubFadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes dubFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.donor-upgrade-card {
+  position: relative;
+  background: #151922;
+  border: 1.5px solid rgba(255, 255, 255, 0.15);
+  border-radius: 22px;
+  padding: 36px 32px 28px;
+  max-width: 440px;
+  width: 90%;
+  text-align: center;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.75);
+  animation: dubScaleUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  overflow: hidden;
+}
+
+[data-theme="light"] .donor-upgrade-card {
+  background: #ffffff;
+  border-color: rgba(0, 0, 0, 0.12);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.15);
+}
+
+@keyframes dubScaleUp {
+  from {
+    opacity: 0;
+    transform: scale(0.9) translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.donor-upgrade-shimmer {
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.08) 0%, transparent 60%);
+  pointer-events: none;
+}
+
+.donor-upgrade-emblem-halo {
+  width: 100px;
+  height: 100px;
+  margin: 0 auto 16px;
+  border-radius: 50%;
+  border: 2px solid;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.04);
+  animation: dubHaloPulse 3s infinite ease-in-out;
+}
+
+@keyframes dubHaloPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+}
+
+.donor-upgrade-svg {
+  filter: drop-shadow(0 4px 12px currentColor);
+}
+
+.donor-upgrade-eyebrow {
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+  display: block;
+}
+
+.donor-upgrade-title {
+  margin: 0 0 4px 0;
+  font-size: 1.45rem;
+  font-weight: 800;
+  color: var(--text-primary, #ffffff);
+}
+
+[data-theme="light"] .donor-upgrade-title {
+  color: #0f172a;
+}
+
+.donor-upgrade-tier-name {
+  margin: 0;
+  font-size: 1.2rem;
+  font-weight: 800;
+}
+
+.donor-upgrade-subtitle {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-muted, #94a3b8);
+  margin: 2px 0 10px 0;
+}
+
+.donor-upgrade-desc {
+  font-size: 0.82rem;
+  color: var(--text-secondary, #cbd5e1);
+  line-height: 1.5;
+  margin: 0 0 16px 0;
+}
+
+[data-theme="light"] .donor-upgrade-desc {
+  color: #475569;
+}
+
+.donor-upgrade-badge-seal {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #10b981;
+  background: rgba(16, 185, 129, 0.1);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  padding: 4px 10px;
+  border-radius: 999px;
+  margin-bottom: 6px;
+}
+
+/* ============================================================
+   7-Tier Honors Ladder Modal Layout
+   ============================================================ */
+.donor-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(5, 8, 14, 0.85);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  z-index: 999999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overscroll-behavior: contain;
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+.donor-modal-card {
+  position: relative;
+  background: var(--bg-surface, #151922);
+  border: 1px solid var(--border-strong, rgba(255, 255, 255, 0.14));
+  border-radius: 20px;
+  padding: 24px 28px;
+  max-width: 640px;
+  width: 100%;
+  max-height: 88vh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.75);
+}
+
+[data-theme="light"] .donor-modal-card {
+  background: #ffffff;
+  border-color: rgba(0, 0, 0, 0.12);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.12);
+}
+
+.donor-modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border, rgba(255, 255, 255, 0.08));
+  margin-bottom: 16px;
+}
+
+[data-theme="light"] .donor-modal-header {
+  border-bottom-color: rgba(0, 0, 0, 0.08);
+}
+
+.donor-modal-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.donor-modal-badge-preview {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  border: 1.5px solid;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.donor-modal-title {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: var(--text-primary, #ffffff);
+}
+
+[data-theme="light"] .donor-modal-title {
+  color: #0f172a;
+}
+
+.donor-modal-subtitle {
+  margin: 2px 0 0 0;
+  font-size: 0.78rem;
+  color: var(--text-secondary, #94a3b8);
+}
+
+.donor-modal-close {
+  background: var(--bg-input, rgba(255, 255, 255, 0.05));
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.1));
+  color: var(--text-muted, #94a3b8);
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.donor-modal-close .material-symbols-outlined {
+  font-size: 16px;
+  line-height: 1;
+}
+
+.donor-modal-close:hover {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+  border-color: rgba(239, 68, 68, 0.4);
+}
+
+/* Active Standing Card in Modal */
+.donor-current-card {
+  background: var(--bg-card, rgba(255, 255, 255, 0.03));
+  border: 1.5px solid;
+  border-radius: 14px;
+  padding: 16px;
+  margin-bottom: 18px;
+}
+
+[data-theme="light"] .donor-current-card {
+  background: #f8fafc;
+}
+
+.donor-current-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.donor-current-eyebrow {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: var(--text-muted, #94a3b8);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  display: block;
+}
+
+.donor-current-name {
+  margin: 2px 0 0 0;
+  font-size: 1.15rem;
+  font-weight: 800;
+}
+
+.donor-current-sub {
+  font-size: 0.74rem;
+  color: var(--text-muted, #94a3b8);
+  font-weight: 600;
+}
+
+.donor-current-metric {
+  text-align: right;
+}
+
+.donor-metric-amt {
+  display: block;
+  font-size: 1.2rem;
+  font-weight: 800;
+  color: var(--text-primary, #ffffff);
+}
+
+[data-theme="light"] .donor-metric-amt {
+  color: #0f172a;
+}
+
+.donor-metric-lbl {
+  font-size: 0.68rem;
+  color: var(--text-muted, #94a3b8);
+}
+
+.donor-current-desc {
+  margin: 0 0 10px 0;
+  font-size: 0.78rem;
+  color: var(--text-secondary, #cbd5e1);
+  line-height: 1.4;
+}
+
+[data-theme="light"] .donor-current-desc {
+  color: #475569;
+}
+
+/* Modal Ladder Progress */
+.donor-ladder-prog {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 8px;
+}
+
+.donor-ladder-prog-hdr {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.72rem;
+  color: var(--text-secondary, #cbd5e1);
+}
+
+.donor-ladder-prog-track {
+  width: 100%;
+  height: 6px;
+  background: var(--bg-input, rgba(0, 0, 0, 0.4));
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+[data-theme="light"] .donor-ladder-prog-track {
+  background: #e2e8f0;
+}
+
+.donor-ladder-prog-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.3s ease;
+}
+
+.donor-ladder-prog-ftr {
+  font-size: 0.68rem;
+  color: var(--text-muted, #94a3b8);
+}
+
+.donor-ladder-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text-primary, #ffffff);
+  margin-bottom: 10px;
+}
+
+[data-theme="light"] .donor-ladder-title {
+  color: #0f172a;
+}
+
+/* 12-Tier List in Modal */
+.donor-ladder-list {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin-bottom: 16px;
+  max-height: 480px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.donor-tier-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: var(--bg-card, rgba(255, 255, 255, 0.03));
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.06));
+  transition: all 0.2s ease;
+}
+
+[data-theme="light"] .donor-tier-row {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+}
+
+.donor-tier-row.is-active {
+  background: rgba(255, 255, 255, 0.06);
+  border-width: 1.5px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme="light"] .donor-tier-row.is-active {
+  background: #ffffff;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.06);
+}
+
+.donor-tier-row.is-locked {
+  opacity: 0.65;
+}
+
+.donor-tier-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.donor-tier-icon-circle {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 1px solid;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.donor-tier-details {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.donor-tier-row-hdr {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.donor-tier-row-name {
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.donor-tier-current-tag {
+  font-size: 0.6rem;
+  font-weight: 800;
+  color: #10b981;
+  background: rgba(16, 185, 129, 0.15);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+
+.donor-tier-unlocked-tag {
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: #38bdf8;
+  background: rgba(56, 189, 248, 0.12);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+
+.donor-tier-row-sub {
+  font-size: 0.72rem;
+  color: var(--text-muted, #94a3b8);
+  font-weight: 600;
+}
+
+.donor-tier-row-crit {
+  font-size: 0.68rem;
+  color: var(--text-secondary, #cbd5e1);
+}
+
+[data-theme="light"] .donor-tier-row-crit {
+  color: #64748b;
+}
+
+.donor-modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 12px;
+  border-top: 1px solid var(--border, rgba(255, 255, 255, 0.08));
+}
+
+[data-theme="light"] .donor-modal-footer {
+  border-top-color: rgba(0, 0, 0, 0.08);
+}
+
+.donor-footer-verified {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.72rem;
+  color: var(--text-muted, #94a3b8);
+}

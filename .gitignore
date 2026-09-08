@@ -32,3 +32,9 @@ pnpm-debug.log*
 .idea/
 .DS_Store
 Thumbs.db
+
+# Local Thesis, Private Credentials & Scratch Files
+Capstone 1/
+Others/
+bg_remover.py
+reference.txt

@@ -4,6 +4,7 @@ import CampaignCard, { shortAddr, formatCampaignTitle, getOrgDisplayName } from 
 import LocationMapPicker from '../components/LocationMapPicker';
 import { ROLES } from '../roleConfig';
 import SettingsPanel from '../components/SettingsPanel';
+import DisasterRadarHeatmap from '../components/DisasterRadarHeatmap';
 import { useToast } from '../context/ToastContext';
 import './ReferenceDashboard.css';
 
@@ -43,7 +44,51 @@ export default function OrganizationView({
   const [searchQueryLedger, setSearchQueryLedger] = useState('');
   const [currentPageLedger, setCurrentPageLedger] = useState(1);
 
-  const campaignsPerPage = 4;
+  // View Layout Mode for Campaigns: 'list' or 'grid' (2-column option removed per user request)
+  const [viewModeOrg, setViewModeOrg] = useState(() => {
+    try {
+      const saved = localStorage.getItem('bbdrts_campaign_view_mode');
+      if (saved === 'grid' || saved === 'grid-3' || saved === 'grid-2') return 'grid';
+      return 'list';
+    } catch {
+      return 'list';
+    }
+  });
+
+  const handleViewModeChangeOrg = (mode) => {
+    const target = mode === 'grid' ? 'grid' : 'list';
+    setViewModeOrg(target);
+    try {
+      localStorage.setItem('bbdrts_campaign_view_mode', target);
+    } catch { }
+  };
+
+  const campaignsPerPage = viewModeOrg === 'list' ? 4 : 6;
+
+  // Global Header Navigation Listener
+  useEffect(() => {
+    const handleRadarNav = () => {
+      setActiveTab('radar-heatmap');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+    const handleCampaignsNav = () => {
+      setActiveTab('all-campaigns');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+    const handleHomeNav = () => {
+      setActiveTab('dashboard');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    window.addEventListener('bbdrts_navigate_radar', handleRadarNav);
+    window.addEventListener('bbdrts_navigate_campaigns', handleCampaignsNav);
+    window.addEventListener('bbdrts_navigate_home', handleHomeNav);
+    return () => {
+      window.removeEventListener('bbdrts_navigate_radar', handleRadarNav);
+      window.removeEventListener('bbdrts_navigate_campaigns', handleCampaignsNav);
+      window.removeEventListener('bbdrts_navigate_home', handleHomeNav);
+    };
+  }, []);
 
   // Create campaign form state
   const PRESET_CAMPAIGN_TAGS = [
@@ -82,11 +127,13 @@ export default function OrganizationView({
   const [targetDate, setTargetDate] = useState('');
   const [documentUrl, setDocumentUrl] = useState('');
   const [contactInfo, setContactInfo] = useState('');
-  
+
   // Multi-Channel Payment Settings State
   const [activePaymentChannelTab, setActivePaymentChannelTab] = useState('gcash');
+  const [gcashName, setGcashName] = useState('');
   const [gcashNumber, setGcashNumber] = useState('');
   const [gcashQrUrl, setGcashQrUrl] = useState('');
+  const [mayaName, setMayaName] = useState('');
   const [mayaNumber, setMayaNumber] = useState('');
   const [mayaQrUrl, setMayaQrUrl] = useState('');
   const [bankName, setBankName] = useState('BDO Unibank');
@@ -147,13 +194,112 @@ export default function OrganizationView({
     reader.readAsDataURL(file);
   };
 
+  // Helper: Extract profile relief channel details from currentUser / preferences
+  const getProfileReliefChannels = () => {
+    if (!currentUser) return { hasAny: false };
+    let prefs = {};
+    if (currentUser.preferences) {
+      try {
+        prefs = typeof currentUser.preferences === 'string' ? JSON.parse(currentUser.preferences) : currentUser.preferences;
+      } catch (_) { }
+    }
+
+    const gNum = (currentUser.gcash_number || prefs.gcash_number || '').trim();
+    const gName = (currentUser.gcash_name || prefs.gcash_name || '').trim();
+    const gQr = currentUser.gcash_qr_url || prefs.gcash_qr_url || '';
+
+    const mNum = (currentUser.maya_number || prefs.maya_number || '').trim();
+    const mName = (currentUser.maya_name || prefs.maya_name || '').trim();
+    const mQr = currentUser.maya_qr_url || prefs.maya_qr_url || '';
+
+    let bName = (currentUser.bank_name || prefs.bank_name || '').trim();
+    let bAcctName = (currentUser.bank_account_name || prefs.bank_account_name || '').trim();
+    let bAcctNum = (currentUser.bank_account_number || prefs.bank_account_number || '').trim();
+    const bQr = currentUser.bank_qr_url || prefs.bank_qr_url || '';
+    const bDetails = (currentUser.bank_details || prefs.bank_details || '').trim();
+
+    if (!bName && !bAcctNum && bDetails) {
+      const parts = bDetails.split('•').map(s => s.trim());
+      if (parts.length >= 2) {
+        bName = parts[0] || '';
+        const acctPart = parts.find(p => p.toLowerCase().includes('acct')) || parts[parts.length - 1];
+        bAcctNum = acctPart.replace(/acct:?/i, '').trim();
+        if (parts.length >= 3) {
+          bAcctName = parts[1] || '';
+        }
+      } else {
+        bName = bDetails;
+      }
+    }
+
+    const hasAny = Boolean(gNum || gQr || gName || mNum || mQr || mName || bAcctNum || bQr);
+
+    return {
+      hasAny,
+      gcashNumber: gNum,
+      gcashName: gName,
+      gcashQrUrl: gQr,
+      mayaNumber: mNum,
+      mayaName: mName,
+      mayaQrUrl: mQr,
+      bankName: bName || 'BDO Unibank',
+      bankAccountName: bAcctName || (currentUser.name || ''),
+      bankAccountNumber: bAcctNum,
+      bankQrUrl: bQr
+    };
+  };
+
+  // Auto-fill from Organization Profile (Strictly enforced: only applies if already in profile edit)
+  const handleAutofillFromProfile = () => {
+    const profile = getProfileReliefChannels();
+
+    if (!profile || !profile.hasAny) {
+      showWarning(
+        'No relief channels configured in your profile yet. Please configure your GCash, Maya, or Bank details in Profile & Settings > Relief Channels first.',
+        'No Profile Details Found'
+      );
+      return;
+    }
+
+    const filled = [];
+
+    if (profile.gcashNumber || profile.gcashQrUrl || profile.gcashName) {
+      if (profile.gcashNumber) setGcashNumber(profile.gcashNumber);
+      if (profile.gcashName) setGcashName(profile.gcashName);
+      if (profile.gcashQrUrl) setGcashQrUrl(profile.gcashQrUrl);
+      filled.push('GCash');
+    }
+
+    if (profile.mayaNumber || profile.mayaQrUrl || profile.mayaName) {
+      if (profile.mayaNumber) setMayaNumber(profile.mayaNumber);
+      if (profile.mayaName) setMayaName(profile.mayaName);
+      if (profile.mayaQrUrl) setMayaQrUrl(profile.mayaQrUrl);
+      filled.push('Maya');
+    }
+
+    if (profile.bankAccountNumber || profile.bankQrUrl || profile.bankAccountName) {
+      if (profile.bankName) setBankName(profile.bankName);
+      if (profile.bankAccountName) setBankAccountName(profile.bankAccountName);
+      if (profile.bankAccountNumber) setBankAccountNumber(profile.bankAccountNumber);
+      if (profile.bankQrUrl) setBankQrUrl(profile.bankQrUrl);
+      filled.push('Bank');
+    }
+
+    showSuccess(
+      `Payment details & QR codes successfully auto-filled from your profile (${filled.join(', ')}).`,
+      'Profile Channels Synced'
+    );
+  };
+
   const handleAutofillAllPaymentDetails = () => {
     // 1. GCash
+    setGcashName(orgDisplayName || 'ReliefLink Foundation Inc.');
     setGcashNumber('0917 890 1234');
     const gcashSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 300" width="300" height="300"><rect width="300" height="300" fill="#ffffff" rx="16"/><rect x="20" y="20" width="70" height="70" fill="#007dfe" rx="8"/><rect x="32" y="32" width="46" height="46" fill="#ffffff" rx="4"/><rect x="42" y="42" width="26" height="26" fill="#007dfe" rx="2"/><rect x="210" y="20" width="70" height="70" fill="#007dfe" rx="8"/><rect x="222" y="32" width="46" height="46" fill="#ffffff" rx="4"/><rect x="232" y="42" width="26" height="26" fill="#007dfe" rx="2"/><rect x="20" y="210" width="70" height="70" fill="#007dfe" rx="8"/><rect x="32" y="222" width="46" height="46" fill="#ffffff" rx="4"/><rect x="42" y="232" width="26" height="26" fill="#007dfe" rx="2"/><g fill="#0f172a"><rect x="105" y="35" width="14" height="14" rx="2"/><rect x="135" y="35" width="14" height="14" rx="2"/><rect x="165" y="35" width="14" height="14" rx="2"/><rect x="35" y="105" width="14" height="14" rx="2"/><rect x="35" y="135" width="14" height="14" rx="2"/><rect x="35" y="165" width="14" height="14" rx="2"/><rect x="105" y="105" width="14" height="14" rx="2"/><rect x="180" y="105" width="14" height="14" rx="2"/><rect x="105" y="180" width="14" height="14" rx="2"/><rect x="180" y="180" width="14" height="14" rx="2"/><rect x="215" y="105" width="14" height="14" rx="2"/><rect x="245" y="105" width="14" height="14" rx="2"/><rect x="105" y="215" width="14" height="14" rx="2"/><rect x="105" y="245" width="14" height="14" rx="2"/></g><rect x="110" y="110" width="80" height="80" rx="16" fill="#007dfe"/><text x="150" y="158" font-family="system-ui, -apple-system, sans-serif" font-size="38" font-weight="900" fill="#ffffff" text-anchor="middle">G</text><text x="150" y="285" font-family="system-ui, -apple-system, sans-serif" font-size="12" font-weight="700" fill="#007dfe" text-anchor="middle">OFFICIAL GCASH QR PH</text></svg>`;
     setGcashQrUrl(`data:image/svg+xml;utf8,${encodeURIComponent(gcashSvg)}`);
 
     // 2. Maya
+    setMayaName(orgDisplayName || 'ReliefLink Foundation Inc.');
     setMayaNumber('0918 765 4321');
     const mayaSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 300" width="300" height="300"><rect width="300" height="300" fill="#000000" rx="16"/><rect x="20" y="20" width="70" height="70" fill="#00d68f" rx="8"/><rect x="32" y="32" width="46" height="46" fill="#000000" rx="4"/><rect x="42" y="42" width="26" height="26" fill="#00d68f" rx="2"/><rect x="210" y="20" width="70" height="70" fill="#00d68f" rx="8"/><rect x="222" y="32" width="46" height="46" fill="#000000" rx="4"/><rect x="232" y="42" width="26" height="26" fill="#00d68f" rx="2"/><rect x="20" y="210" width="70" height="70" fill="#00d68f" rx="8"/><rect x="32" y="222" width="46" height="46" fill="#000000" rx="4"/><rect x="42" y="232" width="26" height="26" fill="#00d68f" rx="2"/><g fill="#ffffff"><rect x="105" y="35" width="14" height="14" rx="2"/><rect x="135" y="35" width="14" height="14" rx="2"/><rect x="165" y="35" width="14" height="14" rx="2"/><rect x="35" y="105" width="14" height="14" rx="2"/><rect x="35" y="135" width="14" height="14" rx="2"/><rect x="35" y="165" width="14" height="14" rx="2"/><rect x="105" y="105" width="14" height="14" rx="2"/><rect x="180" y="105" width="14" height="14" rx="2"/><rect x="105" y="180" width="14" height="14" rx="2"/><rect x="180" y="180" width="14" height="14" rx="2"/><rect x="215" y="105" width="14" height="14" rx="2"/><rect x="245" y="105" width="14" height="14" rx="2"/><rect x="105" y="215" width="14" height="14" rx="2"/><rect x="105" y="245" width="14" height="14" rx="2"/></g><rect x="100" y="115" width="100" height="70" rx="12" fill="#000000" stroke="#00d68f" stroke-width="2"/><text x="150" y="158" font-family="system-ui, -apple-system, sans-serif" font-size="24" font-weight="900" fill="#00d68f" text-anchor="middle">maya</text><text x="150" y="285" font-family="system-ui, -apple-system, sans-serif" font-size="12" font-weight="700" fill="#00d68f" text-anchor="middle">OFFICIAL MAYA QR PH</text></svg>`;
     setMayaQrUrl(`data:image/svg+xml;utf8,${encodeURIComponent(mayaSvg)}`);
@@ -165,7 +311,7 @@ export default function OrganizationView({
     const bankSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 300" width="300" height="300"><rect width="300" height="300" fill="#ffffff" rx="16"/><rect x="20" y="20" width="70" height="70" fill="#0284c7" rx="8"/><rect x="32" y="32" width="46" height="46" fill="#ffffff" rx="4"/><rect x="42" y="42" width="26" height="26" fill="#0284c7" rx="2"/><rect x="210" y="20" width="70" height="70" fill="#0284c7" rx="8"/><rect x="222" y="32" width="46" height="46" fill="#ffffff" rx="4"/><rect x="232" y="42" width="26" height="26" fill="#0284c7" rx="2"/><rect x="20" y="210" width="70" height="70" fill="#0284c7" rx="8"/><rect x="32" y="222" width="46" height="46" fill="#ffffff" rx="4"/><rect x="42" y="232" width="26" height="26" fill="#0284c7" rx="2"/><g fill="#0f172a"><rect x="105" y="35" width="14" height="14" rx="2"/><rect x="135" y="35" width="14" height="14" rx="2"/><rect x="165" y="35" width="14" height="14" rx="2"/><rect x="35" y="105" width="14" height="14" rx="2"/><rect x="35" y="135" width="14" height="14" rx="2"/><rect x="35" y="165" width="14" height="14" rx="2"/><rect x="105" y="105" width="14" height="14" rx="2"/><rect x="180" y="105" width="14" height="14" rx="2"/><rect x="105" y="180" width="14" height="14" rx="2"/><rect x="180" y="180" width="14" height="14" rx="2"/><rect x="215" y="105" width="14" height="14" rx="2"/><rect x="245" y="105" width="14" height="14" rx="2"/><rect x="105" y="215" width="14" height="14" rx="2"/><rect x="105" y="245" width="14" height="14" rx="2"/></g><rect x="105" y="110" width="90" height="80" rx="14" fill="#0284c7"/><text x="150" y="158" font-family="system-ui, -apple-system, sans-serif" font-size="20" font-weight="900" fill="#ffffff" text-anchor="middle">BDO</text><text x="150" y="285" font-family="system-ui, -apple-system, sans-serif" font-size="12" font-weight="700" fill="#0284c7" text-anchor="middle">INSTAPAY / PESONET</text></svg>`;
     setBankQrUrl(`data:image/svg+xml;utf8,${encodeURIComponent(bankSvg)}`);
 
-    showSuccess('All payment channels (GCash, Maya, Bank) auto-filled!', 'Channels Configured');
+    showSuccess('Demo payment channels (GCash, Maya, Bank) auto-filled!', 'Channels Configured');
   };
 
   // Organization Ledger / Donations State
@@ -320,7 +466,7 @@ export default function OrganizationView({
     setSecRegNo('SEC-CN2021-08492');
     setDswdNo('DSWD-SB-A-2024-0193');
     setBoardMembersText('Chairman: Richard Gordon | SecGen: Gwendolyn Pang | Trustee: Dr. Benjamin Go');
-    
+
     // Generate realistic Philippine SEC Certificate SVG
     const secCertSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 400" width="600" height="400"><rect width="600" height="400" fill="#fdfbf7" stroke="#b45309" stroke-width="6" rx="8"/><rect x="15" y="15" width="570" height="370" fill="none" stroke="#d97706" stroke-width="2" stroke-dasharray="8 4"/><text x="300" y="60" font-family="Georgia, serif" font-size="16" font-weight="bold" fill="#78350f" text-anchor="middle">REPUBLIC OF THE PHILIPPINES</text><text x="300" y="85" font-family="Georgia, serif" font-size="20" font-weight="bold" fill="#b45309" text-anchor="middle">SECURITIES AND EXCHANGE COMMISSION</text><text x="300" y="110" font-family="sans-serif" font-size="12" fill="#92400e" text-anchor="middle">SEC Building, EDSA, Greenhills, Mandaluyong City</text><line x1="100" y1="125" x2="500" y2="125" stroke="#b45309" stroke-width="2"/><text x="300" y="160" font-family="Georgia, serif" font-size="22" font-style="italic" fill="#1e293b" text-anchor="middle">CERTIFICATE OF INCORPORATION</text><text x="300" y="195" font-family="sans-serif" font-size="14" fill="#334155" text-anchor="middle">This is to certify that</text><text x="300" y="230" font-family="Georgia, serif" font-size="20" font-weight="bold" fill="#0f172a" text-anchor="middle">PHILIPPINE RED CROSS - SOUTHERN LEYTE CHAPTER</text><text x="300" y="260" font-family="sans-serif" font-size="13" fill="#475569" text-anchor="middle">is registered as a Non-Stock, Non-Profit Humanitarian Corporation</text><text x="300" y="295" font-family="monospace" font-size="15" font-weight="bold" fill="#b45309" text-anchor="middle">COMPANY REG. NO. SEC-CN2021-08492</text><text x="300" y="355" font-family="sans-serif" font-size="11" fill="#64748b" text-anchor="middle">Issued under Republic Act 11232 • Duly Verified & Seal Affixed</text></svg>`;
     setSecCertUrl(`data:image/svg+xml;utf8,${encodeURIComponent(secCertSvg)}`);
@@ -340,9 +486,9 @@ export default function OrganizationView({
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
       const res = await fetch(`${apiUrl}/api/organization/kyc`, {
         method: 'POST',
-        headers: { 
+        headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}` 
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
           org_name: orgDisplayName,
@@ -521,8 +667,10 @@ export default function OrganizationView({
           urgency: urgency,
           target_date: targetDate,
           document_url: documentUrl.trim(),
+          gcash_name: gcashName.trim(),
           gcash_number: gcashNumber.trim(),
           gcash_qr_url: gcashQrUrl,
+          maya_name: mayaName.trim(),
           maya_number: mayaNumber.trim(),
           maya_qr_url: mayaQrUrl,
           bank_name: bankName.trim(),
@@ -560,8 +708,10 @@ export default function OrganizationView({
       setGpsCoordinates('');
       setBeneficiariesImpact('');
       setContactInfo('');
+      setGcashName('');
       setGcashNumber('');
       setGcashQrUrl('');
+      setMayaName('');
       setMayaNumber('');
       setMayaQrUrl('');
       setBankName('BDO Unibank');
@@ -602,7 +752,15 @@ export default function OrganizationView({
         <aside className="ref-sidebar">
           <div>
             <div className="ref-sidebar-user">
-              <div className="ref-sidebar-avatar">{orgInitials}</div>
+              <div className="ref-sidebar-avatar" style={{ overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                {currentUser?.avatar_url && (currentUser.avatar_url.startsWith('data:') || currentUser.avatar_url.startsWith('http')) ? (
+                  <img src={currentUser.avatar_url} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                ) : currentUser?.avatar_url && currentUser.avatar_url.length < 30 ? (
+                  <span className="material-symbols-outlined" style={{ fontSize: '20px', color: 'var(--accent)' }}>{currentUser.avatar_url}</span>
+                ) : (
+                  orgInitials
+                )}
+              </div>
               <div>
                 <div className="ref-sidebar-name">{orgDisplayName}</div>
                 <div className="ref-sidebar-id">BBDRTS-NGO-2026-0001</div>
@@ -637,6 +795,14 @@ export default function OrganizationView({
               >
                 <span className="material-symbols-outlined">list_alt</span>
                 <span>All Campaigns</span>
+              </button>
+
+              <button
+                className={`ref-nav-item ${activeTab === 'radar-heatmap' ? 'active' : ''}`}
+                onClick={() => setActiveTab('radar-heatmap')}
+              >
+                <span className="material-symbols-outlined" style={{ color: activeTab === 'radar-heatmap' ? '#38bdf8' : 'inherit' }}>radar</span>
+                <span>Relief Radar</span>
               </button>
 
               <button
@@ -713,9 +879,26 @@ export default function OrganizationView({
           {activeTab === 'dashboard' && (
             <>
               {/* Top Hero Banner */}
-              <div className="ref-welcome-card">
+              <div
+                className="ref-welcome-card"
+                style={
+                  currentUser?.banner_url && (currentUser.banner_url.startsWith('data:') || currentUser.banner_url.startsWith('http') || currentUser.banner_url.startsWith('/'))
+                    ? { backgroundImage: `linear-gradient(rgba(10,12,18,0.72), rgba(10,12,18,0.92)), url(${currentUser.banner_url})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+                    : currentUser?.banner_url && currentUser.banner_url.startsWith('linear-gradient')
+                      ? { background: currentUser.banner_url }
+                      : {}
+                }
+              >
                 <div className="ref-welcome-header">
-                  <div className="ref-welcome-avatar">{orgInitials}</div>
+                  <div className="ref-welcome-avatar" style={{ overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    {currentUser?.avatar_url && (currentUser.avatar_url.startsWith('data:') || currentUser.avatar_url.startsWith('http')) ? (
+                      <img src={currentUser.avatar_url} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    ) : currentUser?.avatar_url && currentUser.avatar_url.length < 30 ? (
+                      <span className="material-symbols-outlined" style={{ fontSize: '28px', color: 'var(--accent)' }}>{currentUser.avatar_url}</span>
+                    ) : (
+                      orgInitials
+                    )}
+                  </div>
                   <div className="ref-welcome-text">
                     <h1>{orgDisplayName || 'Organization Dashboard'}</h1>
                     <p>
@@ -764,8 +947,8 @@ export default function OrganizationView({
                       </div>
                     </div>
                   </div>
-                  <button 
-                    className="btn btn-primary btn-sm glow pulse" 
+                  <button
+                    className="btn btn-primary btn-sm glow pulse"
                     onClick={() => { fetchKycData(); setActiveTab('sec-kyc'); }}
                     style={{ padding: '8px 16px', display: 'flex', alignItems: 'center', gap: '6px' }}
                   >
@@ -971,6 +1154,28 @@ export default function OrganizationView({
                     <option value="RAISED_HIGH">Highest Raised</option>
                   </select>
                 </div>
+
+                {/* Segmented Layout Mode Controls [List] [Grid] (2-Col removed!) */}
+                <div className="filter-layout-segmented-pill" role="group" aria-label="Layout view mode">
+                  <button
+                    type="button"
+                    onClick={() => handleViewModeChangeOrg('list')}
+                    className={`layout-seg-btn ${viewModeOrg === 'list' ? 'active' : ''}`}
+                    title="List View"
+                    aria-label="List View"
+                  >
+                    <span className="material-symbols-outlined">format_list_bulleted</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleViewModeChangeOrg('grid')}
+                    className={`layout-seg-btn ${viewModeOrg === 'grid' || viewModeOrg === 'grid-3' || viewModeOrg === 'grid-2' ? 'active' : ''}`}
+                    title="Grid View"
+                    aria-label="Grid View"
+                  >
+                    <span className="material-symbols-outlined">grid_view</span>
+                  </button>
+                </div>
               </div>
 
               {filteredAllCampaigns.length === 0 ? (
@@ -983,7 +1188,7 @@ export default function OrganizationView({
                 </div>
               ) : (
                 <>
-                  <div className="campaigns-list">
+                  <div className={viewModeOrg === 'grid' || viewModeOrg === 'grid-3' || viewModeOrg === 'grid-2' ? 'campaigns-grid' : 'campaigns-list'}>
                     {paginatedAllCampaigns.map((camp) => (
                       <CampaignCard key={camp.id} camp={camp} contract={contract}
                         role={ROLES.ORGANIZATION} walletAddress={walletAddress} onDonated={fetchCampaigns} />
@@ -1151,6 +1356,28 @@ export default function OrganizationView({
                       <option value="RAISED_HIGH">Highest Raised</option>
                     </select>
                   </div>
+
+                  {/* Segmented Layout Mode Controls [List] [Grid] (2-Col removed!) */}
+                  <div className="filter-layout-segmented-pill" role="group" aria-label="Layout view mode">
+                    <button
+                      type="button"
+                      onClick={() => handleViewModeChangeOrg('list')}
+                      className={`layout-seg-btn ${viewModeOrg === 'list' ? 'active' : ''}`}
+                      title="List View"
+                      aria-label="List View"
+                    >
+                      <span className="material-symbols-outlined">format_list_bulleted</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleViewModeChangeOrg('grid')}
+                      className={`layout-seg-btn ${viewModeOrg === 'grid' || viewModeOrg === 'grid-3' || viewModeOrg === 'grid-2' ? 'active' : ''}`}
+                      title="Grid View"
+                      aria-label="Grid View"
+                    >
+                      <span className="material-symbols-outlined">grid_view</span>
+                    </button>
+                  </div>
                 </div>
               )}
 
@@ -1172,7 +1399,7 @@ export default function OrganizationView({
                 </div>
               ) : (
                 <>
-                  <div className="campaigns-list">
+                  <div className={viewModeOrg === 'grid' || viewModeOrg === 'grid-3' || viewModeOrg === 'grid-2' ? 'campaigns-grid' : 'campaigns-list'}>
                     {paginatedMyCampaigns.map((camp) => (
                       <CampaignCard key={camp.id} camp={camp} contract={contract}
                         role={ROLES.ORGANIZATION} walletAddress={walletAddress} onDonated={fetchCampaigns} />
@@ -1666,374 +1893,472 @@ export default function OrganizationView({
                     </div>
 
                     {/* Section 4: Official Multi-Channel E-Wallet & Bank Settings */}
-                    <div style={{ background: 'rgba(15, 23, 42, 0.5)', border: '1px solid rgba(56, 189, 248, 0.3)', borderRadius: '14px', padding: '20px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '10px' }}>
-                        <div>
-                          <h3 style={{ margin: 0, fontSize: '0.98rem', color: '#38bdf8', display: 'flex', alignItems: 'center', gap: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                            <span className="material-symbols-outlined" style={{ fontSize: '1.25rem' }}>account_balance_wallet</span> 4. Official Multi-Channel Payment Settings
-                          </h3>
-                          <div style={{ fontSize: '0.78rem', color: '#94a3b8', marginTop: '3px' }}>
-                            Configure receiving channels for donors contributing via GCash, Maya, or direct Bank Transfer.
-                          </div>
-                        </div>
-
-                        <button
-                          type="button"
-                          className="card-autofill-btn"
-                          onClick={handleAutofillAllPaymentDetails}
-                          style={{ margin: 0, padding: '6px 14px', fontSize: '0.76rem', background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', border: '1px solid rgba(56, 189, 248, 0.4)', borderRadius: '8px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px', fontWeight: 700 }}
-                          title="Autofill verified test credentials for GCash, Maya, and BDO Bank"
-                        >
-                          <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>bolt</span>
-                          ⚡ Demo Autofill All Channels
-                        </button>
-                      </div>
-
-                      {/* Payment Channel Tab Selector */}
-                      <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', flexWrap: 'wrap' }}>
-                        <button
-                          type="button"
-                          onClick={() => setActivePaymentChannelTab('gcash')}
-                          style={{
-                            flex: '1 1 120px',
-                            padding: '8px 14px',
-                            borderRadius: '10px',
-                            border: activePaymentChannelTab === 'gcash' ? '1.5px solid #007DFE' : '1px solid rgba(255, 255, 255, 0.1)',
-                            background: activePaymentChannelTab === 'gcash' ? 'rgba(0, 125, 254, 0.15)' : 'rgba(255, 255, 255, 0.03)',
-                            color: activePaymentChannelTab === 'gcash' ? '#007DFE' : '#94a3b8',
-                            fontSize: '0.82rem',
-                            fontWeight: 700,
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: '6px',
-                            transition: 'all 0.15s ease'
-                          }}
-                        >
-                          <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: (gcashNumber || gcashQrUrl) ? '#22c55e' : '#64748b' }}></span>
-                          <span>GCash</span>
-                          {(gcashNumber || gcashQrUrl) && <span style={{ fontSize: '0.7rem', color: '#22c55e' }}>✓</span>}
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => setActivePaymentChannelTab('maya')}
-                          style={{
-                            flex: '1 1 120px',
-                            padding: '8px 14px',
-                            borderRadius: '10px',
-                            border: activePaymentChannelTab === 'maya' ? '1.5px solid #00d68f' : '1px solid rgba(255, 255, 255, 0.1)',
-                            background: activePaymentChannelTab === 'maya' ? 'rgba(0, 214, 143, 0.15)' : 'rgba(255, 255, 255, 0.03)',
-                            color: activePaymentChannelTab === 'maya' ? '#00d68f' : '#94a3b8',
-                            fontSize: '0.82rem',
-                            fontWeight: 700,
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: '6px',
-                            transition: 'all 0.15s ease'
-                          }}
-                        >
-                          <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: (mayaNumber || mayaQrUrl) ? '#22c55e' : '#64748b' }}></span>
-                          <span>Maya</span>
-                          {(mayaNumber || mayaQrUrl) && <span style={{ fontSize: '0.7rem', color: '#22c55e' }}>✓</span>}
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => setActivePaymentChannelTab('bank')}
-                          style={{
-                            flex: '1 1 160px',
-                            padding: '8px 14px',
-                            borderRadius: '10px',
-                            border: activePaymentChannelTab === 'bank' ? '1.5px solid #38bdf8' : '1px solid rgba(255, 255, 255, 0.1)',
-                            background: activePaymentChannelTab === 'bank' ? 'rgba(56, 189, 248, 0.15)' : 'rgba(255, 255, 255, 0.03)',
-                            color: activePaymentChannelTab === 'bank' ? '#38bdf8' : '#94a3b8',
-                            fontSize: '0.82rem',
-                            fontWeight: 700,
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: '6px',
-                            transition: 'all 0.15s ease'
-                          }}
-                        >
-                          <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: (bankAccountNumber) ? '#22c55e' : '#64748b' }}></span>
-                          <span>Direct Bank Deposit</span>
-                          {(bankAccountNumber) && <span style={{ fontSize: '0.7rem', color: '#22c55e' }}>✓</span>}
-                        </button>
-                      </div>
-
-                      {/* ── 1. GCASH CHANNEL ── */}
-                      {activePaymentChannelTab === 'gcash' && (
-                        <div className="fade-in" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px', alignItems: 'start', background: 'rgba(0, 125, 254, 0.03)', padding: '16px', borderRadius: '12px', border: '1px solid rgba(0, 125, 254, 0.2)' }}>
-                          <div>
-                            <label style={{ display: 'block', fontSize: '0.82rem', color: '#e2e8f0', fontWeight: 600, marginBottom: '6px' }}>
-                              Official GCash Receiving Number
-                            </label>
-                            <div style={{ position: 'relative' }}>
-                              <span className="material-symbols-outlined" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#007DFE', fontSize: '18px' }}>
-                                smartphone
-                              </span>
-                              <input
-                                className="input"
-                                type="text"
-                                placeholder="e.g., 0917 890 1234"
-                                value={gcashNumber}
-                                onChange={(e) => setGcashNumber(e.target.value)}
-                                disabled={creating}
-                                style={{ paddingLeft: '38px', fontSize: '0.9rem', fontFamily: 'monospace', fontWeight: 700 }}
-                              />
-                            </div>
-                            <span style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '4px', display: 'block' }}>
-                              Donors can copy and send funds directly to this GCash account.
-                            </span>
-                          </div>
-
-                          <div>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                              <label style={{ fontSize: '0.82rem', color: '#e2e8f0', fontWeight: 600 }}>
-                                GCash QR Code Image
-                              </label>
-                              {gcashQrUrl && (
-                                <button
-                                  type="button"
-                                  onClick={() => setGcashQrUrl('')}
-                                  style={{ background: 'transparent', border: 'none', color: '#ef4444', fontSize: '0.72rem', cursor: 'pointer', fontWeight: 600 }}
-                                >
-                                  Remove QR
-                                </button>
-                              )}
-                            </div>
-
-                            {gcashQrUrl ? (
-                              <div style={{ position: 'relative', borderRadius: '12px', overflow: 'hidden', border: '1.5px solid rgba(0, 125, 254, 0.4)', background: 'rgba(0,0,0,0.3)', padding: '10px', textAlign: 'center' }}>
-                                <img
-                                  src={gcashQrUrl}
-                                  alt="Organization GCash QR"
-                                  style={{ maxHeight: '130px', maxWidth: '100%', objectFit: 'contain', borderRadius: '8px' }}
-                                />
-                                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', marginTop: '6px', fontSize: '0.74rem', color: '#007DFE', fontWeight: 700 }}>
-                                  <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>verified</span>
-                                  GCash QR Attached
-                                </div>
-                              </div>
-                            ) : (
-                              <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '16px', border: '1.5px dashed rgba(0, 125, 254, 0.3)', borderRadius: '12px', cursor: 'pointer', background: 'rgba(0, 125, 254, 0.03)', transition: '0.2s' }}>
-                                <span className="material-symbols-outlined" style={{ fontSize: '28px', color: '#007DFE', marginBottom: '4px' }}>
-                                  qr_code_scanner
-                                </span>
-                                <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#ffffff' }}>
-                                  Upload GCash QR
-                                </span>
-                                <span style={{ fontSize: '0.7rem', color: '#94a3b8', marginTop: '2px' }}>
-                                  PNG, JPG or WebP image
-                                </span>
-                                <input
-                                  type="file"
-                                  accept="image/*"
-                                  onChange={handleGcashQrUpload}
-                                  style={{ display: 'none' }}
-                                  disabled={creating}
-                                />
-                              </label>
-                            )}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* ── 2. MAYA CHANNEL ── */}
-                      {activePaymentChannelTab === 'maya' && (
-                        <div className="fade-in" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px', alignItems: 'start', background: 'rgba(0, 214, 143, 0.03)', padding: '16px', borderRadius: '12px', border: '1px solid rgba(0, 214, 143, 0.2)' }}>
-                          <div>
-                            <label style={{ display: 'block', fontSize: '0.82rem', color: '#e2e8f0', fontWeight: 600, marginBottom: '6px' }}>
-                              Official Maya Number or @Username
-                            </label>
-                            <div style={{ position: 'relative' }}>
-                              <span className="material-symbols-outlined" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#00d68f', fontSize: '18px' }}>
-                                account_circle
-                              </span>
-                              <input
-                                className="input"
-                                type="text"
-                                placeholder="e.g., 0918 765 4321 or @reliefph"
-                                value={mayaNumber}
-                                onChange={(e) => setMayaNumber(e.target.value)}
-                                disabled={creating}
-                                style={{ paddingLeft: '38px', fontSize: '0.9rem', fontFamily: 'monospace', fontWeight: 700 }}
-                              />
-                            </div>
-                            <span style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '4px', display: 'block' }}>
-                              Donors using Maya can transfer directly to this number or username.
-                            </span>
-                          </div>
-
-                          <div>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                              <label style={{ fontSize: '0.82rem', color: '#e2e8f0', fontWeight: 600 }}>
-                                Maya QR Code Image
-                              </label>
-                              {mayaQrUrl && (
-                                <button
-                                  type="button"
-                                  onClick={() => setMayaQrUrl('')}
-                                  style={{ background: 'transparent', border: 'none', color: '#ef4444', fontSize: '0.72rem', cursor: 'pointer', fontWeight: 600 }}
-                                >
-                                  Remove QR
-                                </button>
-                              )}
-                            </div>
-
-                            {mayaQrUrl ? (
-                              <div style={{ position: 'relative', borderRadius: '12px', overflow: 'hidden', border: '1.5px solid rgba(0, 214, 143, 0.4)', background: 'rgba(0,0,0,0.3)', padding: '10px', textAlign: 'center' }}>
-                                <img
-                                  src={mayaQrUrl}
-                                  alt="Organization Maya QR"
-                                  style={{ maxHeight: '130px', maxWidth: '100%', objectFit: 'contain', borderRadius: '8px' }}
-                                />
-                                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', marginTop: '6px', fontSize: '0.74rem', color: '#00d68f', fontWeight: 700 }}>
-                                  <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>verified</span>
-                                  Maya QR Attached
-                                </div>
-                              </div>
-                            ) : (
-                              <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '16px', border: '1.5px dashed rgba(0, 214, 143, 0.3)', borderRadius: '12px', cursor: 'pointer', background: 'rgba(0, 214, 143, 0.03)', transition: '0.2s' }}>
-                                <span className="material-symbols-outlined" style={{ fontSize: '28px', color: '#00d68f', marginBottom: '4px' }}>
-                                  qr_code_scanner
-                                </span>
-                                <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#ffffff' }}>
-                                  Upload Maya QR
-                                </span>
-                                <span style={{ fontSize: '0.7rem', color: '#94a3b8', marginTop: '2px' }}>
-                                  PNG, JPG or WebP image
-                                </span>
-                                <input
-                                  type="file"
-                                  accept="image/*"
-                                  onChange={handleMayaQrUpload}
-                                  style={{ display: 'none' }}
-                                  disabled={creating}
-                                />
-                              </label>
-                            )}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* ── 3. DIRECT BANK DEPOSIT CHANNEL ── */}
-                      {activePaymentChannelTab === 'bank' && (
-                        <div className="fade-in" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px', alignItems: 'start', background: 'rgba(56, 189, 248, 0.03)', padding: '16px', borderRadius: '12px', border: '1px solid rgba(56, 189, 248, 0.2)' }}>
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    {(() => {
+                      const profileReliefData = getProfileReliefChannels();
+                      return (
+                        <div style={{ background: 'rgba(15, 23, 42, 0.5)', border: '1px solid rgba(56, 189, 248, 0.3)', borderRadius: '14px', padding: '20px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '10px' }}>
                             <div>
-                              <label style={{ display: 'block', fontSize: '0.82rem', color: '#e2e8f0', fontWeight: 600, marginBottom: '4px' }}>
-                                Bank Name
-                              </label>
-                              <select
-                                className="input"
-                                value={bankName}
-                                onChange={(e) => setBankName(e.target.value)}
-                                disabled={creating}
-                                style={{ background: 'rgba(30, 41, 59, 0.9)', color: '#fff', fontSize: '0.85rem' }}
+                              <h3 style={{ margin: 0, fontSize: '0.98rem', color: '#38bdf8', display: 'flex', alignItems: 'center', gap: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                <span className="material-symbols-outlined" style={{ fontSize: '1.25rem' }}>account_balance_wallet</span> 4. Official Multi-Channel Payment Settings
+                              </h3>
+                              <div style={{ fontSize: '0.78rem', color: '#94a3b8', marginTop: '3px' }}>
+                                Configure receiving channels for donors contributing via GCash, Maya, or direct Bank Transfer.
+                              </div>
+                            </div>
+
+                            <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                              <button
+                                type="button"
+                                className="card-autofill-btn"
+                                onClick={handleAutofillFromProfile}
+                                style={{
+                                  margin: 0,
+                                  padding: '7px 15px',
+                                  fontSize: '0.78rem',
+                                  background: profileReliefData.hasAny ? 'rgba(34, 197, 94, 0.16)' : 'rgba(148, 163, 184, 0.12)',
+                                  color: profileReliefData.hasAny ? '#22c55e' : '#cbd5e1',
+                                  border: profileReliefData.hasAny ? '1.5px solid rgba(34, 197, 94, 0.5)' : '1px dashed rgba(148, 163, 184, 0.35)',
+                                  borderRadius: '8px',
+                                  cursor: 'pointer',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '6px',
+                                  fontWeight: 700,
+                                  transition: 'all 0.2s ease',
+                                  boxShadow: profileReliefData.hasAny ? '0 0 12px rgba(34, 197, 94, 0.2)' : 'none'
+                                }}
+                                title={profileReliefData.hasAny ? "Auto-fill payment numbers and QR codes from your Organization Profile" : "No relief channels configured in profile edit yet. Click to view requirement."}
                               >
-                                <option value="BDO Unibank">BDO Unibank</option>
-                                <option value="BPI (Bank of the Philippine Islands)">BPI (Bank of the Philippine Islands)</option>
-                                <option value="UnionBank of the Philippines">UnionBank of the Philippines</option>
-                                <option value="Metrobank">Metrobank</option>
-                                <option value="Landbank of the Philippines">Landbank of the Philippines</option>
-                                <option value="Security Bank">Security Bank</option>
-                                <option value="RCBC">RCBC</option>
-                                <option value="PNB (Philippine National Bank)">PNB (Philippine National Bank)</option>
-                                <option value="China Bank">China Bank</option>
-                              </select>
-                            </div>
+                                <span className="material-symbols-outlined" style={{ fontSize: '16px', color: profileReliefData.hasAny ? '#22c55e' : '#94a3b8' }}>
+                                  sync_saved_locally
+                                </span>
+                                ⚡ Auto-fill from Profile
+                                {profileReliefData.hasAny ? (
+                                  <span style={{ background: '#22c55e', color: '#0f172a', fontSize: '0.65rem', padding: '1px 6px', borderRadius: '10px', fontWeight: 800 }}>
+                                    READY
+                                  </span>
+                                ) : (
+                                  <span style={{ background: 'rgba(239, 68, 68, 0.15)', color: '#f87171', border: '1px solid rgba(239, 68, 68, 0.3)', fontSize: '0.65rem', padding: '1px 6px', borderRadius: '10px', fontWeight: 700 }}>
+                                    NOT SET IN PROFILE
+                                  </span>
+                                )}
+                              </button>
 
-                            <div>
-                              <label style={{ display: 'block', fontSize: '0.82rem', color: '#e2e8f0', fontWeight: 600, marginBottom: '4px' }}>
-                                Account Beneficiary Name
-                              </label>
-                              <input
-                                className="input"
-                                type="text"
-                                placeholder="e.g., ReliefLink Foundation Inc."
-                                value={bankAccountName}
-                                onChange={(e) => setBankAccountName(e.target.value)}
-                                disabled={creating}
-                                style={{ fontSize: '0.85rem' }}
-                              />
-                            </div>
-
-                            <div>
-                              <label style={{ display: 'block', fontSize: '0.82rem', color: '#e2e8f0', fontWeight: 600, marginBottom: '4px' }}>
-                                Account Number
-                              </label>
-                              <input
-                                className="input"
-                                type="text"
-                                placeholder="e.g., 0012 3456 7890"
-                                value={bankAccountNumber}
-                                onChange={(e) => setBankAccountNumber(e.target.value)}
-                                disabled={creating}
-                                style={{ fontSize: '0.88rem', fontFamily: 'monospace', fontWeight: 700 }}
-                              />
+                              <button
+                                type="button"
+                                className="card-autofill-btn"
+                                onClick={handleAutofillAllPaymentDetails}
+                                style={{ margin: 0, padding: '6px 12px', fontSize: '0.74rem', background: 'rgba(56, 189, 248, 0.1)', color: '#38bdf8', border: '1px solid rgba(56, 189, 248, 0.3)', borderRadius: '8px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '5px', fontWeight: 600 }}
+                                title="Autofill verified test credentials for GCash, Maya, and BDO Bank"
+                              >
+                                <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>science</span>
+                                Demo Fill
+                              </button>
                             </div>
                           </div>
 
-                          <div>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                              <label style={{ fontSize: '0.82rem', color: '#e2e8f0', fontWeight: 600 }}>
-                                Bank Transfer QR / InstaPay QR (Optional)
-                              </label>
-                              {bankQrUrl && (
-                                <button
-                                  type="button"
-                                  onClick={() => setBankQrUrl('')}
-                                  style={{ background: 'transparent', border: 'none', color: '#ef4444', fontSize: '0.72rem', cursor: 'pointer', fontWeight: 600 }}
-                                >
-                                  Remove QR
-                                </button>
-                              )}
-                            </div>
+                          {/* Payment Channel Tab Selector */}
+                          <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', flexWrap: 'wrap' }}>
+                            <button
+                              type="button"
+                              onClick={() => setActivePaymentChannelTab('gcash')}
+                              style={{
+                                flex: '1 1 120px',
+                                padding: '8px 14px',
+                                borderRadius: '10px',
+                                border: activePaymentChannelTab === 'gcash' ? '1.5px solid #007DFE' : '1px solid rgba(255, 255, 255, 0.1)',
+                                background: activePaymentChannelTab === 'gcash' ? 'rgba(0, 125, 254, 0.15)' : 'rgba(255, 255, 255, 0.03)',
+                                color: activePaymentChannelTab === 'gcash' ? '#007DFE' : '#94a3b8',
+                                fontSize: '0.82rem',
+                                fontWeight: 700,
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '6px',
+                                transition: 'all 0.15s ease'
+                              }}
+                            >
+                              <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: (gcashNumber || gcashQrUrl || gcashName) ? '#22c55e' : '#64748b' }}></span>
+                              <span>GCash</span>
+                              {(gcashNumber || gcashQrUrl || gcashName) && <span style={{ fontSize: '0.7rem', color: '#22c55e' }}>✓</span>}
+                            </button>
 
-                            {bankQrUrl ? (
-                              <div style={{ position: 'relative', borderRadius: '12px', overflow: 'hidden', border: '1.5px solid rgba(56, 189, 248, 0.4)', background: 'rgba(0,0,0,0.3)', padding: '10px', textAlign: 'center' }}>
-                                <img
-                                  src={bankQrUrl}
-                                  alt="Organization Bank QR"
-                                  style={{ maxHeight: '130px', maxWidth: '100%', objectFit: 'contain', borderRadius: '8px' }}
-                                />
-                                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', marginTop: '6px', fontSize: '0.74rem', color: '#38bdf8', fontWeight: 700 }}>
-                                  <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>verified</span>
-                                  Bank QR Attached
+                            <button
+                              type="button"
+                              onClick={() => setActivePaymentChannelTab('maya')}
+                              style={{
+                                flex: '1 1 120px',
+                                padding: '8px 14px',
+                                borderRadius: '10px',
+                                border: activePaymentChannelTab === 'maya' ? '1.5px solid #00d68f' : '1px solid rgba(255, 255, 255, 0.1)',
+                                background: activePaymentChannelTab === 'maya' ? 'rgba(0, 214, 143, 0.15)' : 'rgba(255, 255, 255, 0.03)',
+                                color: activePaymentChannelTab === 'maya' ? '#00d68f' : '#94a3b8',
+                                fontSize: '0.82rem',
+                                fontWeight: 700,
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '6px',
+                                transition: 'all 0.15s ease'
+                              }}
+                            >
+                              <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: (mayaNumber || mayaQrUrl || mayaName) ? '#22c55e' : '#64748b' }}></span>
+                              <span>Maya</span>
+                              {(mayaNumber || mayaQrUrl || mayaName) && <span style={{ fontSize: '0.7rem', color: '#22c55e' }}>✓</span>}
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => setActivePaymentChannelTab('bank')}
+                              style={{
+                                flex: '1 1 160px',
+                                padding: '8px 14px',
+                                borderRadius: '10px',
+                                border: activePaymentChannelTab === 'bank' ? '1.5px solid #38bdf8' : '1px solid rgba(255, 255, 255, 0.1)',
+                                background: activePaymentChannelTab === 'bank' ? 'rgba(56, 189, 248, 0.15)' : 'rgba(255, 255, 255, 0.03)',
+                                color: activePaymentChannelTab === 'bank' ? '#38bdf8' : '#94a3b8',
+                                fontSize: '0.82rem',
+                                fontWeight: 700,
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '6px',
+                                transition: 'all 0.15s ease'
+                              }}
+                            >
+                              <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: (bankAccountNumber || bankQrUrl) ? '#22c55e' : '#64748b' }}></span>
+                              <span>Direct Bank Deposit</span>
+                              {(bankAccountNumber || bankQrUrl) && <span style={{ fontSize: '0.7rem', color: '#22c55e' }}>✓</span>}
+                            </button>
+                          </div>
+
+                          {/* ── 1. GCASH CHANNEL ── */}
+                          {activePaymentChannelTab === 'gcash' && (
+                            <div className="fade-in" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px', alignItems: 'start', background: 'rgba(0, 125, 254, 0.03)', padding: '16px', borderRadius: '12px', border: '1px solid rgba(0, 125, 254, 0.2)' }}>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                <div>
+                                  <label style={{ display: 'block', fontSize: '0.82rem', color: '#e2e8f0', fontWeight: 600, marginBottom: '6px' }}>
+                                    Official GCash Account Name
+                                  </label>
+                                  <div style={{ position: 'relative' }}>
+                                    <span className="material-symbols-outlined" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#007DFE', fontSize: '18px' }}>
+                                      badge
+                                    </span>
+                                    <input
+                                      className="input"
+                                      type="text"
+                                      placeholder="e.g., Philippine Red Cross - Southern Leyte"
+                                      value={gcashName}
+                                      onChange={(e) => setGcashName(e.target.value)}
+                                      disabled={creating}
+                                      style={{ paddingLeft: '38px', fontSize: '0.88rem' }}
+                                    />
+                                  </div>
+                                  <span style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '4px', display: 'block' }}>
+                                    Registered name displayed on GCash app confirmation.
+                                  </span>
+                                </div>
+
+                                <div>
+                                  <label style={{ display: 'block', fontSize: '0.82rem', color: '#e2e8f0', fontWeight: 600, marginBottom: '6px' }}>
+                                    Official GCash Receiving Number
+                                  </label>
+                                  <div style={{ position: 'relative' }}>
+                                    <span className="material-symbols-outlined" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#007DFE', fontSize: '18px' }}>
+                                      smartphone
+                                    </span>
+                                    <input
+                                      className="input"
+                                      type="text"
+                                      placeholder="e.g., 0917 890 1234"
+                                      value={gcashNumber}
+                                      onChange={(e) => setGcashNumber(e.target.value)}
+                                      disabled={creating}
+                                      style={{ paddingLeft: '38px', fontSize: '0.9rem', fontFamily: 'monospace', fontWeight: 700 }}
+                                    />
+                                  </div>
+                                  <span style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '4px', display: 'block' }}>
+                                    Donors can copy and send funds directly to this GCash account.
+                                  </span>
                                 </div>
                               </div>
-                            ) : (
-                              <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px 16px', border: '1.5px dashed rgba(56, 189, 248, 0.3)', borderRadius: '12px', cursor: 'pointer', background: 'rgba(56, 189, 248, 0.03)', transition: '0.2s' }}>
-                                <span className="material-symbols-outlined" style={{ fontSize: '28px', color: '#38bdf8', marginBottom: '4px' }}>
-                                  account_balance
-                                </span>
-                                <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#ffffff' }}>
-                                  Upload Bank / InstaPay QR
-                                </span>
-                                <span style={{ fontSize: '0.7rem', color: '#94a3b8', marginTop: '2px' }}>
-                                  PNG, JPG or WebP image
-                                </span>
-                                <input
-                                  type="file"
-                                  accept="image/*"
-                                  onChange={handleBankQrUpload}
-                                  style={{ display: 'none' }}
-                                  disabled={creating}
-                                />
-                              </label>
-                            )}
-                          </div>
-                        </div>
-                      )}
 
-                    </div>
+                              <div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                                  <label style={{ fontSize: '0.82rem', color: '#e2e8f0', fontWeight: 600 }}>
+                                    GCash QR Code Image
+                                  </label>
+                                  {gcashQrUrl && (
+                                    <button
+                                      type="button"
+                                      onClick={() => setGcashQrUrl('')}
+                                      style={{ background: 'transparent', border: 'none', color: '#ef4444', fontSize: '0.72rem', cursor: 'pointer', fontWeight: 600 }}
+                                    >
+                                      Remove QR
+                                    </button>
+                                  )}
+                                </div>
+
+                                {gcashQrUrl ? (
+                                  <div style={{ position: 'relative', borderRadius: '12px', overflow: 'hidden', border: '1.5px solid rgba(0, 125, 254, 0.4)', background: 'rgba(0,0,0,0.3)', padding: '10px', textAlign: 'center' }}>
+                                    <img
+                                      src={gcashQrUrl}
+                                      alt="Organization GCash QR"
+                                      style={{ maxHeight: '130px', maxWidth: '100%', objectFit: 'contain', borderRadius: '8px' }}
+                                    />
+                                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', marginTop: '6px', fontSize: '0.74rem', color: '#007DFE', fontWeight: 700 }}>
+                                      <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>verified</span>
+                                      GCash QR Attached
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '16px', border: '1.5px dashed rgba(0, 125, 254, 0.3)', borderRadius: '12px', cursor: 'pointer', background: 'rgba(0, 125, 254, 0.03)', transition: '0.2s' }}>
+                                    <span className="material-symbols-outlined" style={{ fontSize: '28px', color: '#007DFE', marginBottom: '4px' }}>
+                                      qr_code_scanner
+                                    </span>
+                                    <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#ffffff' }}>
+                                      Upload GCash QR
+                                    </span>
+                                    <span style={{ fontSize: '0.7rem', color: '#94a3b8', marginTop: '2px' }}>
+                                      PNG, JPG or WebP image
+                                    </span>
+                                    <input
+                                      type="file"
+                                      accept="image/*"
+                                      onChange={handleGcashQrUpload}
+                                      style={{ display: 'none' }}
+                                      disabled={creating}
+                                    />
+                                  </label>
+                                )}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* ── 2. MAYA CHANNEL ── */}
+                          {activePaymentChannelTab === 'maya' && (
+                            <div className="fade-in" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px', alignItems: 'start', background: 'rgba(0, 214, 143, 0.03)', padding: '16px', borderRadius: '12px', border: '1px solid rgba(0, 214, 143, 0.2)' }}>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                <div>
+                                  <label style={{ display: 'block', fontSize: '0.82rem', color: '#e2e8f0', fontWeight: 600, marginBottom: '6px' }}>
+                                    Official Maya Account Name
+                                  </label>
+                                  <div style={{ position: 'relative' }}>
+                                    <span className="material-symbols-outlined" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#00d68f', fontSize: '18px' }}>
+                                      badge
+                                    </span>
+                                    <input
+                                      className="input"
+                                      type="text"
+                                      placeholder="e.g., Philippine Red Cross or Official Merchant"
+                                      value={mayaName}
+                                      onChange={(e) => setMayaName(e.target.value)}
+                                      disabled={creating}
+                                      style={{ paddingLeft: '38px', fontSize: '0.88rem' }}
+                                    />
+                                  </div>
+                                  <span style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '4px', display: 'block' }}>
+                                    Registered merchant or account name inside Maya.
+                                  </span>
+                                </div>
+
+                                <div>
+                                  <label style={{ display: 'block', fontSize: '0.82rem', color: '#e2e8f0', fontWeight: 600, marginBottom: '6px' }}>
+                                    Official Maya Number or @Username
+                                  </label>
+                                  <div style={{ position: 'relative' }}>
+                                    <span className="material-symbols-outlined" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#00d68f', fontSize: '18px' }}>
+                                      account_circle
+                                    </span>
+                                    <input
+                                      className="input"
+                                      type="text"
+                                      placeholder="e.g., 0918 765 4321 or @reliefph"
+                                      value={mayaNumber}
+                                      onChange={(e) => setMayaNumber(e.target.value)}
+                                      disabled={creating}
+                                      style={{ paddingLeft: '38px', fontSize: '0.9rem', fontFamily: 'monospace', fontWeight: 700 }}
+                                    />
+                                  </div>
+                                  <span style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '4px', display: 'block' }}>
+                                    Donors using Maya can transfer directly to this number or username.
+                                  </span>
+                                </div>
+                              </div>
+
+                              <div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                                  <label style={{ fontSize: '0.82rem', color: '#e2e8f0', fontWeight: 600 }}>
+                                    Maya QR Code Image
+                                  </label>
+                                  {mayaQrUrl && (
+                                    <button
+                                      type="button"
+                                      onClick={() => setMayaQrUrl('')}
+                                      style={{ background: 'transparent', border: 'none', color: '#ef4444', fontSize: '0.72rem', cursor: 'pointer', fontWeight: 600 }}
+                                    >
+                                      Remove QR
+                                    </button>
+                                  )}
+                                </div>
+
+                                {mayaQrUrl ? (
+                                  <div style={{ position: 'relative', borderRadius: '12px', overflow: 'hidden', border: '1.5px solid rgba(0, 214, 143, 0.4)', background: 'rgba(0,0,0,0.3)', padding: '10px', textAlign: 'center' }}>
+                                    <img
+                                      src={mayaQrUrl}
+                                      alt="Organization Maya QR"
+                                      style={{ maxHeight: '130px', maxWidth: '100%', objectFit: 'contain', borderRadius: '8px' }}
+                                    />
+                                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', marginTop: '6px', fontSize: '0.74rem', color: '#00d68f', fontWeight: 700 }}>
+                                      <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>verified</span>
+                                      Maya QR Attached
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '16px', border: '1.5px dashed rgba(0, 214, 143, 0.3)', borderRadius: '12px', cursor: 'pointer', background: 'rgba(0, 214, 143, 0.03)', transition: '0.2s' }}>
+                                    <span className="material-symbols-outlined" style={{ fontSize: '28px', color: '#00d68f', marginBottom: '4px' }}>
+                                      qr_code_scanner
+                                    </span>
+                                    <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#ffffff' }}>
+                                      Upload Maya QR
+                                    </span>
+                                    <span style={{ fontSize: '0.7rem', color: '#94a3b8', marginTop: '2px' }}>
+                                      PNG, JPG or WebP image
+                                    </span>
+                                    <input
+                                      type="file"
+                                      accept="image/*"
+                                      onChange={handleMayaQrUpload}
+                                      style={{ display: 'none' }}
+                                      disabled={creating}
+                                    />
+                                  </label>
+                                )}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* ── 3. DIRECT BANK DEPOSIT CHANNEL ── */}
+                          {activePaymentChannelTab === 'bank' && (
+                            <div className="fade-in" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px', alignItems: 'start', background: 'rgba(56, 189, 248, 0.03)', padding: '16px', borderRadius: '12px', border: '1px solid rgba(56, 189, 248, 0.2)' }}>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                                <div>
+                                  <label style={{ display: 'block', fontSize: '0.82rem', color: '#e2e8f0', fontWeight: 600, marginBottom: '4px' }}>
+                                    Bank Name
+                                  </label>
+                                  <input
+                                    className="input"
+                                    list="ph-bank-options"
+                                    placeholder="e.g. BDO Unibank, BPI, Landbank"
+                                    value={bankName}
+                                    onChange={(e) => setBankName(e.target.value)}
+                                    disabled={creating}
+                                    style={{ background: 'rgba(30, 41, 59, 0.9)', color: '#fff', fontSize: '0.85rem' }}
+                                  />
+                                  <datalist id="ph-bank-options">
+                                    <option value="BDO Unibank" />
+                                    <option value="BPI (Bank of the Philippine Islands)" />
+                                    <option value="Land Bank of the Philippines (LBP)" />
+                                    <option value="UnionBank of the Philippines" />
+                                    <option value="Metrobank" />
+                                    <option value="Security Bank" />
+                                    <option value="RCBC" />
+                                    <option value="PNB (Philippine National Bank)" />
+                                    <option value="China Bank" />
+                                    <option value="Development Bank of the Philippines (DBP)" />
+                                  </datalist>
+                                </div>
+
+                                <div>
+                                  <label style={{ display: 'block', fontSize: '0.82rem', color: '#e2e8f0', fontWeight: 600, marginBottom: '4px' }}>
+                                    Account Beneficiary Name
+                                  </label>
+                                  <input
+                                    className="input"
+                                    type="text"
+                                    placeholder="e.g., ReliefLink Foundation Inc."
+                                    value={bankAccountName}
+                                    onChange={(e) => setBankAccountName(e.target.value)}
+                                    disabled={creating}
+                                    style={{ fontSize: '0.85rem' }}
+                                  />
+                                </div>
+
+                                <div>
+                                  <label style={{ display: 'block', fontSize: '0.82rem', color: '#e2e8f0', fontWeight: 600, marginBottom: '4px' }}>
+                                    Account Number
+                                  </label>
+                                  <input
+                                    className="input"
+                                    type="text"
+                                    placeholder="e.g., 0012 3456 7890"
+                                    value={bankAccountNumber}
+                                    onChange={(e) => setBankAccountNumber(e.target.value)}
+                                    disabled={creating}
+                                    style={{ fontSize: '0.88rem', fontFamily: 'monospace', fontWeight: 700 }}
+                                  />
+                                </div>
+                              </div>
+
+                              <div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                                  <label style={{ fontSize: '0.82rem', color: '#e2e8f0', fontWeight: 600 }}>
+                                    Bank Transfer QR / InstaPay QR (Optional)
+                                  </label>
+                                  {bankQrUrl && (
+                                    <button
+                                      type="button"
+                                      onClick={() => setBankQrUrl('')}
+                                      style={{ background: 'transparent', border: 'none', color: '#ef4444', fontSize: '0.72rem', cursor: 'pointer', fontWeight: 600 }}
+                                    >
+                                      Remove QR
+                                    </button>
+                                  )}
+                                </div>
+
+                                {bankQrUrl ? (
+                                  <div style={{ position: 'relative', borderRadius: '12px', overflow: 'hidden', border: '1.5px solid rgba(56, 189, 248, 0.4)', background: 'rgba(0,0,0,0.3)', padding: '10px', textAlign: 'center' }}>
+                                    <img
+                                      src={bankQrUrl}
+                                      alt="Organization Bank QR"
+                                      style={{ maxHeight: '130px', maxWidth: '100%', objectFit: 'contain', borderRadius: '8px' }}
+                                    />
+                                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', marginTop: '6px', fontSize: '0.74rem', color: '#38bdf8', fontWeight: 700 }}>
+                                      <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>verified</span>
+                                      Bank QR Attached
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px 16px', border: '1.5px dashed rgba(56, 189, 248, 0.3)', borderRadius: '12px', cursor: 'pointer', background: 'rgba(56, 189, 248, 0.03)', transition: '0.2s' }}>
+                                    <span className="material-symbols-outlined" style={{ fontSize: '28px', color: '#38bdf8', marginBottom: '4px' }}>
+                                      account_balance
+                                    </span>
+                                    <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#ffffff' }}>
+                                      Upload Bank / InstaPay QR
+                                    </span>
+                                    <span style={{ fontSize: '0.7rem', color: '#94a3b8', marginTop: '2px' }}>
+                                      PNG, JPG or WebP image
+                                    </span>
+                                    <input
+                                      type="file"
+                                      accept="image/*"
+                                      onChange={handleBankQrUpload}
+                                      style={{ display: 'none' }}
+                                      disabled={creating}
+                                    />
+                                  </label>
+                                )}
+                              </div>
+                            </div>
+                          )}
+
+                        </div>
+                      );
+                    })()}
 
                     {/* Submit Bar */}
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
@@ -2429,11 +2754,11 @@ export default function OrganizationView({
                   </div>
 
                   {/* Step 2 */}
-                  <div style={{ 
-                    background: (secRegNo || secCertUrl) ? 'rgba(34, 197, 94, 0.08)' : 'rgba(234, 179, 8, 0.08)', 
-                    border: (secRegNo || secCertUrl) ? '1px solid rgba(34, 197, 94, 0.25)' : '1px solid rgba(234, 179, 8, 0.25)', 
-                    padding: '12px', 
-                    borderRadius: '10px' 
+                  <div style={{
+                    background: (secRegNo || secCertUrl) ? 'rgba(34, 197, 94, 0.08)' : 'rgba(234, 179, 8, 0.08)',
+                    border: (secRegNo || secCertUrl) ? '1px solid rgba(34, 197, 94, 0.25)' : '1px solid rgba(234, 179, 8, 0.25)',
+                    padding: '12px',
+                    borderRadius: '10px'
                   }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: (secRegNo || secCertUrl) ? '#22c55e' : '#facc15', fontSize: '0.78rem', fontWeight: 700 }}>
                       <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>
@@ -2447,11 +2772,11 @@ export default function OrganizationView({
                   </div>
 
                   {/* Step 3 */}
-                  <div style={{ 
-                    background: (kycStatusData?.Verification_Status === 'Approved') ? 'rgba(34, 197, 94, 0.08)' : 'rgba(56, 189, 248, 0.08)', 
-                    border: (kycStatusData?.Verification_Status === 'Approved') ? '1px solid rgba(34, 197, 94, 0.25)' : '1px solid rgba(56, 189, 248, 0.25)', 
-                    padding: '12px', 
-                    borderRadius: '10px' 
+                  <div style={{
+                    background: (kycStatusData?.Verification_Status === 'Approved') ? 'rgba(34, 197, 94, 0.08)' : 'rgba(56, 189, 248, 0.08)',
+                    border: (kycStatusData?.Verification_Status === 'Approved') ? '1px solid rgba(34, 197, 94, 0.25)' : '1px solid rgba(56, 189, 248, 0.25)',
+                    padding: '12px',
+                    borderRadius: '10px'
                   }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: (kycStatusData?.Verification_Status === 'Approved') ? '#22c55e' : '#38bdf8', fontSize: '0.78rem', fontWeight: 700 }}>
                       <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>
@@ -2465,11 +2790,11 @@ export default function OrganizationView({
                   </div>
 
                   {/* Step 4 */}
-                  <div style={{ 
-                    background: (kycStatusData?.Verification_Status === 'Approved') ? 'rgba(34, 197, 94, 0.08)' : 'rgba(255, 255, 255, 0.03)', 
-                    border: (kycStatusData?.Verification_Status === 'Approved') ? '1px solid rgba(34, 197, 94, 0.25)' : '1px solid rgba(255, 255, 255, 0.08)', 
-                    padding: '12px', 
-                    borderRadius: '10px' 
+                  <div style={{
+                    background: (kycStatusData?.Verification_Status === 'Approved') ? 'rgba(34, 197, 94, 0.08)' : 'rgba(255, 255, 255, 0.03)',
+                    border: (kycStatusData?.Verification_Status === 'Approved') ? '1px solid rgba(34, 197, 94, 0.25)' : '1px solid rgba(255, 255, 255, 0.08)',
+                    padding: '12px',
+                    borderRadius: '10px'
                   }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: (kycStatusData?.Verification_Status === 'Approved') ? '#22c55e' : '#64748b', fontSize: '0.78rem', fontWeight: 700 }}>
                       <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>
@@ -2683,22 +3008,49 @@ export default function OrganizationView({
                     <span className="material-symbols-outlined">verified</span>
                     Official SEC Certificate of Incorporation Document
                   </h3>
-                  <button 
+                  <button
                     onClick={() => setViewingKycCert(false)}
                     style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '1.2rem', cursor: 'pointer' }}
                   >
                     ✕
                   </button>
                 </div>
-                <img 
-                  src={secCertUrl} 
-                  alt="SEC Certificate" 
-                  style={{ width: '100%', maxHeight: '60vh', objectFit: 'contain', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)' }} 
+                <img
+                  src={secCertUrl}
+                  alt="SEC Certificate"
+                  style={{ width: '100%', maxHeight: '60vh', objectFit: 'contain', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)' }}
                 />
                 <div style={{ marginTop: '14px', display: 'flex', justifyContent: 'center', gap: '10px' }}>
                   <button className="btn btn-outline btn-sm" onClick={() => setViewingKycCert(false)}>Close Document</button>
                 </div>
               </div>
+            </div>
+          )}
+
+          {/* ── 5.8. DISASTER RELIEF RADAR HEATMAP TAB (NGO STRATEGIC DISPATCH) ── */}
+          {activeTab === 'radar-heatmap' && (
+            <div style={{ marginTop: '8px' }}>
+              <div className="section-header" style={{ borderBottom: '1px solid var(--border)', paddingBottom: '12px', marginBottom: '16px' }}>
+                <div>
+                  <h2 className="section-title" style={{ fontSize: '1.4rem' }}>
+                    <span className="material-symbols-outlined section-title-icon" style={{ marginRight: '8px', color: 'var(--accent)' }}>radar</span>
+                    Disaster Relief Radar Heatmap · NGO Strategic Dispatch
+                  </h2>
+                  <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+                    Monitor meteorological Doppler relief concentration across the Philippines to identify high-density disaster zones and mobilize field missions.
+                  </p>
+                </div>
+              </div>
+
+              <DisasterRadarHeatmap
+                campaigns={campaigns}
+                height="620px"
+                theme={theme}
+                onSelectCampaign={(c) => {
+                  setActiveTab('all-campaigns');
+                  setSearchQueryAll(c.title || '');
+                }}
+              />
             </div>
           )}
 

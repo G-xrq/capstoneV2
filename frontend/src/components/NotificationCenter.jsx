@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useToast } from '../context/ToastContext';
 import './NotificationCenter.css';
 
-const API_URL = 'http://localhost:3001';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
 // Rich text formatter to highlight important details (Amounts, ETH, Quotes, References, Legal Acts)
 function renderFormattedMessage(text) {
@@ -42,6 +43,8 @@ function renderFormattedMessage(text) {
 export default function NotificationCenter({ dbUser, theme, onSelectNotificationAction }) {
   if (!dbUser) return null;
 
+  const { showSuccess, showWarning, showInfo, showError } = useToast();
+
   const [isOpen, setIsOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -53,8 +56,6 @@ export default function NotificationCenter({ dbUser, theme, onSelectNotification
   const [selectedNotif, setSelectedNotif] = useState(null); // Active Detail Card Modal
   const [activeMenuId, setActiveMenuId] = useState(null); // 3-dots menu per item
   const [currentTime, setCurrentTime] = useState(Date.now()); // Real-time timestamp ticker
-  const [toastMessage, setToastMessage] = useState(null); // Toast notification
-  const [undoItem, setUndoItem] = useState(null); // Undo deleted item support
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const panelRef = useRef(null);
 
@@ -161,17 +162,13 @@ export default function NotificationCenter({ dbUser, theme, onSelectNotification
     return () => window.removeEventListener('mousedown', handleClickOutside);
   }, [isOpen, selectedNotif]);
 
-  const showToast = (msg) => {
-    setToastMessage(msg);
-    setTimeout(() => setToastMessage(null), 3000);
-  };
-
   // Mark all notifications as read for current user
   const handleMarkAllAsRead = async () => {
     const token = localStorage.getItem('bbdrts_token');
     // Optimistic UI update
     setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
     setUnreadCount(0);
+    showSuccess('All notifications marked as read.', 'Inbox Updated');
     try {
       await fetch(`${API_URL}/api/notifications/read-all`, {
         method: 'POST',
@@ -213,6 +210,8 @@ export default function NotificationCenter({ dbUser, theme, onSelectNotification
       setSelectedNotif(prev => ({ ...prev, isRead: newStatus }));
     }
 
+    showInfo(newStatus ? 'Notification marked as read.' : 'Notification marked as unread.', 'Status Updated');
+
     const token = localStorage.getItem('bbdrts_token');
     try {
       const endpoint = newStatus ? `/api/notifications/${notif.id}/read` : `/api/notifications/${notif.id}/unread`;
@@ -225,7 +224,7 @@ export default function NotificationCenter({ dbUser, theme, onSelectNotification
     }
   };
 
-  // Move to 30-Day Trash Bin (Soft Delete)
+  // Move to 30-Day Trash Bin (Soft Delete) with Bottom-Right Undo Toast
   const handleMoveToTrash = async (e, notif) => {
     if (e) e.stopPropagation();
     setActiveMenuId(null);
@@ -240,11 +239,17 @@ export default function NotificationCenter({ dbUser, theme, onSelectNotification
       setSelectedNotif(null);
     }
 
-    // Set Undo state with 6-second window
-    setUndoItem({ id: notif.id, notif });
-    setTimeout(() => {
-      setUndoItem(prev => (prev?.id === notif.id ? null : prev));
-    }, 6000);
+    // Trigger Bottom-Right Global Toast with Undo button
+    showWarning(
+      'Moved to Trash (30-day retention)',
+      'Notification Trashed',
+      6000,
+      {
+        label: 'Undo',
+        onClick: () => handleRestore(null, notif)
+      },
+      'delete'
+    );
 
     const token = localStorage.getItem('bbdrts_token');
     try {
@@ -261,18 +266,22 @@ export default function NotificationCenter({ dbUser, theme, onSelectNotification
   const handleRestore = async (e, notif) => {
     if (e) e.stopPropagation();
     setActiveMenuId(null);
-    setUndoItem(null);
 
     // Optimistic update
     setTrashCount(prev => Math.max(0, prev - 1));
     if (filter === 'trash') {
       setNotifications(prev => prev.filter(n => n.id !== notif.id));
+    } else {
+      setNotifications(prev => [notif, ...prev.filter(n => n.id !== notif.id)]);
+      if (!notif.isRead) {
+        setUnreadCount(prev => prev + 1);
+      }
     }
     if (selectedNotif && selectedNotif.id === notif.id) {
       setSelectedNotif(null);
     }
 
-    showToast('Notification restored to Inbox.');
+    showSuccess('Notification restored to Inbox.', 'Notification Restored');
 
     const token = localStorage.getItem('bbdrts_token');
     try {
@@ -297,7 +306,7 @@ export default function NotificationCenter({ dbUser, theme, onSelectNotification
       setSelectedNotif(null);
     }
 
-    showToast('Notification permanently deleted.');
+    showInfo('Notification permanently deleted.', 'Deleted');
 
     const token = localStorage.getItem('bbdrts_token');
     try {
@@ -315,7 +324,7 @@ export default function NotificationCenter({ dbUser, theme, onSelectNotification
     if (!window.confirm('Permanently delete all items in Trash?')) return;
     setNotifications([]);
     setTrashCount(0);
-    showToast('Trash emptied permanently.');
+    showSuccess('Trash emptied permanently.', 'Trash Emptied');
 
     const token = localStorage.getItem('bbdrts_token');
     try {
@@ -333,7 +342,7 @@ export default function NotificationCenter({ dbUser, theme, onSelectNotification
     if (e) e.stopPropagation();
     setActiveMenuId(null);
     navigator.clipboard.writeText(text);
-    showToast('Copied to clipboard!');
+    showSuccess('Notification text copied to clipboard!', 'Copied');
   };
 
   // Load more notifications
@@ -459,29 +468,6 @@ export default function NotificationCenter({ dbUser, theme, onSelectNotification
           </span>
         )}
       </button>
-
-      {/* Action Toast Feedback */}
-      {toastMessage && (
-        <div className="bbdrts-notif-toast">
-          <span className="material-symbols-outlined" style={{ fontSize: '15px', color: 'var(--accent, #22c55e)' }}>check_circle</span>
-          <span>{toastMessage}</span>
-        </div>
-      )}
-
-      {/* Temporary Move-to-Trash Undo Floating Toast */}
-      {undoItem && (
-        <div className="bbdrts-notif-undo-toast">
-          <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#f59e0b' }}>delete</span>
-          <span>Moved to Trash (30-day retention)</span>
-          <button
-            type="button"
-            className="bbdrts-notif-undo-btn"
-            onClick={() => handleRestore(null, undoItem.notif)}
-          >
-            Undo
-          </button>
-        </div>
-      )}
 
       {/* Dropdown Panel */}
       {isOpen && (
