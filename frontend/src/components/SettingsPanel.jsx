@@ -555,6 +555,28 @@ export default function SettingsPanel({
                 </div>
               </div>
 
+              <div 
+                onClick={() => {
+                  try {
+                    localStorage.removeItem('bbdrts_tour_donor_done');
+                    localStorage.removeItem('bbdrts_tour_ngo_done');
+                    showSuccess('Platform tutorial reset! Refreshing to start tour...');
+                    setTimeout(() => window.location.reload(), 500);
+                  } catch (_) {}
+                }}
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(56, 189, 248, 0.08)', border: '1px solid rgba(56, 189, 248, 0.25)', borderRadius: '10px', cursor: 'pointer', transition: '0.2s' }}
+                title="Reset and replay the interactive onboarding tour"
+              >
+                <div>
+                  <div style={{ fontSize: '0.86rem', fontWeight: 600, color: '#38bdf8', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>restart_alt</span>
+                    Replay Guided Platform Tour
+                  </div>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted, #94a3b8)' }}>Restart the step-by-step spotlight tutorial</div>
+                </div>
+                <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#38bdf8' }}>chevron_right</span>
+              </div>
+
             </div>
           </div>
 

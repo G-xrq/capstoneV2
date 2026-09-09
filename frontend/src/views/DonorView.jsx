@@ -17,6 +17,7 @@ import { ROLES } from '../roleConfig';
 import SettingsPanel from '../components/SettingsPanel';
 import DisasterRadarHeatmap from '../components/DisasterRadarHeatmap';
 import DonorBadge, { DonorTierModal, DonorProgressCard, BadgeUpgradeModal, getDonorTier, globalDonorRegistry } from '../components/DonorBadge';
+import GuidedTour from '../components/GuidedTour';
 import { useToast } from '../context/ToastContext';
 import { API_URL } from '../config';
 import './ReferenceDashboard.css';
@@ -37,6 +38,93 @@ export default function DonorView({ contract, walletAddress, campaigns, fetchCam
   const [selectedCampaignForProof, setSelectedCampaignForProof] = useState(null);
   const [showTierModal, setShowTierModal] = useState(false);
   const [unlockedTierModal, setUnlockedTierModal] = useState(null);
+  const [showGuidedTour, setShowGuidedTour] = useState(false);
+
+  // Auto-launch Guided Tour for first-time donors
+  useEffect(() => {
+    try {
+      const tourDone = localStorage.getItem('bbdrts_tour_donor_done');
+      if (!tourDone) {
+        const timer = setTimeout(() => {
+          setShowGuidedTour(true);
+        }, 700);
+        return () => clearTimeout(timer);
+      }
+    } catch (_) {}
+  }, []);
+
+  const donorTourSteps = [
+    {
+      target: '#tour-donor-profile',
+      title: 'Welcome to BBDRTS!',
+      icon: 'waving_hand',
+      badge: 'Step 1 of 8 • Welcome',
+      description: 'You are now connected as a verified donor. Your profile tracks your philanthropic reputation, decentralized identity, and humanitarian contributions across the Philippines.',
+      placement: 'right'
+    },
+    {
+      target: '#tour-donor-tab-dashboard',
+      title: 'Dashboard Overview',
+      icon: 'dashboard',
+      badge: 'Step 2 of 8 • Metrics',
+      tab: 'dashboard',
+      description: 'Get an instant real-time snapshot of active disaster emergencies, total nationwide relief funds raised, your personal contributions, and urgent calamity alerts.',
+      placement: 'right'
+    },
+    {
+      target: '#tour-donor-tab-campaigns',
+      title: 'Disaster Relief Campaigns',
+      icon: 'campaign',
+      badge: 'Step 3 of 8 • Discovery',
+      tab: 'campaigns',
+      description: 'Explore verified relief campaigns organized by accredited NGOs. Filter by Philippine region, calamity urgency (Critical, High, Stable), and cause category.',
+      placement: 'right'
+    },
+    {
+      target: '#tour-donor-tab-donations',
+      title: 'My Contributions & Proof of Impact',
+      icon: 'history',
+      badge: 'Step 4 of 8 • Receipts',
+      tab: 'my-donations',
+      description: 'Inspect every donation you make with on-chain Ethereum transaction hashes, verified digital receipts, and real-time relief allocation audits from ground zero.',
+      placement: 'right'
+    },
+    {
+      target: '#tour-donor-tab-radar',
+      title: 'Disaster Relief Radar Heatmap',
+      icon: 'radar',
+      badge: 'Step 5 of 8 • Radar',
+      tab: 'radar-heatmap',
+      description: 'Live interactive Doppler radar map tracking calamity severity across Luzon, Visayas, and Mindanao. Pinpoint where emergency relief is needed most urgently.',
+      placement: 'right'
+    },
+    {
+      target: '#tour-donor-tab-settings',
+      title: 'Donor Badges & Profile Settings',
+      icon: 'badge',
+      badge: 'Step 6 of 8 • Badges',
+      tab: 'settings',
+      description: 'Unlock prestigious humanitarian milestone badges (First Responder, Community Guardian, Relief Champion) and manage your Web3 wallet address.',
+      placement: 'right'
+    },
+    {
+      target: '#tour-donor-sepolia-node',
+      title: 'Blockchain Node Synchronization',
+      icon: 'hub',
+      badge: 'Step 7 of 8 • Blockchain',
+      description: 'Monitors real-time live connectivity to the Ethereum Sepolia testnet and Solidity smart contracts, guaranteeing 100% immutable transparency.',
+      placement: 'right'
+    },
+    {
+      target: '#tour-donor-tab-campaigns',
+      title: 'You\'re All Set to Help!',
+      icon: 'volunteer_activism',
+      badge: 'Step 8 of 8 • Ready',
+      tab: 'campaigns',
+      description: 'You\'re ready to start making an impact! Connect your MetaMask wallet or use Philippine e-wallets (GCash/PayMaya) to support active disaster relief missions.',
+      placement: 'right'
+    }
+  ];
 
   const [showCausesDropdown, setShowCausesDropdown] = useState(false);
   const [showPrioritiesDropdown, setShowPrioritiesDropdown] = useState(false);
@@ -415,7 +503,7 @@ export default function DonorView({ contract, walletAddress, campaigns, fetchCam
 
         {/* ── Left Sidebar Navigation Panel ── */}
         <aside className="ref-sidebar">
-          <div className="ref-sidebar-user">
+          <div className="ref-sidebar-user" id="tour-donor-profile">
             <div className="ref-sidebar-avatar" style={{ overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               {currentUser?.avatar_url && (currentUser.avatar_url.startsWith('data:') || currentUser.avatar_url.startsWith('http')) ? (
                 <img src={currentUser.avatar_url} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
@@ -433,6 +521,7 @@ export default function DonorView({ contract, walletAddress, campaigns, fetchCam
 
           <div className="ref-sidebar-menu">
             <button 
+              id="tour-donor-tab-dashboard"
               className={`ref-nav-item ${activeTab === 'dashboard' ? 'active' : ''}`}
               onClick={() => setActiveTab('dashboard')}
             >
@@ -441,6 +530,7 @@ export default function DonorView({ contract, walletAddress, campaigns, fetchCam
             </button>
 
             <button 
+              id="tour-donor-tab-campaigns"
               className={`ref-nav-item ${activeTab === 'campaigns' ? 'active' : ''}`}
               onClick={() => setActiveTab('campaigns')}
             >
@@ -449,6 +539,7 @@ export default function DonorView({ contract, walletAddress, campaigns, fetchCam
             </button>
 
             <button 
+              id="tour-donor-tab-donations"
               className={`ref-nav-item ${activeTab === 'my-donations' ? 'active' : ''}`}
               onClick={() => setActiveTab('my-donations')}
             >
@@ -457,6 +548,7 @@ export default function DonorView({ contract, walletAddress, campaigns, fetchCam
             </button>
 
             <button 
+              id="tour-donor-tab-radar"
               className={`ref-nav-item ${activeTab === 'radar-heatmap' ? 'active' : ''}`}
               onClick={() => setActiveTab('radar-heatmap')}
             >
@@ -465,15 +557,27 @@ export default function DonorView({ contract, walletAddress, campaigns, fetchCam
             </button>
 
             <button 
+              id="tour-donor-tab-settings"
               className={`ref-nav-item ${activeTab === 'settings' ? 'active' : ''}`}
               onClick={() => setActiveTab('settings')}
             >
               <span className="material-symbols-outlined">settings</span>
               <span>Profile & Settings</span>
             </button>
+
+            <button 
+              type="button"
+              className="ref-nav-item"
+              onClick={() => setShowGuidedTour(true)}
+              style={{ marginTop: '10px', borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '10px', color: '#38bdf8' }}
+              title="Take a guided walkthrough of the donor platform"
+            >
+              <span className="material-symbols-outlined" style={{ color: '#38bdf8' }}>help</span>
+              <span style={{ fontWeight: 600 }}>Guided Tutorial</span>
+            </button>
           </div>
 
-          <div className="ref-sidebar-widget">
+          <div className="ref-sidebar-widget" id="tour-donor-sepolia-node">
             <div className="ref-widget-header">
               <div className="ref-status-dot"></div>
               <span className="ref-widget-title">Sepolia Node Health</span>
@@ -1899,6 +2003,16 @@ export default function DonorView({ contract, walletAddress, campaigns, fetchCam
         newTier={unlockedTierModal}
         isOpen={Boolean(unlockedTierModal)}
         onClose={() => setUnlockedTierModal(null)}
+      />
+
+      {/* Interactive Guided Onboarding Spotlight Tour */}
+      <GuidedTour
+        isOpen={showGuidedTour}
+        onClose={() => setShowGuidedTour(false)}
+        steps={donorTourSteps}
+        onTabChange={(t) => setActiveTab(t)}
+        tourKey="bbdrts_tour_donor_done"
+        roleName="Donor"
       />
     </main>
   );

@@ -7,6 +7,7 @@ import { ROLES } from '../roleConfig';
 import SettingsPanel from '../components/SettingsPanel';
 import DisasterRadarHeatmap from '../components/DisasterRadarHeatmap';
 import SecCertificateModal, { normalizeSecDocUrl, isPdfDocument } from '../components/SecCertificateModal';
+import GuidedTour from '../components/GuidedTour';
 import { useToast } from '../context/ToastContext';
 import { getRegions, getRegionForProvince } from '../data/philippineGeoData';
 import './ReferenceDashboard.css';
@@ -549,6 +550,94 @@ export default function OrganizationView({
   const [kycStepText, setKycStepText] = useState('');
   const [kycStatusData, setKycStatusData] = useState(null);
   const [viewingKycCert, setViewingKycCert] = useState(false);
+  const [showGuidedTour, setShowGuidedTour] = useState(false);
+
+  // Auto-launch Guided Tour for first-time NGOs
+  useEffect(() => {
+    try {
+      const tourDone = localStorage.getItem('bbdrts_tour_ngo_done');
+      if (!tourDone) {
+        const timer = setTimeout(() => {
+          setShowGuidedTour(true);
+        }, 700);
+        return () => clearTimeout(timer);
+      }
+    } catch (_) {}
+  }, []);
+
+  const ngoTourSteps = [
+    {
+      target: '#tour-ngo-profile',
+      title: 'Welcome NGO Partner!',
+      icon: 'corporate_fare',
+      badge: 'Step 1 of 8 • Welcome',
+      description: 'Welcome to your Disaster Operations Hub. Here you can mobilize emergency appeals, manage ground missions, and maintain transparent relief accountability.',
+      placement: 'right'
+    },
+    {
+      target: '#tour-ngo-tab-sec',
+      title: 'Institutional SEC & AI Vision KYC',
+      icon: 'verified_user',
+      badge: 'Step 2 of 8 • Accreditation',
+      tab: 'sec-kyc',
+      description: 'Upload your Philippine SEC Certificate of Incorporation or DSWD accreditation for instant 3-second Gemini AI Vision verification to unlock live campaign deployment.',
+      placement: 'right'
+    },
+    {
+      target: '#tour-ngo-tab-create',
+      title: 'Deploy Disaster Relief Campaigns',
+      icon: 'rocket_launch',
+      badge: 'Step 3 of 8 • Deployment',
+      tab: 'create',
+      description: 'Launch new calamity relief appeals backed by Ethereum smart contracts. Specify funding targets, urgency levels, disaster categories, and Philippine regional coordinates.',
+      placement: 'right'
+    },
+    {
+      target: '#tour-ngo-tab-radar',
+      title: 'Disaster Relief Radar Heatmap',
+      icon: 'radar',
+      badge: 'Step 4 of 8 • Strategic Dispatch',
+      tab: 'radar-heatmap',
+      description: 'Real-time Doppler calamity radar tracking disaster concentration across the Philippines. Pinpoint high-density calamity zones to strategically dispatch field missions.',
+      placement: 'right'
+    },
+    {
+      target: '#tour-ngo-tab-my-campaigns',
+      title: 'My Campaigns & Milestone Management',
+      icon: 'account_balance',
+      badge: 'Step 5 of 8 • Missions',
+      tab: 'my-campaigns',
+      description: 'Track your organization\'s live appeals, post ground-zero beneficiary updates, and upload verifiable expenditure proofs for donor transparency.',
+      placement: 'right'
+    },
+    {
+      target: '#tour-ngo-tab-ledger',
+      title: 'Donation Ledger & On-Chain Audits',
+      icon: 'receipt_long',
+      badge: 'Step 6 of 8 • Financials',
+      tab: 'ledger',
+      description: 'Inspect all incoming contributions in real-time, matching transaction hashes, cryptographic donor identities, and payment channels.',
+      placement: 'right'
+    },
+    {
+      target: '#tour-ngo-tab-settings',
+      title: 'Payment Rails & Traditional E-Wallets',
+      icon: 'account_circle',
+      badge: 'Step 7 of 8 • Settings',
+      tab: 'settings',
+      description: 'Set up your GCash, PayMaya, and Bank wire QR codes alongside your Web3 wallet address so non-crypto Filipino donors can support your missions.',
+      placement: 'right'
+    },
+    {
+      target: '#tour-ngo-tab-dashboard',
+      title: 'You\'re Mission Ready!',
+      icon: 'emergency',
+      badge: 'Step 8 of 8 • Ready',
+      tab: 'dashboard',
+      description: 'Your command center is configured! Monitor your metrics, submit your SEC accreditation, and deploy live relief missions to help affected Filipino communities.',
+      placement: 'right'
+    }
+  ];
 
   const fetchKycData = async () => {
     try {
@@ -991,6 +1080,7 @@ export default function OrganizationView({
 
             <nav className="ref-sidebar-menu" style={{ marginTop: '16px' }}>
               <button
+                id="tour-ngo-tab-dashboard"
                 className={`ref-nav-item ${activeTab === 'dashboard' ? 'active' : ''}`}
                 onClick={() => setActiveTab('dashboard')}
               >
@@ -999,6 +1089,7 @@ export default function OrganizationView({
               </button>
 
               <button
+                id="tour-ngo-tab-sec"
                 className={`ref-nav-item ${activeTab === 'sec-kyc' ? 'active' : ''}`}
                 onClick={() => { fetchKycData(); setActiveTab('sec-kyc'); }}
               >
@@ -1012,6 +1103,7 @@ export default function OrganizationView({
               </button>
 
               <button
+                id="tour-ngo-tab-all-campaigns"
                 className={`ref-nav-item ${activeTab === 'all-campaigns' ? 'active' : ''}`}
                 onClick={() => setActiveTab('all-campaigns')}
               >
@@ -1020,6 +1112,7 @@ export default function OrganizationView({
               </button>
 
               <button
+                id="tour-ngo-tab-radar"
                 className={`ref-nav-item ${activeTab === 'radar-heatmap' ? 'active' : ''}`}
                 onClick={() => setActiveTab('radar-heatmap')}
               >
@@ -1028,6 +1121,7 @@ export default function OrganizationView({
               </button>
 
               <button
+                id="tour-ngo-tab-my-campaigns"
                 className={`ref-nav-item ${activeTab === 'my-campaigns' ? 'active' : ''}`}
                 onClick={() => setActiveTab('my-campaigns')}
               >
@@ -1036,6 +1130,7 @@ export default function OrganizationView({
               </button>
 
               <button
+                id="tour-ngo-tab-create"
                 className={`ref-nav-item ${activeTab === 'create' ? 'active' : ''}`}
                 onClick={() => setActiveTab('create')}
               >
@@ -1044,6 +1139,7 @@ export default function OrganizationView({
               </button>
 
               <button
+                id="tour-ngo-tab-ledger"
                 className={`ref-nav-item ${activeTab === 'ledger' ? 'active' : ''}`}
                 onClick={() => setActiveTab('ledger')}
               >
@@ -1052,11 +1148,23 @@ export default function OrganizationView({
               </button>
 
               <button
+                id="tour-ngo-tab-settings"
                 className={`ref-nav-item ${activeTab === 'settings' ? 'active' : ''}`}
                 onClick={() => setActiveTab('settings')}
               >
                 <span className="material-symbols-outlined">account_circle</span>
                 <span>Profile & Settings</span>
+              </button>
+
+              <button 
+                type="button"
+                className="ref-nav-item"
+                onClick={() => setShowGuidedTour(true)}
+                style={{ marginTop: '10px', borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '10px', color: '#38bdf8' }}
+                title="Take a guided walkthrough of the NGO portal"
+              >
+                <span className="material-symbols-outlined" style={{ color: '#38bdf8' }}>help</span>
+                <span style={{ fontWeight: 600 }}>Guided Tutorial</span>
               </button>
             </nav>
           </div>
@@ -4131,6 +4239,16 @@ export default function OrganizationView({
           </div>
         </div>
       )}
+
+      {/* Interactive Guided Onboarding Spotlight Tour */}
+      <GuidedTour
+        isOpen={showGuidedTour}
+        onClose={() => setShowGuidedTour(false)}
+        steps={ngoTourSteps}
+        onTabChange={(t) => setActiveTab(t)}
+        tourKey="bbdrts_tour_ngo_done"
+        roleName="NGO Partner"
+      />
     </main>
   );
 }
