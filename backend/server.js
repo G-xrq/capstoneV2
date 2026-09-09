@@ -2012,7 +2012,13 @@ app.get('/api/campaigns', async (req, res) => {
       FROM CAMPAIGN c
       LEFT JOIN DONATION_TRANSACTION dt ON c.Campaign_ID = dt.Campaign_ID
       LEFT JOIN ORGANIZATION o ON c.Org_ID = o.Org_ID
-      GROUP BY c.Campaign_ID
+      GROUP BY c.Campaign_ID, c.Org_ID, c.Campaign_Title, c.Target_Amount, c.Tags,
+               c.Description, c.Location_Region, c.Gps_Coordinates, c.Beneficiaries_Impact,
+               c.Allocations_Json, c.Contact_Info, c.Category, c.Urgency, c.Target_Date,
+               c.Document_Url, c.Gcash_Name, c.Gcash_Number, c.Gcash_Qr_Url,
+               c.Maya_Name, c.Maya_Number, c.Maya_Qr_Url, c.Bank_Name, c.Bank_Account_Name,
+               c.Bank_Account_Number, c.Bank_Qr_Url, c.Smart_Contract_Address, c.Is_Active,
+               o.Org_Name, o.Wallet_Address
       ORDER BY c.Campaign_ID DESC
     `);
 
@@ -2858,7 +2864,9 @@ app.get('/api/public/organizations', async (req, res) => {
       LEFT JOIN CAMPAIGN c ON o.Org_ID = c.Org_ID
       LEFT JOIN DONATION_TRANSACTION dt ON c.Campaign_ID = dt.Campaign_ID
       WHERE o.Verification_Status = 'Approved'
-      GROUP BY o.Org_ID
+      GROUP BY o.Org_ID, o.Org_Name, o.Username, o.Verification_Status, o.Wallet_Address,
+               o.Mobile_Number, o.Sec_Registration_No, o.Sec_Certificate_Url,
+               o.Board_Members_Json, o.Dswd_Accreditation_No, o.Verified_At, o.Audit_Notes
       ORDER BY totalRaisedEth DESC, o.Org_ID ASC
     `);
 
@@ -3024,7 +3032,12 @@ app.get('/api/public/organizations/:id', async (req, res) => {
       FROM CAMPAIGN c
       LEFT JOIN DONATION_TRANSACTION dt ON c.Campaign_ID = dt.Campaign_ID
       WHERE c.Org_ID = ?
-      GROUP BY c.Campaign_ID
+      GROUP BY c.Campaign_ID, c.Org_ID, c.Campaign_Title, c.Target_Amount, c.Tags,
+               c.Description, c.Location_Region, c.Gps_Coordinates, c.Beneficiaries_Impact,
+               c.Allocations_Json, c.Contact_Info, c.Category, c.Urgency, c.Target_Date,
+               c.Document_Url, c.Smart_Contract_Address, c.Gcash_Name, c.Gcash_Number,
+               c.Gcash_Qr_Url, c.Maya_Name, c.Maya_Number, c.Maya_Qr_Url,
+               c.Bank_Name, c.Bank_Account_Name, c.Bank_Account_Number, c.Bank_Qr_Url
       ORDER BY c.Campaign_ID DESC
     `, [org.id]);
 
