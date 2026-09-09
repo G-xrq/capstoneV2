@@ -317,19 +317,22 @@ function initSqlite() {
 // ── Dual Database Initialization ─────────────────────────────
 async function initializeDatabase() {
   try {
-    if (!isCloud) {
-      try {
-        const rootConn = await mysql.createConnection({
-          host: dbConfig.host,
-          user: dbConfig.user,
-          password: dbConfig.password,
-          port: dbConfig.port
-        });
-        await rootConn.query('CREATE DATABASE IF NOT EXISTS `blockchain_relief`');
-        await rootConn.end();
-      } catch (err) {
-        // Silently skip if local MySQL port is closed
-      }
+    // Auto-create the database on both local and cloud (TiDB/MySQL)
+    try {
+      const dbName = process.env.DB_NAME || 'blockchain_relief';
+      const rootConn = await mysql.createConnection({
+        host: dbConfig.host,
+        user: dbConfig.user,
+        password: dbConfig.password,
+        port: dbConfig.port,
+        ...(isCloud ? { ssl: { rejectUnauthorized: false } } : {})
+      });
+      await rootConn.query(`CREATE DATABASE IF NOT EXISTS \`${dbName}\``);
+      await rootConn.end();
+      console.log(`✅ Database "${dbName}" ensured.`);
+    } catch (err) {
+      // Silently skip — DB may already exist or user lacks CREATE privilege
+      console.warn('⚠️ Could not auto-create database:', err.message);
     }
 
     mysqlPool = mysql.createPool(dbConfig);
