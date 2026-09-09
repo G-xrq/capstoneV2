@@ -103,34 +103,34 @@ export default function DonorView({ contract, walletAddress, campaigns, fetchCam
       icon: 'monitoring',
       badge: 'Step 3 of 7 • Relief Metrics',
       tab: 'dashboard',
-      placement: 'top',
+      placement: 'bottom',
       description: 'Live real-time monitoring of nationwide humanitarian relief: active disaster operations, total emergency funds raised, your personal contributions, and our automated smart-contract transparency score.'
     },
     {
-      target: '#tour-campaigns-container',
+      target: '#tour-campaigns-toolbar',
       title: 'Verified Relief Campaigns',
       icon: 'campaign',
       badge: 'Step 4 of 7 • Discovery',
       tab: 'campaigns',
-      placement: 'top',
+      placement: 'bottom',
       description: 'Explore active emergency appeals deployed by accredited Philippine NGOs. Filter by Calamity Urgency (Critical, High, Stable), Philippine Region, and Cause. Donate securely via Web3 Ethereum or Philippine E-Wallets (GCash & Maya).'
     },
     {
-      target: '#tour-donations-ledger',
+      target: '#tour-donations-header',
       title: 'Proof of Impact & Digital Receipts',
       icon: 'receipt_long',
       badge: 'Step 5 of 7 • Audit Trail',
       tab: 'my-donations',
-      placement: 'top',
+      placement: 'bottom',
       description: 'Every donation generates an immutable transaction on Ethereum Sepolia. View verifiable transaction hashes, download official printable digital receipts, and audit ground-zero relief disbursements in real time.'
     },
     {
-      target: '#tour-radar-canvas',
+      target: '#tour-radar-header',
       title: 'Disaster Relief Doppler Radar',
       icon: 'radar',
       badge: 'Step 6 of 7 • Radar Heatmap',
       tab: 'radar-heatmap',
-      placement: 'top',
+      placement: 'bottom',
       description: 'Live interactive Doppler precipitation radar and calamity severity heatmap tracking typhoon storm tracks and calamity concentration across Luzon, Visayas, and Mindanao to see where help is needed most.'
     },
     {
@@ -861,7 +861,7 @@ export default function DonorView({ contract, walletAddress, campaigns, fetchCam
               </div>
 
               {/* ── Unified Campaign Toolbar: Filters on Left, Search & Sort on Right ── */}
-              <div className="campaign-toolbar-card">
+              <div className="campaign-toolbar-card" id="tour-campaigns-toolbar">
                 <div className="campaign-toolbar-unified-row">
                   {/* Left: Filters Header + Filter Pills (Causes, Priorities, Tags) */}
                   <div className="toolbar-filters-left">
@@ -1279,8 +1279,8 @@ export default function DonorView({ contract, walletAddress, campaigns, fetchCam
 
           {/* ── 3. MY CONTRIBUTIONS TAB ── */}
           {activeTab === 'my-donations' && (
-            <div style={{ marginTop: '8px' }} id="tour-donations-ledger">
-              <div className="section-header" style={{ borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '12px', marginBottom: '16px' }}>
+            <div style={{ marginTop: '8px' }}>
+              <div className="section-header" id="tour-donations-header" style={{ borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '12px', marginBottom: '16px' }}>
                 <div>
                   <h2 className="section-title" style={{ fontSize: '1.4rem' }}>
                     <span className="material-symbols-outlined section-title-icon" style={{marginRight: '8px', color: '#22c55e'}}>verified</span>
@@ -1957,8 +1957,8 @@ export default function DonorView({ contract, walletAddress, campaigns, fetchCam
 
           {/* ── 3.5. DISASTER RELIEF RADAR HEATMAP TAB ── */}
           {activeTab === 'radar-heatmap' && (
-            <div style={{ marginTop: '8px' }} id="tour-radar-canvas">
-              <div className="section-header" style={{ borderBottom: '1px solid var(--border)', paddingBottom: '12px', marginBottom: '16px' }}>
+            <div style={{ marginTop: '8px' }}>
+              <div className="section-header" id="tour-radar-header" style={{ borderBottom: '1px solid var(--border)', paddingBottom: '12px', marginBottom: '16px' }}>
                 <div>
                   <h2 className="section-title" style={{ fontSize: '1.4rem' }}>
                     <span className="material-symbols-outlined section-title-icon" style={{ marginRight: '8px', color: 'var(--accent)' }}>radar</span>
