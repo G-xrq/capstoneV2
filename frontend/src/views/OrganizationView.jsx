@@ -545,6 +545,7 @@ export default function OrganizationView({
   const [secCertUrl, setSecCertUrl] = useState('');
   const [kycLoading, setKycLoading] = useState(false);
   const [kycSaving, setKycSaving] = useState(false);
+  const [kycStepText, setKycStepText] = useState('');
   const [kycStatusData, setKycStatusData] = useState(null);
   const [viewingKycCert, setViewingKycCert] = useState(false);
 
@@ -607,8 +608,15 @@ export default function OrganizationView({
 
     try {
       setKycSaving(true);
+      setKycStepText('🤖 Gemini Vision AI: Analyzing institutional seal & document authenticity...');
+      
       const token = localStorage.getItem('bbdrts_token');
       const apiUrl = API_URL;
+
+      const stepTimer = setTimeout(() => {
+        setKycStepText('⚡ Cross-referencing SEC Registry Number against Anti-Fraud Rubric...');
+      }, 1400);
+
       const res = await fetch(`${apiUrl}/api/organization/kyc`, {
         method: 'POST',
         headers: {
@@ -624,18 +632,26 @@ export default function OrganizationView({
         })
       });
 
-      if (res.ok) {
-        showSuccess('SEC documents submitted to the Admin Audit Desk for verification.', 'KYC Submitted');
-        fetchKycData();
+      clearTimeout(stepTimer);
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        showSuccess(data.message || 'Verification Successful! Accredited by Gemini AI Vision.', 'AI Accredited ✅');
+        if (currentUser) currentUser.verification_status = 'Approved';
+        await fetchKycData();
+      } else if (data.verification_status === 'Flagged') {
+        showError(data.error || 'Maximum verification attempts exceeded. Account flagged.', 'Account Flagged ⚠️');
+        await fetchKycData();
       } else {
-        const err = await res.json();
-        showWarning(err.error || 'Failed to submit KYC.', 'Submission Failed');
+        showWarning(data.message || data.error || 'Document could not be verified by AI rubric. Please check the document and resubmit.', 'Verification Notice');
+        await fetchKycData();
       }
     } catch (err) {
       console.error(err);
-      showWarning('Network error submitting KYC: ' + err.message, 'Error');
+      showWarning('Network error during AI verification: ' + err.message, 'Error');
     } finally {
       setKycSaving(false);
+      setKycStepText('');
     }
   };
 
@@ -3682,19 +3698,19 @@ export default function OrganizationView({
 
                   {/* Step 3 */}
                   <div style={{
-                    background: (kycStatusData?.Verification_Status === 'Approved') ? 'rgba(34, 197, 94, 0.08)' : 'rgba(56, 189, 248, 0.08)',
-                    border: (kycStatusData?.Verification_Status === 'Approved') ? '1px solid rgba(34, 197, 94, 0.25)' : '1px solid rgba(56, 189, 248, 0.25)',
+                    background: (kycStatusData?.Verification_Status === 'Approved') ? 'rgba(34, 197, 94, 0.08)' : (kycStatusData?.Verification_Status === 'Rejected' ? 'rgba(239, 68, 68, 0.08)' : 'rgba(56, 189, 248, 0.08)'),
+                    border: (kycStatusData?.Verification_Status === 'Approved') ? '1px solid rgba(34, 197, 94, 0.25)' : (kycStatusData?.Verification_Status === 'Rejected' ? '1px solid rgba(239, 68, 68, 0.25)' : '1px solid rgba(56, 189, 248, 0.25)'),
                     padding: '12px',
                     borderRadius: '10px'
                   }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: (kycStatusData?.Verification_Status === 'Approved') ? '#22c55e' : '#38bdf8', fontSize: '0.78rem', fontWeight: 700 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: (kycStatusData?.Verification_Status === 'Approved') ? '#22c55e' : (kycStatusData?.Verification_Status === 'Rejected' ? '#ef4444' : '#38bdf8'), fontSize: '0.78rem', fontWeight: 700 }}>
                       <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>
-                        {(kycStatusData?.Verification_Status === 'Approved') ? 'check_circle' : 'fact_check'}
+                        {(kycStatusData?.Verification_Status === 'Approved') ? 'check_circle' : (kycStatusData?.Verification_Status === 'Rejected' ? 'cancel' : 'psychology')}
                       </span>
-                      3. Admin Audit
+                      3. AI Vision Audit
                     </div>
                     <div style={{ fontSize: '0.7rem', color: '#94a3b8', marginTop: '4px' }}>
-                      {(kycStatusData?.Verification_Status === 'Approved') ? 'Anti-Bias Rubric Passed' : 'Under Desk Review'}
+                      {(kycStatusData?.Verification_Status === 'Approved') ? 'Gemini AI Verified' : (kycStatusData?.Verification_Status === 'Rejected' ? 'Rubric Check Failed' : 'Autonomous AI Inspection')}
                     </div>
                   </div>
 
@@ -3742,6 +3758,7 @@ export default function OrganizationView({
                   <div style={{ display: 'inline-flex', gap: '16px', flexWrap: 'wrap', justifyContent: 'center', background: 'rgba(0,0,0,0.3)', padding: '12px 24px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.08)', fontSize: '0.82rem' }}>
                     <div><span style={{ color: '#94a3b8' }}>SEC Reg No:</span> <strong style={{ color: '#38bdf8', fontFamily: 'monospace' }}>{secRegNo || kycStatusData?.secRegistrationNo || 'SEC-CN2021-08492'}</strong></div>
                     <div><span style={{ color: '#94a3b8' }}>DSWD Permit:</span> <strong style={{ color: '#ffffff' }}>{dswdNo || kycStatusData?.dswdAccreditationNo || 'DSWD-SB-A-2024-0193'}</strong></div>
+                    <div><span style={{ color: '#94a3b8' }}>Auditor:</span> <strong style={{ color: '#38bdf8' }}>{kycStatusData?.verifiedBy || 'AI_GEMINI_VISION'}</strong></div>
                     <div><span style={{ color: '#94a3b8' }}>Verified Date:</span> <strong style={{ color: '#22c55e' }}>{kycStatusData?.verifiedAt ? new Date(kycStatusData.verifiedAt).toLocaleDateString() : 'Active'}</strong></div>
                   </div>
 
@@ -3760,6 +3777,30 @@ export default function OrganizationView({
                   )}
                 </div>
               ) : null}
+
+              {/* Rejection Notice Banner (If Rejected) */}
+              {kycStatusData?.Verification_Status === 'Rejected' && (
+                <div style={{
+                  background: 'rgba(239, 68, 68, 0.08)',
+                  border: '1.5px solid rgba(239, 68, 68, 0.35)',
+                  borderRadius: '14px',
+                  padding: '18px 24px',
+                  marginBottom: '24px',
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '14px'
+                }}>
+                  <span className="material-symbols-outlined" style={{ color: '#ef4444', fontSize: '28px', marginTop: '2px' }}>error</span>
+                  <div>
+                    <div style={{ color: '#ef4444', fontWeight: 800, fontSize: '0.95rem' }}>
+                      AI Verification Notice: Correction Required
+                    </div>
+                    <p style={{ color: '#cbd5e1', fontSize: '0.82rem', margin: '4px 0 0 0', lineHeight: 1.5 }}>
+                      {kycStatusData?.auditNotes || 'Your submitted document did not pass the autonomous anti-bias compliance check. Please verify your registration number and upload a legible certificate.'}
+                    </p>
+                  </div>
+                </div>
+              )}
 
               {/* Form Section: Submit / Update Institutional Documents */}
               <div className="card" style={{ padding: '28px', background: 'var(--surface)' }}>
@@ -3883,6 +3924,25 @@ export default function OrganizationView({
                     )}
                   </div>
 
+                  {/* Real-Time AI Scanning Progress Banner */}
+                  {kycSaving && kycStepText && (
+                    <div style={{
+                      background: 'rgba(56, 189, 248, 0.1)',
+                      border: '1px solid rgba(56, 189, 248, 0.3)',
+                      borderRadius: '10px',
+                      padding: '12px 16px',
+                      marginBottom: '16px',
+                      fontSize: '0.82rem',
+                      color: '#38bdf8',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '10px'
+                    }}>
+                      <div className="spinner spinner-light" style={{ width: '16px', height: '16px' }} />
+                      <span style={{ fontWeight: 600 }}>{kycStepText}</span>
+                    </div>
+                  )}
+
                   {/* Submission Action Bar */}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
                     <button
@@ -3891,11 +3951,11 @@ export default function OrganizationView({
                       disabled={kycSaving || (!secRegNo.trim() && !secCertUrl)}
                       style={{ padding: '12px 28px', fontSize: '0.95rem' }}
                     >
-                      {kycSaving ? <><div className="spinner" /> Transmitting KYC Documents…</> : '🚀 Submit Documents to Admin Audit Desk'}
+                      {kycSaving ? <><div className="spinner" /> AI Vision Verifying…</> : '🤖 Submit for Autonomous AI Verification'}
                     </button>
 
                     <div style={{ fontSize: '0.76rem', color: '#94a3b8' }}>
-                      🛡️ All submissions are reviewed using an objective Anti-Bias Rubric.
+                      🛡️ Real-time Gemini AI Vision analysis • Zero human gatekeeping or bias.
                     </div>
                   </div>
                 </form>
