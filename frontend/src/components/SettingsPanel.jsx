@@ -22,7 +22,8 @@ export default function SettingsPanel({
   onProfileUpdated,
   totalDonatedEth = 0,
   totalDonatedPhp = 0,
-  onOpenHonorsLadder
+  onOpenHonorsLadder,
+  onStartTour
 }) {
   const { showSuccess, showError } = useToast();
   const [manualWallet, setManualWallet] = useState('');
@@ -560,8 +561,22 @@ export default function SettingsPanel({
                   try {
                     localStorage.removeItem('bbdrts_tour_donor_done');
                     localStorage.removeItem('bbdrts_tour_ngo_done');
-                    showSuccess('Platform tutorial reset! Refreshing to start tour...');
-                    setTimeout(() => window.location.reload(), 500);
+                    if (currentUser?.id) {
+                      localStorage.removeItem(`bbdrts_tour_donor_${currentUser.id}`);
+                      localStorage.removeItem(`bbdrts_tour_ngo_${currentUser.id}`);
+                    }
+                    if (currentUser?.email) {
+                      localStorage.removeItem(`bbdrts_tour_donor_${currentUser.email}`);
+                      localStorage.removeItem(`bbdrts_tour_ngo_${currentUser.email}`);
+                    }
+                    localStorage.setItem('bbdrts_tour_force_launch', 'true');
+                    if (typeof onStartTour === 'function') {
+                      onStartTour();
+                      showSuccess('Platform tutorial launched!', 'Tutorial Activated');
+                    } else {
+                      showSuccess('Platform tutorial reset! Refreshing to start tour...');
+                      setTimeout(() => window.location.reload(), 500);
+                    }
                   } catch (_) {}
                 }}
                 style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(56, 189, 248, 0.08)', border: '1px solid rgba(56, 189, 248, 0.25)', borderRadius: '10px', cursor: 'pointer', transition: '0.2s' }}

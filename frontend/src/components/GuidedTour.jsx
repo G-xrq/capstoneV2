@@ -138,26 +138,34 @@ export default function GuidedTour({
       onTabChange(step.tab);
     }
 
-    // Scroll target into view if needed
-    const scrollTarget = () => {
-      const el = document.querySelector(step.target);
-      if (el) {
-        el.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
-      }
-    };
+    // Scroll target into view with robust element polling across tab transitions
+    let attempts = 0;
+    const pollAndAnchor = () => {
+      const el = step.target ? document.querySelector(step.target) : null;
+      if (el && el.getBoundingClientRect().width > 0) {
+        try {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+        } catch (_) {}
+        computeCoordinates();
 
-    scrollTarget();
-
-    // Track positioning continuously across the 400ms scroll transition for zero glitching
-    let start = Date.now();
-    const trackMotion = () => {
-      computeCoordinates();
-      if (Date.now() - start < 450) {
+        // Track positioning continuously across the 450ms scroll transition for zero glitching
+        let start = Date.now();
+        const trackMotion = () => {
+          computeCoordinates();
+          if (Date.now() - start < 450) {
+            animationFrameRef.current = requestAnimationFrame(trackMotion);
+          }
+        };
+        cancelAnimationFrame(animationFrameRef.current);
         animationFrameRef.current = requestAnimationFrame(trackMotion);
+      } else if (attempts < 20) {
+        attempts++;
+        setTimeout(pollAndAnchor, 50);
+      } else {
+        computeCoordinates();
       }
     };
-    cancelAnimationFrame(animationFrameRef.current);
-    animationFrameRef.current = requestAnimationFrame(trackMotion);
+    pollAndAnchor();
   }, [steps, onTabChange, computeCoordinates]);
 
   const handleNext = () => {
@@ -177,6 +185,7 @@ export default function GuidedTour({
   const handleComplete = () => {
     try {
       localStorage.setItem(tourKey, 'true');
+      localStorage.removeItem('bbdrts_tour_force_launch');
     } catch (_) {}
     onClose();
   };
@@ -184,6 +193,7 @@ export default function GuidedTour({
   const handleSkip = () => {
     try {
       localStorage.setItem(tourKey, 'true');
+      localStorage.removeItem('bbdrts_tour_force_launch');
     } catch (_) {}
     onClose();
   };

@@ -40,18 +40,43 @@ export default function DonorView({ contract, walletAddress, campaigns, fetchCam
   const [unlockedTierModal, setUnlockedTierModal] = useState(null);
   const [showGuidedTour, setShowGuidedTour] = useState(false);
 
-  // Auto-launch Guided Tour for first-time donors
+  const userTourKey = currentUser?.id 
+    ? `bbdrts_tour_donor_${currentUser.id}` 
+    : currentUser?.email 
+      ? `bbdrts_tour_donor_${currentUser.email}` 
+      : 'bbdrts_tour_donor_done';
+
+  // Auto-launch Guided Tour for first-time or newly registered donors
   useEffect(() => {
     try {
-      const tourDone = localStorage.getItem('bbdrts_tour_donor_done');
-      if (!tourDone) {
-        const timer = setTimeout(() => {
-          setShowGuidedTour(true);
-        }, 700);
-        return () => clearTimeout(timer);
+      const forceLaunch = localStorage.getItem('bbdrts_tour_force_launch') === 'true';
+      const userTourDone = localStorage.getItem(userTourKey) === 'true';
+
+      if (forceLaunch || !userTourDone) {
+        // Poll until the auth transition backdrop has finished/closing AND the target profile element is mounted in DOM
+        let attempts = 0;
+        const maxAttempts = 60; // 60 * 100ms = 6s max fallback
+        const pollInterval = setInterval(() => {
+          attempts++;
+          const authBackdrop = document.querySelector('.auth-transition-backdrop');
+          const targetEl = document.querySelector('#tour-donor-profile');
+          const isAuthClear = !authBackdrop || authBackdrop.classList.contains('closing');
+          const isTargetReady = targetEl && targetEl.getBoundingClientRect().width > 0;
+
+          if ((isAuthClear && isTargetReady) || attempts >= maxAttempts) {
+            clearInterval(pollInterval);
+            // Brief 350ms delay for ultra-silky visual handoff after transition
+            setTimeout(() => {
+              setShowGuidedTour(true);
+              localStorage.removeItem('bbdrts_tour_force_launch');
+            }, 350);
+          }
+        }, 100);
+
+        return () => clearInterval(pollInterval);
       }
     } catch (_) {}
-  }, []);
+  }, [userTourKey]);
 
   const donorTourSteps = [
     {
@@ -1979,6 +2004,7 @@ export default function DonorView({ contract, walletAddress, campaigns, fetchCam
                 totalDonatedEth={totalDonated}
                 totalDonatedPhp={totalDonatedPhp}
                 onOpenHonorsLadder={() => setShowTierModal(true)}
+                onStartTour={() => setShowGuidedTour(true)}
               />
             </div>
           )}
@@ -2011,7 +2037,7 @@ export default function DonorView({ contract, walletAddress, campaigns, fetchCam
         onClose={() => setShowGuidedTour(false)}
         steps={donorTourSteps}
         onTabChange={(t) => setActiveTab(t)}
-        tourKey="bbdrts_tour_donor_done"
+        tourKey={userTourKey}
         roleName="Donor"
         theme={theme}
       />

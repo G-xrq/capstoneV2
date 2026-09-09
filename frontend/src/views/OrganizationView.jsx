@@ -552,18 +552,41 @@ export default function OrganizationView({
   const [viewingKycCert, setViewingKycCert] = useState(false);
   const [showGuidedTour, setShowGuidedTour] = useState(false);
 
+  const userTourKey = currentUser?.id 
+    ? `bbdrts_tour_ngo_${currentUser.id}` 
+    : currentUser?.email 
+      ? `bbdrts_tour_ngo_${currentUser.email}` 
+      : 'bbdrts_tour_ngo_done';
+
   // Auto-launch Guided Tour for first-time NGOs
   useEffect(() => {
     try {
-      const tourDone = localStorage.getItem('bbdrts_tour_ngo_done');
-      if (!tourDone) {
-        const timer = setTimeout(() => {
-          setShowGuidedTour(true);
-        }, 700);
-        return () => clearTimeout(timer);
+      const forceLaunch = localStorage.getItem('bbdrts_tour_force_launch') === 'true';
+      const userTourDone = localStorage.getItem(userTourKey) === 'true';
+
+      if (forceLaunch || !userTourDone) {
+        let attempts = 0;
+        const maxAttempts = 60;
+        const pollInterval = setInterval(() => {
+          attempts++;
+          const authBackdrop = document.querySelector('.auth-transition-backdrop');
+          const targetEl = document.querySelector('#tour-ngo-profile');
+          const isAuthClear = !authBackdrop || authBackdrop.classList.contains('closing');
+          const isTargetReady = targetEl && targetEl.getBoundingClientRect().width > 0;
+
+          if ((isAuthClear && isTargetReady) || attempts >= maxAttempts) {
+            clearInterval(pollInterval);
+            setTimeout(() => {
+              setShowGuidedTour(true);
+              localStorage.removeItem('bbdrts_tour_force_launch');
+            }, 350);
+          }
+        }, 100);
+
+        return () => clearInterval(pollInterval);
       }
     } catch (_) {}
-  }, []);
+  }, [userTourKey]);
 
   const ngoTourSteps = [
     {
@@ -1062,7 +1085,7 @@ export default function OrganizationView({
         {/* ── Left Sidebar Navigation (Maasin Reference Style) ── */}
         <aside className="ref-sidebar">
           <div>
-            <div className="ref-sidebar-user">
+            <div className="ref-sidebar-user" id="tour-ngo-profile">
               <div className="ref-sidebar-avatar" style={{ overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 {currentUser?.avatar_url && (currentUser.avatar_url.startsWith('data:') || currentUser.avatar_url.startsWith('http')) ? (
                   <img src={currentUser.avatar_url} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
@@ -4144,6 +4167,7 @@ export default function OrganizationView({
                 setTheme={setTheme}
                 textSize={textSize}
                 setTextSize={setTextSize}
+                onStartTour={() => setShowGuidedTour(true)}
               />
             </div>
           )}
@@ -4246,7 +4270,7 @@ export default function OrganizationView({
         onClose={() => setShowGuidedTour(false)}
         steps={ngoTourSteps}
         onTabChange={(t) => setActiveTab(t)}
-        tourKey="bbdrts_tour_ngo_done"
+        tourKey={userTourKey}
         roleName="NGO Partner"
         theme={theme}
       />

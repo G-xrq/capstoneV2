@@ -475,6 +475,18 @@ export default function AuthView({ onLoginSuccess, onBack, theme }) {
       setRegVerifyOpen(false);
       setSimulatedSmsToast(null);
       localStorage.setItem('bbdrts_token', data.token);
+      // Guarantee Guided Spotlight Tour launches immediately for newly registered users
+      localStorage.setItem('bbdrts_tour_force_launch', 'true');
+      if (data.user?.id) {
+        localStorage.removeItem(`bbdrts_tour_donor_${data.user.id}`);
+        localStorage.removeItem(`bbdrts_tour_ngo_${data.user.id}`);
+      }
+      if (data.user?.email) {
+        localStorage.removeItem(`bbdrts_tour_donor_${data.user.email}`);
+        localStorage.removeItem(`bbdrts_tour_ngo_${data.user.email}`);
+      }
+      localStorage.removeItem('bbdrts_tour_donor_done');
+      localStorage.removeItem('bbdrts_tour_ngo_done');
       onLoginSuccess?.(data.user, data.token);
     } catch (err) {
       setRegVerifyError(err.message);
