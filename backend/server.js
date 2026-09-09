@@ -3,7 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-// nodemailer removed — using Resend HTTP API (Render blocks SMTP ports on free tier)
+const nodemailer = require('nodemailer');
 const db = require('./database');
 
 const app = express();
@@ -53,14 +53,56 @@ const rateLimiter = (maxRequests = 300, windowMs = 15 * 60 * 1000) => (req, res,
   next();
 };
 
-// ── Universal Email Dispatch: Vercel Gmail Relay (Primary) + Resend HTTP (Fallback) ──
+// ── Universal Email Dispatch: Direct Nodemailer Gmail SMTP (Primary) -> Vercel Serverless Relay -> Resend HTTP API ──
+const SMTP_USER = process.env.SMTP_USER || 'gestermacaldo@gmail.com';
+const SMTP_PASS = process.env.SMTP_PASS || 'vlijrjrvwonjjmwe';
 const VERCEL_RELAY_URL = process.env.VERCEL_RELAY_URL || 'https://bbdrts-frontend.vercel.app/api/send-email';
 const EMAIL_RELAY_SECRET = process.env.EMAIL_RELAY_SECRET || 'bbdrts_secure_email_secret_2026';
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 
+// Reusable direct Gmail transporter for local and open-port environments
+let directTransporter = null;
+if (SMTP_USER && SMTP_PASS) {
+  directTransporter = nodemailer.createTransport({
+    host: 'smtp.gmail.com',
+    port: 465,
+    secure: true,
+    auth: {
+      user: SMTP_USER,
+      pass: SMTP_PASS
+    },
+    connectionTimeout: 4500,
+    greetingTimeout: 4500,
+    socketTimeout: 5000
+  });
+}
+
 async function sendMailSafe(mailOptions, timeoutMs = 8000) {
-  // Strategy 1: Vercel Gmail Serverless Relay (Port 443 HTTPS -> AWS Lambda -> smtp.gmail.com:465)
-  // Sends from personal Gmail (gestermacaldo@gmail.com) to ANY recipient in the world without restrictions
+  // Strategy 1: Direct Gmail SMTP via Nodemailer (Fastest, zero recipient restrictions)
+  if (directTransporter) {
+    try {
+      const sendPromise = directTransporter.sendMail({
+        from: `"BBDRTS Protocol" <${SMTP_USER}>`,
+        to: mailOptions.to,
+        subject: mailOptions.subject,
+        text: mailOptions.text || '',
+        html: mailOptions.html || `<p>${mailOptions.text}</p>`
+      });
+
+      const info = await Promise.race([
+        sendPromise,
+        new Promise((_, reject) => setTimeout(() => reject(new Error('SMTP timeout')), 5000))
+      ]);
+
+      console.log(`✅ [DIRECT GMAIL SMTP] Email delivered to ${mailOptions.to} | ID: ${info.messageId}`);
+      return true;
+    } catch (smtpErr) {
+      console.warn(`⚠️ [DIRECT SMTP NOTE]: ${smtpErr.message} -> attempting relay fallback...`);
+    }
+  }
+
+  // Strategy 2: Vercel Gmail Serverless Relay (Port 443 HTTPS -> AWS Lambda -> smtp.gmail.com:465)
+  // For cloud environments (like Render free tier) where outbound SMTP ports are filtered
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
@@ -94,7 +136,7 @@ async function sendMailSafe(mailOptions, timeoutMs = 8000) {
     console.warn(`⚠️ [VERCEL RELAY ERROR]:`, relayErr.message);
   }
 
-  // Strategy 2: Resend HTTP API (Fallback for account owner email)
+  // Strategy 3: Resend HTTP API (Deliverable to registered account email)
   if (RESEND_API_KEY) {
     try {
       const controller = new AbortController();

@@ -242,15 +242,24 @@ async function runMigration() {
       console.log(`📦 Migrating ${rows.length} rows from table ${table}...`);
       if (rows.length === 0) continue;
 
+      const [cols] = await cloudDb.query(`DESCRIBE ${table}`);
+      const validColNames = new Set(cols.map(c => c.Field));
+
+      let inserted = 0;
       for (const row of rows) {
-        const columns = Object.keys(row);
+        const columns = Object.keys(row).filter(c => validColNames.has(c));
         const placeholders = columns.map(() => '?').join(', ');
-        const values = Object.values(row);
+        const values = columns.map(c => row[c]);
         
-        const sql = `INSERT IGNORE INTO ${table} (${columns.join(', ')}) VALUES (${placeholders})`;
-        await cloudDb.query(sql, values);
+        try {
+          const sql = `INSERT IGNORE INTO ${table} (${columns.join(', ')}) VALUES (${placeholders})`;
+          await cloudDb.query(sql, values);
+          inserted++;
+        } catch (rErr) {
+          console.warn(`  ⚠️ Row warning on ${table}: ${rErr.message}`);
+        }
       }
-      console.log(`  ✅ ${table} synced successfully!`);
+      console.log(`  ✅ ${table} synced successfully (${inserted}/${rows.length} rows processed)!`);
     } catch (tblErr) {
       console.warn(`  ⚠️ Notice on ${table}: ${tblErr.message}`);
     }
