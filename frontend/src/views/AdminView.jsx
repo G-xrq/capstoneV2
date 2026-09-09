@@ -6,6 +6,7 @@ import { shortAddr } from '../components/CampaignCard';
 import { ROLES, MAX_ORGANIZATIONS } from '../roleConfig';
 import SettingsPanel from '../components/SettingsPanel';
 import DisasterRadarHeatmap from '../components/DisasterRadarHeatmap';
+import SecCertificateModal from '../components/SecCertificateModal';
 import { useToast } from '../context/ToastContext';
 
 export default function AdminView({ contract, walletAddress, role, campaigns, fetchCampaigns, fetchingCampaigns, currentUser, handleConnectWallet, handleLogout, updateDbWallet, theme, setTheme, textSize, setTextSize }) {
@@ -579,7 +580,7 @@ export default function AdminView({ contract, walletAddress, role, campaigns, fe
                           {org.secCertificateUrl ? (
                             <button
                               type="button"
-                              onClick={() => setViewingCertUrl(org.secCertificateUrl)}
+                              onClick={() => setViewingCertUrl({ url: org.secCertificateUrl, orgName: org.Org_Name, regNo: org.secRegistrationNo })}
                               style={{ background: 'none', border: 'none', color: '#38bdf8', padding: 0, cursor: 'pointer', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '4px' }}
                             >
                               <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>visibility</span>
@@ -843,7 +844,7 @@ export default function AdminView({ contract, walletAddress, role, campaigns, fe
                     <div style={{ gridColumn: '1 / -1', textAlign: 'center' }}>
                       <button
                         type="button"
-                        onClick={() => setViewingCertUrl(approvalModal.org.secCertificateUrl)}
+                        onClick={() => setViewingCertUrl({ url: approvalModal.org.secCertificateUrl, orgName: approvalModal.org.Org_Name, regNo: approvalModal.org.secRegistrationNo })}
                         style={{
                           background: 'rgba(56, 189, 248, 0.12)',
                           border: '1px solid rgba(56, 189, 248, 0.35)',
@@ -963,37 +964,13 @@ export default function AdminView({ contract, walletAddress, role, campaigns, fe
         )}
 
         {/* ── SEC Certificate Viewer Modal ── */}
-        {viewingCertUrl && (
-          <div style={{
-            position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
-            background: 'rgba(5, 7, 12, 0.85)', backdropFilter: 'blur(14px)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999999,
-            padding: '24px'
-          }} onClick={() => setViewingCertUrl(null)}>
-            <div style={{ maxWidth: '750px', width: '100%', background: '#0f172a', padding: '20px', borderRadius: '16px', border: '1px solid rgba(56, 189, 248, 0.4)', textAlign: 'center', boxShadow: '0 30px 60px rgba(0,0,0,0.8)' }} onClick={e => e.stopPropagation()}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                <h3 style={{ margin: 0, fontSize: '1rem', color: '#38bdf8', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <span className="material-symbols-outlined">verified</span>
-                  Official SEC Certificate of Incorporation Document
-                </h3>
-                <button 
-                  onClick={() => setViewingCertUrl(null)}
-                  style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '1.2rem', cursor: 'pointer' }}
-                >
-                  ✕
-                </button>
-              </div>
-              <img 
-                src={viewingCertUrl} 
-                alt="SEC Certificate" 
-                style={{ width: '100%', maxHeight: '60vh', objectFit: 'contain', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)' }} 
-              />
-              <div style={{ marginTop: '14px', display: 'flex', justifyContent: 'center', gap: '10px' }}>
-                <button className="btn btn-outline btn-sm" onClick={() => setViewingCertUrl(null)}>Close Document</button>
-              </div>
-            </div>
-          </div>
-        )}
+        <SecCertificateModal
+          isOpen={!!viewingCertUrl}
+          onClose={() => setViewingCertUrl(null)}
+          url={typeof viewingCertUrl === 'string' ? viewingCertUrl : viewingCertUrl?.url}
+          orgName={typeof viewingCertUrl === 'object' ? viewingCertUrl?.orgName : ''}
+          regNo={typeof viewingCertUrl === 'object' ? viewingCertUrl?.regNo : ''}
+        />
 
         {/* ── Transaction Modal (On-Chain Syncer) ── */}
         {txModal.show && (

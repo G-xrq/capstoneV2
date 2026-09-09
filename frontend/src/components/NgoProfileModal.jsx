@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import SecCertificateModal from './SecCertificateModal';
 import './NgoProfileModal.css';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
@@ -667,19 +668,14 @@ export default function NgoProfileModal({ orgId, orgData, onClose, onSelectCampa
       </div>
 
       {/* SEC Certificate Preview Lightbox */}
-      {previewCertUrl && (
-        <div className="modal-overlay" onClick={() => setPreviewCertUrl(null)} style={{ zIndex: 1000000 }}>
-          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '780px', width: '90%', background: 'var(--bg-card)', border: '1px solid var(--border-strong)', borderRadius: '16px', padding: '24px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-              <h3 style={{ margin: 0, color: 'var(--text-primary)', fontSize: '1.1rem' }}>SEC Certificate of Incorporation</h3>
-              <button onClick={() => setPreviewCertUrl(null)} style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', fontSize: '24px', cursor: 'pointer' }}>×</button>
-            </div>
-            <div style={{ background: 'var(--bg-input)', padding: '16px', borderRadius: '12px', textAlign: 'center', maxHeight: '500px', overflow: 'auto' }}>
-              <img src={previewCertUrl} alt="SEC Certificate" style={{ maxWidth: '100%', height: 'auto', borderRadius: '8px', border: '1px solid var(--border)' }} />
-            </div>
-          </div>
-        </div>
-      )}
+      <SecCertificateModal
+        isOpen={!!previewCertUrl}
+        onClose={() => setPreviewCertUrl(null)}
+        url={previewCertUrl}
+        orgName={orgName}
+        regNo={secRegNo}
+        title="Official SEC Certificate of Incorporation"
+      />
     </div>
   );
 }

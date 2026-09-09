@@ -6,6 +6,7 @@ import LocationMapPicker from '../components/LocationMapPicker';
 import { ROLES } from '../roleConfig';
 import SettingsPanel from '../components/SettingsPanel';
 import DisasterRadarHeatmap from '../components/DisasterRadarHeatmap';
+import SecCertificateModal, { normalizeSecDocUrl, isPdfDocument } from '../components/SecCertificateModal';
 import { useToast } from '../context/ToastContext';
 import { getRegions, getRegionForProvince } from '../data/philippineGeoData';
 import './ReferenceDashboard.css';
@@ -564,7 +565,7 @@ export default function OrganizationView({
         if (data.secRegistrationNo) setSecRegNo(data.secRegistrationNo);
         if (data.dswdAccreditationNo) setDswdNo(data.dswdAccreditationNo);
         if (data.boardMembers) setBoardMembersText(data.boardMembers);
-        if (data.secCertificateUrl) setSecCertUrl(data.secCertificateUrl);
+        if (data.secCertificateUrl) setSecCertUrl(normalizeSecDocUrl(data.secCertificateUrl));
       }
     } catch (err) {
       console.error('Failed to load KYC data:', err);
@@ -582,7 +583,7 @@ export default function OrganizationView({
     }
     const reader = new FileReader();
     reader.onload = (uploadEvent) => {
-      setSecCertUrl(uploadEvent.target.result);
+      setSecCertUrl(normalizeSecDocUrl(uploadEvent.target.result));
       showSuccess('SEC Certificate attached successfully!', 'Document Ready');
     };
     reader.readAsDataURL(file);
@@ -595,7 +596,8 @@ export default function OrganizationView({
 
     // Generate realistic Philippine SEC Certificate SVG
     const secCertSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 400" width="600" height="400"><rect width="600" height="400" fill="#fdfbf7" stroke="#b45309" stroke-width="6" rx="8"/><rect x="15" y="15" width="570" height="370" fill="none" stroke="#d97706" stroke-width="2" stroke-dasharray="8 4"/><text x="300" y="60" font-family="Georgia, serif" font-size="16" font-weight="bold" fill="#78350f" text-anchor="middle">REPUBLIC OF THE PHILIPPINES</text><text x="300" y="85" font-family="Georgia, serif" font-size="20" font-weight="bold" fill="#b45309" text-anchor="middle">SECURITIES AND EXCHANGE COMMISSION</text><text x="300" y="110" font-family="sans-serif" font-size="12" fill="#92400e" text-anchor="middle">SEC Building, EDSA, Greenhills, Mandaluyong City</text><line x1="100" y1="125" x2="500" y2="125" stroke="#b45309" stroke-width="2"/><text x="300" y="160" font-family="Georgia, serif" font-size="22" font-style="italic" fill="#1e293b" text-anchor="middle">CERTIFICATE OF INCORPORATION</text><text x="300" y="195" font-family="sans-serif" font-size="14" fill="#334155" text-anchor="middle">This is to certify that</text><text x="300" y="230" font-family="Georgia, serif" font-size="20" font-weight="bold" fill="#0f172a" text-anchor="middle">PHILIPPINE RED CROSS - SOUTHERN LEYTE CHAPTER</text><text x="300" y="260" font-family="sans-serif" font-size="13" fill="#475569" text-anchor="middle">is registered as a Non-Stock, Non-Profit Humanitarian Corporation</text><text x="300" y="295" font-family="monospace" font-size="15" font-weight="bold" fill="#b45309" text-anchor="middle">COMPANY REG. NO. SEC-CN2021-08492</text><text x="300" y="355" font-family="sans-serif" font-size="11" fill="#64748b" text-anchor="middle">Issued under Republic Act 11232 • Duly Verified & Seal Affixed</text></svg>`;
-    setSecCertUrl(`data:image/svg+xml;utf8,${encodeURIComponent(secCertSvg)}`);
+    const b64 = window.btoa(unescape(encodeURIComponent(secCertSvg)));
+    setSecCertUrl(`data:image/svg+xml;base64,${b64}`);
     showSuccess('Verified Philippine SEC credentials populated!', 'Demo Credentials Ready');
   };
 
@@ -3890,12 +3892,33 @@ export default function OrganizationView({
 
                     {secCertUrl ? (
                       <div style={{ borderRadius: '10px', overflow: 'hidden', border: '1.5px solid rgba(56, 189, 248, 0.4)', background: 'rgba(0,0,0,0.3)', padding: '12px', textAlign: 'center' }}>
-                        <img
-                          src={secCertUrl}
-                          alt="SEC Certificate Preview"
-                          style={{ maxHeight: '160px', maxWidth: '100%', objectFit: 'contain', borderRadius: '8px', cursor: 'pointer' }}
-                          onClick={() => setViewingKycCert(true)}
-                        />
+                        {isPdfDocument(secCertUrl) ? (
+                          <div
+                            onClick={() => setViewingKycCert(true)}
+                            style={{ padding: '24px 16px', background: 'rgba(56, 189, 248, 0.08)', borderRadius: '8px', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}
+                          >
+                            <span className="material-symbols-outlined" style={{ fontSize: '42px', color: '#ef4444' }}>picture_as_pdf</span>
+                            <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#ffffff' }}>Official SEC Certificate (PDF Document)</span>
+                            <span style={{ fontSize: '0.74rem', color: '#38bdf8' }}>Click to Inspect Full Document</span>
+                          </div>
+                        ) : (
+                          <img
+                            src={normalizeSecDocUrl(secCertUrl)}
+                            alt="SEC Certificate Preview"
+                            style={{ maxHeight: '160px', maxWidth: '100%', objectFit: 'contain', borderRadius: '8px', cursor: 'pointer' }}
+                            onClick={() => setViewingKycCert(true)}
+                            onError={(e) => {
+                              e.currentTarget.style.display = 'none';
+                              const fallbackEl = document.getElementById('sec-thumb-fallback');
+                              if (fallbackEl) fallbackEl.style.display = 'flex';
+                            }}
+                          />
+                        )}
+                        <div id="sec-thumb-fallback" style={{ display: 'none', flexDirection: 'column', alignItems: 'center', padding: '16px', background: 'rgba(217, 119, 6, 0.1)', borderRadius: '8px', cursor: 'pointer' }} onClick={() => setViewingKycCert(true)}>
+                          <span className="material-symbols-outlined" style={{ fontSize: '36px', color: '#f59e0b' }}>verified</span>
+                          <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#f59e0b', marginTop: '4px' }}>SEC Certificate Document Attached</span>
+                          <span style={{ fontSize: '0.72rem', color: '#94a3b8' }}>Click to Inspect Official Certificate</span>
+                        </div>
                         <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', alignItems: 'center', marginTop: '8px' }}>
                           <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#38bdf8' }}>verified</span>
                           <span style={{ fontSize: '0.78rem', color: '#38bdf8', fontWeight: 700 }}>
@@ -3964,37 +3987,13 @@ export default function OrganizationView({
           )}
 
           {/* ── SEC Certificate Viewer Modal ── */}
-          {viewingKycCert && secCertUrl && (
-            <div style={{
-              position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
-              background: 'rgba(5, 7, 12, 0.85)', backdropFilter: 'blur(14px)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999999,
-              padding: '24px'
-            }} onClick={() => setViewingKycCert(false)}>
-              <div style={{ maxWidth: '750px', width: '100%', background: '#0f172a', padding: '20px', borderRadius: '16px', border: '1px solid rgba(56, 189, 248, 0.4)', textAlign: 'center', boxShadow: '0 30px 60px rgba(0,0,0,0.8)' }} onClick={e => e.stopPropagation()}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
-                  <h3 style={{ margin: 0, fontSize: '1rem', color: '#38bdf8', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <span className="material-symbols-outlined">verified</span>
-                    Official SEC Certificate of Incorporation Document
-                  </h3>
-                  <button
-                    onClick={() => setViewingKycCert(false)}
-                    style={{ background: 'none', border: 'none', color: '#94a3b8', fontSize: '1.2rem', cursor: 'pointer' }}
-                  >
-                    ✕
-                  </button>
-                </div>
-                <img
-                  src={secCertUrl}
-                  alt="SEC Certificate"
-                  style={{ width: '100%', maxHeight: '60vh', objectFit: 'contain', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)' }}
-                />
-                <div style={{ marginTop: '14px', display: 'flex', justifyContent: 'center', gap: '10px' }}>
-                  <button className="btn btn-outline btn-sm" onClick={() => setViewingKycCert(false)}>Close Document</button>
-                </div>
-              </div>
-            </div>
-          )}
+          <SecCertificateModal
+            isOpen={viewingKycCert && !!secCertUrl}
+            onClose={() => setViewingKycCert(false)}
+            url={secCertUrl}
+            orgName={currentUser?.name || kycStatusData?.Org_Name || ''}
+            regNo={secRegNo || kycStatusData?.secRegistrationNo || ''}
+          />
 
           {/* ── 5.8. DISASTER RELIEF RADAR HEATMAP TAB (NGO STRATEGIC DISPATCH) ── */}
           {activeTab === 'radar-heatmap' && (

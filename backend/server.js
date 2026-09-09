@@ -1547,7 +1547,23 @@ const handleKycSubmission = async (req, res) => {
     dswd_accreditation_no
   } = req.body;
 
-  if (!sec_registration_no && !sec_certificate_url) {
+  // Normalize certificate URL (convert unencoded or utf-8 SVG to standard base64 data URI)
+  let cleanSecCertUrl = sec_certificate_url || null;
+  if (cleanSecCertUrl && typeof cleanSecCertUrl === 'string') {
+    const trimmed = cleanSecCertUrl.trim();
+    if (trimmed.startsWith('data:image/svg+xml;utf8,') || trimmed.startsWith('data:image/svg+xml,')) {
+      try {
+        const rawSvg = decodeURIComponent(trimmed.replace(/^data:image\/svg\+xml(;utf8|,)/, ''));
+        cleanSecCertUrl = 'data:image/svg+xml;base64,' + Buffer.from(rawSvg).toString('base64');
+      } catch (_) {}
+    } else if (trimmed.startsWith('<svg') || (trimmed.startsWith('<?xml') && trimmed.includes('<svg'))) {
+      try {
+        cleanSecCertUrl = 'data:image/svg+xml;base64,' + Buffer.from(trimmed).toString('base64');
+      } catch (_) {}
+    }
+  }
+
+  if (!sec_registration_no && !cleanSecCertUrl) {
     return res.status(400).json({ error: 'Please provide your SEC Registration Number or upload the Certificate of Incorporation.' });
   }
 
@@ -1580,7 +1596,7 @@ const handleKycSubmission = async (req, res) => {
     // Run AI Document Verification Engine
     const verification = await verifyNgoDocumentWithAI({
       secRegistrationNo: (sec_registration_no || '').trim(),
-      secCertificateUrl: sec_certificate_url || req.body?.secCertificateUrl || '',
+      secCertificateUrl: cleanSecCertUrl || req.body?.secCertificateUrl || '',
       orgName: effectiveOrgName,
       dswdNo: (dswd_accreditation_no || '').trim(),
       boardMembers: board_members || req.body?.boardMembers || ''
@@ -1620,7 +1636,7 @@ const handleKycSubmission = async (req, res) => {
       [
         effectiveOrgName || null,
         (sec_registration_no || '').trim(),
-        sec_certificate_url || null,
+        cleanSecCertUrl || null,
         boardJson,
         (dswd_accreditation_no || '').trim(),
         finalStatus,
