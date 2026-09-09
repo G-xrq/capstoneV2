@@ -4,8 +4,8 @@ import './GuidedTour.css';
 
 /**
  * Universal Guided Spotlight Onboarding Tour Component
- * Displays a darkened backdrop with a clear spotlight cutout over the target element,
- * along with an explanatory card and directional arrow.
+ * Theme-aware (light/dark/cyber/default) with smooth animation, generous padding,
+ * directional arrow pointing, and robust positioning that never overlaps highlighted objects.
  */
 export default function GuidedTour({
   isOpen,
@@ -13,70 +13,94 @@ export default function GuidedTour({
   steps = [],
   onTabChange,
   tourKey = 'bbdrts_tour_completed',
-  roleName = 'User'
+  roleName = 'User',
+  theme = 'default'
 }) {
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [targetRect, setTargetRect] = useState(null);
   const [cardPosition, setCardPosition] = useState({ top: 100, left: 100, placement: 'bottom' });
-  const [isVisible, setIsVisible] = useState(false);
-  const updateTimeoutRef = useRef(null);
+  const [isReady, setIsReady] = useState(false);
+  const animationFrameRef = useRef(null);
 
   const currentStep = steps[currentStepIndex] || null;
 
-  // Calculate position of spotlight and card relative to the target element
-  const updatePosition = useCallback(() => {
+  // Calculate coordinates with generous padding and optimal non-overlapping card position
+  const computeCoordinates = useCallback(() => {
     if (!currentStep) return;
 
     const el = document.querySelector(currentStep.target);
     if (!el) {
-      // Element not found: center the card gracefully
       setTargetRect(null);
       setCardPosition({
         top: Math.max(window.innerHeight / 2 - 120, 20),
-        left: Math.max(window.innerWidth / 2 - 180, 20),
+        left: Math.max(window.innerWidth / 2 - 188, 16),
         placement: 'none'
       });
-      setIsVisible(true);
+      setIsReady(true);
       return;
     }
 
     const rect = el.getBoundingClientRect();
-    const padding = 6;
+    // Generous breathing room so elements are never cropped or overlayed
+    const padX = 12;
+    const padY = 8;
     const computedTarget = {
-      top: Math.max(0, rect.top - padding),
-      left: Math.max(0, rect.left - padding),
-      width: rect.width + padding * 2,
-      height: rect.height + padding * 2
+      top: Math.max(0, rect.top - padY),
+      left: Math.max(0, rect.left - padX),
+      width: rect.width + padX * 2,
+      height: rect.height + padY * 2
     };
     setTargetRect(computedTarget);
 
-    // Compute Card Coordinates
-    const cardWidth = 360;
-    const cardHeight = 220;
-    const margin = 16;
+    const cardWidth = Math.min(375, window.innerWidth - 32);
+    const cardHeight = 230;
+    const margin = 20;
+
+    // Mobile / Narrow screen fallback: dock card at bottom or top away from target
+    if (window.innerWidth < 768) {
+      const isTargetInUpperHalf = computedTarget.top + computedTarget.height / 2 < window.innerHeight / 2;
+      const top = isTargetInUpperHalf
+        ? Math.min(window.innerHeight - cardHeight - 16, Math.max(computedTarget.top + computedTarget.height + margin, 16))
+        : 16;
+      const left = 16;
+      setCardPosition({ top, left, placement: isTargetInUpperHalf ? 'bottom' : 'top' });
+      setIsReady(true);
+      return;
+    }
+
+    // Desktop: Evaluate clearance on all 4 sides to guarantee zero overlapping
+    const spaceRight = window.innerWidth - (computedTarget.left + computedTarget.width);
+    const spaceLeft = computedTarget.left;
+    const spaceBottom = window.innerHeight - (computedTarget.top + computedTarget.height);
+    const spaceTop = computedTarget.top;
+
     let preferred = currentStep.placement || 'auto';
+    let chosenPlacement = preferred;
+
+    if (preferred === 'right' && spaceRight >= cardWidth + margin) {
+      chosenPlacement = 'right';
+    } else if (preferred === 'left' && spaceLeft >= cardWidth + margin) {
+      chosenPlacement = 'left';
+    } else if (preferred === 'bottom' && spaceBottom >= cardHeight + margin) {
+      chosenPlacement = 'bottom';
+    } else if (preferred === 'top' && spaceTop >= cardHeight + margin) {
+      chosenPlacement = 'top';
+    } else {
+      // Auto pick side with maximum clearance
+      const spaces = [
+        { side: 'right', space: spaceRight },
+        { side: 'bottom', space: spaceBottom },
+        { side: 'left', space: spaceLeft },
+        { side: 'top', space: spaceTop }
+      ];
+      spaces.sort((a, b) => b.space - a.space);
+      chosenPlacement = spaces[0].side;
+    }
 
     let top = 0;
     let left = 0;
-    let finalPlacement = preferred;
 
-    if (preferred === 'auto') {
-      const spaceRight = window.innerWidth - (computedTarget.left + computedTarget.width);
-      const spaceBottom = window.innerHeight - (computedTarget.top + computedTarget.height);
-      const spaceLeft = computedTarget.left;
-
-      if (spaceRight >= cardWidth + margin) {
-        finalPlacement = 'right';
-      } else if (spaceBottom >= cardHeight + margin) {
-        finalPlacement = 'bottom';
-      } else if (spaceLeft >= cardWidth + margin) {
-        finalPlacement = 'left';
-      } else {
-        finalPlacement = 'top';
-      }
-    }
-
-    switch (finalPlacement) {
+    switch (chosenPlacement) {
       case 'right':
         left = computedTarget.left + computedTarget.width + margin;
         top = computedTarget.top + computedTarget.height / 2 - cardHeight / 2;
@@ -96,18 +120,17 @@ export default function GuidedTour({
         break;
     }
 
-    // Viewport clamping
+    // Strict viewport clamping to keep tooltip card completely in view
     left = Math.max(16, Math.min(window.innerWidth - cardWidth - 16, left));
     top = Math.max(16, Math.min(window.innerHeight - cardHeight - 16, top));
 
-    setCardPosition({ top, left, placement: finalPlacement });
-    setIsVisible(true);
+    setCardPosition({ top, left, placement: chosenPlacement });
+    setIsReady(true);
   }, [currentStep]);
 
-  // Navigate between steps
+  // Navigate to step with smooth element scrolling and frame-accurate tracking
   const goToStep = useCallback((index) => {
     if (index < 0 || index >= steps.length) return;
-    setIsVisible(false);
     setCurrentStepIndex(index);
 
     const step = steps[index];
@@ -115,16 +138,27 @@ export default function GuidedTour({
       onTabChange(step.tab);
     }
 
-    // Allow DOM to settle before querying target element
-    clearTimeout(updateTimeoutRef.current);
-    updateTimeoutRef.current = setTimeout(() => {
-      const targetEl = document.querySelector(step.target);
-      if (targetEl) {
-        targetEl.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+    // Scroll target into view if needed
+    const scrollTarget = () => {
+      const el = document.querySelector(step.target);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
       }
-      setTimeout(updatePosition, 160);
-    }, 120);
-  }, [steps, onTabChange, updatePosition]);
+    };
+
+    scrollTarget();
+
+    // Track positioning continuously across the 400ms scroll transition for zero glitching
+    let start = Date.now();
+    const trackMotion = () => {
+      computeCoordinates();
+      if (Date.now() - start < 450) {
+        animationFrameRef.current = requestAnimationFrame(trackMotion);
+      }
+    };
+    cancelAnimationFrame(animationFrameRef.current);
+    animationFrameRef.current = requestAnimationFrame(trackMotion);
+  }, [steps, onTabChange, computeCoordinates]);
 
   const handleNext = () => {
     if (currentStepIndex < steps.length - 1) {
@@ -172,25 +206,31 @@ export default function GuidedTour({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, currentStepIndex, steps.length]);
 
-  // Handle window resizing and scrolling
+  // Listen to resize and scroll
   useEffect(() => {
     if (!isOpen) return;
 
-    window.addEventListener('resize', updatePosition);
-    window.addEventListener('scroll', updatePosition, true);
+    const onScrollOrResize = () => {
+      cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = requestAnimationFrame(computeCoordinates);
+    };
+
+    window.addEventListener('resize', onScrollOrResize);
+    window.addEventListener('scroll', onScrollOrResize, true);
 
     return () => {
-      window.removeEventListener('resize', updatePosition);
-      window.removeEventListener('scroll', updatePosition, true);
+      window.removeEventListener('resize', onScrollOrResize);
+      window.removeEventListener('scroll', onScrollOrResize, true);
+      cancelAnimationFrame(animationFrameRef.current);
     };
-  }, [isOpen, updatePosition]);
+  }, [isOpen, computeCoordinates]);
 
-  // Initial trigger when tour opens
+  // Open tour on mount
   useEffect(() => {
     if (isOpen) {
       goToStep(0);
     }
-    return () => clearTimeout(updateTimeoutRef.current);
+    return () => cancelAnimationFrame(animationFrameRef.current);
   }, [isOpen]);
 
   if (!isOpen || !currentStep) return null;
@@ -200,8 +240,8 @@ export default function GuidedTour({
   const stepCountText = `${currentStepIndex + 1} out of ${steps.length}`;
 
   const content = (
-    <div className="guided-tour-root">
-      {/* ── Spotlight Box ── */}
+    <div className="guided-tour-root" data-theme={theme}>
+      {/* ── Spotlight Cutout ── */}
       {targetRect && (
         <div
           className="guided-tour-spotlight"
@@ -214,13 +254,13 @@ export default function GuidedTour({
         />
       )}
 
-      {/* ── Explanatory Floating Card ── */}
+      {/* ── Floating Tooltip Card ── */}
       <div
         className="guided-tour-card"
         style={{
           top: `${cardPosition.top}px`,
           left: `${cardPosition.left}px`,
-          opacity: isVisible ? 1 : 0
+          opacity: isReady ? 1 : 0
         }}
       >
         {/* Directional Arrow Pointer */}
@@ -229,7 +269,7 @@ export default function GuidedTour({
         {cardPosition.placement === 'bottom' && <div className="guided-tour-arrow arrow-top" />}
         {cardPosition.placement === 'top' && <div className="guided-tour-arrow arrow-bottom" />}
 
-        {/* Header */}
+        {/* Card Header */}
         <div className="guided-tour-header">
           <div className="guided-tour-badge">
             <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>help</span>
@@ -260,7 +300,7 @@ export default function GuidedTour({
           {currentStep.description}
         </p>
 
-        {/* Progress Dots */}
+        {/* Stepper Dots */}
         <div className="guided-tour-progress-bar">
           {steps.map((_, idx) => (
             <div

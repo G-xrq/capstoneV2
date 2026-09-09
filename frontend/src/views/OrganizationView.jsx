@@ -4248,6 +4248,7 @@ export default function OrganizationView({
         onTabChange={(t) => setActiveTab(t)}
         tourKey="bbdrts_tour_ngo_done"
         roleName="NGO Partner"
+        theme={theme}
       />
     </main>
   );

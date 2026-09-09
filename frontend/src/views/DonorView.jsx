@@ -2013,6 +2013,7 @@ export default function DonorView({ contract, walletAddress, campaigns, fetchCam
         onTabChange={(t) => setActiveTab(t)}
         tourKey="bbdrts_tour_donor_done"
         roleName="Donor"
+        theme={theme}
       />
     </main>
   );
