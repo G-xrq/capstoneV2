@@ -13,8 +13,7 @@ import Footer from './components/Footer';
 import NgoProfileModal from './components/NgoProfileModal';
 import ErrorBoundary from './components/ErrorBoundary';
 import './App.css';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+import { isLocalhost, API_URL } from './config';
 
 export default function App() {
   const contractRef = useRef(null);
@@ -541,18 +540,31 @@ export default function App() {
         {/* ── Role-based Dashboards (Require Wallet for Actions) ── */}
         {dbUser && (
           <div className="dashboard-enter-reveal">
-            {/* Global requirement to connect wallet if they are signed into the DB but have no active Web3 session */}
+            {/* Connect wallet prompt (Required for live on-chain, optional for localhost) */}
             {!walletAddress && (
               <div className="container" style={{ marginTop: '20px' }}>
-                <div className="metamask-alert-banner">
-                  <span className="material-symbols-outlined metamask-icon">warning</span>
+                <div
+                  className="metamask-alert-banner"
+                  style={isLocalhost ? {
+                    background: 'linear-gradient(90deg, rgba(56, 189, 248, 0.08), rgba(34, 197, 94, 0.1))',
+                    borderColor: 'rgba(34, 197, 94, 0.35)',
+                    color: 'var(--success)'
+                  } : {}}
+                >
+                  <span className="material-symbols-outlined metamask-icon" style={isLocalhost ? { color: '#22c55e' } : {}}>
+                    {isLocalhost ? 'bolt' : 'warning'}
+                  </span>
                   <div className="metamask-alert-content">
-                    <strong>MetaMask Required for Financial Actions</strong>
-                    <span>You are signed securely into your account ({dbUser.email}), but to deploy campaigns or make donations, you must connect your Web3 wallet.</span>
+                    <strong>{isLocalhost ? 'Localhost Mode: MetaMask Requirement Removed' : 'MetaMask Required for Financial Actions'}</strong>
+                    <span>
+                      {isLocalhost
+                        ? `You are signed in as ${dbUser.email}. On localhost, you can deploy relief campaigns directly without connecting MetaMask.`
+                        : `You are signed securely into your account (${dbUser.email}), but to deploy campaigns or make donations, you must connect your Web3 wallet.`}
+                    </span>
                   </div>
-                  <button className="btn btn-primary btn-sm metamask-connect-btn" onClick={handleConnectWallet}>
+                  <button className={`btn btn-sm metamask-connect-btn ${isLocalhost ? 'btn-outline' : 'btn-primary'}`} onClick={handleConnectWallet}>
                     <span className="material-symbols-outlined icon-sm">link</span>
-                    Connect MetaMask
+                    {isLocalhost ? 'Connect Wallet (Optional)' : 'Connect MetaMask'}
                   </button>
                 </div>
               </div>

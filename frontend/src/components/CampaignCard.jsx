@@ -5,6 +5,8 @@ import { ROLES } from '../roleConfig';
 import LocationMapPicker from './LocationMapPicker';
 import { useToast } from '../context/ToastContext';
 import DonorBadge, { globalDonorRegistry } from './DonorBadge';
+import EditCampaignModal from './EditCampaignModal';
+import { API_URL } from '../config';
 import './MultiRailProgress.css';
 
 const SEPOLIA_EXPLORER = 'https://sepolia.etherscan.io/tx/';
@@ -301,7 +303,7 @@ export const getCampaignCategoryInfo = (camp = {}) => {
 export default function CampaignCard(props) {
   const { showWarning, showSuccess, showInfo } = useToast();
   const camp = props.camp || props.campaign || {};
-  const { contract, role, walletAddress, onDonated, onDeactivated, onOpenNgoProfile } = props;
+  const { contract, role, walletAddress, onDonated, onDeactivated, onCampaignUpdated, onOpenNgoProfile } = props;
   const [amount, setAmount] = useState('');
   const [deactivating, setDeactivating] = useState(false);
   const [ledgerOpen, setLedgerOpen] = useState(false);
@@ -317,6 +319,24 @@ export default function CampaignCard(props) {
   // Campaign tags (custom NGO selected or fallback)
   const campaignTags = useMemo(() => getCampaignTags(camp), [camp]);
 
+  // Formatted Target Relief Delivery Date
+  const formattedDeliveryDate = useMemo(() => {
+    const raw = camp.targetDate || camp.target_date;
+    if (!raw || !String(raw).trim()) return null;
+    const s = String(raw).trim();
+    if (s.toLowerCase().includes('active')) return 'Active Dispatch';
+    const parsed = Date.parse(s);
+    if (!isNaN(parsed)) {
+      try {
+        const d = new Date(parsed);
+        return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      } catch (_) {
+        return s;
+      }
+    }
+    return s;
+  }, [camp.targetDate, camp.target_date]);
+
   // Modal States
   const [modalOpen, setModalOpen] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
@@ -328,6 +348,7 @@ export default function CampaignCard(props) {
   const [receiptBase64, setReceiptBase64] = useState('');
   const [isUploading, setIsUploading] = useState(false);
   const [deactivateModal, setDeactivateModal] = useState({ show: false, step: 0, hash: '', error: '' });
+  const [editModalOpen, setEditModalOpen] = useState(false);
 
   // Fiat Gateway Additions
   const [donorName, setDonorName] = useState('');
@@ -379,6 +400,18 @@ export default function CampaignCard(props) {
       document.removeEventListener('keydown', handleKeyDown);
     };
   }, [showRailTelemetry]);
+
+  // Close details audit modal on Escape
+  useEffect(() => {
+    if (!detailsOpen) return;
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        setDetailsOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [detailsOpen]);
 
   // Optical True-Zoom Magnifier Lens (280px, 1.5x Magnification, Symmetrical Invariance)
   const [magnifierActive, setMagnifierActive] = useState(false);
@@ -627,7 +660,25 @@ export default function CampaignCard(props) {
   }, [magnifierActive, modalOpen, donateStep, gatewayStep]);
 
   const isPublic = role === ROLES.PUBLIC;
-  const canDonate = role !== ROLES.ADMIN && camp.isActive;
+
+  // Robust Campaign Ownership Detection
+  const campOrgAddr = camp.orgAddress || camp.org_address || camp.organization_wallet;
+  let loggedInUser = null;
+  try {
+    const stored = localStorage.getItem('bbdrts_user');
+    if (stored) loggedInUser = JSON.parse(stored);
+  } catch (_) {}
+
+  // A Donor, Public/guest, or Admin can NEVER be an owner of a campaign
+  const isOwner = role === ROLES.ORGANIZATION && (
+    (Boolean(walletAddress) && Boolean(campOrgAddr) && walletAddress.toLowerCase() === campOrgAddr.toLowerCase()) ||
+    (loggedInUser && loggedInUser.role === 'organization' && camp.orgId && Number(camp.orgId) === Number(loggedInUser.id)) ||
+    (loggedInUser && loggedInUser.role === 'organization' && loggedInUser.wallet_address && Boolean(campOrgAddr) && loggedInUser.wallet_address.toLowerCase() === campOrgAddr.toLowerCase())
+  );
+  const isNgoViewer = role === ROLES.ORGANIZATION;
+
+  // Retail donations strictly for Donors / Public (prevents self-donation & circular wash-funding)
+  const canDonate = role !== ROLES.ADMIN && !isOwner && !isNgoViewer && camp.isActive;
   // Multi-Rail Breakdown & Segment Calculations (Calculates from history transactions, API railBreakdown, or fallback)
   const breakdown = useMemo(() => {
     // 1. If history is loaded and has records, dynamically compute live telemetry directly from actual ledger transactions
@@ -718,12 +769,9 @@ export default function CampaignCard(props) {
   // Fixed 4-chip incremental donation amounts (+₱50, +₱100, +₱500, +₱1000)
   const presetIncrements = [50, 100, 500, 1000];
 
-  // Who can deactivate?
-  // Admin → any campaign; Moderator → only their own
-  const isOwner = walletAddress?.toLowerCase() === camp.orgAddress?.toLowerCase();
+  // Who can deactivate? Admin -> any campaign; Organization -> their own
   const canDeactivate =
     camp.isActive &&
-    Boolean(contract) &&
     (role === ROLES.ADMIN || (role === ROLES.ORGANIZATION && isOwner));
 
   /* ── Checkout Modal Logic ─────────────────────── */
@@ -758,7 +806,7 @@ export default function CampaignCard(props) {
 
       try {
         const token = localStorage.getItem('bbdrts_token');
-        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+        const apiUrl = API_URL;
         await fetch(`${apiUrl}/api/donations`, {
           method: 'POST',
           headers: {
@@ -1024,7 +1072,7 @@ export default function CampaignCard(props) {
     setGatewayLoading(true);
 
     try {
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+      const apiUrl = API_URL;
       const token = localStorage.getItem('bbdrts_token');
       const res = await fetch(`${apiUrl}/api/donations/verify-mock-gateway`, {
         method: 'POST',
@@ -1077,7 +1125,7 @@ export default function CampaignCard(props) {
       await new Promise(resolve => setTimeout(resolve, 1800));
 
       const token = localStorage.getItem('bbdrts_token');
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+      const apiUrl = API_URL;
 
       if (paymentMethod === 'Credit Card') {
         const res = await fetch(`${apiUrl}/api/donations/verify-mock-gateway`, {
@@ -1128,12 +1176,37 @@ export default function CampaignCard(props) {
     try {
       setDeactivating(true);
       setDeactivateModal({ show: true, step: 2, hash: '', error: '' });
-      const tx = await contract.deactivateCampaign(camp.id);
 
-      setDeactivateModal({ show: true, step: 3, hash: tx.hash, error: '' });
-      await tx.wait();
+      let finalHash = '';
+      if (contract && typeof contract.deactivateCampaign === 'function') {
+        try {
+          const tx = await contract.deactivateCampaign(camp.id);
+          setDeactivateModal({ show: true, step: 3, hash: tx.hash, error: '' });
+          await tx.wait();
+          finalHash = tx.hash;
+        } catch (onChainErr) {
+          console.warn('On-chain deactivation error, falling back to database sync:', onChainErr);
+        }
+      }
 
-      setDeactivateModal({ show: true, step: 4, hash: tx.hash, error: '' });
+      // Synchronize deactivation with the database
+      try {
+        const token = localStorage.getItem('bbdrts_token');
+        if (token) {
+          const res = await fetch(`${API_URL}/api/campaigns/${camp.id}/deactivate`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          if (!res.ok && !finalHash) {
+            const errData = await res.json().catch(() => ({}));
+            throw new Error(errData.error || 'Failed to deactivate campaign in database.');
+          }
+        }
+      } catch (dbErr) {
+        if (!finalHash) throw dbErr;
+      }
+
+      setDeactivateModal({ show: true, step: 4, hash: finalHash || 'OFF-CHAIN-SYNCED', error: '' });
       onDeactivated?.();
     } catch (err) {
       console.error(err);
@@ -1152,7 +1225,7 @@ export default function CampaignCard(props) {
     if (!force && history !== null) return;
     try {
       setHistoryLoading(true);
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+      const apiUrl = API_URL;
       let list = [];
 
       try {
@@ -1301,6 +1374,22 @@ export default function CampaignCard(props) {
             <span>{coverData.categoryTag}</span>
           </div>
 
+          {/* Bottom Location Geotag Capsule Overlay on Media */}
+          {coverData.locationTag && (
+            <button
+              type="button"
+              className="campaign-media-location-tag"
+              title={`Relief Operation Area: ${coverData.locationTag} • Click to view GPS Audit & Map`}
+              onClick={(e) => {
+                e.stopPropagation();
+                setDetailsOpen(true);
+              }}
+            >
+              <span className="material-symbols-outlined">location_on</span>
+              <span className="campaign-media-location-text">{coverData.locationTag}</span>
+            </button>
+          )}
+
           {/* Closed State Banner Overlay */}
           {!camp.isActive && (
             <div className="campaign-media-closed-badge">
@@ -1324,6 +1413,13 @@ export default function CampaignCard(props) {
               {camp.isActive ? 'Active' : 'Closed'}
             </span>
 
+            {formattedDeliveryDate && (
+              <span className="campaign-date-pill" title={`Target Relief Delivery Date: ${formattedDeliveryDate}`}>
+                <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>event</span>
+                <span>Due {formattedDeliveryDate}</span>
+              </span>
+            )}
+
             {isOwner && role !== ROLES.DONOR && (
               <span className="badge badge-info" style={{ fontSize: '0.68rem', padding: '2px 8px' }}>
                 Your Campaign
@@ -1336,7 +1432,7 @@ export default function CampaignCard(props) {
             {formatCampaignTitle(camp.title, camp.id)}
           </h3>
 
-          {/* Managing Org Attribution & Operation Area Location Row */}
+          {/* Managing Org Attribution Row */}
           <div className="campaign-org-row">
             <button
               type="button"
@@ -1356,21 +1452,6 @@ export default function CampaignCard(props) {
               </span>
               <span className="material-symbols-outlined campaign-org-arrow">chevron_right</span>
             </button>
-
-            {coverData.locationTag && (
-              <button
-                type="button"
-                className="campaign-location-badge"
-                title={`Relief Operation Area: ${coverData.locationTag} • Click to view GPS Audit & Map`}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setDetailsOpen(true);
-                }}
-              >
-                <span className="material-symbols-outlined campaign-location-icon">location_on</span>
-                <span className="campaign-location-text">{coverData.locationTag}</span>
-              </button>
-            )}
           </div>
 
           {/* Multi-Rail Interactive Progress Bar */}
@@ -1402,8 +1483,9 @@ export default function CampaignCard(props) {
                       <div className="drawer-header-left">
                         <div className="drawer-pulse-dot"></div>
                         <span>Funding Sources</span>
-                        <span className="drawer-backers-badge">
-                          👥 {breakdown.totalBackers || 0}
+                        <span className="drawer-backers-badge" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                          <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>group</span>
+                          <span>{breakdown.totalBackers || 0}</span>
                         </span>
                       </div>
                       <button
@@ -1419,7 +1501,7 @@ export default function CampaignCard(props) {
                     <div className="drawer-compact-list">
                       <div className="drawer-compact-row">
                         <div className="drawer-compact-left">
-                          <span className="drawer-compact-pip" style={{ background: '#22c55e' }}></span>
+                          <span className="drawer-compact-pip pip-eth"></span>
                           <span className="drawer-compact-name">Ethereum</span>
                         </div>
                         <div className="drawer-compact-right">
@@ -1429,7 +1511,7 @@ export default function CampaignCard(props) {
                       </div>
                       <div className="drawer-compact-row">
                         <div className="drawer-compact-left">
-                          <span className="drawer-compact-pip" style={{ background: '#38bdf8' }}></span>
+                          <span className="drawer-compact-pip pip-gcash"></span>
                           <span className="drawer-compact-name">GCash</span>
                         </div>
                         <div className="drawer-compact-right">
@@ -1439,7 +1521,7 @@ export default function CampaignCard(props) {
                       </div>
                       <div className="drawer-compact-row">
                         <div className="drawer-compact-left">
-                          <span className="drawer-compact-pip" style={{ background: '#10b981' }}></span>
+                          <span className="drawer-compact-pip pip-maya"></span>
                           <span className="drawer-compact-name">Maya</span>
                         </div>
                         <div className="drawer-compact-right">
@@ -1449,7 +1531,7 @@ export default function CampaignCard(props) {
                       </div>
                       <div className="drawer-compact-row">
                         <div className="drawer-compact-left">
-                          <span className="drawer-compact-pip" style={{ background: '#a855f7' }}></span>
+                          <span className="drawer-compact-pip pip-bank"></span>
                           <span className="drawer-compact-name">Bank / Card</span>
                         </div>
                         <div className="drawer-compact-right">
@@ -1623,119 +1705,212 @@ export default function CampaignCard(props) {
         {/* ── Right: Actions ── */}
         <div className="campaign-actions">
           {role === ROLES.ADMIN ? (
-            <p style={{ fontSize: '0.78rem', color: 'var(--warning)', textAlign: 'center', padding: '8px', border: '1px solid rgba(255,180,0,0.2)', borderRadius: '8px', background: 'rgba(255,180,0,0.05)' }}>
-              Administrative accounts cannot execute financial transactions. Switch to a Donor or NGO account.
-            </p>
-          ) : (
-            <div className="donate-box-card">
-              <div className="donate-box-header" style={{ justifyContent: 'space-between' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <span className="material-symbols-outlined" style={{ fontSize: '15px', color: 'var(--accent)' }}>volunteer_activism</span>
-                  <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                    Contribution
-                  </span>
-                </div>
-                {amount && Number(amount) > 0 ? (
-                  <button
-                    type="button"
-                    onClick={() => setAmount('')}
-                    style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: '0.72rem', cursor: 'pointer', padding: 0 }}
-                  >
-                    Clear ✕
-                  </button>
-                ) : null}
-              </div>
-
-              <div className="donate-row">
-                <div className="donate-input-wrapper">
-                  <span className="donate-peso-prefix">₱</span>
-                  <input
-                    className="donate-input-field"
-                    type="number"
-                    step="1"
-                    min="0"
-                    placeholder="Enter amount"
-                    value={amount}
-                    onChange={(e) => setAmount(e.target.value)}
-                    disabled={!canDonate}
-                  />
-
-                  {/* Floating Focus Popover with 4 Tailored Quick Add Chips */}
-                  <div className="donate-focus-popover">
-                    <div className="donate-popover-title">Quick Add Amount:</div>
-                    <div className="donate-presets-row">
-                      {presetIncrements.map((inc) => (
-                        <button
-                          key={inc}
-                          type="button"
-                          className="donate-preset-chip"
-                          onMouseDown={(e) => {
-                            e.preventDefault(); // Prevent input blur
-                            setAmount(prev => {
-                              const current = Number(prev) || 0;
-                              return String(current + inc);
-                            });
-                          }}
-                          disabled={!canDonate}
-                          title={`Add ₱${inc}`}
-                        >
-                          +₱{inc >= 1000 ? `${inc / 1000}k` : inc}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%' }}>
+              <p style={{ fontSize: '0.78rem', color: 'var(--warning)', textAlign: 'center', padding: '8px', border: '1px solid rgba(255,180,0,0.2)', borderRadius: '8px', background: 'rgba(255,180,0,0.05)', margin: 0 }}>
+                Administrative accounts cannot execute financial transactions. Switch to a Donor account to donate.
+              </p>
+              {camp.isActive && (
                 <button
-                  className="btn btn-primary donate-cta-btn"
-                  onClick={handleOpenCheckout}
-                  disabled={!canDonate}
+                  type="button"
+                  className="btn btn-ghost btn-sm btn-full btn-danger-subtle"
+                  onClick={triggerDeactivate}
+                  disabled={deactivating}
                 >
-                  <span>Donate</span>
-                  <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>arrow_forward</span>
+                  <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>block</span>
+                  <span>{deactivating ? 'Closing Operation…' : 'Admin Deactivate Campaign'}</span>
+                </button>
+              )}
+              <div className="campaign-actions-secondary-btns">
+                <button
+                  className="btn btn-outline btn-sm btn-full"
+                  onClick={() => setDetailsOpen(true)}
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>info</span>
+                  <span>Details & Map</span>
+                </button>
+                <button className="btn btn-ghost btn-sm btn-full" onClick={toggleLedger}>
+                  <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>receipt_long</span>
+                  <span>{ledgerOpen ? '▲ Hide Ledger' : '▼ Public Ledger'}</span>
+                </button>
+              </div>
+            </div>
+          ) : isOwner ? (
+            /* ── Campaign Owner Action Console ── */
+            <div className="campaign-owner-actions">
+              <button
+                type="button"
+                className="btn btn-primary btn-sm btn-full"
+                onClick={() => setEditModalOpen(true)}
+                title="Update ground relief logistics and operational details"
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>edit_square</span>
+                <span>Edit Logistics</span>
+              </button>
+
+              <div className="campaign-owner-action-row">
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  onClick={() => setDetailsOpen(true)}
+                  title="View relief details, GPS audit & map"
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>info</span>
+                  <span>Details & Map</span>
+                </button>
+
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  onClick={toggleLedger}
+                  title="Inspect public blockchain ledger & donation history"
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>receipt_long</span>
+                  <span>{ledgerOpen ? 'Hide' : 'Ledger'}</span>
                 </button>
               </div>
 
-              {!camp.isActive && (
-                <p style={{ fontSize: '0.74rem', color: 'var(--danger)', textAlign: 'center', margin: 0 }}>
-                  This campaign is closed to donations.
-                </p>
+              {camp.isActive ? (
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm btn-full btn-danger-subtle"
+                  onClick={triggerDeactivate}
+                  disabled={deactivating}
+                  title="Close campaign from accepting further donations"
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>block</span>
+                  <span>{deactivating ? 'Closing Operation…' : 'Deactivate Campaign'}</span>
+                </button>
+              ) : (
+                <div className="campaign-closed-tag">
+                  <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>lock</span>
+                  <span>Operation Concluded</span>
+                </div>
               )}
             </div>
-          )}
+          ) : isNgoViewer ? (
+            /* ── Inter-Agency Observer Console ── */
+            <div className="campaign-observer-actions">
+              <div 
+                className="campaign-observer-status-pill"
+                title="Direct donations are reserved for certified donor accounts to prevent circular funding."
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>corporate_fare</span>
+                <span>Partner Operation • View Only</span>
+              </div>
 
-          <div className="campaign-actions-secondary-btns">
-            <button
-              className="btn btn-outline btn-sm btn-full"
-              onClick={() => setDetailsOpen(true)}
-              style={{
-                background: 'var(--bg-input, rgba(0,0,0,0.2))',
-                borderColor: 'var(--border, rgba(56, 189, 248, 0.4))',
-                color: '#38bdf8',
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '5px'
-              }}
-            >
-              <span className="material-symbols-outlined" style={{ fontSize: '1rem' }}>info</span>
-              <span>Details & Map</span>
-            </button>
+              <div className="campaign-observer-btns-stack">
+                <button
+                  type="button"
+                  className="btn btn-outline btn-sm btn-full"
+                  onClick={() => setDetailsOpen(true)}
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>info</span>
+                  <span>Details & Map</span>
+                </button>
 
-            <button className="btn btn-ghost btn-sm btn-full" onClick={toggleLedger}>
-              {ledgerOpen ? '▲ Hide Ledger' : '▼ Public Ledger'}
-            </button>
-          </div>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm btn-full"
+                  onClick={toggleLedger}
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>receipt_long</span>
+                  <span>{ledgerOpen ? '▲ Hide Ledger' : '▼ Public Ledger'}</span>
+                </button>
+              </div>
+            </div>
+          ) : (
+            /* ── Standard Donor Contribution Box & Action Buttons ── */
+            <>
+              <div className="donate-box-card">
+                <div className="donate-box-header" style={{ justifyContent: 'space-between' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span className="material-symbols-outlined" style={{ fontSize: '15px', color: 'var(--accent)' }}>volunteer_activism</span>
+                    <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                      Contribution
+                    </span>
+                  </div>
+                  {amount && Number(amount) > 0 ? (
+                    <button
+                      type="button"
+                      onClick={() => setAmount('')}
+                      style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: '0.72rem', cursor: 'pointer', padding: 0 }}
+                    >
+                      Clear ✕
+                    </button>
+                  ) : null}
+                </div>
 
-          {/* Deactivate button — only for eligible roles */}
-          {canDeactivate && (
-            <button
-              className="btn btn-ghost btn-sm btn-full"
-              onClick={triggerDeactivate}
-              disabled={deactivating}
-              style={{ color: 'var(--danger)', borderColor: 'rgba(255,78,106,0.3)', marginTop: '4px' }}
-            >
-              {deactivating ? <><div className="spinner" /> Confirming…</> : '🔴 Deactivate Campaign'}
-            </button>
+                <div className="donate-row">
+                  <div className="donate-input-wrapper">
+                    <span className="donate-peso-prefix">₱</span>
+                    <input
+                      className="donate-input-field"
+                      type="number"
+                      step="1"
+                      min="0"
+                      placeholder="Enter amount"
+                      value={amount}
+                      onChange={(e) => setAmount(e.target.value)}
+                      disabled={!canDonate}
+                    />
+
+                    {/* Floating Focus Popover with 4 Tailored Quick Add Chips */}
+                    <div className="donate-focus-popover">
+                      <div className="donate-popover-title">Quick Add Amount:</div>
+                      <div className="donate-presets-row">
+                        {presetIncrements.map((inc) => (
+                          <button
+                            key={inc}
+                            type="button"
+                            className="donate-preset-chip"
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              setAmount(prev => {
+                                const current = Number(prev) || 0;
+                                return String(current + inc);
+                              });
+                            }}
+                            disabled={!canDonate}
+                            title={`Add ₱${inc}`}
+                          >
+                            +₱{inc >= 1000 ? `${inc / 1000}k` : inc}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                  <button
+                    className="btn btn-primary donate-cta-btn"
+                    onClick={handleOpenCheckout}
+                    disabled={!canDonate}
+                  >
+                    <span>Donate</span>
+                    <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>arrow_forward</span>
+                  </button>
+                </div>
+
+                {!camp.isActive && (
+                  <p style={{ fontSize: '0.74rem', color: 'var(--danger)', textAlign: 'center', margin: 0 }}>
+                    This campaign is closed to donations.
+                  </p>
+                )}
+              </div>
+
+              <div className="campaign-actions-secondary-btns">
+                <button
+                  className="btn btn-outline btn-sm btn-full"
+                  onClick={() => setDetailsOpen(true)}
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>info</span>
+                  <span>Details & Map</span>
+                </button>
+
+                <button className="btn btn-ghost btn-sm btn-full" onClick={toggleLedger}>
+                  <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>receipt_long</span>
+                  <span>{ledgerOpen ? '▲ Hide Ledger' : '▼ Public Ledger'}</span>
+                </button>
+              </div>
+            </>
           )}
         </div>
       </div>
@@ -3268,45 +3443,152 @@ export default function CampaignCard(props) {
         const progressPercent = pct;
 
         return createPortal(
-          <div style={{
-            position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
-            background: 'rgba(5, 7, 12, 0.85)', backdropFilter: 'blur(14px)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999
-          }} className="fade-in">
+          <div
+            onClick={() => setDetailsOpen(false)}
+            style={{
+              position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
+              background: 'rgba(5, 7, 12, 0.85)', backdropFilter: 'blur(14px)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999,
+              padding: '16px'
+            }}
+            className="fade-in"
+          >
 
-            <div className="card bounce-in" style={{
-              width: '680px',
-              maxWidth: '94vw',
-              maxHeight: '92vh',
-              overflowY: 'auto',
-              padding: '24px 28px',
-              background: 'var(--bg-card, #1a1a1a)',
-              border: '1px solid var(--border, rgba(255, 255, 255, 0.1))',
-              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.8), 0 0 24px rgba(34, 197, 94, 0.12)',
-              borderRadius: '20px',
-              color: 'var(--text-primary, #ffffff)'
-            }}>
+            <div
+              className="card bounce-in"
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                width: '740px',
+                maxWidth: '94vw',
+                maxHeight: '90vh',
+                overflowY: 'auto',
+                overflowX: 'hidden',
+                padding: 0,
+                background: 'var(--bg-card, #16181e)',
+                border: '1px solid var(--border, rgba(255, 255, 255, 0.1))',
+                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.85), 0 0 24px rgba(34, 197, 94, 0.1)',
+                borderRadius: '20px',
+                color: 'var(--text-primary, #ffffff)',
+                display: 'flex',
+                flexDirection: 'column'
+              }}
+            >
 
-              {/* Modal Header */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', borderBottom: '1px solid var(--border, rgba(255, 255, 255, 0.08))', paddingBottom: '16px', marginBottom: '18px' }}>
-                <div style={{ flex: 1, minWidth: 0, paddingRight: '12px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '8px' }}>
-                    <span className={`campaign-category-pill ${catInfo.colorClass}`} style={{ fontSize: '0.72rem', padding: '3px 10px' }}>
-                      <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>{catInfo.icon}</span>
-                      <span>{catInfo.prefix}-00{camp.id} • {catInfo.label}</span>
-                    </span>
-                    <span className="badge" style={{ fontSize: '0.72rem', background: 'rgba(245, 158, 11, 0.15)', color: '#f59e0b', borderColor: 'rgba(245, 158, 11, 0.3)', padding: '3px 10px', fontWeight: 700 }}>
-                      {audit.urgency}
-                    </span>
-                    <span className="badge" style={{ fontSize: '0.72rem', background: 'rgba(34, 197, 94, 0.12)', color: '#22c55e', borderColor: 'rgba(34, 197, 94, 0.3)', padding: '3px 10px', fontWeight: 700 }}>
-                      ● Active On-Chain
-                    </span>
-                  </div>
-                  <h2 style={{ margin: 0, fontSize: '1.35rem', color: 'var(--text-primary, #ffffff)', fontWeight: 800, lineHeight: 1.3 }}>
+              {/* ── Top Campaign Cover Photo Hero Banner ── */}
+              <div style={{
+                position: 'relative',
+                width: '100%',
+                height: '225px',
+                overflow: 'hidden',
+                background: '#0d1117',
+                flexShrink: 0
+              }}>
+                <img
+                  src={coverData.imageUrl}
+                  alt={camp.title}
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'cover',
+                    display: 'block'
+                  }}
+                  onError={(e) => {
+                    e.target.onerror = null;
+                    e.target.src = 'https://images.unsplash.com/photo-1532629345422-7515f3d16bb6?auto=format&fit=crop&w=600&q=80';
+                  }}
+                />
+                {/* Smooth cinematic gradient overlay transitioning to the dark modal body */}
+                <div style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  width: '100%',
+                  height: '100%',
+                  background: 'linear-gradient(180deg, rgba(5,7,12,0.45) 0%, rgba(5,7,12,0.15) 25%, rgba(22,24,30,0.8) 70%, rgba(22,24,30,1) 100%)'
+                }} />
+
+                {/* Top Banner Badges (Category + Urgency + Active) */}
+                <div style={{
+                  position: 'absolute',
+                  top: '16px',
+                  left: '20px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  flexWrap: 'wrap',
+                  zIndex: 2
+                }}>
+                  <span className={`campaign-category-pill ${catInfo.colorClass}`} style={{ fontSize: '0.72rem', padding: '4px 10px', backdropFilter: 'blur(8px)', background: 'rgba(0,0,0,0.5)' }}>
+                    <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>{catInfo.icon}</span>
+                    <span>{catInfo.prefix}-00{camp.id} • {catInfo.label}</span>
+                  </span>
+                  <span className="badge" style={{ fontSize: '0.7rem', background: 'rgba(0, 0, 0, 0.5)', color: '#f59e0b', borderColor: 'rgba(245, 158, 11, 0.4)', padding: '4px 9px', fontWeight: 600, backdropFilter: 'blur(8px)' }}>
+                    {audit.urgency}
+                  </span>
+                  <span className="badge" style={{ fontSize: '0.7rem', background: 'rgba(0, 0, 0, 0.5)', color: '#22c55e', borderColor: 'rgba(34, 197, 94, 0.4)', padding: '4px 9px', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px', backdropFilter: 'blur(8px)' }}>
+                    <span className="status-dot" style={{ width: '5px', height: '5px' }}></span>
+                    <span>Active On-Chain</span>
+                  </span>
+                </div>
+
+                {/* Floating Close Button */}
+                <button
+                  onClick={() => setDetailsOpen(false)}
+                  style={{
+                    position: 'absolute',
+                    top: '14px',
+                    right: '16px',
+                    background: 'rgba(0, 0, 0, 0.55)',
+                    backdropFilter: 'blur(10px)',
+                    border: '1px solid rgba(255, 255, 255, 0.2)',
+                    color: '#ffffff',
+                    width: '34px',
+                    height: '34px',
+                    borderRadius: '50%',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '0.95rem',
+                    zIndex: 3,
+                    transition: 'all 0.15s ease'
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(239, 68, 68, 0.45)'; e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.7)'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(0, 0, 0, 0.55)'; e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.2)'; }}
+                  title="Close audit modal"
+                >
+                  ✕
+                </button>
+
+                {/* Title & Organization Subtitle Positioned on Bottom Left Corner of Banner Image */}
+                <div style={{
+                  position: 'absolute',
+                  bottom: '14px',
+                  left: '20px',
+                  right: '20px',
+                  zIndex: 2
+                }}>
+                  <h2 style={{
+                    margin: 0,
+                    fontSize: '1.4rem',
+                    color: '#ffffff',
+                    fontWeight: 800,
+                    lineHeight: 1.25,
+                    textShadow: '0 2px 10px rgba(0, 0, 0, 0.85)'
+                  }}>
                     {displayTitle}
                   </h2>
-                  <div style={{ margin: '8px 0 0 0', fontSize: '0.84rem', color: 'var(--text-muted, #94a3b8)', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                    <span>Managed by</span>
+                  <div style={{
+                    margin: '6px 0 0 0',
+                    fontSize: '0.82rem',
+                    color: 'rgba(255, 255, 255, 0.9)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    flexWrap: 'wrap',
+                    textShadow: '0 1px 4px rgba(0, 0, 0, 0.8)'
+                  }}>
+                    <span style={{ opacity: 0.85 }}>Managed by</span>
                     <button
                       type="button"
                       className="campaign-modal-org-btn"
@@ -3315,260 +3597,353 @@ export default function CampaignCard(props) {
                         if (onOpenNgoProfile) onOpenNgoProfile(camp.orgId || 3);
                       }}
                       title="Click to view verified NGO institutional profile & all campaigns"
+                      style={{
+                        background: 'rgba(34, 197, 94, 0.18)',
+                        backdropFilter: 'blur(8px)',
+                        border: '1px solid rgba(34, 197, 94, 0.4)',
+                        borderRadius: '20px',
+                        padding: '2px 10px',
+                        color: '#ffffff',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '5px',
+                        cursor: 'pointer',
+                        fontSize: '0.78rem',
+                        fontWeight: 600,
+                        transition: 'all 0.15s ease'
+                      }}
                     >
-                      <span className="material-symbols-outlined" style={{ fontSize: '15px', color: 'var(--accent, #22c55e)' }}>domain</span>
+                      <span className="material-symbols-outlined" style={{ fontSize: '14px', color: '#22c55e' }}>domain</span>
                       <span>{orgDisplayName}</span>
-                      <span className="material-symbols-outlined" style={{ fontSize: '14px', color: 'var(--accent, #22c55e)' }}>verified</span>
-                      <span className="material-symbols-outlined" style={{ fontSize: '13px', opacity: 0.6 }}>chevron_right</span>
+                      <span className="material-symbols-outlined" style={{ fontSize: '14px', color: '#22c55e' }}>verified</span>
+                      <span className="material-symbols-outlined" style={{ fontSize: '13px', opacity: 0.7 }}>chevron_right</span>
                     </button>
-                    <span>•</span>
-                    <span style={{ color: '#22c55e', display: 'inline-flex', alignItems: 'center', gap: '4px', fontWeight: 600 }}>
-                      <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>verified</span> Smart Contract Verified
+                    <span style={{ opacity: 0.6 }}>•</span>
+                    <span style={{ color: '#22c55e', display: 'inline-flex', alignItems: 'center', gap: '4px', fontWeight: 600, fontSize: '0.8rem' }}>
+                      <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>verified_user</span> Smart Contract Verified
                     </span>
-                  </div>
-                </div>
-
-                <button
-                  onClick={() => setDetailsOpen(false)}
-                  style={{
-                    background: 'var(--bg-input, rgba(255, 255, 255, 0.06))',
-                    border: '1px solid var(--border, rgba(255, 255, 255, 0.1))',
-                    color: 'var(--text-muted, #94a3b8)',
-                    width: '32px',
-                    height: '32px',
-                    borderRadius: '50%',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: '1rem',
-                    flexShrink: 0
-                  }}
-                >
-                  ✕
-                </button>
-              </div>
-
-              {/* Financial & Progress Metric Capsule Bar */}
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))',
-                gap: '10px',
-                background: 'var(--bg-surface, rgba(255, 255, 255, 0.03))',
-                border: '1px solid var(--border, rgba(255, 255, 255, 0.06))',
-                borderRadius: '12px',
-                padding: '12px 16px',
-                marginBottom: '18px'
-              }}>
-                <div>
-                  <div style={{ fontSize: '0.68rem', textTransform: 'uppercase', color: 'var(--text-muted, #94a3b8)', fontWeight: 700, letterSpacing: '0.5px' }}>
-                    Target Campaign Goal
-                  </div>
-                  <div style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-primary, #ffffff)', marginTop: '2px' }}>
-                    ₱{targetPhp}
-                  </div>
-                </div>
-
-                <div>
-                  <div style={{ fontSize: '0.68rem', textTransform: 'uppercase', color: 'var(--text-muted, #94a3b8)', fontWeight: 700, letterSpacing: '0.5px' }}>
-                    Settled to Date
-                  </div>
-                  <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#22c55e', marginTop: '2px' }}>
-                    ₱{currentPhp} <span style={{ fontSize: '0.74rem', color: '#22c55e', fontWeight: 700 }}>({progressPercent}% Funded)</span>
-                  </div>
-                </div>
-
-                <div>
-                  <div style={{ fontSize: '0.68rem', textTransform: 'uppercase', color: 'var(--text-muted, #94a3b8)', fontWeight: 700, letterSpacing: '0.5px' }}>
-                    Audit Protocol
-                  </div>
-                  <div style={{ fontSize: '0.88rem', fontWeight: 700, color: '#22c55e', marginTop: '3px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>gavel</span> Sepolia EVM Audited
                   </div>
                 </div>
               </div>
 
-              {/* 1. Target Region & Location GPS Interactive Map Box (2-Column Grid) */}
-              <div style={{
-                background: 'var(--bg-surface, rgba(255, 255, 255, 0.03))',
-                border: '1px solid var(--border, rgba(255, 255, 255, 0.08))',
-                borderRadius: '14px',
-                padding: '16px 18px',
-                marginBottom: '18px',
-                transition: 'background var(--transition), border-color var(--transition)'
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span className="material-symbols-outlined" style={{ color: '#ef4444', fontSize: '1.3rem' }}>
-                      location_on
-                    </span>
-                    <span style={{ fontSize: '0.92rem', fontWeight: 700, color: 'var(--text-primary, #ffffff)' }}>
-                      Target Location & Interactive Audit Map
-                    </span>
+              {/* ── Modal Body Content ── */}
+              <div style={{ padding: '16px 24px 24px 24px' }}>
+                {/* Step 3: Campaign Tags Row */}
+                {campaignTags && campaignTags.length > 0 && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', marginBottom: '16px' }}>
+                    {campaignTags.map((tag, idx) => (
+                      <span
+                        key={idx}
+                        style={{
+                          fontSize: '0.74rem',
+                          fontWeight: 600,
+                          padding: '3px 10px',
+                          borderRadius: '12px',
+                          background: 'rgba(34, 197, 94, 0.08)',
+                          border: '1px solid rgba(34, 197, 94, 0.2)',
+                          color: '#86efac',
+                          letterSpacing: '0.2px'
+                        }}
+                      >
+                        #{tag.replace(/^#/, '')}
+                      </span>
+                    ))}
                   </div>
-                  <span style={{ fontSize: '0.72rem', background: 'rgba(34, 197, 94, 0.12)', color: '#22c55e', border: '1px solid rgba(34, 197, 94, 0.3)', padding: '2px 8px', borderRadius: '12px', fontWeight: 700 }}>
-                    GPS LIVE AUDIT
-                  </span>
-                </div>
+                )}
 
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '14px', alignItems: 'center' }}>
-                  {/* Left Column: Location Details & Impact Summary */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                    <div>
-                      <div style={{ fontSize: '0.7rem', color: 'var(--text-muted, #94a3b8)', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 700 }}>
-                        Target Relief Location
-                      </div>
-                      <div style={{ fontSize: '0.95rem', fontWeight: 800, color: 'var(--text-primary, #ffffff)', marginTop: '3px', lineHeight: 1.35 }}>
-                        📍 {audit.region}
-                      </div>
+                {/* Metric Strip (Clean 4-column row: Target Goal, Settled to Date, Target Delivery, Community Backers) */}
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
+                  gap: '12px',
+                  background: 'rgba(255, 255, 255, 0.02)',
+                  border: '1px solid var(--border, rgba(255, 255, 255, 0.06))',
+                  borderRadius: '12px',
+                  padding: '12px 16px',
+                  marginBottom: '20px'
+                }}>
+                  <div>
+                    <div style={{ fontSize: '0.67rem', textTransform: 'uppercase', color: 'var(--text-muted, #94a3b8)', fontWeight: 700, letterSpacing: '0.5px' }}>
+                      Target Goal
                     </div>
+                    <div style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--text-primary, #ffffff)', marginTop: '2px' }}>
+                      ₱{targetPhp}
+                    </div>
+                  </div>
 
-                    {audit.gps && (
-                      <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary, #cbd5e1)' }}>
-                        📡 <strong>Coordinates:</strong> <span style={{ color: '#22c55e', fontWeight: 700, fontFamily: 'var(--font-mono, monospace)' }}>{audit.gps}</span>
-                      </div>
-                    )}
+                  <div>
+                    <div style={{ fontSize: '0.67rem', textTransform: 'uppercase', color: 'var(--text-muted, #94a3b8)', fontWeight: 700, letterSpacing: '0.5px' }}>
+                      Settled to Date
+                    </div>
+                    <div style={{ fontSize: '1rem', fontWeight: 800, color: '#22c55e', marginTop: '2px' }}>
+                      ₱{currentPhp} <span style={{ fontSize: '0.72rem', fontWeight: 600 }}>({progressPercent}%)</span>
+                    </div>
+                  </div>
 
-                    {/* Impact & Contact Card */}
-                    <div style={{
-                      background: 'var(--bg-input, rgba(0, 0, 0, 0.25))',
-                      border: '1px solid var(--border, rgba(255, 255, 255, 0.06))',
-                      borderRadius: '10px',
-                      padding: '10px 12px'
-                    }}>
-                      <div style={{ fontSize: '0.68rem', color: 'var(--text-muted, #94a3b8)', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 700 }}>
-                        Estimated Beneficiaries / Impact Scope
+                  <div>
+                    <div style={{ fontSize: '0.67rem', textTransform: 'uppercase', color: 'var(--text-muted, #94a3b8)', fontWeight: 700, letterSpacing: '0.5px' }}>
+                      Target Delivery
+                    </div>
+                    <div style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--text-primary, #ffffff)', marginTop: '3px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <span className="material-symbols-outlined" style={{ fontSize: '14px', color: 'var(--text-muted)' }}>calendar_today</span>
+                      <span>{formattedDeliveryDate || audit.targetDate || 'Active'}</span>
+                    </div>
+                  </div>
+
+                  <div>
+                    <div style={{ fontSize: '0.67rem', textTransform: 'uppercase', color: 'var(--text-muted, #94a3b8)', fontWeight: 700, letterSpacing: '0.5px' }}>
+                      Community Backers
+                    </div>
+                    <div style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--text-primary, #ffffff)', marginTop: '3px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                      <span className="material-symbols-outlined" style={{ fontSize: '15px', color: 'var(--accent, #22c55e)' }}>group</span>
+                      <span>{breakdown.totalBackers > 0 ? `${breakdown.totalBackers} ${breakdown.totalBackers === 1 ? 'Backer' : 'Backers'}` : '0 Backers'}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 2-Column Content Layout */}
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+                  gap: '20px',
+                  marginBottom: '20px'
+                }}>
+                  {/* Left Column: Mission Overview & Budget Allocations */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+                    {/* Mission Purpose (Step 3) */}
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
+                        <span className="material-symbols-outlined" style={{ fontSize: '16px', color: 'var(--accent, #22c55e)' }}>description</span>
+                        <span style={{ fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--text-muted, #94a3b8)' }}>
+                          Mission & Humanitarian Scope
+                        </span>
                       </div>
-                      <div style={{ fontSize: '0.98rem', fontWeight: 800, color: '#22c55e', marginTop: '2px' }}>
-                        {audit.beneficiaries}
-                      </div>
+                      <p style={{ margin: 0, fontSize: '0.86rem', color: 'var(--text-secondary, #cbd5e1)', lineHeight: 1.6, whiteSpace: 'pre-line' }}>
+                        {audit.description}
+                      </p>
+
+                      {/* Step 3: Official Verification Document / Press Release */}
+                      {audit.documentUrl && (
+                        <div style={{ marginTop: '12px' }}>
+                          <a
+                            href={audit.documentUrl.startsWith('http') ? audit.documentUrl : `https://${audit.documentUrl}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{
+                              fontSize: '0.78rem',
+                              color: 'var(--accent, #22c55e)',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '6px',
+                              fontWeight: 600,
+                              textDecoration: 'none',
+                              padding: '6px 12px',
+                              borderRadius: '8px',
+                              background: 'rgba(34, 197, 94, 0.08)',
+                              border: '1px solid rgba(34, 197, 94, 0.25)',
+                              transition: 'all 0.15s ease'
+                            }}
+                          >
+                            <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>verified</span>
+                            <span>Official Verification Document / Press Release</span>
+                            <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>open_in_new</span>
+                          </a>
+                        </div>
+                      )}
+
+                      {/* Step 3: Emergency Hotline & Response Desk */}
                       {audit.contact && (
-                        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted, #94a3b8)', marginTop: '4px' }}>
-                          📞 Response Desk: <span style={{ color: 'var(--text-secondary, #cbd5e1)', fontWeight: 600 }}>{audit.contact}</span>
+                        <div style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          padding: '8px 12px',
+                          background: 'rgba(255, 255, 255, 0.03)',
+                          border: '1px solid var(--border, rgba(255, 255, 255, 0.08))',
+                          borderRadius: '8px',
+                          marginTop: '12px'
+                        }}>
+                          <span className="material-symbols-outlined" style={{ fontSize: '16px', color: 'var(--accent, #22c55e)' }}>support_agent</span>
+                          <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary, #cbd5e1)' }}>
+                            <span style={{ color: 'var(--text-muted, #94a3b8)', fontWeight: 600 }}>Emergency Contact: </span>
+                            <span style={{ color: 'var(--text-primary, #ffffff)', fontWeight: 700 }}>{audit.contact}</span>
+                          </div>
                         </div>
                       )}
                     </div>
+
+                  {/* Allocations breakdown (if present) */}
+                  {audit.allocations && Array.isArray(audit.allocations) && audit.allocations.length > 0 && (
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '10px' }}>
+                        <span className="material-symbols-outlined" style={{ fontSize: '16px', color: 'var(--accent, #22c55e)' }}>pie_chart</span>
+                        <span style={{ fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--text-muted, #94a3b8)' }}>
+                          Planned Relief Allocation
+                        </span>
+                      </div>
+
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                        {audit.allocations.map((item, idx) => {
+                          const cleanLabel = (item.label || '').replace(/[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu, '').trim();
+                          return (
+                            <div key={idx}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px', fontSize: '0.8rem' }}>
+                                <span style={{ color: 'var(--text-secondary, #cbd5e1)', fontWeight: 500 }}>{cleanLabel}</span>
+                                <span style={{ color: 'var(--accent, #22c55e)', fontWeight: 700 }}>{item.pct}%</span>
+                              </div>
+                              <div style={{ height: '5px', background: 'rgba(255, 255, 255, 0.06)', borderRadius: '3px', overflow: 'hidden' }}>
+                                <div style={{ width: `${item.pct}%`, height: '100%', background: 'linear-gradient(90deg, #16a34a, #22c55e)', borderRadius: '3px' }} />
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Right Column: Ground Deployment Audit & Map */}
+                <div style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '12px',
+                  background: 'rgba(255, 255, 255, 0.02)',
+                  border: '1px solid var(--border, rgba(255, 255, 255, 0.06))',
+                  borderRadius: '14px',
+                  padding: '14px'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#ef4444' }}>location_on</span>
+                      <span style={{ fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--text-primary, #ffffff)' }}>
+                        Ground Deployment Audit
+                      </span>
+                    </div>
+                    <span style={{ fontSize: '0.68rem', background: 'rgba(34, 197, 94, 0.12)', color: '#22c55e', border: '1px solid rgba(34, 197, 94, 0.25)', padding: '2px 7px', borderRadius: '10px', fontWeight: 700 }}>
+                      GPS VERIFIED
+                    </span>
                   </div>
 
-                  {/* Right Column: Square Read-Only Leaflet Map */}
+                  {/* Map View */}
                   <div style={{
                     width: '100%',
-                    height: '200px',
-                    borderRadius: '12px',
+                    height: '165px',
+                    borderRadius: '10px',
                     overflow: 'hidden',
-                    border: '1px solid var(--border, rgba(255, 255, 255, 0.1))',
-                    boxShadow: '0 4px 16px rgba(0,0,0,0.4)',
+                    border: '1px solid var(--border, rgba(255, 255, 255, 0.08))',
                     background: 'var(--bg-input, #111111)'
                   }}>
                     <LocationMapPicker
                       address={audit.region}
                       gps={audit.gps}
                       readOnly={true}
-                      height="200px"
+                      height="165px"
                       hideTip={true}
                     />
                   </div>
-                </div>
-              </div>
 
-              {/* Mission Purpose & Campaign Scope Description Box */}
-              <div style={{
-                background: 'var(--bg-surface, rgba(255, 255, 255, 0.03))',
-                border: '1px solid var(--border, rgba(255, 255, 255, 0.08))',
-                borderRadius: '12px',
-                padding: '16px',
-                marginBottom: '18px',
-                transition: 'background var(--transition), border-color var(--transition)'
-              }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                  <h4 style={{ margin: 0, fontSize: '0.92rem', color: '#22c55e', display: 'flex', alignItems: 'center', gap: '6px', fontWeight: 800 }}>
-                    <span className="material-symbols-outlined" style={{ fontSize: '1.15rem' }}>description</span> Mission Purpose & Humanitarian Scope
-                  </h4>
-                  {audit.targetDate && (
-                    <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary, #e2e8f0)', background: 'var(--bg-input, rgba(0, 0, 0, 0.3))', padding: '2px 8px', borderRadius: '6px', border: '1px solid var(--border, rgba(255,255,255,0.08))' }}>
-                      📅 Target: {audit.targetDate}
-                    </span>
-                  )}
-                </div>
-                <p style={{ margin: 0, fontSize: '0.84rem', color: 'var(--text-secondary, #cbd5e1)', lineHeight: '1.6', whiteSpace: 'pre-line' }}>
-                  {audit.description}
-                </p>
-                {audit.documentUrl && (
-                  <div style={{ marginTop: '12px', paddingTop: '10px', borderTop: '1px dashed var(--border, rgba(255,255,255,0.1))' }}>
-                    <a
-                      href={audit.documentUrl.startsWith('http') ? audit.documentUrl : `https://${audit.documentUrl}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      style={{ fontSize: '0.8rem', color: '#22c55e', display: 'inline-flex', alignItems: 'center', gap: '4px', fontWeight: 700, textDecoration: 'none' }}
-                    >
-                      <span className="material-symbols-outlined" style={{ fontSize: '1rem' }}>open_in_new</span> Official Verification / Press Release Audit Document
-                    </a>
-                  </div>
-                )}
-              </div>
+                  {/* Clean Logistics Key-Value Rows */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '0.8rem' }}>
+                    {/* Target Location */}
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+                      <span className="material-symbols-outlined" style={{ fontSize: '15px', color: '#ef4444', marginTop: '2px', flexShrink: 0 }}>pin_drop</span>
+                      <div style={{ color: 'var(--text-primary, #ffffff)', fontWeight: 600, lineHeight: 1.35 }}>
+                        {audit.region}
+                      </div>
+                    </div>
 
-              {/* 2. Fund Allocation Breakdown */}
-              {audit.allocations && Array.isArray(audit.allocations) && audit.allocations.length > 0 && (
-                <div style={{ marginBottom: '20px' }}>
-                  <h4 style={{ fontSize: '0.92rem', color: 'var(--text-primary, #ffffff)', fontWeight: 800, marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span className="material-symbols-outlined" style={{ color: '#22c55e', fontSize: '1.2rem' }}>pie_chart</span>
-                    Transparency Allocation & Necessities Breakdown
-                  </h4>
-
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '10px' }}>
-                    {audit.allocations.map((item, idx) => (
-                      <div key={idx} style={{
-                        background: 'var(--bg-surface, rgba(255, 255, 255, 0.03))',
-                        border: '1px solid var(--border, rgba(255, 255, 255, 0.06))',
-                        borderRadius: '10px',
-                        padding: '10px 12px'
-                      }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                          <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary, #e2e8f0)' }}>
-                            {item.label}
-                          </span>
-                          <span style={{ fontSize: '0.84rem', fontWeight: 800, color: '#22c55e' }}>
-                            {item.pct}%
-                          </span>
-                        </div>
-                        <div style={{ background: 'var(--bg-input, rgba(0, 0, 0, 0.3))', height: '6px', borderRadius: '3px', overflow: 'hidden' }}>
-                          <div style={{ width: `${item.pct}%`, height: '100%', background: 'linear-gradient(90deg, #16a34a, #22c55e)' }} />
+                    {/* GPS Coordinates */}
+                    {audit.gps && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span className="material-symbols-outlined" style={{ fontSize: '15px', color: 'var(--text-muted)', flexShrink: 0 }}>radar</span>
+                        <div>
+                          <span style={{ color: 'var(--accent, #22c55e)', fontWeight: 700, fontFamily: 'var(--font-mono, monospace)', fontSize: '0.78rem' }}>{audit.gps}</span>
                         </div>
                       </div>
-                    ))}
+                    )}
+
+                    {/* Impact / Beneficiaries */}
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+                      <span className="material-symbols-outlined" style={{ fontSize: '15px', color: 'var(--accent, #22c55e)', marginTop: '2px', flexShrink: 0 }}>groups</span>
+                      <div style={{ color: 'var(--text-secondary, #cbd5e1)', lineHeight: 1.3 }}>
+                        <span style={{ color: '#22c55e', fontWeight: 700 }}>{audit.beneficiaries}</span>
+                      </div>
+                    </div>
+
+                    {/* Contact / Response Desk */}
+                    {audit.contact && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span className="material-symbols-outlined" style={{ fontSize: '15px', color: 'var(--text-muted)', flexShrink: 0 }}>call</span>
+                        <div style={{ color: 'var(--text-muted, #94a3b8)', fontSize: '0.76rem' }}>
+                          Response Desk: <span style={{ color: 'var(--text-secondary, #cbd5e1)', fontWeight: 600 }}>{audit.contact}</span>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
-              )}
+              </div>
 
               {/* Modal Actions */}
-              <div style={{ display: 'flex', gap: '12px', marginTop: '6px' }}>
+              <div style={{ display: 'flex', gap: '12px', paddingTop: '12px', borderTop: '1px solid var(--border, rgba(255, 255, 255, 0.08))' }}>
                 <button
                   className="btn btn-outline"
-                  style={{ flex: 1, padding: '11px 16px', fontSize: '0.88rem' }}
+                  style={{ flex: 1, padding: '10px 16px', fontSize: '0.88rem' }}
                   onClick={() => setDetailsOpen(false)}
                 >
                   Close Audit
                 </button>
 
-                {canDonate && (
+                {isOwner ? (
                   <button
+                    type="button"
                     className="btn btn-primary glow"
-                    style={{ flex: 1.6, padding: '11px 16px', fontSize: '0.88rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                    style={{ flex: 1.6, padding: '10px 16px', fontSize: '0.88rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
                     onClick={() => {
                       setDetailsOpen(false);
+                      setEditModalOpen(true);
+                    }}
+                  >
+                    <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>edit_note</span>
+                    Edit Campaign Logistics
+                  </button>
+                ) : canDonate ? (
+                  <button
+                    className="btn btn-primary glow"
+                    style={{ flex: 1.6, padding: '10px 16px', fontSize: '0.88rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                    onClick={() => {
+                      setDetailsOpen(false);
+                      if (!amount || parseFloat(amount) <= 0) {
+                        setAmount('500');
+                      }
+                      setDonateStep(0); // Explicitly open multi-rail payment choices (MetaMask, GCash, Maya, Bank)
+                      setCustomMsg('');
+                      setTxHash('');
+                      setIsAnonymous(false);
+                      setLegalConfirm(false);
                       setModalOpen(true);
                     }}
                   >
                     <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>volunteer_activism</span>
                     Donate to Campaign
                   </button>
-                )}
+                ) : null}
               </div>
-
             </div>
           </div>
-          , document.body);
+        </div>
+        , document.body);
       })()}
+
+      {/* ── Edit Campaign Operational Logistics Modal ── */}
+      <EditCampaignModal
+        camp={camp}
+        isOpen={editModalOpen}
+        onClose={() => setEditModalOpen(false)}
+        onSaved={() => {
+          onCampaignUpdated?.();
+          onDonated?.();
+        }}
+      />
     </div>
   );
 }

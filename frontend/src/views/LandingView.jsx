@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import CampaignCard from '../components/CampaignCard';
 import DisasterRadarHeatmap from '../components/DisasterRadarHeatmap';
 import { contractAddress } from '../contractConfig';
+import { API_URL } from '../config';
 import './LandingView.css';
 
 export default function LandingView({ onConnect, hasMetaMask, contract, onOpenNgoProfile, theme }) {
@@ -27,7 +28,7 @@ export default function LandingView({ onConnect, hasMetaMask, contract, onOpenNg
   useEffect(() => {
     const fetchLandingData = async () => {
       try {
-        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+        const apiUrl = API_URL;
         
         // Fetch real database counts and live campaigns in parallel with cache-busting
         const [statsRes, campsRes] = await Promise.all([

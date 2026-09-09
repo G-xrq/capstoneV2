@@ -198,8 +198,8 @@ export default function Header({
                     document.getElementById('campaigns')?.scrollIntoView({ behavior: 'smooth' });
                   } else if (notif.type === 'kyc' && onOpenNgoProfile) {
                     onOpenNgoProfile(notif.orgId || 3);
-                  } else if (notif.type === 'security' && onOpenSettings) {
-                    onOpenSettings();
+                  } else if (notif.type === 'security' && typeof setShowSettingsModal === 'function') {
+                    setShowSettingsModal(true);
                   } else {
                     document.getElementById('campaigns')?.scrollIntoView({ behavior: 'smooth' });
                   }

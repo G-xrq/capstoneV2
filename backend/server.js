@@ -3,7 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const nodemailer = require('nodemailer');
+// nodemailer removed — using Resend HTTP API (Render blocks SMTP ports on free tier)
 const db = require('./database');
 
 const app = express();
@@ -53,44 +53,83 @@ const rateLimiter = (maxRequests = 300, windowMs = 15 * 60 * 1000) => (req, res,
   next();
 };
 
-// ── Email Transporter Helper (Google Gmail SMTP via Secure Port 465) ───────────
-function getEmailTransporter() {
-  const user = process.env.SMTP_USER || process.env.EMAIL_USER || process.env.GMAIL_USER || 'gestermacaldo@gmail.com';
-  const pass = process.env.SMTP_PASS || process.env.EMAIL_PASS || process.env.GMAIL_PASS || 'vlijrjrvwonjjmwe';
+// ── Universal Email Dispatch: Vercel Gmail Relay (Primary) + Resend HTTP (Fallback) ──
+const VERCEL_RELAY_URL = process.env.VERCEL_RELAY_URL || 'https://bbdrts-frontend.vercel.app/api/send-email';
+const EMAIL_RELAY_SECRET = process.env.EMAIL_RELAY_SECRET || 'bbdrts_secure_email_secret_2026';
+const RESEND_API_KEY = process.env.RESEND_API_KEY;
 
-  if (user && pass) {
-    return nodemailer.createTransport({
-      host: 'smtp.gmail.com',
-      port: 465,
-      secure: true, // SSL on port 465 avoids cloud provider STARTTLS port 587 blockades
-      auth: {
-        user: user.trim(),
-        pass: pass.replace(/\s+/g, '') // remove spaces from Google App Password
-      },
-      connectionTimeout: 5000, // 5s max to connect
-      greetingTimeout: 5000,   // 5s max for greeting
-      socketTimeout: 7000      // 7s max for socket
-    });
-  }
-  return null;
-}
-
-// ── Resilient Safe Email Dispatcher (Guarantees Backend Never Hangs or Freezes) ──
-async function sendMailSafe(mailOptions, timeoutMs = 6500) {
-  const transporter = getEmailTransporter();
-  if (!transporter) return false;
-
+async function sendMailSafe(mailOptions, timeoutMs = 8000) {
+  // Strategy 1: Vercel Gmail Serverless Relay (Port 443 HTTPS -> AWS Lambda -> smtp.gmail.com:465)
+  // Sends from personal Gmail (gestermacaldo@gmail.com) to ANY recipient in the world without restrictions
   try {
-    const sendPromise = transporter.sendMail(mailOptions);
-    const timeoutPromise = new Promise((_, reject) =>
-      setTimeout(() => reject(new Error(`SMTP timed out after ${timeoutMs}ms`)), timeoutMs)
-    );
-    await Promise.race([sendPromise, timeoutPromise]);
-    return true;
-  } catch (err) {
-    console.warn(`⚠️ [SMTP ERROR/TIMEOUT]:`, err.message);
-    return false;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+    const relayRes = await fetch(VERCEL_RELAY_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-relay-secret': EMAIL_RELAY_SECRET
+      },
+      body: JSON.stringify({
+        to: mailOptions.to,
+        subject: mailOptions.subject,
+        html: mailOptions.html || `<p>${mailOptions.text}</p>`,
+        text: mailOptions.text || '',
+        secret: EMAIL_RELAY_SECRET
+      }),
+      signal: controller.signal
+    });
+    clearTimeout(timeoutId);
+
+    if (relayRes.ok) {
+      const data = await relayRes.json();
+      console.log(`✅ [VERCEL GMAIL RELAY] Email delivered to ${mailOptions.to} | ID: ${data.messageId || 'ok'}`);
+      return true;
+    } else {
+      const errData = await relayRes.json().catch(() => ({}));
+      console.warn(`⚠️ [VERCEL RELAY WARN] Status ${relayRes.status}:`, errData);
+    }
+  } catch (relayErr) {
+    console.warn(`⚠️ [VERCEL RELAY ERROR]:`, relayErr.message);
   }
+
+  // Strategy 2: Resend HTTP API (Fallback for account owner email)
+  if (RESEND_API_KEY) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+      const res = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${RESEND_API_KEY}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          from: 'BBDRTS Protocol <onboarding@resend.dev>',
+          to: [mailOptions.to],
+          subject: mailOptions.subject,
+          html: mailOptions.html || `<p>${mailOptions.text}</p>`,
+          text: mailOptions.text || ''
+        }),
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+
+      const data = await res.json();
+      if (res.ok) {
+        console.log(`✅ [RESEND] Email sent successfully to ${mailOptions.to} | id: ${data.id}`);
+        return true;
+      } else {
+        console.warn(`⚠️ [RESEND ERROR] ${res.status}:`, data);
+      }
+    } catch (err) {
+      console.warn(`⚠️ [RESEND TIMEOUT/ERROR]:`, err.message);
+    }
+  }
+
+  return false;
 }
 
 // ── On-Chain RPC Verification Helper ────────────────────────
@@ -1079,38 +1118,9 @@ app.get('/api/auth/check-display-name', async (req, res) => {
 });
 
 // ── Routes: Profile Update (Donor Profile & Org Settings) ──
-app.post('/api/auth/profile', async (req, res) => {
-  let role = req.body.role || 'donor';
-  let id = req.body.id || null;
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
-
-  if (token) {
-    try {
-      const decoded = jwt.verify(token, secretKey);
-      role = decoded.role || role;
-      id = decoded.id || id;
-    } catch (_) {}
-  }
-
-  // Fallback to email if token is expired or not yet cached
-  if (!id && req.body.email) {
-    try {
-      const [donorRows] = await db.query(`SELECT Donor_ID FROM DONOR WHERE LOWER(Username) = LOWER(?)`, [req.body.email]);
-      if (donorRows && donorRows.length > 0) {
-        id = donorRows[0].Donor_ID;
-        role = 'donor';
-      } else {
-        const [orgRows] = await db.query(`SELECT Org_ID FROM ORGANIZATION WHERE LOWER(Username) = LOWER(?)`, [req.body.email]);
-        if (orgRows && orgRows.length > 0) {
-          id = orgRows[0].Org_ID;
-          role = 'organization';
-        }
-      }
-    } catch (e) {
-      console.warn("Email fallback query issue:", e);
-    }
-  }
+app.post('/api/auth/profile', authenticateToken, async (req, res) => {
+  const role = req.user.role || 'donor';
+  const id = req.user.id;
 
   if (!id) {
     return res.status(401).json({ error: 'Session authentication required to save profile.' });
@@ -1519,6 +1529,155 @@ app.post('/api/campaigns', authenticateToken, async (req, res) => {
   }
 });
 
+// ── Update Campaign Logistics (Off-chain metadata editing) ──
+app.put('/api/campaigns/:id', authenticateToken, async (req, res) => {
+  const campaignId = req.params.id;
+  try {
+    const [rows] = await db.query('SELECT Org_ID FROM CAMPAIGN WHERE Campaign_ID = ?', [campaignId]);
+    if (!rows || rows.length === 0) {
+      return res.status(404).json({ error: 'Campaign not found.' });
+    }
+    const camp = rows[0];
+    if (req.user.role !== 'admin' && camp.Org_ID !== req.user.id) {
+      return res.status(403).json({ error: 'You do not have permission to edit this campaign.' });
+    }
+
+    const {
+      description,
+      location_region,
+      gps_coordinates,
+      beneficiaries_impact,
+      contact_info,
+      urgency,
+      target_date,
+      document_url,
+      tags,
+      gcash_name,
+      gcash_number,
+      gcash_qr_url,
+      maya_name,
+      maya_number,
+      maya_qr_url,
+      bank_name,
+      bank_account_name,
+      bank_account_number,
+      bank_qr_url
+    } = req.body;
+
+    await db.query(
+      `UPDATE CAMPAIGN SET
+        Description = COALESCE(?, Description),
+        Location_Region = COALESCE(?, Location_Region),
+        Gps_Coordinates = COALESCE(?, Gps_Coordinates),
+        Beneficiaries_Impact = COALESCE(?, Beneficiaries_Impact),
+        Contact_Info = COALESCE(?, Contact_Info),
+        Urgency = COALESCE(?, Urgency),
+        Target_Date = COALESCE(?, Target_Date),
+        Document_Url = COALESCE(?, Document_Url),
+        Tags = COALESCE(?, Tags),
+        Gcash_Name = COALESCE(?, Gcash_Name),
+        Gcash_Number = COALESCE(?, Gcash_Number),
+        Gcash_Qr_Url = COALESCE(?, Gcash_Qr_Url),
+        Maya_Name = COALESCE(?, Maya_Name),
+        Maya_Number = COALESCE(?, Maya_Number),
+        Maya_Qr_Url = COALESCE(?, Maya_Qr_Url),
+        Bank_Name = COALESCE(?, Bank_Name),
+        Bank_Account_Name = COALESCE(?, Bank_Account_Name),
+        Bank_Account_Number = COALESCE(?, Bank_Account_Number),
+        Bank_Qr_Url = COALESCE(?, Bank_Qr_Url)
+      WHERE Campaign_ID = ?`,
+      [
+        description !== undefined ? description : null,
+        location_region !== undefined ? location_region : null,
+        gps_coordinates !== undefined ? gps_coordinates : null,
+        beneficiaries_impact !== undefined ? beneficiaries_impact : null,
+        contact_info !== undefined ? contact_info : null,
+        urgency !== undefined ? urgency : null,
+        target_date !== undefined ? target_date : null,
+        document_url !== undefined ? document_url : null,
+        tags !== undefined ? tags : null,
+        gcash_name !== undefined ? gcash_name : null,
+        gcash_number !== undefined ? gcash_number : null,
+        gcash_qr_url !== undefined ? gcash_qr_url : null,
+        maya_name !== undefined ? maya_name : null,
+        maya_number !== undefined ? maya_number : null,
+        maya_qr_url !== undefined ? maya_qr_url : null,
+        bank_name !== undefined ? bank_name : null,
+        bank_account_name !== undefined ? bank_account_name : null,
+        bank_account_number !== undefined ? bank_account_number : null,
+        bank_qr_url !== undefined ? bank_qr_url : null,
+        campaignId
+      ]
+    );
+
+    res.json({ message: 'Campaign operational logistics updated successfully.' });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to update campaign: ' + err.message });
+  }
+});
+
+// ── Deactivate Campaign (Database Sync) ──
+app.post('/api/campaigns/:id/deactivate', authenticateToken, async (req, res) => {
+  const campaignId = req.params.id;
+  try {
+    const [rows] = await db.query('SELECT Org_ID FROM CAMPAIGN WHERE Campaign_ID = ?', [campaignId]);
+    if (!rows || rows.length === 0) {
+      return res.status(404).json({ error: 'Campaign not found.' });
+    }
+    const camp = rows[0];
+    if (req.user.role !== 'admin' && camp.Org_ID !== req.user.id) {
+      return res.status(403).json({ error: 'You do not have permission to deactivate this campaign.' });
+    }
+
+    await db.query('UPDATE CAMPAIGN SET Is_Active = 0 WHERE Campaign_ID = ?', [campaignId]);
+    res.json({ message: 'Campaign deactivated successfully in database.' });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to deactivate campaign: ' + err.message });
+  }
+});
+
+// ── Geocode Reverse Proxy Route with Multi-Tier Zoom Fallback ─
+app.get('/api/geocode/reverse', async (req, res) => {
+  const { lat, lon } = req.query;
+  if (!lat || !lon) return res.status(400).json({ error: 'lat and lon are required parameters.' });
+
+  try {
+    const fetchFn = typeof fetch !== 'undefined' ? fetch : (...args) => import('node-fetch').then(({default: f}) => f(...args));
+    
+    // Tier 1: Detailed street level (zoom 17)
+    let nominatimUrl = `https://nominatim.openstreetmap.org/reverse?format=json&addressdetails=1&zoom=17&lat=${lat}&lon=${lon}`;
+    let response = await fetchFn(nominatimUrl, {
+      headers: { 'User-Agent': 'BBDRTS-DisasterRelief-Platform/2.0 (capstone@reliefph.org)' }
+    });
+    let data = response.ok ? await response.json() : null;
+
+    // Tier 2: If street level yielded no address (e.g. open fields, rural areas), fall back to municipality level (zoom 14)
+    if (!data || data.error || !data.address) {
+      nominatimUrl = `https://nominatim.openstreetmap.org/reverse?format=json&addressdetails=1&zoom=14&lat=${lat}&lon=${lon}`;
+      response = await fetchFn(nominatimUrl, {
+        headers: { 'User-Agent': 'BBDRTS-DisasterRelief-Platform/2.0 (capstone@reliefph.org)' }
+      });
+      data = response.ok ? await response.json() : null;
+    }
+
+    // Tier 3: If still empty (e.g. coastal waters, provincial borders), fall back to provincial level (zoom 10)
+    if (!data || data.error || !data.address) {
+      nominatimUrl = `https://nominatim.openstreetmap.org/reverse?format=json&addressdetails=1&zoom=10&lat=${lat}&lon=${lon}`;
+      response = await fetchFn(nominatimUrl, {
+        headers: { 'User-Agent': 'BBDRTS-DisasterRelief-Platform/2.0 (capstone@reliefph.org)' }
+      });
+      data = response.ok ? await response.json() : null;
+    }
+
+    if (data && (data.address || data.display_name)) {
+      return res.json(data);
+    }
+    return res.status(404).json({ error: 'No address found for these coordinates' });
+  } catch (err) {
+    return res.status(500).json({ error: 'Reverse geocoding error: ' + err.message });
+  }
+});
+
 // ── Manual Fiat Verification Routes (Capstone Feature) ───
 
 // 1. Upload Manual Donation Receipt
@@ -1848,6 +2007,7 @@ app.get('/api/campaigns', async (req, res) => {
         o.Org_Name as orgName,
         o.Wallet_Address as orgAddress,
         c.Smart_Contract_Address as contractAddress,
+        COALESCE(c.Is_Active, 1) as isActive,
         COALESCE(SUM(dt.Amount), 0) as currentAmount
       FROM CAMPAIGN c
       LEFT JOIN DONATION_TRANSACTION dt ON c.Campaign_ID = dt.Campaign_ID
@@ -1943,7 +2103,7 @@ app.get('/api/campaigns', async (req, res) => {
         bankAccountName: r.bankAccountName || '',
         bankAccountNumber: r.bankAccountNumber || '',
         bankQrUrl: r.bankQrUrl || '',
-        isActive: true,
+        isActive: r.isActive === 0 || r.isActive === false ? false : true,
         railBreakdown: {
           eth: {
             amount: parseFloat(finalEthAmount.toFixed(6)),
@@ -2139,36 +2299,8 @@ app.get('/api/campaigns/:id/donations', async (req, res) => {
 });
 
 // ── Routes: Admin (Organization Approval) ─────────────────
-app.get('/api/admin/organizations', async (req, res) => {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
-  const walletHeader = req.headers['x-admin-wallet'];
-
-  // Check if authorized via JWT or Admin Wallet Address
-  let isAuthorized = false;
-  if (token) {
-    try {
-      const user = jwt.verify(token, secretKey);
-      if (user && user.role === 'admin') isAuthorized = true;
-    } catch (_) {}
-  }
-
-  if (!isAuthorized && walletHeader) {
-    try {
-      const [adminRows] = await db.query(`SELECT Admin_ID FROM ADMINISTRATOR WHERE LOWER(Wallet_Address) = ?`, [walletHeader.toLowerCase()]);
-      if (adminRows.length > 0) isAuthorized = true;
-    } catch (_) {}
-  }
-
-  // Capstone local dev fallback: Allow reading organization list for administration
-  if (!isAuthorized) {
-    const ip = req.ip || req.connection.remoteAddress || '127.0.0.1';
-    if (ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1') {
-      isAuthorized = true;
-    }
-  }
-
-  if (!isAuthorized) {
+app.get('/api/admin/organizations', authenticateToken, async (req, res) => {
+  if (req.user.role !== 'admin') {
     return res.status(403).json({ error: 'Access denied. Admin privileges required.' });
   }
 
@@ -2197,44 +2329,12 @@ app.get('/api/admin/organizations', async (req, res) => {
   }
 });
 
-app.post(['/api/admin/organizations/:id/approve', '/api/admin/organizations/:id/verify'], async (req, res) => {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
-  const walletHeader = req.headers['x-admin-wallet'];
-
-  let isAuthorized = false;
-  let adminIdentifier = 'System Administrator';
-
-  if (token) {
-    try {
-      const user = jwt.verify(token, secretKey);
-      if (user && user.role === 'admin') {
-        isAuthorized = true;
-        adminIdentifier = user.email || 'Admin';
-      }
-    } catch (_) {}
-  }
-
-  if (!isAuthorized && walletHeader) {
-    try {
-      const [adminRows] = await db.query(`SELECT Admin_ID, Username FROM ADMINISTRATOR WHERE LOWER(Wallet_Address) = ?`, [walletHeader.toLowerCase()]);
-      if (adminRows.length > 0) {
-        isAuthorized = true;
-        adminIdentifier = adminRows[0].Username || walletHeader;
-      }
-    } catch (_) {}
-  }
-
-  if (!isAuthorized) {
-    const ip = req.ip || req.connection.remoteAddress || '127.0.0.1';
-    if (ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1') {
-      isAuthorized = true;
-    }
-  }
-
-  if (!isAuthorized) {
+app.post(['/api/admin/organizations/:id/approve', '/api/admin/organizations/:id/verify'], authenticateToken, async (req, res) => {
+  if (req.user.role !== 'admin') {
     return res.status(403).json({ error: 'Access denied. Admin privileges required.' });
   }
+
+  const adminIdentifier = req.user.email || 'System Administrator';
 
   const { status, audit_notes, audit_checklist } = req.body || {};
   const finalStatus = (status === 'Rejected') ? 'Rejected' : 'Approved';
@@ -2951,6 +3051,347 @@ app.get('/api/public/organizations/:id', async (req, res) => {
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+// ── Geocoding Proxy Endpoints (Multi-tier Structured Search & Zoom Enrichment) ──
+app.get('/api/geocode/search', async (req, res) => {
+  const { q, street, barangay, city, state, province } = req.query;
+  const targetState = province || state || '';
+
+  const headers = { 'User-Agent': 'BBDRTS-Disaster-Relief/2.0 (contact@bbdrts.gov.ph)' };
+
+  try {
+    // 1. Structured candidate queries if granular fields provided
+    if (city || targetState || barangay || street) {
+      const candidates = [];
+
+      if (barangay && (city || targetState)) {
+        candidates.push(`https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&countrycodes=ph&limit=5&q=${encodeURIComponent([barangay, city, targetState, 'Philippines'].filter(Boolean).join(', '))}`);
+      }
+
+      if (street && city) {
+        candidates.push(`https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&countrycodes=ph&limit=5&street=${encodeURIComponent(street)}&city=${encodeURIComponent(city)}&state=${encodeURIComponent(targetState)}&country=Philippines`);
+      }
+
+      if (city && targetState) {
+        candidates.push(`https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&countrycodes=ph&limit=5&city=${encodeURIComponent(city)}&state=${encodeURIComponent(targetState)}&country=Philippines`);
+        candidates.push(`https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&countrycodes=ph&limit=5&q=${encodeURIComponent([city, targetState, 'Philippines'].join(', '))}`);
+      } else if (city) {
+        candidates.push(`https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&countrycodes=ph&limit=5&city=${encodeURIComponent(city)}&country=Philippines`);
+      } else if (targetState) {
+        candidates.push(`https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&countrycodes=ph&limit=5&state=${encodeURIComponent(targetState)}&country=Philippines`);
+      }
+
+      for (const url of candidates) {
+        try {
+          const fetchRes = await fetch(url, { headers });
+          if (fetchRes.ok) {
+            const data = await fetchRes.json();
+            if (Array.isArray(data) && data.length > 0) {
+              return res.json(data);
+            }
+          }
+        } catch (e) {
+          // try next candidate
+        }
+      }
+    }
+
+    // 2. Freeform query fallback
+    if (q && q.trim()) {
+      const cleanQ = q.trim();
+      const freeformUrl = `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&countrycodes=ph&limit=5&q=${encodeURIComponent(cleanQ)}`;
+      const osmRes = await fetch(freeformUrl, { headers });
+      if (osmRes.ok) {
+        const data = await osmRes.json();
+        if (Array.isArray(data) && data.length > 0) {
+          return res.json(data);
+        }
+      }
+
+      // Global fallback
+      const globalUrl = `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=5&q=${encodeURIComponent(cleanQ)}`;
+      const globalRes = await fetch(globalUrl, { headers });
+      if (globalRes.ok) {
+        const globalData = await globalRes.json();
+        if (Array.isArray(globalData) && globalData.length > 0) {
+          return res.json(globalData);
+        }
+      }
+    }
+
+    res.json([]);
+  } catch (err) {
+    console.warn('Geocode search error:', err.message);
+    res.status(500).json({ error: 'Geocoding search service unavailable' });
+  }
+});
+
+// ── Philippine Geographical Boundaries Intelligence ──
+const path = require('path');
+const fs = require('fs');
+const provincesGeoPath = path.join(__dirname, '..', 'frontend', 'src', 'data', 'philippines_provinces.json');
+let phProvincesGeo = null;
+try {
+  if (fs.existsSync(provincesGeoPath)) {
+    phProvincesGeo = JSON.parse(fs.readFileSync(provincesGeoPath, 'utf8'));
+  }
+} catch (e) {
+  console.warn('Failed to load philippines_provinces.json in backend:', e.message);
+}
+
+function pointInPolygon(point, vs) {
+  const x = point[0], y = point[1];
+  let inside = false;
+  for (let i = 0, j = vs.length - 1; i < vs.length; j = i++) {
+    const xi = vs[i][0], yi = vs[i][1];
+    const xj = vs[j][0], yj = vs[j][1];
+    const intersect = ((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+    if (intersect) inside = !inside;
+  }
+  return inside;
+}
+
+function findPhilippineProvince(lat, lon) {
+  if (!phProvincesGeo?.features) return null;
+  // 1. Exact Point-in-polygon check
+  for (const f of phProvincesGeo.features) {
+    const geom = f.geometry;
+    if (geom.type === 'Polygon') {
+      if (pointInPolygon([lon, lat], geom.coordinates[0])) {
+        return { name: f.properties.name === 'Metropolitan Manila' ? 'Metro Manila' : f.properties.name, region: f.properties.region };
+      }
+    } else if (geom.type === 'MultiPolygon') {
+      for (const poly of geom.coordinates) {
+        if (pointInPolygon([lon, lat], poly[0])) {
+          return { name: f.properties.name === 'Metropolitan Manila' ? 'Metro Manila' : f.properties.name, region: f.properties.region };
+        }
+      }
+    }
+  }
+
+  // 2. Nearest Centroid Fallback (for coastal waters, bays, ports, shores, and rural offshore clicks)
+  let closestProv = null;
+  let minDistanceSq = Infinity;
+
+  for (const f of phProvincesGeo.features) {
+    const geom = f.geometry;
+    let ring = null;
+    if (geom.type === 'Polygon') {
+      ring = geom.coordinates[0];
+    } else if (geom.type === 'MultiPolygon') {
+      ring = geom.coordinates[0]?.[0];
+    }
+    if (!ring || ring.length === 0) continue;
+
+    let sumLon = 0, sumLat = 0, count = 0;
+    const step = Math.max(1, Math.floor(ring.length / 10));
+    for (let i = 0; i < ring.length; i += step) {
+      sumLon += ring[i][0];
+      sumLat += ring[i][1];
+      count++;
+    }
+    if (count === 0) continue;
+    const cLon = sumLon / count;
+    const cLat = sumLat / count;
+
+    const dSq = (lat - cLat) * (lat - cLat) + (lon - cLon) * (lon - cLon);
+    if (dSq < minDistanceSq) {
+      minDistanceSq = dSq;
+      closestProv = {
+        name: f.properties.name === 'Metropolitan Manila' ? 'Metro Manila' : f.properties.name,
+        region: f.properties.region
+      };
+    }
+  }
+
+  if (closestProv && lat >= 4.0 && lat <= 22.0 && lon >= 116.0 && lon <= 128.0) {
+    return closestProv;
+  }
+  return closestProv;
+}
+
+function parsePhilippineAddress(a = {}, dataName = '', lat = null, lon = null) {
+  const roadPart = a.road || a.street || a.pedestrian || a.footway || a.path || a.residential || a.highway || '';
+  let street = '';
+  if (a.house_number && roadPart) {
+    street = `${a.house_number} ${roadPart}`;
+  } else if (roadPart) {
+    street = roadPart;
+  } else if (a.building && a.building !== 'yes') {
+    street = a.building;
+  }
+
+  // 1. Accurate Province & Region resolution via Philippine boundary polygons with centroid fallback
+  const polyProvince = (lat != null && lon != null) ? findPhilippineProvince(lat, lon) : null;
+  let province = polyProvince ? polyProvince.name : '';
+  let region = polyProvince ? polyProvince.region : '';
+
+  // Fallback province if point was slightly offshore / outside poly
+  if (!province) {
+    const isRegion = /^(National Capital Region|Eastern Visayas|Central Visayas|Western Visayas|Ilocos Region|Cagayan Valley|Central Luzon|Calabarzon|Mimaropa|Bicol Region|Zamboanga Peninsula|Northern Mindanao|Davao Region|Soccsksargen|Caraga|BARMM|Bangsamoro|Cordillera)/i;
+    if (a.province) province = a.province;
+    else if (a.state && !isRegion.test(a.state)) province = a.state;
+    else if (a.county && !/^(brgy|barangay|district|zone)/i.test(a.county)) province = a.county;
+    else if (a.state) province = a.state;
+    else if (a.region) province = a.region;
+  }
+  if (province === 'Metropolitan Manila') province = 'Metro Manila';
+  if (!region) {
+    if (a.region) region = a.region;
+    else if (a.state && /^(National Capital Region|Eastern Visayas|Central Visayas|Western Visayas|Ilocos Region|Cagayan Valley|Central Luzon|Calabarzon|Mimaropa|Bicol Region|Zamboanga Peninsula|Northern Mindanao|Davao Region|Soccsksargen|Caraga|BARMM|Bangsamoro|Cordillera)/i.test(a.state)) {
+      region = a.state;
+    }
+  }
+
+  // 2. Barangay resolution (include county if it's a barangay like "Brgy. 13")
+  const bCandidates = [
+    a.quarter,
+    a.village,
+    a.suburb,
+    (a.county && /^(brgy|barangay|zone|poblacion)/i.test(a.county)) ? a.county : null,
+    a.neighbourhood,
+    a.hamlet,
+    a.subdistrict
+  ].filter(Boolean);
+
+  let barangay = bCandidates.find(c => /^(brgy|barangay|poblacion|zone)/i.test(c)) || '';
+  if (!barangay) {
+    barangay = a.village || a.quarter || a.suburb || a.hamlet || a.neighbourhood || '';
+    if (!barangay && a.county && a.county.toLowerCase() !== province.toLowerCase()) {
+      barangay = a.county;
+    }
+  }
+
+  // If street is empty but neighbourhood/hamlet exists
+  if (!street && (a.neighbourhood || a.hamlet) && (a.neighbourhood || a.hamlet).toLowerCase() !== barangay.toLowerCase()) {
+    street = a.neighbourhood || a.hamlet || '';
+  }
+
+  // 3. Municipality / City
+  let city = a.city || a.town || a.municipality || '';
+  if (!city && a.city_district && a.city_district.toLowerCase() !== barangay.toLowerCase()) {
+    city = a.city_district;
+  }
+
+  // 4. Postal Code
+  let zip = a.postcode || a.zip || a.postal_code || '';
+  let country = a.country || 'Philippines';
+
+  // 5. Deduplication
+  if (street && barangay && street.trim().toLowerCase() === barangay.trim().toLowerCase()) {
+    street = '';
+  }
+  if (barangay && city && barangay.trim().toLowerCase() === city.trim().toLowerCase()) {
+    const alt = bCandidates.find(c => c.toLowerCase() !== city.toLowerCase());
+    barangay = alt || '';
+  }
+
+  // 6. Landmark
+  let landmark = '';
+  if (a.amenity || a.historic || a.leisure || a.tourism || a.office || a.shop) {
+    landmark = a.name || a.amenity || a.tourism || a.leisure || a.historic || a.office || a.shop || '';
+  } else if (dataName && dataName !== roadPart && dataName !== barangay && dataName !== city && dataName !== province) {
+    landmark = dataName;
+  }
+
+  return { street, barangay, city, province, region, zip, country, landmark };
+}
+
+// In-memory cache for reverse geocoding to prevent Nominatim rate-limiting (429)
+const reverseGeocodeCache = new Map();
+
+app.get('/api/geocode/reverse', async (req, res) => {
+  const { lat, lon, lng } = req.query;
+  const targetLon = lon || lng;
+  if (!lat || !targetLon) {
+    return res.status(400).json({ error: 'Latitude and Longitude required' });
+  }
+
+  const numLat = parseFloat(lat);
+  const numLon = parseFloat(targetLon);
+  const cacheKey = `${numLat.toFixed(4)},${numLon.toFixed(4)}`;
+
+  if (reverseGeocodeCache.has(cacheKey)) {
+    return res.json(reverseGeocodeCache.get(cacheKey));
+  }
+
+  const headers = { 'User-Agent': 'BBDRTS-Disaster-Relief/2.0 (contact@bbdrts.gov.ph)' };
+
+  // Always compute exact boundary province
+  const polyProvince = findPhilippineProvince(numLat, numLon);
+
+  try {
+    // Zoom 18 gives high precision road/amenity details
+    const url = `https://nominatim.openstreetmap.org/reverse?format=json&addressdetails=1&zoom=18&lat=${lat}&lon=${targetLon}`;
+    const osmRes = await fetch(url, { headers });
+
+    let data = null;
+    if (osmRes.ok) {
+      data = await osmRes.json();
+    }
+
+    if (!data) data = { display_name: '', address: {} };
+    if (!data.address) data.address = {};
+
+    // If city/town/municipality is missing from zoom 18 (common on rural POIs / minor paths),
+    // enrich with zoom 14 (administrative level)
+    if (!data.address.city && !data.address.town && !data.address.municipality) {
+      try {
+        const urlZ14 = `https://nominatim.openstreetmap.org/reverse?format=json&addressdetails=1&zoom=14&lat=${lat}&lon=${targetLon}`;
+        const resZ14 = await fetch(urlZ14, { headers });
+        if (resZ14.ok) {
+          const dataZ14 = await resZ14.json();
+          if (dataZ14?.address) {
+            data.address.city = dataZ14.address.city || dataZ14.address.town || dataZ14.address.municipality || data.address.city;
+            if (!data.address.postcode && dataZ14.address.postcode) data.address.postcode = dataZ14.address.postcode;
+            if (!data.address.state && dataZ14.address.state) data.address.state = dataZ14.address.state;
+            if (!data.address.county && dataZ14.address.county) data.address.county = dataZ14.address.county;
+          }
+        }
+      } catch (enrichErr) {
+        // non-blocking enrichment
+      }
+    }
+
+    // Apply accurate polygon province
+    if (polyProvince) {
+      data.address.province = polyProvince.name;
+      if (!data.address.region && polyProvince.region) {
+        data.address.region = polyProvince.region;
+      }
+    }
+
+    // Run Philippine address structure parser
+    const parsed = parsePhilippineAddress(data.address, data.name, numLat, numLon);
+    const finalResponse = {
+      ...data,
+      parsed
+    };
+
+    // Cache for snappy subsequent clicks
+    if (reverseGeocodeCache.size > 500) {
+      const firstKey = reverseGeocodeCache.keys().next().value;
+      reverseGeocodeCache.delete(firstKey);
+    }
+    reverseGeocodeCache.set(cacheKey, finalResponse);
+
+    return res.json(finalResponse);
+  } catch (err) {
+    console.warn('Geocode reverse error:', err.message);
+    // If upstream fails, fall back to offline polygon province lookup
+    const fallbackParsed = parsePhilippineAddress({}, '', numLat, numLon);
+    const fallbackResponse = {
+      display_name: fallbackParsed.province ? `${fallbackParsed.province}, Philippines` : 'Selected Location',
+      address: {
+        province: fallbackParsed.province,
+        region: fallbackParsed.region,
+        country: 'Philippines'
+      },
+      parsed: fallbackParsed
+    };
+    return res.json(fallbackResponse);
   }
 });
 

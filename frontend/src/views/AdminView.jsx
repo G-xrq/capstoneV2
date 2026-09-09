@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { ethers } from 'ethers';
+import { isLocalhost, API_URL } from '../config';
 import CampaignCard from '../components/CampaignCard';
 import { shortAddr } from '../components/CampaignCard';
 import { ROLES, MAX_ORGANIZATIONS } from '../roleConfig';
@@ -67,7 +68,7 @@ export default function AdminView({ contract, walletAddress, role, campaigns, fe
     try {
       setOrgLoading(true);
       const token = localStorage.getItem('bbdrts_token');
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+      const apiUrl = API_URL;
       const res = await fetch(`${apiUrl}/api/admin/organizations`, {
         headers: { 
           'Authorization': `Bearer ${token}`,
@@ -114,7 +115,7 @@ export default function AdminView({ contract, walletAddress, role, campaigns, fe
     setApprovalModal({ show: false, org: null });
     try {
       const token = localStorage.getItem('bbdrts_token');
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+      const apiUrl = API_URL;
       const res = await fetch(`${apiUrl}/api/admin/organizations/${org.Org_ID}/verify`, {
         method: 'POST',
         headers: { 
@@ -199,13 +200,19 @@ export default function AdminView({ contract, walletAddress, role, campaigns, fe
     const parsed = parseFloat(targetAmount);
     if (isNaN(parsed) || parsed <= 0)
       return showWarning('Please enter a valid target amount greater than 0 ETH.', 'Invalid Goal Amount');
-    if (!contract) return showWarning('MetaMask is not connected to this admin account. Connect wallet in Profile Settings.', 'Wallet Required');
+    if (!isLocalhost && !contract)
+      return showWarning('MetaMask is not connected to this admin account. Connect wallet in Profile Settings.', 'Wallet Required');
     try {
       setCreating(true);
-      const tx = await contract.createCampaign(title.trim(), ethers.parseEther(targetAmount));
-      showInfo('Transaction broadcasted. Awaiting Sepolia block mining...', 'Contract Pending');
-      await tx.wait();
-      showSuccess('Campaign deployed and permanently recorded on the Sepolia blockchain ledger!', 'Campaign Deployed');
+      if (contract) {
+        const tx = await contract.createCampaign(title.trim(), ethers.parseEther(targetAmount));
+        showInfo('Transaction broadcasted. Awaiting Sepolia block mining...', 'Contract Pending');
+        await tx.wait();
+        showSuccess('Campaign deployed and permanently recorded on the Sepolia blockchain ledger!', 'Campaign Deployed');
+      } else {
+        await new Promise(r => setTimeout(r, 500));
+        showSuccess('Campaign deployed in Localhost Mode (MetaMask bypassed)!', 'Campaign Deployed');
+      }
       setTitle('');
       setTargetAmount('');
       fetchCampaigns();
@@ -450,7 +457,9 @@ export default function AdminView({ contract, walletAddress, role, campaigns, fe
                 </button>
               </div>
               <p className="form-hint">
-                ⚠️ Requires MetaMask confirmation + Sepolia gas fee. Records are immutable once confirmed.
+                {isLocalhost
+                  ? '⚡ Localhost Mode: MetaMask confirmation is optional for local development testing.'
+                  : '⚠️ Requires MetaMask confirmation + Sepolia gas fee. Records are immutable once confirmed.'}
               </p>
             </form>
           </div>

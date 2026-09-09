@@ -1,0 +1,327 @@
+================================================================
+  BBDRTS — NGO ACCOUNT & VERIFICATION LOGIC
+  Blockchain-Based Disaster Relief Transparency System
+  Document Type: Feature Design & Implementation Notes
+  Last Updated: September 2026
+================================================================
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  SECTION 1 — NGO REGISTRATION FLOW (CURRENT)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Step 1: NGO goes to the landing page → clicks "Create Account"
+Step 2: Selects role = "Organization"
+Step 3: Fills out the registration form:
+        - Org Name
+        - Email (Username)
+        - Mobile Number
+        - Password
+Step 4: OTP is sent to their email for verification
+Step 5: NGO confirms OTP → Account is created
+Step 6: NGO is now logged in and sees the OrganizationView
+
+At this point:
+  - Verification_Status = "Pending"
+  - They CANNOT deploy campaigns yet
+  - They see a KYC/Verification banner in their dashboard
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  SECTION 2 — WHAT IS SEC ACCREDITATION? (EXPLAINED SIMPLY)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+In the Philippines, NGOs that want to legally collect public
+donations must first be registered with the SEC (Securities
+and Exchange Commission). This is NOT done through our system.
+
+Process BEFORE they reach BBDRTS:
+  1. The NGO physically goes to the SEC (or uses SEC's online
+     portal: https://efiling.sec.gov.ph/) to register
+  2. SEC issues them a Certificate of Incorporation +
+     a Registration Number (e.g., CN202412345)
+  3. They also get a list of Board of Trustees (required by SEC)
+  4. Optionally: DSWD (Dept. of Social Welfare and Development)
+     accreditation for social welfare orgs
+
+THEN they come to BBDRTS and upload those documents.
+
+FOR STUDENT ORGS / COMMUNITY GROUPS:
+  These may NOT have SEC registration. Our system handles this
+  by making certain fields optional. They can still register
+  but must provide SOME form of legitimacy document.
+  Options for non-SEC orgs:
+    - CHED recognition letter (for school-based orgs)
+    - LGU permit / barangay certification
+    - School/University endorsement letter
+    - DTI registration (for informal groups)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  SECTION 3 — KYC FORM FIELDS (IN OUR SYSTEM)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+The NGO fills this form INSIDE OrganizationView after login:
+
+REQUIRED:
+  - SEC Registration Number (text input)
+  - SEC Certificate of Incorporation (image/PDF upload → base64)
+  - Board of Trustees / Founders / Incorporators (name list)
+
+OPTIONAL:
+  - DSWD / LGU Accreditation Permit No. (text input)
+  - DSWD document image (upload)
+
+Where are these stored?
+  - Sec_Registration_No     → ORGANIZATION.Sec_Registration_No
+  - Sec_Certificate_Url     → ORGANIZATION.Sec_Certificate_Url (base64/URL)
+  - Board_Members_Json      → ORGANIZATION.Board_Members_Json (JSON array)
+  - Dswd_Accreditation_No   → ORGANIZATION.Dswd_Accreditation_No
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  SECTION 4 — THE PROBLEM WITH MANUAL ADMIN REVIEW
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+PROBLEM 1: Human Bias
+  Our instructor said the system must not involve human decision
+  making in the approval process. The whole point of blockchain-
+  based relief is transparency without gatekeeping.
+
+PROBLEM 2: Spam Risk
+  If approval is automatic without validation, bad actors can
+  create fake NGO accounts and spam campaigns.
+
+PROBLEM 3: No Real Validation
+  Clicking "Approve" on a document image without checking if
+  it's real is security theater. It doesn't verify authenticity.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  SECTION 5 — PROPOSED SOLUTION: AI DOCUMENT VERIFICATION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+USE: Google Gemini Vision API (gemini-1.5-flash or pro)
+     - FREE tier available for capstone/demo use
+     - Accepts image + text prompts
+     - Can "read" document photos/scans
+
+HOW IT WORKS:
+  1. NGO uploads their SEC certificate (image/PDF screenshot)
+  2. Backend sends the image to Gemini Vision with a structured
+     prompt asking it to verify the document
+  3. Gemini returns a structured JSON response:
+       {
+         "is_valid_document": true/false,
+         "document_type": "SEC Certificate of Incorporation",
+         "registration_number_found": "CN202412345",
+         "organization_name_found": "Barangay Relief Fund Inc.",
+         "issue_date_found": "2024-03-15",
+         "confidence": "high/medium/low",
+         "rejection_reason": null or "string"
+       }
+  4. IF Gemini says is_valid_document = true AND confidence is
+     "high" or "medium":
+       → Verification_Status = "Approved"
+       → Verified_At = NOW()
+       → Verified_By = "AI_GEMINI_VISION"
+       → NGO can now deploy campaigns
+  5. IF Gemini says false or confidence is "low":
+       → Verification_Status = "Rejected"
+       → Audit_Notes = rejection_reason
+       → NGO gets notified to resubmit
+
+CROSS-VALIDATION:
+  - Match the registration_number_found with the
+    Sec_Registration_No the user typed in
+  - If they DON'T match → auto-reject (fraud signal)
+  - If they DO match → approve
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  SECTION 6 — BACKEND IMPLEMENTATION PLAN
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+FILE: backend/server.js
+
+NEW ENV VARS NEEDED (add to Render environment):
+  GEMINI_API_KEY=your_google_ai_api_key_here
+
+INSTALL:
+  npm install @google/generative-ai
+
+NEW API ENDPOINT:
+  POST /api/org/kyc-submit
+
+FLOW:
+  1. Receive: sec_registration_no, sec_certificate_base64,
+              board_members[], dswd_no (optional)
+  2. Send image to Gemini with verification prompt
+  3. Parse Gemini response
+  4. Cross-check registration number
+  5. Update ORGANIZATION table:
+       - Verification_Status = "Approved" or "Rejected"
+       - Verified_At = NOW()
+       - Verified_By = "AI_GEMINI_VISION"
+       - Audit_Notes = Gemini's reason (if rejected)
+
+PROMPT TO SEND TO GEMINI (structured):
+  ─────────────────────────────────────────────────────────
+  You are a document verification AI for a Philippine NGO
+  relief fund platform. Analyze this image and determine if
+  it is a legitimate Philippine SEC Certificate of
+  Incorporation or equivalent registration document.
+
+  Return ONLY a valid JSON object with these fields:
+  {
+    "is_valid_document": boolean,
+    "document_type": string,
+    "registration_number_found": string or null,
+    "organization_name_found": string or null,
+    "issue_date_found": string or null,
+    "confidence": "high" | "medium" | "low",
+    "rejection_reason": string or null
+  }
+
+  A valid document must:
+  - Be a Philippine government-issued document
+  - Clearly show an organization name
+  - Clearly show a registration or accreditation number
+  - Be readable and not a placeholder/fake
+  ─────────────────────────────────────────────────────────
+
+CODE SNIPPET (server.js):
+
+  const { GoogleGenerativeAI } = require('@google/generative-ai');
+  const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+
+  app.post('/api/org/kyc-submit', authenticate, async (req, res) => {
+    const { sec_registration_no, sec_certificate_base64,
+            board_members, dswd_no } = req.body;
+    const orgId = req.user.id;
+
+    try {
+      // Send to Gemini Vision
+      const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+      const imageData = {
+        inlineData: {
+          data: sec_certificate_base64.replace(/^data:image\/\w+;base64,/, ''),
+          mimeType: 'image/jpeg'
+        }
+      };
+      const prompt = `[PROMPT FROM ABOVE]`;
+      const result = await model.generateContent([prompt, imageData]);
+      const rawText = result.response.text();
+
+      // Parse Gemini JSON response
+      const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+      const aiResult = JSON.parse(jsonMatch[0]);
+
+      // Cross-validate registration number
+      const numMatch =
+        aiResult.registration_number_found &&
+        sec_registration_no &&
+        aiResult.registration_number_found.replace(/\s/g,'').toUpperCase() ===
+        sec_registration_no.replace(/\s/g,'').toUpperCase();
+
+      const approved =
+        aiResult.is_valid_document === true &&
+        ['high','medium'].includes(aiResult.confidence) &&
+        numMatch;
+
+      const status = approved ? 'Approved' : 'Rejected';
+      const notes = approved
+        ? `Auto-approved by Gemini AI. Doc: ${aiResult.document_type}. Reg#: ${aiResult.registration_number_found}.`
+        : `Rejected: ${aiResult.rejection_reason || 'Document could not be verified.'}`;
+
+      await db.query(`
+        UPDATE ORGANIZATION SET
+          Verification_Status = ?,
+          Sec_Registration_No = ?,
+          Board_Members_Json = ?,
+          Dswd_Accreditation_No = ?,
+          Sec_Certificate_Url = ?,
+          Verified_At = NOW(),
+          Verified_By = 'AI_GEMINI_VISION',
+          Audit_Notes = ?
+        WHERE Org_ID = ?`,
+        [status, sec_registration_no, JSON.stringify(board_members),
+         dswd_no || null, sec_certificate_base64, notes, orgId]);
+
+      res.json({ status, message: notes, aiResult });
+    } catch (err) {
+      console.error('AI verification error:', err);
+      res.status(500).json({ error: 'Verification service failed. Please try again.' });
+    }
+  });
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  SECTION 7 — EDGE CASES & SAFEGUARDS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ANTI-SPAM:
+  - Rate limit: max 3 KYC submissions per org per 24 hours
+  - After 3 rejections: account flagged, status = "Flagged"
+  - Flagged accounts cannot resubmit without admin reset
+
+STUDENT ORGS (no SEC):
+  - If no SEC cert, accept alternative docs:
+      * CHED/school recognition letter
+      * LGU barangay certification
+  - Gemini prompt updated to also accept these doc types
+  - Lower confidence threshold (medium = enough to approve)
+
+GEMINI FALLBACK:
+  - If Gemini API fails or returns invalid JSON:
+    → Set status = "Manual_Review" (not blocked, not approved)
+    → Send admin email notification
+    → This is the ONLY case where admin gets involved
+    → Prevents total system failure if AI goes down
+
+DEMO MODE:
+  - Keep existing demo credentials intact
+  - Demo org accounts have Verification_Status = "Approved" by default
+  - They bypass the KYC flow entirely (for presentation use)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  SECTION 8 — STATUS STATES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  "Pending"        → Just registered, hasn't submitted KYC yet
+  "Under_Review"   → Submitted KYC, AI is processing
+  "Approved"       → AI verified successfully, can deploy campaigns
+  "Rejected"       → AI rejected (bad doc, mismatch, etc.), can resubmit
+  "Manual_Review"  → AI failed, needs human fallback (rare)
+  "Flagged"        → Too many rejections, locked from resubmitting
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  SECTION 9 — FRONTEND INTEGRATION NOTES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  File: frontend/src/views/OrganizationView.jsx
+
+  - KYC banner shows based on Verification_Status
+  - On form submit → POST /api/org/kyc-submit
+  - Show loading spinner while AI verifies (realtime feel)
+  - On response:
+      * "Approved" → confetti / success banner, unlock campaigns
+      * "Rejected" → show rejection reason, allow resubmit
+      * Error      → show retry message
+
+  The response is fast (Gemini typically replies in 2-5 seconds)
+  so no need for async polling — just await the response.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  SECTION 10 — GETTING THE GEMINI API KEY (FREE)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  1. Go to: https://aistudio.google.com/app/apikey
+  2. Sign in with your Google account
+  3. Click "Create API Key"
+  4. Copy the key and add it to Render's environment variables:
+       Key:   GEMINI_API_KEY
+       Value: your_key_here
+  5. Also add to backend/.env for local development
+
+  FREE TIER LIMITS (as of 2026):
+    - 15 requests/minute
+    - 1 million tokens/day
+    - More than enough for a capstone project
+
+================================================================
+  END OF DOCUMENT
+================================================================

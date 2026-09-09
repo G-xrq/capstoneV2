@@ -236,6 +236,7 @@ function initSqlite() {
         sqliteDb.run(`ALTER TABLE CAMPAIGN ADD COLUMN Bank_Account_Name TEXT`, () => {});
         sqliteDb.run(`ALTER TABLE CAMPAIGN ADD COLUMN Bank_Account_Number TEXT`, () => {});
         sqliteDb.run(`ALTER TABLE CAMPAIGN ADD COLUMN Bank_Qr_Url TEXT`, () => {});
+        sqliteDb.run(`ALTER TABLE CAMPAIGN ADD COLUMN Is_Active INTEGER DEFAULT 1`, () => {});
 
         sqliteDb.run(`
           CREATE TABLE IF NOT EXISTS DONATION_TRANSACTION (
@@ -388,6 +389,7 @@ async function initializeDatabase() {
     try { await mysqlPool.query(`ALTER TABLE ORGANIZATION ADD COLUMN Bank_Qr_Url LONGTEXT`); } catch (_) {}
     try { await mysqlPool.query(`ALTER TABLE ORGANIZATION ADD COLUMN Banner_Url LONGTEXT`); } catch (_) {}
     try { await mysqlPool.query(`ALTER TABLE ORGANIZATION ADD COLUMN Preferences_Json TEXT`); } catch (_) {}
+    try { await mysqlPool.query(`ALTER TABLE ORGANIZATION ADD COLUMN Audit_Notes TEXT`); } catch (_) {}
 
     try { await mysqlPool.query(`ALTER TABLE ADMINISTRATOR ADD COLUMN Name VARCHAR(255)`); } catch (_) {}
     try { await mysqlPool.query(`ALTER TABLE ADMINISTRATOR ADD COLUMN Title VARCHAR(255)`); } catch (_) {}
@@ -472,6 +474,7 @@ async function initializeDatabase() {
     try { await mysqlPool.query(`ALTER TABLE CAMPAIGN ADD COLUMN Bank_Account_Name VARCHAR(150)`); } catch (_) {}
     try { await mysqlPool.query(`ALTER TABLE CAMPAIGN ADD COLUMN Bank_Account_Number VARCHAR(50)`); } catch (_) {}
     try { await mysqlPool.query(`ALTER TABLE CAMPAIGN ADD COLUMN Bank_Qr_Url LONGTEXT`); } catch (_) {}
+    try { await mysqlPool.query(`ALTER TABLE CAMPAIGN ADD COLUMN Is_Active TINYINT(1) DEFAULT 1`); } catch (_) {}
 
     await mysqlPool.query(`
       CREATE TABLE IF NOT EXISTS DONATION_TRANSACTION (
@@ -487,6 +490,8 @@ async function initializeDatabase() {
         FOREIGN KEY (Campaign_ID) REFERENCES CAMPAIGN(Campaign_ID) ON DELETE CASCADE
       )
     `);
+    try { await mysqlPool.query(`ALTER TABLE DONATION_TRANSACTION ADD COLUMN Wallet_Address VARCHAR(255)`); } catch (_) {}
+    try { await mysqlPool.query(`ALTER TABLE DONATION_TRANSACTION ADD COLUMN Created_At TIMESTAMP DEFAULT CURRENT_TIMESTAMP`); } catch (_) {}
 
     await mysqlPool.query(`
       CREATE TABLE IF NOT EXISTS MANUAL_DONATION (

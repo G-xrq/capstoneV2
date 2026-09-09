@@ -15,6 +15,13 @@ backend/.env
 *.db
 backend/*.sqlite
 backend/*.sqlite3
+backend/blockchain_relief.db
+blockchain_relief.db
+
+# Sensitive local notes & credentials
+Others/Password.txt
+Others/Secret Recovery Phrase*
+Others/Secret*
 
 # Production build output
 frontend/dist/

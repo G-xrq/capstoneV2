@@ -18,6 +18,7 @@ import SettingsPanel from '../components/SettingsPanel';
 import DisasterRadarHeatmap from '../components/DisasterRadarHeatmap';
 import DonorBadge, { DonorTierModal, DonorProgressCard, BadgeUpgradeModal, getDonorTier, globalDonorRegistry } from '../components/DonorBadge';
 import { useToast } from '../context/ToastContext';
+import { API_URL } from '../config';
 import './ReferenceDashboard.css';
 
 export default function DonorView({ contract, walletAddress, campaigns, fetchCampaigns, fetchingCampaigns, currentUser, handleConnectWallet, handleLogout, updateDbWallet, theme = 'default', setTheme, textSize, setTextSize, onOpenNgoProfile }) {
@@ -293,7 +294,7 @@ export default function DonorView({ contract, walletAddress, campaigns, fetchCam
     setLoadingMyDonations(true);
     try {
       const token = localStorage.getItem('bbdrts_token');
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+      const apiUrl = API_URL;
       if (token) {
         const res = await fetch(`${apiUrl}/api/donations/me`, {
           headers: { 'Authorization': `Bearer ${token}` }

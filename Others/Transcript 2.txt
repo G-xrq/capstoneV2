@@ -1,0 +1,132 @@
+Here is the complete and accurate manuscript of the voice record you provided. Because the original text was a continuous stream without clear speaker tags or punctuation, I have added logical paragraph breaks, punctuation, and conversational dashes (—) to indicate the back-and-forth dialogue between the speakers (likely a teacher/panelist and students presenting a system).
+
+The original mix of Bisaya, Tagalog, and English has been strictly preserved.
+
+System Presentation Transcript
+— Sige. Balik ni... Landing page nasa unsa man?
+— Sa system ma'am?
+— Sa system. Aw kanang kuan... decentralized NGOs active causes, total funds raised. Access system portal. Mao ni una makita?
+— Oo, user inig access nila ma'am.
+— Mao jud ni?
+— Sige, mao jud ni. So mao ni ang makita sa user inig access na nila sa... applicable na ba ni sa phone? Di pa?
+— Hindi pa ma'am.
+— Di pa. Design-design pa na. Kanang tanan diha di pa na clickable? Magana ang kani, ang kani ra ma'am mag-ana.
+— Kanang connect wallet, access system portal, unsa man na?
+— Mao-mao ra ma'am. Mag-stay put ra siya kung na-click.
+— Ah, kani.
+— Naa sa ubos. Okay.
+— Open kinsa may users ani? NGO ug Admin.
+— Tulo ka users: Admin, NGO ug donor.
+— Ang admin, unsa may ijang part? Unsa may ijang function bale?
+— Kani tig-confirm sa mga... like kani, mo-register nga NGO, kami mo-confirm, kami mo... legit ba ni sila nga kuan... legit ba nga NGO sila. Kanang mga daghang requirements, mga papers para maka-kuan sila.
+— So kamo, kamo kiba'y mo-assess sa ilang requirements ana?
+— Sige, ako ta'y... bago ta'y NGO. Bago ta'y ko. Then wa pa mo sure ug unsa, uh, kuan ba jud ko kanang legit ba ko. Sige unsaon na pag-access? Pag-entry sa inyong system? So asa ko dapit ah? It's either i-click ko ani or ani?
+— Connect wallet, portal access, sign up ka ma'am.
+— So automatically ako, mao jud ni maoy mogawas donor na?
+— Ug kung NGO man ana, donor ug NGO, NGO. Ah, ug kung donor ka, naka-active sa donor. Ug NGO, NGO. Ah ok, sige.
+— Then by default inig sud nimo adto currently ang default lang donors ra?
+— Yes ma'am.
+— Inig kuan nimo, automatically si donor. Then it's up... so dili kaha ma-pass... basin ug makuan siya nga ang NGO ma'am makalog-in sa donor? Basin ba mag-mind ba, wa siya naghuna-huna nga pag-ngan lagi nga ining kuan siya, iyang gi-assume nga donor na siya, so automatically ang system pod adto siya idal-on sa donor nga log-in page ana?
+— Di ma'am, naa siyay confirmation.
+— Naa diay confirmation? NGO ko ha? NGO ni ma'am, NGO ni... n'ya mo log-in ko as a donor bisag NGO siya?
+— So unsa man na... The email is registered as an... The email... unsa, nganong nakahibaw ang system nga... nag-email unsa man siya nangayo diha ana?
+— Mao ning nakasulod na sa among database ma'am.
+— Ay, naa na mo'y murag hardcoded na nga mga kuan?
+— Kung mobag-o kani, existing na ni ma'am. Existing na ni.
+— How about kanang wa pa jud ba?
+— Sign up ma'am. So sign up... sign up ka as NGO. Create account, naa pa'y option, donor ug NGO. NGO ko ha? Sige. Unsa may unsa'y ato nga... wa ko kasabot.
+— Kana lang ma'am, wa ko kasabot... red cross. NGO, red cross.
+— Ma'am kuan lang ma'am... unsa'y gamit nija sa email, naa mo'y email kuan, extra? Ma'am mo send ra mi ug gmail ma'am para confirmation na ma'am mo send ug OTP adto na diha. Confirmation na ma'am para added security na. Depende na sa internet. Wala'y gmail boss? Di ha gmail? Sige kanang... Unsa password?
+— Ang mo send sa gmail, OTP ma'am. OTP sa gmail. Sa red cross. Sa katong gi-input nimo ganina. Mao to ato mo send ng OTP ma'am. Kibali example ana ma'am, email kay valid, sige gamit sa NGO no? Ma-send gmail diha...
+— Genuine donor identity. Genuine donor identity? 'Di ba NGO man na, di man na donor? Verifying your email ensures genuine donor. 'Di ba di man ko donor, NGO man ko?
+— Unsa ba, ang pangutana... bati ta ma'am... verifying your email ensures genuine donor. Ang NGO... no need to kuan sa NGO kay kana pa diay mo willing modawat ug unsa. Kuan kaha donor, o donor nganong i-kuan pa man og genuine donor pa man ka? What do you mean by that kanang statement nga kinahanglan i-verify pa man ug genuine siya nga donor?
+— Kuan man gud ma'am, message ra siya ni... isa kuan ra ba, murag pahibaw-an ra nga... mutuo mo nang sa donor ta ni makita. Sa NGO ta, nag-sign up man ta sa NGO.
+— Makita ma'am?
+— Ipakita na lang na sa ubang pages. Naa ra boss, naa sa unsa man...
+— Pila ka minute ma-expire ang inyong maghuwat siya sa verification code?
+— 10 minutes ma'am.
+— Gaya ah.
+— 5 minutes ma'am? 5 minutes, o, kay kasagaran... although hinay ang signal, oh di na mo-send, puno man! Puno storage, ang sa gmail na. Ah... wala? Murag taas-taas boss. Muntol na boss, hala NGO ko. Muntol ni? Muntol! Wala?
+— Basig di ka-send... walay internet! Ang kani? Ang togra boss? Ang togra mao ra gyud ay. Wa nika-connect dinhi? Wala. Di gyud ka-send kay walay internet man. Disconnect man! Magkuha man ning student. Pas-pas lagi na maka-connect sa student ug kaming kuan? Ma'am si mabug-awa ma'am, di' ka pareha ra diay ta.
+— Hinay internet ma'am, hinay internet. Wala na... Basig nag-send ka, hinay internet boss... random ang kuan boss, hinay internet lagi.
+— Anyways, naa pa ba'y pila ka minutes or seconds?
+— Didto fetch boss. Hinaya... nigana ni ganina ma'am, sa internet lagi ni. Public... pag-meeting nato bah, unsa ng facebook na... refreshing.
+— Ay nigana ma'am! Hala! Try ko try ko... Restarting ang database, ga-lo- Starlink na ni...
+— Ah! Mo-send na ba'y confirmation sa phone ma'am? Baseg butas ang sim diay. Wala'y signal diay? Sige na nagpadala na signal diay. Sige na pag-send ka hi'nay na man signal. Sige basig ka-connect na ba. Tood karaan pa ang na-send kay hinay man.
+— Mao ni nag-send sa OTP ma'am. Log in naka sa NGO ma'am.
+— Unsa na ni sa... page na ni sa NGO? Mao ni... log-in mo as NGO.
+— Sige mag-log out, unsaon na?
+— Naa diha boss, mao nang kinahanglan nila ma-audit sa tanang documents. Ma-verify sila ba.
+— Sige dili na lang man sana nato i-kuan... i-problema tong bahin sa admin ha? Okay, ato sa ni i-kuan. So think about it ug na ba'y kuan, para pag... unsaon pag-solve with regards to biases no?
+— Sa part sa admin, ma-pamutana man is actual difference ma'am no? Like ingani ma-pamutana pod is actual difference. Ay kanang kuan, kanang kuan lagi, ang admin ra imo verify. Might be.
+— Kay og mao to oh, wala na man giagian kay main kag... it needs to be very... moagi pa man ug verification ang kada NGO, how about lagi dili kalikayan naa'y kuan as human as we are di' ba? Di man kalikayan nga... di ko ganahan ana nga NGO. Di ko, di ko ganahan anang NGO kay naa'y employee diha nga arang ka taas ra sa iyang panan-aw, dili na nako siya tagaan ug kuan... ingana ba.
+— So dili pud pwede i-kuan ma'am no, kanang auto-accept raba kay NGO man lagi ni nag-donate sila ug kwarta? Oh. Dapat na jud ni i-verify.
+— Okay ah try to find a way kuno ug kinsay murag legit nga maka-consider ato.
+— As SEC ma'am. SEC? SEC Securities and Exchange Commission.
+— Mao sad unsa man? Sa mga Pinoy nga nag-build ug project sa blockchain ba, mo-audit sa ilang mga kuan, ilang profile tanan, mga documents, Security Exchange Commission.
+— Unsa na siya? Mao man na ang kuan... As legitimate kay ingana, legitimate ka nga NGO. Kay nakalista naman na sila, naa naman na sila sa kinsay mga official katong kinsay mga list... pwede na.
+— So naka-lista naman na, part ba ang sa SEC ba, SEC na no imong pasabot nimo? Part diha ang NGO? Naa? Sa Security Exchange Commission man na no? Security Exchange Commission okay, i-kuan kuno diha i-ask kuno ug kinsa nga mga entities no ang naa sa SEC.
+— Non-government agencies or NGOs in the Philippines must register with the Securities and Exchange Commission to gain legal corporate existence as non-stock corporations.
+— Pero igo igo ra sila sa pag-verify lang sa ilang name? Sa name lang taman ra sila sa pag-verify sa name? Oh, paborito na legal ah... legal nga para matagaan.
+— Pero ang meaning limit ra ang SEC lagi, mao rato pam-verify ra siya. Kay unsa pa may part adto sa admin? Unsa may function sa admin og ato na siyang ihatag sa...
+— Naa gihapon mo existing gihapon. Unsa namay part ninyo ug adto na ta sa SEC magpa-verify?
+— Kuan na ma'am, mo-manage sa kuan... kani.
+— Unsa, currently unsa may ijang task? Currently ma'am kani ra, tig-approve sa mga NGO. So mao ra lagi... okay, unsa paman? Ug mo-manage sa kani... sa dog.
+— So mao na ang kuan sa NGO. Approval sa status data, platform configuration, system logs, ug audit reports. So kung sa lagi gihapon ang murag mo-serve as auditor? No? Kay audit reports man.
+— 'Di ba maka-create sad ug audit report ug kung siya i-serve as an auditor at the same time? Or di' in man gikan ang audit reports diay? Di' in man na gikan?
+— Ang system ma'am muhatag sa administrator ug kuan, audit reports.
+— Ang system? Oo. Kita ang makuhaan mubantay sa admin is approve status data ug platform configuration ra ma'am. So kung mag-SEC mi mawala ning kuan approval status, so mag-ang murang makuhaan ma'am is platform ra. Is kani mo-kuan ra sa, mo-manage sa kani. If na'y bugs...
+— Murag mas nindot man ug ipaagi nato ang SEC ang approval sa NGO names no kay legit man jud to, n'ya mahug nga wa'y... mao to to avoid biases o... human intervention ang SEC. Or kuan... bitaw.
+— Wala na you mean intervention sa SEC?
+— Naa pod na pud kay dugay basig dugay pod mo-approve ang SEC. Kinsa kay kuan... mag-unsa ta man. I-type mo investigate, unauthorized investment, conduct field audit, draft sign and issue cease and desist orders, resolve internal corporate disputes.
+— Basi'g it would kuan tungod kay muagi mog SEC bitaw basig dugay ang pag-verify bitaw kay daghan kay ang take note nga SEC daghan silang mga agencies noh nga pagatan-awan ja as kuan lagi na tao ra man pud na sila basin ug maglangan-langan pag-verify d'yon tungod ana.
+— Mahimo nang issue ang nganong di' mo onnoran, magrantan bitaw ang usa ka NGO basin ug ma-question na hinuon.
+— Gi-unsa ma-solve that one, that problem ba? Ang ahong ba tungod kay ang pag-verify lagi is SEC man. Ja basin ba ug nay tendency nga tao raman pod na ang naa sa SEC ana ba, nga mag... magpadanlog, mga ingana ba, magpa- ingana ba di' di' li na...
+— Pwede ra ma-report ano. Murag kana sa admin sa...
+— Sige-sige baha'n unsa nato na duma-dumahon ba. Basig imong input mo padanlog ba 'ni? as... bitaw po no. Waa kay kahatag, di wa' pod. Di sa n'yo mo-matter?
+— Sige na organization approval. Red cross... I-click. Approved organization active and verified ka.
+— Ug nangutana ang kuan pila ka days ug kung ang admin mao ay mo-verify, pila ka days it would take nga mohatag s'yag approval? If kumpleto siguro ilang mapasa, ma-approve dayon.
+— So kabo kibale ang ang submission sa mga papel e-through unsa pa'agi?
+— Para sa kanang uban nga i-upload na lang... na' upload upload.
+— Suma unsay inyong paagi, unsa inyong diri?
+— KYC gihapon ano? KYC lagi kanang details nimo. Unsay inyong... considering nga inyo ning gi-serve diri sa admin as maoy mo-approve no, siguro naman nakuhaan na ni'nyong huna-huna nga ug unsay mga requirements, di' ba? To be submitted by the NGO so so far unsa pay mga requirements nga inyong murag needs nga i-gather sa katong mga NGO nga mo-apply?
+— Karon ma'am wala pa ma'am. Wala pa? Ah wala pa pod. Wala pa nabutang diha' ang sa imong mga requirements lang. Pero unsa man boss mo... padayon...
+— Sige na organization approval. Kamo, so ako red cross ko no? Mo-apply ko para makakuha ko'g campaign. Yes. Sige.
+— Ang imuhang kuan ma'am certificate... SEC registered. NGO name, then imo the NGO name, email... founders, members kana. Mga founders anang NGO. Founder? Murag nakuan man hinuon mura lag na-kuan ra ba na? Ang members ra? Founder members ra ana. Member details kana.
+— Pila diay founder anang isa ka NGO ma'am?
+— Daghan! Usa ra. Na'y nagbuhat ana! Organization gani, organization government oh...
+— I-red cross ra lang. Red cross. Ma'am kuan lang ma'am ang kinsay gamit diha sa email na may email extra? Ma'am mo send ra mi gmail ma'am para confirmation na ma'am, mo send OTP adto na diha. Confirmation na ma'am. Mag-add security na.
+— Global, global. Mo-donate mo globally pwede ba? Global. Aw 'di siya modawat ug kuan? Pwede global. Pwede global.
+— 'Di kay Pilipinas. So globally mong kuan siya pwede?
+— Pero ang problema ang mo-verify sa global. O pa-verify siguro daan. Pero unsa namay global nga approve man sa SEC god nga kana murag nagkuan sila ba nga ilang 'to sila NGO.
+— Suma ang SEC mo approve ba ug globally? Murag sa... murag sa Pilipinas ra man na. Philippines man na Securities and Exchange Commission...
+— So local ra lagi ni? Local ra ang NGO. Okay ra local ma'am.
+— Pero pwede gang mo donate gikan sa laing lugar. Pwede gang mo-donate? Oh, globally.
+— Oh, globally makita ra nimo ang globally. Bisan global, global lang. Mo-donate pero i-limit na lang ang scope.
+— In scope lang og ang out scope sa inyong study. Out of scope na siya kay it might... naa pa bay lain man ang ubang countries. Naa sa'y ilahang mga agencies nga pagatan-awan ba.
+— Sila ba'y mag-verify ba ana? I-limit na lang ang scope. Within the Philippines lang. Archipelago. Okay. Sige.
+— So arita, so register naku as NGO, red cross no?
+— Total raise unsa pa man nang...? Wala pa may donations. Sige paghimo ko'g campaign ma'am.
+— Campaign title... Fire sa surigao. Type tags... Emergency.
+— Oh, n'ya unsay mga pasabot anang tags ma'am para as... filtering filtering, mas dali ma-search... para di na lisod pag-search... Emergency. Target goal. Unsa may currency n'ya na? Peso. Peso ni? Peso. Di' ba crypto man ni? Peso ni pero... Peso siya ma'am i-convert ra nato. Convert ra namo. Kaning convert mo ganiha, peso mo-convert. Peso ma'am. Peso pa jud na siya ha. Ah peso pa... i-peso na lang, peso, mas nindot kay para... Okay na.
+— So, upload image ma'am. Ay pagka gwapo, pagka gwapa! Mo-generate na siya ma'am!
+— Unsa man ang image nga ipang-upload nato diri? Katong picture sa scene. Picture sa sunog. Mismo. O mismo. Sige. Date of publish ang end date. November 26, November 28... create.
+— Sa campaign page, ma-display na.
+— Mo-display sa donor's view ma'am. Ah, ma-display na sa...
+— Ah ma-display. Try tag donate no? As donor ma'am.
+— Adto tag donor no? Sige... Unsaon man, mo log-out ko? As NGO ma'am.
+— Log-out... As donor ka ma'am. Sign up tag donor boss no? Existing nana. Ay kuan ta, si ma'am. Na'a na si ma'am account diri ma'am. Si ma'am. Akong pangalan ana? Sige oh.
+— Naa tay budget ma'am! Naa ta 5,000 php budget. Balance is unsa mani siya? Balance. Ah, 5,000 php...
+— Pag-connect ra nimo's wallet ma'am mo-reflect dayon ni siya!
+— Unsay connect wallet? Ah kani. Kani imong Metamask kaning testnet account. So connected. Wala mo ning-connect na'y account man mi diri ma'am, mo-reflect the balance, account na kuan the history sa kuan sa transactions, then the donate list.
+— Kung mo-donate ko diri adto kos red cross ha. Pila ang e-donate the value? 100 ma'am. Pila'y equivalent anang ETH ma'am sa peso?
+— I-multiply raman nato... Unsaon pa man? The system converts to Ethereum, automatically ang kaning PHP nato kay 100,000 php is roughly equal sa kana Ethereum testnet 0.005.
+— Oh, mo-proceed ko the transaction... Confirm... confirm sa Metamask. Then pag-confirm nimo ma'am processing dayon the blockchain and then wait a few seconds success ma'am!
+— Ni' decrease ang imohang wallet... decrease and the transaction is recorded sa blockchain hash, date and time, the campaign.
+— If we check the blockchain sa explorer... successful transaction ta, token transfer ang red cross. See block the specific time which match ta ani ma'am then verify gyud siya that transparent using blockchain Explorer.
+— Then back to NGO, check the campaign kung nadawat na ba nila in red cross. Makita nimo ma'am that donor ni donate ana campaign ni-add sa fund raise nila the total donor one, ang progress the visual the goal 2%. Sige the donor's history is the latest donation is the address transparent po ma'am na track kung the transaction ni ma'am was complete...
+— Sa dashboard in the NGO, makita nimo total donor and funds raised. Kani ma'am, then kung i-withdraw na ni ma'am kung let's say the target was reached or nag-end the date sa campaign. Ah the withdraw function na boss, ma'am.
+— Sige kung tapos the campaign or reach na... Kani i-withdraw nila so request nila ang withdraw in process so the fund will transfer to the NGO's account directly smart contract. Wala na ang fund from the campaign zero na siya...
+— Ok that's it ma'am for now ma'am. The flow ma'am is functional na ma'am base sa pag-require sa the capstone requirements.
+— Pre-oral is uh the plan boss December ba to? December ma'am pre-oral then we are preparing na ang the documents and all the paper ma'am that goes with it sa kuan... the panel.
+— Okay so far maayo... sige i-prepare na ninyo... Sige happy happy. Salamat ma'am.

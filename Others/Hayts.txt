@@ -1,0 +1,46 @@
+HOW TO EXPLAIN YOUR PROJECT SIMPLY (Common Terms Only)
+
+Use these explanations. They are designed to be extremely easy to understand for anyone who doesn't know what crypto is.
+
+------------------------------------------------------
+1. What is Blockchain?
+------------------------------------------------------
+Imagine a giant record book where every single donation is written down. Normally, one person (like a bank manager or a school admin) secretly holds this book in an office, and they could easily use an eraser to hide missing money. 
+Blockchain is a version of this record book that is shared with thousands of computers all over the world at the exact same time. Once a donation is written in this book, everyone sees it immediately. No one can ever erase or change it.
+
+------------------------------------------------------
+2. Why did we use a Hybrid Web2 / Web3 system?
+------------------------------------------------------
+Web2 (the normal internet, like Facebook or normal databases) is extremely fast and great for saving basic things like names, passwords, and campaign pictures. 
+Web3 (the blockchain internet) is heavily secured for handling actual money, but it is slow and expensive for storing pictures. 
+We combined them (Hybrid) so the website feels fast and easy to use like a normal website (Web2), but the actual donation money is handled securely and transparently by the blockchain (Web3).
+
+------------------------------------------------------
+3. What is a Smart Contract?
+------------------------------------------------------
+A smart contract is just a set of automatic digital rules. Think of it like a digital vending machine or a robot middleman. 
+When a donor enters money, the Smart Contract immediately checks to make sure the NGO is real, and then automatically pushes the money straight to the NGO. Because it is a robot, no human needs to approve the transfer, which means no corrupt official can intercept or hold the money.
+
+------------------------------------------------------
+4. What is a Public Key and a Private Key?
+------------------------------------------------------
+- Public Key (Your Account Number): This is a long string of letters and numbers (like 0x123...). Anyone in the world can see it. People use this to send you money. You can post this on a billboard safely.
+- Private Key (Your Secret PIN): This is exactly like your ATM PIN or your email password. It is the only thing that allows you to actually spend the money on that Public Key. You must never share this with anyone.
+
+------------------------------------------------------
+5. What is MetaMask and why are we using it?
+------------------------------------------------------
+MetaMask is a safe digital wallet that you install in your web browser. 
+We use it because our school website is not legally allowed to hold the users' money. To make the system secure, the user holds their own money completely privately in their MetaMask wallet. MetaMask acts as their personal bank vault that our website talks to.
+
+------------------------------------------------------
+6. Why does clicking "Donate" send a pop-up to MetaMask?
+------------------------------------------------------
+Because the website itself cannot secretly reach into your digital wallet and take your money. 
+When a user clicks "Donate" on our website, the website is basically politely asking MetaMask for permission. MetaMask then pops up on the screen to ask the real human owner: "Hey, do you approve this transfer?" The user must click "Confirm" inside MetaMask to legally authorize the transfer using their Private Key.
+
+------------------------------------------------------
+7. How do people know that the money they donated actually goes to the NGO?
+------------------------------------------------------
+Because of the Blockchain (the public record book). 
+As soon as the donation goes through, the system provides a permanent digital receipt (called a Transaction Hash). Anyone in the public can click that receipt, go to the public internet, and literally watch the digital money travel from the Donor's Public Key directly into the exact NGO's Public Key. Because there are no banks, hidden fees, or middlemen, the public gets 100% mathematical proof that the NGO received the exact amount sent.

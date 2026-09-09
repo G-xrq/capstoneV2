@@ -671,11 +671,15 @@
   background-color: var(--bg-surface, #1a1a1a) !important;
   color: var(--text-primary, #ffffff) !important;
   border-bottom: 1px solid var(--border, rgba(255, 255, 255, 0.08)) !important;
+  opacity: 1 !important;
+  visibility: visible !important;
 }
 
 .leaflet-bar a:hover {
-  background-color: var(--bg-card-hover, #2a2a2a) !important;
-  color: var(--accent, #22c55e) !important;
+  background-color: #16a34a !important;
+  color: #ffffff !important;
+  opacity: 1 !important;
+  visibility: visible !important;
 }
 
 /* ── Google Maps-Style Floating Basemap Layer Switcher (Bottom Right beside Zoom Controls) ── */

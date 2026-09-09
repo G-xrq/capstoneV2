@@ -1,7 +1,13 @@
 // BBDRTS Centralized Client Configuration & Resilient Network Dispatcher
 
+export const isLocalhost = typeof window !== 'undefined' && (
+  window.location.hostname === 'localhost' ||
+  window.location.hostname === '127.0.0.1' ||
+  window.location.hostname === '::1'
+);
+
 export const API_URL = import.meta.env.VITE_API_URL || (
-  typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1'
+  !isLocalhost
     ? 'https://bbdrts-backend-api.onrender.com'
     : 'http://localhost:3001'
 );

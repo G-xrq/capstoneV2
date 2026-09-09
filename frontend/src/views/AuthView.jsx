@@ -1347,14 +1347,9 @@ export default function AuthView({ onLoginSuccess, onBack, theme }) {
             {otpLoginStep === 2 && (
               <form onSubmit={handleOtpLoginVerify} className="forgot-form-body">
                 {otpLoginDevCode && (
-                  <div
-                    className="dev-otp-pill"
-                    style={{ cursor: 'pointer' }}
-                    onClick={() => setOtpLoginCode(otpLoginDevCode)}
-                    title="Click to auto-fill passcode"
-                  >
+                  <div className="dev-otp-pill">
                     <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>terminal</span>
-                    <span>Testing OTP Code: <strong>{otpLoginDevCode}</strong> <span style={{ opacity: 0.7, fontSize: '10px' }}>(Click to fill)</span></span>
+                    <span>Dev Helper Code: <strong>{otpLoginDevCode}</strong></span>
                   </div>
                 )}
 
@@ -1482,17 +1477,9 @@ export default function AuthView({ onLoginSuccess, onBack, theme }) {
                 )
               ) : (
                 regVerifyDevCode && (
-                  <div
-                    className="dev-otp-pill"
-                    style={{ cursor: 'pointer' }}
-                    onClick={() => {
-                      setRegVerifyOtp(regVerifyDevCode);
-                      if (typeof setRegVerifyEmailOtp === 'function') setRegVerifyEmailOtp(regVerifyDevCode);
-                    }}
-                    title="Click to auto-fill code"
-                  >
+                  <div className="dev-otp-pill">
                     <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>terminal</span>
-                    <span>Testing OTP Code: <strong>{regVerifyDevCode}</strong> <span style={{ opacity: 0.7, fontSize: '10px' }}>(Click to fill)</span></span>
+                    <span>Dev Helper Code: <strong>{regVerifyDevCode}</strong></span>
                   </div>
                 )
               )}
@@ -1767,14 +1754,9 @@ export default function AuthView({ onLoginSuccess, onBack, theme }) {
               <form onSubmit={handleForgotVerifyAndReset} className="forgot-form-body">
 
                 {forgotDevCode && (
-                  <div
-                    className="dev-otp-pill"
-                    style={{ cursor: 'pointer' }}
-                    onClick={() => setForgotOtp(forgotDevCode)}
-                    title="Click to auto-fill recovery code"
-                  >
+                  <div className="dev-otp-pill">
                     <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>terminal</span>
-                    <span>Testing OTP Code: <strong>{forgotDevCode}</strong> <span style={{ opacity: 0.7, fontSize: '10px' }}>(Click to fill)</span></span>
+                    <span>Dev Helper Code: <strong>{forgotDevCode}</strong></span>
                   </div>
                 )}
 

@@ -1,0 +1,45 @@
+BBDRTS System Recap (Prepared for Ma'am Teni)
+=============================================================
+
+1. TARGET TITLE
+Blockchain-Based Donation and Relief Transparency System (BBDRTS)
+
+2. CLIENT (Primary Beneficiaries)
+Independent Non-Governmental Organizations (NGOs), private sector relief groups, and recognized student organizations (such as the College of Computer Studies) that actively supervise local relief operations and donation drives.
+
+3. TARGET USERS
+- The Donors (General Public): Require a transparent platform to track their contributions end-to-end.
+- The Partner Organizations (NGOs/Student Groups): Require a highly secure, modernized platform to deploy fundraising campaigns without heavy administrative overhead.
+- System Administrators: Manage platform users, verify NGO registration documents, and audit system performance.
+- The Ultimate Beneficiaries: Benefit indirectly by receiving a maximized portion of funds since 3rd party processing fees are eliminated.
+
+4. THE CORE PROBLEM (The Gap)
+Current fundraising operations suffer from opaque fund management and a severe lack of real-time transparency. Traditional centralized databases and spreadsheet ledgers are highly susceptible to manual data tampering, unauthorized editing, and accidental data loss. Furthermore, processing standard donations through third-party payment gateways incurs substantial transaction fees and deductions, which significantly reduces the actual financial aid that reaches the intended beneficiaries. This creates an "Information Asymmetry" where donors lose trust because they cannot verify where their money went.
+
+5. OBJECTIVES
+General Objective: 
+To design and develop a transparent, web-based donation tracking system that eliminates third-party processing fees by leveraging blockchain technology.
+
+Specific Objectives:
+- To provide a user-friendly web interface with defined user roles, access controls, and transparent accountability metrics for donors and administrators.
+- To execute automated smart contracts to streamline transactions, ensure proper fund distribution, and eliminate reliance on financial intermediaries.
+- To utilize an immutable public blockchain infrastructure to enable end-to-end donation tracking and ensure the data integrity and auditability of all transactions (preventing any unauthorized deletion of records).
+- To integrate Web3 technologies (like MetaMask) to establish secure, direct wallet-to-wallet communication between the user interface and the decentralized network.
+
+6. EXPECTED FOLLOW-UP Q&A (For Ma'am Teni)
+=============================================================
+
+Q1: "If the client is local NGOs and Student Organizations, how is this better than them just using GCash or Maya?"
+A: While GCash is fast, it operates on a centralized database. Once the money reaches the NGO's GCash account, the public loses all visibility out of where that exact money goes next. Our system forces transparency because every single transaction is permanently etched into the public blockchain, guaranteeing donors that the money went exactly where it was supposed to.
+
+Q2: "You mentioned eliminating third-party processing fees. How exactly does blockchain solve this?"
+A: Standard corporate gateways like Stripe or PayPal charge a percentage fee (e.g., 3-5%) just for processing the money. By using decentralized smart contracts, the money travels directly from the Donor's wallet into the NGO's wallet (Peer-to-Peer). The only fee is a tiny network 'gas' fee, which ensures that a significantly larger portion of the actual donation reaches the victims.
+
+Q3: "Who acts as the System Administrator in this setup, and what power do they have?"
+A: The System Administrator manages the overall platform (which would typically be the platform creators or a trusted governing body). Their main power is verifying the legal documents of NGOs. An NGO cannot start accepting crypto donations from the public until they are explicitly verified by the Administrator, which prevents scammers from exploiting the system.
+
+Q4: "Since your target users include everyday donors, won't blockchain and crypto be too hard for them to use?"
+A: We designed the platform to mimic a standard Web2 website to make it as user-friendly as possible. While they do need a Web3 wallet like MetaMask, the entire transaction process is handled securely through a simple 4-step pop-up window on our site, so they don't need to be expert programmers to make a donation.
+
+Q5: "In your objectives, you mention 'immutable public blockchain'. What happens if a donor makes a mistake and sends money to the wrong campaign?"
+A: Because of the immutable (unchangeable) nature of blockchain, transactions cannot be reversed once confirmed. This strict rule is actually a security feature, preventing organizations from quietly returning funds or altering logs. However, to protect donors from mistakes, our UI strongly requires secondary confirmations before the blockchain is even touched.

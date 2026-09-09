@@ -41,8 +41,6 @@ function renderFormattedMessage(text) {
 }
 
 export default function NotificationCenter({ dbUser, theme, onSelectNotificationAction }) {
-  if (!dbUser) return null;
-
   const { showSuccess, showWarning, showInfo, showError } = useToast();
 
   const [isOpen, setIsOpen] = useState(false);
@@ -129,6 +127,7 @@ export default function NotificationCenter({ dbUser, theme, onSelectNotification
 
   // Initial & periodic 3s live polling
   useEffect(() => {
+    if (!dbUser) return;
     fetchNotifications(1, false, filter);
     const pollInterval = setInterval(() => {
       fetchNotifications(1, false, filter);
@@ -447,6 +446,8 @@ export default function NotificationCenter({ dbUser, theme, onSelectNotification
       return dateStr;
     }
   };
+
+  if (!dbUser) return null;
 
   return (
     <div className="bbdrts-notif-container" ref={panelRef}>

@@ -2030,3 +2030,21 @@ export const getBarangays = (regionName, provinceName, municipalityName) => {
   if (!regionName || !provinceName || !municipalityName) return [];
   return PH_GEODATA[regionName]?.provinces[provinceName]?.municipalities[municipalityName] || [];
 };
+
+export const getRegionForProvince = (provinceName) => {
+  if (!provinceName) return '';
+  const cleanProv = String(provinceName).toLowerCase().trim();
+  if (cleanProv.includes('manila') || cleanProv.includes('ncr')) {
+    return 'National Capital Region (NCR)';
+  }
+  for (const [reg, regData] of Object.entries(PH_GEODATA)) {
+    for (const p of Object.keys(regData.provinces || {})) {
+      const pClean = p.toLowerCase().trim();
+      if (pClean === cleanProv || cleanProv.includes(pClean) || pClean.includes(cleanProv)) {
+        return reg;
+      }
+    }
+  }
+  return '';
+};
+
