@@ -558,19 +558,20 @@ export default function OrganizationView({
       ? `bbdrts_tour_ngo_${currentUser.email}` 
       : 'bbdrts_tour_ngo_done';
 
-  // Auto-launch Guided Tour for first-time NGOs
+  // Auto-launch Guided Tour ONLY for brand new NGO registrations
   useEffect(() => {
     try {
-      const forceLaunch = localStorage.getItem('bbdrts_tour_force_launch') === 'true';
+      const isNewSignup = localStorage.getItem('bbdrts_tour_force_launch') === 'true' || 
+                          localStorage.getItem('bbdrts_is_new_registration') === 'true';
       const userTourDone = localStorage.getItem(userTourKey) === 'true';
 
-      if (forceLaunch || !userTourDone) {
+      if (isNewSignup && !userTourDone) {
         let attempts = 0;
         const maxAttempts = 60;
         const pollInterval = setInterval(() => {
           attempts++;
           const authBackdrop = document.querySelector('.auth-transition-backdrop');
-          const targetEl = document.querySelector('#tour-ngo-profile');
+          const targetEl = document.querySelector('#tour-ngo-welcome') || document.querySelector('#tour-ngo-profile');
           const isAuthClear = !authBackdrop || authBackdrop.classList.contains('closing');
           const isTargetReady = targetEl && targetEl.getBoundingClientRect().width > 0;
 
@@ -579,6 +580,7 @@ export default function OrganizationView({
             setTimeout(() => {
               setShowGuidedTour(true);
               localStorage.removeItem('bbdrts_tour_force_launch');
+              localStorage.removeItem('bbdrts_is_new_registration');
             }, 350);
           }
         }, 100);
@@ -590,75 +592,67 @@ export default function OrganizationView({
 
   const ngoTourSteps = [
     {
-      target: '#tour-ngo-profile',
-      title: 'Welcome NGO Partner!',
+      target: '#tour-ngo-welcome',
+      title: 'Disaster Operations Command',
       icon: 'corporate_fare',
-      badge: 'Step 1 of 8 • Welcome',
-      description: 'Welcome to your Disaster Operations Hub. Here you can mobilize emergency appeals, manage ground missions, and maintain transparent relief accountability.',
-      placement: 'right'
-    },
-    {
-      target: '#tour-ngo-tab-sec',
-      title: 'Institutional SEC & AI Vision KYC',
-      icon: 'verified_user',
-      badge: 'Step 2 of 8 • Accreditation',
-      tab: 'sec-kyc',
-      description: 'Upload your Philippine SEC Certificate of Incorporation or DSWD accreditation for instant 3-second Gemini AI Vision verification to unlock live campaign deployment.',
-      placement: 'right'
-    },
-    {
-      target: '#tour-ngo-tab-create',
-      title: 'Deploy Disaster Relief Campaigns',
-      icon: 'rocket_launch',
-      badge: 'Step 3 of 8 • Deployment',
-      tab: 'create',
-      description: 'Launch new calamity relief appeals backed by Ethereum smart contracts. Specify funding targets, urgency levels, disaster categories, and Philippine regional coordinates.',
-      placement: 'right'
-    },
-    {
-      target: '#tour-ngo-tab-radar',
-      title: 'Disaster Relief Radar Heatmap',
-      icon: 'radar',
-      badge: 'Step 4 of 8 • Strategic Dispatch',
-      tab: 'radar-heatmap',
-      description: 'Real-time Doppler calamity radar tracking disaster concentration across the Philippines. Pinpoint high-density calamity zones to strategically dispatch field missions.',
-      placement: 'right'
-    },
-    {
-      target: '#tour-ngo-tab-my-campaigns',
-      title: 'My Campaigns & Milestone Management',
-      icon: 'account_balance',
-      badge: 'Step 5 of 8 • Missions',
-      tab: 'my-campaigns',
-      description: 'Track your organization\'s live appeals, post ground-zero beneficiary updates, and upload verifiable expenditure proofs for donor transparency.',
-      placement: 'right'
-    },
-    {
-      target: '#tour-ngo-tab-ledger',
-      title: 'Donation Ledger & On-Chain Audits',
-      icon: 'receipt_long',
-      badge: 'Step 6 of 8 • Financials',
-      tab: 'ledger',
-      description: 'Inspect all incoming contributions in real-time, matching transaction hashes, cryptographic donor identities, and payment channels.',
-      placement: 'right'
-    },
-    {
-      target: '#tour-ngo-tab-settings',
-      title: 'Payment Rails & Traditional E-Wallets',
-      icon: 'account_circle',
-      badge: 'Step 7 of 8 • Settings',
-      tab: 'settings',
-      description: 'Set up your GCash, PayMaya, and Bank wire QR codes alongside your Web3 wallet address so non-crypto Filipino donors can support your missions.',
-      placement: 'right'
-    },
-    {
-      target: '#tour-ngo-tab-dashboard',
-      title: 'You\'re Mission Ready!',
-      icon: 'emergency',
-      badge: 'Step 8 of 8 • Ready',
+      badge: 'Step 1 of 7 • Hub Overview',
       tab: 'dashboard',
-      description: 'Your command center is configured! Monitor your metrics, submit your SEC accreditation, and deploy live relief missions to help affected Filipino communities.',
-      placement: 'right'
+      placement: 'bottom',
+      description: 'Welcome to your Disaster Operations Command Center. Coordinate rapid calamity relief, manage smart-contract emergency appeals, and maintain transparent relief accountability across the Philippines.'
+    },
+    {
+      target: '#tour-ngo-metrics',
+      title: 'Mission Impact & Financial Pulse',
+      icon: 'monitoring',
+      badge: 'Step 2 of 7 • Readiness Metrics',
+      tab: 'dashboard',
+      placement: 'top',
+      description: 'Track total relief funding mobilized, deployed emergency missions, received contributions, and your organization\'s decentralized compliance health in real time.'
+    },
+    {
+      target: '#tour-ngo-sec-center',
+      title: 'Philippine SEC & Institutional KYC',
+      icon: 'verified_user',
+      badge: 'Step 3 of 7 • Accreditation',
+      tab: 'sec-kyc',
+      placement: 'top',
+      description: 'Manage your organization\'s Philippine SEC Non-Stock Corporation Registration, DSWD License to Operate, and Board of Trustees accreditation for complete public trust.'
+    },
+    {
+      target: '#tour-ngo-create-form',
+      title: 'Deploy Smart Contract Campaign',
+      icon: 'add_circle',
+      badge: 'Step 4 of 7 • Deployment',
+      tab: 'create',
+      placement: 'top',
+      description: 'Launch emergency appeals in minutes. Set the disaster urgency, affected municipality, relief funding goal in PHP & ETH, and beneficiary count with immutable Ethereum rules.'
+    },
+    {
+      target: '#tour-ngo-my-campaigns-list',
+      title: 'Milestone Proof & Relief Distribution',
+      icon: 'inventory_2',
+      badge: 'Step 5 of 7 • Ground Zero Proof',
+      tab: 'my-campaigns',
+      placement: 'top',
+      description: 'Publish transparent ground-zero distribution updates, relief delivery photos, and official purchase receipts directly to your campaign milestones for public auditing.'
+    },
+    {
+      target: '#tour-ngo-ledger-table',
+      title: 'Multi-Channel Financial Transparency',
+      icon: 'account_balance',
+      badge: 'Step 6 of 7 • Audit Ledger',
+      tab: 'ledger',
+      placement: 'top',
+      description: 'Audit incoming donations across Ethereum Web3, GCash, PayMaya, and Bank Transfers with real-time transaction reconciliation and SEC compliance verification.'
+    },
+    {
+      target: '#tour-ngo-radar-canvas',
+      title: 'Disaster Response Logistics Radar',
+      icon: 'radar',
+      badge: 'Step 7 of 7 • Logistics Map',
+      tab: 'radar-heatmap',
+      placement: 'top',
+      description: 'Utilize live Doppler weather radar and calamity severity heatmaps to optimize disaster relief logistics, coordinate ground transport, and reach isolated municipalities.'
     }
   ];
 
@@ -1183,10 +1177,10 @@ export default function OrganizationView({
                 type="button"
                 className="ref-nav-item"
                 onClick={() => setShowGuidedTour(true)}
-                style={{ marginTop: '10px', borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '10px', color: '#38bdf8' }}
+                style={{ marginTop: '10px', borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '10px', color: 'var(--accent, #22c55e)' }}
                 title="Take a guided walkthrough of the NGO portal"
               >
-                <span className="material-symbols-outlined" style={{ color: '#38bdf8' }}>help</span>
+                <span className="material-symbols-outlined" style={{ color: 'var(--accent, #22c55e)' }}>help</span>
                 <span style={{ fontWeight: 600 }}>Guided Tutorial</span>
               </button>
             </nav>
@@ -1234,6 +1228,7 @@ export default function OrganizationView({
               {/* Top Hero Banner */}
               <div
                 className="ref-welcome-card"
+                id="tour-ngo-welcome"
                 style={
                   currentUser?.banner_url && (currentUser.banner_url.startsWith('data:') || currentUser.banner_url.startsWith('http') || currentUser.banner_url.startsWith('/'))
                     ? { backgroundImage: `linear-gradient(rgba(10,12,18,0.72), rgba(10,12,18,0.92)), url(${currentUser.banner_url})`, backgroundSize: 'cover', backgroundPosition: 'center' }
@@ -1312,7 +1307,7 @@ export default function OrganizationView({
               )}
 
               {/* 4-Metric Stat Cards Grid */}
-              <div className="ref-metrics-grid">
+              <div className="ref-metrics-grid" id="tour-ngo-metrics">
                 <div className="ref-metric-card">
                   <div className="ref-metric-icon-circle">
                     <span className="material-symbols-outlined" style={{ fontSize: '22px', color: '#0284c7' }}>account_balance_wallet</span>
@@ -1818,7 +1813,7 @@ export default function OrganizationView({
 
           {/* ── 3. MY CAMPAIGNS TAB ── */}
           {activeTab === 'my-campaigns' && (
-            <div style={{ marginTop: '8px' }}>
+            <div style={{ marginTop: '8px' }} id="tour-ngo-my-campaigns-list">
               <div className="section-header">
                 <div>
                   <h2 className="section-title" style={{ fontSize: '1.4rem' }}>
@@ -2252,7 +2247,7 @@ export default function OrganizationView({
 
           {/* ── 4. DEPLOY CAMPAIGN TAB ── */}
           {activeTab === 'create' && (
-            <div style={{ marginTop: '8px' }}>
+            <div style={{ marginTop: '8px' }} id="tour-ngo-create-form">
               {currentUser?.verification_status !== 'Approved' ? (
                 <div className="card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '60px 40px', textAlign: 'center', border: '1px solid rgba(255, 60, 60, 0.4)', background: 'linear-gradient(180deg, rgba(255,255,255,0.02) 0%, rgba(255, 60, 60, 0.05) 100%)' }}>
                   <span className="material-symbols-outlined" style={{ fontSize: '56px', color: 'var(--danger)', marginBottom: '16px' }}>gpp_bad</span>
@@ -3436,7 +3431,7 @@ export default function OrganizationView({
 
           {/* ── 5. DONATION LEDGER TAB ── */}
           {activeTab === 'ledger' && (
-            <div style={{ marginTop: '8px' }}>
+            <div style={{ marginTop: '8px' }} id="tour-ngo-ledger-table">
               <div className="section-header">
                 <div>
                   <h2 className="section-title" style={{ fontSize: '1.4rem' }}>
@@ -3750,7 +3745,7 @@ export default function OrganizationView({
 
           {/* ── 5.5. SEC ACCREDITATION & INSTITUTIONAL KYC CENTER (POST-SIGNUP) ── */}
           {activeTab === 'sec-kyc' && (
-            <div style={{ marginTop: '8px' }}>
+            <div style={{ marginTop: '8px' }} id="tour-ngo-sec-center">
               <div className="section-header">
                 <div>
                   <h2 className="section-title" style={{ fontSize: '1.4rem' }}>
@@ -4128,7 +4123,7 @@ export default function OrganizationView({
 
           {/* ── 5.8. DISASTER RELIEF RADAR HEATMAP TAB (NGO STRATEGIC DISPATCH) ── */}
           {activeTab === 'radar-heatmap' && (
-            <div style={{ marginTop: '8px' }}>
+            <div style={{ marginTop: '8px' }} id="tour-ngo-radar-canvas">
               <div className="section-header" style={{ borderBottom: '1px solid var(--border)', paddingBottom: '12px', marginBottom: '16px' }}>
                 <div>
                   <h2 className="section-title" style={{ fontSize: '1.4rem' }}>

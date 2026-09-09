@@ -46,29 +46,29 @@ export default function DonorView({ contract, walletAddress, campaigns, fetchCam
       ? `bbdrts_tour_donor_${currentUser.email}` 
       : 'bbdrts_tour_donor_done';
 
-  // Auto-launch Guided Tour for first-time or newly registered donors
+  // Auto-launch Guided Tour ONLY for brand new donor registrations
   useEffect(() => {
     try {
-      const forceLaunch = localStorage.getItem('bbdrts_tour_force_launch') === 'true';
+      const isNewSignup = localStorage.getItem('bbdrts_tour_force_launch') === 'true' || 
+                          localStorage.getItem('bbdrts_is_new_registration') === 'true';
       const userTourDone = localStorage.getItem(userTourKey) === 'true';
 
-      if (forceLaunch || !userTourDone) {
-        // Poll until the auth transition backdrop has finished/closing AND the target profile element is mounted in DOM
+      if (isNewSignup && !userTourDone) {
         let attempts = 0;
         const maxAttempts = 60; // 60 * 100ms = 6s max fallback
         const pollInterval = setInterval(() => {
           attempts++;
           const authBackdrop = document.querySelector('.auth-transition-backdrop');
-          const targetEl = document.querySelector('#tour-donor-profile');
+          const targetEl = document.querySelector('#tour-donor-welcome') || document.querySelector('#tour-donor-profile');
           const isAuthClear = !authBackdrop || authBackdrop.classList.contains('closing');
           const isTargetReady = targetEl && targetEl.getBoundingClientRect().width > 0;
 
           if ((isAuthClear && isTargetReady) || attempts >= maxAttempts) {
             clearInterval(pollInterval);
-            // Brief 350ms delay for ultra-silky visual handoff after transition
             setTimeout(() => {
               setShowGuidedTour(true);
               localStorage.removeItem('bbdrts_tour_force_launch');
+              localStorage.removeItem('bbdrts_is_new_registration');
             }, 350);
           }
         }, 100);
@@ -80,74 +80,67 @@ export default function DonorView({ contract, walletAddress, campaigns, fetchCam
 
   const donorTourSteps = [
     {
-      target: '#tour-donor-profile',
-      title: 'Welcome to BBDRTS!',
-      icon: 'waving_hand',
-      badge: 'Step 1 of 8 • Welcome',
-      description: 'You are now connected as a verified donor. Your profile tracks your philanthropic reputation, decentralized identity, and humanitarian contributions across the Philippines.',
-      placement: 'right'
-    },
-    {
-      target: '#tour-donor-tab-dashboard',
-      title: 'Dashboard Overview',
-      icon: 'dashboard',
-      badge: 'Step 2 of 8 • Metrics',
+      target: '#tour-donor-welcome',
+      title: 'Welcome to Verified Philanthropy',
+      icon: 'verified_user',
+      badge: 'Step 1 of 7 • Overview',
       tab: 'dashboard',
-      description: 'Get an instant real-time snapshot of active disaster emergencies, total nationwide relief funds raised, your personal contributions, and urgent calamity alerts.',
-      placement: 'right'
+      placement: 'bottom',
+      description: 'Welcome to BBDRTS! Your profile verifies your decentralized identity, philanthropic reputation, and tracks every peso or ETH you contribute with immutable cryptographic transparency.'
     },
     {
-      target: '#tour-donor-tab-campaigns',
-      title: 'Disaster Relief Campaigns',
+      target: '#tour-donor-badge-card',
+      title: 'Donor Honors Ladder & Badges',
+      icon: 'military_tech',
+      badge: 'Step 2 of 7 • Recognition',
+      tab: 'dashboard',
+      placement: 'bottom',
+      description: 'Unlock prestigious Philippine disaster response milestones: First Responder, Community Guardian, and Relief Champion. Click the Honors Ladder anytime to inspect your next rank and on-chain impact credentials.'
+    },
+    {
+      target: '#tour-donor-metrics',
+      title: 'Real-Time Calamity Intelligence',
+      icon: 'monitoring',
+      badge: 'Step 3 of 7 • Relief Metrics',
+      tab: 'dashboard',
+      placement: 'top',
+      description: 'Live real-time monitoring of nationwide humanitarian relief: active disaster operations, total emergency funds raised, your personal contributions, and our automated smart-contract transparency score.'
+    },
+    {
+      target: '#tour-campaigns-container',
+      title: 'Verified Relief Campaigns',
       icon: 'campaign',
-      badge: 'Step 3 of 8 • Discovery',
+      badge: 'Step 4 of 7 • Discovery',
       tab: 'campaigns',
-      description: 'Explore verified relief campaigns organized by accredited NGOs. Filter by Philippine region, calamity urgency (Critical, High, Stable), and cause category.',
-      placement: 'right'
+      placement: 'top',
+      description: 'Explore active emergency appeals deployed by accredited Philippine NGOs. Filter by Calamity Urgency (Critical, High, Stable), Philippine Region, and Cause. Donate securely via Web3 Ethereum or Philippine E-Wallets (GCash & Maya).'
     },
     {
-      target: '#tour-donor-tab-donations',
-      title: 'My Contributions & Proof of Impact',
-      icon: 'history',
-      badge: 'Step 4 of 8 • Receipts',
+      target: '#tour-donations-ledger',
+      title: 'Proof of Impact & Digital Receipts',
+      icon: 'receipt_long',
+      badge: 'Step 5 of 7 • Audit Trail',
       tab: 'my-donations',
-      description: 'Inspect every donation you make with on-chain Ethereum transaction hashes, verified digital receipts, and real-time relief allocation audits from ground zero.',
-      placement: 'right'
+      placement: 'top',
+      description: 'Every donation generates an immutable transaction on Ethereum Sepolia. View verifiable transaction hashes, download official printable digital receipts, and audit ground-zero relief disbursements in real time.'
     },
     {
-      target: '#tour-donor-tab-radar',
-      title: 'Disaster Relief Radar Heatmap',
+      target: '#tour-radar-canvas',
+      title: 'Disaster Relief Doppler Radar',
       icon: 'radar',
-      badge: 'Step 5 of 8 • Radar',
+      badge: 'Step 6 of 7 • Radar Heatmap',
       tab: 'radar-heatmap',
-      description: 'Live interactive Doppler radar map tracking calamity severity across Luzon, Visayas, and Mindanao. Pinpoint where emergency relief is needed most urgently.',
-      placement: 'right'
-    },
-    {
-      target: '#tour-donor-tab-settings',
-      title: 'Donor Badges & Profile Settings',
-      icon: 'badge',
-      badge: 'Step 6 of 8 • Badges',
-      tab: 'settings',
-      description: 'Unlock prestigious humanitarian milestone badges (First Responder, Community Guardian, Relief Champion) and manage your Web3 wallet address.',
-      placement: 'right'
+      placement: 'top',
+      description: 'Live interactive Doppler precipitation radar and calamity severity heatmap tracking typhoon storm tracks and calamity concentration across Luzon, Visayas, and Mindanao to see where help is needed most.'
     },
     {
       target: '#tour-donor-sepolia-node',
-      title: 'Blockchain Node Synchronization',
+      title: 'Sepolia Blockchain Protocol',
       icon: 'hub',
-      badge: 'Step 7 of 8 • Blockchain',
-      description: 'Monitors real-time live connectivity to the Ethereum Sepolia testnet and Solidity smart contracts, guaranteeing 100% immutable transparency.',
-      placement: 'right'
-    },
-    {
-      target: '#tour-donor-tab-campaigns',
-      title: 'You\'re All Set to Help!',
-      icon: 'volunteer_activism',
-      badge: 'Step 8 of 8 • Ready',
-      tab: 'campaigns',
-      description: 'You\'re ready to start making an impact! Connect your MetaMask wallet or use Philippine e-wallets (GCash/PayMaya) to support active disaster relief missions.',
-      placement: 'right'
+      badge: 'Step 7 of 7 • Web3 Gateway',
+      tab: 'dashboard',
+      placement: 'right',
+      description: 'Monitors real-time live synchronization with our Solidity smart contracts on the Ethereum Sepolia testnet. You are ready to make a lifesaving impact! You can replay this tutorial anytime from the sidebar or Settings.'
     }
   ];
 
@@ -577,7 +570,7 @@ export default function DonorView({ contract, walletAddress, campaigns, fetchCam
               className={`ref-nav-item ${activeTab === 'radar-heatmap' ? 'active' : ''}`}
               onClick={() => setActiveTab('radar-heatmap')}
             >
-              <span className="material-symbols-outlined" style={{ color: activeTab === 'radar-heatmap' ? '#38bdf8' : 'inherit' }}>radar</span>
+              <span className="material-symbols-outlined" style={{ color: activeTab === 'radar-heatmap' ? 'var(--accent, #22c55e)' : 'inherit' }}>radar</span>
               <span>Relief Radar</span>
             </button>
 
@@ -594,10 +587,10 @@ export default function DonorView({ contract, walletAddress, campaigns, fetchCam
               type="button"
               className="ref-nav-item"
               onClick={() => setShowGuidedTour(true)}
-              style={{ marginTop: '10px', borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '10px', color: '#38bdf8' }}
+              style={{ marginTop: '10px', borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '10px', color: 'var(--accent, #22c55e)' }}
               title="Take a guided walkthrough of the donor platform"
             >
-              <span className="material-symbols-outlined" style={{ color: '#38bdf8' }}>help</span>
+              <span className="material-symbols-outlined" style={{ color: 'var(--accent, #22c55e)' }}>help</span>
               <span style={{ fontWeight: 600 }}>Guided Tutorial</span>
             </button>
           </div>
@@ -685,7 +678,7 @@ export default function DonorView({ contract, walletAddress, campaigns, fetchCam
           {activeTab === 'dashboard' && (
             <>
               {/* Top Hero Banner */}
-              <div className="ref-welcome-card">
+              <div className="ref-welcome-card" id="tour-donor-welcome">
                 <div className="ref-welcome-header">
                   <div className="ref-welcome-avatar" style={{ overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     {currentUser?.avatar_url && (currentUser.avatar_url.startsWith('data:') || currentUser.avatar_url.startsWith('http')) ? (
@@ -732,16 +725,18 @@ export default function DonorView({ contract, walletAddress, campaigns, fetchCam
               </div>
 
               {/* Dynamic Donor Badge Progress & Recognition Card */}
-              <DonorProgressCard
-                walletAddress={walletAddress || currentUser?.wallet_address}
-                donorId={currentUser?.id}
-                amountEth={totalDonated}
-                amountPhp={totalDonatedPhp}
-                onOpenLadder={() => setShowTierModal(true)}
-              />
+              <div id="tour-donor-badge-card">
+                <DonorProgressCard
+                  walletAddress={walletAddress || currentUser?.wallet_address}
+                  donorId={currentUser?.id}
+                  amountEth={totalDonated}
+                  amountPhp={totalDonatedPhp}
+                  onOpenLadder={() => setShowTierModal(true)}
+                />
+              </div>
 
               {/* 4-Metric Stat Cards Grid (Reference Layout & Colors) */}
-              <div className="ref-metrics-grid">
+              <div className="ref-metrics-grid" id="tour-donor-metrics">
                 {/* 1. Green Circle - Contributions */}
                 <div className="ref-metric-card">
                   <div className="ref-metric-icon-circle green">
@@ -843,7 +838,7 @@ export default function DonorView({ contract, walletAddress, campaigns, fetchCam
 
           {/* ── 2. DEDICATED RELIEF CAMPAIGNS TAB (Hides 4 boxes & welcome card) ── */}
           {activeTab === 'campaigns' && (
-            <div style={{ marginTop: '8px' }}>
+            <div style={{ marginTop: '8px' }} id="tour-campaigns-container">
               <div className="section-header">
                 <div>
                   <h2 className="section-title" style={{ fontSize: '1.4rem' }}>
@@ -1284,7 +1279,7 @@ export default function DonorView({ contract, walletAddress, campaigns, fetchCam
 
           {/* ── 3. MY CONTRIBUTIONS TAB ── */}
           {activeTab === 'my-donations' && (
-            <div style={{ marginTop: '8px' }}>
+            <div style={{ marginTop: '8px' }} id="tour-donations-ledger">
               <div className="section-header" style={{ borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '12px', marginBottom: '16px' }}>
                 <div>
                   <h2 className="section-title" style={{ fontSize: '1.4rem' }}>
@@ -1962,7 +1957,7 @@ export default function DonorView({ contract, walletAddress, campaigns, fetchCam
 
           {/* ── 3.5. DISASTER RELIEF RADAR HEATMAP TAB ── */}
           {activeTab === 'radar-heatmap' && (
-            <div style={{ marginTop: '8px' }}>
+            <div style={{ marginTop: '8px' }} id="tour-radar-canvas">
               <div className="section-header" style={{ borderBottom: '1px solid var(--border)', paddingBottom: '12px', marginBottom: '16px' }}>
                 <div>
                   <h2 className="section-title" style={{ fontSize: '1.4rem' }}>

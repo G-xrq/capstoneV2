@@ -16,11 +16,11 @@
 .guided-tour-spotlight {
   position: fixed;
   border-radius: 14px;
-  border: 2.5px solid var(--tour-accent, #38bdf8);
+  border: 2.5px solid var(--tour-accent, #22c55e);
   /* Massive box-shadow creates the dimmed backdrop everywhere outside the cutout */
-  box-shadow: 0 0 0 9999px var(--tour-backdrop, rgba(3, 7, 18, 0.82)),
-              0 0 35px var(--tour-glow, rgba(56, 189, 248, 0.6)),
-              inset 0 0 16px var(--tour-inner-glow, rgba(56, 189, 248, 0.15));
+  box-shadow: 0 0 0 9999px var(--tour-backdrop, rgba(0, 0, 0, 0.82)),
+              0 0 35px var(--tour-glow, rgba(34, 197, 94, 0.6)),
+              inset 0 0 16px var(--tour-inner-glow, rgba(34, 197, 94, 0.16));
   pointer-events: none;
   /* Smooth gliding and morphing between target elements */
   transition: top 0.4s cubic-bezier(0.16, 1, 0.3, 1),
@@ -50,13 +50,13 @@
   position: fixed;
   width: 375px;
   max-width: calc(100vw - 32px);
-  background: var(--tour-card-bg, rgba(15, 23, 42, 0.96));
+  background: var(--tour-card-bg, #1c1c1c);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  border: 1px solid var(--tour-card-border, rgba(56, 189, 248, 0.35));
+  border: 1px solid var(--tour-card-border, rgba(34, 197, 94, 0.38));
   border-radius: 18px;
   padding: 22px;
-  box-shadow: 0 24px 50px rgba(0, 0, 0, 0.65), 0 0 25px var(--tour-card-shadow, rgba(56, 189, 248, 0.18));
+  box-shadow: var(--tour-card-shadow, 0 24px 50px rgba(0, 0, 0, 0.65));
   pointer-events: auto;
   z-index: 10000005;
   /* Silky smooth motion when relocating between targets */
@@ -118,13 +118,13 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  background: var(--tour-badge-bg, rgba(56, 189, 248, 0.12));
-  border: 1px solid var(--tour-badge-border, rgba(56, 189, 248, 0.3));
+  background: var(--tour-badge-bg, rgba(34, 197, 94, 0.12));
+  border: 1px solid var(--tour-badge-border, rgba(34, 197, 94, 0.3));
   padding: 4px 12px;
   border-radius: 999px;
   font-size: 0.72rem;
   font-weight: 800;
-  color: var(--tour-accent, #38bdf8);
+  color: var(--tour-accent, #22c55e);
   letter-spacing: 0.5px;
   text-transform: uppercase;
 }
@@ -160,7 +160,7 @@
 
 .guided-tour-title-icon {
   font-size: 22px;
-  color: var(--tour-accent, #38bdf8);
+  color: var(--tour-accent, #22c55e);
 }
 
 .guided-tour-desc {
@@ -189,8 +189,8 @@
 .guided-tour-dot.active {
   width: 22px;
   border-radius: 999px;
-  background: var(--tour-accent, #38bdf8);
-  box-shadow: 0 0 10px var(--tour-accent, #38bdf8);
+  background: var(--tour-accent, #22c55e);
+  box-shadow: 0 0 10px var(--tour-accent, #22c55e);
 }
 
 .guided-tour-dot.completed {
@@ -270,57 +270,58 @@
 }
 
 /* ═════════════════════════════════════════════════════════════════════
-   THEME PALETTES
+   THEME PALETTES — Synchronized 1:1 with BBDRTS System Themes
    ═════════════════════════════════════════════════════════════════════ */
 
-/* ── Default / Dark Theme ── */
+/* ── Default & Layered Dark Theme: #111/#222 surfaces with Emerald Green #22c55e ── */
+.guided-tour-root,
 .guided-tour-root[data-theme='default'],
 .guided-tour-root[data-theme='dark'] {
-  --tour-accent: #38bdf8;
-  --tour-accent-alt: #22c55e;
-  --tour-backdrop: rgba(3, 7, 18, 0.82);
-  --tour-glow: rgba(56, 189, 248, 0.6);
-  --tour-glow-alt: rgba(34, 197, 94, 0.65);
-  --tour-inner-glow: rgba(56, 189, 248, 0.15);
+  --tour-accent: #22c55e;
+  --tour-accent-alt: #16a34a;
+  --tour-backdrop: rgba(0, 0, 0, 0.82);
+  --tour-glow: rgba(34, 197, 94, 0.55);
+  --tour-glow-alt: rgba(34, 197, 94, 0.7);
+  --tour-inner-glow: rgba(34, 197, 94, 0.16);
   --tour-inner-glow-alt: rgba(34, 197, 94, 0.25);
-  --tour-card-bg: rgba(15, 23, 42, 0.96);
-  --tour-card-border: rgba(56, 189, 248, 0.35);
-  --tour-card-shadow: rgba(56, 189, 248, 0.18);
-  --tour-badge-bg: rgba(56, 189, 248, 0.12);
-  --tour-badge-border: rgba(56, 189, 248, 0.3);
+  --tour-card-bg: #1c1c1c;
+  --tour-card-border: rgba(34, 197, 94, 0.38);
+  --tour-card-shadow: 0 0 35px rgba(0, 0, 0, 0.8), 0 0 20px rgba(34, 197, 94, 0.22);
+  --tour-badge-bg: rgba(34, 197, 94, 0.12);
+  --tour-badge-border: rgba(34, 197, 94, 0.35);
   --tour-text-primary: #ffffff;
   --tour-text-secondary: #cbd5e1;
   --tour-text-muted: #94a3b8;
-  --tour-dot-idle: rgba(255, 255, 255, 0.15);
+  --tour-dot-idle: rgba(255, 255, 255, 0.18);
   --tour-divider: rgba(255, 255, 255, 0.08);
   --tour-btn-prev-bg: rgba(255, 255, 255, 0.08);
-  --tour-btn-prev-border: rgba(255, 255, 255, 0.12);
-  --tour-btn-next-bg: linear-gradient(135deg, #0284c7 0%, #0ea5e9 100%);
-  --tour-btn-finish-bg: linear-gradient(135deg, #16a34a 0%, #22c55e 100%);
+  --tour-btn-prev-border: rgba(255, 255, 255, 0.15);
+  --tour-btn-next-bg: linear-gradient(135deg, #16a34a 0%, #22c55e 100%);
+  --tour-btn-finish-bg: linear-gradient(135deg, #15803d 0%, #22c55e 100%);
 }
 
-/* ── Light Mode Theme ── */
+/* ── Light Mode Theme: Inverted Light with Forest Green #16a34a ── */
 .guided-tour-root[data-theme='light'] {
-  --tour-accent: #0284c7;
-  --tour-accent-alt: #16a34a;
+  --tour-accent: #16a34a;
+  --tour-accent-alt: #15803d;
   --tour-backdrop: rgba(15, 23, 42, 0.65);
-  --tour-glow: rgba(2, 132, 199, 0.45);
-  --tour-glow-alt: rgba(22, 163, 74, 0.5);
-  --tour-inner-glow: rgba(2, 132, 199, 0.12);
-  --tour-inner-glow-alt: rgba(22, 163, 74, 0.15);
-  --tour-card-bg: rgba(255, 255, 255, 0.98);
-  --tour-card-border: rgba(2, 132, 199, 0.28);
-  --tour-card-shadow: rgba(0, 0, 0, 0.12);
-  --tour-badge-bg: rgba(2, 132, 199, 0.08);
-  --tour-badge-border: rgba(2, 132, 199, 0.25);
+  --tour-glow: rgba(22, 163, 74, 0.45);
+  --tour-glow-alt: rgba(22, 163, 74, 0.6);
+  --tour-inner-glow: rgba(22, 163, 74, 0.12);
+  --tour-inner-glow-alt: rgba(22, 163, 74, 0.18);
+  --tour-card-bg: #ffffff;
+  --tour-card-border: rgba(22, 163, 74, 0.32);
+  --tour-card-shadow: 0 16px 36px rgba(0, 0, 0, 0.14);
+  --tour-badge-bg: rgba(22, 163, 74, 0.08);
+  --tour-badge-border: rgba(22, 163, 74, 0.25);
   --tour-text-primary: #0f172a;
   --tour-text-secondary: #334155;
   --tour-text-muted: #64748b;
-  --tour-dot-idle: rgba(0, 0, 0, 0.12);
+  --tour-dot-idle: rgba(0, 0, 0, 0.15);
   --tour-divider: rgba(0, 0, 0, 0.08);
   --tour-btn-prev-bg: rgba(0, 0, 0, 0.05);
-  --tour-btn-prev-border: rgba(0, 0, 0, 0.1);
-  --tour-btn-next-bg: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+  --tour-btn-prev-border: rgba(0, 0, 0, 0.12);
+  --tour-btn-next-bg: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
   --tour-btn-finish-bg: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
 }
 
@@ -334,27 +335,28 @@
   color: #0f172a;
 }
 
-/* ── Cyber Theme ── */
-.guided-tour-root[data-theme='cyber'] {
-  --tour-accent: #00f0ff;
-  --tour-accent-alt: #00ff9d;
+/* ── Cyber Theme: Deep Navy & Neon Mint #00ffa3 ── */
+.guided-tour-root[data-theme='cyber'],
+.guided-tour-root[data-theme='navy'] {
+  --tour-accent: #00ffa3;
+  --tour-accent-alt: #00e090;
   --tour-backdrop: rgba(5, 5, 16, 0.86);
-  --tour-glow: rgba(0, 240, 255, 0.7);
-  --tour-glow-alt: rgba(0, 255, 157, 0.75);
-  --tour-inner-glow: rgba(0, 240, 255, 0.2);
-  --tour-inner-glow-alt: rgba(0, 255, 157, 0.3);
-  --tour-card-bg: rgba(10, 14, 28, 0.98);
-  --tour-card-border: rgba(0, 240, 255, 0.5);
-  --tour-card-shadow: rgba(0, 240, 255, 0.25);
-  --tour-badge-bg: rgba(0, 240, 255, 0.15);
-  --tour-badge-border: rgba(0, 240, 255, 0.4);
+  --tour-glow: rgba(0, 255, 163, 0.65);
+  --tour-glow-alt: rgba(0, 255, 163, 0.8);
+  --tour-inner-glow: rgba(0, 255, 163, 0.2);
+  --tour-inner-glow-alt: rgba(0, 255, 163, 0.3);
+  --tour-card-bg: #12141c;
+  --tour-card-border: rgba(0, 255, 163, 0.45);
+  --tour-card-shadow: 0 0 25px rgba(0, 255, 163, 0.25);
+  --tour-badge-bg: rgba(0, 255, 163, 0.12);
+  --tour-badge-border: rgba(0, 255, 163, 0.35);
   --tour-text-primary: #ffffff;
   --tour-text-secondary: #e2e8f0;
   --tour-text-muted: #94a3b8;
   --tour-dot-idle: rgba(255, 255, 255, 0.2);
-  --tour-divider: rgba(0, 240, 255, 0.15);
+  --tour-divider: rgba(0, 255, 163, 0.15);
   --tour-btn-prev-bg: rgba(255, 255, 255, 0.08);
   --tour-btn-prev-border: rgba(255, 255, 255, 0.15);
-  --tour-btn-next-bg: linear-gradient(135deg, #00b4d8 0%, #00f0ff 100%);
-  --tour-btn-finish-bg: linear-gradient(135deg, #059669 0%, #00ff9d 100%);
+  --tour-btn-next-bg: linear-gradient(135deg, #059669 0%, #00ffa3 100%);
+  --tour-btn-finish-bg: linear-gradient(135deg, #059669 0%, #00ffa3 100%);
 }

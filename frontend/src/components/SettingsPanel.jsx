@@ -579,17 +579,17 @@ export default function SettingsPanel({
                     }
                   } catch (_) {}
                 }}
-                style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: 'rgba(56, 189, 248, 0.08)', border: '1px solid rgba(56, 189, 248, 0.25)', borderRadius: '10px', cursor: 'pointer', transition: '0.2s' }}
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: 'var(--accent-dim, rgba(34, 197, 94, 0.08))', border: '1px solid var(--accent-glow, rgba(34, 197, 94, 0.25))', borderRadius: '10px', cursor: 'pointer', transition: '0.2s' }}
                 title="Reset and replay the interactive onboarding tour"
               >
                 <div>
-                  <div style={{ fontSize: '0.86rem', fontWeight: 600, color: '#38bdf8', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <div style={{ fontSize: '0.86rem', fontWeight: 600, color: 'var(--accent, #22c55e)', display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>restart_alt</span>
                     Replay Guided Platform Tour
                   </div>
                   <div style={{ fontSize: '0.72rem', color: 'var(--text-muted, #94a3b8)' }}>Restart the step-by-step spotlight tutorial</div>
                 </div>
-                <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#38bdf8' }}>chevron_right</span>
+                <span className="material-symbols-outlined" style={{ fontSize: '18px', color: 'var(--accent, #22c55e)' }}>chevron_right</span>
               </div>
 
             </div>

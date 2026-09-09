@@ -438,6 +438,9 @@ export default function AuthView({ onLoginSuccess, onBack, theme }) {
       ]);
       const data = await parseApiResponse(response);
       localStorage.setItem('bbdrts_token', data.token);
+      // Ensure existing users logging in do not auto-trigger new user onboarding
+      localStorage.removeItem('bbdrts_tour_force_launch');
+      localStorage.removeItem('bbdrts_is_new_registration');
       onLoginSuccess?.(data.user, data.token);
     } catch (err) {
       setError(err.message);
@@ -475,8 +478,9 @@ export default function AuthView({ onLoginSuccess, onBack, theme }) {
       setRegVerifyOpen(false);
       setSimulatedSmsToast(null);
       localStorage.setItem('bbdrts_token', data.token);
-      // Guarantee Guided Spotlight Tour launches immediately for newly registered users
+      // Guarantee Guided Spotlight Tour launches immediately ONLY for newly registered accounts
       localStorage.setItem('bbdrts_tour_force_launch', 'true');
+      localStorage.setItem('bbdrts_is_new_registration', 'true');
       if (data.user?.id) {
         localStorage.removeItem(`bbdrts_tour_donor_${data.user.id}`);
         localStorage.removeItem(`bbdrts_tour_ngo_${data.user.id}`);
@@ -619,6 +623,8 @@ export default function AuthView({ onLoginSuccess, onBack, theme }) {
 
       setOtpLoginOpen(false);
       localStorage.setItem('bbdrts_token', data.token);
+      localStorage.removeItem('bbdrts_tour_force_launch');
+      localStorage.removeItem('bbdrts_is_new_registration');
       onLoginSuccess?.(data.user, data.token);
     } catch (err) {
       setOtpLoginError(err.message);
