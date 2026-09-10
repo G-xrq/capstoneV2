@@ -5,8 +5,11 @@ import './GuidedTour.css';
 
 /**
  * Universal Guided Spotlight Onboarding Tour Component
- * Powered by Driver.js (v1.8.0) for zero-jitter animations, hardware-accelerated
- * SVG spotlight cutout, collision-free tooltip placement, and synchronized theme tokens.
+ * Powered by Driver.js (v1.8.0) with:
+ * - Delayed smooth popover reveal (zero layout glitching)
+ * - Safe overlay click protection (prevents accidental tour dismissals mid-tutorial)
+ * - Crystal-clear hardware-accelerated SVG spotlight cutout
+ * - Polished header, badge, close button, and typography alignment
  */
 export default function GuidedTour({
   isOpen,
@@ -31,7 +34,7 @@ export default function GuidedTour({
 
     isClosingRef.current = false;
 
-    // Always ensure we are settled on the dashboard view for stable layout rendering
+    // Ensure we are settled on the dashboard view for stable layout rendering
     if (typeof onTabChange === 'function') {
       onTabChange('dashboard');
     }
@@ -79,8 +82,12 @@ export default function GuidedTour({
       stageRadius: 12,
       popoverOffset: 14,
       overlayColor: 'rgba(0, 0, 0, 0.82)',
+      // Safe backdrop behavior: Clicking outside does NOT dismiss the tour mid-tutorial
+      overlayClickBehavior: () => {
+        // Deliberate no-op: prevents accidental dismissal when reading or clicking around
+      },
       popoverClass: `bbdrts-tour-popover theme-${theme}`,
-      progressText: '{{current}} of {{total}}',
+      progressText: 'Step {{current}} of {{total}}',
       steps: driverSteps,
       onCloseClick: () => {
         if (driverRef.current) {
@@ -119,14 +126,14 @@ export default function GuidedTour({
 
     driverRef.current = driverObj;
 
-    // Short buffer to guarantee DOM styles and layout are ready
+    // Buffer delay to guarantee DOM styles and layout are ready before drive()
     const timer = setTimeout(() => {
       try {
         driverObj.drive();
       } catch (err) {
         console.warn('Driver.js drive() error:', err);
       }
-    }, 120);
+    }, 150);
 
     return () => {
       clearTimeout(timer);

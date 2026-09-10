@@ -89,49 +89,65 @@ export default function DonorView({ contract, walletAddress, campaigns, fetchCam
   const donorTourSteps = [
     {
       target: '#tour-donor-welcome',
-      title: 'Decentralized Identity & Zero-Fee Protocol',
+      title: 'Decentralized Identity & Zero-Fee Routing',
       icon: 'verified_user',
-      badge: 'Step 1 of 6 • Identity & Trust',
+      badge: 'Step 1 of 8 • Identity & Trust',
       placement: 'bottom',
-      description: 'Welcome to BBDRTS! Your profile is verified on the Ethereum Sepolia blockchain. 100% of your contributions go directly to disaster victims with zero middleman fees or political redirection.'
+      description: 'Welcome to BBDRTS! Your profile is verified on the Ethereum Sepolia blockchain. 100% of your contributions go directly to calamity victims with zero platform commissions or political redirection.'
     },
     {
       target: '#tour-donor-featured-causes',
-      title: 'How to Donate to Emergency Relief',
+      title: 'How to Donate to an Emergency Relief Cause',
       icon: 'volunteer_activism',
-      badge: 'Step 2 of 6 • Donating',
+      badge: 'Step 2 of 8 • Direct Giving',
       placement: 'top',
-      description: 'Browse live emergency appeals deployed by accredited Philippine NGOs. Inspect the calamity urgency (Critical, High), affected municipality, and funding goals. Click "Contribute" on any campaign to donate with Web3 ETH or Philippine E-Wallets (GCash & Maya).'
+      description: 'Explore active emergency appeals deployed by accredited Philippine NGOs. Inspect disaster urgency (Critical, High), affected municipality, and funding goals. Click "Contribute" on any campaign to donate with Web3 ETH or Philippine E-Wallets (GCash & Maya).'
+    },
+    {
+      target: '#tour-donor-tab-campaigns',
+      title: 'Relief Campaigns Directory & Advanced Filters',
+      icon: 'campaign',
+      badge: 'Step 3 of 8 • Search & Filters',
+      placement: 'right',
+      description: 'Access our nationwide directory of verified disaster appeals across Luzon, Visayas, and Mindanao. Filter campaigns by Calamity Urgency, Island Group, and Cause Category (Disaster Relief, Medical, Food Supply).'
     },
     {
       target: '#tour-donor-badge-card',
       title: 'Honors Ladder & Philanthropic Badges',
       icon: 'military_tech',
-      badge: 'Step 3 of 6 • Recognition',
+      badge: 'Step 4 of 8 • Recognition',
       placement: 'bottom',
-      description: 'Your donations earn on-chain recognition: First Responder, Community Guardian, and Relief Champion. Click your Honors Ladder anytime to inspect your milestone credentials and next unlockable rank.'
+      description: 'Your donations earn prestigious on-chain milestone badges: First Responder, Community Guardian, and Relief Champion. Click your Honors Ladder anytime to inspect your next rank and on-chain impact credentials.'
     },
     {
       target: '#tour-donor-tab-donations',
-      title: 'Verifiable Receipts & Ground-Zero Proof',
+      title: 'Verifiable Digital Receipts & Ground-Zero Proof',
       icon: 'receipt_long',
-      badge: 'Step 4 of 6 • Audit Trail',
+      badge: 'Step 5 of 8 • Audit Trail',
       placement: 'right',
       description: 'Every donation generates an immutable Sepolia transaction hash. Access this tab anytime to download printable official digital receipts and audit distribution photo proofs submitted by NGOs at ground zero.'
     },
     {
       target: '#tour-donor-tab-radar',
-      title: 'Disaster Doppler Radar & Heatmap',
+      title: 'Disaster Doppler Radar & Calamity Heatmap',
       icon: 'radar',
-      badge: 'Step 5 of 6 • Live Map',
+      badge: 'Step 6 of 8 • Situational Awareness',
       placement: 'right',
       description: 'Monitor real-time Philippine Doppler weather radar and calamity concentration heatmaps across Luzon, Visayas, and Mindanao to track typhoon storm paths and see where emergency aid is needed most.'
     },
     {
+      target: '#tour-donor-sepolia-node',
+      title: 'Sepolia Blockchain Node & Smart Contract Protocol',
+      icon: 'hub',
+      badge: 'Step 7 of 8 • Web3 Gateway',
+      placement: 'right',
+      description: 'Monitors live EVM testnet synchronization. Solidity smart contracts automatically lock and disburse emergency funds without human tampering or fund diversion.'
+    },
+    {
       target: '#tour-donor-actions',
-      title: 'Quick Actions & Public Ledger',
+      title: 'Quick Actions Hub & Profile Settings',
       icon: 'touch_app',
-      badge: 'Step 6 of 6 • Shortcuts',
+      badge: 'Step 8 of 8 • Quick Shortcuts',
       placement: 'bottom',
       description: 'Use these shortcuts anytime to jump into active relief appeals, open your Honors Ladder, or audit all contract transactions on the Sepolia Etherscan explorer. You can replay this guide anytime from the sidebar!'
     }

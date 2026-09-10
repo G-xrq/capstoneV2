@@ -603,15 +603,15 @@ export default function OrganizationView({
       target: '#tour-ngo-welcome',
       title: 'Disaster Operations Command Center',
       icon: 'corporate_fare',
-      badge: 'Step 1 of 6 • Command Hub',
+      badge: 'Step 1 of 8 • Command Hub',
       placement: 'bottom',
-      description: 'Welcome to your Disaster Operations Command Center. Coordinate emergency disaster relief, manage audited appeals, and oversee transparent humanitarian operations across the Philippines.'
+      description: 'Welcome to your Disaster Operations Command Center. Coordinate rapid emergency disaster relief, deploy smart-contract appeals, and manage transparent calamity response operations across the Philippines.'
     },
     {
       target: '#tour-ngo-tab-sec',
       title: 'Institutional SEC Non-Profit KYC',
       icon: 'verified_user',
-      badge: 'Step 2 of 6 • Legal Accreditation',
+      badge: 'Step 2 of 8 • Legal Accreditation',
       placement: 'right',
       description: 'Submit your Philippine SEC Non-Stock Registration, DSWD permit, and Board of Trustees to unlock on-chain campaign deployment. Instant AI vision verification builds complete public trust.'
     },
@@ -619,33 +619,49 @@ export default function OrganizationView({
       target: '#tour-ngo-tab-create',
       title: 'Deploy Smart-Contract Relief Campaign',
       icon: 'rocket_launch',
-      badge: 'Step 3 of 6 • Campaign Creation',
+      badge: 'Step 3 of 8 • Campaign Creation',
       placement: 'right',
-      description: 'Deploy emergency appeals in minutes. Specify calamity urgency, affected municipality, target funding in PHP & ETH, and beneficiary goals with immutable smart contract rules.'
+      description: 'Deploy verified emergency appeals in minutes. Specify disaster urgency, affected Philippine municipality, target funding in PHP & ETH, and beneficiary goals with immutable smart contract rules.'
     },
     {
       target: '#tour-ngo-tab-my-campaigns',
-      title: 'Milestone Proof & Relief Distribution',
+      title: 'Active Operations & Milestone Management',
       icon: 'inventory_2',
-      badge: 'Step 4 of 6 • Transparency Proof',
+      badge: 'Step 4 of 8 • Relief Tracking',
       placement: 'right',
+      description: 'Track and manage your deployed emergency operations. Monitor raised relief funds in real time, coordinate ground volunteers, and view community progress.'
+    },
+    {
+      target: '#tour-ngo-actions',
+      title: 'Milestone Proof & Ground-Zero Verification',
+      icon: 'add_a_photo',
+      badge: 'Step 5 of 8 • Transparency Proof',
+      placement: 'bottom',
       description: 'Upload transparent ground-zero relief delivery photos, purchase receipts, and distribution logs directly to campaign milestones to prove real impact to donors and unlock subsequent funding tiers.'
     },
     {
       target: '#tour-ngo-tab-ledger',
       title: 'Multi-Channel Financial Transparency',
       icon: 'account_balance',
-      badge: 'Step 5 of 6 • Audit Ledger',
+      badge: 'Step 6 of 8 • Audit Ledger',
       placement: 'right',
-      description: 'Reconcile incoming donations across Ethereum Web3, GCash, PayMaya, and Bank Transfers with real-time transaction reconciliation and SEC compliance verification.'
+      description: 'Reconcile incoming donations across Ethereum Web3, GCash, PayMaya, and Bank Transfers with real-time transaction reconciliation and SEC compliance reporting.'
     },
     {
       target: '#tour-ngo-tab-radar',
       title: 'Logistics Doppler Radar & Dispatch',
       icon: 'radar',
-      badge: 'Step 6 of 6 • Ground Logistics',
+      badge: 'Step 7 of 8 • Ground Logistics',
       placement: 'right',
       description: 'Utilize live Doppler weather radar and calamity concentration heatmaps to optimize disaster relief logistics, coordinate ground transport, and reach isolated municipalities.'
+    },
+    {
+      target: '#tour-ngo-sepolia-node',
+      title: 'Sepolia Blockchain Protocol & Institutional Security',
+      icon: 'hub',
+      badge: 'Step 8 of 8 • Web3 Gateway',
+      placement: 'right',
+      description: 'Ensures 100% smart contract immutability, zero downtime, and public auditability on the Ethereum Sepolia testnet. You can replay this tutorial anytime from the sidebar!'
     }
   ];
 
