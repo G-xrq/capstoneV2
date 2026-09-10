@@ -3,14 +3,35 @@
    High-Contrast Theater Spotlight, Zero Lag, Rock-Solid Stability
    ═════════════════════════════════════════════════════════════════════ */
 
-/* ── 1. SVG Cutout Backdrop Overlay ── */
+/* ── 1. 4-Panel Blur Surround (Blurs background outside, keeping cutout 100% sharp) ── */
+#bbdrts-tour-blur-surround {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 999999998 !important;
+}
+
+.bbdrts-blur-panel {
+  position: fixed;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  pointer-events: none;
+  transition: top 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+              left 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+              width 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+              height 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: top, left, width, height;
+}
+
+/* ── 2. SVG Cutout Backdrop Overlay ── */
 .driver-overlay {
   transition: opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
-  z-index: 1000000000 !important;
+  z-index: 999999999 !important;
   pointer-events: auto !important;
 }
 
-/* ── 2. Highlighted Stage Active Target ── */
+/* ── 3. Highlighted Stage Active Target ── */
 .driver-active-element {
   outline: 2.5px solid var(--tour-accent, #22c55e) !important;
   outline-offset: 4px !important;
@@ -20,7 +41,7 @@
   z-index: 1000000002 !important;
 }
 
-/* ── 3. Tooltip Popover Card with Calibrated Reveal Delay ── */
+/* ── 4. Tooltip Popover Card with Calibrated Reveal Delay ── */
 .driver-popover.bbdrts-tour-popover {
   all: unset;
   box-sizing: border-box;
@@ -47,15 +68,15 @@
 @keyframes bbdrts-tour-popover-in {
   0% {
     opacity: 0;
-    transform: translateY(12px) scale(0.96);
+    transform: translateY(8px);
   }
-  40% {
+  35% {
     opacity: 0;
-    transform: translateY(12px) scale(0.96);
+    transform: translateY(8px);
   }
   100% {
     opacity: 1;
-    transform: translateY(0) scale(1);
+    transform: translateY(0);
   }
 }
 

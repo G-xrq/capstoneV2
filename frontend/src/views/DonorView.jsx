@@ -90,76 +90,68 @@ export default function DonorView({ contract, walletAddress, campaigns, fetchCam
 
   const donorTourSteps = useMemo(() => [
     {
-      target: '#tour-donor-welcome',
+      target: '#tour-donor-identity',
       title: 'Decentralized Identity & 100% Direct Giving',
       icon: 'verified_user',
-      badge: 'Step 1 of 9 • Identity & Trust',
+      badge: 'Step 1 of 8 • Identity & Trust',
       placement: 'bottom',
       description: 'Welcome to BBDRTS! Your profile is cryptographically secured on the Ethereum Sepolia blockchain. 100% of your contributions go straight to relief causes with zero platform commission, zero gateway cuts, and zero political interception.'
     },
     {
-      target: '#tour-donor-featured-causes',
-      title: 'Emergency Relief Appeals & Calamity Urgency',
+      target: '#tour-donor-badge-card',
+      title: 'Honors Ladder & Philanthropic Badges',
+      icon: 'military_tech',
+      badge: 'Step 2 of 8 • Recognition',
+      placement: 'bottom',
+      description: 'Every peso and ETH you give earns humanitarian milestones on your Honors Ladder: First Responder, Community Guardian, and Relief Champion. Track your next milestone and inspect verified on-chain credentials.'
+    },
+    {
+      target: '#tour-donor-metrics',
+      title: 'Live Relief Analytics & Contract Health',
+      icon: 'analytics',
+      badge: 'Step 3 of 8 • Transparency',
+      placement: 'bottom',
+      description: 'Monitor your personal contributions, active emergency appeals nationwide, EVM smart contract verification status, and real-time humanitarian relief funds deployed across the Philippines.'
+    },
+    {
+      target: '#tour-donor-first-campaign',
+      title: 'Verified Emergency Relief Appeals',
       icon: 'emergency',
-      badge: 'Step 2 of 9 • Active Appeals',
+      badge: 'Step 4 of 8 • Active Appeals',
       placement: 'top',
-      description: 'Explore live disaster appeals deployed by accredited Philippine NGOs. Inspect disaster severity badges (Critical, High, Medium), affected municipalities, and real-time funding progress bars.'
+      description: 'Accredited Philippine NGOs post emergency disaster appeals here. Review calamity urgency badges (Critical, High), affected municipalities, target funding goals, and live progress bars.'
     },
     {
       target: '#tour-donor-actions',
-      title: 'Dual Payment Rails: Web3 ETH & Philippine E-Wallets',
+      title: 'Dual Payment Rails: Web3 ETH & E-Wallets',
       icon: 'payments',
-      badge: 'Step 3 of 9 • Flexible Giving',
+      badge: 'Step 5 of 8 • Instant Giving',
       placement: 'bottom',
-      description: 'You can contribute via Web3 Crypto (Sepolia ETH using MetaMask) OR Philippine E-Wallets (GCash & Maya QR Gateway). Real-time fiat-to-crypto conversion calculates exact values in Philippine Pesos (₱).'
+      description: 'Contribute via Web3 Crypto (Sepolia ETH using MetaMask) OR instant Philippine E-Wallets (GCash & Maya QR Gateway). Real-time fiat exchange calculates exact values in Philippine Pesos (₱). You can also toggle Anonymous Giving to protect your privacy.'
     },
     {
-      target: '#tour-donor-featured-causes',
-      title: 'Anonymous Giving & Privacy Protection',
-      icon: 'visibility_off',
-      badge: 'Step 4 of 9 • Donor Privacy',
-      placement: 'top',
-      description: 'Prefer to keep your support confidential? When contributing, you can toggle "Contribute Anonymously" to mask your identity and wallet address from public campaign leaderboards while still receiving an official audit receipt.'
-    },
-    {
-      target: '#tour-donor-tab-campaigns',
-      title: 'Milestone Escrow & Ground-Zero Photo Proofs',
-      icon: 'verified',
-      badge: 'Step 5 of 9 • Anti-Fraud Security',
+      target: '#tour-donor-tab-donations',
+      title: 'Audit Trail & Digital Tax Receipts',
+      icon: 'receipt_long',
+      badge: 'Step 6 of 8 • Audit Ledger',
       placement: 'right',
-      description: 'Relief funds are never handed over blindly. Solidity smart contracts lock contributions in escrow and only disburse aid in tranches once NGOs submit geotagged distribution photos and merchant receipts from ground zero.'
+      description: 'Relief funds are held in smart contract escrow until NGOs upload geotagged delivery photos and merchant receipts from the disaster zone. Access this tab anytime to inspect ground-zero proofs and download official printable PDF tax receipts.'
     },
     {
       target: '#tour-donor-tab-radar',
-      title: 'Live PAGASA Doppler Radar & Calamity Heatmaps',
+      title: 'Live Doppler Radar & Calamity Heatmaps',
       icon: 'radar',
-      badge: 'Step 6 of 9 • Situational Awareness',
+      badge: 'Step 7 of 8 • Weather Intelligence',
       placement: 'right',
       description: 'Monitor real-time Philippine Doppler weather radar and calamity concentration heatmaps across Luzon, Visayas, and Mindanao. Track storm trajectories to direct your aid where catastrophic impact is greatest.'
     },
     {
-      target: '#tour-donor-tab-donations',
-      title: 'Digital Receipts & Downloadable PDF Audit Trail',
-      icon: 'receipt_long',
-      badge: 'Step 7 of 9 • Immutable Records',
-      placement: 'right',
-      description: 'Every single donation generates an immutable Sepolia transaction hash. Open this tab anytime to inspect disbursement proofs, download printable official PDF tax receipts, or audit fund routing on Etherscan.'
-    },
-    {
-      target: '#tour-donor-badge-card',
-      title: 'Honors Ladder & Philanthropic Impact Badges',
-      icon: 'military_tech',
-      badge: 'Step 8 of 9 • Recognition',
-      placement: 'bottom',
-      description: 'Every peso and ETH you contribute earns humanitarian milestones on your Honors Ladder: First Responder, Community Guardian, and Relief Champion. Level up your tier and display verified impact credentials.'
-    },
-    {
       target: '#tour-donor-sepolia-node',
-      title: 'Sepolia Node Status & Replaying This Guide',
-      icon: 'hub',
-      badge: 'Step 9 of 9 • Protocol & Settings',
+      title: 'Sepolia Node Status, Themes & Replay',
+      icon: 'settings',
+      badge: 'Step 8 of 8 • Control Hub',
       placement: 'right',
-      description: 'This widget monitors live EVM testnet synchronization. You can toggle interface themes (Dark, Light, Cyber) or replay this guided tour anytime by clicking the "Guided Tutorial" button in the sidebar!'
+      description: 'Monitors live EVM testnet synchronization. You can switch interface themes (Dark, Light, Cyber) or replay this guided walkthrough anytime by clicking Guided Tutorial in the sidebar. You are all set!'
     }
   ], []);
 
@@ -698,7 +690,7 @@ export default function DonorView({ contract, walletAddress, campaigns, fetchCam
             <>
               {/* Top Hero Banner */}
               <div className="ref-welcome-card" id="tour-donor-welcome">
-                <div className="ref-welcome-header">
+                <div className="ref-welcome-header" id="tour-donor-identity">
                   <div className="ref-welcome-avatar" style={{ overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     {currentUser?.avatar_url && (currentUser.avatar_url.startsWith('data:') || currentUser.avatar_url.startsWith('http')) ? (
                       <img src={currentUser.avatar_url} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
@@ -838,16 +830,17 @@ export default function DonorView({ contract, walletAddress, campaigns, fetchCam
                   </div>
                 ) : (
                   <div className="campaigns-list">
-                    {campaigns.slice(0, 2).map((camp) => (
-                      <CampaignCard
-                        key={camp.id}
-                        camp={camp}
-                        contract={contract}
-                        role={ROLES.DONOR}
-                        walletAddress={walletAddress}
-                        onDonated={fetchCampaigns}
-                        onOpenNgoProfile={onOpenNgoProfile}
-                      />
+                    {campaigns.slice(0, 2).map((camp, cIdx) => (
+                      <div key={camp.id} id={cIdx === 0 ? "tour-donor-first-campaign" : undefined} style={{ width: '100%' }}>
+                        <CampaignCard
+                          camp={camp}
+                          contract={contract}
+                          role={ROLES.DONOR}
+                          walletAddress={walletAddress}
+                          onDonated={fetchCampaigns}
+                          onOpenNgoProfile={onOpenNgoProfile}
+                        />
+                      </div>
                     ))}
                   </div>
                 )}

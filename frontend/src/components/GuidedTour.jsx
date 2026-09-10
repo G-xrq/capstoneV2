@@ -5,11 +5,11 @@ import './GuidedTour.css';
 
 /**
  * Universal Guided Spotlight Onboarding Tour Component
- * Powered by Driver.js (v1.8.0):
- * - Theater-grade dark backdrop spotlight that focuses attention cleanly
- * - Calibrated reveal delay (spotlight settles first, card reveals smoothly)
+ * Powered by Driver.js (v1.8.0) + 4-Panel Blur Surround:
+ * - 4-Panel backdrop blur blurs the page outside while the active box remains 100% sharp
+ * - Zero GPU compositor locks, zero requestAnimationFrame loops, 60fps hardware-accelerated transitions
+ * - Calibrated reveal delay (spotlight glides and settles first, card fades in calmly)
  * - Safe overlay click protection (prevents accidental tour dismissals mid-tutorial)
- * - Zero CPU thrashing, zero GPU deadlocks, lightning-fast 60fps responsiveness
  */
 export default function GuidedTour({
   isOpen,
@@ -60,6 +60,85 @@ export default function GuidedTour({
       } catch (_) {}
     }
 
+    // ── 4-Panel Blur Surround ──
+    // Blurs page outside the active box while keeping the interior 100% crystal-clear
+    const surroundId = 'bbdrts-tour-blur-surround';
+    let surroundEl = document.getElementById(surroundId);
+    if (!surroundEl) {
+      surroundEl = document.createElement('div');
+      surroundEl.id = surroundId;
+      surroundEl.innerHTML = `
+        <div class="bbdrts-blur-panel bbdrts-blur-top"></div>
+        <div class="bbdrts-blur-panel bbdrts-blur-bottom"></div>
+        <div class="bbdrts-blur-panel bbdrts-blur-left"></div>
+        <div class="bbdrts-blur-panel bbdrts-blur-right"></div>
+      `;
+      document.body.appendChild(surroundEl);
+    }
+
+    const topP = surroundEl.querySelector('.bbdrts-blur-top');
+    const bottomP = surroundEl.querySelector('.bbdrts-blur-bottom');
+    const leftP = surroundEl.querySelector('.bbdrts-blur-left');
+    const rightP = surroundEl.querySelector('.bbdrts-blur-right');
+
+    const updateBlurPanels = (targetEl) => {
+      const el = targetEl || document.querySelector('.driver-active-element');
+      if (!el || !topP || !bottomP || !leftP || !rightP) {
+        if (topP) {
+          topP.style.top = '0px';
+          topP.style.left = '0px';
+          topP.style.width = '100vw';
+          topP.style.height = '100vh';
+        }
+        if (bottomP) { bottomP.style.height = '0px'; }
+        if (leftP) { leftP.style.width = '0px'; }
+        if (rightP) { rightP.style.width = '0px'; }
+        return;
+      }
+
+      const rect = el.getBoundingClientRect();
+      const pad = 10;
+      const x = Math.max(0, Math.round(rect.left - pad));
+      const y = Math.max(0, Math.round(rect.top - pad));
+      const w = Math.min(window.innerWidth - x, Math.round(rect.width + pad * 2));
+      const h = Math.min(window.innerHeight - y, Math.round(rect.height + pad * 2));
+      const r = x + w;
+      const b = y + h;
+
+      topP.style.top = '0px';
+      topP.style.left = '0px';
+      topP.style.width = '100vw';
+      topP.style.height = `${y}px`;
+
+      bottomP.style.top = `${b}px`;
+      bottomP.style.left = '0px';
+      bottomP.style.width = '100vw';
+      bottomP.style.height = `calc(100vh - ${b}px)`;
+
+      leftP.style.top = `${y}px`;
+      leftP.style.left = '0px';
+      leftP.style.width = `${x}px`;
+      leftP.style.height = `${h}px`;
+
+      rightP.style.top = `${y}px`;
+      rightP.style.left = `${r}px`;
+      rightP.style.width = `calc(100vw - ${r}px)`;
+      rightP.style.height = `${h}px`;
+    };
+
+    const handleWindowChange = () => {
+      updateBlurPanels();
+    };
+    window.addEventListener('resize', handleWindowChange);
+    window.addEventListener('scroll', handleWindowChange, { passive: true });
+
+    const cleanupSurround = () => {
+      window.removeEventListener('resize', handleWindowChange);
+      window.removeEventListener('scroll', handleWindowChange);
+      const s = document.getElementById(surroundId);
+      if (s) s.remove();
+    };
+
     const totalSteps = currentSteps.length;
     const currentRole = roleNameRef.current;
     const currentTheme = themeRef.current;
@@ -105,7 +184,7 @@ export default function GuidedTour({
       stagePadding: 10,
       stageRadius: 12,
       popoverOffset: 14,
-      overlayColor: 'rgba(0, 0, 0, 0.82)',
+      overlayColor: 'rgba(0, 0, 0, 0.25)', // Subtle dark tint complementing 4-panel blur
       // Safe backdrop behavior: Clicking outside does NOT dismiss the tour mid-tutorial
       overlayClickBehavior: () => {
         // Deliberate no-op: prevents accidental dismissal when reading or clicking around
@@ -113,6 +192,12 @@ export default function GuidedTour({
       popoverClass: `bbdrts-tour-popover theme-${currentTheme}`,
       progressText: 'Step {{current}} of {{total}}',
       steps: driverSteps,
+      onHighlightStarted: (element) => {
+        updateBlurPanels(element);
+      },
+      onHighlighted: (element) => {
+        updateBlurPanels(element);
+      },
       onCloseClick: () => {
         if (driverRef.current) {
           try {
@@ -136,6 +221,7 @@ export default function GuidedTour({
         }
       },
       onDestroyStarted: () => {
+        cleanupSurround();
         if (!isClosingRef.current) {
           isClosingRef.current = true;
           try {
@@ -153,17 +239,19 @@ export default function GuidedTour({
 
     driverRef.current = driverObj;
 
-    // Small calm delay before launching drive() to ensure layout and scroll are ready
+    // Small calm delay before launching drive() to ensure layout is ready
     const timer = setTimeout(() => {
       try {
         driverObj.drive();
+        setTimeout(updateBlurPanels, 50);
       } catch (err) {
         console.warn('Driver.js drive() error:', err);
       }
-    }, 250);
+    }, 280);
 
     return () => {
       clearTimeout(timer);
+      cleanupSurround();
       if (driverRef.current) {
         try {
           driverRef.current.destroy();
