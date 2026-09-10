@@ -86,7 +86,9 @@ export default function DonorView({ contract, walletAddress, campaigns, fetchCam
     }, 250);
   };
 
-  const donorTourSteps = [
+  const handleCloseTour = () => setShowGuidedTour(false);
+
+  const donorTourSteps = useMemo(() => [
     {
       target: '#tour-donor-welcome',
       title: 'Decentralized Identity & 100% Direct Giving',
@@ -159,7 +161,7 @@ export default function DonorView({ contract, walletAddress, campaigns, fetchCam
       placement: 'right',
       description: 'This widget monitors live EVM testnet synchronization. You can toggle interface themes (Dark, Light, Cyber) or replay this guided tour anytime by clicking the "Guided Tutorial" button in the sidebar!'
     }
-  ];
+  ], []);
 
   const [showCausesDropdown, setShowCausesDropdown] = useState(false);
   const [showPrioritiesDropdown, setShowPrioritiesDropdown] = useState(false);
@@ -2046,9 +2048,9 @@ export default function DonorView({ contract, walletAddress, campaigns, fetchCam
       {/* Interactive Guided Onboarding Spotlight Tour */}
       <GuidedTour
         isOpen={showGuidedTour}
-        onClose={() => setShowGuidedTour(false)}
+        onClose={handleCloseTour}
         steps={donorTourSteps}
-        onTabChange={(t) => setActiveTab(t)}
+        onTabChange={setActiveTab}
         tourKey={userTourKey}
         roleName="Donor"
         theme={theme}

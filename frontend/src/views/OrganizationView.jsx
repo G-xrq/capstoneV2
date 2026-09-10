@@ -598,7 +598,9 @@ export default function OrganizationView({
     }, 100);
   };
 
-  const ngoTourSteps = [
+  const handleCloseTour = () => setShowGuidedTour(false);
+
+  const ngoTourSteps = useMemo(() => [
     {
       target: '#tour-ngo-welcome',
       title: 'Disaster Operations Command Center',
@@ -663,7 +665,7 @@ export default function OrganizationView({
       placement: 'right',
       description: 'Ensures 100% smart contract immutability, zero downtime, and public auditability on the Ethereum Sepolia testnet. You can replay this tutorial anytime from the sidebar!'
     }
-  ];
+  ], []);
 
   const fetchKycData = async () => {
     try {
@@ -4271,9 +4273,9 @@ export default function OrganizationView({
       {/* Interactive Guided Onboarding Spotlight Tour */}
       <GuidedTour
         isOpen={showGuidedTour}
-        onClose={() => setShowGuidedTour(false)}
+        onClose={handleCloseTour}
         steps={ngoTourSteps}
-        onTabChange={(t) => setActiveTab(t)}
+        onTabChange={setActiveTab}
         tourKey={userTourKey}
         roleName="NGO Partner"
         theme={theme}

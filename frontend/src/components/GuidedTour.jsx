@@ -23,8 +23,22 @@ export default function GuidedTour({
   const driverRef = useRef(null);
   const isClosingRef = useRef(false);
 
+  // Keep references to mutable props to prevent infinite re-render loops
+  const stepsRef = useRef(steps);
+  stepsRef.current = steps;
+  const onTabChangeRef = useRef(onTabChange);
+  onTabChangeRef.current = onTabChange;
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+  const tourKeyRef = useRef(tourKey);
+  tourKeyRef.current = tourKey;
+  const roleNameRef = useRef(roleName);
+  roleNameRef.current = roleName;
+  const themeRef = useRef(theme);
+  themeRef.current = theme;
+
   useEffect(() => {
-    if (!isOpen || !steps || steps.length === 0) {
+    if (!isOpen) {
       if (driverRef.current) {
         driverRef.current.destroy();
         driverRef.current = null;
@@ -32,11 +46,16 @@ export default function GuidedTour({
       return;
     }
 
+    const currentSteps = stepsRef.current || [];
+    if (currentSteps.length === 0) return;
+
     isClosingRef.current = false;
 
-    // Ensure we are settled on the dashboard view for stable layout rendering
-    if (typeof onTabChange === 'function') {
-      onTabChange('dashboard');
+    // Ensure we are settled on the dashboard view for stable layout rendering (one-time on open)
+    if (typeof onTabChangeRef.current === 'function') {
+      try {
+        onTabChangeRef.current('dashboard');
+      } catch (_) {}
     }
 
     // Dynamic outside backdrop blur overlay (blurs page outside while keeping cutout 100% sharp)
@@ -49,13 +68,17 @@ export default function GuidedTour({
       document.body.appendChild(blurEl);
     }
 
+    let lastClip = '';
     const syncBlurCutout = () => {
       const overlay = document.getElementById(blurOverlayId);
       if (!overlay) return;
 
       const activeEl = document.querySelector('.driver-active-element');
       if (!activeEl) {
-        overlay.style.clipPath = 'none';
+        if (lastClip !== 'none') {
+          lastClip = 'none';
+          overlay.style.clipPath = 'none';
+        }
         return;
       }
 
@@ -67,23 +90,32 @@ export default function GuidedTour({
       const b = Math.min(window.innerHeight, Math.round(rect.bottom + pad));
 
       if (r <= x || b <= y) {
-        overlay.style.clipPath = 'none';
+        if (lastClip !== 'none') {
+          lastClip = 'none';
+          overlay.style.clipPath = 'none';
+        }
         return;
       }
 
       // Single continuous polygon donut: covers entire viewport EXCEPT [x..r, y..b]
-      // Zero blur inside the cutout hole; rich backdrop blur everywhere outside
-      overlay.style.clipPath = `polygon(0% 0%, 0% 100%, ${x}px 100%, ${x}px ${y}px, ${r}px ${y}px, ${r}px ${b}px, ${x}px ${b}px, ${x}px 100%, 100% 100%, 100% 0%)`;
+      const nextClip = `polygon(0% 0%, 0% 100%, ${x}px 100%, ${x}px ${y}px, ${r}px ${y}px, ${r}px ${b}px, ${x}px ${b}px, ${x}px 100%, 100% 100%, 100% 0%)`;
+      if (lastClip !== nextClip) {
+        lastClip = nextClip;
+        overlay.style.clipPath = nextClip;
+      }
     };
 
+    let isRunning = true;
     let animFrameId = null;
     const renderLoop = () => {
+      if (!isRunning) return;
       syncBlurCutout();
       animFrameId = requestAnimationFrame(renderLoop);
     };
     animFrameId = requestAnimationFrame(renderLoop);
 
     const cleanupBlur = () => {
+      isRunning = false;
       if (animFrameId) {
         cancelAnimationFrame(animFrameId);
         animFrameId = null;
@@ -92,10 +124,13 @@ export default function GuidedTour({
       if (bEl) bEl.remove();
     };
 
-    const totalSteps = steps.length;
-    const driverSteps = steps.map((s, idx) => {
+    const totalSteps = currentSteps.length;
+    const currentRole = roleNameRef.current;
+    const currentTheme = themeRef.current;
+
+    const driverSteps = currentSteps.map((s, idx) => {
       const stepNumber = idx + 1;
-      const badgeText = s.badge || `Step ${stepNumber} of ${totalSteps} • ${roleName} Tutorial`;
+      const badgeText = s.badge || `Step ${stepNumber} of ${totalSteps} • ${currentRole} Tutorial`;
       const iconHtml = s.icon
         ? `<span class="material-symbols-outlined driver-step-icon">${s.icon}</span>`
         : '';
@@ -139,7 +174,7 @@ export default function GuidedTour({
       overlayClickBehavior: () => {
         // Deliberate no-op: prevents accidental dismissal when reading or clicking around
       },
-      popoverClass: `bbdrts-tour-popover theme-${theme}`,
+      popoverClass: `bbdrts-tour-popover theme-${currentTheme}`,
       progressText: 'Step {{current}} of {{total}}',
       steps: driverSteps,
       onCloseClick: () => {
@@ -163,12 +198,12 @@ export default function GuidedTour({
         if (!isClosingRef.current) {
           isClosingRef.current = true;
           try {
-            localStorage.setItem(tourKey, 'true');
+            localStorage.setItem(tourKeyRef.current, 'true');
             localStorage.removeItem('bbdrts_tour_force_launch');
             localStorage.removeItem('bbdrts_is_new_registration');
           } catch (_) {}
-          if (typeof onClose === 'function') {
-            onClose();
+          if (typeof onCloseRef.current === 'function') {
+            onCloseRef.current();
           }
         }
         if (driverRef.current) {
@@ -197,7 +232,7 @@ export default function GuidedTour({
         driverRef.current = null;
       }
     };
-  }, [isOpen, steps, tourKey, roleName, theme, onTabChange, onClose]);
+  }, [isOpen]);
 
   return null;
 }
