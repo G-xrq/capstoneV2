@@ -1,14 +1,13 @@
 /* ═════════════════════════════════════════════════════════════════════
    BBDRTS Guided Onboarding Spotlight Tour (Driver.js Styling System)
-   Ultra-Smooth, Zero-Jitter, Collision-Free, Fully Synchronized Themes
+   Ultra-Smooth, Zero-Jitter, Crystal-Clear Cutout, Synchronized Themes
    ═════════════════════════════════════════════════════════════════════ */
 
-/* ── 1. SVG Cutout Backdrop Overlay ── */
+/* ── 1. SVG Cutout Backdrop Overlay (NO blur, perfectly crystal-clear cutout) ── */
 .driver-overlay {
-  backdrop-filter: blur(2px);
-  -webkit-backdrop-filter: blur(2px);
   transition: opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
   z-index: 1000000000 !important;
+  /* Strictly NO backdrop-filter here: guarantees the highlighted element inside the cutout is 100% sharp and clear */
 }
 
 /* ── 2. Highlighted Stage Active Target ── */
@@ -59,7 +58,7 @@
 .bbdrts-tour-popover .driver-popover-title {
   display: block;
   margin: 0 0 10px 0;
-  padding: 0;
+  padding-right: 32px; /* Space for the close button */
   border: none;
   background: transparent;
   color: inherit;
@@ -183,24 +182,28 @@
   position: absolute;
   top: 14px;
   right: 14px;
-  width: 28px;
-  height: 28px;
-  border-radius: 7px;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
   cursor: pointer;
-  display: flex;
+  display: flex !important;
   align-items: center;
   justify-content: center;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 700;
   color: var(--tour-text-muted, #94a3b8);
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.14);
   transition: all 0.2s ease;
-  z-index: 10;
+  z-index: 1000000010 !important;
+  pointer-events: auto !important;
 }
 
 .bbdrts-tour-popover .driver-popover-close-btn:hover {
-  background: rgba(255, 255, 255, 0.16);
-  color: #ffffff;
+  background: rgba(239, 68, 68, 0.25);
+  border-color: rgba(239, 68, 68, 0.5);
+  color: #fca5a5;
+  transform: scale(1.06);
 }
 
 /* ── 7. Directional Arrows ── */
@@ -272,12 +275,14 @@
 
 .bbdrts-tour-popover.theme-light .driver-popover-close-btn {
   background: rgba(0, 0, 0, 0.05);
+  border-color: rgba(0, 0, 0, 0.1);
   color: #64748b;
 }
 
 .bbdrts-tour-popover.theme-light .driver-popover-close-btn:hover {
-  background: rgba(0, 0, 0, 0.1);
-  color: #0f172a;
+  background: rgba(239, 68, 68, 0.12);
+  border-color: rgba(239, 68, 68, 0.3);
+  color: #dc2626;
 }
 
 .bbdrts-tour-popover.theme-light .driver-popover-prev-btn:hover {

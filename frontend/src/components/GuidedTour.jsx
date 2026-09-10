@@ -78,10 +78,26 @@ export default function GuidedTour({
       stagePadding: 10,
       stageRadius: 12,
       popoverOffset: 14,
-      overlayColor: 'rgba(0, 0, 0, 0.80)',
+      overlayColor: 'rgba(0, 0, 0, 0.82)',
       popoverClass: `bbdrts-tour-popover theme-${theme}`,
       progressText: '{{current}} of {{total}}',
       steps: driverSteps,
+      onCloseClick: () => {
+        if (driverRef.current) {
+          driverRef.current.destroy();
+        }
+      },
+      onPopoverRender: (popoverDOM) => {
+        if (popoverDOM && popoverDOM.closeButton) {
+          popoverDOM.closeButton.onclick = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (driverRef.current) {
+              driverRef.current.destroy();
+            }
+          };
+        }
+      },
       onDestroyStarted: () => {
         if (!isClosingRef.current) {
           isClosingRef.current = true;

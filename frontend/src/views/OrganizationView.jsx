@@ -603,65 +603,49 @@ export default function OrganizationView({
       target: '#tour-ngo-welcome',
       title: 'Disaster Operations Command Center',
       icon: 'corporate_fare',
-      badge: 'Step 1 of 8 • Hub Overview',
+      badge: 'Step 1 of 6 • Command Hub',
       placement: 'bottom',
-      description: 'Welcome to your Command Center! Coordinate rapid disaster relief, deploy smart-contract emergency appeals, and maintain transparent relief accountability across the Philippines.'
-    },
-    {
-      target: '#tour-ngo-metrics',
-      title: 'Mission Impact & Financial Readiness',
-      icon: 'monitoring',
-      badge: 'Step 2 of 8 • Readiness Metrics',
-      placement: 'bottom',
-      description: 'Track total emergency funding mobilized, deployed operations, active disaster responses, and your organization\'s compliance health in real time.'
-    },
-    {
-      target: '#tour-ngo-actions',
-      title: 'Deployment & Ledger Shortcuts',
-      icon: 'touch_app',
-      badge: 'Step 3 of 8 • Operations Actions',
-      placement: 'bottom',
-      description: 'Quickly deploy new emergency appeals or open the live Sepolia Etherscan explorer to verify all public smart-contract transactions.'
+      description: 'Welcome to your Disaster Operations Command Center. Coordinate emergency disaster relief, manage audited appeals, and oversee transparent humanitarian operations across the Philippines.'
     },
     {
       target: '#tour-ngo-tab-sec',
       title: 'Institutional SEC Non-Profit KYC',
       icon: 'verified_user',
-      badge: 'Step 4 of 8 • Legal Accreditation',
+      badge: 'Step 2 of 6 • Legal Accreditation',
       placement: 'right',
-      description: 'Manage your Philippine SEC Non-Stock Corporation Registration, DSWD permit compliance, and Board of Trustees accreditation to establish full donor trust.'
+      description: 'Submit your Philippine SEC Non-Stock Registration, DSWD permit, and Board of Trustees to unlock on-chain campaign deployment. Instant AI vision verification builds complete public trust.'
     },
     {
       target: '#tour-ngo-tab-create',
-      title: 'Deploy Smart-Contract Appeals',
+      title: 'Deploy Smart-Contract Relief Campaign',
       icon: 'rocket_launch',
-      badge: 'Step 5 of 8 • Campaign Creation',
+      badge: 'Step 3 of 6 • Campaign Creation',
       placement: 'right',
-      description: 'Launch verified emergency appeals in minutes. Specify calamity urgency, affected municipality, target funding in PHP/ETH, and beneficiary goals with immutable rules.'
+      description: 'Deploy emergency appeals in minutes. Specify calamity urgency, affected municipality, target funding in PHP & ETH, and beneficiary goals with immutable smart contract rules.'
     },
     {
       target: '#tour-ngo-tab-my-campaigns',
       title: 'Milestone Proof & Relief Distribution',
       icon: 'inventory_2',
-      badge: 'Step 6 of 8 • Ground Zero Proof',
+      badge: 'Step 4 of 6 • Transparency Proof',
       placement: 'right',
-      description: 'Publish transparent distribution updates, relief delivery photos, and official purchase receipts directly to campaign milestones for public auditing.'
+      description: 'Upload transparent ground-zero relief delivery photos, purchase receipts, and distribution logs directly to campaign milestones to prove real impact to donors and unlock subsequent funding tiers.'
     },
     {
       target: '#tour-ngo-tab-ledger',
-      title: 'Financial Transparency Ledger',
-      icon: 'receipt_long',
-      badge: 'Step 7 of 8 • Audit Ledger',
+      title: 'Multi-Channel Financial Transparency',
+      icon: 'account_balance',
+      badge: 'Step 5 of 6 • Audit Ledger',
       placement: 'right',
-      description: 'Audit incoming donations across Ethereum Web3, GCash, PayMaya, and Bank Transfers with real-time transaction reconciliation and SEC compliance verification.'
+      description: 'Reconcile incoming donations across Ethereum Web3, GCash, PayMaya, and Bank Transfers with real-time transaction reconciliation and SEC compliance verification.'
     },
     {
-      target: '#tour-ngo-sepolia-node',
-      title: 'Sepolia Blockchain Protocol',
-      icon: 'hub',
-      badge: 'Step 8 of 8 • Web3 Gateway',
+      target: '#tour-ngo-tab-radar',
+      title: 'Logistics Doppler Radar & Dispatch',
+      icon: 'radar',
+      badge: 'Step 6 of 6 • Ground Logistics',
       placement: 'right',
-      description: 'Ensures 100% smart contract immutability and real-time EVM synchronization. You can replay this tutorial anytime by clicking Guided Tutorial in the sidebar or Settings!'
+      description: 'Utilize live Doppler weather radar and calamity concentration heatmaps to optimize disaster relief logistics, coordinate ground transport, and reach isolated municipalities.'
     }
   ];
 

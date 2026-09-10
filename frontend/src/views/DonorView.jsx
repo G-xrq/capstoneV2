@@ -89,67 +89,51 @@ export default function DonorView({ contract, walletAddress, campaigns, fetchCam
   const donorTourSteps = [
     {
       target: '#tour-donor-welcome',
-      title: 'Decentralized Identity & Relief Hub',
+      title: 'Decentralized Identity & Zero-Fee Protocol',
       icon: 'verified_user',
-      badge: 'Step 1 of 8 • Verified Profile',
+      badge: 'Step 1 of 6 • Identity & Trust',
       placement: 'bottom',
-      description: 'Welcome to BBDRTS! Your profile verifies your decentralized identity, connected Ethereum wallet, and transparent philanthropic record. Every contribution is tracked with immutable cryptographic transparency.'
+      description: 'Welcome to BBDRTS! Your profile is verified on the Ethereum Sepolia blockchain. 100% of your contributions go directly to disaster victims with zero middleman fees or political redirection.'
+    },
+    {
+      target: '#tour-donor-featured-causes',
+      title: 'How to Donate to Emergency Relief',
+      icon: 'volunteer_activism',
+      badge: 'Step 2 of 6 • Donating',
+      placement: 'top',
+      description: 'Browse live emergency appeals deployed by accredited Philippine NGOs. Inspect the calamity urgency (Critical, High), affected municipality, and funding goals. Click "Contribute" on any campaign to donate with Web3 ETH or Philippine E-Wallets (GCash & Maya).'
     },
     {
       target: '#tour-donor-badge-card',
-      title: 'Donor Honors Ladder & Badges',
+      title: 'Honors Ladder & Philanthropic Badges',
       icon: 'military_tech',
-      badge: 'Step 2 of 8 • Recognition',
+      badge: 'Step 3 of 6 • Recognition',
       placement: 'bottom',
-      description: 'Earn prestigious Philippine disaster response milestones: First Responder, Community Guardian, and Relief Champion. Click the Honors Ladder anytime to inspect your next rank and on-chain impact credentials.'
-    },
-    {
-      target: '#tour-donor-metrics',
-      title: 'Real-Time Calamity Intelligence',
-      icon: 'monitoring',
-      badge: 'Step 3 of 8 • Relief Metrics',
-      placement: 'bottom',
-      description: 'Live monitoring of nationwide humanitarian relief: recorded contributions, active relief operations, EVM Level 1 contract verification, and total cumulative ETH and PHP mobilized.'
-    },
-    {
-      target: '#tour-donor-actions',
-      title: 'Quick Navigation & Verification',
-      icon: 'touch_app',
-      badge: 'Step 4 of 8 • Quick Actions',
-      placement: 'bottom',
-      description: 'Direct shortcuts to open your Honors Ladder, browse active relief causes, or inspect the immutable public ledger on the Sepolia Etherscan block explorer.'
-    },
-    {
-      target: '#tour-donor-tab-campaigns',
-      title: 'Verified Relief Campaigns',
-      icon: 'campaign',
-      badge: 'Step 5 of 8 • Campaign Discovery',
-      placement: 'right',
-      description: 'Explore active emergency appeals deployed by accredited Philippine NGOs. Filter by Urgency (Critical, High, Stable), Island Group (Luzon, Visayas, Mindanao), and Cause. Donate via Web3 or Philippine E-Wallets.'
+      description: 'Your donations earn on-chain recognition: First Responder, Community Guardian, and Relief Champion. Click your Honors Ladder anytime to inspect your milestone credentials and next unlockable rank.'
     },
     {
       target: '#tour-donor-tab-donations',
-      title: 'Proof of Impact & Digital Receipts',
+      title: 'Verifiable Receipts & Ground-Zero Proof',
       icon: 'receipt_long',
-      badge: 'Step 6 of 8 • Transparent Audit Trail',
+      badge: 'Step 4 of 6 • Audit Trail',
       placement: 'right',
-      description: 'Access all your contributions with immutable transaction hashes, printable official digital receipts, and verified milestone distribution proofs from ground zero.'
+      description: 'Every donation generates an immutable Sepolia transaction hash. Access this tab anytime to download printable official digital receipts and audit distribution photo proofs submitted by NGOs at ground zero.'
     },
     {
       target: '#tour-donor-tab-radar',
-      title: 'Disaster Relief Doppler Radar',
+      title: 'Disaster Doppler Radar & Heatmap',
       icon: 'radar',
-      badge: 'Step 7 of 8 • Live Heatmap',
+      badge: 'Step 5 of 6 • Live Map',
       placement: 'right',
-      description: 'Real-time interactive Doppler weather radar and calamity concentration heatmaps tracking typhoon paths and disaster severity across the Philippine archipelago.'
+      description: 'Monitor real-time Philippine Doppler weather radar and calamity concentration heatmaps across Luzon, Visayas, and Mindanao to track typhoon storm paths and see where emergency aid is needed most.'
     },
     {
-      target: '#tour-donor-sepolia-node',
-      title: 'Ethereum Sepolia Live Gateway',
-      icon: 'hub',
-      badge: 'Step 8 of 8 • Protocol Status',
-      placement: 'right',
-      description: 'Monitors live synchronization with Solidity smart contracts on the Ethereum Sepolia network. You can replay this tutorial anytime by clicking Guided Tutorial in the sidebar or Settings!'
+      target: '#tour-donor-actions',
+      title: 'Quick Actions & Public Ledger',
+      icon: 'touch_app',
+      badge: 'Step 6 of 6 • Shortcuts',
+      placement: 'bottom',
+      description: 'Use these shortcuts anytime to jump into active relief appeals, open your Honors Ladder, or audit all contract transactions on the Sepolia Etherscan explorer. You can replay this guide anytime from the sidebar!'
     }
   ];
 
@@ -806,7 +790,7 @@ export default function DonorView({ contract, walletAddress, campaigns, fetchCam
               </div>
 
               {/* Featured Campaigns Preview Section */}
-              <div style={{ marginTop: '28px' }}>
+              <div style={{ marginTop: '28px' }} id="tour-donor-featured-causes">
                 <div className="section-header">
                   <h2 className="section-title">
                     <span className="material-symbols-outlined section-title-icon" style={{marginRight: '8px'}}>stars</span> Featured Relief Causes
