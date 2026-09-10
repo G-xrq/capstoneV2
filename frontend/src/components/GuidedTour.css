@@ -1,16 +1,31 @@
 /* ═════════════════════════════════════════════════════════════════════
    BBDRTS Guided Onboarding Spotlight Tour (Driver.js Styling System)
-   Ultra-Smooth, Zero-Jitter, Crystal-Clear Cutout, Synchronized Themes
+   Ultra-Smooth, Zero-Jitter, Outside Backdrop Blur, Crystal-Clear Cutout
    ═════════════════════════════════════════════════════════════════════ */
 
-/* ── 1. SVG Cutout Backdrop Overlay (NO blur, perfectly crystal-clear cutout) ── */
+/* ── 1. Dynamic Outside Backdrop Blur (Blurs page outside while keeping cutout 100% sharp) ── */
+#bbdrts-tour-blur-overlay {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 999999999 !important;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  background: rgba(0, 0, 0, 0.25);
+  pointer-events: none;
+  transition: opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: clip-path;
+}
+
+/* ── 2. SVG Cutout Backdrop Overlay ── */
 .driver-overlay {
   transition: opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
   z-index: 1000000000 !important;
-  /* Strictly NO backdrop-filter here: guarantees the highlighted element inside the cutout is 100% sharp and clear */
+  /* Dark dimming layer */
 }
 
-/* ── 2. Highlighted Stage Active Target ── */
+/* ── 3. Highlighted Stage Active Target ── */
 .driver-active-element {
   outline: 2.5px solid var(--tour-accent, #22c55e) !important;
   outline-offset: 4px !important;
@@ -20,7 +35,7 @@
   z-index: 1000000002 !important;
 }
 
-/* ── 3. Tooltip Popover Card with Smooth Reveal Delay ── */
+/* ── 4. Tooltip Popover Card with Calibrated Reveal Delay ── */
 .driver-popover.bbdrts-tour-popover {
   all: unset;
   box-sizing: border-box;
@@ -39,19 +54,19 @@
   box-shadow: var(--tour-card-shadow, 0 24px 50px rgba(0, 0, 0, 0.8), 0 0 30px rgba(34, 197, 94, 0.22));
   color: var(--tour-text-primary, #ffffff);
   font-family: inherit;
-  animation: bbdrts-tour-popover-in 0.32s cubic-bezier(0.16, 1, 0.3, 1) both;
+  /* Calibrated longer reveal delay: stage glides first, eyes settle, then card gracefully slides in */
+  animation: bbdrts-tour-popover-in 0.65s cubic-bezier(0.16, 1, 0.3, 1) both;
   will-change: transform, opacity;
 }
 
-/* Graceful reveal animation: gives stage ~100ms to settle before card fades in */
 @keyframes bbdrts-tour-popover-in {
   0% {
     opacity: 0;
-    transform: translateY(8px) scale(0.97);
+    transform: translateY(16px) scale(0.95);
   }
-  30% {
+  55% {
     opacity: 0;
-    transform: translateY(8px) scale(0.97);
+    transform: translateY(16px) scale(0.95);
   }
   100% {
     opacity: 1;
@@ -59,7 +74,7 @@
   }
 }
 
-/* ── 4. Card Header: Category Badge & Title ── */
+/* ── 5. Card Header: Category Badge & Title ── */
 .bbdrts-tour-popover .driver-popover-title {
   display: block;
   margin: 0 0 10px 0;
@@ -102,7 +117,7 @@
   margin-top: 1px;
 }
 
-/* ── 5. Description Body ── */
+/* ── 6. Description Body ── */
 .bbdrts-tour-popover .driver-popover-description {
   display: block;
   margin: 0 0 16px 0;
@@ -111,7 +126,7 @@
   line-height: 1.65;
 }
 
-/* ── 6. Footer Navigation & Progress ── */
+/* ── 7. Footer Navigation & Progress ── */
 .bbdrts-tour-popover .driver-popover-footer {
   display: flex;
   align-items: center;
@@ -212,7 +227,7 @@
   transform: scale(1.08);
 }
 
-/* ── 7. Directional Arrows ── */
+/* ── 8. Directional Arrows ── */
 .bbdrts-tour-popover .driver-popover-arrow {
   border-width: 8px !important;
 }

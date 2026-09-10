@@ -6,9 +6,9 @@ import './GuidedTour.css';
 /**
  * Universal Guided Spotlight Onboarding Tour Component
  * Powered by Driver.js (v1.8.0) with:
- * - Delayed smooth popover reveal (zero layout glitching)
+ * - Calibrated reveal delay (spotlight glides first, card reveals calmly)
+ * - Outside backdrop blur overlay (blurs background outside, keeping cutout 100% crisp)
  * - Safe overlay click protection (prevents accidental tour dismissals mid-tutorial)
- * - Crystal-clear hardware-accelerated SVG spotlight cutout
  * - Polished header, badge, close button, and typography alignment
  */
 export default function GuidedTour({
@@ -38,6 +38,59 @@ export default function GuidedTour({
     if (typeof onTabChange === 'function') {
       onTabChange('dashboard');
     }
+
+    // Dynamic outside backdrop blur overlay (blurs page outside while keeping cutout 100% sharp)
+    const blurOverlayId = 'bbdrts-tour-blur-overlay';
+
+    let blurEl = document.getElementById(blurOverlayId);
+    if (!blurEl) {
+      blurEl = document.createElement('div');
+      blurEl.id = blurOverlayId;
+      document.body.appendChild(blurEl);
+    }
+
+    const syncBlurCutout = () => {
+      const overlay = document.getElementById(blurOverlayId);
+      if (!overlay) return;
+
+      const activeEl = document.querySelector('.driver-active-element');
+      if (!activeEl) {
+        overlay.style.clipPath = 'none';
+        return;
+      }
+
+      const rect = activeEl.getBoundingClientRect();
+      const pad = 10;
+      const x = Math.max(0, Math.round(rect.left - pad));
+      const y = Math.max(0, Math.round(rect.top - pad));
+      const r = Math.min(window.innerWidth, Math.round(rect.right + pad));
+      const b = Math.min(window.innerHeight, Math.round(rect.bottom + pad));
+
+      if (r <= x || b <= y) {
+        overlay.style.clipPath = 'none';
+        return;
+      }
+
+      // Single continuous polygon donut: covers entire viewport EXCEPT [x..r, y..b]
+      // Zero blur inside the cutout hole; rich backdrop blur everywhere outside
+      overlay.style.clipPath = `polygon(0% 0%, 0% 100%, ${x}px 100%, ${x}px ${y}px, ${r}px ${y}px, ${r}px ${b}px, ${x}px ${b}px, ${x}px 100%, 100% 100%, 100% 0%)`;
+    };
+
+    let animFrameId = null;
+    const renderLoop = () => {
+      syncBlurCutout();
+      animFrameId = requestAnimationFrame(renderLoop);
+    };
+    animFrameId = requestAnimationFrame(renderLoop);
+
+    const cleanupBlur = () => {
+      if (animFrameId) {
+        cancelAnimationFrame(animFrameId);
+        animFrameId = null;
+      }
+      const bEl = document.getElementById(blurOverlayId);
+      if (bEl) bEl.remove();
+    };
 
     const totalSteps = steps.length;
     const driverSteps = steps.map((s, idx) => {
@@ -81,7 +134,7 @@ export default function GuidedTour({
       stagePadding: 10,
       stageRadius: 12,
       popoverOffset: 14,
-      overlayColor: 'rgba(0, 0, 0, 0.82)',
+      overlayColor: 'rgba(0, 0, 0, 0.78)',
       // Safe backdrop behavior: Clicking outside does NOT dismiss the tour mid-tutorial
       overlayClickBehavior: () => {
         // Deliberate no-op: prevents accidental dismissal when reading or clicking around
@@ -106,6 +159,7 @@ export default function GuidedTour({
         }
       },
       onDestroyStarted: () => {
+        cleanupBlur();
         if (!isClosingRef.current) {
           isClosingRef.current = true;
           try {
@@ -126,17 +180,18 @@ export default function GuidedTour({
 
     driverRef.current = driverObj;
 
-    // Buffer delay to guarantee DOM styles and layout are ready before drive()
+    // Calm delay before launching drive() to ensure layout and scroll are fully settled
     const timer = setTimeout(() => {
       try {
         driverObj.drive();
       } catch (err) {
         console.warn('Driver.js drive() error:', err);
       }
-    }, 150);
+    }, 450);
 
     return () => {
       clearTimeout(timer);
+      cleanupBlur();
       if (driverRef.current) {
         driverRef.current.destroy();
         driverRef.current = null;

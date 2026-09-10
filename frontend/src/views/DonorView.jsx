@@ -83,73 +83,81 @@ export default function DonorView({ contract, walletAddress, campaigns, fetchCam
     setActiveTab('dashboard');
     setTimeout(() => {
       setShowGuidedTour(true);
-    }, 100);
+    }, 250);
   };
 
   const donorTourSteps = [
     {
       target: '#tour-donor-welcome',
-      title: 'Decentralized Identity & Zero-Fee Routing',
+      title: 'Decentralized Identity & 100% Direct Giving',
       icon: 'verified_user',
-      badge: 'Step 1 of 8 • Identity & Trust',
+      badge: 'Step 1 of 9 • Identity & Trust',
       placement: 'bottom',
-      description: 'Welcome to BBDRTS! Your profile is verified on the Ethereum Sepolia blockchain. 100% of your contributions go directly to calamity victims with zero platform commissions or political redirection.'
+      description: 'Welcome to BBDRTS! Your profile is cryptographically secured on the Ethereum Sepolia blockchain. 100% of your contributions go straight to relief causes with zero platform commission, zero gateway cuts, and zero political interception.'
     },
     {
       target: '#tour-donor-featured-causes',
-      title: 'How to Donate to an Emergency Relief Cause',
-      icon: 'volunteer_activism',
-      badge: 'Step 2 of 8 • Direct Giving',
+      title: 'Emergency Relief Appeals & Calamity Urgency',
+      icon: 'emergency',
+      badge: 'Step 2 of 9 • Active Appeals',
       placement: 'top',
-      description: 'Explore active emergency appeals deployed by accredited Philippine NGOs. Inspect disaster urgency (Critical, High), affected municipality, and funding goals. Click "Contribute" on any campaign to donate with Web3 ETH or Philippine E-Wallets (GCash & Maya).'
-    },
-    {
-      target: '#tour-donor-tab-campaigns',
-      title: 'Relief Campaigns Directory & Advanced Filters',
-      icon: 'campaign',
-      badge: 'Step 3 of 8 • Search & Filters',
-      placement: 'right',
-      description: 'Access our nationwide directory of verified disaster appeals across Luzon, Visayas, and Mindanao. Filter campaigns by Calamity Urgency, Island Group, and Cause Category (Disaster Relief, Medical, Food Supply).'
-    },
-    {
-      target: '#tour-donor-badge-card',
-      title: 'Honors Ladder & Philanthropic Badges',
-      icon: 'military_tech',
-      badge: 'Step 4 of 8 • Recognition',
-      placement: 'bottom',
-      description: 'Your donations earn prestigious on-chain milestone badges: First Responder, Community Guardian, and Relief Champion. Click your Honors Ladder anytime to inspect your next rank and on-chain impact credentials.'
-    },
-    {
-      target: '#tour-donor-tab-donations',
-      title: 'Verifiable Digital Receipts & Ground-Zero Proof',
-      icon: 'receipt_long',
-      badge: 'Step 5 of 8 • Audit Trail',
-      placement: 'right',
-      description: 'Every donation generates an immutable Sepolia transaction hash. Access this tab anytime to download printable official digital receipts and audit distribution photo proofs submitted by NGOs at ground zero.'
-    },
-    {
-      target: '#tour-donor-tab-radar',
-      title: 'Disaster Doppler Radar & Calamity Heatmap',
-      icon: 'radar',
-      badge: 'Step 6 of 8 • Situational Awareness',
-      placement: 'right',
-      description: 'Monitor real-time Philippine Doppler weather radar and calamity concentration heatmaps across Luzon, Visayas, and Mindanao to track typhoon storm paths and see where emergency aid is needed most.'
-    },
-    {
-      target: '#tour-donor-sepolia-node',
-      title: 'Sepolia Blockchain Node & Smart Contract Protocol',
-      icon: 'hub',
-      badge: 'Step 7 of 8 • Web3 Gateway',
-      placement: 'right',
-      description: 'Monitors live EVM testnet synchronization. Solidity smart contracts automatically lock and disburse emergency funds without human tampering or fund diversion.'
+      description: 'Explore live disaster appeals deployed by accredited Philippine NGOs. Inspect disaster severity badges (Critical, High, Medium), affected municipalities, and real-time funding progress bars.'
     },
     {
       target: '#tour-donor-actions',
-      title: 'Quick Actions Hub & Profile Settings',
-      icon: 'touch_app',
-      badge: 'Step 8 of 8 • Quick Shortcuts',
+      title: 'Dual Payment Rails: Web3 ETH & Philippine E-Wallets',
+      icon: 'payments',
+      badge: 'Step 3 of 9 • Flexible Giving',
       placement: 'bottom',
-      description: 'Use these shortcuts anytime to jump into active relief appeals, open your Honors Ladder, or audit all contract transactions on the Sepolia Etherscan explorer. You can replay this guide anytime from the sidebar!'
+      description: 'You can contribute via Web3 Crypto (Sepolia ETH using MetaMask) OR Philippine E-Wallets (GCash & Maya QR Gateway). Real-time fiat-to-crypto conversion calculates exact values in Philippine Pesos (₱).'
+    },
+    {
+      target: '#tour-donor-featured-causes',
+      title: 'Anonymous Giving & Privacy Protection',
+      icon: 'visibility_off',
+      badge: 'Step 4 of 9 • Donor Privacy',
+      placement: 'top',
+      description: 'Prefer to keep your support confidential? When contributing, you can toggle "Contribute Anonymously" to mask your identity and wallet address from public campaign leaderboards while still receiving an official audit receipt.'
+    },
+    {
+      target: '#tour-donor-tab-campaigns',
+      title: 'Milestone Escrow & Ground-Zero Photo Proofs',
+      icon: 'verified',
+      badge: 'Step 5 of 9 • Anti-Fraud Security',
+      placement: 'right',
+      description: 'Relief funds are never handed over blindly. Solidity smart contracts lock contributions in escrow and only disburse aid in tranches once NGOs submit geotagged distribution photos and merchant receipts from ground zero.'
+    },
+    {
+      target: '#tour-donor-tab-radar',
+      title: 'Live PAGASA Doppler Radar & Calamity Heatmaps',
+      icon: 'radar',
+      badge: 'Step 6 of 9 • Situational Awareness',
+      placement: 'right',
+      description: 'Monitor real-time Philippine Doppler weather radar and calamity concentration heatmaps across Luzon, Visayas, and Mindanao. Track storm trajectories to direct your aid where catastrophic impact is greatest.'
+    },
+    {
+      target: '#tour-donor-tab-donations',
+      title: 'Digital Receipts & Downloadable PDF Audit Trail',
+      icon: 'receipt_long',
+      badge: 'Step 7 of 9 • Immutable Records',
+      placement: 'right',
+      description: 'Every single donation generates an immutable Sepolia transaction hash. Open this tab anytime to inspect disbursement proofs, download printable official PDF tax receipts, or audit fund routing on Etherscan.'
+    },
+    {
+      target: '#tour-donor-badge-card',
+      title: 'Honors Ladder & Philanthropic Impact Badges',
+      icon: 'military_tech',
+      badge: 'Step 8 of 9 • Recognition',
+      placement: 'bottom',
+      description: 'Every peso and ETH you contribute earns humanitarian milestones on your Honors Ladder: First Responder, Community Guardian, and Relief Champion. Level up your tier and display verified impact credentials.'
+    },
+    {
+      target: '#tour-donor-sepolia-node',
+      title: 'Sepolia Node Status & Replaying This Guide',
+      icon: 'hub',
+      badge: 'Step 9 of 9 • Protocol & Settings',
+      placement: 'right',
+      description: 'This widget monitors live EVM testnet synchronization. You can toggle interface themes (Dark, Light, Cyber) or replay this guided tour anytime by clicking the "Guided Tutorial" button in the sidebar!'
     }
   ];
 
