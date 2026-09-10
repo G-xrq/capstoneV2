@@ -66,6 +66,7 @@ export default function DonorView({ contract, walletAddress, campaigns, fetchCam
           if ((isAuthClear && isTargetReady) || attempts >= maxAttempts) {
             clearInterval(pollInterval);
             setTimeout(() => {
+              setActiveTab('dashboard');
               setShowGuidedTour(true);
               localStorage.removeItem('bbdrts_tour_force_launch');
               localStorage.removeItem('bbdrts_is_new_registration');
@@ -78,69 +79,77 @@ export default function DonorView({ contract, walletAddress, campaigns, fetchCam
     } catch (_) {}
   }, [userTourKey]);
 
+  const handleStartTour = () => {
+    setActiveTab('dashboard');
+    setTimeout(() => {
+      setShowGuidedTour(true);
+    }, 100);
+  };
+
   const donorTourSteps = [
     {
       target: '#tour-donor-welcome',
-      title: 'Welcome to Verified Philanthropy',
+      title: 'Decentralized Identity & Relief Hub',
       icon: 'verified_user',
-      badge: 'Step 1 of 7 • Overview',
-      tab: 'dashboard',
+      badge: 'Step 1 of 8 • Verified Profile',
       placement: 'bottom',
-      description: 'Welcome to BBDRTS! Your profile verifies your decentralized identity, philanthropic reputation, and tracks every peso or ETH you contribute with immutable cryptographic transparency.'
+      description: 'Welcome to BBDRTS! Your profile verifies your decentralized identity, connected Ethereum wallet, and transparent philanthropic record. Every contribution is tracked with immutable cryptographic transparency.'
     },
     {
       target: '#tour-donor-badge-card',
       title: 'Donor Honors Ladder & Badges',
       icon: 'military_tech',
-      badge: 'Step 2 of 7 • Recognition',
-      tab: 'dashboard',
+      badge: 'Step 2 of 8 • Recognition',
       placement: 'bottom',
-      description: 'Unlock prestigious Philippine disaster response milestones: First Responder, Community Guardian, and Relief Champion. Click the Honors Ladder anytime to inspect your next rank and on-chain impact credentials.'
+      description: 'Earn prestigious Philippine disaster response milestones: First Responder, Community Guardian, and Relief Champion. Click the Honors Ladder anytime to inspect your next rank and on-chain impact credentials.'
     },
     {
       target: '#tour-donor-metrics',
       title: 'Real-Time Calamity Intelligence',
       icon: 'monitoring',
-      badge: 'Step 3 of 7 • Relief Metrics',
-      tab: 'dashboard',
+      badge: 'Step 3 of 8 • Relief Metrics',
       placement: 'bottom',
-      description: 'Live real-time monitoring of nationwide humanitarian relief: active disaster operations, total emergency funds raised, your personal contributions, and our automated smart-contract transparency score.'
+      description: 'Live monitoring of nationwide humanitarian relief: recorded contributions, active relief operations, EVM Level 1 contract verification, and total cumulative ETH and PHP mobilized.'
     },
     {
-      target: '#tour-campaigns-toolbar',
+      target: '#tour-donor-actions',
+      title: 'Quick Navigation & Verification',
+      icon: 'touch_app',
+      badge: 'Step 4 of 8 • Quick Actions',
+      placement: 'bottom',
+      description: 'Direct shortcuts to open your Honors Ladder, browse active relief causes, or inspect the immutable public ledger on the Sepolia Etherscan block explorer.'
+    },
+    {
+      target: '#tour-donor-tab-campaigns',
       title: 'Verified Relief Campaigns',
       icon: 'campaign',
-      badge: 'Step 4 of 7 • Discovery',
-      tab: 'campaigns',
-      placement: 'bottom',
-      description: 'Explore active emergency appeals deployed by accredited Philippine NGOs. Filter by Calamity Urgency (Critical, High, Stable), Philippine Region, and Cause. Donate securely via Web3 Ethereum or Philippine E-Wallets (GCash & Maya).'
+      badge: 'Step 5 of 8 • Campaign Discovery',
+      placement: 'right',
+      description: 'Explore active emergency appeals deployed by accredited Philippine NGOs. Filter by Urgency (Critical, High, Stable), Island Group (Luzon, Visayas, Mindanao), and Cause. Donate via Web3 or Philippine E-Wallets.'
     },
     {
-      target: '#tour-donations-header',
+      target: '#tour-donor-tab-donations',
       title: 'Proof of Impact & Digital Receipts',
       icon: 'receipt_long',
-      badge: 'Step 5 of 7 • Audit Trail',
-      tab: 'my-donations',
-      placement: 'bottom',
-      description: 'Every donation generates an immutable transaction on Ethereum Sepolia. View verifiable transaction hashes, download official printable digital receipts, and audit ground-zero relief disbursements in real time.'
+      badge: 'Step 6 of 8 • Transparent Audit Trail',
+      placement: 'right',
+      description: 'Access all your contributions with immutable transaction hashes, printable official digital receipts, and verified milestone distribution proofs from ground zero.'
     },
     {
-      target: '#tour-radar-header',
+      target: '#tour-donor-tab-radar',
       title: 'Disaster Relief Doppler Radar',
       icon: 'radar',
-      badge: 'Step 6 of 7 • Radar Heatmap',
-      tab: 'radar-heatmap',
-      placement: 'bottom',
-      description: 'Live interactive Doppler precipitation radar and calamity severity heatmap tracking typhoon storm tracks and calamity concentration across Luzon, Visayas, and Mindanao to see where help is needed most.'
+      badge: 'Step 7 of 8 • Live Heatmap',
+      placement: 'right',
+      description: 'Real-time interactive Doppler weather radar and calamity concentration heatmaps tracking typhoon paths and disaster severity across the Philippine archipelago.'
     },
     {
       target: '#tour-donor-sepolia-node',
-      title: 'Sepolia Blockchain Protocol',
+      title: 'Ethereum Sepolia Live Gateway',
       icon: 'hub',
-      badge: 'Step 7 of 7 • Web3 Gateway',
-      tab: 'dashboard',
+      badge: 'Step 8 of 8 • Protocol Status',
       placement: 'right',
-      description: 'Monitors real-time live synchronization with our Solidity smart contracts on the Ethereum Sepolia testnet. You are ready to make a lifesaving impact! You can replay this tutorial anytime from the sidebar or Settings.'
+      description: 'Monitors live synchronization with Solidity smart contracts on the Ethereum Sepolia network. You can replay this tutorial anytime by clicking Guided Tutorial in the sidebar or Settings!'
     }
   ];
 
@@ -586,7 +595,7 @@ export default function DonorView({ contract, walletAddress, campaigns, fetchCam
             <button 
               type="button"
               className="ref-nav-item"
-              onClick={() => setShowGuidedTour(true)}
+              onClick={handleStartTour}
               style={{ marginTop: '10px', borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '10px', color: 'var(--accent, #22c55e)' }}
               title="Take a guided walkthrough of the donor platform"
             >
@@ -708,7 +717,7 @@ export default function DonorView({ contract, walletAddress, campaigns, fetchCam
                   </div>
                 </div>
 
-                <div className="ref-action-btns">
+                <div className="ref-action-btns" id="tour-donor-actions">
                   <button type="button" className="ref-btn-pill-primary" onClick={() => setShowTierModal(true)}>
                     <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#eab308' }}>military_tech</span>
                     <span>Honors Ladder</span>
@@ -1999,7 +2008,7 @@ export default function DonorView({ contract, walletAddress, campaigns, fetchCam
                 totalDonatedEth={totalDonated}
                 totalDonatedPhp={totalDonatedPhp}
                 onOpenHonorsLadder={() => setShowTierModal(true)}
-                onStartTour={() => setShowGuidedTour(true)}
+                onStartTour={handleStartTour}
               />
             </div>
           )}

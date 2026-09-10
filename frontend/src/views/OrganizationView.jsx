@@ -578,6 +578,7 @@ export default function OrganizationView({
           if ((isAuthClear && isTargetReady) || attempts >= maxAttempts) {
             clearInterval(pollInterval);
             setTimeout(() => {
+              setActiveTab('dashboard');
               setShowGuidedTour(true);
               localStorage.removeItem('bbdrts_tour_force_launch');
               localStorage.removeItem('bbdrts_is_new_registration');
@@ -590,69 +591,77 @@ export default function OrganizationView({
     } catch (_) {}
   }, [userTourKey]);
 
+  const handleStartTour = () => {
+    setActiveTab('dashboard');
+    setTimeout(() => {
+      setShowGuidedTour(true);
+    }, 100);
+  };
+
   const ngoTourSteps = [
     {
       target: '#tour-ngo-welcome',
-      title: 'Disaster Operations Command',
+      title: 'Disaster Operations Command Center',
       icon: 'corporate_fare',
-      badge: 'Step 1 of 7 • Hub Overview',
-      tab: 'dashboard',
+      badge: 'Step 1 of 8 • Hub Overview',
       placement: 'bottom',
-      description: 'Welcome to your Disaster Operations Command Center. Coordinate rapid calamity relief, manage smart-contract emergency appeals, and maintain transparent relief accountability across the Philippines.'
+      description: 'Welcome to your Command Center! Coordinate rapid disaster relief, deploy smart-contract emergency appeals, and maintain transparent relief accountability across the Philippines.'
     },
     {
       target: '#tour-ngo-metrics',
-      title: 'Mission Impact & Financial Pulse',
+      title: 'Mission Impact & Financial Readiness',
       icon: 'monitoring',
-      badge: 'Step 2 of 7 • Readiness Metrics',
-      tab: 'dashboard',
+      badge: 'Step 2 of 8 • Readiness Metrics',
       placement: 'bottom',
-      description: 'Track total relief funding mobilized, deployed emergency missions, received contributions, and your organization\'s decentralized compliance health in real time.'
+      description: 'Track total emergency funding mobilized, deployed operations, active disaster responses, and your organization\'s compliance health in real time.'
     },
     {
-      target: '#tour-ngo-sec-header',
-      title: 'Philippine SEC & Institutional KYC',
+      target: '#tour-ngo-actions',
+      title: 'Deployment & Ledger Shortcuts',
+      icon: 'touch_app',
+      badge: 'Step 3 of 8 • Operations Actions',
+      placement: 'bottom',
+      description: 'Quickly deploy new emergency appeals or open the live Sepolia Etherscan explorer to verify all public smart-contract transactions.'
+    },
+    {
+      target: '#tour-ngo-tab-sec',
+      title: 'Institutional SEC Non-Profit KYC',
       icon: 'verified_user',
-      badge: 'Step 3 of 7 • Accreditation',
-      tab: 'sec-kyc',
-      placement: 'bottom',
-      description: 'Manage your organization\'s Philippine SEC Non-Stock Corporation Registration, DSWD License to Operate, and Board of Trustees accreditation for complete public trust.'
+      badge: 'Step 4 of 8 • Legal Accreditation',
+      placement: 'right',
+      description: 'Manage your Philippine SEC Non-Stock Corporation Registration, DSWD permit compliance, and Board of Trustees accreditation to establish full donor trust.'
     },
     {
-      target: '#tour-ngo-create-form',
-      title: 'Deploy Smart Contract Campaign',
-      icon: 'add_circle',
-      badge: 'Step 4 of 7 • Deployment',
-      tab: 'create',
-      placement: 'bottom',
-      description: 'Launch emergency appeals in minutes. Set the disaster urgency, affected municipality, relief funding goal in PHP & ETH, and beneficiary count with immutable Ethereum rules.'
+      target: '#tour-ngo-tab-create',
+      title: 'Deploy Smart-Contract Appeals',
+      icon: 'rocket_launch',
+      badge: 'Step 5 of 8 • Campaign Creation',
+      placement: 'right',
+      description: 'Launch verified emergency appeals in minutes. Specify calamity urgency, affected municipality, target funding in PHP/ETH, and beneficiary goals with immutable rules.'
     },
     {
-      target: '#tour-ngo-my-campaigns-header',
+      target: '#tour-ngo-tab-my-campaigns',
       title: 'Milestone Proof & Relief Distribution',
       icon: 'inventory_2',
-      badge: 'Step 5 of 7 • Ground Zero Proof',
-      tab: 'my-campaigns',
-      placement: 'bottom',
-      description: 'Publish transparent ground-zero distribution updates, relief delivery photos, and official purchase receipts directly to your campaign milestones for public auditing.'
+      badge: 'Step 6 of 8 • Ground Zero Proof',
+      placement: 'right',
+      description: 'Publish transparent distribution updates, relief delivery photos, and official purchase receipts directly to campaign milestones for public auditing.'
     },
     {
-      target: '#tour-ngo-ledger-header',
-      title: 'Multi-Channel Financial Transparency',
-      icon: 'account_balance',
-      badge: 'Step 6 of 7 • Audit Ledger',
-      tab: 'ledger',
-      placement: 'bottom',
+      target: '#tour-ngo-tab-ledger',
+      title: 'Financial Transparency Ledger',
+      icon: 'receipt_long',
+      badge: 'Step 7 of 8 • Audit Ledger',
+      placement: 'right',
       description: 'Audit incoming donations across Ethereum Web3, GCash, PayMaya, and Bank Transfers with real-time transaction reconciliation and SEC compliance verification.'
     },
     {
-      target: '#tour-ngo-radar-header',
-      title: 'Disaster Response Logistics Radar',
-      icon: 'radar',
-      badge: 'Step 7 of 7 • Logistics Map',
-      tab: 'radar-heatmap',
-      placement: 'bottom',
-      description: 'Utilize live Doppler weather radar and calamity severity heatmaps to optimize disaster relief logistics, coordinate ground transport, and reach isolated municipalities.'
+      target: '#tour-ngo-sepolia-node',
+      title: 'Sepolia Blockchain Protocol',
+      icon: 'hub',
+      badge: 'Step 8 of 8 • Web3 Gateway',
+      placement: 'right',
+      description: 'Ensures 100% smart contract immutability and real-time EVM synchronization. You can replay this tutorial anytime by clicking Guided Tutorial in the sidebar or Settings!'
     }
   ];
 
@@ -1176,7 +1185,7 @@ export default function OrganizationView({
               <button 
                 type="button"
                 className="ref-nav-item"
-                onClick={() => setShowGuidedTour(true)}
+                onClick={handleStartTour}
                 style={{ marginTop: '10px', borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '10px', color: 'var(--accent, #22c55e)' }}
                 title="Take a guided walkthrough of the NGO portal"
               >
@@ -1187,7 +1196,7 @@ export default function OrganizationView({
           </div>
 
           {/* ── Web3 Sepolia Live Protocol Widget ── */}
-          <div className="ref-sidebar-widget" style={{ marginTop: '20px' }}>
+          <div className="ref-sidebar-widget" id="tour-ngo-sepolia-node" style={{ marginTop: '20px' }}>
             <div className="ref-widget-header">
               <span className="ref-status-dot"></span>
               <span className="ref-widget-title">Sepolia EVM Protocol</span>
@@ -1256,7 +1265,7 @@ export default function OrganizationView({
                   </div>
                 </div>
 
-                <div className="ref-action-btns">
+                <div className="ref-action-btns" id="tour-ngo-actions">
                   <button className="ref-btn-pill-primary" onClick={() => setActiveTab('create')}>
                     <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>rocket_launch</span>
                     <span>Deploy Campaign</span>
@@ -4162,7 +4171,7 @@ export default function OrganizationView({
                 setTheme={setTheme}
                 textSize={textSize}
                 setTextSize={setTextSize}
-                onStartTour={() => setShowGuidedTour(true)}
+                onStartTour={handleStartTour}
               />
             </div>
           )}
