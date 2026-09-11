@@ -1,7 +1,136 @@
-import { useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { driver } from 'driver.js';
 import 'driver.js/dist/driver.css';
 import './GuidedTour.css';
+
+/**
+ * Celebratory dual-cannon side confetti burst
+ * Only shoots out from each side (left edge and right edge) of the last popover card!
+ */
+function fireSideConfetti(cardElement) {
+  if (!cardElement) return;
+  const rect = cardElement.getBoundingClientRect();
+
+  const canvas = document.createElement('canvas');
+  canvas.id = 'bbdrts-side-confetti';
+  canvas.style.position = 'fixed';
+  canvas.style.top = '0';
+  canvas.style.left = '0';
+  canvas.style.width = '100vw';
+  canvas.style.height = '100vh';
+  canvas.style.pointerEvents = 'none';
+  canvas.style.zIndex = '1000000040';
+  document.body.appendChild(canvas);
+
+  const ctx = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = window.innerWidth * dpr;
+  canvas.height = window.innerHeight * dpr;
+  ctx.scale(dpr, dpr);
+
+  const colors = ['#22c55e', '#38bdf8', '#eab308', '#ec4899', '#a855f7', '#10b981', '#f59e0b', '#06b6d4'];
+  const particles = [];
+  const countPerSide = 36;
+
+  // Left origin: right on the left edge of the card, midway down
+  const leftOrigin = {
+    x: Math.max(15, rect.left),
+    y: rect.top + rect.height * 0.45
+  };
+
+  // Right origin: right on the right edge of the card, midway down
+  const rightOrigin = {
+    x: Math.min(window.innerWidth - 15, rect.right),
+    y: rect.top + rect.height * 0.45
+  };
+
+  // Left side burst: shoot up and to the left
+  for (let i = 0; i < countPerSide; i++) {
+    const angle = Math.PI * 0.95 + (Math.random() * 0.5 - 0.25);
+    const speed = Math.random() * 8 + 4.5;
+    particles.push({
+      x: leftOrigin.x,
+      y: leftOrigin.y,
+      vx: Math.cos(angle) * speed,
+      vy: -Math.abs(Math.sin(angle) * speed * 1.3),
+      size: Math.random() * 7 + 4,
+      color: colors[Math.floor(Math.random() * colors.length)],
+      rotation: Math.random() * 360,
+      rotSpeed: (Math.random() - 0.5) * 14,
+      opacity: 1,
+      decay: Math.random() * 0.016 + 0.01,
+      shape: Math.random() > 0.4 ? 'rect' : 'circle',
+      wRatio: Math.random() * 0.8 + 0.5
+    });
+  }
+
+  // Right side burst: shoot up and to the right
+  for (let i = 0; i < countPerSide; i++) {
+    const angle = Math.PI * 0.05 - (Math.random() * 0.5 - 0.25);
+    const speed = Math.random() * 8 + 4.5;
+    particles.push({
+      x: rightOrigin.x,
+      y: rightOrigin.y,
+      vx: Math.cos(angle) * speed,
+      vy: -Math.abs(Math.sin(angle) * speed * 1.3),
+      size: Math.random() * 7 + 4,
+      color: colors[Math.floor(Math.random() * colors.length)],
+      rotation: Math.random() * 360,
+      rotSpeed: (Math.random() - 0.5) * 14,
+      opacity: 1,
+      decay: Math.random() * 0.016 + 0.01,
+      shape: Math.random() > 0.4 ? 'rect' : 'circle',
+      wRatio: Math.random() * 0.8 + 0.5
+    });
+  }
+
+  let animId;
+  const render = () => {
+    ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+    let activeCount = 0;
+
+    for (let p of particles) {
+      if (p.opacity <= 0) continue;
+      activeCount++;
+
+      p.x += p.vx;
+      p.y += p.vy;
+      p.vy += 0.22; // gravity
+      p.vx *= 0.985; // air friction
+      p.rotation += p.rotSpeed;
+      p.opacity -= p.decay;
+
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate((p.rotation * Math.PI) / 180);
+      ctx.globalAlpha = Math.max(0, p.opacity);
+      ctx.fillStyle = p.color;
+
+      if (p.shape === 'rect') {
+        ctx.fillRect(-p.size / 2, (-p.size * p.wRatio) / 2, p.size, p.size * p.wRatio);
+      } else {
+        ctx.beginPath();
+        ctx.arc(0, 0, p.size / 2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
+    }
+
+    if (activeCount > 0) {
+      animId = requestAnimationFrame(render);
+    } else {
+      cancelAnimationFrame(animId);
+      if (canvas.parentElement) canvas.remove();
+    }
+  };
+
+  animId = requestAnimationFrame(render);
+
+  setTimeout(() => {
+    cancelAnimationFrame(animId);
+    if (canvas.parentElement) canvas.remove();
+  }, 2800);
+}
 
 /**
  * Universal Guided Spotlight Onboarding Tour Component
@@ -26,6 +155,7 @@ export default function GuidedTour({
   const isNavigatingStepRef = useRef(false);
   const currentStepIndexRef = useRef(0);
   const settleTimerRef = useRef(null);
+  const [showWelcome, setShowWelcome] = useState(true);
 
   // Stable references to props to prevent re-render loops
   const stepsRef = useRef(steps);
@@ -42,7 +172,41 @@ export default function GuidedTour({
   themeRef.current = theme;
 
   useEffect(() => {
-    if (!isOpen) {
+    if (isOpen) {
+      setShowWelcome(true);
+    }
+  }, [isOpen]);
+
+  const handleStartTourSteps = () => {
+    setShowWelcome(false);
+  };
+
+  const handleSkipWelcome = () => {
+    setShowWelcome(false);
+    try {
+      localStorage.setItem(tourKeyRef.current, 'true');
+      localStorage.removeItem('bbdrts_tour_force_launch');
+      localStorage.removeItem('bbdrts_is_new_registration');
+    } catch (_) {}
+    if (typeof onCloseRef.current === 'function') {
+      onCloseRef.current();
+    }
+  };
+
+  // Allow Escape key to dismiss Welcome modal
+  useEffect(() => {
+    if (!isOpen || !showWelcome) return;
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        handleSkipWelcome();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, showWelcome]);
+
+  useEffect(() => {
+    if (!isOpen || showWelcome) {
       if (driverRef.current) {
         try {
           driverRef.current.destroy();
@@ -312,6 +476,11 @@ export default function GuidedTour({
     // ── High-Frequency Instant Tracking Scroll & Resize Handlers ──
     let scrollEndTimer = null;
     const handleScroll = () => {
+      if (isNavigatingStepRef.current) {
+        // Suppress scroll events while programmatic camera transition is active
+        return;
+      }
+
       const surround = document.getElementById(surroundId);
       if (surround && !surround.classList.contains('is-scrolling')) {
         surround.classList.add('is-scrolling');
@@ -434,35 +603,46 @@ export default function GuidedTour({
         // Keep popover strictly hidden while camera smooth scroll is traveling
         document.body.classList.add('tour-traveling');
 
-        // Settle timer: Once smooth scroll arrives at destination (~320ms), reveal popover at exact position
+        // Robust scroll settling: wait until window.scrollY has completely stopped moving!
         clearTimeout(settleTimerRef.current);
-        settleTimerRef.current = setTimeout(() => {
-          if (driverRef.current) {
-            try {
-              driverRef.current.refresh();
-            } catch (_) {}
-          }
-          // Wait two animation frames so Driver.js's internal refresh requestAnimationFrame has finished
-          // recalculating the popover and arrow coordinates BEFORE making the popover visible!
-          requestAnimationFrame(() => {
-            requestAnimationFrame(() => {
-              syncTourLayout(element);
-              // Reveal popover with silky fade-in directly at final resting position!
-              document.body.classList.remove('tour-traveling');
-              isNavigatingStepRef.current = false;
-            });
-          });
-        }, 320);
 
-        // Backup stabilization tick at 520ms
-        setTimeout(() => {
-          if (driverRef.current) {
-            try {
-              driverRef.current.refresh();
-            } catch (_) {}
+        let lastY = window.scrollY;
+        let stationaryCount = 0;
+        let checks = 0;
+
+        const checkSettled = () => {
+          checks++;
+          const currentY = window.scrollY;
+          if (Math.abs(currentY - lastY) < 1) {
+            stationaryCount++;
+          } else {
+            stationaryCount = 0;
           }
-          syncTourLayout(element);
-        }, 520);
+          lastY = currentY;
+
+          // If scroll has stayed completely still for 3 checks (~50ms) or reached safety max
+          if (stationaryCount >= 3 || checks > 22) {
+            if (driverRef.current) {
+              try {
+                driverRef.current.refresh();
+              } catch (_) {}
+            }
+            // Double requestAnimationFrame ensures Driver.js has finished layout positioning
+            requestAnimationFrame(() => {
+              requestAnimationFrame(() => {
+                syncTourLayout(element);
+                // Reveal popover with silky opacity fade directly at final resting position!
+                document.body.classList.remove('tour-traveling');
+                isNavigatingStepRef.current = false;
+              });
+            });
+          } else {
+            settleTimerRef.current = setTimeout(checkSettled, 16);
+          }
+        };
+
+        // Start checking after initial scroll kick
+        settleTimerRef.current = setTimeout(checkSettled, 60);
       },
       onCloseClick: () => {
         if (driverRef.current) {
@@ -487,6 +667,25 @@ export default function GuidedTour({
             document.body.classList.add('tour-traveling');
             clearTimeout(settleTimerRef.current);
           }, { capture: true });
+        }
+
+        // On the final step, customize the button to fire celebratory side confetti!
+        const isLastStep = currentStepIndexRef.current === totalSteps - 1;
+        if (popoverDOM.nextButton && isLastStep) {
+          popoverDOM.nextButton.innerHTML = "Got It, Let's Go! ✓";
+          popoverDOM.nextButton.onclick = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            // Fire bespoke celebration confetti from each side of the last card!
+            fireSideConfetti(popoverDOM.wrapper);
+            setTimeout(() => {
+              if (driverRef.current) {
+                try {
+                  driverRef.current.destroy();
+                } catch (_) {}
+              }
+            }, 1200);
+          };
         }
 
         if (popoverDOM.closeButton) {
@@ -543,7 +742,111 @@ export default function GuidedTour({
         driverRef.current = null;
       }
     };
-  }, [isOpen]);
+  }, [isOpen, showWelcome]);
+
+  // ── Render Welcome Modal (Step 0) Before Driving Through Individual Elements ──
+  if (isOpen && showWelcome) {
+    const isNgo = roleName === 'NGO' || roleName === 'Organization';
+    return (
+      <div 
+        className="bbdrts-tour-welcome-backdrop"
+        onClick={(e) => {
+          if (e.target === e.currentTarget) handleSkipWelcome();
+        }}
+      >
+        <div className="bbdrts-tour-welcome-card" role="dialog" aria-modal="true">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <div className="bbdrts-welcome-badge">
+              <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>help</span>
+              <span>Platform Tutorial • Interactive Guide</span>
+            </div>
+            <button
+              type="button"
+              className="bbdrts-welcome-close-btn"
+              onClick={handleSkipWelcome}
+              title="Close and explore on your own (Esc)"
+            >
+              ✕
+            </button>
+          </div>
+
+          <h2 className="bbdrts-welcome-title">
+            {isNgo
+              ? 'Welcome to Disaster Operations Command'
+              : 'Welcome to the Donor Command Center'}
+          </h2>
+
+          <p className="bbdrts-welcome-desc">
+            {isNgo
+              ? 'Take a quick 1-minute guided walkthrough of your verified operations suite, smart contract deployment, milestone proof escrow, and multi-channel audit ledger.'
+              : 'Take a quick 1-minute guided walkthrough through the core pillars that ensure 100% transparent, milestone-verified humanitarian disaster relief across the Philippines.'}
+          </p>
+
+          {/* 4 Core Value Pillars */}
+          <div className="bbdrts-welcome-pillars-grid">
+            <div className="bbdrts-welcome-pillar-item">
+              <div className="bbdrts-pillar-header">
+                <span className="material-symbols-outlined" style={{ fontSize: '17px', color: '#22c55e' }}>volunteer_activism</span>
+                <span>Dual-Rail Giving</span>
+              </div>
+              <div className="bbdrts-pillar-text">
+                Contribute via Sepolia ETH or instant Philippine E-Wallets (GCash & Maya) with zero platform fee cuts.
+              </div>
+            </div>
+
+            <div className="bbdrts-welcome-pillar-item">
+              <div className="bbdrts-pillar-header">
+                <span className="material-symbols-outlined" style={{ fontSize: '17px', color: '#38bdf8' }}>lock</span>
+                <span>Milestone-Locked Escrow</span>
+              </div>
+              <div className="bbdrts-pillar-text">
+                Relief funds remain locked on-chain and disbursed only upon verified geotagged photos and merchant receipts.
+              </div>
+            </div>
+
+            <div className="bbdrts-welcome-pillar-item">
+              <div className="bbdrts-pillar-header">
+                <span className="material-symbols-outlined" style={{ fontSize: '17px', color: '#eab308' }}>military_tech</span>
+                <span>12-Tier Honors Ladder</span>
+              </div>
+              <div className="bbdrts-pillar-text">
+                Every verified contribution permanently unlocks prestigious humanitarian badges and recognition on-chain.
+              </div>
+            </div>
+
+            <div className="bbdrts-welcome-pillar-item">
+              <div className="bbdrts-pillar-header">
+                <span className="material-symbols-outlined" style={{ fontSize: '17px', color: '#a855f7' }}>radar</span>
+                <span>Live Relief Radar</span>
+              </div>
+              <div className="bbdrts-pillar-text">
+                Interactive Philippine map combining live PAGASA Doppler radar precipitation feeds with relief campaign pins.
+              </div>
+            </div>
+          </div>
+
+          <div className="bbdrts-welcome-footer">
+            <button
+              type="button"
+              className="bbdrts-welcome-btn-ghost"
+              onClick={handleSkipWelcome}
+            >
+              Explore on My Own
+            </button>
+
+            <button
+              type="button"
+              className="bbdrts-welcome-btn-primary"
+              onClick={handleStartTourSteps}
+            >
+              <span>Start Guided Tour (8 Steps)</span>
+              <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>arrow_forward</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return null;
 }
