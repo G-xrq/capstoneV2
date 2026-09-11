@@ -399,7 +399,12 @@ export default function NotificationCenter({ dbUser, theme, onSelectNotification
   // Dynamic Relative Time Formatter (authoritative database timestamp vs live clock)
   const formatTimeAgo = (dateStr) => {
     if (!dateStr) return 'Just now';
-    const timestamp = new Date(dateStr).getTime();
+    let timestamp = new Date(dateStr).getTime();
+    if (isNaN(timestamp)) {
+      let clean = String(dateStr).trim().replace(' ', 'T');
+      if (!clean.endsWith('Z') && !clean.includes('+')) clean += 'Z';
+      timestamp = new Date(clean).getTime();
+    }
     if (isNaN(timestamp)) return 'Just now';
 
     const diffInSeconds = Math.max(0, Math.floor((currentTime - timestamp) / 1000));

@@ -2518,6 +2518,8 @@ app.get('/api/leaderboard', async (req, res) => {
   let authUserId = null;
   let authRole = null;
   let authWallet = null;
+  let authEmail = null;
+  let authName = null;
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
   if (token && token !== 'null') {
@@ -2525,8 +2527,10 @@ app.get('/api/leaderboard', async (req, res) => {
       const user = jwt.verify(token, secretKey);
       if (user) {
         authUserId = user.id;
-        authRole = user.role;
+        authRole = (user.role || '').toLowerCase();
         authWallet = (user.wallet_address || '').toLowerCase().trim();
+        authEmail = (user.email || user.username || '').toLowerCase().trim();
+        authName = (user.name || user.display_name || '').toLowerCase().trim();
       }
     } catch (_) {}
   }
@@ -2586,7 +2590,11 @@ app.get('/api/leaderboard', async (req, res) => {
     // Build real registered donors list
     const realDonors = (donorRows || []).map(r => {
       const eth = parseFloat(r.totalDonatedEth) || 0;
-      const isCurrent = (authRole === 'donor' && authUserId && Number(authUserId) === Number(r.donorId)) ||
+      const isCurrent = (authRole === 'donor' && (
+                          (authUserId && Number(authUserId) === Number(r.donorId)) ||
+                          (authEmail && r.username && authEmail === r.username.toLowerCase().trim()) ||
+                          (authName && r.displayName && authName === r.displayName.toLowerCase().trim())
+                        )) ||
                         (authWallet && r.walletAddress && authWallet === r.walletAddress.toLowerCase().trim());
       return {
         id: `donor-${r.donorId}`,
@@ -2704,7 +2712,11 @@ app.get('/api/leaderboard', async (req, res) => {
     const realNgos = (orgRows || []).map(o => {
       const eth = parseFloat(o.totalRaisedEth) || 0;
       const mStats = orgMetrics[o.orgId] || { totalMilestones: 0, completedMilestones: 0, totalBeneficiariesApprox: 0, activeCampaigns: 0 };
-      const isCurrent = (authRole === 'organization' && authUserId && Number(authUserId) === Number(o.orgId)) ||
+      const isCurrent = (authRole === 'organization' && (
+                          (authUserId && Number(authUserId) === Number(o.orgId)) ||
+                          (authEmail && o.username && authEmail === o.username.toLowerCase().trim()) ||
+                          (authName && o.orgName && authName === o.orgName.toLowerCase().trim())
+                        )) ||
                         (authWallet && o.walletAddress && authWallet === o.walletAddress.toLowerCase().trim());
       const isVerified = (o.verificationStatus || '').toLowerCase() === 'approved';
 
@@ -2952,24 +2964,26 @@ app.post(['/api/admin/organizations/:id/approve', '/api/admin/organizations/:id/
 });
 
 // ── Helper: Send Notification to a Specific User ────────────
-async function sendNotificationToUser({ userEmail, role = 'donor', type = 'SYSTEM', title, message, referenceId = null, referenceType = null, link = null }) {
+async function sendNotificationToUser({ userEmail, role = 'donor', type = 'SYSTEM', title, message, referenceId = null, referenceType = null, link = null, createdAt = null }) {
   if (!userEmail) return null;
   const cleanEmail = userEmail.trim().toLowerCase();
   try {
+    const createdTimestamp = createdAt ? (createdAt instanceof Date ? createdAt : new Date(createdAt)) : new Date();
+
     // 1. Insert into NOTIFICATIONS content table
     const [res] = await db.query(`
-      INSERT INTO NOTIFICATIONS (Type, Title, Message, Reference_ID, Reference_Type, Link)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `, [type, title, message, referenceId ? String(referenceId) : null, referenceType, link]);
+      INSERT INTO NOTIFICATIONS (Type, Title, Message, Reference_ID, Reference_Type, Link, Created_At)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `, [type, title, message, referenceId ? String(referenceId) : null, referenceType, link, createdTimestamp]);
 
     const notifId = res.insertId || res[0]?.insertId;
     if (!notifId) return null;
 
     // 2. Insert user-specific state row into USER_NOTIFICATIONS
     await db.query(`
-      INSERT INTO USER_NOTIFICATIONS (User_Email, Role, Notification_ID, Is_Read)
-      VALUES (?, ?, ?, 0)
-    `, [cleanEmail, role, notifId]);
+      INSERT INTO USER_NOTIFICATIONS (User_Email, Role, Notification_ID, Is_Read, Created_At)
+      VALUES (?, ?, ?, 0, ?)
+    `, [cleanEmail, role, notifId, createdTimestamp]);
 
     return notifId;
   } catch (err) {
@@ -3066,6 +3080,10 @@ app.get('/api/notifications', async (req, res) => {
     const totalUserNotifs = countCheck[0]?.cnt || 0;
 
     if (totalUserNotifs === 0) {
+      const nowMs = Date.now();
+      const welcomeTime = new Date(nowMs - 2 * 3600 * 1000); // 2 hours ago
+      const complianceTime = new Date(nowMs - 15 * 60 * 1000); // 15 minutes ago
+
       if (currentUser.role === 'donor') {
         await sendNotificationToUser({
           userEmail,
@@ -3073,7 +3091,8 @@ app.get('/api/notifications', async (req, res) => {
           type: 'ACCOUNT',
           title: 'Welcome to BBDRTS Protocol',
           message: 'Your verified donor account is active. You can now contribute to transparent relief campaigns and verify immutable Sepolia blockchain receipts.',
-          link: '#campaigns'
+          link: '#campaigns',
+          createdAt: welcomeTime
         });
         await sendNotificationToUser({
           userEmail,
@@ -3081,7 +3100,8 @@ app.get('/api/notifications', async (req, res) => {
           type: 'VERIFICATION',
           title: 'SEC Anti-Bias Compliance Active',
           message: 'All accredited humanitarian organizations are verified under Republic Act 11232 by the Admin Compliance Desk.',
-          link: '#ngos'
+          link: '#ngos',
+          createdAt: complianceTime
         });
       } else if (currentUser.role === 'organization') {
         await sendNotificationToUser({
@@ -3090,7 +3110,8 @@ app.get('/api/notifications', async (req, res) => {
           type: 'ACCOUNT',
           title: 'Organization Account Activated',
           message: 'Your non-profit dashboard is ready. Submit or review SEC registration to deploy verified disaster relief operations.',
-          link: '#settings'
+          link: '#settings',
+          createdAt: welcomeTime
         });
         await sendNotificationToUser({
           userEmail,
@@ -3098,7 +3119,8 @@ app.get('/api/notifications', async (req, res) => {
           type: 'SECURITY',
           title: 'Treasury Wallet & Multi-Sig Escrow Active',
           message: 'All campaign relief disbursements are protected via cryptographic smart contracts on Sepolia EVM.',
-          link: '#settings'
+          link: '#settings',
+          createdAt: complianceTime
         });
       } else {
         await sendNotificationToUser({
@@ -3107,7 +3129,8 @@ app.get('/api/notifications', async (req, res) => {
           type: 'VERIFICATION',
           title: 'Compliance Audit Desk Online',
           message: 'Administrator monitoring and SEC accreditation verification tools are active.',
-          link: '#ngos'
+          link: '#ngos',
+          createdAt: welcomeTime
         });
         await sendNotificationToUser({
           userEmail,
@@ -3115,7 +3138,8 @@ app.get('/api/notifications', async (req, res) => {
           type: 'SECURITY',
           title: 'Sepolia EVM Node Connected',
           message: 'Blockchain network monitoring active with 0 transaction anomalies.',
-          link: '#settings'
+          link: '#settings',
+          createdAt: complianceTime
         });
       }
     }
@@ -3174,10 +3198,19 @@ app.get('/api/notifications', async (req, res) => {
     const formatted = (rows || []).map(r => {
       let isoTime = new Date().toISOString();
       if (r.createdAt) {
-        let dStr = String(r.createdAt).replace(' ', 'T');
-        if (!dStr.endsWith('Z') && !dStr.includes('+')) dStr += 'Z';
-        const d = new Date(dStr);
-        if (!isNaN(d.getTime())) isoTime = d.toISOString();
+        if (r.createdAt instanceof Date && !isNaN(r.createdAt.getTime())) {
+          isoTime = r.createdAt.toISOString();
+        } else {
+          const direct = new Date(r.createdAt);
+          if (!isNaN(direct.getTime())) {
+            isoTime = direct.toISOString();
+          } else {
+            let dStr = String(r.createdAt).trim().replace(' ', 'T');
+            if (!dStr.endsWith('Z') && !dStr.includes('+')) dStr += 'Z';
+            const d = new Date(dStr);
+            if (!isNaN(d.getTime())) isoTime = d.toISOString();
+          }
+        }
       }
 
       let daysRemaining = 30;
@@ -3199,9 +3232,9 @@ app.get('/api/notifications', async (req, res) => {
         referenceType: r.referenceType,
         link: r.link,
         isRead: Boolean(r.isRead),
-        readAt: r.readAt ? new Date(r.readAt).toISOString() : null,
+        readAt: r.readAt ? (r.readAt instanceof Date ? r.readAt.toISOString() : new Date(r.readAt).toISOString()) : null,
         isDeleted: Boolean(r.isDeleted),
-        deletedAt: r.deletedAt ? new Date(r.deletedAt).toISOString() : null,
+        deletedAt: r.deletedAt ? (r.deletedAt instanceof Date ? r.deletedAt.toISOString() : new Date(r.deletedAt).toISOString()) : null,
         daysRemaining,
         createdAt: isoTime
       };

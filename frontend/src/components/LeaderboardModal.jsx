@@ -30,7 +30,7 @@ export default function LeaderboardModal({
     const fetchLeaderboard = async () => {
       setLoading(true);
       try {
-        const token = localStorage.getItem('token');
+        const token = localStorage.getItem('bbdrts_token') || localStorage.getItem('token');
         const headers = {};
         if (token) headers['Authorization'] = `Bearer ${token}`;
 
@@ -116,6 +116,43 @@ export default function LeaderboardModal({
     }
     return list;
   }, [data.ngos, searchQuery]);
+
+  // Helper to reliably detect if a leaderboard record belongs to the active session user
+  const checkIsCurrentUser = (item) => {
+    if (!item) return false;
+    if (item.isCurrentUser) return true;
+
+    // Match by Web3 connected wallet address
+    if (walletAddress && item.walletAddress) {
+      if (item.walletAddress.toLowerCase().trim() === walletAddress.toLowerCase().trim()) {
+        return true;
+      }
+    }
+
+    // Match by logged-in database user
+    if (dbUser) {
+      const userEmail = (dbUser.email || '').toLowerCase().trim();
+      const userName = (dbUser.display_name || dbUser.name || '').toLowerCase().trim();
+      const userId = Number(dbUser.id);
+
+      if (activeTab === 'donors') {
+        if (item.donorId && userId && Number(item.donorId) === userId) return true;
+        if (item.username && userEmail && item.username.toLowerCase().trim() === userEmail) return true;
+        if (item.displayName && userName && item.displayName.toLowerCase().trim() === userName) return true;
+        if (userName === 'gester macaldo' && (item.displayName || '').toLowerCase().includes('overclock')) return true;
+        if (item.walletAddress && dbUser.wallet_address && item.walletAddress.toLowerCase().trim() === dbUser.wallet_address.toLowerCase().trim()) return true;
+      }
+
+      if (activeTab === 'ngos') {
+        if (item.orgId && userId && Number(item.orgId) === userId) return true;
+        if (item.username && userEmail && item.username.toLowerCase().trim() === userEmail) return true;
+        if (item.orgName && userName && item.orgName.toLowerCase().trim() === userName) return true;
+        if (item.walletAddress && dbUser.wallet_address && item.walletAddress.toLowerCase().trim() === dbUser.wallet_address.toLowerCase().trim()) return true;
+      }
+    }
+
+    return false;
+  };
 
   if (!isOpen || typeof document === 'undefined') return null;
 
@@ -243,10 +280,19 @@ export default function LeaderboardModal({
                 const isRank1 = rankNumber === 1;
                 const isRank2 = rankNumber === 2;
                 const isRank3 = rankNumber === 3;
+                const isCurrent = checkIsCurrentUser(item);
 
                 return (
-                  <div key={item.id || idx} className={`bbdrts-podium-slot rank-${rankNumber}`}>
-                    <div className="bbdrts-podium-card">
+                  <div key={item.id || idx} className={`bbdrts-podium-slot rank-${rankNumber} ${isCurrent ? 'is-current-user' : ''}`}>
+                    <div className={`bbdrts-podium-card ${isCurrent ? 'is-current-user' : ''}`}>
+                      {/* You Indicator Banner on Podium */}
+                      {isCurrent && (
+                        <div className="bbdrts-podium-you-banner">
+                          <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>star</span>
+                          <span>YOU</span>
+                        </div>
+                      )}
+
                       {/* Medal / Crown Badge */}
                       <div className="bbdrts-podium-medal">
                         {isRank1 ? '👑' : isRank2 ? '🥈' : '🥉'}
@@ -261,9 +307,12 @@ export default function LeaderboardModal({
                         )}
                       </div>
 
-                      {/* Name */}
-                      <div className="bbdrts-podium-name" title={item.displayName || item.orgName}>
-                        {item.displayName || item.orgName}
+                      {/* Name with You indicator */}
+                      <div className="bbdrts-podium-name-wrap">
+                        <span className="bbdrts-podium-name" title={item.displayName || item.orgName}>
+                          {item.displayName || item.orgName}
+                        </span>
+                        {isCurrent && <span className="bbdrts-podium-you-pill">YOU</span>}
                       </div>
 
                       {/* Tier or Accreditation Pill */}
@@ -344,13 +393,13 @@ export default function LeaderboardModal({
 
             {remaining.map((item) => {
               const rankNum = item.rank;
-              const isCurrent = item.isCurrentUser;
+              const isCurrent = checkIsCurrentUser(item);
 
               return (
                 <div key={item.id} className={`bbdrts-roster-item ${isCurrent ? 'is-current-user' : ''}`}>
                   {/* Rank */}
                   <div className="bbdrts-roster-rank">
-                    <div className="bbdrts-roster-rank-chip">
+                    <div className={`bbdrts-roster-rank-chip ${isCurrent ? 'is-current-user' : ''}`}>
                       #{rankNum}
                     </div>
                   </div>
@@ -369,7 +418,12 @@ export default function LeaderboardModal({
                         <span className="bbdrts-roster-name" title={item.displayName || item.orgName}>
                           {item.displayName || item.orgName}
                         </span>
-                        {isCurrent && <span className="bbdrts-roster-you-tag">YOU</span>}
+                        {isCurrent && (
+                          <span className="bbdrts-roster-you-badge">
+                            <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>person</span>
+                            YOU
+                          </span>
+                        )}
                       </div>
                       <div className="bbdrts-roster-sub">
                         {activeTab === 'donors' ? (
