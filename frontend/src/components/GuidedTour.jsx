@@ -1,7 +1,91 @@
 import { useEffect, useRef } from 'react';
 import { driver } from 'driver.js';
 import 'driver.js/dist/driver.css';
+import confetti from 'canvas-confetti';
 import './GuidedTour.css';
+
+/**
+ * Celebratory confetti cannon bursting outward from each side of the final card
+ */
+const fireTourCelebration = (cardElement) => {
+  try {
+    const rect = cardElement?.getBoundingClientRect() || document.querySelector('.bbdrts-tour-popover')?.getBoundingClientRect();
+    const winW = window.innerWidth || document.documentElement.clientWidth || 1000;
+    const winH = window.innerHeight || document.documentElement.clientHeight || 800;
+
+    let leftOriginX = 0.2;
+    let rightOriginX = 0.8;
+    let originY = 0.6;
+
+    if (rect && rect.width > 0) {
+      leftOriginX = Math.max(0.04, Math.min(0.96, (rect.left - 10) / winW));
+      rightOriginX = Math.max(0.04, Math.min(0.96, (rect.right + 10) / winW));
+      originY = Math.max(0.08, Math.min(0.92, (rect.top + rect.height * 0.5) / winH));
+    }
+
+    const brandColors = ['#22c55e', '#10b981', '#38bdf8', '#eab308', '#6366f1', '#ffffff', '#ec4899'];
+
+    // Wave 1: Immediate celebratory cannons popping from each side of the card!
+    confetti({
+      particleCount: 50,
+      angle: 125, // shoots outward & upward to the left
+      spread: 65,
+      origin: { x: leftOriginX, y: originY },
+      colors: brandColors,
+      ticks: 240,
+      gravity: 0.95,
+      scalar: 1.0,
+      drift: -0.15,
+      disableForReducedMotion: true,
+      zIndex: 1000000050
+    });
+
+    confetti({
+      particleCount: 50,
+      angle: 55, // shoots outward & upward to the right
+      spread: 65,
+      origin: { x: rightOriginX, y: originY },
+      colors: brandColors,
+      ticks: 240,
+      gravity: 0.95,
+      scalar: 1.0,
+      drift: 0.15,
+      disableForReducedMotion: true,
+      zIndex: 1000000050
+    });
+
+    // Wave 2: Sparkling follow-up burst from each side after 170ms
+    setTimeout(() => {
+      confetti({
+        particleCount: 35,
+        angle: 115,
+        spread: 75,
+        origin: { x: leftOriginX, y: originY },
+        colors: brandColors,
+        ticks: 220,
+        gravity: 1.05,
+        scalar: 0.85,
+        disableForReducedMotion: true,
+        zIndex: 1000000050
+      });
+
+      confetti({
+        particleCount: 35,
+        angle: 65,
+        spread: 75,
+        origin: { x: rightOriginX, y: originY },
+        colors: brandColors,
+        ticks: 220,
+        gravity: 1.05,
+        scalar: 0.85,
+        disableForReducedMotion: true,
+        zIndex: 1000000050
+      });
+    }, 170);
+  } catch (err) {
+    console.warn('Confetti launch error:', err);
+  }
+};
 
 /**
  * Universal Guided Spotlight Onboarding Tour Component
@@ -10,145 +94,8 @@ import './GuidedTour.css';
  * - 4-Panel backdrop blur blurs the page outside while the active box remains 100% crystal-clear
  * - Safe headroom scrolling: elements are never scrolled beneath the fixed header
  * - Popover collision prevention: guarantees tooltips never overlap the highlighted box
+ * - Native onDestroyed lifecycle for 100% reliable close button ('✕') and Escape key handling
  */
-
-// ── Bespoke Dual-Flank Confetti Burst for Final Walkthrough Card ──
-function triggerSideFlankConfetti(popoverEl) {
-  if (!popoverEl) return;
-  const popRect = popoverEl.getBoundingClientRect();
-  if (popRect.width === 0 || popRect.height === 0) return;
-
-  // Remove existing canvas if any
-  const oldCanvas = document.getElementById('bbdrts-tour-confetti-canvas');
-  if (oldCanvas) oldCanvas.remove();
-
-  const canvas = document.createElement('canvas');
-  canvas.id = 'bbdrts-tour-confetti-canvas';
-  document.body.appendChild(canvas);
-
-  const ctx = canvas.getContext('2d');
-  if (!ctx) return;
-  const dpr = window.devicePixelRatio || 1;
-  canvas.width = window.innerWidth * dpr;
-  canvas.height = window.innerHeight * dpr;
-  ctx.scale(dpr, dpr);
-
-  // Left and Right flank coordinates
-  const leftX = Math.max(12, popRect.left);
-  const rightX = Math.min(window.innerWidth - 12, popRect.right);
-  const midY = popRect.top + popRect.height * 0.45;
-
-  const colors = [
-    '#22c55e', '#10b981', // Emerald
-    '#f59e0b', '#eab308', // Amber / Gold
-    '#38bdf8', '#06b6d4', // Cyan / Sky
-    '#a855f7', '#c084fc', // Purple / Violet
-    '#ffffff'             // Pure White
-  ];
-
-  const particles = [];
-  const count = 38;
-
-  // Left flank: Shoots up-left (115° to 160°)
-  for (let i = 0; i < count; i++) {
-    const deg = 115 + Math.random() * 45;
-    const rad = (deg * Math.PI) / 180;
-    const speed = 7 + Math.random() * 8.5;
-    particles.push({
-      x: leftX,
-      y: midY,
-      vx: Math.cos(rad) * speed,
-      vy: -Math.sin(rad) * speed,
-      color: colors[Math.floor(Math.random() * colors.length)],
-      w: 6 + Math.random() * 6,
-      h: 4 + Math.random() * 4,
-      rotation: Math.random() * 360,
-      rotationSpeed: (Math.random() - 0.5) * 12,
-      tilt: Math.random() * 10,
-      tiltSpeed: 0.1 + Math.random() * 0.1,
-      tiltAngle: Math.random() * Math.PI,
-      opacity: 1,
-      decay: 0.012 + Math.random() * 0.008,
-      isCircle: Math.random() > 0.65
-    });
-  }
-
-  // Right flank: Shoots up-right (20° to 65°)
-  for (let i = 0; i < count; i++) {
-    const deg = 20 + Math.random() * 45;
-    const rad = (deg * Math.PI) / 180;
-    const speed = 7 + Math.random() * 8.5;
-    particles.push({
-      x: rightX,
-      y: midY,
-      vx: Math.cos(rad) * speed,
-      vy: -Math.sin(rad) * speed,
-      color: colors[Math.floor(Math.random() * colors.length)],
-      w: 6 + Math.random() * 6,
-      h: 4 + Math.random() * 4,
-      rotation: Math.random() * 360,
-      rotationSpeed: (Math.random() - 0.5) * 12,
-      tilt: Math.random() * 10,
-      tiltSpeed: 0.1 + Math.random() * 0.1,
-      tiltAngle: Math.random() * Math.PI,
-      opacity: 1,
-      decay: 0.012 + Math.random() * 0.008,
-      isCircle: Math.random() > 0.65
-    });
-  }
-
-  let animId = null;
-  const gravity = 0.32;
-  const friction = 0.96;
-
-  function loop() {
-    ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
-    let alive = 0;
-
-    for (let i = 0; i < particles.length; i++) {
-      const p = particles[i];
-      if (p.opacity <= 0.01) continue;
-      alive++;
-
-      p.vx *= friction;
-      p.vy = p.vy * friction + gravity;
-      p.x += p.vx;
-      p.y += p.vy;
-      p.opacity -= p.decay;
-      p.rotation += p.rotationSpeed;
-      p.tiltAngle += p.tiltSpeed;
-
-      const drawX = p.x + Math.sin(p.tiltAngle) * p.tilt;
-      const drawY = p.y;
-
-      ctx.save();
-      ctx.globalAlpha = Math.max(0, p.opacity);
-      ctx.translate(drawX, drawY);
-      ctx.rotate((p.rotation * Math.PI) / 180);
-      ctx.fillStyle = p.color;
-
-      if (p.isCircle) {
-        ctx.beginPath();
-        ctx.arc(0, 0, p.w / 2, 0, Math.PI * 2);
-        ctx.fill();
-      } else {
-        ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
-      }
-
-      ctx.restore();
-    }
-
-    if (alive > 0) {
-      animId = requestAnimationFrame(loop);
-    } else {
-      cancelAnimationFrame(animId);
-      if (canvas.parentNode) canvas.parentNode.removeChild(canvas);
-    }
-  }
-
-  animId = requestAnimationFrame(loop);
-}
-
 export default function GuidedTour({
   isOpen,
   onClose,
@@ -358,15 +305,7 @@ export default function GuidedTour({
 
     // Safe scrolling: guarantees elements are comfortably positioned below the header
     const scrollToTargetSafely = (element) => {
-      if (!element || element.id === 'driver-dummy-element') {
-        if (window.scrollY > 0) {
-          window.scrollTo({
-            top: 0,
-            behavior: 'smooth'
-          });
-        }
-        return;
-      }
+      if (!element) return;
       const headerEl = document.querySelector('.bbdrts-main-header');
       const headerBottom = headerEl ? Math.round(headerEl.getBoundingClientRect().bottom) : 75;
 
@@ -457,9 +396,6 @@ export default function GuidedTour({
     // ── High-Frequency Instant Tracking Scroll & Resize Handlers ──
     let scrollEndTimer = null;
     const handleScroll = () => {
-      // While navigating between steps, do NOT let scroll events trigger refresh() or layout sync!
-      if (isNavigatingStepRef.current) return;
-
       const surround = document.getElementById(surroundId);
       if (surround && !surround.classList.contains('is-scrolling')) {
         surround.classList.add('is-scrolling');
@@ -503,9 +439,6 @@ export default function GuidedTour({
       if (s) s.classList.remove('is-active');
       if (g) g.classList.remove('is-active');
 
-      const confetti = document.getElementById('bbdrts-tour-confetti-canvas');
-      if (confetti) confetti.remove();
-
       setTimeout(() => {
         if (s) s.remove();
         if (g) g.remove();
@@ -518,21 +451,14 @@ export default function GuidedTour({
 
     const driverSteps = currentSteps.map((s, idx) => {
       const stepNumber = idx + 1;
-      const isFirst = idx === 0;
-      const isLast = idx === totalSteps - 1;
-      const isWelcome = !s.target || s.target === '#tour-welcome-overview';
-
-      const badgeText = s.badge || (isWelcome
-        ? `👋 Welcome • Quick Orientation`
-        : `Step ${stepNumber} of ${totalSteps} • ${currentRole} Tutorial`);
-
+      const badgeText = s.badge || `Step ${stepNumber} of ${totalSteps} • ${currentRole} Tutorial`;
       const iconHtml = s.icon
         ? `<span class="material-symbols-outlined driver-step-icon">${s.icon}</span>`
         : '';
 
       const popoverTitle = `
         <div class="driver-popover-badge">
-          <span class="material-symbols-outlined" style="font-size: 13px;">${s.badgeIcon || (isWelcome ? 'celebration' : 'help')}</span>
+          <span class="material-symbols-outlined" style="font-size: 13px;">help</span>
           <span>${badgeText}</span>
         </div>
         <div class="driver-step-title-row">
@@ -542,14 +468,14 @@ export default function GuidedTour({
       `;
 
       return {
-        element: isWelcome ? undefined : s.target,
+        element: s.target,
         popover: {
           title: popoverTitle,
           description: s.description || '',
-          side: isWelcome ? 'over' : (s.placement || 'bottom'),
-          align: isWelcome ? 'center' : (s.align || 'start'),
-          showButtons: isFirst ? ['next', 'close'] : ['previous', 'next', 'close'],
-          nextBtnText: isWelcome ? "Start Guided Tour →" : (isLast ? "Got It, Let's Go! ✓" : 'Next →'),
+          side: s.placement || 'bottom',
+          align: s.align || 'start',
+          showButtons: idx === 0 ? ['next', 'close'] : ['previous', 'next', 'close'],
+          nextBtnText: idx === totalSteps - 1 ? "Got It, Let's Go! ✓" : 'Next →',
           prevBtnText: '← Back',
         }
       };
@@ -592,58 +518,25 @@ export default function GuidedTour({
         // Keep popover strictly hidden while camera smooth scroll is traveling
         document.body.classList.add('tour-traveling');
 
-        // Settle detection: wait until the camera smooth scroll has completely stopped moving!
+        // Settle timer: Once smooth scroll arrives at destination (~340ms), reveal popover at exact position
         clearTimeout(settleTimerRef.current);
-
-        let prevY = window.scrollY;
-        let staticCount = 0;
-        const startTime = Date.now();
-
-        const checkSettled = () => {
-          const currentY = window.scrollY;
-          const elapsed = Date.now() - startTime;
-
-          if (Math.abs(currentY - prevY) < 1) {
-            staticCount++;
-          } else {
-            staticCount = 0;
+        settleTimerRef.current = setTimeout(() => {
+          if (driverRef.current) {
+            try {
+              driverRef.current.refresh();
+            } catch (_) {}
           }
-          prevY = currentY;
-
-          // When scroll has not moved for 3 frames (at least 200ms elapsed) or safety timeout at 360ms
-          const isCenteredStep = !element || element.id === 'driver-dummy-element';
-          const isSettled = isCenteredStep ? elapsed >= 100 : ((staticCount >= 3 && elapsed >= 200) || elapsed >= 360);
-
-          if (isSettled) {
-            if (driverRef.current) {
-              try {
-                driverRef.current.refresh();
-              } catch (_) {}
-            }
+          // Wait two animation frames so Driver.js's internal refresh requestAnimationFrame has finished
+          // recalculating the popover and arrow coordinates BEFORE making the popover visible!
+          requestAnimationFrame(() => {
             requestAnimationFrame(() => {
-              requestAnimationFrame(() => {
-                syncTourLayout(element);
-                // Reveal popover with silky fade-in directly at final resting position!
-                document.body.classList.remove('tour-traveling');
-                isNavigatingStepRef.current = false;
-
-                // If final step, pop celebratory confetti from each side of the card!
-                if (currentStepIndexRef.current === totalSteps - 1) {
-                  const popoverEl = document.querySelector('.bbdrts-tour-popover');
-                  if (popoverEl) {
-                    setTimeout(() => {
-                      triggerSideFlankConfetti(popoverEl);
-                    }, 140);
-                  }
-                }
-              });
+              syncTourLayout(element);
+              // Reveal popover with silky fade-in directly at final resting position with 0 movement!
+              document.body.classList.remove('tour-traveling');
+              isNavigatingStepRef.current = false;
             });
-          } else {
-            settleTimerRef.current = setTimeout(checkSettled, 20);
-          }
-        };
-
-        settleTimerRef.current = setTimeout(checkSettled, 20);
+          });
+        }, 340);
       },
       onCloseClick: () => {
         if (driverRef.current) {
@@ -654,14 +547,14 @@ export default function GuidedTour({
       },
       onPopoverRender: (popoverDOM) => {
         if (!popoverDOM) return;
-        // Instantly hide card the millisecond the user clicks Next or Back
+        // Instantly handle Next / Let's Go and Back buttons
         if (popoverDOM.nextButton && !popoverDOM.nextButton._hasBBDRTSTourHandler) {
           popoverDOM.nextButton._hasBBDRTSTourHandler = true;
           popoverDOM.nextButton.addEventListener('click', () => {
             const isLast = currentStepIndexRef.current === totalSteps - 1;
             if (isLast) {
-              const pop = document.querySelector('.bbdrts-tour-popover');
-              if (pop) triggerSideFlankConfetti(pop);
+              // Trigger celebratory confetti popping from each side of the final card!
+              fireTourCelebration(popoverDOM.wrapper);
             } else {
               document.body.classList.add('tour-traveling');
               clearTimeout(settleTimerRef.current);

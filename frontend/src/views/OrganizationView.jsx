@@ -602,19 +602,10 @@ export default function OrganizationView({
 
   const ngoTourSteps = useMemo(() => [
     {
-      target: undefined,
-      title: 'Welcome to BBDRTS Operations Hub',
-      icon: 'corporate_fare',
-      badge: '👋 Welcome • NGO Command Center',
-      placement: 'over',
-      align: 'center',
-      description: 'Welcome to your Disaster Operations Command Center! As an accredited non-profit organization, BBDRTS equips you with smart contract appeals, milestone-based escrow, multi-channel financial reconciliation, and live PAGASA Doppler radar tracking. Click Start Guided Tour to explore your command center tools.'
-    },
-    {
       target: '#tour-ngo-welcome',
       title: 'Command Center & Organization Overview',
       icon: 'corporate_fare',
-      badge: 'Step 2 of 9 • Operations Hub',
+      badge: 'Step 1 of 8 • Operations Hub',
       placement: 'bottom',
       align: 'start',
       description: 'Your command center header displays your organization name, SEC accreditation badge, and connected wallet address. Use the action buttons to review your verification status or verify the public ledger on Etherscan.'
@@ -623,7 +614,7 @@ export default function OrganizationView({
       target: '#tour-ngo-metrics',
       title: 'Operational Metrics & Escrow Status',
       icon: 'analytics',
-      badge: 'Step 3 of 9 • Mission Analytics',
+      badge: 'Step 2 of 8 • Mission Analytics',
       placement: 'bottom',
       align: 'center',
       description: 'Monitor your key organization metrics: active relief campaigns, total donations received across ETH and Philippine e-wallets, completed milestones, and verified escrow funds.'
@@ -632,7 +623,7 @@ export default function OrganizationView({
       target: '#tour-ngo-tab-sec',
       title: 'SEC & Legal Accreditation Tab',
       icon: 'verified_user',
-      badge: 'Step 4 of 9 • Legal Compliance',
+      badge: 'Step 3 of 8 • Legal Compliance',
       placement: 'right',
       align: 'center',
       description: 'Access the accreditation tab to submit and track your Philippine SEC non-stock registration, DSWD licenses, and board member verifications required to deploy verified on-chain appeals.'
@@ -641,7 +632,7 @@ export default function OrganizationView({
       target: '#tour-ngo-tab-create',
       title: 'Create Relief Campaign Tab',
       icon: 'rocket_launch',
-      badge: 'Step 5 of 9 • Campaign Deployment',
+      badge: 'Step 4 of 8 • Campaign Deployment',
       placement: 'right',
       align: 'center',
       description: 'Launch emergency appeals by setting funding goals in PHP and ETH, calamity type, urgency priority, affected Philippine location, and milestone-based escrow delivery schedules.'
@@ -650,7 +641,7 @@ export default function OrganizationView({
       target: '#tour-ngo-tab-my-campaigns',
       title: 'My Campaigns & Proof Upload Tab',
       icon: 'add_a_photo',
-      badge: 'Step 6 of 9 • Ground Operations',
+      badge: 'Step 5 of 8 • Ground Operations',
       placement: 'right',
       align: 'center',
       description: 'Manage active relief campaigns and submit milestone delivery proofs (geotagged distribution photos, merchant receipts, and beneficiary logs) to unlock subsequent escrow funding tiers.'
@@ -659,7 +650,7 @@ export default function OrganizationView({
       target: '#tour-ngo-tab-ledger',
       title: 'Financial Ledger & Audit Tab',
       icon: 'account_balance',
-      badge: 'Step 7 of 9 • Audit Ledger',
+      badge: 'Step 6 of 8 • Audit Ledger',
       placement: 'right',
       align: 'center',
       description: 'Review multi-channel financial reconciliation across Ethereum Web3, GCash, Maya, and bank deposits with real-time audit trails and exportable compliance reports.'
@@ -668,7 +659,7 @@ export default function OrganizationView({
       target: '#tour-ngo-tab-radar',
       title: 'Relief Radar Tab',
       icon: 'radar',
-      badge: 'Step 8 of 9 • Weather & Logistics',
+      badge: 'Step 7 of 8 • Weather & Logistics',
       placement: 'right',
       align: 'center',
       description: 'Access the interactive Philippine map combining real-time PAGASA Doppler radar precipitation feeds with relief campaign pins to coordinate logistics and emergency aid dispatch.'
@@ -677,7 +668,7 @@ export default function OrganizationView({
       target: '#tour-ngo-sepolia-node',
       title: 'Sepolia Node Status & Tutorial Replay',
       icon: 'hub',
-      badge: 'Step 9 of 9 • System Status',
+      badge: 'Step 8 of 8 • System Status',
       placement: 'right',
       align: 'end',
       description: 'Displays live Ethereum Sepolia smart contract synchronization and node health. You can restart this guided walkthrough anytime from the "Guided Tutorial" button in the sidebar.'
