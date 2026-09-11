@@ -6,7 +6,7 @@ import confetti from 'canvas-confetti';
 import './GuidedTour.css';
 
 /**
- * Celebratory confetti cannon bursting outward from each side of the final card
+ * Celebratory confetti cannon bursting outward from each side of the final card and screen
  */
 const fireTourCelebration = (cardElement) => {
   try {
@@ -14,8 +14,8 @@ const fireTourCelebration = (cardElement) => {
     const winW = window.innerWidth || document.documentElement.clientWidth || 1000;
     const winH = window.innerHeight || document.documentElement.clientHeight || 800;
 
-    let leftOriginX = 0.25;
-    let rightOriginX = 0.75;
+    let leftOriginX = 0.2;
+    let rightOriginX = 0.8;
     let originY = 0.55;
 
     if (rect && rect.width > 0) {
@@ -24,75 +24,215 @@ const fireTourCelebration = (cardElement) => {
       originY = Math.max(0.08, Math.min(0.92, (rect.top + rect.height * 0.5) / winH));
     }
 
-    const brandColors = ['#22c55e', '#10b981', '#38bdf8', '#eab308', '#6366f1', '#ffffff', '#ec4899'];
+    const brandColors = ['#22c55e', '#10b981', '#38bdf8', '#fbbf24', '#a855f7', '#ffffff', '#f43f5e'];
 
-    // Wave 1: Immediate celebratory cannons popping from each side of the card!
+    // Wave 1: Immediate celebratory cannons popping from EACH SIDE of the card
     confetti({
-      particleCount: 60,
-      angle: 125, // shoots outward & upward to the left
+      particleCount: 55,
+      angle: 125, // shoots outward & upward to the left of the card
       spread: 65,
       origin: { x: leftOriginX, y: originY },
       colors: brandColors,
-      ticks: 240,
+      ticks: 260,
       gravity: 0.95,
-      scalar: 1.05,
+      scalar: 1.1,
       drift: -0.15,
+      disableForReducedMotion: false,
       zIndex: 2147483647
     });
 
     confetti({
-      particleCount: 60,
-      angle: 55, // shoots outward & upward to the right
+      particleCount: 55,
+      angle: 55, // shoots outward & upward to the right of the card
       spread: 65,
       origin: { x: rightOriginX, y: originY },
       colors: brandColors,
-      ticks: 240,
+      ticks: 260,
       gravity: 0.95,
-      scalar: 1.05,
+      scalar: 1.1,
       drift: 0.15,
+      disableForReducedMotion: false,
       zIndex: 2147483647
     });
 
-    // Wave 2: Sparkling follow-up burst from each side after 160ms
+    // Dual screen-side edge bursts popping across the screen
+    confetti({
+      particleCount: 45,
+      angle: 60,
+      spread: 60,
+      origin: { x: 0.04, y: 0.72 },
+      colors: brandColors,
+      ticks: 260,
+      gravity: 0.95,
+      scalar: 1.0,
+      disableForReducedMotion: false,
+      zIndex: 2147483647
+    });
+
+    confetti({
+      particleCount: 45,
+      angle: 120,
+      spread: 60,
+      origin: { x: 0.96, y: 0.72 },
+      colors: brandColors,
+      ticks: 260,
+      gravity: 0.95,
+      scalar: 1.0,
+      disableForReducedMotion: false,
+      zIndex: 2147483647
+    });
+
+    // Wave 2: Sparkling burst from each side after 180ms
     setTimeout(() => {
       confetti({
-        particleCount: 45,
+        particleCount: 40,
         angle: 115,
         spread: 75,
         origin: { x: leftOriginX, y: originY },
         colors: brandColors,
-        ticks: 220,
+        ticks: 240,
         gravity: 1.05,
-        scalar: 0.9,
+        scalar: 0.85,
+        disableForReducedMotion: false,
         zIndex: 2147483647
       });
 
       confetti({
-        particleCount: 45,
+        particleCount: 40,
         angle: 65,
         spread: 75,
         origin: { x: rightOriginX, y: originY },
         colors: brandColors,
-        ticks: 220,
+        ticks: 240,
         gravity: 1.05,
-        scalar: 0.9,
+        scalar: 0.85,
+        disableForReducedMotion: false,
         zIndex: 2147483647
       });
-    }, 160);
+    }, 180);
+
+    // Wave 3: Golden & emerald sparkle shower raining from top after 360ms
+    setTimeout(() => {
+      confetti({
+        particleCount: 50,
+        spread: 100,
+        origin: { x: 0.5, y: 0.25 },
+        colors: ['#22c55e', '#fbbf24', '#ffffff', '#38bdf8'],
+        ticks: 280,
+        gravity: 0.85,
+        scalar: 1.0,
+        disableForReducedMotion: false,
+        zIndex: 2147483647
+      });
+    }, 360);
   } catch (err) {
     console.warn('Confetti launch error:', err);
   }
 };
 
+// Global helper for diagnostic manual testing
+if (typeof window !== 'undefined') {
+  window.__bbdrts_fire_confetti = fireTourCelebration;
+}
+
+// Debounced celebration trigger to guarantee exactly one celebration sequence
+let lastCelebrationTimestamp = 0;
+const triggerCelebration = (cardEl) => {
+  const now = Date.now();
+  if (now - lastCelebrationTimestamp < 2000) return;
+  lastCelebrationTimestamp = now;
+  fireTourCelebration(cardEl);
+};
+
+// Key Foundational Pillars for Donors
+const DONOR_HIGHLIGHTS = [
+  {
+    icon: 'verified_user',
+    color: '#22c55e',
+    title: '100% Direct Giving • 0% Platform Fees',
+    desc: 'Zero intermediary deductions. Smart contracts ensure 100% of your contributions go straight to verified relief campaigns.'
+  },
+  {
+    icon: 'currency_exchange',
+    color: '#38bdf8',
+    title: 'Dual Web3 & Philippine E-Wallet Rails',
+    desc: 'Donate via Sepolia Ethereum crypto or standard Philippine fiat QR (GCash & Maya) with instant cryptographic receipt hashing.'
+  },
+  {
+    icon: 'military_tech',
+    color: '#fbbf24',
+    title: '12-Tier Honors Ladder & Soulbound Badges',
+    desc: 'Climb from Bayanihan Starter to National Hero. Earn permanent on-chain soulbound NFT badges and leaderboard recognition.'
+  },
+  {
+    icon: 'radar',
+    color: '#a855f7',
+    title: 'Live PAGASA Doppler Weather Radar',
+    desc: 'Real-time satellite storm tracking, typhoon signals, and affected LGU impact heatmaps directly connected to active relief operations.'
+  },
+  {
+    icon: 'lock_clock',
+    color: '#10b981',
+    title: 'Milestone Escrows & Geotagged Proofs',
+    desc: 'Funds unlock in staged tranches. NGOs must upload timestamped, geotagged photos and verified beneficiary distribution logs.'
+  },
+  {
+    icon: 'receipt_long',
+    color: '#f43f5e',
+    title: 'Instant Official Tax & Audit Receipts',
+    desc: 'Generate one-click verifiable BIR-compliant donation certificates with cryptographic transaction hashes for seamless tax reporting.'
+  }
+];
+
+// Key Foundational Pillars for NGOs / Organizations
+const NGO_HIGHLIGHTS = [
+  {
+    icon: 'campaign',
+    color: '#22c55e',
+    title: 'Instant Relief Drive Deployment',
+    desc: 'Deploy verified emergency disaster relief drives in seconds during active PAGASA typhoon signals with targeted beneficiary quotas.'
+  },
+  {
+    icon: 'lock_clock',
+    color: '#38bdf8',
+    title: 'Milestone-Based Escrow Transparency',
+    desc: 'Release relief funding in staged tranches. Provide complete public accountability with cryptographically sealed expense ledgers.'
+  },
+  {
+    icon: 'radar',
+    color: '#a855f7',
+    title: 'PAGASA Doppler Radar & Impact Zones',
+    desc: 'Map relief operations directly to live Doppler radar typhoon tracks, storm signals, and high-risk calamity zones across Philippine LGUs.'
+  },
+  {
+    icon: 'add_a_photo',
+    color: '#fbbf24',
+    title: 'Geotagged Ground-Zero Proofs',
+    desc: 'Upload timestamped, geotagged photos of supply distribution and supplier receipts directly onto the immutable blockchain ledger.'
+  },
+  {
+    icon: 'payments',
+    color: '#10b981',
+    title: 'Dual Currency Disbursements',
+    desc: 'Receive both Sepolia ETH crypto donations and direct Philippine e-wallet (GCash / Maya) funds for rapid local procurement.'
+  },
+  {
+    icon: 'assignment_turned_in',
+    color: '#f43f5e',
+    title: 'Automated Compliance & Audit Reports',
+    desc: 'Generate one-click audit-ready PDF dossiers and transparent expenditure summaries for governing bodies, partners, and donors.'
+  }
+];
+
 /**
  * Universal Guided Spotlight Onboarding Tour Component
- * Features:
- * 1. Intro Welcome Modal: Welcomes the user with platform pillars before launching the spotlight tour
- * 2. Header Blur Guard (z-index 1000000015): Sticky header ALWAYS stays blurred and protected
- * 3. 4-Panel blur surround blurs the page outside while the active box remains 100% crystal-clear
- * 4. Safe headroom scrolling: elements are never scrolled beneath the fixed header
- * 5. Popover collision prevention: guarantees tooltips never overlap the highlighted box
- * 6. Dual-cannon celebratory confetti bursting from each side of the final card upon completion
+ * Powered by Driver.js (v1.8.0) + Welcome Introduction Modal + 4-Panel Blur Surround + Header Blur Guard:
+ * - High-Impact Welcome Modal introduces core platform pillars before the spotlight begins
+ * - Header Blur Guard (z-index 1000000015): Sticky header ALWAYS stays blurred and protected
+ * - 4-Panel backdrop blur blurs the page outside while the active box remains 100% crystal-clear
+ * - Safe headroom scrolling: elements are never scrolled beneath the fixed header
+ * - Popover collision prevention: guarantees tooltips never overlap the highlighted box
+ * - Celebratory Confetti: Pops from both sides of the last card & screen flanks when clicking 'Got It, Let's Go!'
  */
 export default function GuidedTour({
   isOpen,
@@ -103,7 +243,7 @@ export default function GuidedTour({
   roleName = 'User',
   theme = 'default'
 }) {
-  const [stage, setStage] = useState('welcome');
+  const [tourPhase, setTourPhase] = useState('welcome');
   const driverRef = useRef(null);
   const isClosingRef = useRef(false);
   const isNavigatingStepRef = useRef(false);
@@ -124,18 +264,14 @@ export default function GuidedTour({
   const themeRef = useRef(theme);
   themeRef.current = theme;
 
-  // Reset stage to 'welcome' whenever isOpen transitions to true
+  // Whenever tour opens, always start in 'welcome' mode
   useEffect(() => {
     if (isOpen) {
-      setStage('welcome');
+      setTourPhase('welcome');
     }
   }, [isOpen]);
 
-  const handleStartTour = () => {
-    setStage('tour');
-  };
-
-  const handleSkipWelcome = () => {
+  const handleSkipTour = () => {
     try {
       localStorage.setItem(tourKeyRef.current, 'true');
       localStorage.removeItem('bbdrts_tour_force_launch');
@@ -146,20 +282,31 @@ export default function GuidedTour({
     }
   };
 
-  // Keyboard Escape listener for Welcome Modal
+  const handleStartTourSteps = () => {
+    if (typeof onTabChangeRef.current === 'function') {
+      try {
+        onTabChangeRef.current('dashboard');
+      } catch (_) {}
+    }
+    setTourPhase('tour');
+  };
+
+  // Keyboard accessibility: Esc closes/skips during Welcome Phase
   useEffect(() => {
-    if (!isOpen || stage !== 'welcome') return;
+    if (!isOpen || tourPhase !== 'welcome') return;
     const handleKeyDown = (e) => {
       if (e.key === 'Escape') {
-        handleSkipWelcome();
+        e.preventDefault();
+        handleSkipTour();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, stage]);
+  }, [isOpen, tourPhase]);
 
+  // Driver.js Spotlight Execution (runs strictly during 'tour' phase)
   useEffect(() => {
-    if (!isOpen || stage !== 'tour') {
+    if (!isOpen || tourPhase !== 'tour') {
       if (driverRef.current) {
         try {
           driverRef.current.destroy();
@@ -176,7 +323,7 @@ export default function GuidedTour({
     isNavigatingStepRef.current = false;
     currentStepIndexRef.current = 0;
 
-    // Ensure we are settled on the dashboard view for stable layout rendering (one-time on open)
+    // Ensure we are settled on the dashboard view for stable layout rendering
     if (typeof onTabChangeRef.current === 'function') {
       try {
         onTabChangeRef.current('dashboard');
@@ -184,7 +331,6 @@ export default function GuidedTour({
     }
 
     // ── 1. Dedicated Fixed Header Blur Guard ──
-    // Pinned above the sticky navbar (z-index: 1000000015) so the header NEVER goes clear
     const headerGuardId = 'bbdrts-tour-header-guard';
     let headerGuardEl = document.getElementById(headerGuardId);
     if (!headerGuardEl) {
@@ -194,7 +340,6 @@ export default function GuidedTour({
     }
 
     // ── 2. 4-Panel Blur Surround ──
-    // Blurs page outside the active box while keeping the interior 100% crystal-clear
     const surroundId = 'bbdrts-tour-blur-surround';
     let surroundEl = document.getElementById(surroundId);
     if (!surroundEl) {
@@ -221,7 +366,6 @@ export default function GuidedTour({
     const rightP = surroundEl.querySelector('.bbdrts-blur-right');
 
     // ── Unified Synchronous Layout Engine ──
-    // Locks blur panels, SVG overlay cutout, and floating card to target element with 0ms latency
     const syncTourLayout = (targetElement, isScrollEvent = false) => {
       const el = targetElement || document.querySelector('.driver-active-element');
       const surround = document.getElementById(surroundId);
@@ -257,7 +401,7 @@ export default function GuidedTour({
       const targetRight = rect.right + pad;
       const targetBottom = rect.bottom + pad;
 
-      // CRUCIAL: The spotlight hole must NEVER extend into or above the sticky header
+      // The spotlight hole must NEVER extend into or above the sticky header
       const y = Math.max(headerBottom, Math.min(window.innerHeight, Math.round(targetTop)));
       const x = Math.max(0, Math.min(window.innerWidth, Math.round(targetLeft)));
       const r = Math.max(0, Math.min(window.innerWidth, Math.round(targetRight)));
@@ -332,13 +476,12 @@ export default function GuidedTour({
     const originalScrollIntoView = Element.prototype.scrollIntoView;
     let hasRestoredScroll = false;
 
-    // Safe scrolling: guarantees elements are comfortably positioned below the header
     const scrollToTargetSafely = (element) => {
       if (!element) return;
       const headerEl = document.querySelector('.bbdrts-main-header');
       const headerBottom = headerEl ? Math.round(headerEl.getBoundingClientRect().bottom) : 75;
 
-      // Case 1: Sidebar target detection (Steps 5, 6, 7, 8 etc.)
+      // Sidebar target detection (Always scroll page back to top: 0)
       const isSidebar = Boolean(
         element.closest('.ref-sidebar') || 
         element.id?.includes('tab-') || 
@@ -356,7 +499,7 @@ export default function GuidedTour({
         return;
       }
 
-      // Case 2: Step 4 First Campaign Card (Image 2 camera angle)
+      // Campaign Card target detection
       const isCampaignCard = Boolean(
         element.id === 'tour-donor-first-campaign' || 
         element.closest('#tour-donor-first-campaign') ||
@@ -368,10 +511,8 @@ export default function GuidedTour({
         const featuredHeadingEl = document.querySelector('#tour-donor-featured-causes');
         let targetY;
         if (featuredHeadingEl) {
-          // Position Featured Relief Causes heading 8px below the sticky header
           targetY = Math.max(0, Math.round(window.scrollY + featuredHeadingEl.getBoundingClientRect().top - (headerBottom + 8)));
         } else {
-          // Fallback directly to the card: top of card 45px below header
           targetY = Math.max(0, Math.round(window.scrollY + element.getBoundingClientRect().top - (headerBottom + 45)));
         }
 
@@ -382,7 +523,7 @@ export default function GuidedTour({
         return;
       }
 
-      // Case 3: Step 3 Metrics Grid
+      // Metrics Grid
       if (element.id === 'tour-donor-metrics' || element.closest('#tour-donor-metrics')) {
         const rect = element.getBoundingClientRect();
         const targetY = Math.max(0, Math.round(window.scrollY + rect.top - (headerBottom + 16)));
@@ -393,7 +534,7 @@ export default function GuidedTour({
         return;
       }
 
-      // Case 4: Other dashboard elements
+      // Other dashboard elements
       const rect = element.getBoundingClientRect();
       const availableHeight = window.innerHeight - headerBottom;
 
@@ -413,7 +554,6 @@ export default function GuidedTour({
       }
     };
 
-    // Override scrollIntoView on Element.prototype while tour is active
     Element.prototype.scrollIntoView = function(options) {
       scrollToTargetSafely(this);
     };
@@ -426,7 +566,6 @@ export default function GuidedTour({
         surround.classList.add('is-scrolling');
       }
 
-      // Synchronous instant layout sync on every scroll tick (0ms latency)
       syncTourLayout(null, true);
 
       clearTimeout(scrollEndTimer);
@@ -476,6 +615,7 @@ export default function GuidedTour({
 
     const driverSteps = currentSteps.map((s, idx) => {
       const stepNumber = idx + 1;
+      const isLastStep = idx === totalSteps - 1;
       const badgeText = s.badge || `Step ${stepNumber} of ${totalSteps} • ${currentRole} Tutorial`;
       const iconHtml = s.icon
         ? `<span class="material-symbols-outlined driver-step-icon">${s.icon}</span>`
@@ -492,8 +632,6 @@ export default function GuidedTour({
         </div>
       `;
 
-      const isLast = idx === totalSteps - 1;
-
       return {
         element: s.target,
         popover: {
@@ -502,57 +640,76 @@ export default function GuidedTour({
           side: s.placement || 'bottom',
           align: s.align || 'start',
           showButtons: idx === 0 ? ['next', 'close'] : ['previous', 'next', 'close'],
-          nextBtnText: isLast ? "Got It, Let's Go! ✓" : 'Next →',
+          nextBtnText: isLastStep ? "Got It, Let's Go! ✓" : 'Next →',
           prevBtnText: '← Back',
-          onNextClick: isLast ? () => {
+          // Step-level completion hooks guaranteeing confetti fires on last step
+          onNextClick: isLastStep
+            ? () => {
+                const popoverEl = document.querySelector('.bbdrts-tour-popover');
+                triggerCelebration(popoverEl);
+                setTimeout(() => {
+                  try {
+                    driverRef.current?.destroy();
+                  } catch (_) {}
+                }, 260);
+              }
+            : () => {
+                document.body.classList.add('tour-traveling');
+                clearTimeout(settleTimerRef.current);
+                driverRef.current?.moveNext();
+              },
+          onDoneClick: () => {
             const popoverEl = document.querySelector('.bbdrts-tour-popover');
-            fireTourCelebration(popoverEl);
-            if (driverRef.current) {
-              try { driverRef.current.destroy(); } catch (_) {}
-            }
-          } : undefined
+            triggerCelebration(popoverEl);
+            setTimeout(() => {
+              try {
+                driverRef.current?.destroy();
+              } catch (_) {}
+            }, 260);
+          }
         }
       };
     });
 
     const driverObj = driver({
       showProgress: true,
-      animate: false, // Prevents Driver.js from delaying popover mounting or animating its own intermediate state
-      smoothScroll: false, // Handled by our custom safe headroom scrolling
+      animate: false,
+      smoothScroll: false,
       allowClose: true,
       skipMissingElement: true,
       stagePadding: 12,
       stageRadius: 12,
       popoverOffset: 14,
-      overlayColor: 'rgba(0, 0, 0, 0.45)', // Cinematic dark tint complementing 4-panel blur
-      // Safe backdrop behavior: Clicking outside does NOT dismiss the tour mid-tutorial
+      overlayColor: 'rgba(0, 0, 0, 0.45)',
       overlayClickBehavior: () => {
-        // Deliberate no-op: prevents accidental dismissal when reading or clicking around
+        // Deliberate no-op: prevents accidental dismissal
       },
       popoverClass: `bbdrts-tour-popover theme-${currentTheme}`,
       progressText: 'Step {{current}} of {{total}}',
       steps: driverSteps,
+      onDoneClick: () => {
+        const popoverEl = document.querySelector('.bbdrts-tour-popover');
+        triggerCelebration(popoverEl);
+        setTimeout(() => {
+          try {
+            driverRef.current?.destroy();
+          } catch (_) {}
+        }, 260);
+      },
       onHighlightStarted: (element, step, { state }) => {
         isNavigatingStepRef.current = true;
         currentStepIndexRef.current = state?.activeIndex || 0;
 
-        // Hide popover immediately via body class so it NEVER renders at old coordinates
         clearTimeout(settleTimerRef.current);
         document.body.classList.add('tour-traveling');
 
-        // Smoothly scroll camera to the calibrated target
         scrollToTargetSafely(element);
-
-        // Smoothly morph blur cutout towards target element
         syncTourLayout(element);
       },
       onHighlighted: (element, step, { state }) => {
         currentStepIndexRef.current = state?.activeIndex || 0;
-
-        // Keep popover strictly hidden while camera smooth scroll is traveling
         document.body.classList.add('tour-traveling');
 
-        // Settle timer: Once smooth scroll arrives at destination (~340ms), reveal popover at exact position
         clearTimeout(settleTimerRef.current);
         settleTimerRef.current = setTimeout(() => {
           if (driverRef.current) {
@@ -560,11 +717,9 @@ export default function GuidedTour({
               driverRef.current.refresh();
             } catch (_) {}
           }
-          // Wait two animation frames so Driver.js's internal refresh recalculates popover coordinates
           requestAnimationFrame(() => {
             requestAnimationFrame(() => {
               syncTourLayout(element);
-              // Reveal popover with silky fade-in directly at final resting position with 0 movement
               document.body.classList.remove('tour-traveling');
               isNavigatingStepRef.current = false;
             });
@@ -580,29 +735,24 @@ export default function GuidedTour({
       },
       onPopoverRender: (popoverDOM) => {
         if (!popoverDOM) return;
-        // Instantly handle Next / Let's Go and Back buttons
-        if (popoverDOM.nextButton && !popoverDOM.nextButton._hasBBDRTSTourHandler) {
-          popoverDOM.nextButton._hasBBDRTSTourHandler = true;
-          popoverDOM.nextButton.addEventListener('click', () => {
+        
+        // Immediate pointerdown celebration trigger on the final step's button
+        if (popoverDOM.nextButton && !popoverDOM.nextButton._hasBBDRTSTourCelebration) {
+          popoverDOM.nextButton._hasBBDRTSTourCelebration = true;
+          popoverDOM.nextButton.addEventListener('pointerdown', () => {
             const isLast = currentStepIndexRef.current === totalSteps - 1;
             if (isLast) {
-              // Trigger celebratory confetti popping from each side of the final card!
-              fireTourCelebration(popoverDOM.wrapper);
-              if (driverRef.current) {
-                try { driverRef.current.destroy(); } catch (_) {}
-              }
-            } else {
-              document.body.classList.add('tour-traveling');
-              clearTimeout(settleTimerRef.current);
+              triggerCelebration(popoverDOM.wrapper);
             }
-          }, { capture: true });
+          });
         }
+
         if (popoverDOM.previousButton && !popoverDOM.previousButton._hasBBDRTSTourHandler) {
           popoverDOM.previousButton._hasBBDRTSTourHandler = true;
           popoverDOM.previousButton.addEventListener('click', () => {
             document.body.classList.add('tour-traveling');
             clearTimeout(settleTimerRef.current);
-          }, { capture: true });
+          });
         }
 
         if (popoverDOM.closeButton) {
@@ -639,11 +789,10 @@ export default function GuidedTour({
 
     driverRef.current = driverObj;
 
-    // Calibrated reveal delay before launching drive() to ensure layout has completely mounted
     const timer = setTimeout(() => {
       try {
         driverObj.drive();
-        setTimeout(() => syncTourLayout(), 60);
+        syncTourLayout();
       } catch (err) {
         console.warn('Driver.js drive() error:', err);
       }
@@ -659,174 +808,111 @@ export default function GuidedTour({
         driverRef.current = null;
       }
     };
-  }, [isOpen, stage]);
+  }, [isOpen, tourPhase]);
 
-  // Render Welcome Intro Modal before entering Step 1
+  // If not open, render nothing
   if (!isOpen) return null;
 
-  if (stage === 'welcome') {
-    const isDonor = roleName === 'Donor';
-    const isNgo = roleName === 'NGO Partner';
-
-    const badgeText = isDonor 
-      ? 'Verified Donor Platform' 
-      : isNgo 
-        ? 'Accredited NGO Portal' 
-        : 'Disaster Relief System';
-
+  // ── Phase 1: High-Impact Welcome Modal ──
+  if (tourPhase === 'welcome') {
+    const isDonor = roleName.toLowerCase().includes('donor');
+    const highlights = isDonor ? DONOR_HIGHLIGHTS : NGO_HIGHLIGHTS;
+    const headerEmblem = isDonor ? 'volunteer_activism' : 'corporate_fare';
+    const badgeText = isDonor ? 'BBDRTS PHILIPPINES • DIRECT GIVING NETWORK' : 'BBDRTS PHILIPPINES • RELIEF OPERATIONS';
     const titleText = isDonor
-      ? 'Welcome to the Donor Portal'
-      : isNgo
-        ? 'Welcome to the NGO Partner Hub'
-        : 'Welcome to BBDRTS';
-
+      ? 'Welcome to BBDRTS: Direct, Transparent Disaster Giving'
+      : 'Welcome to BBDRTS: Decentralized Relief Operations';
     const subtitleText = isDonor
-      ? 'Empowering you with complete transparency, real-time aid tracking, and verified humanitarian impact on the Ethereum blockchain.'
-      : isNgo
-        ? 'Deploy emergency appeals, manage milestone-governed aid, and provide verified distribution proofs with blockchain-backed integrity.'
-        : 'A transparent, accountable platform connecting donors, relief organizations, and affected communities during disasters.';
+      ? 'The first blockchain-powered disaster response network built for the Philippines. Explore what makes our ecosystem truly direct and transparent before taking the 8-step walkthrough:'
+      : 'Deploy verified emergency relief drives, manage milestone escrows with total public transparency, and deliver accountability across the Philippines:';
 
-    const pillars = isDonor
-      ? [
-          {
-            icon: 'security',
-            colorClass: 'green',
-            title: '100% Immutable On-Chain Ledger',
-            desc: 'Every single peso or ETH contributed is permanently recorded on the Ethereum Sepolia blockchain with cryptographically verifiable audit receipts.'
-          },
-          {
-            icon: 'volunteer_activism',
-            colorClass: 'blue',
-            title: 'Zero-Intermediary Calamity Aid',
-            desc: 'Your relief donations flow directly to accredited causes with milestone-locked disbursements, preventing fund diversion and maximizing life-saving impact.'
-          },
-          {
-            icon: 'radar',
-            colorClass: 'purple',
-            title: 'Live PAGASA Radar & Honors Ladder',
-            desc: 'Monitor real-time Philippine weather radar to see where aid is needed most, and advance across 12 Humanitarian Honors Tiers as your contributions grow.'
-          }
-        ]
-      : isNgo
-        ? [
-            {
-              icon: 'hub',
-              colorClass: 'green',
-              title: 'Smart Contract Milestone Disbursements',
-              desc: 'Receive donor aid with transparent, milestone-based releases on Ethereum Sepolia, maximizing donor trust, accountability, and speed of delivery.'
-            },
-            {
-              icon: 'emergency_share',
-              colorClass: 'blue',
-              title: 'Emergency Calamity Appeals',
-              desc: 'Deploy urgent disaster relief drives with target goals, multi-currency support (ETH, GCash, Maya), and real-time funding progress.'
-            },
-            {
-              icon: 'fact_check',
-              colorClass: 'purple',
-              title: 'Transparent Proofs & Public Audits',
-              desc: 'Submit milestone delivery photos, merchant receipts, and distribution logs that any donor or auditor can independently inspect on-chain.'
-            }
-          ]
-        : [
-            {
-              icon: 'verified',
-              colorClass: 'green',
-              title: 'Immutable Blockchain Accounting',
-              desc: 'All transactions are anchored on Ethereum Sepolia, ensuring zero financial tampering and total public auditability.'
-            },
-            {
-              icon: 'public',
-              colorClass: 'blue',
-              title: 'Real-Time Humanitarian Operations',
-              desc: 'Connect emergency relief drives with generous donors and tracked logistics from initial pledge to final community delivery.'
-            },
-            {
-              icon: 'radar',
-              colorClass: 'purple',
-              title: 'Calamity Radar & Community Support',
-              desc: 'Pair live PAGASA Doppler meteorological data with localized emergency appeals for maximum relief impact.'
-            }
-          ];
+    if (typeof document === 'undefined') return null;
 
     return createPortal(
       <div 
-        className="bbdrts-tour-welcome-backdrop"
-        onClick={(e) => {
-          if (e.target === e.currentTarget) {
-            handleSkipWelcome();
-          }
-        }}
+        className="bbdrts-welcome-backdrop" 
+        onClick={handleSkipTour}
         role="dialog"
         aria-modal="true"
-        aria-label="Welcome Tour"
+        aria-labelledby="bbdrts-welcome-heading"
       >
-        <div className={`bbdrts-tour-welcome-modal theme-${theme}`}>
-          {/* Header Row */}
-          <div className="tw-header-bar">
-            <div className="tw-badge-pill">
-              <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>verified_user</span>
-              <span>{badgeText}</span>
+        <div 
+          className={`bbdrts-welcome-modal theme-${theme}`} 
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Top Right Close Button */}
+          <button 
+            type="button" 
+            className="bbdrts-welcome-close" 
+            onClick={handleSkipTour}
+            title="Close (Esc)"
+          >
+            ✕
+          </button>
+
+          {/* Modal Header */}
+          <div className="bbdrts-welcome-header">
+            <div className="bbdrts-welcome-emblem">
+              <span className="material-symbols-outlined">{headerEmblem}</span>
             </div>
-            <button 
-              type="button"
-              className="tw-close-btn" 
-              onClick={handleSkipWelcome}
-              title="Close and explore on my own (Esc)"
-            >
-              ✕
-            </button>
+            <div>
+              <div className="bbdrts-welcome-badge">
+                <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>verified</span>
+                <span>{badgeText}</span>
+              </div>
+              <h2 id="bbdrts-welcome-heading" className="bbdrts-welcome-title">{titleText}</h2>
+              <p className="bbdrts-welcome-subtitle">{subtitleText}</p>
+            </div>
           </div>
 
-          {/* Hero Section */}
-          <div className="tw-hero-section">
-            <div className="tw-icon-circle">
-              <span className="material-symbols-outlined" style={{ fontSize: '36px', color: 'var(--tour-accent, #22c55e)' }}>
-                {isDonor ? 'handshake' : isNgo ? 'corporate_fare' : 'public'}
-              </span>
-            </div>
-            <h2 className="tw-title">{titleText}</h2>
-            <p className="tw-subtitle">{subtitleText}</p>
-          </div>
-
-          {/* Value Pillars Grid */}
-          <div className="tw-pillars-grid">
-            {pillars.map((p, i) => (
-              <div key={i} className="tw-pillar-card">
-                <div className={`tw-pillar-icon-wrap ${p.colorClass}`}>
-                  <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>{p.icon}</span>
+          {/* 6 Key Architectural Pillars */}
+          <div className="bbdrts-welcome-grid">
+            {highlights.map((item, idx) => (
+              <div key={idx} className="bbdrts-welcome-card">
+                <div 
+                  className="bbdrts-welcome-card-icon"
+                  style={{
+                    backgroundColor: `${item.color}18`,
+                    color: item.color,
+                    border: `1px solid ${item.color}35`
+                  }}
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>{item.icon}</span>
                 </div>
-                <div className="tw-pillar-info">
-                  <h4 className="tw-pillar-title">{p.title}</h4>
-                  <p className="tw-pillar-desc">{p.desc}</p>
+                <div>
+                  <div className="bbdrts-welcome-card-title">{item.title}</div>
+                  <p className="bbdrts-welcome-card-desc">{item.desc}</p>
                 </div>
               </div>
             ))}
           </div>
 
-          {/* Footer Actions */}
-          <div className="tw-footer">
-            <div className="tw-time-capsule">
-              <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>schedule</span>
-              <span>~2 min walkthrough ({steps.length} key highlights)</span>
+          {/* Scope Indicator */}
+          <div className="bbdrts-welcome-scope">
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span className="material-symbols-outlined" style={{ fontSize: '16px', color: 'var(--tour-accent, #22c55e)' }}>explore</span>
+              <span><strong>8-Step Spotlight Walkthrough</strong> covers your live metrics, campaigns, radar, and actions.</span>
             </div>
-            <div className="tw-action-row">
-              <button 
-                type="button"
-                className="tw-btn-secondary"
-                onClick={handleSkipWelcome}
-              >
-                Explore on My Own
-              </button>
-              <button 
-                type="button"
-                className="tw-btn-primary"
-                onClick={handleStartTour}
-              >
-                <span>Start Guided Walkthrough ({steps.length} Steps)</span>
-                <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>arrow_forward</span>
-              </button>
-            </div>
+            <span style={{ fontSize: '0.72rem', opacity: 0.8 }}>Sepolia Testnet • 100% On-Chain</span>
+          </div>
+
+          {/* Actions */}
+          <div className="bbdrts-welcome-actions">
+            <button 
+              type="button" 
+              className="bbdrts-btn-skip" 
+              onClick={handleSkipTour}
+            >
+              Explore on My Own
+            </button>
+            <button 
+              type="button" 
+              className="bbdrts-btn-start" 
+              onClick={handleStartTourSteps}
+            >
+              <span>Start Guided Spotlight Tour</span>
+              <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>arrow_forward</span>
+            </button>
           </div>
         </div>
       </div>,
@@ -834,5 +920,6 @@ export default function GuidedTour({
     );
   }
 
+  // Tour phase runs Driver.js via DOM side-effects
   return null;
 }
