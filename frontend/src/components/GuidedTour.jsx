@@ -1,4 +1,5 @@
-import { useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { driver } from 'driver.js';
 import 'driver.js/dist/driver.css';
 import confetti from 'canvas-confetti';
@@ -13,13 +14,13 @@ const fireTourCelebration = (cardElement) => {
     const winW = window.innerWidth || document.documentElement.clientWidth || 1000;
     const winH = window.innerHeight || document.documentElement.clientHeight || 800;
 
-    let leftOriginX = 0.2;
-    let rightOriginX = 0.8;
-    let originY = 0.6;
+    let leftOriginX = 0.25;
+    let rightOriginX = 0.75;
+    let originY = 0.55;
 
     if (rect && rect.width > 0) {
-      leftOriginX = Math.max(0.04, Math.min(0.96, (rect.left - 10) / winW));
-      rightOriginX = Math.max(0.04, Math.min(0.96, (rect.right + 10) / winW));
+      leftOriginX = Math.max(0.04, Math.min(0.96, (rect.left - 12) / winW));
+      rightOriginX = Math.max(0.04, Math.min(0.96, (rect.right + 12) / winW));
       originY = Math.max(0.08, Math.min(0.92, (rect.top + rect.height * 0.5) / winH));
     }
 
@@ -27,61 +28,57 @@ const fireTourCelebration = (cardElement) => {
 
     // Wave 1: Immediate celebratory cannons popping from each side of the card!
     confetti({
-      particleCount: 50,
+      particleCount: 60,
       angle: 125, // shoots outward & upward to the left
       spread: 65,
       origin: { x: leftOriginX, y: originY },
       colors: brandColors,
       ticks: 240,
       gravity: 0.95,
-      scalar: 1.0,
+      scalar: 1.05,
       drift: -0.15,
-      disableForReducedMotion: true,
-      zIndex: 1000000050
+      zIndex: 2147483647
     });
 
     confetti({
-      particleCount: 50,
+      particleCount: 60,
       angle: 55, // shoots outward & upward to the right
       spread: 65,
       origin: { x: rightOriginX, y: originY },
       colors: brandColors,
       ticks: 240,
       gravity: 0.95,
-      scalar: 1.0,
+      scalar: 1.05,
       drift: 0.15,
-      disableForReducedMotion: true,
-      zIndex: 1000000050
+      zIndex: 2147483647
     });
 
-    // Wave 2: Sparkling follow-up burst from each side after 170ms
+    // Wave 2: Sparkling follow-up burst from each side after 160ms
     setTimeout(() => {
       confetti({
-        particleCount: 35,
+        particleCount: 45,
         angle: 115,
         spread: 75,
         origin: { x: leftOriginX, y: originY },
         colors: brandColors,
         ticks: 220,
         gravity: 1.05,
-        scalar: 0.85,
-        disableForReducedMotion: true,
-        zIndex: 1000000050
+        scalar: 0.9,
+        zIndex: 2147483647
       });
 
       confetti({
-        particleCount: 35,
+        particleCount: 45,
         angle: 65,
         spread: 75,
         origin: { x: rightOriginX, y: originY },
         colors: brandColors,
         ticks: 220,
         gravity: 1.05,
-        scalar: 0.85,
-        disableForReducedMotion: true,
-        zIndex: 1000000050
+        scalar: 0.9,
+        zIndex: 2147483647
       });
-    }, 170);
+    }, 160);
   } catch (err) {
     console.warn('Confetti launch error:', err);
   }
@@ -89,12 +86,13 @@ const fireTourCelebration = (cardElement) => {
 
 /**
  * Universal Guided Spotlight Onboarding Tour Component
- * Powered by Driver.js (v1.8.0) + 4-Panel Blur Surround + Header Blur Guard:
- * - Header Blur Guard (z-index 1000000015): Sticky header ALWAYS stays blurred and protected
- * - 4-Panel backdrop blur blurs the page outside while the active box remains 100% crystal-clear
- * - Safe headroom scrolling: elements are never scrolled beneath the fixed header
- * - Popover collision prevention: guarantees tooltips never overlap the highlighted box
- * - Native onDestroyed lifecycle for 100% reliable close button ('✕') and Escape key handling
+ * Features:
+ * 1. Intro Welcome Modal: Welcomes the user with platform pillars before launching the spotlight tour
+ * 2. Header Blur Guard (z-index 1000000015): Sticky header ALWAYS stays blurred and protected
+ * 3. 4-Panel blur surround blurs the page outside while the active box remains 100% crystal-clear
+ * 4. Safe headroom scrolling: elements are never scrolled beneath the fixed header
+ * 5. Popover collision prevention: guarantees tooltips never overlap the highlighted box
+ * 6. Dual-cannon celebratory confetti bursting from each side of the final card upon completion
  */
 export default function GuidedTour({
   isOpen,
@@ -105,6 +103,7 @@ export default function GuidedTour({
   roleName = 'User',
   theme = 'default'
 }) {
+  const [stage, setStage] = useState('welcome');
   const driverRef = useRef(null);
   const isClosingRef = useRef(false);
   const isNavigatingStepRef = useRef(false);
@@ -125,8 +124,42 @@ export default function GuidedTour({
   const themeRef = useRef(theme);
   themeRef.current = theme;
 
+  // Reset stage to 'welcome' whenever isOpen transitions to true
   useEffect(() => {
-    if (!isOpen) {
+    if (isOpen) {
+      setStage('welcome');
+    }
+  }, [isOpen]);
+
+  const handleStartTour = () => {
+    setStage('tour');
+  };
+
+  const handleSkipWelcome = () => {
+    try {
+      localStorage.setItem(tourKeyRef.current, 'true');
+      localStorage.removeItem('bbdrts_tour_force_launch');
+      localStorage.removeItem('bbdrts_is_new_registration');
+    } catch (_) {}
+    if (typeof onCloseRef.current === 'function') {
+      onCloseRef.current();
+    }
+  };
+
+  // Keyboard Escape listener for Welcome Modal
+  useEffect(() => {
+    if (!isOpen || stage !== 'welcome') return;
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        handleSkipWelcome();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, stage]);
+
+  useEffect(() => {
+    if (!isOpen || stage !== 'tour') {
       if (driverRef.current) {
         try {
           driverRef.current.destroy();
@@ -176,7 +209,7 @@ export default function GuidedTour({
       document.body.appendChild(surroundEl);
     }
 
-    // Trigger smooth fade-in for surround and header guard (Point 3 fix)
+    // Trigger smooth fade-in for surround and header guard
     requestAnimationFrame(() => {
       if (headerGuardEl) headerGuardEl.classList.add('is-active');
       if (surroundEl) surroundEl.classList.add('is-active');
@@ -188,7 +221,7 @@ export default function GuidedTour({
     const rightP = surroundEl.querySelector('.bbdrts-blur-right');
 
     // ── Unified Synchronous Layout Engine ──
-    // Locks blur panels, SVG overlay cutout, and floating card to target element with 0ms latency (Points 4 & 5 fix)
+    // Locks blur panels, SVG overlay cutout, and floating card to target element with 0ms latency
     const syncTourLayout = (targetElement, isScrollEvent = false) => {
       const el = targetElement || document.querySelector('.driver-active-element');
       const surround = document.getElementById(surroundId);
@@ -251,7 +284,7 @@ export default function GuidedTour({
       rightP.style.width = `${Math.max(0, window.innerWidth - r)}px`;
       rightP.style.height = `${h}px`;
 
-      // Synchronously update Driver.js SVG cutout path on every frame (Point 4 fix)
+      // Synchronously update Driver.js SVG cutout path on every frame
       const pathEl = document.querySelector('.driver-overlay path');
       if (pathEl) {
         const rad = 12;
@@ -271,7 +304,7 @@ export default function GuidedTour({
         );
       }
 
-      // Synchronously update popover card during manual scroll (Point 5 fix)
+      // Synchronously update popover card during manual scroll
       const popoverEl = document.querySelector('.bbdrts-tour-popover');
       if (popoverEl && isScrollEvent && !isNavigatingStepRef.current) {
         const curStep = stepsRef.current[currentStepIndexRef.current];
@@ -296,10 +329,6 @@ export default function GuidedTour({
     };
 
     // ── Neutralize Driver.js hardcoded scrollIntoView({ block: 'center' }) ──
-    // Driver.js hardcodes `block: n ? 'start' : 'center'`. Because card height < window height,
-    // Driver.js forcibly centers the card vertically, squishing bottom clearance and forcing
-    // the popover on top of the card (Image 1). Intercepting scrollIntoView ensures our
-    // calibrated camera angles hold rock-solid (Image 2).
     const originalScrollIntoView = Element.prototype.scrollIntoView;
     let hasRestoredScroll = false;
 
@@ -310,7 +339,6 @@ export default function GuidedTour({
       const headerBottom = headerEl ? Math.round(headerEl.getBoundingClientRect().bottom) : 75;
 
       // Case 1: Sidebar target detection (Steps 5, 6, 7, 8 etc.)
-      // Always scroll page back to top: 0 so the entire sidebar and header are fully visible
       const isSidebar = Boolean(
         element.closest('.ref-sidebar') || 
         element.id?.includes('tab-') || 
@@ -329,9 +357,6 @@ export default function GuidedTour({
       }
 
       // Case 2: Step 4 First Campaign Card (Image 2 camera angle)
-      // The camera MUST scroll down so that "Featured Relief Causes" header is at the top
-      // right below the sticky header, framing the campaign card at the top and leaving
-      // ample room below for the popover card!
       const isCampaignCard = Boolean(
         element.id === 'tour-donor-first-campaign' || 
         element.closest('#tour-donor-first-campaign') ||
@@ -343,7 +368,7 @@ export default function GuidedTour({
         const featuredHeadingEl = document.querySelector('#tour-donor-featured-causes');
         let targetY;
         if (featuredHeadingEl) {
-          // Position Featured Relief Causes heading 8px below the sticky header (Matching Image 2)
+          // Position Featured Relief Causes heading 8px below the sticky header
           targetY = Math.max(0, Math.round(window.scrollY + featuredHeadingEl.getBoundingClientRect().top - (headerBottom + 8)));
         } else {
           // Fallback directly to the card: top of card 45px below header
@@ -368,7 +393,7 @@ export default function GuidedTour({
         return;
       }
 
-      // Case 4: Other dashboard elements:
+      // Case 4: Other dashboard elements
       const rect = element.getBoundingClientRect();
       const availableHeight = window.innerHeight - headerBottom;
 
@@ -401,7 +426,7 @@ export default function GuidedTour({
         surround.classList.add('is-scrolling');
       }
 
-      // Synchronous instant layout sync on every scroll tick (0ms latency!)
+      // Synchronous instant layout sync on every scroll tick (0ms latency)
       syncTourLayout(null, true);
 
       clearTimeout(scrollEndTimer);
@@ -467,6 +492,8 @@ export default function GuidedTour({
         </div>
       `;
 
+      const isLast = idx === totalSteps - 1;
+
       return {
         element: s.target,
         popover: {
@@ -475,8 +502,15 @@ export default function GuidedTour({
           side: s.placement || 'bottom',
           align: s.align || 'start',
           showButtons: idx === 0 ? ['next', 'close'] : ['previous', 'next', 'close'],
-          nextBtnText: idx === totalSteps - 1 ? "Got It, Let's Go! ✓" : 'Next →',
+          nextBtnText: isLast ? "Got It, Let's Go! ✓" : 'Next →',
           prevBtnText: '← Back',
+          onNextClick: isLast ? () => {
+            const popoverEl = document.querySelector('.bbdrts-tour-popover');
+            fireTourCelebration(popoverEl);
+            if (driverRef.current) {
+              try { driverRef.current.destroy(); } catch (_) {}
+            }
+          } : undefined
         }
       };
     });
@@ -526,12 +560,11 @@ export default function GuidedTour({
               driverRef.current.refresh();
             } catch (_) {}
           }
-          // Wait two animation frames so Driver.js's internal refresh requestAnimationFrame has finished
-          // recalculating the popover and arrow coordinates BEFORE making the popover visible!
+          // Wait two animation frames so Driver.js's internal refresh recalculates popover coordinates
           requestAnimationFrame(() => {
             requestAnimationFrame(() => {
               syncTourLayout(element);
-              // Reveal popover with silky fade-in directly at final resting position with 0 movement!
+              // Reveal popover with silky fade-in directly at final resting position with 0 movement
               document.body.classList.remove('tour-traveling');
               isNavigatingStepRef.current = false;
             });
@@ -555,6 +588,9 @@ export default function GuidedTour({
             if (isLast) {
               // Trigger celebratory confetti popping from each side of the final card!
               fireTourCelebration(popoverDOM.wrapper);
+              if (driverRef.current) {
+                try { driverRef.current.destroy(); } catch (_) {}
+              }
             } else {
               document.body.classList.add('tour-traveling');
               clearTimeout(settleTimerRef.current);
@@ -607,7 +643,7 @@ export default function GuidedTour({
     const timer = setTimeout(() => {
       try {
         driverObj.drive();
-        setTimeout(updateBlurPanels, 60);
+        setTimeout(() => syncTourLayout(), 60);
       } catch (err) {
         console.warn('Driver.js drive() error:', err);
       }
@@ -623,7 +659,180 @@ export default function GuidedTour({
         driverRef.current = null;
       }
     };
-  }, [isOpen]);
+  }, [isOpen, stage]);
+
+  // Render Welcome Intro Modal before entering Step 1
+  if (!isOpen) return null;
+
+  if (stage === 'welcome') {
+    const isDonor = roleName === 'Donor';
+    const isNgo = roleName === 'NGO Partner';
+
+    const badgeText = isDonor 
+      ? 'Verified Donor Platform' 
+      : isNgo 
+        ? 'Accredited NGO Portal' 
+        : 'Disaster Relief System';
+
+    const titleText = isDonor
+      ? 'Welcome to the Donor Portal'
+      : isNgo
+        ? 'Welcome to the NGO Partner Hub'
+        : 'Welcome to BBDRTS';
+
+    const subtitleText = isDonor
+      ? 'Empowering you with complete transparency, real-time aid tracking, and verified humanitarian impact on the Ethereum blockchain.'
+      : isNgo
+        ? 'Deploy emergency appeals, manage milestone-governed aid, and provide verified distribution proofs with blockchain-backed integrity.'
+        : 'A transparent, accountable platform connecting donors, relief organizations, and affected communities during disasters.';
+
+    const pillars = isDonor
+      ? [
+          {
+            icon: 'security',
+            colorClass: 'green',
+            title: '100% Immutable On-Chain Ledger',
+            desc: 'Every single peso or ETH contributed is permanently recorded on the Ethereum Sepolia blockchain with cryptographically verifiable audit receipts.'
+          },
+          {
+            icon: 'volunteer_activism',
+            colorClass: 'blue',
+            title: 'Zero-Intermediary Calamity Aid',
+            desc: 'Your relief donations flow directly to accredited causes with milestone-locked disbursements, preventing fund diversion and maximizing life-saving impact.'
+          },
+          {
+            icon: 'radar',
+            colorClass: 'purple',
+            title: 'Live PAGASA Radar & Honors Ladder',
+            desc: 'Monitor real-time Philippine weather radar to see where aid is needed most, and advance across 12 Humanitarian Honors Tiers as your contributions grow.'
+          }
+        ]
+      : isNgo
+        ? [
+            {
+              icon: 'hub',
+              colorClass: 'green',
+              title: 'Smart Contract Milestone Disbursements',
+              desc: 'Receive donor aid with transparent, milestone-based releases on Ethereum Sepolia, maximizing donor trust, accountability, and speed of delivery.'
+            },
+            {
+              icon: 'emergency_share',
+              colorClass: 'blue',
+              title: 'Emergency Calamity Appeals',
+              desc: 'Deploy urgent disaster relief drives with target goals, multi-currency support (ETH, GCash, Maya), and real-time funding progress.'
+            },
+            {
+              icon: 'fact_check',
+              colorClass: 'purple',
+              title: 'Transparent Proofs & Public Audits',
+              desc: 'Submit milestone delivery photos, merchant receipts, and distribution logs that any donor or auditor can independently inspect on-chain.'
+            }
+          ]
+        : [
+            {
+              icon: 'verified',
+              colorClass: 'green',
+              title: 'Immutable Blockchain Accounting',
+              desc: 'All transactions are anchored on Ethereum Sepolia, ensuring zero financial tampering and total public auditability.'
+            },
+            {
+              icon: 'public',
+              colorClass: 'blue',
+              title: 'Real-Time Humanitarian Operations',
+              desc: 'Connect emergency relief drives with generous donors and tracked logistics from initial pledge to final community delivery.'
+            },
+            {
+              icon: 'radar',
+              colorClass: 'purple',
+              title: 'Calamity Radar & Community Support',
+              desc: 'Pair live PAGASA Doppler meteorological data with localized emergency appeals for maximum relief impact.'
+            }
+          ];
+
+    return createPortal(
+      <div 
+        className="bbdrts-tour-welcome-backdrop"
+        onClick={(e) => {
+          if (e.target === e.currentTarget) {
+            handleSkipWelcome();
+          }
+        }}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Welcome Tour"
+      >
+        <div className={`bbdrts-tour-welcome-modal theme-${theme}`}>
+          {/* Header Row */}
+          <div className="tw-header-bar">
+            <div className="tw-badge-pill">
+              <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>verified_user</span>
+              <span>{badgeText}</span>
+            </div>
+            <button 
+              type="button"
+              className="tw-close-btn" 
+              onClick={handleSkipWelcome}
+              title="Close and explore on my own (Esc)"
+            >
+              ✕
+            </button>
+          </div>
+
+          {/* Hero Section */}
+          <div className="tw-hero-section">
+            <div className="tw-icon-circle">
+              <span className="material-symbols-outlined" style={{ fontSize: '36px', color: 'var(--tour-accent, #22c55e)' }}>
+                {isDonor ? 'handshake' : isNgo ? 'corporate_fare' : 'public'}
+              </span>
+            </div>
+            <h2 className="tw-title">{titleText}</h2>
+            <p className="tw-subtitle">{subtitleText}</p>
+          </div>
+
+          {/* Value Pillars Grid */}
+          <div className="tw-pillars-grid">
+            {pillars.map((p, i) => (
+              <div key={i} className="tw-pillar-card">
+                <div className={`tw-pillar-icon-wrap ${p.colorClass}`}>
+                  <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>{p.icon}</span>
+                </div>
+                <div className="tw-pillar-info">
+                  <h4 className="tw-pillar-title">{p.title}</h4>
+                  <p className="tw-pillar-desc">{p.desc}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Footer Actions */}
+          <div className="tw-footer">
+            <div className="tw-time-capsule">
+              <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>schedule</span>
+              <span>~2 min walkthrough ({steps.length} key highlights)</span>
+            </div>
+            <div className="tw-action-row">
+              <button 
+                type="button"
+                className="tw-btn-secondary"
+                onClick={handleSkipWelcome}
+              >
+                Explore on My Own
+              </button>
+              <button 
+                type="button"
+                className="tw-btn-primary"
+                onClick={handleStartTour}
+              >
+                <span>Start Guided Walkthrough ({steps.length} Steps)</span>
+                <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>arrow_forward</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>,
+      document.body
+    );
+  }
 
   return null;
 }

@@ -394,3 +394,319 @@ body.tour-traveling .driver-popover,
   --tour-btn-shadow: 0 4px 14px rgba(0, 255, 163, 0.35);
   --tour-btn-shadow-hover: 0 6px 20px rgba(0, 255, 163, 0.55);
 }
+
+/* ═════════════════════════════════════════════════════════════════════
+   BBDRTS Tour Welcome Intro Modal (Before Step 1)
+   ═════════════════════════════════════════════════════════════════════ */
+.bbdrts-tour-welcome-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(5, 8, 15, 0.85);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  z-index: 1000000030 !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  animation: twFadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes twFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.bbdrts-tour-welcome-modal {
+  position: relative;
+  width: 640px;
+  max-width: 95vw;
+  max-height: 90vh;
+  overflow-y: auto;
+  background: var(--tour-card-bg, #161a23);
+  border: 1.5px solid var(--tour-card-border, rgba(34, 197, 94, 0.4));
+  border-radius: 24px;
+  padding: 28px 32px;
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.85), 0 0 45px rgba(34, 197, 94, 0.18);
+  color: var(--tour-text-primary, #ffffff);
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  animation: twScaleIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes twScaleIn {
+  from { opacity: 0; transform: scale(0.94) translateY(12px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.tw-header-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.tw-badge-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--tour-badge-bg, rgba(34, 197, 94, 0.12));
+  border: 1px solid var(--tour-badge-border, rgba(34, 197, 94, 0.32));
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: var(--tour-accent, #22c55e);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.tw-close-btn {
+  all: unset;
+  cursor: pointer;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #94a3b8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  transition: all 0.2s ease;
+}
+
+.tw-close-btn:hover {
+  background: rgba(239, 68, 68, 0.18);
+  border-color: rgba(239, 68, 68, 0.4);
+  color: #ef4444;
+}
+
+.tw-hero-section {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.tw-icon-circle {
+  width: 68px;
+  height: 68px;
+  border-radius: 50%;
+  background: rgba(34, 197, 94, 0.12);
+  border: 1.5px solid rgba(34, 197, 94, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 4px;
+  box-shadow: 0 0 30px rgba(34, 197, 94, 0.2);
+}
+
+.tw-title {
+  font-size: 1.55rem;
+  font-weight: 800;
+  margin: 0;
+  color: var(--tour-text-primary, #ffffff);
+  line-height: 1.25;
+}
+
+.tw-subtitle {
+  font-size: 0.88rem;
+  color: var(--tour-text-muted, #94a3b8);
+  margin: 0;
+  line-height: 1.55;
+  max-width: 520px;
+}
+
+.tw-pillars-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 4px 0;
+}
+
+.tw-pillar-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 14px;
+  padding: 12px 16px;
+  transition: all 0.2s ease;
+}
+
+.tw-pillar-card:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(34, 197, 94, 0.25);
+}
+
+.tw-pillar-icon-wrap {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.tw-pillar-icon-wrap.green {
+  background: rgba(34, 197, 94, 0.15);
+  color: #22c55e;
+}
+
+.tw-pillar-icon-wrap.blue {
+  background: rgba(56, 189, 248, 0.15);
+  color: #38bdf8;
+}
+
+.tw-pillar-icon-wrap.purple {
+  background: rgba(168, 85, 247, 0.15);
+  color: #c084fc;
+}
+
+.tw-pillar-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.tw-pillar-title {
+  font-size: 0.92rem;
+  font-weight: 700;
+  margin: 0 0 2px 0;
+  color: var(--tour-text-primary, #ffffff);
+}
+
+.tw-pillar-desc {
+  font-size: 0.8rem;
+  color: var(--tour-text-muted, #94a3b8);
+  margin: 0;
+  line-height: 1.45;
+}
+
+.tw-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  flex-wrap: wrap;
+}
+
+.tw-time-capsule {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.76rem;
+  color: var(--tour-text-muted, #94a3b8);
+  font-weight: 600;
+}
+
+.tw-action-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+}
+
+.tw-btn-secondary {
+  all: unset;
+  cursor: pointer;
+  padding: 9px 16px;
+  border-radius: 10px;
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: var(--tour-text-muted, #94a3b8);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  transition: all 0.2s ease;
+}
+
+.tw-btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+}
+
+.tw-btn-primary {
+  all: unset;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  border-radius: 10px;
+  font-size: 0.86rem;
+  font-weight: 700;
+  color: #ffffff;
+  background: var(--tour-btn-next-bg, linear-gradient(135deg, #16a34a 0%, #22c55e 100%));
+  box-shadow: 0 4px 16px rgba(34, 197, 94, 0.35);
+  transition: all 0.2s ease;
+}
+
+.tw-btn-primary:hover {
+  filter: brightness(1.1);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(34, 197, 94, 0.45);
+}
+
+/* Light Theme overrides for Welcome Modal */
+.bbdrts-tour-welcome-modal.theme-light {
+  background: #ffffff;
+  border-color: rgba(22, 163, 74, 0.35);
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.15), 0 0 35px rgba(22, 163, 74, 0.12);
+  color: #0f172a;
+}
+
+.bbdrts-tour-welcome-modal.theme-light .tw-title,
+.bbdrts-tour-welcome-modal.theme-light .tw-pillar-title {
+  color: #0f172a;
+}
+
+.bbdrts-tour-welcome-modal.theme-light .tw-subtitle,
+.bbdrts-tour-welcome-modal.theme-light .tw-pillar-desc,
+.bbdrts-tour-welcome-modal.theme-light .tw-time-capsule {
+  color: #64748b;
+}
+
+.bbdrts-tour-welcome-modal.theme-light .tw-pillar-card {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+}
+
+.bbdrts-tour-welcome-modal.theme-light .tw-footer {
+  border-top-color: #e2e8f0;
+}
+
+.bbdrts-tour-welcome-modal.theme-light .tw-btn-secondary {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+  color: #475569;
+}
+
+.bbdrts-tour-welcome-modal.theme-light .tw-btn-secondary:hover {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+/* Cyber Theme overrides for Welcome Modal */
+.bbdrts-tour-welcome-modal.theme-cyber {
+  background: #10141e;
+  border-color: rgba(0, 255, 163, 0.4);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.9), 0 0 45px rgba(0, 255, 163, 0.2);
+}
+
+.bbdrts-tour-welcome-modal.theme-cyber .tw-icon-circle {
+  background: rgba(0, 255, 163, 0.12);
+  border-color: rgba(0, 255, 163, 0.35);
+  box-shadow: 0 0 30px rgba(0, 255, 163, 0.25);
+}
+
+.bbdrts-tour-welcome-modal.theme-cyber .tw-btn-primary {
+  background: linear-gradient(135deg, #059669 0%, #00ffa3 100%);
+  color: #061710;
+  box-shadow: 0 4px 16px rgba(0, 255, 163, 0.4);
+}

@@ -91,75 +91,75 @@ export default function DonorView({ contract, walletAddress, campaigns, fetchCam
   const donorTourSteps = useMemo(() => [
     {
       target: '#tour-donor-welcome',
-      title: 'Donor Profile & Quick Actions',
+      title: 'Verified Wallet & Quick Actions',
       icon: 'verified_user',
       badge: 'Step 1 of 8 • Profile & Overview',
       placement: 'bottom',
       align: 'start',
-      description: 'Your dashboard header displays your verified wallet address and current donor tier. Use the quick action buttons to open your Honors Ladder, jump directly to active relief appeals, or verify the public ledger on Etherscan.'
+      description: 'Your dashboard header displays your verified wallet address and current donor tier. Use the quick action buttons to open your Honors Ladder, jump directly to active relief appeals, or inspect smart contract transactions on Etherscan.'
     },
     {
       target: '#tour-donor-badge-card',
-      title: 'Honors Ladder & Tier Progress',
+      title: '12-Tier Humanitarian Honors Ladder',
       icon: 'military_tech',
       badge: 'Step 2 of 8 • Donor Recognition',
       placement: 'bottom',
       align: 'start',
-      description: 'Track your philanthropic journey across the 12-Tier Honors Ladder (from Tier 1 Contributor up to Tier 12 Mythic Patron). This card shows your progress toward the next tier based on your cumulative verified contributions. Click the button to explore all 12 tiers.'
+      description: 'Every verified contribution advances your standing across 12 Humanitarian Honors Tiers (from Tier 1 Contributor to Tier 12 Mythic Patron). This card tracks your real-time progress toward the next milestone. Click to view all badge tiers and perks.'
     },
     {
       target: '#tour-donor-metrics',
-      title: 'Dashboard Summary Metrics',
+      title: 'Real-Time Transparency & Impact Metrics',
       icon: 'analytics',
       badge: 'Step 3 of 8 • Key Statistics',
       placement: 'bottom',
       align: 'center',
-      description: 'These four stat cards summarize your total contributions recorded on-chain, the number of active relief causes open for aid, the live Sepolia smart contract verification status, and your cumulative donation total in ETH and PHP.'
+      description: 'Track your humanitarian footprint with four live metrics: immutable donation receipts recorded on Ethereum Sepolia, active relief causes needing urgent aid, live smart contract connectivity, and your cumulative contributed total in ETH and PHP.'
     },
     {
       target: '#tour-donor-first-campaign',
-      title: 'Featured Relief Campaign',
+      title: 'Featured Emergency Relief Campaign',
       icon: 'emergency',
-      badge: 'Step 4 of 8 • Relief Causes',
+      badge: 'Step 4 of 8 • Direct Aid',
       placement: 'bottom',
       align: 'center',
-      description: 'Review featured emergency disaster appeals posted by accredited organizations. Each card shows the disaster category, urgency level, funding goal, and progress. Click Donate to contribute using Sepolia ETH or Philippine e-wallets (GCash & Maya).'
+      description: 'Inspect accredited emergency disaster appeals. Each campaign card features disaster classification, urgency priority, and live funding progress. Click Donate to contribute instantly via Ethereum Sepolia or Philippine e-wallets (GCash & Maya).'
     },
     {
       target: '#tour-donor-tab-campaigns',
-      title: 'Relief Campaigns Tab',
+      title: 'Disaster Relief Directory & Filters',
       icon: 'campaign',
-      badge: 'Step 5 of 8 • Navigation',
+      badge: 'Step 5 of 8 • Relief Explorer',
       placement: 'right',
       align: 'center',
-      description: 'Click this sidebar tab to browse all active emergency relief campaigns. You can filter appeals by cause category (Disaster Relief or Charitable Aid), urgency priority (High, Medium, Standard), or search specific relief operations.'
+      description: 'Browse all accredited emergency campaigns across the country. Filter appeals by disaster category (Typhoon, Flood, Earthquake, Fire) or urgency level to pinpoint relief missions where your aid is needed most urgently.'
     },
     {
       target: '#tour-donor-tab-donations',
-      title: 'My Contributions Tab',
+      title: 'Immutable Ledger & Audit Receipts',
       icon: 'history',
-      badge: 'Step 6 of 8 • Donation History',
+      badge: 'Step 6 of 8 • Contribution Ledger',
       placement: 'right',
       align: 'center',
-      description: 'Click here to review your complete on-chain donation history. You can inspect transaction hashes, view verified timestamps and amounts for every contribution, and export printable audit receipts.'
+      description: 'Access your complete, tamper-proof donation history on Ethereum Sepolia. Inspect immutable transaction hashes, verify exact block timestamps, and export printable official tax and audit receipts.'
     },
     {
       target: '#tour-donor-tab-radar',
-      title: 'Relief Radar Tab',
+      title: 'PAGASA Doppler Radar & Calamity Map',
       icon: 'radar',
-      badge: 'Step 7 of 8 • Weather & Disaster Map',
+      badge: 'Step 7 of 8 • Calamity Heatmap',
       placement: 'right',
       align: 'center',
-      description: 'Switch to this tab to view an interactive Philippine map with live PAGASA Doppler radar precipitation data and disaster campaign locations, helping you see where emergency relief is needed most.'
+      description: 'Explore our interactive Philippine map integrating real-time PAGASA Doppler radar precipitation feeds and active calamity zones, giving you situational awareness of where severe weather and disaster relief intersect.'
     },
     {
       target: '#tour-donor-sepolia-node',
-      title: 'Network Health & Replay Tour',
+      title: 'Smart Contract Sync & Replay Tutorial',
       icon: 'hub',
-      badge: 'Step 8 of 8 • System Status',
+      badge: 'Step 8 of 8 • Network Status',
       placement: 'right',
       align: 'end',
-      description: 'This widget displays real-time Ethereum Sepolia smart contract synchronization. You can switch color themes below or click "Guided Tutorial" in the sidebar anytime to replay this walkthrough. You are all set!'
+      description: 'Monitor real-time synchronization with the Ethereum Sepolia blockchain network. You can switch visual themes below or click "Guided Tutorial" in the sidebar anytime to replay this walkthrough. You are ready to make a difference!'
     }
   ], []);
 
