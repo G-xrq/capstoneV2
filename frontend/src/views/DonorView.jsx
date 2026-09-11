@@ -90,44 +90,49 @@ export default function DonorView({ contract, walletAddress, campaigns, fetchCam
 
   const donorTourSteps = useMemo(() => [
     {
-      target: '#tour-donor-identity',
+      target: '#tour-donor-welcome',
       title: 'Decentralized Identity & 100% Direct Giving',
       icon: 'verified_user',
       badge: 'Step 1 of 8 • Identity & Trust',
       placement: 'bottom',
-      description: 'Welcome to BBDRTS! Your profile is cryptographically secured on the Ethereum Sepolia blockchain. 100% of your contributions go straight to relief causes with zero platform commission, zero gateway cuts, and zero political interception.'
-    },
-    {
-      target: '#tour-donor-actions',
-      title: 'Rapid Action Navigation & Public Ledger',
-      icon: 'bolt',
-      badge: 'Step 2 of 8 • Quick Actions',
-      placement: 'bottom',
-      description: 'Jump directly into active emergency campaigns, inspect your philanthropic Honors Ladder, or verify the public Sepolia blockchain ledger on Etherscan anytime with 100% public transparency.'
+      align: 'start',
+      description: 'Welcome to BBDRTS! Your profile is cryptographically secured on the Ethereum Sepolia blockchain with zero platform cuts. Use quick actions to jump to relief appeals, inspect your Honors Ladder, or verify the public ledger on Etherscan.'
     },
     {
       target: '#tour-donor-badge-card',
       title: 'Honors Ladder & Philanthropic Badges',
       icon: 'military_tech',
-      badge: 'Step 3 of 8 • Recognition',
+      badge: 'Step 2 of 8 • Recognition',
       placement: 'bottom',
+      align: 'start',
       description: 'Every peso and ETH you give earns humanitarian milestones on your Honors Ladder: First Responder, Community Guardian, and Relief Champion. Track your next milestone and inspect verified on-chain credentials.'
     },
     {
       target: '#tour-donor-metrics',
       title: 'Live Relief Analytics & Contract Health',
       icon: 'analytics',
-      badge: 'Step 4 of 8 • Transparency',
+      badge: 'Step 3 of 8 • Transparency',
       placement: 'bottom',
+      align: 'center',
       description: 'Monitor your personal contributions, active emergency appeals nationwide, EVM smart contract verification status, and real-time humanitarian relief funds deployed across the Philippines.'
     },
     {
       target: '#tour-donor-first-campaign',
       title: 'Active Appeals & Dual Payment Rails (ETH & E-Wallets)',
       icon: 'emergency',
-      badge: 'Step 5 of 8 • Disaster Appeals & Giving',
-      placement: 'top',
+      badge: 'Step 4 of 8 • Disaster Appeals & Giving',
+      placement: 'bottom',
+      align: 'center',
       description: 'Accredited Philippine NGOs post emergency disaster appeals here. Contribute via dual payment rails: Web3 Crypto (Sepolia ETH via MetaMask) OR instant Philippine E-Wallets (GCash & Maya QR Gateway). You can also toggle Anonymous Giving to protect your privacy.'
+    },
+    {
+      target: '#tour-donor-tab-campaigns',
+      title: 'Nationwide Appeals & Calamity Filters',
+      icon: 'campaign',
+      badge: 'Step 5 of 8 • Appeal Directory',
+      placement: 'right',
+      align: 'center',
+      description: 'Explore all active disaster response operations across Luzon, Visayas, and Mindanao. Filter campaigns by calamity type (Typhoon, Flood, Fire), urgency priority, or target funding goals.'
     },
     {
       target: '#tour-donor-tab-donations',
@@ -135,6 +140,7 @@ export default function DonorView({ contract, walletAddress, campaigns, fetchCam
       icon: 'receipt_long',
       badge: 'Step 6 of 8 • Escrow & Tax Proof',
       placement: 'right',
+      align: 'center',
       description: 'Relief funds remain locked in smart contract escrow until NGOs upload geotagged delivery photos and merchant receipts from the disaster zone. Access this tab anytime to inspect ground-zero proofs and download official printable PDF tax receipts.'
     },
     {
@@ -143,6 +149,7 @@ export default function DonorView({ contract, walletAddress, campaigns, fetchCam
       icon: 'radar',
       badge: 'Step 7 of 8 • Weather Intelligence',
       placement: 'right',
+      align: 'center',
       description: 'Monitor real-time Philippine Doppler weather radar and calamity concentration heatmaps across Luzon, Visayas, and Mindanao. Track storm trajectories to direct your aid where catastrophic impact is greatest.'
     },
     {
@@ -151,6 +158,7 @@ export default function DonorView({ contract, walletAddress, campaigns, fetchCam
       icon: 'settings',
       badge: 'Step 8 of 8 • Control Hub',
       placement: 'right',
+      align: 'end',
       description: 'Monitors live EVM testnet synchronization. You can switch interface themes (Dark, Light, Cyber) or replay this guided walkthrough anytime by clicking Guided Tutorial in the sidebar. You are all set!'
     }
   ], []);

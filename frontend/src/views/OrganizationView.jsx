@@ -607,63 +607,71 @@ export default function OrganizationView({
       icon: 'corporate_fare',
       badge: 'Step 1 of 8 • Command Hub',
       placement: 'bottom',
+      align: 'start',
       description: 'Welcome to your Disaster Operations Command Center. Coordinate rapid emergency disaster relief, deploy smart-contract appeals, and manage transparent calamity response operations across the Philippines.'
-    },
-    {
-      target: '#tour-ngo-actions',
-      title: 'Rapid Operation Triggers & Proofs',
-      icon: 'bolt',
-      badge: 'Step 2 of 8 • Quick Triggers',
-      placement: 'bottom',
-      description: 'Deploy new emergency appeals, upload ground-zero milestone delivery proofs, or verify institutional transactions on the public Ethereum Sepolia ledger in one click.'
     },
     {
       target: '#tour-ngo-metrics',
       title: 'Operational Metrics & Escrow Status',
       icon: 'analytics',
-      badge: 'Step 3 of 8 • Mission Analytics',
+      badge: 'Step 2 of 8 • Mission Analytics',
       placement: 'bottom',
+      align: 'center',
       description: 'Track live relief metrics: active operational appeals, total relief funds received across ETH and E-Wallets, verified milestone distributions, and escrow release status.'
     },
     {
       target: '#tour-ngo-tab-sec',
       title: 'Institutional SEC Non-Profit KYC',
       icon: 'verified_user',
-      badge: 'Step 4 of 8 • Legal Accreditation',
+      badge: 'Step 3 of 8 • Legal Accreditation',
       placement: 'right',
+      align: 'center',
       description: 'Submit your Philippine SEC Non-Stock Registration, DSWD permit, and Board of Trustees to unlock on-chain campaign deployment. Instant AI vision verification builds complete public trust.'
     },
     {
       target: '#tour-ngo-tab-create',
       title: 'Deploy Smart-Contract Relief Campaign',
       icon: 'rocket_launch',
-      badge: 'Step 5 of 8 • Campaign Deployment',
+      badge: 'Step 4 of 8 • Campaign Deployment',
       placement: 'right',
+      align: 'center',
       description: 'Deploy verified emergency appeals in minutes. Specify disaster urgency, affected Philippine municipality, target funding in PHP & ETH, and beneficiary goals with immutable smart contract rules.'
     },
     {
       target: '#tour-ngo-tab-my-campaigns',
       title: 'Active Operations & Milestone Proof Upload',
       icon: 'add_a_photo',
-      badge: 'Step 6 of 8 • Ground-Zero Proofs',
+      badge: 'Step 5 of 8 • Ground-Zero Proofs',
       placement: 'right',
+      align: 'center',
       description: 'Manage deployed operations and upload geotagged distribution photos, merchant receipts, and beneficiary logs directly to campaign milestones to unlock subsequent escrow funding tiers.'
     },
     {
       target: '#tour-ngo-tab-ledger',
       title: 'Multi-Channel Financial Transparency',
       icon: 'account_balance',
-      badge: 'Step 7 of 8 • Audit Ledger',
+      badge: 'Step 6 of 8 • Audit Ledger',
       placement: 'right',
+      align: 'center',
       description: 'Reconcile incoming donations across Ethereum Web3, GCash, PayMaya, and Bank Transfers with real-time transaction reconciliation and SEC compliance reporting.'
     },
     {
       target: '#tour-ngo-tab-radar',
       title: 'Logistics Doppler Radar & Dispatch',
       icon: 'radar',
-      badge: 'Step 8 of 8 • Ground Logistics',
+      badge: 'Step 7 of 8 • Ground Logistics',
       placement: 'right',
+      align: 'center',
       description: 'Utilize live Doppler weather radar and calamity concentration heatmaps to optimize disaster relief logistics, coordinate ground transport, and reach isolated municipalities.'
+    },
+    {
+      target: '#tour-ngo-sepolia-node',
+      title: 'Sepolia Blockchain Protocol & Institutional Security',
+      icon: 'hub',
+      badge: 'Step 8 of 8 • Web3 Gateway',
+      placement: 'right',
+      align: 'end',
+      description: 'Ensures 100% smart contract immutability, zero downtime, and public auditability on the Ethereum Sepolia testnet. You can replay this tutorial anytime from the sidebar!'
     }
   ], []);
 

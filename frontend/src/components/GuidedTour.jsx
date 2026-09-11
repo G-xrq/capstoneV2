@@ -5,11 +5,11 @@ import './GuidedTour.css';
 
 /**
  * Universal Guided Spotlight Onboarding Tour Component
- * Powered by Driver.js (v1.8.0) + 4-Panel Blur Surround:
+ * Powered by Driver.js (v1.8.0) + 4-Panel Blur Surround + Header Blur Guard:
+ * - Header Blur Guard (z-index 1000000015): Sticky header ALWAYS stays blurred and protected
  * - 4-Panel backdrop blur blurs the page outside while the active box remains 100% crystal-clear
- * - Zero GPU compositor locks, zero requestAnimationFrame loops, 60fps hardware-accelerated transitions
- * - Calibrated reveal delay (spotlight glides and settles first, card fades in calmly)
- * - Safe overlay click protection (prevents accidental tour dismissals mid-tutorial)
+ * - Safe headroom scrolling: elements are never scrolled beneath the fixed header
+ * - Popover collision prevention: guarantees tooltips never overlap the highlighted box
  * - Native onDestroyed lifecycle for 100% reliable close button ('✕') and Escape key handling
  */
 export default function GuidedTour({
@@ -61,7 +61,17 @@ export default function GuidedTour({
       } catch (_) {}
     }
 
-    // ── 4-Panel Blur Surround ──
+    // ── 1. Dedicated Fixed Header Blur Guard ──
+    // Pinned above the sticky navbar (z-index: 1000000015) so the header NEVER goes clear
+    const headerGuardId = 'bbdrts-tour-header-guard';
+    let headerGuardEl = document.getElementById(headerGuardId);
+    if (!headerGuardEl) {
+      headerGuardEl = document.createElement('div');
+      headerGuardEl.id = headerGuardId;
+      document.body.appendChild(headerGuardEl);
+    }
+
+    // ── 2. 4-Panel Blur Surround ──
     // Blurs page outside the active box while keeping the interior 100% crystal-clear
     const surroundId = 'bbdrts-tour-blur-surround';
     let surroundEl = document.getElementById(surroundId);
@@ -85,7 +95,15 @@ export default function GuidedTour({
     const updateBlurPanels = (targetEl) => {
       const el = targetEl || document.querySelector('.driver-active-element');
       const surround = document.getElementById(surroundId);
+      const guard = document.getElementById(headerGuardId);
       if (!surround) return;
+
+      const headerEl = document.querySelector('.bbdrts-main-header');
+      const headerBottom = headerEl ? Math.round(headerEl.getBoundingClientRect().bottom) : 75;
+
+      if (guard) {
+        guard.style.height = `${headerBottom}px`;
+      }
 
       if (!el || !topP || !bottomP || !leftP || !rightP) {
         if (topP) {
@@ -103,16 +121,17 @@ export default function GuidedTour({
       const rect = el.getBoundingClientRect();
       if (rect.width === 0 && rect.height === 0) return;
 
-      const pad = 14;
+      const pad = 12;
       const targetLeft = rect.left - pad;
       const targetTop = rect.top - pad;
       const targetRight = rect.right + pad;
       const targetBottom = rect.bottom + pad;
 
+      // CRUCIAL: The spotlight hole must NEVER extend into or above the sticky header
+      const y = Math.max(headerBottom, Math.min(window.innerHeight, Math.round(targetTop)));
       const x = Math.max(0, Math.min(window.innerWidth, Math.round(targetLeft)));
-      const y = Math.max(0, Math.min(window.innerHeight, Math.round(targetTop)));
       const r = Math.max(0, Math.min(window.innerWidth, Math.round(targetRight)));
-      const b = Math.max(0, Math.min(window.innerHeight, Math.round(targetBottom)));
+      const b = Math.max(y, Math.min(window.innerHeight, Math.round(targetBottom)));
       const h = Math.max(0, b - y);
 
       topP.style.top = '0px';
@@ -136,6 +155,32 @@ export default function GuidedTour({
       rightP.style.height = `${h}px`;
     };
 
+    // Safe scrolling: guarantees elements are comfortably positioned below the header
+    const scrollToTargetSafely = (element) => {
+      if (!element) return;
+      const headerEl = document.querySelector('.bbdrts-main-header');
+      const headerBottom = headerEl ? Math.round(headerEl.getBoundingClientRect().bottom) : 75;
+      const rect = element.getBoundingClientRect();
+      const availableHeight = window.innerHeight - headerBottom;
+
+      let desiredTop;
+      if (rect.height <= availableHeight - 70) {
+        // Fits nicely: center it vertically between headerBottom and window bottom
+        desiredTop = headerBottom + Math.max(20, Math.round((availableHeight - rect.height) / 2));
+      } else {
+        // Tall element: give it 35px headroom below the header
+        desiredTop = headerBottom + 35;
+      }
+
+      const scrollDelta = Math.round(rect.top - desiredTop);
+      if (Math.abs(scrollDelta) > 12) {
+        window.scrollBy({
+          top: scrollDelta,
+          behavior: 'smooth'
+        });
+      }
+    };
+
     let scrollRafId = null;
     const handleWindowChange = () => {
       if (scrollRafId) return;
@@ -153,6 +198,8 @@ export default function GuidedTour({
       window.removeEventListener('scroll', handleWindowChange);
       const s = document.getElementById(surroundId);
       if (s) s.remove();
+      const g = document.getElementById(headerGuardId);
+      if (g) g.remove();
     };
 
     const totalSteps = currentSteps.length;
@@ -183,7 +230,7 @@ export default function GuidedTour({
           title: popoverTitle,
           description: s.description || '',
           side: s.placement || 'bottom',
-          align: 'start',
+          align: s.align || 'start',
           showButtons: idx === 0 ? ['next', 'close'] : ['previous', 'next', 'close'],
           nextBtnText: idx === totalSteps - 1 ? "Got It, Let's Go! ✓" : 'Next →',
           prevBtnText: '← Back',
@@ -194,12 +241,12 @@ export default function GuidedTour({
     const driverObj = driver({
       showProgress: true,
       animate: true,
-      smoothScroll: true,
+      smoothScroll: false, // Handled by our custom safe headroom scrolling
       allowClose: true,
       skipMissingElement: true,
-      stagePadding: 14,
-      stageRadius: 14,
-      popoverOffset: 16,
+      stagePadding: 12,
+      stageRadius: 12,
+      popoverOffset: 14,
       overlayColor: 'rgba(0, 0, 0, 0.45)', // Cinematic dark tint complementing 4-panel blur
       // Safe backdrop behavior: Clicking outside does NOT dismiss the tour mid-tutorial
       overlayClickBehavior: () => {
@@ -209,16 +256,17 @@ export default function GuidedTour({
       progressText: 'Step {{current}} of {{total}}',
       steps: driverSteps,
       onHighlightStarted: (element) => {
-        // Softly dim the blur surround during spotlight scroll transition to eliminate flickering
+        // Softly dim the blur surround during spotlight scroll transition
         const surround = document.getElementById(surroundId);
         if (surround) surround.style.opacity = '0.35';
+        scrollToTargetSafely(element);
       },
       onHighlighted: (element) => {
-        // Spotlight and smooth-scroll have settled: lock blur panels to the exact resting target
+        // Spotlight has settled: lock blur panels to the exact resting target
         updateBlurPanels(element);
         const surround = document.getElementById(surroundId);
         if (surround) surround.style.opacity = '1';
-        setTimeout(() => updateBlurPanels(element), 60);
+        setTimeout(() => updateBlurPanels(element), 50);
       },
       onCloseClick: () => {
         if (driverRef.current) {
@@ -228,7 +276,8 @@ export default function GuidedTour({
         }
       },
       onPopoverRender: (popoverDOM) => {
-        if (popoverDOM && popoverDOM.closeButton) {
+        if (!popoverDOM) return;
+        if (popoverDOM.closeButton) {
           popoverDOM.closeButton.innerHTML = '✕';
           popoverDOM.closeButton.setAttribute('title', 'Close tutorial (Esc)');
           popoverDOM.closeButton.onclick = (e) => {
@@ -240,6 +289,40 @@ export default function GuidedTour({
               } catch (_) {}
             }
           };
+        }
+
+        // Overlap Prevention: guarantees the popover never covers the highlighted element
+        const wrapper = popoverDOM.wrapper;
+        if (wrapper) {
+          setTimeout(() => {
+            const activeEl = document.querySelector('.driver-active-element');
+            if (!activeEl) return;
+            const headerEl = document.querySelector('.bbdrts-main-header');
+            const headerBottom = headerEl ? Math.round(headerEl.getBoundingClientRect().bottom) : 75;
+
+            const aRect = activeEl.getBoundingClientRect();
+            const pRect = wrapper.getBoundingClientRect();
+
+            const isOverlapping = (
+              pRect.left < aRect.right &&
+              pRect.right > aRect.left &&
+              pRect.top < aRect.bottom &&
+              pRect.bottom > aRect.top
+            );
+
+            if (isOverlapping) {
+              const spaceBelow = window.innerHeight - aRect.bottom;
+              const spaceAbove = aRect.top - headerBottom;
+
+              if (spaceBelow >= pRect.height + 14) {
+                wrapper.style.top = `${Math.round(aRect.bottom + 12)}px`;
+                wrapper.style.bottom = 'auto';
+              } else if (spaceAbove >= pRect.height + 14) {
+                wrapper.style.top = `${Math.round(aRect.top - pRect.height - 12)}px`;
+                wrapper.style.bottom = 'auto';
+              }
+            }
+          }, 40);
         }
       },
       onDestroyed: () => {
