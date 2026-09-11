@@ -253,6 +253,16 @@ export default function GuidedTour({
       scrollToTargetSafely(this);
     };
 
+    let revealTimer = null;
+    let blurSettleTimer = null;
+
+    const hidePopoverImmediate = () => {
+      const popover = document.querySelector('.bbdrts-tour-popover');
+      if (popover) popover.classList.add('bbdrts-popover-settling');
+      const surround = document.getElementById(surroundId);
+      if (surround) surround.classList.add('bbdrts-blur-fading');
+    };
+
     let scrollRafId = null;
     const handleWindowChange = () => {
       if (scrollRafId) return;
@@ -266,16 +276,27 @@ export default function GuidedTour({
         }
       });
     };
+
+    const handleKeyDown = (e) => {
+      if (['ArrowRight', 'ArrowLeft', 'Enter'].includes(e.key)) {
+        hidePopoverImmediate();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown, { capture: true });
     window.addEventListener('resize', handleWindowChange, { passive: true });
     window.addEventListener('scroll', handleWindowChange, { passive: true });
     window.addEventListener('scrollend', handleWindowChange, { passive: true });
 
     const cleanupSurround = () => {
+      if (revealTimer) clearTimeout(revealTimer);
+      if (blurSettleTimer) clearTimeout(blurSettleTimer);
       if (!hasRestoredScroll) {
         hasRestoredScroll = true;
         Element.prototype.scrollIntoView = originalScrollIntoView;
       }
       if (scrollRafId) cancelAnimationFrame(scrollRafId);
+      window.removeEventListener('keydown', handleKeyDown, { capture: true });
       window.removeEventListener('resize', handleWindowChange);
       window.removeEventListener('scroll', handleWindowChange);
       window.removeEventListener('scrollend', handleWindowChange);
@@ -339,28 +360,45 @@ export default function GuidedTour({
       progressText: 'Step {{current}} of {{total}}',
       steps: driverSteps,
       onHighlightStarted: (element) => {
-        // Softly dim the blur surround during spotlight scroll transition
-        const surround = document.getElementById(surroundId);
-        if (surround) surround.style.opacity = '0.35';
+        if (revealTimer) clearTimeout(revealTimer);
+        if (blurSettleTimer) clearTimeout(blurSettleTimer);
+        hidePopoverImmediate();
         scrollToTargetSafely(element);
       },
       onHighlighted: (element) => {
-        // Spotlight has settled: lock blur panels to the exact resting target
-        updateBlurPanels(element);
-        const surround = document.getElementById(surroundId);
-        if (surround) surround.style.opacity = '1';
+        // Phase 1 (at 280ms): Camera finishes glide, update blur panels and smoothly bloom blur back in
+        if (blurSettleTimer) clearTimeout(blurSettleTimer);
+        blurSettleTimer = setTimeout(() => {
+          updateBlurPanels(element);
+          const surround = document.getElementById(surroundId);
+          if (surround) surround.classList.remove('bbdrts-blur-fading');
+        }, 280);
 
-        // Re-align Driver.js popover and blur panels across the full smooth scroll settling window
-        const refreshOnce = () => {
+        // Phase 2 (at 400ms): Sync Driver.js positioning
+        setTimeout(() => {
           if (driverRef.current) {
             try {
               driverRef.current.refresh();
             } catch (_) {}
           }
           updateBlurPanels(element);
-        };
+        }, 400);
 
-        [60, 140, 260, 420, 600].forEach(ms => setTimeout(refreshOnce, ms));
+        // Phase 3 (at 520ms): Extended delay requested by user! 
+        // Card reveals ONLY after full camera settle, zero flashing in wrong place!
+        if (revealTimer) clearTimeout(revealTimer);
+        revealTimer = setTimeout(() => {
+          if (driverRef.current) {
+            try {
+              driverRef.current.refresh();
+            } catch (_) {}
+          }
+          updateBlurPanels(element);
+          const popover = document.querySelector('.bbdrts-tour-popover');
+          if (popover) {
+            popover.classList.remove('bbdrts-popover-settling');
+          }
+        }, 520);
       },
       onCloseClick: () => {
         if (driverRef.current) {
@@ -371,6 +409,17 @@ export default function GuidedTour({
       },
       onPopoverRender: (popoverDOM) => {
         if (!popoverDOM) return;
+        const wrapper = popoverDOM.wrapper;
+        if (wrapper && !wrapper.classList.contains('bbdrts-popover-revealed')) {
+          wrapper.classList.add('bbdrts-popover-settling');
+        }
+
+        if (popoverDOM.nextButton) {
+          popoverDOM.nextButton.addEventListener('click', hidePopoverImmediate);
+        }
+        if (popoverDOM.previousButton) {
+          popoverDOM.previousButton.addEventListener('click', hidePopoverImmediate);
+        }
         if (popoverDOM.closeButton) {
           popoverDOM.closeButton.innerHTML = '✕';
           popoverDOM.closeButton.setAttribute('title', 'Close tutorial (Esc)');
@@ -384,47 +433,21 @@ export default function GuidedTour({
             }
           };
         }
-
-        // Overlap Prevention: guarantees the popover never covers the highlighted element
-        const wrapper = popoverDOM.wrapper;
-        if (wrapper) {
-          setTimeout(() => {
-            const activeEl = document.querySelector('.driver-active-element');
-            if (!activeEl) return;
-            const headerEl = document.querySelector('.bbdrts-main-header');
-            const headerBottom = headerEl ? Math.round(headerEl.getBoundingClientRect().bottom) : 75;
-
-            const aRect = activeEl.getBoundingClientRect();
-            const pRect = wrapper.getBoundingClientRect();
-
-            const isOverlapping = (
-              pRect.left < aRect.right &&
-              pRect.right > aRect.left &&
-              pRect.top < aRect.bottom &&
-              pRect.bottom > aRect.top
-            );
-
-            if (isOverlapping) {
-              const spaceBelow = window.innerHeight - aRect.bottom;
-              const spaceAbove = aRect.top - headerBottom;
-
-              if (spaceBelow >= pRect.height + 14) {
-                wrapper.style.top = `${Math.round(aRect.bottom + 12)}px`;
-                wrapper.style.bottom = 'auto';
-                const desiredLeft = Math.round(aRect.left + (aRect.width - pRect.width) / 2);
-                wrapper.style.left = `${Math.max(16, Math.min(window.innerWidth - pRect.width - 16, desiredLeft))}px`;
-              } else if (spaceAbove >= pRect.height + 14) {
-                wrapper.style.top = `${Math.round(aRect.top - pRect.height - 12)}px`;
-                wrapper.style.bottom = 'auto';
-                const desiredLeft = Math.round(aRect.left + (aRect.width - pRect.width) / 2);
-                wrapper.style.left = `${Math.max(16, Math.min(window.innerWidth - pRect.width - 16, desiredLeft))}px`;
-              }
-            }
-          }, 80);
-        }
       },
       onDestroyed: () => {
-        cleanupSurround();
+        if (revealTimer) clearTimeout(revealTimer);
+        if (blurSettleTimer) clearTimeout(blurSettleTimer);
+        const surround = document.getElementById(surroundId);
+        const guard = document.getElementById(headerGuardId);
+        if (surround) {
+          surround.style.transition = 'opacity 0.35s ease';
+          surround.style.opacity = '0';
+        }
+        if (guard) {
+          guard.style.transition = 'opacity 0.35s ease';
+          guard.style.opacity = '0';
+        }
+        setTimeout(cleanupSurround, 360);
         if (!isClosingRef.current) {
           isClosingRef.current = true;
           try {
