@@ -272,11 +272,38 @@ export default function GuidedTour({
         </div>
       `;
 
+      let descriptionHtml = s.description || '';
+      if (Array.isArray(s.miniTutorial) && s.miniTutorial.length > 0) {
+        const tabsHtml = s.miniTutorial.map((tab, tIdx) => `
+          <button type="button" class="bbdrts-mini-tab-btn ${tIdx === 0 ? 'active' : ''}" data-step-idx="${idx}" data-tab-idx="${tIdx}">
+            <span class="material-symbols-outlined" style="font-size: 13px;">${tab.icon || 'info'}</span>
+            <span>${tab.tabLabel}</span>
+          </button>
+        `).join('');
+
+        const firstTab = s.miniTutorial[0];
+
+        descriptionHtml = `
+          <div class="bbdrts-tour-desc-text">${s.description || ''}</div>
+          <div class="bbdrts-mini-tutorial-card" data-step-idx="${idx}">
+            <div class="bbdrts-mini-tabs-bar">
+              ${tabsHtml}
+            </div>
+            <div class="bbdrts-mini-content-box">
+              <div class="bbdrts-mini-content-header">
+                <span class="bbdrts-mini-content-badge">${firstTab.badge || ''}</span>
+              </div>
+              <p class="bbdrts-mini-content-body">${firstTab.text || ''}</p>
+            </div>
+          </div>
+        `;
+      }
+
       return {
         element: s.target,
         popover: {
           title: popoverTitle,
-          description: s.description || '',
+          description: descriptionHtml,
           side: s.placement || 'bottom',
           align: s.align || 'start',
           showButtons: idx === 0 ? ['next', 'close'] : ['previous', 'next', 'close'],
@@ -304,6 +331,10 @@ export default function GuidedTour({
       progressText: 'Step {{current}} of {{total}}',
       steps: driverSteps,
       onHighlightStarted: (element) => {
+        // Clear any sub-element highlights from previous steps
+        document.querySelectorAll('.bbdrts-tour-sub-highlight').forEach(el => {
+          el.classList.remove('bbdrts-tour-sub-highlight');
+        });
         // Softly dim the blur surround during spotlight scroll transition
         const surround = document.getElementById(surroundId);
         if (surround) surround.style.opacity = '0.35';
@@ -350,6 +381,54 @@ export default function GuidedTour({
           };
         }
 
+        // Setup interactive mini-tutorial tabs if present
+        const miniCard = popoverDOM.wrapper?.querySelector('.bbdrts-mini-tutorial-card');
+        if (miniCard) {
+          const stepIdx = parseInt(miniCard.getAttribute('data-step-idx'), 10);
+          const stepConfig = currentSteps[stepIdx];
+          const miniData = stepConfig?.miniTutorial || [];
+
+          const tabBtns = miniCard.querySelectorAll('.bbdrts-mini-tab-btn');
+          const badgeEl = miniCard.querySelector('.bbdrts-mini-content-badge');
+          const bodyEl = miniCard.querySelector('.bbdrts-mini-content-body');
+
+          const highlightSubElement = (selector) => {
+            document.querySelectorAll('.bbdrts-tour-sub-highlight').forEach(el => {
+              el.classList.remove('bbdrts-tour-sub-highlight');
+            });
+            if (!selector) return;
+            const activeEl = document.querySelector('.driver-active-element');
+            if (!activeEl) return;
+            const subTarget = activeEl.querySelector(selector);
+            if (subTarget) {
+              subTarget.classList.add('bbdrts-tour-sub-highlight');
+            }
+          };
+
+          // Apply initial sub-highlight for first tab
+          if (miniData[0]?.selector) {
+            highlightSubElement(miniData[0].selector);
+          }
+
+          tabBtns.forEach((btn) => {
+            btn.onclick = (e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              const tabIdx = parseInt(btn.getAttribute('data-tab-idx'), 10);
+              const tab = miniData[tabIdx];
+              if (!tab) return;
+
+              tabBtns.forEach(b => b.classList.remove('active'));
+              btn.classList.add('active');
+
+              if (badgeEl) badgeEl.textContent = tab.badge || '';
+              if (bodyEl) bodyEl.textContent = tab.text || '';
+
+              highlightSubElement(tab.selector);
+            };
+          });
+        }
+
         // Overlap Prevention: guarantees the popover never covers the highlighted element
         const wrapper = popoverDOM.wrapper;
         if (wrapper) {
@@ -389,6 +468,9 @@ export default function GuidedTour({
         }
       },
       onDestroyed: () => {
+        document.querySelectorAll('.bbdrts-tour-sub-highlight').forEach(el => {
+          el.classList.remove('bbdrts-tour-sub-highlight');
+        });
         cleanupSurround();
         if (!isClosingRef.current) {
           isClosingRef.current = true;

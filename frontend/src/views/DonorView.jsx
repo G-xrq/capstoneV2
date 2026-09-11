@@ -123,7 +123,41 @@ export default function DonorView({ contract, walletAddress, campaigns, fetchCam
       badge: 'Step 4 of 8 • Disaster Appeals & Giving',
       placement: 'bottom',
       align: 'center',
-      description: 'Accredited Philippine NGOs post emergency disaster appeals here. Contribute via dual payment rails: Web3 Crypto (Sepolia ETH via MetaMask) OR instant Philippine E-Wallets (GCash & Maya QR Gateway). You can also toggle Anonymous Giving to protect your privacy.'
+      description: 'Accredited Philippine NGOs post emergency disaster appeals here. Click any section below to inspect what each part of the card does:',
+      miniTutorial: [
+        {
+          id: 'media',
+          tabLabel: 'Disaster Info',
+          icon: 'photo_camera',
+          selector: '.campaign-media',
+          badge: 'Ground-Zero Evidence & Location',
+          text: 'Verified field photos, calamity urgency tag (#Food & Water), affected municipality, and accredited Philippine NGO profile badge (ReliefLink PH ✓).'
+        },
+        {
+          id: 'goal',
+          tabLabel: 'Goal & ID',
+          icon: 'flag',
+          selector: '.campaign-info',
+          badge: 'On-Chain Escrow & Target Goal',
+          text: 'Real-time peso funding progress, target amount (₱425,000), and immutable on-chain Tracking ID (#14) for 100% public auditability on Ethereum Sepolia.'
+        },
+        {
+          id: 'rails',
+          tabLabel: 'Payment Rails',
+          icon: 'payments',
+          selector: '.donate-box-card',
+          badge: 'Instant Dual-Rail Giving',
+          text: 'Contribute via dual channels: Web3 Crypto (Sepolia ETH via MetaMask) OR Philippine E-Wallets (GCash & Maya QR Gateway) with optional Anonymous Giving.'
+        },
+        {
+          id: 'ledger',
+          tabLabel: 'Ledger & Map',
+          icon: 'verified',
+          selector: '.campaign-actions-secondary-btns',
+          badge: 'Transparency Tools',
+          text: 'Inspect real-time smart contract transactions directly on Etherscan, or click Details & Map to view GPS coordinates and emergency aid allocations.'
+        }
+      ]
     },
     {
       target: '#tour-donor-tab-campaigns',
