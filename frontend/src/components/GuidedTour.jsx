@@ -1,17 +1,16 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef } from 'react';
+import { driver } from 'driver.js';
+import 'driver.js/dist/driver.css';
 import './GuidedTour.css';
 
 /**
- * Universal High-Performance Guided Onboarding Tour Engine
- * 100% Bespoke, Zero-Lag, Synchronous Scroll-Locked Architecture:
- * - Direct synchronous DOM synchronization on scroll: Spotlight box and tutorial card
- *   are locked 1:1 to content with 0 frame delay regardless of aggressive scrolling.
- * - Smooth transition choreography: Card softly fades out on 'Next'/'Back', camera glides,
- *   and card fades in at the exact settled position — eliminating any wrong-place flashing.
- * - Silky smooth blur in & out: Root overlay transitions smoothly with cubic-bezier easing.
- * - Pinned Header Blur Guard (z-index: 1000000015): Sticky header stays deeply blurred and protected.
- * - Calibrated camera angles: Step 4 frames Featured Causes at top with card below;
- *   Step 5 automatically resets camera to top: 0 so sidebar is 100% visible.
+ * Universal Guided Spotlight Onboarding Tour Component
+ * Powered by Driver.js (v1.8.0) + 4-Panel Blur Surround + Header Blur Guard:
+ * - Header Blur Guard (z-index 1000000015): Sticky header ALWAYS stays blurred and protected
+ * - 4-Panel backdrop blur blurs the page outside while the active box remains 100% crystal-clear
+ * - Safe headroom scrolling: elements are never scrolled beneath the fixed header
+ * - Popover collision prevention: guarantees tooltips never overlap the highlighted box
+ * - Native onDestroyed lifecycle for 100% reliable close button ('✕') and Escape key handling
  */
 export default function GuidedTour({
   isOpen,
@@ -22,522 +21,509 @@ export default function GuidedTour({
   roleName = 'User',
   theme = 'default'
 }) {
-  const [currentStepIndex, setCurrentStepIndex] = useState(0);
-  const [isTransitioning, setIsTransitioning] = useState(false);
-  const [isClosing, setIsClosing] = useState(false);
-  const [mounted, setMounted] = useState(false);
+  const driverRef = useRef(null);
+  const isClosingRef = useRef(false);
+  const isNavigatingStepRef = useRef(false);
+  const currentStepIndexRef = useRef(0);
 
-  // References for zero-lag synchronous scroll synchronization
-  const activeElementRef = useRef(null);
-  const spotlightFrameRef = useRef(null);
-  const topPanelRef = useRef(null);
-  const bottomPanelRef = useRef(null);
-  const leftPanelRef = useRef(null);
-  const rightPanelRef = useRef(null);
-  const headerGuardRef = useRef(null);
-  const cardRef = useRef(null);
-  const currentStepRef = useRef(null);
-
-  // Stable references to props
+  // Stable references to props to prevent re-render loops
   const stepsRef = useRef(steps);
   stepsRef.current = steps;
+  const onTabChangeRef = useRef(onTabChange);
+  onTabChangeRef.current = onTabChange;
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
   const tourKeyRef = useRef(tourKey);
   tourKeyRef.current = tourKey;
+  const roleNameRef = useRef(roleName);
+  roleNameRef.current = roleName;
+  const themeRef = useRef(theme);
+  themeRef.current = theme;
 
-  const totalSteps = steps.length;
-  const currentStep = steps[currentStepIndex] || null;
-  currentStepRef.current = currentStep;
-
-  // ── Helper: Measure Sticky Header Bottom Coordinate ──
-  const getHeaderBottom = useCallback(() => {
-    const headerEl = document.querySelector('.bbdrts-main-header');
-    if (headerEl) {
-      return Math.round(headerEl.getBoundingClientRect().bottom);
-    }
-    return 75;
-  }, []);
-
-  // ── Helper: Safe Headroom Camera Scrolling ──
-  const scrollToTargetSafely = useCallback((element) => {
-    if (!element) return;
-    const hBottom = getHeaderBottom();
-
-    // Case 1: Sidebar target detection (Steps 5, 6, 7, 8 etc.)
-    // Always scroll page back to top: 0 so the entire sidebar and header are fully visible
-    const isSidebar = Boolean(
-      element.closest('.ref-sidebar') || 
-      element.id?.includes('tab-') || 
-      element.id?.includes('sepolia-node') ||
-      element.classList.contains('ref-nav-item')
-    );
-
-    if (isSidebar) {
-      if (window.scrollY > 0) {
-        window.scrollTo({
-          top: 0,
-          behavior: 'smooth'
-        });
-      }
-      return;
-    }
-
-    // Case 2: Step 4 First Campaign Card (Image 2 camera angle)
-    // The camera MUST scroll down so that "Featured Relief Causes" header is at the top
-    // right below the sticky header, framing the campaign card at the top and leaving
-    // ample room below for the popover card!
-    const isCampaignCard = Boolean(
-      element.id === 'tour-donor-first-campaign' || 
-      element.closest('#tour-donor-first-campaign') ||
-      element.id === 'tour-donor-featured-causes' ||
-      element.closest('#tour-donor-featured-causes')
-    );
-
-    if (isCampaignCard) {
-      const featuredHeadingEl = document.querySelector('#tour-donor-featured-causes');
-      let targetY;
-      if (featuredHeadingEl) {
-        targetY = Math.max(0, Math.round(window.scrollY + featuredHeadingEl.getBoundingClientRect().top - (hBottom + 8)));
-      } else {
-        targetY = Math.max(0, Math.round(window.scrollY + element.getBoundingClientRect().top - (hBottom + 45)));
-      }
-
-      window.scrollTo({
-        top: targetY,
-        behavior: 'smooth'
-      });
-      return;
-    }
-
-    // Case 3: Step 3 Metrics Grid
-    if (element.id === 'tour-donor-metrics' || element.closest('#tour-donor-metrics')) {
-      const rect = element.getBoundingClientRect();
-      const targetY = Math.max(0, Math.round(window.scrollY + rect.top - (hBottom + 16)));
-      window.scrollTo({
-        top: targetY,
-        behavior: 'smooth'
-      });
-      return;
-    }
-
-    // Case 4: Other dashboard elements
-    const rect = element.getBoundingClientRect();
-    const availableHeight = window.innerHeight - hBottom;
-
-    let desiredTop;
-    if (rect.height <= availableHeight - 80) {
-      desiredTop = hBottom + Math.max(16, Math.round((availableHeight - rect.height) / 2));
-    } else {
-      desiredTop = hBottom + 16;
-    }
-
-    const targetY = Math.max(0, Math.round(window.scrollY + rect.top - desiredTop));
-    if (Math.abs(window.scrollY - targetY) > 10) {
-      window.scrollTo({
-        top: targetY,
-        behavior: 'smooth'
-      });
-    }
-  }, [getHeaderBottom]);
-
-  // ── Helper: Precise Popover Card Positioning & Arrow Calculation ──
-  const calculateCardPosition = useCallback((rect, placement = 'bottom', align = 'center') => {
-    const cardWidth = 380;
-    const cardHeight = cardRef.current ? cardRef.current.offsetHeight : 210;
-    const gap = 14;
-    const pad = 14;
-    const hBottom = getHeaderBottom();
-
-    let top = 0;
-    let left = 0;
-    let arrowSide = 'top'; // Arrow on top edge of card, pointing up to element
-    let arrowLeft = '50%';
-    let arrowTop = undefined;
-
-    if (placement === 'bottom') {
-      top = rect.bottom + gap;
-      if (align === 'start') {
-        left = rect.left;
-      } else if (align === 'end') {
-        left = rect.right - cardWidth;
-      } else {
-        left = rect.left + (rect.width / 2) - (cardWidth / 2);
-      }
-      arrowSide = 'top';
-      const relX = (rect.left + rect.width / 2) - left;
-      arrowLeft = `${Math.max(24, Math.min(cardWidth - 24, relX))}px`;
-
-      // If bottom overflows viewport, check if top has space
-      if (top + cardHeight > window.innerHeight - 10) {
-        if (rect.top - cardHeight - gap > hBottom + 10) {
-          top = rect.top - cardHeight - gap;
-          arrowSide = 'bottom';
-        } else {
-          top = Math.max(hBottom + 10, window.innerHeight - cardHeight - 10);
-        }
-      }
-    } else if (placement === 'top') {
-      top = rect.top - cardHeight - gap;
-      if (align === 'start') {
-        left = rect.left;
-      } else if (align === 'end') {
-        left = rect.right - cardWidth;
-      } else {
-        left = rect.left + (rect.width / 2) - (cardWidth / 2);
-      }
-      arrowSide = 'bottom';
-      const relX = (rect.left + rect.width / 2) - left;
-      arrowLeft = `${Math.max(24, Math.min(cardWidth - 24, relX))}px`;
-    } else if (placement === 'right') {
-      left = rect.right + gap;
-      if (align === 'start') {
-        top = rect.top;
-      } else if (align === 'end') {
-        top = rect.bottom - cardHeight;
-      } else {
-        top = rect.top + (rect.height / 2) - (cardHeight / 2);
-      }
-      arrowSide = 'left';
-      const relY = (rect.top + rect.height / 2) - top;
-      arrowTop = `${Math.max(20, Math.min(cardHeight - 20, relY))}px`;
-      arrowLeft = undefined;
-    } else if (placement === 'left') {
-      left = rect.left - cardWidth - gap;
-      if (align === 'start') {
-        top = rect.top;
-      } else if (align === 'end') {
-        top = rect.bottom - cardHeight;
-      } else {
-        top = rect.top + (rect.height / 2) - (cardHeight / 2);
-      }
-      arrowSide = 'right';
-      const relY = (rect.top + rect.height / 2) - top;
-      arrowTop = `${Math.max(20, Math.min(cardHeight - 20, relY))}px`;
-      arrowLeft = undefined;
-    }
-
-    // Clamping within viewport
-    left = Math.max(pad, Math.min(window.innerWidth - cardWidth - pad, left));
-    top = Math.max(hBottom + 10, Math.min(window.innerHeight - cardHeight - pad, top));
-
-    return {
-      top: Math.round(top),
-      left: Math.round(left),
-      arrowSide,
-      arrowLeft,
-      arrowTop
-    };
-  }, [getHeaderBottom]);
-
-  // ── Synchronous Position Updater (Zero Lag on Aggressive Scroll) ──
-  const syncPositionsNow = useCallback((isGliding = false) => {
-    const el = activeElementRef.current;
-    if (!el) return;
-
-    const rect = el.getBoundingClientRect();
-    if (rect.width === 0 && rect.height === 0) return;
-
-    const hBottom = getHeaderBottom();
-    const pad = 12;
-
-    // Header guard height
-    if (headerGuardRef.current) {
-      headerGuardRef.current.style.height = `${hBottom}px`;
-    }
-
-    // Spotlight cutout coordinates clamped to header guard
-    const y = Math.max(hBottom, Math.min(window.innerHeight, Math.round(rect.top - pad)));
-    const x = Math.max(0, Math.min(window.innerWidth, Math.round(rect.left - pad)));
-    const r = Math.max(0, Math.min(window.innerWidth, Math.round(rect.right + pad)));
-    const b = Math.max(y, Math.min(window.innerHeight, Math.round(rect.bottom + pad)));
-    const w = Math.max(0, r - x);
-    const h = Math.max(0, b - y);
-
-    // Synchronously update moving spotlight frame
-    if (spotlightFrameRef.current) {
-      if (isGliding) {
-        spotlightFrameRef.current.classList.add('gliding');
-      } else {
-        spotlightFrameRef.current.classList.remove('gliding');
-      }
-      spotlightFrameRef.current.style.top = `${y}px`;
-      spotlightFrameRef.current.style.left = `${x}px`;
-      spotlightFrameRef.current.style.width = `${w}px`;
-      spotlightFrameRef.current.style.height = `${h}px`;
-    }
-
-    // Synchronously update 4-panel blur surround
-    if (topPanelRef.current) {
-      topPanelRef.current.style.height = `${y}px`;
-    }
-    if (bottomPanelRef.current) {
-      bottomPanelRef.current.style.top = `${b}px`;
-      bottomPanelRef.current.style.height = `${Math.max(0, window.innerHeight - b)}px`;
-    }
-    if (leftPanelRef.current) {
-      leftPanelRef.current.style.top = `${y}px`;
-      leftPanelRef.current.style.width = `${x}px`;
-      leftPanelRef.current.style.height = `${h}px`;
-    }
-    if (rightPanelRef.current) {
-      rightPanelRef.current.style.top = `${y}px`;
-      rightPanelRef.current.style.left = `${r}px`;
-      rightPanelRef.current.style.width = `${Math.max(0, window.innerWidth - r)}px`;
-      rightPanelRef.current.style.height = `${h}px`;
-    }
-
-    // Synchronously update floating card position and arrow
-    if (cardRef.current && currentStepRef.current) {
-      const pos = calculateCardPosition(rect, currentStepRef.current.placement, currentStepRef.current.align);
-      cardRef.current.style.transform = `translate3d(${pos.left}px, ${pos.top}px, 0)`;
-
-      const arrowEl = cardRef.current.querySelector('.driver-popover-arrow');
-      if (arrowEl) {
-        arrowEl.className = `driver-popover-arrow arrow-${pos.arrowSide}`;
-        if (pos.arrowLeft !== undefined) arrowEl.style.left = pos.arrowLeft;
-        else arrowEl.style.left = '';
-        if (pos.arrowTop !== undefined) arrowEl.style.top = pos.arrowTop;
-        else arrowEl.style.top = '';
-      }
-    }
-  }, [calculateCardPosition, getHeaderBottom]);
-
-  // ── Step Navigation Transition ──
-  const navigateToStep = useCallback((targetStepIndex) => {
-    const currentSteps = stepsRef.current || [];
-    if (targetStepIndex < 0 || targetStepIndex >= currentSteps.length) return;
-
-    const nextStep = currentSteps[targetStepIndex];
-    if (!nextStep) return;
-
-    // 1. Instantly hide card so it NEVER flashes in the wrong position
-    setIsTransitioning(true);
-
-    const targetEl = document.querySelector(nextStep.target);
-    if (!targetEl) {
-      // Element not yet in DOM, retry briefly
-      setTimeout(() => navigateToStep(targetStepIndex), 100);
-      return;
-    }
-
-    activeElementRef.current = targetEl;
-
-    // 2. Smoothly scroll camera to the calibrated target position
-    scrollToTargetSafely(targetEl);
-
-    // 3. Spotlight glides to the new element
-    syncPositionsNow(true);
-
-    // 4. Once camera has glided (settling window), lock positions and fade card in
-    const revealCard = () => {
-      syncPositionsNow(false);
-      setIsTransitioning(false);
-    };
-
-    setTimeout(revealCard, 260);
-    setTimeout(revealCard, 450);
-  }, [scrollToTargetSafely, syncPositionsNow]);
-
-  // ── Mount / Open Lifecycle ──
   useEffect(() => {
     if (!isOpen) {
-      setMounted(false);
-      setIsClosing(false);
-      activeElementRef.current = null;
+      if (driverRef.current) {
+        try {
+          driverRef.current.destroy();
+        } catch (_) {}
+        driverRef.current = null;
+      }
       return;
     }
 
-    // Ensure dashboard tab is mounted
-    if (typeof onTabChange === 'function') {
+    const currentSteps = stepsRef.current || [];
+    if (currentSteps.length === 0) return;
+
+    isClosingRef.current = false;
+    isNavigatingStepRef.current = false;
+    currentStepIndexRef.current = 0;
+
+    // Ensure we are settled on the dashboard view for stable layout rendering (one-time on open)
+    if (typeof onTabChangeRef.current === 'function') {
       try {
-        onTabChange('dashboard');
+        onTabChangeRef.current('dashboard');
       } catch (_) {}
     }
 
-    setMounted(true);
-    setIsClosing(false);
-    setCurrentStepIndex(0);
+    // ── 1. Dedicated Fixed Header Blur Guard ──
+    // Pinned above the sticky navbar (z-index: 1000000015) so the header NEVER goes clear
+    const headerGuardId = 'bbdrts-tour-header-guard';
+    let headerGuardEl = document.getElementById(headerGuardId);
+    if (!headerGuardEl) {
+      headerGuardEl = document.createElement('div');
+      headerGuardEl.id = headerGuardId;
+      document.body.appendChild(headerGuardEl);
+    }
 
-    // Short reveal delay for stable layout mount
-    const timer = setTimeout(() => {
-      navigateToStep(0);
-    }, 280);
+    // ── 2. 4-Panel Blur Surround ──
+    // Blurs page outside the active box while keeping the interior 100% crystal-clear
+    const surroundId = 'bbdrts-tour-blur-surround';
+    let surroundEl = document.getElementById(surroundId);
+    if (!surroundEl) {
+      surroundEl = document.createElement('div');
+      surroundEl.id = surroundId;
+      surroundEl.innerHTML = `
+        <div class="bbdrts-blur-panel bbdrts-blur-top"></div>
+        <div class="bbdrts-blur-panel bbdrts-blur-bottom"></div>
+        <div class="bbdrts-blur-panel bbdrts-blur-left"></div>
+        <div class="bbdrts-blur-panel bbdrts-blur-right"></div>
+      `;
+      document.body.appendChild(surroundEl);
+    }
 
-    return () => clearTimeout(timer);
-  }, [isOpen, onTabChange, navigateToStep]);
+    // Trigger smooth fade-in for surround and header guard (Point 3 fix)
+    requestAnimationFrame(() => {
+      if (headerGuardEl) headerGuardEl.classList.add('is-active');
+      if (surroundEl) surroundEl.classList.add('is-active');
+    });
 
-  // ── Zero-Lag Synchronous Scroll & Resize Listener ──
-  useEffect(() => {
-    if (!mounted || isClosing) return;
+    const topP = surroundEl.querySelector('.bbdrts-blur-top');
+    const bottomP = surroundEl.querySelector('.bbdrts-blur-bottom');
+    const leftP = surroundEl.querySelector('.bbdrts-blur-left');
+    const rightP = surroundEl.querySelector('.bbdrts-blur-right');
 
-    // Synchronous execution on scroll: ZERO frame delay!
-    const handleScrollOrResize = () => {
-      syncPositionsNow(false);
+    // ── Unified Synchronous Layout Engine ──
+    // Locks blur panels, SVG overlay cutout, and floating card to target element with 0ms latency (Points 4 & 5 fix)
+    const syncTourLayout = (targetElement, isScrollEvent = false) => {
+      const el = targetElement || document.querySelector('.driver-active-element');
+      const surround = document.getElementById(surroundId);
+      const guard = document.getElementById(headerGuardId);
+      if (!surround) return;
+
+      const headerEl = document.querySelector('.bbdrts-main-header');
+      const headerBottom = headerEl ? Math.round(headerEl.getBoundingClientRect().bottom) : 75;
+
+      if (guard) {
+        guard.style.height = `${headerBottom}px`;
+      }
+
+      if (!el || !topP || !bottomP || !leftP || !rightP) {
+        if (topP) {
+          topP.style.top = '0px';
+          topP.style.left = '0px';
+          topP.style.width = '100vw';
+          topP.style.height = '100vh';
+        }
+        if (bottomP) { bottomP.style.height = '0px'; }
+        if (leftP) { leftP.style.width = '0px'; }
+        if (rightP) { rightP.style.width = '0px'; }
+        return;
+      }
+
+      const rect = el.getBoundingClientRect();
+      if (rect.width === 0 && rect.height === 0) return;
+
+      const pad = 12;
+      const targetLeft = rect.left - pad;
+      const targetTop = rect.top - pad;
+      const targetRight = rect.right + pad;
+      const targetBottom = rect.bottom + pad;
+
+      // CRUCIAL: The spotlight hole must NEVER extend into or above the sticky header
+      const y = Math.max(headerBottom, Math.min(window.innerHeight, Math.round(targetTop)));
+      const x = Math.max(0, Math.min(window.innerWidth, Math.round(targetLeft)));
+      const r = Math.max(0, Math.min(window.innerWidth, Math.round(targetRight)));
+      const b = Math.max(y, Math.min(window.innerHeight, Math.round(targetBottom)));
+      const h = Math.max(0, b - y);
+
+      topP.style.top = '0px';
+      topP.style.left = '0px';
+      topP.style.width = '100vw';
+      topP.style.height = `${y}px`;
+
+      bottomP.style.top = `${b}px`;
+      bottomP.style.left = '0px';
+      bottomP.style.width = '100vw';
+      bottomP.style.height = `${Math.max(0, window.innerHeight - b)}px`;
+
+      leftP.style.top = `${y}px`;
+      leftP.style.left = '0px';
+      leftP.style.width = `${x}px`;
+      leftP.style.height = `${h}px`;
+
+      rightP.style.top = `${y}px`;
+      rightP.style.left = `${r}px`;
+      rightP.style.width = `${Math.max(0, window.innerWidth - r)}px`;
+      rightP.style.height = `${h}px`;
+
+      // Synchronously update Driver.js SVG cutout path on every frame (Point 4 fix)
+      const pathEl = document.querySelector('.driver-overlay path');
+      if (pathEl) {
+        const rad = 12;
+        const w = window.innerWidth;
+        const winH = window.innerHeight;
+        const boxW = rect.width + pad * 2;
+        const boxH = rect.height + pad * 2;
+        const cr = Math.min(rad, boxW / 2, boxH / 2);
+        const l = Math.floor(Math.max(cr, 0));
+        const u = rect.left - pad + l;
+        const d = rect.top - pad;
+        const f = boxW - l * 2;
+        const p = boxH - l * 2;
+        pathEl.setAttribute(
+          'd',
+          `M${w},0L0,0L0,${winH}L${w},${winH}L${w},0Z M${u},${d} h${f} a${l},${l} 0 0 1 ${l},${l} v${p} a${l},${l} 0 0 1 -${l},${l} h-${f} a${l},${l} 0 0 1 -${l},-${l} v-${p} a${l},${l} 0 0 1 ${l},-${l} z`
+        );
+      }
+
+      // Synchronously update popover card during manual scroll (Point 5 fix)
+      const popoverEl = document.querySelector('.bbdrts-tour-popover');
+      if (popoverEl && isScrollEvent && !isNavigatingStepRef.current) {
+        const curStep = stepsRef.current[currentStepIndexRef.current];
+        const placement = curStep?.placement || 'bottom';
+        const popRect = popoverEl.getBoundingClientRect();
+        const offset = 14;
+
+        if (placement === 'bottom') {
+          popoverEl.style.top = `${Math.round(rect.bottom + offset)}px`;
+          popoverEl.style.bottom = 'auto';
+          const desiredLeft = Math.round(rect.left + (rect.width - popRect.width) / 2);
+          popoverEl.style.left = `${Math.max(16, Math.min(window.innerWidth - popRect.width - 16, desiredLeft))}px`;
+          popoverEl.style.right = 'auto';
+        } else if (placement === 'right') {
+          popoverEl.style.left = `${Math.round(rect.right + offset)}px`;
+          popoverEl.style.right = 'auto';
+          const desiredTop = Math.round(rect.top + (rect.height - popRect.height) / 2);
+          popoverEl.style.top = `${Math.max(headerBottom + 12, Math.min(window.innerHeight - popRect.height - 16, desiredTop))}px`;
+          popoverEl.style.bottom = 'auto';
+        }
+      }
     };
 
-    window.addEventListener('scroll', handleScrollOrResize, { passive: true });
-    window.addEventListener('resize', handleScrollOrResize, { passive: true });
+    // ── Neutralize Driver.js hardcoded scrollIntoView({ block: 'center' }) ──
+    // Driver.js hardcodes `block: n ? 'start' : 'center'`. Because card height < window height,
+    // Driver.js forcibly centers the card vertically, squishing bottom clearance and forcing
+    // the popover on top of the card (Image 1). Intercepting scrollIntoView ensures our
+    // calibrated camera angles hold rock-solid (Image 2).
+    const originalScrollIntoView = Element.prototype.scrollIntoView;
+    let hasRestoredScroll = false;
+
+    // Safe scrolling: guarantees elements are comfortably positioned below the header
+    const scrollToTargetSafely = (element) => {
+      if (!element) return;
+      const headerEl = document.querySelector('.bbdrts-main-header');
+      const headerBottom = headerEl ? Math.round(headerEl.getBoundingClientRect().bottom) : 75;
+
+      // Case 1: Sidebar target detection (Steps 5, 6, 7, 8 etc.)
+      // Always scroll page back to top: 0 so the entire sidebar and header are fully visible
+      const isSidebar = Boolean(
+        element.closest('.ref-sidebar') || 
+        element.id?.includes('tab-') || 
+        element.id?.includes('sepolia-node') ||
+        element.classList.contains('ref-nav-item')
+      );
+
+      if (isSidebar) {
+        if (window.scrollY > 0) {
+          window.scrollTo({
+            top: 0,
+            behavior: 'smooth'
+          });
+        }
+        return;
+      }
+
+      // Case 2: Step 4 First Campaign Card (Image 2 camera angle)
+      // The camera MUST scroll down so that "Featured Relief Causes" header is at the top
+      // right below the sticky header, framing the campaign card at the top and leaving
+      // ample room below for the popover card!
+      const isCampaignCard = Boolean(
+        element.id === 'tour-donor-first-campaign' || 
+        element.closest('#tour-donor-first-campaign') ||
+        element.id === 'tour-donor-featured-causes' ||
+        element.closest('#tour-donor-featured-causes')
+      );
+
+      if (isCampaignCard) {
+        const featuredHeadingEl = document.querySelector('#tour-donor-featured-causes');
+        let targetY;
+        if (featuredHeadingEl) {
+          // Position Featured Relief Causes heading 8px below the sticky header (Matching Image 2)
+          targetY = Math.max(0, Math.round(window.scrollY + featuredHeadingEl.getBoundingClientRect().top - (headerBottom + 8)));
+        } else {
+          // Fallback directly to the card: top of card 45px below header
+          targetY = Math.max(0, Math.round(window.scrollY + element.getBoundingClientRect().top - (headerBottom + 45)));
+        }
+
+        window.scrollTo({
+          top: targetY,
+          behavior: 'smooth'
+        });
+        return;
+      }
+
+      // Case 3: Step 3 Metrics Grid
+      if (element.id === 'tour-donor-metrics' || element.closest('#tour-donor-metrics')) {
+        const rect = element.getBoundingClientRect();
+        const targetY = Math.max(0, Math.round(window.scrollY + rect.top - (headerBottom + 16)));
+        window.scrollTo({
+          top: targetY,
+          behavior: 'smooth'
+        });
+        return;
+      }
+
+      // Case 4: Other dashboard elements:
+      const rect = element.getBoundingClientRect();
+      const availableHeight = window.innerHeight - headerBottom;
+
+      let desiredTop;
+      if (rect.height <= availableHeight - 80) {
+        desiredTop = headerBottom + Math.max(16, Math.round((availableHeight - rect.height) / 2));
+      } else {
+        desiredTop = headerBottom + 16;
+      }
+
+      const targetY = Math.max(0, Math.round(window.scrollY + rect.top - desiredTop));
+      if (Math.abs(window.scrollY - targetY) > 10) {
+        window.scrollTo({
+          top: targetY,
+          behavior: 'smooth'
+        });
+      }
+    };
+
+    // Override scrollIntoView on Element.prototype while tour is active
+    Element.prototype.scrollIntoView = function(options) {
+      scrollToTargetSafely(this);
+    };
+
+    // ── High-Frequency Instant Tracking Scroll & Resize Handlers ──
+    let scrollEndTimer = null;
+    const handleScroll = () => {
+      const surround = document.getElementById(surroundId);
+      if (surround && !surround.classList.contains('is-scrolling')) {
+        surround.classList.add('is-scrolling');
+      }
+
+      // Synchronous instant layout sync on every scroll tick (0ms latency!)
+      syncTourLayout(null, true);
+
+      clearTimeout(scrollEndTimer);
+      scrollEndTimer = setTimeout(() => {
+        if (surround) surround.classList.remove('is-scrolling');
+        if (driverRef.current) {
+          try {
+            driverRef.current.refresh();
+          } catch (_) {}
+        }
+        syncTourLayout();
+      }, 120);
+    };
+
+    const handleResize = () => {
+      syncTourLayout();
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    window.addEventListener('resize', handleResize, { passive: true });
+
+    const cleanupSurround = () => {
+      if (!hasRestoredScroll) {
+        hasRestoredScroll = true;
+        Element.prototype.scrollIntoView = originalScrollIntoView;
+      }
+      clearTimeout(scrollEndTimer);
+      window.removeEventListener('scroll', handleScroll);
+      window.removeEventListener('resize', handleResize);
+
+      const s = document.getElementById(surroundId);
+      const g = document.getElementById(headerGuardId);
+      if (s) s.classList.remove('is-active');
+      if (g) g.classList.remove('is-active');
+
+      setTimeout(() => {
+        if (s) s.remove();
+        if (g) g.remove();
+      }, 260);
+    };
+
+    const totalSteps = currentSteps.length;
+    const currentRole = roleNameRef.current;
+    const currentTheme = themeRef.current;
+
+    const driverSteps = currentSteps.map((s, idx) => {
+      const stepNumber = idx + 1;
+      const badgeText = s.badge || `Step ${stepNumber} of ${totalSteps} • ${currentRole} Tutorial`;
+      const iconHtml = s.icon
+        ? `<span class="material-symbols-outlined driver-step-icon">${s.icon}</span>`
+        : '';
+
+      const popoverTitle = `
+        <div class="driver-popover-badge">
+          <span class="material-symbols-outlined" style="font-size: 13px;">help</span>
+          <span>${badgeText}</span>
+        </div>
+        <div class="driver-step-title-row">
+          ${iconHtml}
+          <span>${s.title || ''}</span>
+        </div>
+      `;
+
+      return {
+        element: s.target,
+        popover: {
+          title: popoverTitle,
+          description: s.description || '',
+          side: s.placement || 'bottom',
+          align: s.align || 'start',
+          showButtons: idx === 0 ? ['next', 'close'] : ['previous', 'next', 'close'],
+          nextBtnText: idx === totalSteps - 1 ? "Got It, Let's Go! ✓" : 'Next →',
+          prevBtnText: '← Back',
+        }
+      };
+    });
+
+    const driverObj = driver({
+      showProgress: true,
+      animate: true,
+      smoothScroll: false, // Handled by our custom safe headroom scrolling
+      allowClose: true,
+      skipMissingElement: true,
+      stagePadding: 12,
+      stageRadius: 12,
+      popoverOffset: 14,
+      overlayColor: 'rgba(0, 0, 0, 0.45)', // Cinematic dark tint complementing 4-panel blur
+      // Safe backdrop behavior: Clicking outside does NOT dismiss the tour mid-tutorial
+      overlayClickBehavior: () => {
+        // Deliberate no-op: prevents accidental dismissal when reading or clicking around
+      },
+      popoverClass: `bbdrts-tour-popover theme-${currentTheme}`,
+      progressText: 'Step {{current}} of {{total}}',
+      steps: driverSteps,
+      onHighlightStarted: (element, step, { state }) => {
+        isNavigatingStepRef.current = true;
+        currentStepIndexRef.current = state?.activeIndex || 0;
+
+        // Immediately hide popover so it NEVER flashes or appears in the wrong place (Point 2 fix!)
+        const popoverEl = document.querySelector('.bbdrts-tour-popover');
+        if (popoverEl) {
+          popoverEl.classList.add('is-traveling');
+        }
+
+        // Smoothly scroll camera to the calibrated target
+        scrollToTargetSafely(element);
+
+        // Smoothly morph blur cutout towards target element
+        syncTourLayout(element);
+      },
+      onHighlighted: (element, step, { state }) => {
+        currentStepIndexRef.current = state?.activeIndex || 0;
+
+        const popoverEl = document.querySelector('.bbdrts-tour-popover');
+        if (popoverEl) {
+          popoverEl.classList.add('is-traveling');
+        }
+
+        // Once the camera has finished its smooth scroll and arrived at destination (~320ms):
+        setTimeout(() => {
+          if (driverRef.current) {
+            try {
+              driverRef.current.refresh();
+            } catch (_) {}
+          }
+          syncTourLayout(element);
+
+          // Reveal popover with silky fade-in at the exact final resting coordinates!
+          if (popoverEl) {
+            popoverEl.classList.remove('is-traveling');
+          }
+          isNavigatingStepRef.current = false;
+        }, 320);
+
+        // Final micro-settle at 480ms
+        setTimeout(() => {
+          if (driverRef.current) {
+            try {
+              driverRef.current.refresh();
+            } catch (_) {}
+          }
+          syncTourLayout(element);
+        }, 480);
+      },
+      onCloseClick: () => {
+        if (driverRef.current) {
+          try {
+            driverRef.current.destroy();
+          } catch (_) {}
+        }
+      },
+      onPopoverRender: (popoverDOM) => {
+        if (!popoverDOM) return;
+        if (popoverDOM.closeButton) {
+          popoverDOM.closeButton.innerHTML = '✕';
+          popoverDOM.closeButton.setAttribute('title', 'Close tutorial (Esc)');
+          popoverDOM.closeButton.onclick = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (driverRef.current) {
+              try {
+                driverRef.current.destroy();
+              } catch (_) {}
+            }
+          };
+        }
+      },
+      onDestroyed: () => {
+        cleanupSurround();
+        if (!isClosingRef.current) {
+          isClosingRef.current = true;
+          try {
+            localStorage.setItem(tourKeyRef.current, 'true');
+            localStorage.removeItem('bbdrts_tour_force_launch');
+            localStorage.removeItem('bbdrts_is_new_registration');
+          } catch (_) {}
+          if (typeof onCloseRef.current === 'function') {
+            onCloseRef.current();
+          }
+        }
+        driverRef.current = null;
+      }
+    });
+
+    driverRef.current = driverObj;
+
+    // Calibrated reveal delay before launching drive() to ensure layout has completely mounted
+    const timer = setTimeout(() => {
+      try {
+        driverObj.drive();
+        setTimeout(updateBlurPanels, 60);
+      } catch (err) {
+        console.warn('Driver.js drive() error:', err);
+      }
+    }, 380);
 
     return () => {
-      window.removeEventListener('scroll', handleScrollOrResize);
-      window.removeEventListener('resize', handleScrollOrResize);
-    };
-  }, [mounted, isClosing, syncPositionsNow]);
-
-  // ── Close Tour Gracefully with Fade-Out ──
-  const handleClose = useCallback(() => {
-    if (isClosing) return;
-    setIsClosing(true);
-
-    try {
-      localStorage.setItem(tourKeyRef.current, 'true');
-      localStorage.removeItem('bbdrts_tour_force_launch');
-      localStorage.removeItem('bbdrts_is_new_registration');
-    } catch (_) {}
-
-    // Graceful 0.25s fade-out before unmounting
-    setTimeout(() => {
-      setMounted(false);
-      if (typeof onCloseRef.current === 'function') {
-        onCloseRef.current();
-      }
-    }, 250);
-  }, [isClosing]);
-
-  // ── Next & Back Buttons ──
-  const handleNext = () => {
-    if (currentStepIndex < totalSteps - 1) {
-      const nextIdx = currentStepIndex + 1;
-      setCurrentStepIndex(nextIdx);
-      navigateToStep(nextIdx);
-    } else {
-      handleClose();
-    }
-  };
-
-  const handlePrev = () => {
-    if (currentStepIndex > 0) {
-      const prevIdx = currentStepIndex - 1;
-      setCurrentStepIndex(prevIdx);
-      navigateToStep(prevIdx);
-    }
-  };
-
-  // ── Keyboard Controls (Escape, ArrowRight, ArrowLeft) ──
-  useEffect(() => {
-    if (!mounted || isClosing) return;
-
-    const handleKeyDown = (e) => {
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        handleClose();
-      } else if (e.key === 'ArrowRight' || e.key === 'Enter') {
-        e.preventDefault();
-        handleNext();
-      } else if (e.key === 'ArrowLeft') {
-        e.preventDefault();
-        handlePrev();
+      clearTimeout(timer);
+      cleanupSurround();
+      if (driverRef.current) {
+        try {
+          driverRef.current.destroy();
+        } catch (_) {}
+        driverRef.current = null;
       }
     };
+  }, [isOpen]);
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [mounted, isClosing, currentStepIndex, totalSteps, handleClose]);
-
-  if (!mounted) return null;
-
-  return (
-    <div className={`bbdrts-tour-root ${isClosing ? 'closing' : 'active'} theme-${theme}`}>
-      {/* ── 1. Dedicated Fixed Header Blur Guard (z-index: 1000000015) ── */}
-      <div 
-        ref={headerGuardRef}
-        id="bbdrts-tour-header-guard" 
-        style={{ height: `${getHeaderBottom()}px` }} 
-      />
-
-      {/* ── 2. 4-Panel Blur Surround (Blurs background outside, keeping cutout 100% sharp) ── */}
-      <div id="bbdrts-tour-blur-surround">
-        <div ref={topPanelRef} className="bbdrts-blur-panel bbdrts-blur-top" style={{ top: 0, left: 0, width: '100vw' }} />
-        <div ref={bottomPanelRef} className="bbdrts-blur-panel bbdrts-blur-bottom" style={{ left: 0, width: '100vw' }} />
-        <div ref={leftPanelRef} className="bbdrts-blur-panel bbdrts-blur-left" style={{ left: 0 }} />
-        <div ref={rightPanelRef} className="bbdrts-blur-panel bbdrts-blur-right" />
-      </div>
-
-      {/* ── 3. Moving Spotlight Focus Frame (Radiant animated border & elevation) ── */}
-      <div 
-        ref={spotlightFrameRef}
-        className="bbdrts-spotlight-focus-frame"
-      />
-
-      {/* ── 4. Smart Floating Tutorial Card ── */}
-      <div
-        ref={cardRef}
-        className={`bbdrts-tour-popover ${isTransitioning ? 'transitioning' : 'visible'}`}
-        role="dialog"
-        aria-modal="true"
-      >
-        {/* Directional Pointer Arrow */}
-        <div className="driver-popover-arrow arrow-top" />
-
-        {/* Close Button ('✕') */}
-        <button
-          type="button"
-          className="driver-popover-close-btn"
-          onClick={handleClose}
-          title="Close tutorial (Esc)"
-          aria-label="Close tutorial"
-        >
-          ✕
-        </button>
-
-        {/* Header: Category Badge & Title */}
-        <div className="driver-popover-title">
-          <div className="driver-popover-badge">
-            <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>help</span>
-            <span>{currentStep?.badge || `Step ${currentStepIndex + 1} of ${totalSteps} • ${roleName} Tutorial`}</span>
-          </div>
-          <div className="driver-step-title-row">
-            {currentStep?.icon && (
-              <span className="material-symbols-outlined driver-step-icon">{currentStep.icon}</span>
-            )}
-            <span>{currentStep?.title || ''}</span>
-          </div>
-        </div>
-
-        {/* Description Body */}
-        <div className="driver-popover-description">
-          {currentStep?.description}
-        </div>
-
-        {/* Footer Navigation & Progress */}
-        <div className="driver-popover-footer">
-          <div className="driver-popover-progress-text">
-            Step {currentStepIndex + 1} of {totalSteps}
-          </div>
-
-          <div className="driver-popover-navigation-btns">
-            {currentStepIndex > 0 && (
-              <button
-                type="button"
-                className="driver-popover-prev-btn"
-                onClick={handlePrev}
-              >
-                ← Back
-              </button>
-            )}
-
-            <button
-              type="button"
-              className="driver-popover-next-btn"
-              onClick={handleNext}
-              autoFocus
-            >
-              {currentStepIndex === totalSteps - 1 ? "Got It, Let's Go! ✓" : 'Next →'}
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+  return null;
 }
