@@ -2532,41 +2532,41 @@ app.get('/api/leaderboard', async (req, res) => {
   }
 
   try {
-    // 1. Fetch Real Registered Donors with Aggregated Contributions
+    // 1. Fetch Real Registered Donors with Aggregated Contributions from Database
     const [donorRows] = await db.query(`
       SELECT 
         d.Donor_ID as donorId,
         d.Username as username,
-        COALESCE(d.Display_Name, d.Legal_Name, d.Name, 'Verified Donor') as displayName,
+        COALESCE(NULLIF(d.Display_Name, ''), NULLIF(d.Legal_Name, ''), NULLIF(d.Name, ''), d.Username, 'Verified Donor') as displayName,
         COALESCE(d.Avatar_Url, '') as avatarUrl,
         d.Wallet_Address as walletAddress,
-        d.Location as location,
+        COALESCE(d.Location, 'Philippines') as location,
         COALESCE(SUM(dt.Amount), 0) as totalDonatedEth,
         COUNT(dt.Transaction_ID) as donationCount,
         COUNT(DISTINCT dt.Campaign_ID) as campaignsSupported,
         MAX(dt.Created_At) as lastDonationDate
       FROM DONOR d
-      LEFT JOIN DONATION_TRANSACTION dt ON (d.Donor_ID = dt.Donor_ID OR (d.Wallet_Address IS NOT NULL AND LOWER(d.Wallet_Address) = LOWER(dt.Wallet_Address)))
+      LEFT JOIN DONATION_TRANSACTION dt ON (d.Donor_ID = dt.Donor_ID OR (d.Wallet_Address IS NOT NULL AND dt.Wallet_Address IS NOT NULL AND LOWER(d.Wallet_Address) = LOWER(dt.Wallet_Address)))
       GROUP BY d.Donor_ID, d.Username, d.Display_Name, d.Legal_Name, d.Name, d.Avatar_Url, d.Wallet_Address, d.Location
+      ORDER BY totalDonatedEth DESC, donationCount DESC
     `);
 
-    // 2. Fetch Anonymous/Pure Web3 Wallets with donations not linked to a donor account
-    const [walletRows] = await db.query(`
+    // 2. Fetch Anonymous / Unlinked Web3 Wallets with Real Transactions Not Yet Linked to a Registered Donor
+    const [unlinkedRows] = await db.query(`
       SELECT 
-        LOWER(dt.Wallet_Address) as walletAddress,
+        dt.Donor_ID as donorId,
+        dt.Wallet_Address as walletAddress,
         COALESCE(SUM(dt.Amount), 0) as totalDonatedEth,
         COUNT(dt.Transaction_ID) as donationCount,
         COUNT(DISTINCT dt.Campaign_ID) as campaignsSupported,
         MAX(dt.Created_At) as lastDonationDate
       FROM DONATION_TRANSACTION dt
-      WHERE (dt.Donor_ID IS NULL OR dt.Donor_ID = 0)
-        AND dt.Wallet_Address IS NOT NULL
-        AND dt.Wallet_Address != ''
-        AND dt.Wallet_Address != '0x0000000000000000000000000000000000000000'
-      GROUP BY LOWER(dt.Wallet_Address)
+      LEFT JOIN DONOR d ON (dt.Donor_ID = d.Donor_ID OR (dt.Wallet_Address IS NOT NULL AND d.Wallet_Address IS NOT NULL AND LOWER(dt.Wallet_Address) = LOWER(d.Wallet_Address)))
+      WHERE d.Donor_ID IS NULL AND dt.Amount > 0
+      GROUP BY dt.Donor_ID, dt.Wallet_Address
     `);
 
-    // Helper to calculate 12-tier honors ladder standing
+    // Helper to calculate 12-tier honors ladder standing based on real on-chain contributions
     const calculateDonorTier = (eth) => {
       const php = Math.round(eth * 170000);
       if (php >= 5000000 || eth >= 30.0) return { tier: 12, name: 'Mythic Patron', subtitle: 'Transcendent Diamond', color: '#ec4899' };
@@ -2583,86 +2583,7 @@ app.get('/api/leaderboard', async (req, res) => {
       return { tier: 1, name: 'Contributor', subtitle: 'Faceted Relief Sprout Gem', color: '#10b981' };
     };
 
-    // Baseline Seeded Philanthropic Champions (to ensure robust, inspiring leaderboard from day 1)
-    const seededDonors = [
-      {
-        id: 'seed-1',
-        donorId: null,
-        displayName: 'Bayanihan Philanthropy Circle',
-        username: 'bayanihan.circle',
-        avatarUrl: '',
-        walletAddress: '0x71c0490215b13ad167c9c0b29ad57cb763a8a9b1',
-        location: 'Makati City, Metro Manila',
-        totalDonatedEth: 18.45,
-        totalDonatedPhp: 3136500,
-        donationCount: 38,
-        campaignsSupported: 16,
-        topCause: 'Emergency Typhoons & Floods',
-        badge: calculateDonorTier(18.45)
-      },
-      {
-        id: 'seed-2',
-        donorId: null,
-        displayName: 'Vitalik & Friends Disaster Fund',
-        username: 'vitalik.relief',
-        avatarUrl: '',
-        walletAddress: '0xd8da6bf26964af9d7eed9e03e53415d37aa96045',
-        location: 'Global Decentralized Aid',
-        totalDonatedEth: 12.80,
-        totalDonatedPhp: 2176000,
-        donationCount: 22,
-        campaignsSupported: 12,
-        topCause: 'Typhoon Emergency Response',
-        badge: calculateDonorTier(12.80)
-      },
-      {
-        id: 'seed-3',
-        donorId: null,
-        displayName: 'Ayala Community Disaster Relief',
-        username: 'ayala.foundation.philanthropy',
-        avatarUrl: '',
-        walletAddress: '0x328d052a225332f143719b2ea51fa7cba7995e88',
-        location: 'Taguig, Philippines',
-        totalDonatedEth: 7.50,
-        totalDonatedPhp: 1275000,
-        donationCount: 19,
-        campaignsSupported: 9,
-        topCause: 'Earthquake & Typhoon Relief',
-        badge: calculateDonorTier(7.50)
-      },
-      {
-        id: 'seed-4',
-        donorId: null,
-        displayName: 'Visayas Calamity Response Alliance',
-        username: 'visayas.alliance',
-        avatarUrl: '',
-        walletAddress: '0x5a0b54d5dc17e0aadc383d2db43b0a0d3e029c4c',
-        location: 'Cebu City, Central Visayas',
-        totalDonatedEth: 4.20,
-        totalDonatedPhp: 714000,
-        donationCount: 14,
-        campaignsSupported: 7,
-        topCause: 'Flood Recovery Operations',
-        badge: calculateDonorTier(4.20)
-      },
-      {
-        id: 'seed-5',
-        donorId: null,
-        displayName: 'CryptoRelief Philippines',
-        username: 'cryptorelief.ph',
-        avatarUrl: '',
-        walletAddress: '0x95222290dd7278aa3ddd389cc1e1d165cc4bafe5',
-        location: 'Quezon City, Philippines',
-        totalDonatedEth: 3.15,
-        totalDonatedPhp: 535500,
-        donationCount: 11,
-        campaignsSupported: 6,
-        topCause: 'First-Aid Medical Logistics',
-        badge: calculateDonorTier(3.15)
-      }
-    ];
-
-    // Build real donors list
+    // Build real registered donors list
     const realDonors = (donorRows || []).map(r => {
       const eth = parseFloat(r.totalDonatedEth) || 0;
       const isCurrent = (authRole === 'donor' && authUserId && Number(authUserId) === Number(r.donorId)) ||
@@ -2675,7 +2596,7 @@ app.get('/api/leaderboard', async (req, res) => {
         avatarUrl: r.avatarUrl,
         walletAddress: r.walletAddress,
         location: r.location || 'Philippines',
-        totalDonatedEth: eth,
+        totalDonatedEth: parseFloat(eth.toFixed(5)),
         totalDonatedPhp: Math.round(eth * 170000),
         donationCount: parseInt(r.donationCount, 10) || 0,
         campaignsSupported: parseInt(r.campaignsSupported, 10) || 0,
@@ -2686,20 +2607,21 @@ app.get('/api/leaderboard', async (req, res) => {
       };
     });
 
-    // Build unlinked wallet donors
-    const unlinkedDonors = (walletRows || []).map(w => {
+    // Build unlinked web3 wallets with genuine transactions
+    const unlinkedDonors = (unlinkedRows || []).map((w, idx) => {
       const eth = parseFloat(w.totalDonatedEth) || 0;
-      const isCurrent = authWallet && authWallet === w.walletAddress;
-      const shortAddr = `${w.walletAddress.substring(0, 6)}...${w.walletAddress.substring(w.walletAddress.length - 4)}`;
+      const wAddr = w.walletAddress ? w.walletAddress.toLowerCase().trim() : '';
+      const isCurrent = authWallet && wAddr && authWallet === wAddr;
+      const shortAddr = wAddr ? `${wAddr.substring(0, 6)}...${wAddr.substring(wAddr.length - 4)}` : (w.donorId ? `Donor #${w.donorId}` : `Web3 Patron #${idx + 1}`);
       return {
-        id: `wallet-${w.walletAddress}`,
-        donorId: null,
-        displayName: `Web3 Donor (${shortAddr})`,
+        id: `unlinked-${w.donorId || idx}-${wAddr || 'anon'}`,
+        donorId: w.donorId || null,
+        displayName: wAddr ? `Web3 Donor (${shortAddr})` : (w.donorId ? `Donor #${w.donorId}` : 'Anonymous Web3 Donor'),
         username: shortAddr,
         avatarUrl: '',
-        walletAddress: w.walletAddress,
+        walletAddress: w.walletAddress || null,
         location: 'Sepolia EVM Network',
-        totalDonatedEth: eth,
+        totalDonatedEth: parseFloat(eth.toFixed(5)),
         totalDonatedPhp: Math.round(eth * 170000),
         donationCount: parseInt(w.donationCount, 10) || 0,
         campaignsSupported: parseInt(w.campaignsSupported, 10) || 0,
@@ -2710,17 +2632,16 @@ app.get('/api/leaderboard', async (req, res) => {
       };
     });
 
-    // Merge & Sort Donors
-    const allDonors = [...realDonors, ...unlinkedDonors, ...seededDonors];
+    // Merge & Sort strictly real donors by on-chain donation volume
+    const allDonors = [...realDonors, ...unlinkedDonors];
     allDonors.sort((a, b) => b.totalDonatedEth - a.totalDonatedEth || b.donationCount - a.donationCount);
 
-    // Assign Rank #1, #2, #3...
     const rankedDonors = allDonors.map((d, index) => ({
       ...d,
       rank: index + 1
     }));
 
-    // 3. Fetch Real Organizations with Campaign & Milestone Deliveries
+    // 3. Fetch Real Organizations with Campaign & Milestone Deliveries from Database
     const [orgRows] = await db.query(`
       SELECT 
         o.Org_ID as orgId,
@@ -2729,7 +2650,7 @@ app.get('/api/leaderboard', async (req, res) => {
         COALESCE(o.Avatar_Url, '') as avatarUrl,
         COALESCE(o.Banner_Url, '') as bannerUrl,
         o.Wallet_Address as walletAddress,
-        o.Location as location,
+        COALESCE(o.Location, 'Philippines') as location,
         o.Sec_Registration_No as secRegNo,
         o.Dswd_Accreditation_No as dswdNo,
         o.Verification_Status as verificationStatus,
@@ -2741,137 +2662,81 @@ app.get('/api/leaderboard', async (req, res) => {
       GROUP BY o.Org_ID, o.Org_Name, o.Username, o.Avatar_Url, o.Banner_Url, o.Wallet_Address, o.Location, o.Sec_Registration_No, o.Dswd_Accreditation_No, o.Verification_Status
     `);
 
-    // Fetch Milestones count per org from CAMPAIGN Allocations_Json
+    // Fetch Milestones count and beneficiaries from genuine CAMPAIGN records
     const [campRows] = await db.query(`
       SELECT 
+        Campaign_ID as campaignId,
         Org_ID as orgId,
-        Allocations_Json as allocationsJson
+        Allocations_Json as allocationsJson,
+        Beneficiaries_Impact as beneficiariesImpact,
+        Is_Active as isActive
       FROM CAMPAIGN
     `);
-    const milestoneMap = {};
+
+    const orgMetrics = {};
     (campRows || []).forEach(c => {
-      let count = 3;
+      if (!orgMetrics[c.orgId]) {
+        orgMetrics[c.orgId] = { totalMilestones: 0, completedMilestones: 0, totalBeneficiariesApprox: 0, activeCampaigns: 0 };
+      }
+      let allocations = [];
       try {
-        const parsed = JSON.parse(c.allocationsJson || '[]');
-        if (Array.isArray(parsed) && parsed.length > 0) count = parsed.length;
+        allocations = JSON.parse(c.allocationsJson || '[]');
       } catch (_) {}
-      if (!milestoneMap[c.orgId]) milestoneMap[c.orgId] = { total: 0, completed: 0 };
-      milestoneMap[c.orgId].total += count;
-      milestoneMap[c.orgId].completed += Math.max(1, count - 1);
+      const mCount = Array.isArray(allocations) ? allocations.length : 0;
+      orgMetrics[c.orgId].totalMilestones += mCount;
+      orgMetrics[c.orgId].completedMilestones += Math.max(0, mCount > 1 ? mCount - 1 : mCount);
+
+      if (c.isActive) {
+        orgMetrics[c.orgId].activeCampaigns += 1;
+      }
+
+      if (c.beneficiariesImpact) {
+        const matches = c.beneficiariesImpact.match(/\d[\d,]*/g);
+        if (matches) {
+          matches.forEach(m => {
+            const n = parseInt(m.replace(/,/g, ''), 10);
+            if (n && n < 1000000) orgMetrics[c.orgId].totalBeneficiariesApprox += n;
+          });
+        }
+      }
     });
 
-    // Baseline Seeded Impact Champions for NGOs
-    const seededNgos = [
-      {
-        id: 'seed-ngo-1',
-        orgId: 101,
-        orgName: 'Philippine Red Cross',
-        username: 'redcross.ph',
-        avatarUrl: '',
-        location: 'National Headquarters, Mandaluyong City',
-        secRegNo: 'SEC-1947-00412',
-        dswdNo: 'DSWD-SB-A-2024-0012',
-        verificationStatus: 'Verified',
-        totalDeployedEth: 14.20,
-        totalDeployedPhp: 2414000,
-        campaignsCount: 12,
-        milestonesCompleted: 28,
-        beneficiariesReached: 18500,
-        transparencyScore: 100,
-        transparencyGrade: 'A+',
-        avgResponseHours: 12,
-        activeOperations: 5,
-        badgeLabel: 'Premier National Relief Agency'
-      },
-      {
-        id: 'seed-ngo-2',
-        orgId: 102,
-        orgName: 'Caritas Philippines (NASSA)',
-        username: 'caritas.ph',
-        avatarUrl: '',
-        location: 'Intramuros, Manila',
-        secRegNo: 'SEC-1969-00891',
-        dswdNo: 'DSWD-SB-A-2023-0088',
-        verificationStatus: 'Verified',
-        totalDeployedEth: 9.80,
-        totalDeployedPhp: 1666000,
-        campaignsCount: 8,
-        milestonesCompleted: 19,
-        beneficiariesReached: 12200,
-        transparencyScore: 99,
-        transparencyGrade: 'A+',
-        avgResponseHours: 16,
-        activeOperations: 3,
-        badgeLabel: 'Ecumenical Relief Network'
-      },
-      {
-        id: 'seed-ngo-3',
-        orgId: 103,
-        orgName: 'Philippine Disaster Resilience Foundation (PDRF)',
-        username: 'pdrf.org.ph',
-        avatarUrl: '',
-        location: 'Clark Freeport Zone, Pampanga',
-        secRegNo: 'SEC-2009-01588',
-        dswdNo: 'DSWD-SB-A-2024-0045',
-        verificationStatus: 'Verified',
-        totalDeployedEth: 7.60,
-        totalDeployedPhp: 1292000,
-        campaignsCount: 7,
-        milestonesCompleted: 15,
-        beneficiariesReached: 9800,
-        transparencyScore: 98,
-        transparencyGrade: 'A+',
-        avgResponseHours: 14,
-        activeOperations: 2,
-        badgeLabel: 'Private Sector Logistics Hub'
-      }
-    ];
-
-    // Build real organizations list
     const realNgos = (orgRows || []).map(o => {
       const eth = parseFloat(o.totalRaisedEth) || 0;
-      const mStats = milestoneMap[o.orgId] || { total: 0, completed: 0 };
+      const mStats = orgMetrics[o.orgId] || { totalMilestones: 0, completedMilestones: 0, totalBeneficiariesApprox: 0, activeCampaigns: 0 };
       const isCurrent = (authRole === 'organization' && authUserId && Number(authUserId) === Number(o.orgId)) ||
                         (authWallet && o.walletAddress && authWallet === o.walletAddress.toLowerCase().trim());
+      const isVerified = (o.verificationStatus || '').toLowerCase() === 'approved';
+
       return {
         id: `org-${o.orgId}`,
         orgId: o.orgId,
-        orgName: o.orgName || 'Accredited Relief Organization',
+        orgName: o.orgName || 'Relief Organization',
         username: o.username,
         avatarUrl: o.avatarUrl,
         bannerUrl: o.bannerUrl,
         location: o.location || 'Philippines',
-        secRegNo: o.secRegNo || 'CN202409812',
-        dswdNo: o.dswdNo || 'DSWD-RL-2026-004',
-        verificationStatus: o.verificationStatus || 'Verified',
-        totalDeployedEth: eth > 0 ? eth : 2.50,
-        totalDeployedPhp: Math.round((eth > 0 ? eth : 2.50) * 170000),
-        campaignsCount: Math.max(parseInt(o.campaignsCount, 10) || 0, 3),
-        milestonesCompleted: Math.max(mStats.completed, 6),
-        beneficiariesReached: Math.max((parseInt(o.campaignsCount, 10) || 1) * 1250, 2400),
-        transparencyScore: 100,
-        transparencyGrade: 'A+',
-        avgResponseHours: 18,
-        activeOperations: Math.max(parseInt(o.campaignsCount, 10) || 1, 1),
-        badgeLabel: 'Verified Disaster Responder',
+        secRegNo: o.secRegNo || 'Pending Registration',
+        dswdNo: o.dswdNo || 'Pending Registration',
+        verificationStatus: isVerified ? 'Verified' : (o.verificationStatus || 'Pending'),
+        totalDeployedEth: parseFloat(eth.toFixed(4)),
+        totalDeployedPhp: Math.round(eth * 170000),
+        campaignsCount: parseInt(o.campaignsCount, 10) || 0,
+        milestonesCompleted: mStats.completedMilestones,
+        beneficiariesReached: mStats.totalBeneficiariesApprox,
+        transparencyScore: isVerified ? 100 : 70,
+        transparencyGrade: isVerified ? 'A+' : 'B',
+        avgResponseHours: isVerified ? 12 : 24,
+        activeOperations: mStats.activeCampaigns,
+        badgeLabel: isVerified ? 'Accredited Disaster Responder' : 'Applicant Organization',
         isCurrentUser: Boolean(isCurrent)
       };
     });
 
-    // Merge & Sort NGOs by Relief Impact: Total Deployed + Milestones Completed
-    const allNgos = [...realNgos, ...seededNgos];
-    // De-duplicate if orgName already exists
-    const seenOrgIds = new Set();
-    const uniqueNgos = allNgos.filter(n => {
-      const key = (n.orgName || '').toLowerCase().trim();
-      if (seenOrgIds.has(key)) return false;
-      seenOrgIds.add(key);
-      return true;
-    });
+    // Sort strictly real NGOs by relief deployed, campaigns count, and completed milestones
+    realNgos.sort((a, b) => b.totalDeployedEth - a.totalDeployedEth || b.campaignsCount - a.campaignsCount || b.milestonesCompleted - a.milestonesCompleted);
 
-    uniqueNgos.sort((a, b) => b.totalDeployedEth - a.totalDeployedEth || b.milestonesCompleted - a.milestonesCompleted);
-
-    const rankedNgos = uniqueNgos.map((n, index) => ({
+    const rankedNgos = realNgos.map((n, index) => ({
       ...n,
       rank: index + 1
     }));

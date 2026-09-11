@@ -68,7 +68,10 @@ export default function LeaderboardModal({
   // Format ETH string
   const formatEth = (val) => {
     const num = parseFloat(val) || 0;
-    return num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 3 }) + ' ETH';
+    if (num > 0 && num < 0.001) {
+      return num.toFixed(5) + ' ETH';
+    }
+    return num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 }) + ' ETH';
   };
 
   // Format PHP string
@@ -308,7 +311,7 @@ export default function LeaderboardModal({
                       <div className="bbdrts-podium-metric-sub">
                         {activeTab === 'donors'
                           ? `🤝 ${item.campaignsSupported || item.donationCount} Campaigns Supported`
-                          : `🎯 ${item.milestonesCompleted} Milestones • ${item.beneficiariesReached?.toLocaleString()} Reached`}
+                          : `🎯 ${item.milestonesCompleted} Milestones • ${(item.beneficiariesReached || 0).toLocaleString()} Reached`}
                       </div>
                     </div>
 
@@ -430,7 +433,7 @@ export default function LeaderboardModal({
                     <div className="bbdrts-roster-metrics-sub">
                       {activeTab === 'donors' 
                         ? `${formatPhp(item.totalDonatedPhp)} • ${item.campaignsSupported || item.donationCount} Causes` 
-                        : `${formatPhp(item.totalDeployedPhp)} • ${item.beneficiariesReached?.toLocaleString()} Reached`}
+                        : `${formatPhp(item.totalDeployedPhp)} • ${(item.beneficiariesReached || 0).toLocaleString()} Reached`}
                     </div>
                   </div>
 
