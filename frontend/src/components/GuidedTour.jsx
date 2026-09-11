@@ -6,7 +6,7 @@ import confetti from 'canvas-confetti';
 import './GuidedTour.css';
 
 /**
- * Celebratory confetti cannon bursting outward from each side of the final card and screen
+ * Celebratory confetti cannon bursting outward strictly from each side of the final card
  */
 const fireTourCelebration = (cardElement) => {
   try {
@@ -14,117 +14,77 @@ const fireTourCelebration = (cardElement) => {
     const winW = window.innerWidth || document.documentElement.clientWidth || 1000;
     const winH = window.innerHeight || document.documentElement.clientHeight || 800;
 
-    let leftOriginX = 0.2;
-    let rightOriginX = 0.8;
+    let leftOriginX = 0.35;
+    let rightOriginX = 0.65;
     let originY = 0.55;
 
     if (rect && rect.width > 0) {
-      leftOriginX = Math.max(0.04, Math.min(0.96, (rect.left - 12) / winW));
-      rightOriginX = Math.max(0.04, Math.min(0.96, (rect.right + 12) / winW));
-      originY = Math.max(0.08, Math.min(0.92, (rect.top + rect.height * 0.5) / winH));
+      leftOriginX = Math.max(0.01, Math.min(0.99, (rect.left - 4) / winW));
+      rightOriginX = Math.max(0.01, Math.min(0.99, (rect.right + 4) / winW));
+      originY = Math.max(0.05, Math.min(0.95, (rect.top + rect.height * 0.5) / winH));
     }
 
     const brandColors = ['#22c55e', '#10b981', '#38bdf8', '#fbbf24', '#a855f7', '#ffffff', '#f43f5e'];
 
-    // Wave 1: Immediate celebratory cannons popping from EACH SIDE of the card
+    // Wave 1: Immediate cannons bursting outward from EACH SIDE of the last card
+    // Left side of the card shoots outward & upward to the left
     confetti({
-      particleCount: 55,
-      angle: 125, // shoots outward & upward to the left of the card
-      spread: 65,
+      particleCount: 50,
+      angle: 125,
+      spread: 60,
       origin: { x: leftOriginX, y: originY },
       colors: brandColors,
-      ticks: 260,
+      ticks: 240,
       gravity: 0.95,
-      scalar: 1.1,
+      scalar: 1.05,
       drift: -0.15,
       disableForReducedMotion: false,
       zIndex: 2147483647
     });
 
+    // Right side of the card shoots outward & upward to the right
     confetti({
-      particleCount: 55,
-      angle: 55, // shoots outward & upward to the right of the card
-      spread: 65,
+      particleCount: 50,
+      angle: 55,
+      spread: 60,
       origin: { x: rightOriginX, y: originY },
       colors: brandColors,
-      ticks: 260,
+      ticks: 240,
       gravity: 0.95,
-      scalar: 1.1,
+      scalar: 1.05,
       drift: 0.15,
       disableForReducedMotion: false,
       zIndex: 2147483647
     });
 
-    // Dual screen-side edge bursts popping across the screen
-    confetti({
-      particleCount: 45,
-      angle: 60,
-      spread: 60,
-      origin: { x: 0.04, y: 0.72 },
-      colors: brandColors,
-      ticks: 260,
-      gravity: 0.95,
-      scalar: 1.0,
-      disableForReducedMotion: false,
-      zIndex: 2147483647
-    });
-
-    confetti({
-      particleCount: 45,
-      angle: 120,
-      spread: 60,
-      origin: { x: 0.96, y: 0.72 },
-      colors: brandColors,
-      ticks: 260,
-      gravity: 0.95,
-      scalar: 1.0,
-      disableForReducedMotion: false,
-      zIndex: 2147483647
-    });
-
-    // Wave 2: Sparkling burst from each side after 180ms
+    // Wave 2: Quick follow-up sparkle burst on each side of the card after 150ms
     setTimeout(() => {
       confetti({
-        particleCount: 40,
+        particleCount: 35,
         angle: 115,
-        spread: 75,
+        spread: 70,
         origin: { x: leftOriginX, y: originY },
         colors: brandColors,
-        ticks: 240,
-        gravity: 1.05,
+        ticks: 220,
+        gravity: 1.0,
         scalar: 0.85,
         disableForReducedMotion: false,
         zIndex: 2147483647
       });
 
       confetti({
-        particleCount: 40,
+        particleCount: 35,
         angle: 65,
-        spread: 75,
+        spread: 70,
         origin: { x: rightOriginX, y: originY },
         colors: brandColors,
-        ticks: 240,
-        gravity: 1.05,
+        ticks: 220,
+        gravity: 1.0,
         scalar: 0.85,
         disableForReducedMotion: false,
         zIndex: 2147483647
       });
-    }, 180);
-
-    // Wave 3: Golden & emerald sparkle shower raining from top after 360ms
-    setTimeout(() => {
-      confetti({
-        particleCount: 50,
-        spread: 100,
-        origin: { x: 0.5, y: 0.25 },
-        colors: ['#22c55e', '#fbbf24', '#ffffff', '#38bdf8'],
-        ticks: 280,
-        gravity: 0.85,
-        scalar: 1.0,
-        disableForReducedMotion: false,
-        zIndex: 2147483647
-      });
-    }, 360);
+    }, 150);
   } catch (err) {
     console.warn('Confetti launch error:', err);
   }
@@ -614,16 +574,17 @@ export default function GuidedTour({
     const currentTheme = themeRef.current;
 
     const driverSteps = currentSteps.map((s, idx) => {
-      const stepNumber = idx + 1;
       const isLastStep = idx === totalSteps - 1;
-      const badgeText = s.badge || `Step ${stepNumber} of ${totalSteps} • ${currentRole} Tutorial`;
+      const rawBadge = s.badge || `${currentRole} Walkthrough`;
+      // Strip any redundant 'Step X of Y' so it never repeats the footer progress text
+      const badgeText = rawBadge.replace(/^Step\s+\d+\s+of\s+\d+\s*•?\s*/i, '').trim();
       const iconHtml = s.icon
         ? `<span class="material-symbols-outlined driver-step-icon">${s.icon}</span>`
         : '';
 
       const popoverTitle = `
         <div class="driver-popover-badge">
-          <span class="material-symbols-outlined" style="font-size: 13px;">help</span>
+          <span class="material-symbols-outlined" style="font-size: 13px;">bookmark</span>
           <span>${badgeText}</span>
         </div>
         <div class="driver-step-title-row">
@@ -640,7 +601,7 @@ export default function GuidedTour({
           side: s.placement || 'bottom',
           align: s.align || 'start',
           showButtons: idx === 0 ? ['next', 'close'] : ['previous', 'next', 'close'],
-          nextBtnText: isLastStep ? "Got It, Let's Go! ✓" : 'Next →',
+          nextBtnText: isLastStep ? "Let's Go! ✓" : 'Next →',
           prevBtnText: '← Back',
           // Step-level completion hooks guaranteeing confetti fires on last step
           onNextClick: isLastStep
