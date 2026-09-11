@@ -90,10 +90,19 @@ export default function DonorView({ contract, walletAddress, campaigns, fetchCam
 
   const donorTourSteps = useMemo(() => [
     {
+      target: undefined,
+      title: 'Welcome to BBDRTS Disaster Relief',
+      icon: 'volunteer_activism',
+      badge: '👋 Welcome • Quick 2-Minute Tour',
+      placement: 'over',
+      align: 'center',
+      description: 'Welcome to BBDRTS! Our mission is 100% direct, tamper-proof disaster relief across the Philippines with zero platform cuts. Explore your dashboard to see how our dual payment rails (Sepolia ETH & GCash/Maya QR), milestone-locked escrow, live PAGASA weather radar, and 12-Tier Honors Ladder work together. Click Start Guided Tour to begin!'
+    },
+    {
       target: '#tour-donor-welcome',
       title: 'Donor Profile & Quick Actions',
       icon: 'verified_user',
-      badge: 'Step 1 of 8 • Profile & Overview',
+      badge: 'Step 2 of 9 • Profile & Overview',
       placement: 'bottom',
       align: 'start',
       description: 'Your dashboard header displays your verified wallet address and current donor tier. Use the quick action buttons to open your Honors Ladder, jump directly to active relief appeals, or verify the public ledger on Etherscan.'
@@ -102,7 +111,7 @@ export default function DonorView({ contract, walletAddress, campaigns, fetchCam
       target: '#tour-donor-badge-card',
       title: 'Honors Ladder & Tier Progress',
       icon: 'military_tech',
-      badge: 'Step 2 of 8 • Donor Recognition',
+      badge: 'Step 3 of 9 • Donor Recognition',
       placement: 'bottom',
       align: 'start',
       description: 'Track your philanthropic journey across the 12-Tier Honors Ladder (from Tier 1 Contributor up to Tier 12 Mythic Patron). This card shows your progress toward the next tier based on your cumulative verified contributions. Click the button to explore all 12 tiers.'
@@ -111,7 +120,7 @@ export default function DonorView({ contract, walletAddress, campaigns, fetchCam
       target: '#tour-donor-metrics',
       title: 'Dashboard Summary Metrics',
       icon: 'analytics',
-      badge: 'Step 3 of 8 • Key Statistics',
+      badge: 'Step 4 of 9 • Key Statistics',
       placement: 'bottom',
       align: 'center',
       description: 'These four stat cards summarize your total contributions recorded on-chain, the number of active relief causes open for aid, the live Sepolia smart contract verification status, and your cumulative donation total in ETH and PHP.'
@@ -120,7 +129,7 @@ export default function DonorView({ contract, walletAddress, campaigns, fetchCam
       target: '#tour-donor-first-campaign',
       title: 'Featured Relief Campaign',
       icon: 'emergency',
-      badge: 'Step 4 of 8 • Relief Causes',
+      badge: 'Step 5 of 9 • Relief Causes',
       placement: 'bottom',
       align: 'center',
       description: 'Review featured emergency disaster appeals posted by accredited organizations. Each card shows the disaster category, urgency level, funding goal, and progress. Click Donate to contribute using Sepolia ETH or Philippine e-wallets (GCash & Maya).'
@@ -129,7 +138,7 @@ export default function DonorView({ contract, walletAddress, campaigns, fetchCam
       target: '#tour-donor-tab-campaigns',
       title: 'Relief Campaigns Tab',
       icon: 'campaign',
-      badge: 'Step 5 of 8 • Navigation',
+      badge: 'Step 6 of 9 • Navigation',
       placement: 'right',
       align: 'center',
       description: 'Click this sidebar tab to browse all active emergency relief campaigns. You can filter appeals by cause category (Disaster Relief or Charitable Aid), urgency priority (High, Medium, Standard), or search specific relief operations.'
@@ -138,7 +147,7 @@ export default function DonorView({ contract, walletAddress, campaigns, fetchCam
       target: '#tour-donor-tab-donations',
       title: 'My Contributions Tab',
       icon: 'history',
-      badge: 'Step 6 of 8 • Donation History',
+      badge: 'Step 7 of 9 • Donation History',
       placement: 'right',
       align: 'center',
       description: 'Click here to review your complete on-chain donation history. You can inspect transaction hashes, view verified timestamps and amounts for every contribution, and export printable audit receipts.'
@@ -147,7 +156,7 @@ export default function DonorView({ contract, walletAddress, campaigns, fetchCam
       target: '#tour-donor-tab-radar',
       title: 'Relief Radar Tab',
       icon: 'radar',
-      badge: 'Step 7 of 8 • Weather & Disaster Map',
+      badge: 'Step 8 of 9 • Weather & Disaster Map',
       placement: 'right',
       align: 'center',
       description: 'Switch to this tab to view an interactive Philippine map with live PAGASA Doppler radar precipitation data and disaster campaign locations, helping you see where emergency relief is needed most.'
@@ -156,7 +165,7 @@ export default function DonorView({ contract, walletAddress, campaigns, fetchCam
       target: '#tour-donor-sepolia-node',
       title: 'Network Health & Replay Tour',
       icon: 'hub',
-      badge: 'Step 8 of 8 • System Status',
+      badge: 'Step 9 of 9 • System Status',
       placement: 'right',
       align: 'end',
       description: 'This widget displays real-time Ethereum Sepolia smart contract synchronization. You can switch color themes below or click "Guided Tutorial" in the sidebar anytime to replay this walkthrough. You are all set!'
