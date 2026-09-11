@@ -1,115 +1,209 @@
 /* ═════════════════════════════════════════════════════════════════════
-   BBDRTS Guided Onboarding Spotlight Tour (Driver.js Styling System)
-   High-Contrast Theater Spotlight, Zero Lag, Rock-Solid Stability
+   BBDRTS Guided Onboarding Tour — Bespoke SaaS Interactive Engine
+   Zero-Dependency, Precision Glassmorphism, 100% Crystal-Clear Focus
    ═════════════════════════════════════════════════════════════════════ */
 
-/* ── 0. Global Safe Scroll Margins for All Guided Targets ── */
+/* ── 0. Global Safe Scroll Margin for Guided Target Elements ── */
 [id^="tour-"] {
   scroll-margin-top: 110px !important;
   scroll-margin-bottom: 40px !important;
 }
 
-/* ── 1. Dedicated Fixed Header Blur Guard ── */
-/* Sits above the sticky header (z-index: 1000000015) so the header ALWAYS remains deeply blurred and protected */
-#bbdrts-tour-header-guard {
+/* ── 1. Tour Root Container ── */
+.bbdrts-tour-root {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 999999990;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  user-select: none;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── 2. Fixed Header Blur Guard ── */
+/* Sits directly above the sticky navigation header with z-index: 1000000015 */
+/* Guarantees the navbar is ALWAYS 100% deeply blurred and darkened at all times */
+.bbdrts-tour-header-guard {
   position: fixed;
   top: 0;
   left: 0;
   width: 100vw;
-  height: 80px;
-  background: rgba(10, 14, 23, 0.72);
+  background: rgba(10, 14, 23, 0.78);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.65);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.75);
   z-index: 1000000015 !important;
   pointer-events: none;
-  transition: opacity 0.2s ease;
+  transition: height 0.2s ease;
 }
 
-/* ── 2. 4-Panel Blur Surround (Blurs background outside, keeping cutout 100% sharp) ── */
-#bbdrts-tour-blur-surround {
+/* ── 3. 4-Panel Blur Surround (Zero Blur Inside Target Cutout) ── */
+.bbdrts-tour-blur-surround {
   position: fixed;
   inset: 0;
   pointer-events: none;
-  z-index: 999999998 !important;
-  transition: opacity 0.2s ease;
+  z-index: 999999995 !important;
 }
 
 .bbdrts-blur-panel {
   position: fixed;
-  background: rgba(0, 0, 0, 0.45);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  pointer-events: none;
-  /* Crucial: NO transition on top/left/width/height so coordinates lock instantly and never smear or lag */
-  will-change: transform;
+  background: rgba(4, 7, 13, 0.58);
+  backdrop-filter: blur(9px);
+  -webkit-backdrop-filter: blur(9px);
+  pointer-events: auto; /* Prevents clicks on unrelated background elements */
+  /* Coordinate changes glide smoothly */
+  transition: top 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+              left 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+              width 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+              height 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: top, left, width, height;
 }
 
-/* ── 3. SVG Cutout Backdrop Overlay ── */
-.driver-overlay {
-  transition: opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
-  z-index: 999999999 !important;
-  pointer-events: auto !important;
-}
-
-/* ── 4. Highlighted Stage Active Target ── */
-.driver-active-element {
-  outline: 2.5px solid var(--tour-accent, #22c55e) !important;
-  outline-offset: 4px !important;
-  box-shadow: 0 0 0 6px rgba(34, 197, 94, 0.15), 0 0 35px var(--tour-glow, rgba(34, 197, 94, 0.45)) !important;
-  transition: outline 0.25s ease, box-shadow 0.25s ease !important;
-  position: relative !important;
-  z-index: 1000000002 !important;
-}
-
-/* ── 5. Tooltip Popover Card with Calibrated Reveal Delay ── */
-.driver-popover.bbdrts-tour-popover {
-  all: unset;
-  box-sizing: border-box;
+/* ── 4. Gliding Spotlight Focus Frame ── */
+.bbdrts-spotlight-frame {
   position: fixed;
-  z-index: 1000000020 !important;
-  display: flex;
-  flex-direction: column;
-  width: 385px;
-  max-width: min(385px, calc(100vw - 28px));
-  background: var(--tour-card-bg, #1c1c1c);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-  border: 1.5px solid var(--tour-card-border, rgba(34, 197, 94, 0.4));
-  border-radius: 16px;
-  padding: 16px 20px 14px 20px;
-  box-shadow: var(--tour-card-shadow, 0 24px 50px rgba(0, 0, 0, 0.8), 0 0 30px rgba(34, 197, 94, 0.22));
-  color: var(--tour-text-primary, #ffffff);
-  font-family: inherit;
-  /* Spotlight glides and settles first, then card smoothly fades in — pure opacity to avoid jumping */
-  animation: bbdrts-tour-popover-in 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
-  will-change: opacity;
+  pointer-events: none;
+  z-index: 1000000005 !important;
+  border-radius: 12px;
+  border: 2px solid var(--tour-accent, #22c55e);
+  box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.16),
+              0 0 32px var(--tour-glow, rgba(34, 197, 94, 0.45)),
+              inset 0 0 12px rgba(34, 197, 94, 0.08);
+  transition: top 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+              left 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+              width 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+              height 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: top, left, width, height;
+  animation: bbdrts-frame-pulse 2.6s ease-in-out infinite alternate;
 }
 
-@keyframes bbdrts-tour-popover-in {
+@keyframes bbdrts-frame-pulse {
+  0% {
+    box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.16), 0 0 25px var(--tour-glow, rgba(34, 197, 94, 0.35));
+  }
+  100% {
+    box-shadow: 0 0 0 6px rgba(34, 197, 94, 0.24), 0 0 38px var(--tour-glow, rgba(34, 197, 94, 0.55));
+  }
+}
+
+/* ── 5. Smart Floating Tutorial Card ── */
+.bbdrts-floating-card {
+  position: fixed;
+  z-index: 1000000025 !important;
+  pointer-events: auto;
+  width: 390px;
+  max-width: calc(100vw - 32px);
+  background: var(--tour-card-bg, #18191f);
+  backdrop-filter: blur(28px);
+  -webkit-backdrop-filter: blur(28px);
+  border: 1.5px solid var(--tour-card-border, rgba(34, 197, 94, 0.38));
+  border-radius: 18px;
+  padding: 20px 22px 18px 22px;
+  box-shadow: var(--tour-card-shadow, 0 24px 60px rgba(0, 0, 0, 0.85), 0 0 35px rgba(34, 197, 94, 0.2));
+  color: var(--tour-text-primary, #ffffff);
+  transition: top 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+              left 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+              opacity 0.2s ease,
+              transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: top, left;
+  animation: bbdrts-card-entrance 0.32s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes bbdrts-card-entrance {
   0% {
     opacity: 0;
-  }
-  35% {
-    opacity: 0;
+    transform: scale(0.96) translateY(6px);
   }
   100% {
     opacity: 1;
+    transform: scale(1) translateY(0);
   }
 }
 
-/* ── 6. Card Header: Category Badge & Title ── */
-.bbdrts-tour-popover .driver-popover-title {
-  display: block;
-  margin: 0 0 8px 0;
-  padding-right: 36px; /* Clean spacing to avoid collision with the close button */
-  border: none;
-  background: transparent;
-  color: inherit;
+.bbdrts-floating-card.transitioning {
+  opacity: 0.75;
 }
 
-.bbdrts-tour-popover .driver-popover-badge {
+/* Close Button ('✕') */
+.bbdrts-card-close-btn {
+  all: unset;
+  box-sizing: border-box;
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--tour-text-muted, #94a3b8);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  transition: all 0.2s ease;
+}
+
+.bbdrts-card-close-btn:hover {
+  background: rgba(239, 68, 68, 0.2);
+  border-color: rgba(239, 68, 68, 0.45);
+  color: #fca5a5;
+  transform: scale(1.08);
+}
+
+/* Directional Pointer Arrow */
+.bbdrts-card-arrow {
+  position: absolute;
+  width: 0;
+  height: 0;
+  border-style: solid;
+  pointer-events: none;
+}
+
+.bbdrts-card-arrow.arrow-side-bottom {
+  top: -8px;
+  border-width: 0 8px 8px 8px;
+  border-color: transparent transparent var(--tour-card-bg, #18191f) transparent;
+  transform: translateX(-50%);
+}
+
+.bbdrts-card-arrow.arrow-side-top {
+  bottom: -8px;
+  border-width: 8px 8px 0 8px;
+  border-color: var(--tour-card-bg, #18191f) transparent transparent transparent;
+  transform: translateX(-50%);
+}
+
+.bbdrts-card-arrow.arrow-side-right {
+  left: -8px;
+  top: 50%;
+  border-width: 8px 8px 8px 0;
+  border-color: transparent var(--tour-card-bg, #18191f) transparent transparent;
+  transform: translateY(-50%);
+}
+
+.bbdrts-card-arrow.arrow-side-left {
+  right: -8px;
+  top: 50%;
+  border-width: 8px 0 8px 8px;
+  border-color: transparent transparent transparent var(--tour-card-bg, #18191f);
+  transform: translateY(-50%);
+}
+
+/* Card Header: Badge & Counter */
+.bbdrts-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  padding-right: 32px;
+}
+
+.bbdrts-card-badge {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -117,74 +211,107 @@
   border: 1px solid var(--tour-badge-border, rgba(34, 197, 94, 0.32));
   padding: 3px 10px;
   border-radius: 999px;
-  font-size: 0.7rem;
-  font-weight: 800;
+  font-size: 0.72rem;
+  font-weight: 700;
   color: var(--tour-accent, #22c55e);
+  letter-spacing: 0.4px;
+}
+
+.bbdrts-card-step-count {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--tour-text-muted, #94a3b8);
   letter-spacing: 0.5px;
-  text-transform: uppercase;
+}
+
+/* Card Title Row */
+.bbdrts-card-title-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
   margin-bottom: 8px;
 }
 
-.bbdrts-tour-popover .driver-step-title-row {
-  display: flex;
-  align-items: flex-start;
-  gap: 8px;
-  font-size: 1.1rem;
-  font-weight: 800;
-  color: var(--tour-text-primary, #ffffff);
-  line-height: 1.32;
-}
-
-.bbdrts-tour-popover .driver-step-icon {
+.bbdrts-step-icon {
   font-size: 22px;
   color: var(--tour-accent, #22c55e);
   flex-shrink: 0;
   margin-top: 1px;
 }
 
-/* ── 7. Description Body ── */
-.bbdrts-tour-popover .driver-popover-description {
-  display: block;
-  margin: 0 0 12px 0;
-  font-size: 0.85rem;
-  color: var(--tour-text-secondary, #cbd5e1);
-  line-height: 1.55;
+.bbdrts-card-title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  line-height: 1.35;
+  color: var(--tour-text-primary, #ffffff);
 }
 
-/* ── 8. Footer Navigation & Progress ── */
-.bbdrts-tour-popover .driver-popover-footer {
+/* Card Description */
+.bbdrts-card-desc {
+  margin: 0 0 16px 0;
+  font-size: 0.86rem;
+  line-height: 1.55;
+  color: var(--tour-text-secondary, #cbd5e1);
+}
+
+/* Animated Progress Bar */
+.bbdrts-progress-bar-wrap {
+  width: 100%;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  overflow: hidden;
+  margin-bottom: 16px;
+}
+
+.bbdrts-progress-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #16a34a 0%, var(--tour-accent, #22c55e) 100%);
+  border-radius: 999px;
+  transition: width 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Card Footer Navigation */
+.bbdrts-card-footer {
   display: flex;
   align-items: center;
   justify-content: space-between;
   border-top: 1px solid var(--tour-divider, rgba(255, 255, 255, 0.08));
-  padding-top: 10px;
+  padding-top: 12px;
   margin-top: 2px;
 }
 
-.bbdrts-tour-popover .driver-popover-progress-text {
-  font-size: 0.78rem;
-  font-weight: 700;
+.bbdrts-skip-link {
+  all: unset;
+  font-size: 0.8rem;
+  font-weight: 600;
   color: var(--tour-text-muted, #94a3b8);
-  letter-spacing: 0.3px;
+  cursor: pointer;
+  transition: color 0.18s ease;
 }
 
-.bbdrts-tour-popover .driver-popover-navigation-btns {
+.bbdrts-skip-link:hover {
+  color: #ffffff;
+  text-decoration: underline;
+}
+
+.bbdrts-card-nav-btns {
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
-/* Back Button */
-.bbdrts-tour-popover .driver-popover-prev-btn {
+.bbdrts-btn-back {
   all: unset;
   box-sizing: border-box;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 7px 16px;
+  padding: 7px 14px;
   border-radius: 8px;
   font-size: 0.82rem;
-  font-weight: 700;
+  font-weight: 600;
   cursor: pointer;
   background: var(--tour-btn-prev-bg, rgba(255, 255, 255, 0.08));
   color: var(--tour-text-secondary, #cbd5e1);
@@ -192,19 +319,19 @@
   transition: all 0.2s ease;
 }
 
-.bbdrts-tour-popover .driver-popover-prev-btn:hover {
+.bbdrts-btn-back:hover {
   background: rgba(255, 255, 255, 0.16);
   color: #ffffff;
 }
 
-/* Next / Finish Button */
-.bbdrts-tour-popover .driver-popover-next-btn {
+.bbdrts-btn-next {
   all: unset;
   box-sizing: border-box;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 8px 20px;
+  gap: 6px;
+  padding: 8px 18px;
   border-radius: 8px;
   font-size: 0.84rem;
   font-weight: 700;
@@ -216,89 +343,327 @@
   transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
-.bbdrts-tour-popover .driver-popover-next-btn:hover {
+.bbdrts-btn-next:hover {
   box-shadow: var(--tour-btn-shadow-hover, 0 6px 18px rgba(34, 197, 94, 0.55));
   transform: translateY(-1px);
 }
 
-/* Close ('X') Button: Sleek, Subtle, Cleanly Aligned */
-.bbdrts-tour-popover .driver-popover-close-btn {
-  all: unset;
-  box-sizing: border-box;
-  position: absolute;
-  top: 16px;
-  right: 16px;
-  width: 30px;
-  height: 30px;
-  border-radius: 8px;
-  cursor: pointer;
-  display: flex !important;
+.bbdrts-btn-next:active {
+  transform: translateY(0);
+}
+
+/* ── 6. Fullscreen Modal Overlay (Welcome & Celebration) ── */
+.bbdrts-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(4, 7, 13, 0.78);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 15px;
+  z-index: 1000000020 !important;
+  pointer-events: auto;
+  padding: 20px;
+  animation: bbdrts-fade-in 0.25s ease both;
+}
+
+@keyframes bbdrts-fade-in {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+/* ── 7. Pre-Tour Welcome Modal Card ── */
+.bbdrts-welcome-card {
+  width: 520px;
+  max-width: calc(100vw - 32px);
+  background: var(--tour-card-bg, #161821);
+  border: 1.5px solid var(--tour-card-border, rgba(34, 197, 94, 0.4));
+  border-radius: 22px;
+  padding: 32px 36px 28px 36px;
+  box-shadow: 0 30px 70px rgba(0, 0, 0, 0.9), 0 0 40px rgba(34, 197, 94, 0.22);
+  color: var(--tour-text-primary, #ffffff);
+  text-align: center;
+  animation: bbdrts-modal-entrance 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes bbdrts-modal-entrance {
+  0% {
+    opacity: 0;
+    transform: scale(0.92) translateY(14px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.bbdrts-welcome-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--tour-badge-bg, rgba(34, 197, 94, 0.12));
+  border: 1px solid var(--tour-badge-border, rgba(34, 197, 94, 0.32));
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 0.72rem;
   font-weight: 700;
-  line-height: 1;
-  color: var(--tour-text-muted, #94a3b8);
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: var(--tour-accent, #22c55e);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  margin-bottom: 18px;
+}
+
+.bbdrts-welcome-icon-wrap {
+  width: 68px;
+  height: 68px;
+  margin: 0 auto 16px auto;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(34, 197, 94, 0.22) 0%, rgba(34, 197, 94, 0.04) 70%);
+  border: 1.5px solid rgba(34, 197, 94, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 25px rgba(34, 197, 94, 0.35);
+}
+
+.bbdrts-welcome-hero-icon {
+  font-size: 34px;
+  color: var(--tour-accent, #22c55e);
+}
+
+.bbdrts-welcome-title {
+  margin: 0 0 10px 0;
+  font-size: 1.45rem;
+  font-weight: 800;
+  letter-spacing: -0.3px;
+  color: var(--tour-text-primary, #ffffff);
+  line-height: 1.3;
+}
+
+.bbdrts-welcome-desc {
+  margin: 0 0 22px 0;
+  font-size: 0.88rem;
+  line-height: 1.6;
+  color: var(--tour-text-secondary, #cbd5e1);
+}
+
+/* Feature Highlights */
+.bbdrts-welcome-highlights {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 24px;
+  text-align: left;
+}
+
+.bbdrts-highlight-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 10px 14px;
+}
+
+.bbdrts-highlight-icon {
+  font-size: 22px;
+  color: var(--tour-accent, #22c55e);
+  flex-shrink: 0;
+}
+
+.bbdrts-highlight-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.bbdrts-highlight-text strong {
+  font-size: 0.84rem;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.bbdrts-highlight-text span {
+  font-size: 0.77rem;
+  color: #94a3b8;
+  line-height: 1.35;
+}
+
+/* Actions */
+.bbdrts-welcome-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.bbdrts-btn-primary {
+  all: unset;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 11px 24px;
+  border-radius: 10px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  background: var(--tour-btn-next-bg, linear-gradient(135deg, #16a34a 0%, #22c55e 100%));
+  color: #ffffff;
+  box-shadow: 0 6px 20px rgba(34, 197, 94, 0.4);
+  transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.bbdrts-btn-primary:hover {
+  box-shadow: 0 8px 25px rgba(34, 197, 94, 0.6);
+  transform: translateY(-1.5px);
+}
+
+.bbdrts-btn-ghost {
+  all: unset;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 11px 20px;
+  border-radius: 10px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.06);
+  color: #cbd5e1;
+  border: 1px solid rgba(255, 255, 255, 0.12);
   transition: all 0.2s ease;
-  z-index: 1000000010 !important;
-  pointer-events: auto !important;
 }
 
-.bbdrts-tour-popover .driver-popover-close-btn:hover {
-  background: rgba(239, 68, 68, 0.25);
-  border-color: rgba(239, 68, 68, 0.5);
-  color: #fca5a5;
-  transform: scale(1.08);
+.bbdrts-btn-ghost:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
 }
 
-/* ── 8. Directional Arrows ── */
-.bbdrts-tour-popover .driver-popover-arrow {
-  border-width: 6px !important;
+/* Checkbox Row */
+.bbdrts-checkbox-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.76rem;
+  color: #94a3b8;
+  cursor: pointer;
 }
 
-.bbdrts-tour-popover .driver-popover-arrow-side-top {
-  border-top-color: var(--tour-card-bg, #1c1c1c) !important;
-  border-bottom-color: transparent !important;
-  border-left-color: transparent !important;
-  border-right-color: transparent !important;
+.bbdrts-checkbox-row input {
+  accent-color: var(--tour-accent, #22c55e);
+  cursor: pointer;
 }
 
-.bbdrts-tour-popover .driver-popover-arrow-side-bottom {
-  border-bottom-color: var(--tour-card-bg, #1c1c1c) !important;
-  border-top-color: transparent !important;
-  border-left-color: transparent !important;
-  border-right-color: transparent !important;
+/* ── 8. Post-Tour Celebration Modal Card ── */
+.bbdrts-celebration-card {
+  width: 480px;
+  max-width: calc(100vw - 32px);
+  background: var(--tour-card-bg, #161821);
+  border: 1.5px solid var(--tour-card-border, rgba(34, 197, 94, 0.4));
+  border-radius: 22px;
+  padding: 32px 34px 28px 34px;
+  box-shadow: 0 30px 70px rgba(0, 0, 0, 0.9), 0 0 45px rgba(34, 197, 94, 0.28);
+  color: var(--tour-text-primary, #ffffff);
+  text-align: center;
+  animation: bbdrts-modal-entrance 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-.bbdrts-tour-popover .driver-popover-arrow-side-left {
-  border-left-color: var(--tour-card-bg, #1c1c1c) !important;
-  border-top-color: transparent !important;
-  border-bottom-color: transparent !important;
-  border-right-color: transparent !important;
+.bbdrts-celebration-icon-wrap {
+  width: 72px;
+  height: 72px;
+  margin: 0 auto 16px auto;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(34, 197, 94, 0.3) 0%, rgba(34, 197, 94, 0.05) 70%);
+  border: 2px solid rgba(34, 197, 94, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 30px rgba(34, 197, 94, 0.45);
 }
 
-.bbdrts-tour-popover .driver-popover-arrow-side-right {
-  border-right-color: var(--tour-card-bg, #1c1c1c) !important;
-  border-top-color: transparent !important;
-  border-bottom-color: transparent !important;
-  border-left-color: transparent !important;
+.bbdrts-celebration-hero-icon {
+  font-size: 38px;
+  color: var(--tour-accent, #22c55e);
+  animation: bbdrts-trophy-bounce 1s ease infinite alternate;
+}
+
+@keyframes bbdrts-trophy-bounce {
+  0% {
+    transform: translateY(0);
+  }
+  100% {
+    transform: translateY(-4px);
+  }
+}
+
+.bbdrts-celebration-title {
+  margin: 0 0 8px 0;
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: #ffffff;
+}
+
+.bbdrts-celebration-desc {
+  margin: 0 0 20px 0;
+  font-size: 0.88rem;
+  line-height: 1.6;
+  color: var(--tour-text-secondary, #cbd5e1);
+}
+
+.bbdrts-celebration-checklist {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 24px;
+  text-align: left;
+}
+
+.bbdrts-check-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(34, 197, 94, 0.08);
+  border: 1px solid rgba(34, 197, 94, 0.22);
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 0.83rem;
+  color: #e2e8f0;
+}
+
+.bbdrts-check-icon {
+  font-size: 20px;
+  color: var(--tour-accent, #22c55e);
+  flex-shrink: 0;
+}
+
+.bbdrts-celebration-actions {
+  display: flex;
+  justify-content: center;
 }
 
 /* ═════════════════════════════════════════════════════════════════════
-   THEME PALETTES — Synchronized 1:1 with BBDRTS System Themes
+   THEME PALETTES — Full Harmony with BBDRTS System Themes
    ═════════════════════════════════════════════════════════════════════ */
 
-/* ── Default & Dark Theme: Emerald Green #22c55e & Pure Dark #1c1c1c ── */
-.bbdrts-tour-popover,
-.bbdrts-tour-popover.theme-default,
-.bbdrts-tour-popover.theme-dark {
+/* ── Default & Dark Theme: Emerald Green #22c55e & Pure Dark #18191f ── */
+.bbdrts-tour-root,
+.bbdrts-tour-root.theme-default,
+.bbdrts-tour-root.theme-dark {
   --tour-accent: #22c55e;
   --tour-glow: rgba(34, 197, 94, 0.5);
-  --tour-card-bg: #1c1c1c;
-  --tour-card-border: rgba(34, 197, 94, 0.4);
-  --tour-card-shadow: 0 24px 50px rgba(0, 0, 0, 0.8), 0 0 30px rgba(34, 197, 94, 0.22);
+  --tour-card-bg: #18191f;
+  --tour-card-border: rgba(34, 197, 94, 0.38);
+  --tour-card-shadow: 0 24px 60px rgba(0, 0, 0, 0.85), 0 0 35px rgba(34, 197, 94, 0.2);
   --tour-badge-bg: rgba(34, 197, 94, 0.12);
   --tour-badge-border: rgba(34, 197, 94, 0.32);
   --tour-text-primary: #ffffff;
@@ -313,12 +678,12 @@
 }
 
 /* ── Light Mode Theme: Forest Green #16a34a & Clean White #ffffff ── */
-.bbdrts-tour-popover.theme-light {
+.bbdrts-tour-root.theme-light {
   --tour-accent: #16a34a;
   --tour-glow: rgba(22, 163, 74, 0.45);
   --tour-card-bg: #ffffff;
-  --tour-card-border: rgba(22, 163, 74, 0.32);
-  --tour-card-shadow: 0 16px 36px rgba(0, 0, 0, 0.14), 0 0 20px rgba(22, 163, 74, 0.15);
+  --tour-card-border: rgba(22, 163, 74, 0.35);
+  --tour-card-shadow: 0 16px 40px rgba(0, 0, 0, 0.18), 0 0 25px rgba(22, 163, 74, 0.18);
   --tour-badge-bg: rgba(22, 163, 74, 0.08);
   --tour-badge-border: rgba(22, 163, 74, 0.25);
   --tour-text-primary: #0f172a;
@@ -332,31 +697,68 @@
   --tour-btn-shadow-hover: 0 6px 18px rgba(22, 163, 74, 0.45);
 }
 
-.bbdrts-tour-popover.theme-light .driver-popover-close-btn {
+.bbdrts-tour-root.theme-light .bbdrts-card-close-btn {
   background: rgba(0, 0, 0, 0.05);
   border-color: rgba(0, 0, 0, 0.1);
   color: #64748b;
 }
 
-.bbdrts-tour-popover.theme-light .driver-popover-close-btn:hover {
+.bbdrts-tour-root.theme-light .bbdrts-card-close-btn:hover {
   background: rgba(239, 68, 68, 0.12);
   border-color: rgba(239, 68, 68, 0.3);
   color: #dc2626;
 }
 
-.bbdrts-tour-popover.theme-light .driver-popover-prev-btn:hover {
+.bbdrts-tour-root.theme-light .bbdrts-btn-back:hover {
   background: rgba(0, 0, 0, 0.09);
   color: #0f172a;
 }
 
+.bbdrts-tour-root.theme-light .bbdrts-skip-link:hover {
+  color: #0f172a;
+}
+
+.bbdrts-tour-root.theme-light .bbdrts-welcome-card,
+.bbdrts-tour-root.theme-light .bbdrts-celebration-card {
+  background: #ffffff;
+  border-color: rgba(22, 163, 74, 0.3);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.22), 0 0 30px rgba(22, 163, 74, 0.18);
+}
+
+.bbdrts-tour-root.theme-light .bbdrts-highlight-item {
+  background: rgba(0, 0, 0, 0.03);
+  border-color: rgba(0, 0, 0, 0.08);
+}
+
+.bbdrts-tour-root.theme-light .bbdrts-highlight-text strong {
+  color: #0f172a;
+}
+
+.bbdrts-tour-root.theme-light .bbdrts-btn-ghost {
+  background: rgba(0, 0, 0, 0.05);
+  border-color: rgba(0, 0, 0, 0.12);
+  color: #334155;
+}
+
+.bbdrts-tour-root.theme-light .bbdrts-btn-ghost:hover {
+  background: rgba(0, 0, 0, 0.09);
+  color: #0f172a;
+}
+
+.bbdrts-tour-root.theme-light .bbdrts-check-item {
+  background: rgba(22, 163, 74, 0.07);
+  border-color: rgba(22, 163, 74, 0.2);
+  color: #1e293b;
+}
+
 /* ── Cyber Theme: Neon Mint #00ffa3 & Deep Navy #12141c ── */
-.bbdrts-tour-popover.theme-cyber,
-.bbdrts-tour-popover.theme-navy {
+.bbdrts-tour-root.theme-cyber,
+.bbdrts-tour-root.theme-navy {
   --tour-accent: #00ffa3;
   --tour-glow: rgba(0, 255, 163, 0.6);
-  --tour-card-bg: #12141c;
+  --tour-card-bg: #11141f;
   --tour-card-border: rgba(0, 255, 163, 0.45);
-  --tour-card-shadow: 0 0 30px rgba(0, 255, 163, 0.25), 0 24px 50px rgba(0, 0, 0, 0.8);
+  --tour-card-shadow: 0 0 35px rgba(0, 255, 163, 0.25), 0 24px 60px rgba(0, 0, 0, 0.85);
   --tour-badge-bg: rgba(0, 255, 163, 0.12);
   --tour-badge-border: rgba(0, 255, 163, 0.35);
   --tour-text-primary: #ffffff;
@@ -368,4 +770,39 @@
   --tour-btn-next-bg: linear-gradient(135deg, #059669 0%, #00ffa3 100%);
   --tour-btn-shadow: 0 4px 14px rgba(0, 255, 163, 0.35);
   --tour-btn-shadow-hover: 0 6px 20px rgba(0, 255, 163, 0.55);
+}
+
+/* ── 9. Responsive Rules for Tablet & Mobile ── */
+@media (max-width: 640px) {
+  .bbdrts-floating-card {
+    width: calc(100vw - 24px);
+    left: 12px !important;
+    padding: 16px 16px 14px 16px;
+    border-radius: 14px;
+  }
+
+  .bbdrts-card-arrow {
+    display: none; /* Hide pointer arrow on small screens for cleaner fit */
+  }
+
+  .bbdrts-welcome-card,
+  .bbdrts-celebration-card {
+    padding: 24px 20px 20px 20px;
+    border-radius: 16px;
+  }
+
+  .bbdrts-welcome-title,
+  .bbdrts-celebration-title {
+    font-size: 1.25rem;
+  }
+
+  .bbdrts-welcome-actions {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .bbdrts-btn-primary,
+  .bbdrts-btn-ghost {
+    width: 100%;
+  }
 }
