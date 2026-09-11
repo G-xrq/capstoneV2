@@ -155,13 +155,22 @@ export default function GuidedTour({
       rightP.style.height = `${h}px`;
     };
 
+    // ── Neutralize Driver.js hardcoded scrollIntoView({ block: 'center' }) ──
+    // Driver.js hardcodes `block: n ? 'start' : 'center'`. Because card height < window height,
+    // Driver.js forcibly centers the card vertically, squishing bottom clearance and forcing
+    // the popover on top of the card (Image 1). Intercepting scrollIntoView ensures our
+    // calibrated camera angles hold rock-solid (Image 2).
+    const originalScrollIntoView = Element.prototype.scrollIntoView;
+    let hasRestoredScroll = false;
+
     // Safe scrolling: guarantees elements are comfortably positioned below the header
     const scrollToTargetSafely = (element) => {
       if (!element) return;
       const headerEl = document.querySelector('.bbdrts-main-header');
       const headerBottom = headerEl ? Math.round(headerEl.getBoundingClientRect().bottom) : 75;
 
-      // Sidebar target detection: Always scroll page smoothly back to top so sidebar is never scrolled off
+      // Case 1: Sidebar target detection (Steps 5, 6, 7, 8 etc.)
+      // Always scroll page back to top: 0 so the entire sidebar and header are fully visible
       const isSidebar = Boolean(
         element.closest('.ref-sidebar') || 
         element.id?.includes('tab-') || 
@@ -170,7 +179,7 @@ export default function GuidedTour({
       );
 
       if (isSidebar) {
-        if (window.scrollY > 5) {
+        if (window.scrollY > 0) {
           window.scrollTo({
             top: 0,
             behavior: 'smooth'
@@ -179,8 +188,10 @@ export default function GuidedTour({
         return;
       }
 
-      // Step 4: First Campaign Card — User explicitly wants camera positioned with card at top below header (Image 2),
-      // leaving ample room BELOW for the popover card!
+      // Case 2: Step 4 First Campaign Card (Image 2 camera angle)
+      // The camera MUST scroll down so that "Featured Relief Causes" header is at the top
+      // right below the sticky header, framing the campaign card at the top and leaving
+      // ample room below for the popover card!
       const isCampaignCard = Boolean(
         element.id === 'tour-donor-first-campaign' || 
         element.closest('#tour-donor-first-campaign') ||
@@ -189,20 +200,35 @@ export default function GuidedTour({
       );
 
       if (isCampaignCard) {
-        const rect = element.getBoundingClientRect();
-        // Position card top right below header with 16px breathing room
-        const desiredTop = headerBottom + 16;
-        const scrollDelta = Math.round(rect.top - desiredTop);
-        if (Math.abs(scrollDelta) > 5) {
-          window.scrollBy({
-            top: scrollDelta,
-            behavior: 'smooth'
-          });
+        const featuredHeadingEl = document.querySelector('#tour-donor-featured-causes');
+        let targetY;
+        if (featuredHeadingEl) {
+          // Position Featured Relief Causes heading 8px below the sticky header (Matching Image 2)
+          targetY = Math.max(0, Math.round(window.scrollY + featuredHeadingEl.getBoundingClientRect().top - (headerBottom + 8)));
+        } else {
+          // Fallback directly to the card: top of card 45px below header
+          targetY = Math.max(0, Math.round(window.scrollY + element.getBoundingClientRect().top - (headerBottom + 45)));
         }
+
+        window.scrollTo({
+          top: targetY,
+          behavior: 'smooth'
+        });
         return;
       }
 
-      // For other dashboard elements:
+      // Case 3: Step 3 Metrics Grid
+      if (element.id === 'tour-donor-metrics' || element.closest('#tour-donor-metrics')) {
+        const rect = element.getBoundingClientRect();
+        const targetY = Math.max(0, Math.round(window.scrollY + rect.top - (headerBottom + 16)));
+        window.scrollTo({
+          top: targetY,
+          behavior: 'smooth'
+        });
+        return;
+      }
+
+      // Case 4: Other dashboard elements:
       const rect = element.getBoundingClientRect();
       const availableHeight = window.innerHeight - headerBottom;
 
@@ -210,186 +236,21 @@ export default function GuidedTour({
       if (rect.height <= availableHeight - 80) {
         desiredTop = headerBottom + Math.max(16, Math.round((availableHeight - rect.height) / 2));
       } else {
-        desiredTop = headerBottom + 20;
+        desiredTop = headerBottom + 16;
       }
 
-      const scrollDelta = Math.round(rect.top - desiredTop);
-      if (Math.abs(scrollDelta) > 10) {
-        window.scrollBy({
-          top: scrollDelta,
+      const targetY = Math.max(0, Math.round(window.scrollY + rect.top - desiredTop));
+      if (Math.abs(window.scrollY - targetY) > 10) {
+        window.scrollTo({
+          top: targetY,
           behavior: 'smooth'
         });
       }
     };
 
-    // ── 3. Step 4 Interactive Mini-Tutorial Callout Overlay ──
-    const calloutsOverlayId = 'bbdrts-tour-card-callouts';
-
-    const removeCardCallouts = () => {
-      const el = document.getElementById(calloutsOverlayId);
-      if (el) el.remove();
-    };
-
-    const updateCardCallouts = () => {
-      const card = document.querySelector('#tour-donor-first-campaign');
-      const activeEl = document.querySelector('.driver-active-element');
-      const isCardStep = Boolean(
-        activeEl && card && (
-          activeEl.id === 'tour-donor-first-campaign' ||
-          activeEl.closest('#tour-donor-first-campaign') ||
-          activeEl.id === 'tour-donor-featured-causes'
-        )
-      );
-
-      if (!isCardStep || !card) {
-        removeCardCallouts();
-        return;
-      }
-
-      let overlay = document.getElementById(calloutsOverlayId);
-      if (!overlay) {
-        overlay = document.createElement('div');
-        overlay.id = calloutsOverlayId;
-        overlay.className = 'bbdrts-tour-callouts-layer';
-        overlay.innerHTML = `
-          <!-- Hotspot 1: Input Amount & Donate -->
-          <div class="bbdrts-hotspot-pin" id="bbdrts-hs-donate" data-hs="1">
-            <div class="bbdrts-pin-beacon">
-              <span class="bbdrts-beacon-ping"></span>
-              <span class="bbdrts-beacon-num">1</span>
-            </div>
-            <div class="bbdrts-pin-badge">
-              <span class="material-symbols-outlined bbdrts-pin-icon">payments</span>
-              <span class="bbdrts-pin-label">Input Amount &amp; Donate</span>
-              <span class="bbdrts-pin-tag">E-Wallets &amp; ETH</span>
-            </div>
-            <div class="bbdrts-pin-popover">
-              <div class="bbdrts-popover-title-row">
-                <span class="material-symbols-outlined" style="color: #22c55e; font-size: 16px;">volunteer_activism</span>
-                <strong>Dual Payment Rails</strong>
-              </div>
-              <p>
-                Enter donation in ₱ PHP. Dual rails support instant Philippine E-Wallets (GCash &amp; Maya QR Gateway) and Web3 Sepolia ETH via MetaMask with 0% platform cuts.
-              </p>
-              <div class="bbdrts-pin-pointer arrow-down"></div>
-            </div>
-          </div>
-
-          <!-- Hotspot 2: Verified NGO Partner -->
-          <div class="bbdrts-hotspot-pin" id="bbdrts-hs-org" data-hs="2">
-            <div class="bbdrts-pin-beacon">
-              <span class="bbdrts-beacon-ping"></span>
-              <span class="bbdrts-beacon-num">2</span>
-            </div>
-            <div class="bbdrts-pin-badge">
-              <span class="material-symbols-outlined bbdrts-pin-icon">verified</span>
-              <span class="bbdrts-pin-label">Verified NGO Partner</span>
-              <span class="bbdrts-pin-tag">SEC &amp; DSWD</span>
-            </div>
-            <div class="bbdrts-pin-popover">
-              <div class="bbdrts-popover-title-row">
-                <span class="material-symbols-outlined" style="color: #38bdf8; font-size: 16px;">verified</span>
-                <strong>Accredited Disaster Responder</strong>
-              </div>
-              <p>
-                Accredited Philippine relief organization with verified SEC registration and DSWD clearance cryptographically linked on-chain.
-              </p>
-              <div class="bbdrts-pin-pointer arrow-down"></div>
-            </div>
-          </div>
-
-          <!-- Hotspot 3: Milestone Escrow Tracker -->
-          <div class="bbdrts-hotspot-pin" id="bbdrts-hs-rail" data-hs="3">
-            <div class="bbdrts-pin-beacon">
-              <span class="bbdrts-beacon-ping"></span>
-              <span class="bbdrts-beacon-num">3</span>
-            </div>
-            <div class="bbdrts-pin-badge">
-              <span class="material-symbols-outlined bbdrts-pin-icon">lock_clock</span>
-              <span class="bbdrts-pin-label">Milestone Escrow</span>
-              <span class="bbdrts-pin-tag">Smart Contract</span>
-            </div>
-            <div class="bbdrts-pin-popover">
-              <div class="bbdrts-popover-title-row">
-                <span class="material-symbols-outlined" style="color: #a855f7; font-size: 16px;">lock_clock</span>
-                <strong>Smart Contract Escrow</strong>
-              </div>
-              <p>
-                Funds remain locked in escrow until the NGO uploads merchant receipts and geotagged relief distribution photos from ground zero.
-              </p>
-              <div class="bbdrts-pin-pointer arrow-up"></div>
-            </div>
-          </div>
-
-          <!-- Hotspot 4: Map & Public Ledger -->
-          <div class="bbdrts-hotspot-pin" id="bbdrts-hs-actions" data-hs="4">
-            <div class="bbdrts-pin-beacon">
-              <span class="bbdrts-beacon-ping"></span>
-              <span class="bbdrts-beacon-num">4</span>
-            </div>
-            <div class="bbdrts-pin-badge">
-              <span class="material-symbols-outlined bbdrts-pin-icon">receipt_long</span>
-              <span class="bbdrts-pin-label">Map &amp; Public Ledger</span>
-              <span class="bbdrts-pin-tag">Audit Proof</span>
-            </div>
-            <div class="bbdrts-pin-popover">
-              <div class="bbdrts-popover-title-row">
-                <span class="material-symbols-outlined" style="color: #f59e0b; font-size: 16px;">receipt_long</span>
-                <strong>Ground-Zero Map &amp; Ledger</strong>
-              </div>
-              <p>
-                Click "Details &amp; Map" for GPS disaster coordinates, or "Public Ledger" to audit live on-chain smart contract transactions on Etherscan.
-              </p>
-              <div class="bbdrts-pin-pointer arrow-up"></div>
-            </div>
-          </div>
-        `;
-        document.body.appendChild(overlay);
-
-        // Click a pin to toggle its popover description
-        overlay.querySelectorAll('.bbdrts-hotspot-pin').forEach(pin => {
-          pin.addEventListener('click', (e) => {
-            e.stopPropagation();
-            overlay.querySelectorAll('.bbdrts-hotspot-pin').forEach(p => {
-              if (p !== pin) p.classList.remove('is-active');
-            });
-            pin.classList.toggle('is-active');
-          });
-        });
-      }
-
-      const donateEl = card.querySelector('[data-tour-target="campaign-donate"]') || card.querySelector('.donate-box-card');
-      const orgEl = card.querySelector('[data-tour-target="campaign-org"]') || card.querySelector('.campaign-org-badge') || card.querySelector('.campaign-org-row');
-      const railEl = card.querySelector('[data-tour-target="campaign-rail"]') || card.querySelector('.multi-rail-wrapper');
-      const actionsEl = card.querySelector('[data-tour-target="campaign-actions"]') || card.querySelector('.campaign-actions-secondary-btns');
-
-      const hsDonate = overlay.querySelector('#bbdrts-hs-donate');
-      if (hsDonate && donateEl) {
-        const d = donateEl.getBoundingClientRect();
-        hsDonate.style.top = `${Math.round(d.top - 46)}px`;
-        hsDonate.style.left = `${Math.round(d.left)}px`;
-      }
-
-      const hsOrg = overlay.querySelector('#bbdrts-hs-org');
-      if (hsOrg && orgEl) {
-        const o = orgEl.getBoundingClientRect();
-        hsOrg.style.top = `${Math.round(o.top - 44)}px`;
-        hsOrg.style.left = `${Math.round(o.left)}px`;
-      }
-
-      const hsRail = overlay.querySelector('#bbdrts-hs-rail');
-      if (hsRail && railEl) {
-        const r = railEl.getBoundingClientRect();
-        hsRail.style.top = `${Math.round(r.bottom + 12)}px`;
-        hsRail.style.left = `${Math.round(r.left)}px`;
-      }
-
-      const hsActions = overlay.querySelector('#bbdrts-hs-actions');
-      if (hsActions && actionsEl) {
-        const a = actionsEl.getBoundingClientRect();
-        hsActions.style.top = `${Math.round(a.bottom + 12)}px`;
-        hsActions.style.left = `${Math.round(a.left)}px`;
-      }
+    // Override scrollIntoView on Element.prototype while tour is active
+    Element.prototype.scrollIntoView = function(options) {
+      scrollToTargetSafely(this);
     };
 
     let scrollRafId = null;
@@ -398,7 +259,6 @@ export default function GuidedTour({
       scrollRafId = requestAnimationFrame(() => {
         scrollRafId = null;
         updateBlurPanels();
-        updateCardCallouts();
         if (driverRef.current) {
           try {
             driverRef.current.refresh();
@@ -411,6 +271,10 @@ export default function GuidedTour({
     window.addEventListener('scrollend', handleWindowChange, { passive: true });
 
     const cleanupSurround = () => {
+      if (!hasRestoredScroll) {
+        hasRestoredScroll = true;
+        Element.prototype.scrollIntoView = originalScrollIntoView;
+      }
       if (scrollRafId) cancelAnimationFrame(scrollRafId);
       window.removeEventListener('resize', handleWindowChange);
       window.removeEventListener('scroll', handleWindowChange);
@@ -419,7 +283,6 @@ export default function GuidedTour({
       if (s) s.remove();
       const g = document.getElementById(headerGuardId);
       if (g) g.remove();
-      removeCardCallouts();
     };
 
     const totalSteps = currentSteps.length;
@@ -480,26 +343,14 @@ export default function GuidedTour({
         const surround = document.getElementById(surroundId);
         if (surround) surround.style.opacity = '0.35';
         scrollToTargetSafely(element);
-
-        const isCard = Boolean(
-          element && (
-            element.id === 'tour-donor-first-campaign' ||
-            element.closest('#tour-donor-first-campaign') ||
-            element.id === 'tour-donor-featured-causes'
-          )
-        );
-        if (!isCard) {
-          removeCardCallouts();
-        }
       },
       onHighlighted: (element) => {
         // Spotlight has settled: lock blur panels to the exact resting target
         updateBlurPanels(element);
-        updateCardCallouts();
         const surround = document.getElementById(surroundId);
         if (surround) surround.style.opacity = '1';
 
-        // Re-align Driver.js popover, blur panels, and card callouts across settling window
+        // Re-align Driver.js popover and blur panels across the full smooth scroll settling window
         const refreshOnce = () => {
           if (driverRef.current) {
             try {
@@ -507,7 +358,6 @@ export default function GuidedTour({
             } catch (_) {}
           }
           updateBlurPanels(element);
-          updateCardCallouts();
         };
 
         [60, 140, 260, 420, 600].forEach(ms => setTimeout(refreshOnce, ms));
@@ -534,72 +384,6 @@ export default function GuidedTour({
             }
           };
         }
-
-        // Step 4 Mini-Tutorial: Inject interactive feature chips into popover
-        setTimeout(() => {
-          const activeEl = document.querySelector('.driver-active-element');
-          const isCard = Boolean(
-            activeEl && (
-              activeEl.id === 'tour-donor-first-campaign' ||
-              activeEl.closest('#tour-donor-first-campaign') ||
-              activeEl.id === 'tour-donor-featured-causes'
-            )
-          );
-
-          if (isCard && popoverDOM.wrapper) {
-            let chipsBox = popoverDOM.wrapper.querySelector('.bbdrts-popover-chips');
-            if (!chipsBox) {
-              chipsBox = document.createElement('div');
-              chipsBox.className = 'bbdrts-popover-chips';
-              chipsBox.innerHTML = `
-                <div class="bbdrts-chips-heading">
-                  <span class="material-symbols-outlined" style="font-size: 14px; color: #22c55e;">travel_explore</span>
-                  <span>Explore Card Features:</span>
-                </div>
-                <div class="bbdrts-chips-grid">
-                  <button type="button" class="bbdrts-chip-btn" data-target-hs="1">
-                    <span class="material-symbols-outlined" style="font-size: 14px; color: #22c55e;">payments</span>
-                    <span>1. Amount &amp; Donate</span>
-                  </button>
-                  <button type="button" class="bbdrts-chip-btn" data-target-hs="2">
-                    <span class="material-symbols-outlined" style="font-size: 14px; color: #38bdf8;">verified</span>
-                    <span>2. Verified NGO</span>
-                  </button>
-                  <button type="button" class="bbdrts-chip-btn" data-target-hs="3">
-                    <span class="material-symbols-outlined" style="font-size: 14px; color: #a855f7;">lock_clock</span>
-                    <span>3. Escrow Goal</span>
-                  </button>
-                  <button type="button" class="bbdrts-chip-btn" data-target-hs="4">
-                    <span class="material-symbols-outlined" style="font-size: 14px; color: #f59e0b;">receipt_long</span>
-                    <span>4. Map &amp; Ledger</span>
-                  </button>
-                </div>
-              `;
-
-              const descEl = popoverDOM.wrapper.querySelector('.driver-popover-description');
-              if (descEl && descEl.parentNode) {
-                descEl.parentNode.insertBefore(chipsBox, descEl);
-              }
-
-              chipsBox.querySelectorAll('.bbdrts-chip-btn').forEach(btn => {
-                btn.onclick = (e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  const hsId = btn.getAttribute('data-target-hs');
-                  const overlay = document.getElementById(calloutsOverlayId);
-                  if (overlay) {
-                    const targetPin = overlay.querySelector(`[data-hs="${hsId}"]`);
-                    if (targetPin) {
-                      overlay.querySelectorAll('.bbdrts-hotspot-pin').forEach(p => p.classList.remove('is-active'));
-                      targetPin.classList.add('is-active');
-                      targetPin.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-                    }
-                  }
-                };
-              });
-            }
-          }
-        }, 100);
 
         // Overlap Prevention: guarantees the popover never covers the highlighted element
         const wrapper = popoverDOM.wrapper;

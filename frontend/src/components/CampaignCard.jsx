@@ -1437,7 +1437,6 @@ export default function CampaignCard(props) {
             <button
               type="button"
               className="campaign-org-badge"
-              data-tour-target="campaign-org"
               title="Click to view verified NGO institutional profile & all campaigns"
               onClick={(e) => {
                 e.stopPropagation();
@@ -1456,7 +1455,7 @@ export default function CampaignCard(props) {
           </div>
 
           {/* Multi-Rail Interactive Progress Bar */}
-          <div className="multi-rail-wrapper" data-tour-target="campaign-rail" ref={railDropdownRef}>
+          <div className="multi-rail-wrapper" ref={railDropdownRef}>
             {/* Header: Goal & Total Percent (Clickable trigger for dropdown) */}
             <div className="multi-rail-header">
               <span className="multi-rail-goal-text">
@@ -1822,7 +1821,7 @@ export default function CampaignCard(props) {
           ) : (
             /* ── Standard Donor Contribution Box & Action Buttons ── */
             <>
-              <div className="donate-box-card" data-tour-target="campaign-donate">
+              <div className="donate-box-card">
                 <div className="donate-box-header" style={{ justifyContent: 'space-between' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <span className="material-symbols-outlined" style={{ fontSize: '15px', color: 'var(--accent)' }}>volunteer_activism</span>
@@ -1897,7 +1896,7 @@ export default function CampaignCard(props) {
                 )}
               </div>
 
-              <div className="campaign-actions-secondary-btns" data-tour-target="campaign-actions">
+              <div className="campaign-actions-secondary-btns">
                 <button
                   className="btn btn-outline btn-sm btn-full"
                   onClick={() => setDetailsOpen(true)}

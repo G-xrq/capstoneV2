@@ -123,7 +123,7 @@ export default function DonorView({ contract, walletAddress, campaigns, fetchCam
       badge: 'Step 4 of 8 • Disaster Appeals & Giving',
       placement: 'bottom',
       align: 'center',
-      description: 'Accredited Philippine NGOs post emergency disaster appeals here. Explore the interactive hotspots on the card above: (1) Input Amount & Donate via GCash/Maya QR or Sepolia ETH, (2) Accredited NGO Partner credentials, (3) Milestone Escrow goal tracker, and (4) Situation Map & Public Ledger on Etherscan.'
+      description: 'Accredited Philippine NGOs post emergency disaster appeals here. Contribute via dual payment rails: Web3 Crypto (Sepolia ETH via MetaMask) OR instant Philippine E-Wallets (GCash & Maya QR Gateway). You can also toggle Anonymous Giving to protect your privacy.'
     },
     {
       target: '#tour-donor-tab-campaigns',
