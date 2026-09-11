@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import NotificationCenter from './NotificationCenter.jsx';
+import LeaderboardModal from './LeaderboardModal.jsx';
 import './Header.css';
 
 export default function Header({
@@ -17,6 +18,7 @@ export default function Header({
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [copiedAddr, setCopiedAddr] = useState(false);
+  const [showLeaderboardModal, setShowLeaderboardModal] = useState(false);
 
   // Close profile dropdown when clicking outside
   useEffect(() => {
@@ -187,6 +189,18 @@ export default function Header({
 
           {/* Action Buttons & Profile Hub */}
           <div className="bbdrts-header-actions">
+
+            {/* Philanthropy & Impact Leaderboard Trigger (Beside Notification) */}
+            <button
+              type="button"
+              className={`bbdrts-leaderboard-btn ${showLeaderboardModal ? 'active' : ''}`}
+              onClick={() => setShowLeaderboardModal(true)}
+              title="Philanthropy & Relief Impact Leaderboard"
+              aria-label="Open Philanthropy and NGO Leaderboard"
+            >
+              <span className="material-symbols-outlined bbdrts-leaderboard-icon">leaderboard</span>
+              <span className="bbdrts-leaderboard-pill-text">Leaderboard</span>
+            </button>
 
             {/* Notification Center Trigger (Only Visible When Logged In) */}
             {dbUser && (
@@ -408,12 +422,33 @@ export default function Header({
             <a href="#top" className="bbdrts-nav-link" onClick={handleHomeClick}>Home</a>
             <a href="#radar-heatmap" className="bbdrts-nav-link" onClick={handleRadarClick}>Relief Radar</a>
             <a href="#campaigns" className="bbdrts-nav-link" onClick={handleCampaignsClick}>Relief Campaigns</a>
+            <button
+              type="button"
+              className="bbdrts-mobile-drawer-btn"
+              onClick={() => {
+                setMobileMenuOpen(false);
+                setShowLeaderboardModal(true);
+              }}
+            >
+              <span className="material-symbols-outlined">leaderboard</span>
+              <span>Hall of Fame & Leaderboard</span>
+            </button>
             <a href="#how-it-works" className="bbdrts-nav-link" onClick={() => setMobileMenuOpen(false)}>How It Works</a>
             <a href="#transparency" className="bbdrts-nav-link" onClick={() => setMobileMenuOpen(false)}>Smart Contract</a>
             <a href="#footer-governance" className="bbdrts-nav-link" onClick={() => setMobileMenuOpen(false)}>Institution Info</a>
           </div>
         )}
       </header>
+
+      {/* Philanthropy & Relief Impact Leaderboard Modal */}
+      <LeaderboardModal
+        isOpen={showLeaderboardModal}
+        onClose={() => setShowLeaderboardModal(false)}
+        dbUser={dbUser}
+        walletAddress={walletAddress}
+        theme={theme}
+        onOpenNgoProfile={onOpenNgoProfile}
+      />
     </>
   );
 }
