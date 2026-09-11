@@ -83,6 +83,12 @@
 }
 
 /* ── 5. Tooltip Popover Card with Calibrated Reveal Delay ── */
+/* Neutralize Driver.js default keyframe fade-in animation which causes uncontrollable flashes */
+.driver-fade .driver-popover,
+.driver-popover.bbdrts-tour-popover {
+  animation: none !important;
+}
+
 .driver-popover.bbdrts-tour-popover {
   all: unset;
   box-sizing: border-box;
@@ -103,19 +109,20 @@
   font-family: inherit;
   opacity: 1;
   transform: scale(1);
-  transition: opacity 0.25s cubic-bezier(0.16, 1, 0.3, 1),
-              transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: opacity 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+              transform 0.22s cubic-bezier(0.16, 1, 0.3, 1);
   will-change: opacity, transform;
 }
 
-/* While camera is traveling between steps, card is strictly hidden everywhere (Point 2 permanent fix) */
+/* While camera is traveling between steps, card is INSTANTLY hidden with 0ms transition */
 body.tour-traveling .driver-popover,
 .driver-popover.bbdrts-tour-popover.is-traveling {
   opacity: 0 !important;
   visibility: hidden !important;
   pointer-events: none !important;
   transform: scale(0.96) !important;
-  transition: opacity 0.1s ease, transform 0.1s ease !important;
+  transition: none !important;
+  animation: none !important;
 }
 
 /* ── 6. Card Header: Category Badge & Title ── */

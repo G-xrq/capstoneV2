@@ -91,75 +91,75 @@ export default function DonorView({ contract, walletAddress, campaigns, fetchCam
   const donorTourSteps = useMemo(() => [
     {
       target: '#tour-donor-welcome',
-      title: 'Decentralized Identity & 100% Direct Giving',
+      title: 'Donor Profile & Quick Actions',
       icon: 'verified_user',
-      badge: 'Step 1 of 8 • Identity & Trust',
+      badge: 'Step 1 of 8 • Profile & Overview',
       placement: 'bottom',
       align: 'start',
-      description: 'Welcome to BBDRTS! Your profile is cryptographically secured on the Ethereum Sepolia blockchain with zero platform cuts. Use quick actions to jump to relief appeals, inspect your Honors Ladder, or verify the public ledger on Etherscan.'
+      description: 'Your dashboard header displays your verified wallet address and current donor tier. Use the quick action buttons to open your Honors Ladder, jump directly to active relief appeals, or verify the public ledger on Etherscan.'
     },
     {
       target: '#tour-donor-badge-card',
-      title: 'Honors Ladder & Philanthropic Badges',
+      title: 'Honors Ladder & Tier Progress',
       icon: 'military_tech',
-      badge: 'Step 2 of 8 • Recognition',
+      badge: 'Step 2 of 8 • Donor Recognition',
       placement: 'bottom',
       align: 'start',
-      description: 'Every peso and ETH you give earns humanitarian milestones on your Honors Ladder: First Responder, Community Guardian, and Relief Champion. Track your next milestone and inspect verified on-chain credentials.'
+      description: 'Track your philanthropic journey across the 12-Tier Honors Ladder (from Tier 1 Contributor up to Tier 12 Mythic Patron). This card shows your progress toward the next tier based on your cumulative verified contributions. Click the button to explore all 12 tiers.'
     },
     {
       target: '#tour-donor-metrics',
-      title: 'Live Relief Analytics & Contract Health',
+      title: 'Dashboard Summary Metrics',
       icon: 'analytics',
-      badge: 'Step 3 of 8 • Transparency',
+      badge: 'Step 3 of 8 • Key Statistics',
       placement: 'bottom',
       align: 'center',
-      description: 'Monitor your personal contributions, active emergency appeals nationwide, EVM smart contract verification status, and real-time humanitarian relief funds deployed across the Philippines.'
+      description: 'These four stat cards summarize your total contributions recorded on-chain, the number of active relief causes open for aid, the live Sepolia smart contract verification status, and your cumulative donation total in ETH and PHP.'
     },
     {
       target: '#tour-donor-first-campaign',
-      title: 'Active Appeals & Dual Payment Rails (ETH & E-Wallets)',
+      title: 'Featured Relief Campaign',
       icon: 'emergency',
-      badge: 'Step 4 of 8 • Disaster Appeals & Giving',
+      badge: 'Step 4 of 8 • Relief Causes',
       placement: 'bottom',
       align: 'center',
-      description: 'Accredited Philippine NGOs post emergency disaster appeals here. Contribute via dual payment rails: Web3 Crypto (Sepolia ETH via MetaMask) OR instant Philippine E-Wallets (GCash & Maya QR Gateway). You can also toggle Anonymous Giving to protect your privacy.'
+      description: 'Review featured emergency disaster appeals posted by accredited organizations. Each card shows the disaster category, urgency level, funding goal, and progress. Click Donate to contribute using Sepolia ETH or Philippine e-wallets (GCash & Maya).'
     },
     {
       target: '#tour-donor-tab-campaigns',
-      title: 'Nationwide Appeals & Calamity Filters',
+      title: 'Relief Campaigns Tab',
       icon: 'campaign',
-      badge: 'Step 5 of 8 • Appeal Directory',
+      badge: 'Step 5 of 8 • Navigation',
       placement: 'right',
       align: 'center',
-      description: 'Explore all active disaster response operations across Luzon, Visayas, and Mindanao. Filter campaigns by calamity type (Typhoon, Flood, Fire), urgency priority, or target funding goals.'
+      description: 'Click this sidebar tab to browse all active emergency relief campaigns. You can filter appeals by cause category (Disaster Relief or Charitable Aid), urgency priority (High, Medium, Standard), or search specific relief operations.'
     },
     {
       target: '#tour-donor-tab-donations',
-      title: 'Milestone Proof Escrow & Digital Tax Receipts',
-      icon: 'receipt_long',
-      badge: 'Step 6 of 8 • Escrow & Tax Proof',
+      title: 'My Contributions Tab',
+      icon: 'history',
+      badge: 'Step 6 of 8 • Donation History',
       placement: 'right',
       align: 'center',
-      description: 'Relief funds remain locked in smart contract escrow until NGOs upload geotagged delivery photos and merchant receipts from the disaster zone. Access this tab anytime to inspect ground-zero proofs and download official printable PDF tax receipts.'
+      description: 'Click here to review your complete on-chain donation history. You can inspect transaction hashes, view verified timestamps and amounts for every contribution, and export printable audit receipts.'
     },
     {
       target: '#tour-donor-tab-radar',
-      title: 'Live Doppler Radar & Calamity Heatmaps',
+      title: 'Relief Radar Tab',
       icon: 'radar',
-      badge: 'Step 7 of 8 • Weather Intelligence',
+      badge: 'Step 7 of 8 • Weather & Disaster Map',
       placement: 'right',
       align: 'center',
-      description: 'Monitor real-time Philippine Doppler weather radar and calamity concentration heatmaps across Luzon, Visayas, and Mindanao. Track storm trajectories to direct your aid where catastrophic impact is greatest.'
+      description: 'Switch to this tab to view an interactive Philippine map with live PAGASA Doppler radar precipitation data and disaster campaign locations, helping you see where emergency relief is needed most.'
     },
     {
       target: '#tour-donor-sepolia-node',
-      title: 'Sepolia Node Status, Themes & Replay',
-      icon: 'settings',
-      badge: 'Step 8 of 8 • Control Hub',
+      title: 'Network Health & Replay Tour',
+      icon: 'hub',
+      badge: 'Step 8 of 8 • System Status',
       placement: 'right',
       align: 'end',
-      description: 'Monitors live EVM testnet synchronization. You can switch interface themes (Dark, Light, Cyber) or replay this guided walkthrough anytime by clicking Guided Tutorial in the sidebar. You are all set!'
+      description: 'This widget displays real-time Ethereum Sepolia smart contract synchronization. You can switch color themes below or click "Guided Tutorial" in the sidebar anytime to replay this walkthrough. You are all set!'
     }
   ], []);
 

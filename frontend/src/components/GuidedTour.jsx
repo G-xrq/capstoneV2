@@ -399,7 +399,7 @@ export default function GuidedTour({
 
     const driverObj = driver({
       showProgress: true,
-      animate: true,
+      animate: false, // Prevents Driver.js from delaying popover mounting or animating its own intermediate state
       smoothScroll: false, // Handled by our custom safe headroom scrolling
       allowClose: true,
       skipMissingElement: true,
@@ -434,7 +434,7 @@ export default function GuidedTour({
         // Keep popover strictly hidden while camera smooth scroll is traveling
         document.body.classList.add('tour-traveling');
 
-        // Settle timer: Once smooth scroll arrives at destination (~340ms), reveal popover at exact position
+        // Settle timer: Once smooth scroll arrives at destination (~320ms), reveal popover at exact position
         clearTimeout(settleTimerRef.current);
         settleTimerRef.current = setTimeout(() => {
           if (driverRef.current) {
@@ -442,12 +442,17 @@ export default function GuidedTour({
               driverRef.current.refresh();
             } catch (_) {}
           }
-          syncTourLayout(element);
-
-          // Reveal popover with silky fade-in directly at final resting position!
-          document.body.classList.remove('tour-traveling');
-          isNavigatingStepRef.current = false;
-        }, 340);
+          // Wait two animation frames so Driver.js's internal refresh requestAnimationFrame has finished
+          // recalculating the popover and arrow coordinates BEFORE making the popover visible!
+          requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+              syncTourLayout(element);
+              // Reveal popover with silky fade-in directly at final resting position!
+              document.body.classList.remove('tour-traveling');
+              isNavigatingStepRef.current = false;
+            });
+          });
+        }, 320);
 
         // Backup stabilization tick at 520ms
         setTimeout(() => {
@@ -468,6 +473,22 @@ export default function GuidedTour({
       },
       onPopoverRender: (popoverDOM) => {
         if (!popoverDOM) return;
+        // Instantly hide card the millisecond the user clicks Next or Back
+        if (popoverDOM.nextButton && !popoverDOM.nextButton._hasBBDRTSTourHandler) {
+          popoverDOM.nextButton._hasBBDRTSTourHandler = true;
+          popoverDOM.nextButton.addEventListener('click', () => {
+            document.body.classList.add('tour-traveling');
+            clearTimeout(settleTimerRef.current);
+          }, { capture: true });
+        }
+        if (popoverDOM.previousButton && !popoverDOM.previousButton._hasBBDRTSTourHandler) {
+          popoverDOM.previousButton._hasBBDRTSTourHandler = true;
+          popoverDOM.previousButton.addEventListener('click', () => {
+            document.body.classList.add('tour-traveling');
+            clearTimeout(settleTimerRef.current);
+          }, { capture: true });
+        }
+
         if (popoverDOM.closeButton) {
           popoverDOM.closeButton.innerHTML = '✕';
           popoverDOM.closeButton.setAttribute('title', 'Close tutorial (Esc)');
