@@ -25,6 +25,7 @@ export default function GuidedTour({
   const isClosingRef = useRef(false);
   const isNavigatingStepRef = useRef(false);
   const currentStepIndexRef = useRef(0);
+  const settleTimerRef = useRef(null);
 
   // Stable references to props to prevent re-render loops
   const stepsRef = useRef(steps);
@@ -344,6 +345,8 @@ export default function GuidedTour({
         Element.prototype.scrollIntoView = originalScrollIntoView;
       }
       clearTimeout(scrollEndTimer);
+      clearTimeout(settleTimerRef.current);
+      document.body.classList.remove('tour-traveling');
       window.removeEventListener('scroll', handleScroll);
       window.removeEventListener('resize', handleResize);
 
@@ -415,11 +418,9 @@ export default function GuidedTour({
         isNavigatingStepRef.current = true;
         currentStepIndexRef.current = state?.activeIndex || 0;
 
-        // Immediately hide popover so it NEVER flashes or appears in the wrong place (Point 2 fix!)
-        const popoverEl = document.querySelector('.bbdrts-tour-popover');
-        if (popoverEl) {
-          popoverEl.classList.add('is-traveling');
-        }
+        // Hide popover immediately via body class so it NEVER renders at old coordinates
+        clearTimeout(settleTimerRef.current);
+        document.body.classList.add('tour-traveling');
 
         // Smoothly scroll camera to the calibrated target
         scrollToTargetSafely(element);
@@ -430,13 +431,12 @@ export default function GuidedTour({
       onHighlighted: (element, step, { state }) => {
         currentStepIndexRef.current = state?.activeIndex || 0;
 
-        const popoverEl = document.querySelector('.bbdrts-tour-popover');
-        if (popoverEl) {
-          popoverEl.classList.add('is-traveling');
-        }
+        // Keep popover strictly hidden while camera smooth scroll is traveling
+        document.body.classList.add('tour-traveling');
 
-        // Once the camera has finished its smooth scroll and arrived at destination (~320ms):
-        setTimeout(() => {
+        // Settle timer: Once smooth scroll arrives at destination (~340ms), reveal popover at exact position
+        clearTimeout(settleTimerRef.current);
+        settleTimerRef.current = setTimeout(() => {
           if (driverRef.current) {
             try {
               driverRef.current.refresh();
@@ -444,14 +444,12 @@ export default function GuidedTour({
           }
           syncTourLayout(element);
 
-          // Reveal popover with silky fade-in at the exact final resting coordinates!
-          if (popoverEl) {
-            popoverEl.classList.remove('is-traveling');
-          }
+          // Reveal popover with silky fade-in directly at final resting position!
+          document.body.classList.remove('tour-traveling');
           isNavigatingStepRef.current = false;
-        }, 320);
+        }, 340);
 
-        // Final micro-settle at 480ms
+        // Backup stabilization tick at 520ms
         setTimeout(() => {
           if (driverRef.current) {
             try {
@@ -459,7 +457,7 @@ export default function GuidedTour({
             } catch (_) {}
           }
           syncTourLayout(element);
-        }, 480);
+        }, 520);
       },
       onCloseClick: () => {
         if (driverRef.current) {
@@ -485,6 +483,7 @@ export default function GuidedTour({
         }
       },
       onDestroyed: () => {
+        document.body.classList.remove('tour-traveling');
         cleanupSurround();
         if (!isClosingRef.current) {
           isClosingRef.current = true;

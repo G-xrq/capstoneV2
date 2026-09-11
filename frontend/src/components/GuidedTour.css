@@ -108,7 +108,8 @@
   will-change: opacity, transform;
 }
 
-/* While camera is traveling between steps, card is completely hidden (Point 2 fix!) */
+/* While camera is traveling between steps, card is strictly hidden everywhere (Point 2 permanent fix) */
+body.tour-traveling .driver-popover,
 .driver-popover.bbdrts-tour-popover.is-traveling {
   opacity: 0 !important;
   visibility: hidden !important;
