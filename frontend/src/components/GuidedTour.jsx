@@ -222,12 +222,183 @@ export default function GuidedTour({
       }
     };
 
+    // ── 3. Step 4 Interactive Mini-Tutorial Callout Overlay ──
+    const calloutsOverlayId = 'bbdrts-tour-card-callouts';
+
+    const removeCardCallouts = () => {
+      const el = document.getElementById(calloutsOverlayId);
+      if (el) el.remove();
+    };
+
+    const updateCardCallouts = () => {
+      const card = document.querySelector('#tour-donor-first-campaign');
+      const activeEl = document.querySelector('.driver-active-element');
+      const isCardStep = Boolean(
+        activeEl && card && (
+          activeEl.id === 'tour-donor-first-campaign' ||
+          activeEl.closest('#tour-donor-first-campaign') ||
+          activeEl.id === 'tour-donor-featured-causes'
+        )
+      );
+
+      if (!isCardStep || !card) {
+        removeCardCallouts();
+        return;
+      }
+
+      let overlay = document.getElementById(calloutsOverlayId);
+      if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = calloutsOverlayId;
+        overlay.className = 'bbdrts-tour-callouts-layer';
+        overlay.innerHTML = `
+          <!-- Hotspot 1: Input Amount & Donate -->
+          <div class="bbdrts-hotspot-pin" id="bbdrts-hs-donate" data-hs="1">
+            <div class="bbdrts-pin-beacon">
+              <span class="bbdrts-beacon-ping"></span>
+              <span class="bbdrts-beacon-num">1</span>
+            </div>
+            <div class="bbdrts-pin-badge">
+              <span class="material-symbols-outlined bbdrts-pin-icon">payments</span>
+              <span class="bbdrts-pin-label">Input Amount &amp; Donate</span>
+              <span class="bbdrts-pin-tag">E-Wallets &amp; ETH</span>
+            </div>
+            <div class="bbdrts-pin-popover">
+              <div class="bbdrts-popover-title-row">
+                <span class="material-symbols-outlined" style="color: #22c55e; font-size: 16px;">volunteer_activism</span>
+                <strong>Dual Payment Rails</strong>
+              </div>
+              <p>
+                Enter donation in ₱ PHP. Dual rails support instant Philippine E-Wallets (GCash &amp; Maya QR Gateway) and Web3 Sepolia ETH via MetaMask with 0% platform cuts.
+              </p>
+              <div class="bbdrts-pin-pointer arrow-down"></div>
+            </div>
+          </div>
+
+          <!-- Hotspot 2: Verified NGO Partner -->
+          <div class="bbdrts-hotspot-pin" id="bbdrts-hs-org" data-hs="2">
+            <div class="bbdrts-pin-beacon">
+              <span class="bbdrts-beacon-ping"></span>
+              <span class="bbdrts-beacon-num">2</span>
+            </div>
+            <div class="bbdrts-pin-badge">
+              <span class="material-symbols-outlined bbdrts-pin-icon">verified</span>
+              <span class="bbdrts-pin-label">Verified NGO Partner</span>
+              <span class="bbdrts-pin-tag">SEC &amp; DSWD</span>
+            </div>
+            <div class="bbdrts-pin-popover">
+              <div class="bbdrts-popover-title-row">
+                <span class="material-symbols-outlined" style="color: #38bdf8; font-size: 16px;">verified</span>
+                <strong>Accredited Disaster Responder</strong>
+              </div>
+              <p>
+                Accredited Philippine relief organization with verified SEC registration and DSWD clearance cryptographically linked on-chain.
+              </p>
+              <div class="bbdrts-pin-pointer arrow-down"></div>
+            </div>
+          </div>
+
+          <!-- Hotspot 3: Milestone Escrow Tracker -->
+          <div class="bbdrts-hotspot-pin" id="bbdrts-hs-rail" data-hs="3">
+            <div class="bbdrts-pin-beacon">
+              <span class="bbdrts-beacon-ping"></span>
+              <span class="bbdrts-beacon-num">3</span>
+            </div>
+            <div class="bbdrts-pin-badge">
+              <span class="material-symbols-outlined bbdrts-pin-icon">lock_clock</span>
+              <span class="bbdrts-pin-label">Milestone Escrow</span>
+              <span class="bbdrts-pin-tag">Smart Contract</span>
+            </div>
+            <div class="bbdrts-pin-popover">
+              <div class="bbdrts-popover-title-row">
+                <span class="material-symbols-outlined" style="color: #a855f7; font-size: 16px;">lock_clock</span>
+                <strong>Smart Contract Escrow</strong>
+              </div>
+              <p>
+                Funds remain locked in escrow until the NGO uploads merchant receipts and geotagged relief distribution photos from ground zero.
+              </p>
+              <div class="bbdrts-pin-pointer arrow-up"></div>
+            </div>
+          </div>
+
+          <!-- Hotspot 4: Map & Public Ledger -->
+          <div class="bbdrts-hotspot-pin" id="bbdrts-hs-actions" data-hs="4">
+            <div class="bbdrts-pin-beacon">
+              <span class="bbdrts-beacon-ping"></span>
+              <span class="bbdrts-beacon-num">4</span>
+            </div>
+            <div class="bbdrts-pin-badge">
+              <span class="material-symbols-outlined bbdrts-pin-icon">receipt_long</span>
+              <span class="bbdrts-pin-label">Map &amp; Public Ledger</span>
+              <span class="bbdrts-pin-tag">Audit Proof</span>
+            </div>
+            <div class="bbdrts-pin-popover">
+              <div class="bbdrts-popover-title-row">
+                <span class="material-symbols-outlined" style="color: #f59e0b; font-size: 16px;">receipt_long</span>
+                <strong>Ground-Zero Map &amp; Ledger</strong>
+              </div>
+              <p>
+                Click "Details &amp; Map" for GPS disaster coordinates, or "Public Ledger" to audit live on-chain smart contract transactions on Etherscan.
+              </p>
+              <div class="bbdrts-pin-pointer arrow-up"></div>
+            </div>
+          </div>
+        `;
+        document.body.appendChild(overlay);
+
+        // Click a pin to toggle its popover description
+        overlay.querySelectorAll('.bbdrts-hotspot-pin').forEach(pin => {
+          pin.addEventListener('click', (e) => {
+            e.stopPropagation();
+            overlay.querySelectorAll('.bbdrts-hotspot-pin').forEach(p => {
+              if (p !== pin) p.classList.remove('is-active');
+            });
+            pin.classList.toggle('is-active');
+          });
+        });
+      }
+
+      const donateEl = card.querySelector('[data-tour-target="campaign-donate"]') || card.querySelector('.donate-box-card');
+      const orgEl = card.querySelector('[data-tour-target="campaign-org"]') || card.querySelector('.campaign-org-badge') || card.querySelector('.campaign-org-row');
+      const railEl = card.querySelector('[data-tour-target="campaign-rail"]') || card.querySelector('.multi-rail-wrapper');
+      const actionsEl = card.querySelector('[data-tour-target="campaign-actions"]') || card.querySelector('.campaign-actions-secondary-btns');
+
+      const hsDonate = overlay.querySelector('#bbdrts-hs-donate');
+      if (hsDonate && donateEl) {
+        const d = donateEl.getBoundingClientRect();
+        hsDonate.style.top = `${Math.round(d.top - 46)}px`;
+        hsDonate.style.left = `${Math.round(d.left)}px`;
+      }
+
+      const hsOrg = overlay.querySelector('#bbdrts-hs-org');
+      if (hsOrg && orgEl) {
+        const o = orgEl.getBoundingClientRect();
+        hsOrg.style.top = `${Math.round(o.top - 44)}px`;
+        hsOrg.style.left = `${Math.round(o.left)}px`;
+      }
+
+      const hsRail = overlay.querySelector('#bbdrts-hs-rail');
+      if (hsRail && railEl) {
+        const r = railEl.getBoundingClientRect();
+        hsRail.style.top = `${Math.round(r.bottom + 12)}px`;
+        hsRail.style.left = `${Math.round(r.left)}px`;
+      }
+
+      const hsActions = overlay.querySelector('#bbdrts-hs-actions');
+      if (hsActions && actionsEl) {
+        const a = actionsEl.getBoundingClientRect();
+        hsActions.style.top = `${Math.round(a.bottom + 12)}px`;
+        hsActions.style.left = `${Math.round(a.left)}px`;
+      }
+    };
+
     let scrollRafId = null;
     const handleWindowChange = () => {
       if (scrollRafId) return;
       scrollRafId = requestAnimationFrame(() => {
         scrollRafId = null;
         updateBlurPanels();
+        updateCardCallouts();
         if (driverRef.current) {
           try {
             driverRef.current.refresh();
@@ -248,6 +419,7 @@ export default function GuidedTour({
       if (s) s.remove();
       const g = document.getElementById(headerGuardId);
       if (g) g.remove();
+      removeCardCallouts();
     };
 
     const totalSteps = currentSteps.length;
@@ -272,38 +444,11 @@ export default function GuidedTour({
         </div>
       `;
 
-      let descriptionHtml = s.description || '';
-      if (Array.isArray(s.miniTutorial) && s.miniTutorial.length > 0) {
-        const tabsHtml = s.miniTutorial.map((tab, tIdx) => `
-          <button type="button" class="bbdrts-mini-tab-btn ${tIdx === 0 ? 'active' : ''}" data-step-idx="${idx}" data-tab-idx="${tIdx}">
-            <span class="material-symbols-outlined" style="font-size: 13px;">${tab.icon || 'info'}</span>
-            <span>${tab.tabLabel}</span>
-          </button>
-        `).join('');
-
-        const firstTab = s.miniTutorial[0];
-
-        descriptionHtml = `
-          <div class="bbdrts-tour-desc-text">${s.description || ''}</div>
-          <div class="bbdrts-mini-tutorial-card" data-step-idx="${idx}">
-            <div class="bbdrts-mini-tabs-bar">
-              ${tabsHtml}
-            </div>
-            <div class="bbdrts-mini-content-box">
-              <div class="bbdrts-mini-content-header">
-                <span class="bbdrts-mini-content-badge">${firstTab.badge || ''}</span>
-              </div>
-              <p class="bbdrts-mini-content-body">${firstTab.text || ''}</p>
-            </div>
-          </div>
-        `;
-      }
-
       return {
         element: s.target,
         popover: {
           title: popoverTitle,
-          description: descriptionHtml,
+          description: s.description || '',
           side: s.placement || 'bottom',
           align: s.align || 'start',
           showButtons: idx === 0 ? ['next', 'close'] : ['previous', 'next', 'close'],
@@ -331,22 +476,30 @@ export default function GuidedTour({
       progressText: 'Step {{current}} of {{total}}',
       steps: driverSteps,
       onHighlightStarted: (element) => {
-        // Clear any sub-element highlights from previous steps
-        document.querySelectorAll('.bbdrts-tour-sub-highlight').forEach(el => {
-          el.classList.remove('bbdrts-tour-sub-highlight');
-        });
         // Softly dim the blur surround during spotlight scroll transition
         const surround = document.getElementById(surroundId);
         if (surround) surround.style.opacity = '0.35';
         scrollToTargetSafely(element);
+
+        const isCard = Boolean(
+          element && (
+            element.id === 'tour-donor-first-campaign' ||
+            element.closest('#tour-donor-first-campaign') ||
+            element.id === 'tour-donor-featured-causes'
+          )
+        );
+        if (!isCard) {
+          removeCardCallouts();
+        }
       },
       onHighlighted: (element) => {
         // Spotlight has settled: lock blur panels to the exact resting target
         updateBlurPanels(element);
+        updateCardCallouts();
         const surround = document.getElementById(surroundId);
         if (surround) surround.style.opacity = '1';
 
-        // Re-align Driver.js popover and blur panels across the full smooth scroll settling window
+        // Re-align Driver.js popover, blur panels, and card callouts across settling window
         const refreshOnce = () => {
           if (driverRef.current) {
             try {
@@ -354,6 +507,7 @@ export default function GuidedTour({
             } catch (_) {}
           }
           updateBlurPanels(element);
+          updateCardCallouts();
         };
 
         [60, 140, 260, 420, 600].forEach(ms => setTimeout(refreshOnce, ms));
@@ -381,53 +535,71 @@ export default function GuidedTour({
           };
         }
 
-        // Setup interactive mini-tutorial tabs if present
-        const miniCard = popoverDOM.wrapper?.querySelector('.bbdrts-mini-tutorial-card');
-        if (miniCard) {
-          const stepIdx = parseInt(miniCard.getAttribute('data-step-idx'), 10);
-          const stepConfig = currentSteps[stepIdx];
-          const miniData = stepConfig?.miniTutorial || [];
+        // Step 4 Mini-Tutorial: Inject interactive feature chips into popover
+        setTimeout(() => {
+          const activeEl = document.querySelector('.driver-active-element');
+          const isCard = Boolean(
+            activeEl && (
+              activeEl.id === 'tour-donor-first-campaign' ||
+              activeEl.closest('#tour-donor-first-campaign') ||
+              activeEl.id === 'tour-donor-featured-causes'
+            )
+          );
 
-          const tabBtns = miniCard.querySelectorAll('.bbdrts-mini-tab-btn');
-          const badgeEl = miniCard.querySelector('.bbdrts-mini-content-badge');
-          const bodyEl = miniCard.querySelector('.bbdrts-mini-content-body');
+          if (isCard && popoverDOM.wrapper) {
+            let chipsBox = popoverDOM.wrapper.querySelector('.bbdrts-popover-chips');
+            if (!chipsBox) {
+              chipsBox = document.createElement('div');
+              chipsBox.className = 'bbdrts-popover-chips';
+              chipsBox.innerHTML = `
+                <div class="bbdrts-chips-heading">
+                  <span class="material-symbols-outlined" style="font-size: 14px; color: #22c55e;">travel_explore</span>
+                  <span>Explore Card Features:</span>
+                </div>
+                <div class="bbdrts-chips-grid">
+                  <button type="button" class="bbdrts-chip-btn" data-target-hs="1">
+                    <span class="material-symbols-outlined" style="font-size: 14px; color: #22c55e;">payments</span>
+                    <span>1. Amount &amp; Donate</span>
+                  </button>
+                  <button type="button" class="bbdrts-chip-btn" data-target-hs="2">
+                    <span class="material-symbols-outlined" style="font-size: 14px; color: #38bdf8;">verified</span>
+                    <span>2. Verified NGO</span>
+                  </button>
+                  <button type="button" class="bbdrts-chip-btn" data-target-hs="3">
+                    <span class="material-symbols-outlined" style="font-size: 14px; color: #a855f7;">lock_clock</span>
+                    <span>3. Escrow Goal</span>
+                  </button>
+                  <button type="button" class="bbdrts-chip-btn" data-target-hs="4">
+                    <span class="material-symbols-outlined" style="font-size: 14px; color: #f59e0b;">receipt_long</span>
+                    <span>4. Map &amp; Ledger</span>
+                  </button>
+                </div>
+              `;
 
-          const highlightSubElement = (selector) => {
-            document.querySelectorAll('.bbdrts-tour-sub-highlight').forEach(el => {
-              el.classList.remove('bbdrts-tour-sub-highlight');
-            });
-            if (!selector) return;
-            const activeEl = document.querySelector('.driver-active-element');
-            if (!activeEl) return;
-            const subTarget = activeEl.querySelector(selector);
-            if (subTarget) {
-              subTarget.classList.add('bbdrts-tour-sub-highlight');
+              const descEl = popoverDOM.wrapper.querySelector('.driver-popover-description');
+              if (descEl && descEl.parentNode) {
+                descEl.parentNode.insertBefore(chipsBox, descEl);
+              }
+
+              chipsBox.querySelectorAll('.bbdrts-chip-btn').forEach(btn => {
+                btn.onclick = (e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  const hsId = btn.getAttribute('data-target-hs');
+                  const overlay = document.getElementById(calloutsOverlayId);
+                  if (overlay) {
+                    const targetPin = overlay.querySelector(`[data-hs="${hsId}"]`);
+                    if (targetPin) {
+                      overlay.querySelectorAll('.bbdrts-hotspot-pin').forEach(p => p.classList.remove('is-active'));
+                      targetPin.classList.add('is-active');
+                      targetPin.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                    }
+                  }
+                };
+              });
             }
-          };
-
-          // Apply initial sub-highlight for first tab
-          if (miniData[0]?.selector) {
-            highlightSubElement(miniData[0].selector);
           }
-
-          tabBtns.forEach((btn) => {
-            btn.onclick = (e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              const tabIdx = parseInt(btn.getAttribute('data-tab-idx'), 10);
-              const tab = miniData[tabIdx];
-              if (!tab) return;
-
-              tabBtns.forEach(b => b.classList.remove('active'));
-              btn.classList.add('active');
-
-              if (badgeEl) badgeEl.textContent = tab.badge || '';
-              if (bodyEl) bodyEl.textContent = tab.text || '';
-
-              highlightSubElement(tab.selector);
-            };
-          });
-        }
+        }, 100);
 
         // Overlap Prevention: guarantees the popover never covers the highlighted element
         const wrapper = popoverDOM.wrapper;
@@ -468,9 +640,6 @@ export default function GuidedTour({
         }
       },
       onDestroyed: () => {
-        document.querySelectorAll('.bbdrts-tour-sub-highlight').forEach(el => {
-          el.classList.remove('bbdrts-tour-sub-highlight');
-        });
         cleanupSurround();
         if (!isClosingRef.current) {
           isClosingRef.current = true;
