@@ -1,17 +1,16 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef } from 'react';
+import { driver } from 'driver.js';
+import 'driver.js/dist/driver.css';
 import './GuidedTour.css';
 
 /**
- * Professional SaaS Interactive Guided Onboarding Engine
- * 100% Bespoke, Zero-Dependency Architecture:
- * - Pre-Tour Welcome Modal: Introduces platform value before Step 1
- * - Moving Spotlight Engine: Gliding focus frame with crystal-clear center and 4-panel blur surround
- * - Fixed Header Blur Guard: Sticky navigation header always stays deeply blurred and protected
- * - Safe Headroom Scrolling: Elements are smoothly positioned with guaranteed headroom below header
- * - Smart Floating Card: Dynamic collision detection, animated progress bar, category badge & arrow
- * - Post-Tour Celebration Modal: Animated milestone achievement on completion
- * - State Management: Step preservation in sessionStorage, completion persistence in localStorage
- * - Keyboard Accessibility: Enter/Right (Next), Left (Back), Esc (Close/Skip)
+ * Universal Guided Spotlight Onboarding Tour Component
+ * Powered by Driver.js (v1.8.0) + 4-Panel Blur Surround + Header Blur Guard:
+ * - Header Blur Guard (z-index 1000000015): Sticky header ALWAYS stays blurred and protected
+ * - 4-Panel backdrop blur blurs the page outside while the active box remains 100% crystal-clear
+ * - Safe headroom scrolling: elements are never scrolled beneath the fixed header
+ * - Popover collision prevention: guarantees tooltips never overlap the highlighted box
+ * - Native onDestroyed lifecycle for 100% reliable close button ('✕') and Escape key handling
  */
 export default function GuidedTour({
   isOpen,
@@ -22,665 +21,413 @@ export default function GuidedTour({
   roleName = 'User',
   theme = 'default'
 }) {
-  const [stage, setStage] = useState('welcome'); // 'welcome' | 'touring' | 'completed'
-  const [currentStepIndex, setCurrentStepIndex] = useState(0);
-  const [spotlightRect, setSpotlightRect] = useState(null);
-  const [cardPosition, setCardPosition] = useState({ top: 0, left: 0, side: 'bottom', arrowLeft: '50%' });
-  const [headerHeight, setHeaderHeight] = useState(75);
-  const [dontShowAgain, setDontShowAgain] = useState(false);
-  const [isTransitioning, setIsTransitioning] = useState(false);
-
-  const cardRef = useRef(null);
-  const rafRef = useRef(null);
-  const retryTimeoutRef = useRef(null);
+  const driverRef = useRef(null);
   const isClosingRef = useRef(false);
 
-  const totalSteps = steps.length;
-  const currentStep = steps[currentStepIndex] || null;
+  // Stable references to props to prevent re-render loops
+  const stepsRef = useRef(steps);
+  stepsRef.current = steps;
+  const onTabChangeRef = useRef(onTabChange);
+  onTabChangeRef.current = onTabChange;
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+  const tourKeyRef = useRef(tourKey);
+  tourKeyRef.current = tourKey;
+  const roleNameRef = useRef(roleName);
+  roleNameRef.current = roleName;
+  const themeRef = useRef(theme);
+  themeRef.current = theme;
 
-  // Session persistence key for preserving step across refreshes
-  const sessionStepKey = `bbdrts_tour_session_step_${roleName.toLowerCase()}`;
-
-  // ── Helper: Measure Sticky Header Height ──
-  const getHeaderBottom = useCallback(() => {
-    const headerEl = document.querySelector('.bbdrts-main-header');
-    if (headerEl) {
-      const rect = headerEl.getBoundingClientRect();
-      return Math.round(rect.bottom);
-    }
-    return 75;
-  }, []);
-
-  // ── Helper: Safe Headroom Scrolling ──
-  const scrollToTargetSafely = useCallback((element) => {
-    if (!element) return;
-    const hBottom = getHeaderBottom();
-    const rect = element.getBoundingClientRect();
-    const availableHeight = window.innerHeight - hBottom;
-
-    let desiredTop;
-    if (rect.height <= availableHeight - 70) {
-      // Element fits in view: center it vertically below the header
-      desiredTop = hBottom + Math.max(24, Math.round((availableHeight - rect.height) / 2));
-    } else {
-      // Tall element: give it 35px headroom below the header
-      desiredTop = hBottom + 35;
-    }
-
-    const delta = Math.round(rect.top - desiredTop);
-    if (Math.abs(delta) > 10) {
-      window.scrollBy({
-        top: delta,
-        behavior: 'smooth'
-      });
-    }
-  }, [getHeaderBottom]);
-
-  // ── Helper: Smart Collision & Floating Card Positioning ──
-  const calculateCardPosition = useCallback((targetRect) => {
-    if (!targetRect) return { top: 0, left: 0, side: 'bottom', arrowLeft: '50%' };
-
-    const hBottom = getHeaderBottom();
-    const cardWidth = 390;
-    const cardHeight = cardRef.current ? cardRef.current.offsetHeight : 230;
-    const gap = 16;
-    const pad = 16;
-
-    const spaceBelow = window.innerHeight - targetRect.bottom;
-    const spaceAbove = targetRect.top - hBottom;
-    const spaceRight = window.innerWidth - targetRect.right;
-    const spaceLeft = targetRect.left;
-
-    const preferredSide = currentStep?.placement || 'bottom';
-    let side = preferredSide;
-
-    // Evaluate best fit
-    if (preferredSide === 'bottom' && spaceBelow < cardHeight + gap + 10) {
-      if (spaceAbove >= cardHeight + gap + 10) {
-        side = 'top';
-      } else if (spaceRight >= cardWidth + gap) {
-        side = 'right';
-      } else if (spaceLeft >= cardWidth + gap) {
-        side = 'left';
-      }
-    } else if (preferredSide === 'top' && spaceAbove < cardHeight + gap + 10) {
-      if (spaceBelow >= cardHeight + gap + 10) {
-        side = 'bottom';
-      } else if (spaceRight >= cardWidth + gap) {
-        side = 'right';
-      } else if (spaceLeft >= cardWidth + gap) {
-        side = 'left';
-      }
-    } else if (preferredSide === 'right' && spaceRight < cardWidth + gap) {
-      if (spaceBelow >= cardHeight + gap + 10) {
-        side = 'bottom';
-      } else if (spaceAbove >= cardHeight + gap + 10) {
-        side = 'top';
-      } else if (spaceLeft >= cardWidth + gap) {
-        side = 'left';
-      }
-    }
-
-    let top = 0;
-    let left = 0;
-    let arrowLeft = '50%';
-
-    if (side === 'bottom') {
-      top = targetRect.bottom + gap;
-      left = targetRect.left + (targetRect.width / 2) - (cardWidth / 2);
-    } else if (side === 'top') {
-      top = targetRect.top - cardHeight - gap;
-      left = targetRect.left + (targetRect.width / 2) - (cardWidth / 2);
-    } else if (side === 'right') {
-      top = targetRect.top + (targetRect.height / 2) - (cardHeight / 2);
-      left = targetRect.right + gap;
-    } else if (side === 'left') {
-      top = targetRect.top + (targetRect.height / 2) - (cardHeight / 2);
-      left = targetRect.left - cardWidth - gap;
-    }
-
-    // Clamp coordinates safely within viewport
-    left = Math.max(pad, Math.min(window.innerWidth - cardWidth - pad, left));
-    top = Math.max(hBottom + 12, Math.min(window.innerHeight - cardHeight - pad, top));
-
-    // Calculate relative arrow position pointing to element center
-    if (side === 'bottom' || side === 'top') {
-      const targetCenter = targetRect.left + (targetRect.width / 2);
-      const relativeArrowX = targetCenter - left;
-      const clampedArrowX = Math.max(28, Math.min(cardWidth - 28, relativeArrowX));
-      arrowLeft = `${clampedArrowX}px`;
-    }
-
-    return { top: Math.round(top), left: Math.round(left), side, arrowLeft };
-  }, [currentStep, getHeaderBottom]);
-
-  // ── Helper: Measure Target Element Bounding Rect ──
-  const updateTargetGeometry = useCallback((targetEl) => {
-    if (!targetEl) return;
-    const rect = targetEl.getBoundingClientRect();
-    if (rect.width === 0 && rect.height === 0) return;
-
-    const pad = 12;
-    const hBottom = getHeaderBottom();
-
-    const tLeft = Math.max(0, Math.round(rect.left - pad));
-    const tTop = Math.max(hBottom, Math.round(rect.top - pad));
-    const tRight = Math.min(window.innerWidth, Math.round(rect.right + pad));
-    const tBottom = Math.max(tTop, Math.min(window.innerHeight, Math.round(rect.bottom + pad)));
-    const tWidth = Math.max(0, tRight - tLeft);
-    const tHeight = Math.max(0, tBottom - tTop);
-
-    const calculatedRect = {
-      left: tLeft,
-      top: tTop,
-      right: tRight,
-      bottom: tBottom,
-      width: tWidth,
-      height: tHeight
-    };
-
-    setSpotlightRect(calculatedRect);
-    setHeaderHeight(hBottom);
-    setCardPosition(calculateCardPosition(calculatedRect));
-  }, [calculateCardPosition, getHeaderBottom]);
-
-  // ── Target Resolution & Step Transition ──
-  const resolveCurrentStep = useCallback((stepIdx) => {
-    if (!steps || steps.length === 0 || stepIdx >= steps.length) {
-      setStage('completed');
-      return;
-    }
-
-    const step = steps[stepIdx];
-    if (!step || !step.target) return;
-
-    setIsTransitioning(true);
-
-    let attempts = 0;
-    const maxAttempts = 20;
-
-    const checkElement = () => {
-      const el = document.querySelector(step.target);
-      if (el && el.getBoundingClientRect().width > 0) {
-        scrollToTargetSafely(el);
-        setTimeout(() => {
-          updateTargetGeometry(el);
-          setIsTransitioning(false);
-        }, 120);
-      } else if (attempts < maxAttempts) {
-        attempts++;
-        retryTimeoutRef.current = setTimeout(checkElement, 80);
-      } else {
-        // Element not found: gracefully advance to next step instead of freezing
-        setIsTransitioning(false);
-        if (stepIdx + 1 < steps.length) {
-          setCurrentStepIndex(stepIdx + 1);
-        } else {
-          setStage('completed');
-        }
-      }
-    };
-
-    checkElement();
-  }, [steps, scrollToTargetSafely, updateTargetGeometry]);
-
-  // ── Initialize / Reset Tour on isOpen ──
   useEffect(() => {
     if (!isOpen) {
-      setStage('welcome');
-      setSpotlightRect(null);
-      isClosingRef.current = false;
+      if (driverRef.current) {
+        try {
+          driverRef.current.destroy();
+        } catch (_) {}
+        driverRef.current = null;
+      }
       return;
     }
+
+    const currentSteps = stepsRef.current || [];
+    if (currentSteps.length === 0) return;
 
     isClosingRef.current = false;
 
-    // Ensure dashboard tab is active
-    if (typeof onTabChange === 'function') {
+    // Ensure we are settled on the dashboard view for stable layout rendering (one-time on open)
+    if (typeof onTabChangeRef.current === 'function') {
       try {
-        onTabChange('dashboard');
+        onTabChangeRef.current('dashboard');
       } catch (_) {}
     }
 
-    // Check if resuming an existing session
-    try {
-      const savedStep = sessionStorage.getItem(sessionStepKey);
-      if (savedStep !== null) {
-        const parsed = parseInt(savedStep, 10);
-        if (!isNaN(parsed) && parsed >= 0 && parsed < steps.length) {
-          setCurrentStepIndex(parsed);
-          setStage('touring');
-          return;
-        }
+    // ── 1. Dedicated Fixed Header Blur Guard ──
+    // Pinned above the sticky navbar (z-index: 1000000015) so the header NEVER goes clear
+    const headerGuardId = 'bbdrts-tour-header-guard';
+    let headerGuardEl = document.getElementById(headerGuardId);
+    if (!headerGuardEl) {
+      headerGuardEl = document.createElement('div');
+      headerGuardEl.id = headerGuardId;
+      document.body.appendChild(headerGuardEl);
+    }
+
+    // ── 2. 4-Panel Blur Surround ──
+    // Blurs page outside the active box while keeping the interior 100% crystal-clear
+    const surroundId = 'bbdrts-tour-blur-surround';
+    let surroundEl = document.getElementById(surroundId);
+    if (!surroundEl) {
+      surroundEl = document.createElement('div');
+      surroundEl.id = surroundId;
+      surroundEl.innerHTML = `
+        <div class="bbdrts-blur-panel bbdrts-blur-top"></div>
+        <div class="bbdrts-blur-panel bbdrts-blur-bottom"></div>
+        <div class="bbdrts-blur-panel bbdrts-blur-left"></div>
+        <div class="bbdrts-blur-panel bbdrts-blur-right"></div>
+      `;
+      document.body.appendChild(surroundEl);
+    }
+
+    const topP = surroundEl.querySelector('.bbdrts-blur-top');
+    const bottomP = surroundEl.querySelector('.bbdrts-blur-bottom');
+    const leftP = surroundEl.querySelector('.bbdrts-blur-left');
+    const rightP = surroundEl.querySelector('.bbdrts-blur-right');
+
+    const updateBlurPanels = (targetEl) => {
+      const el = targetEl || document.querySelector('.driver-active-element');
+      const surround = document.getElementById(surroundId);
+      const guard = document.getElementById(headerGuardId);
+      if (!surround) return;
+
+      const headerEl = document.querySelector('.bbdrts-main-header');
+      const headerBottom = headerEl ? Math.round(headerEl.getBoundingClientRect().bottom) : 75;
+
+      if (guard) {
+        guard.style.height = `${headerBottom}px`;
       }
-    } catch (_) {}
 
-    // Default: start with the welcome screen
-    setStage('welcome');
-    setCurrentStepIndex(0);
-  }, [isOpen, onTabChange, sessionStepKey, steps.length]);
+      if (!el || !topP || !bottomP || !leftP || !rightP) {
+        if (topP) {
+          topP.style.top = '0px';
+          topP.style.left = '0px';
+          topP.style.width = '100vw';
+          topP.style.height = '100vh';
+        }
+        if (bottomP) { bottomP.style.height = '0px'; }
+        if (leftP) { leftP.style.width = '0px'; }
+        if (rightP) { rightP.style.width = '0px'; }
+        return;
+      }
 
-  // ── Handle Stage Transitions ──
-  useEffect(() => {
-    if (!isOpen || stage !== 'touring') return;
-    resolveCurrentStep(currentStepIndex);
+      const rect = el.getBoundingClientRect();
+      if (rect.width === 0 && rect.height === 0) return;
 
-    try {
-      sessionStorage.setItem(sessionStepKey, currentStepIndex.toString());
-    } catch (_) {}
+      const pad = 12;
+      const targetLeft = rect.left - pad;
+      const targetTop = rect.top - pad;
+      const targetRight = rect.right + pad;
+      const targetBottom = rect.bottom + pad;
 
-    return () => {
-      if (retryTimeoutRef.current) clearTimeout(retryTimeoutRef.current);
+      // CRUCIAL: The spotlight hole must NEVER extend into or above the sticky header
+      const y = Math.max(headerBottom, Math.min(window.innerHeight, Math.round(targetTop)));
+      const x = Math.max(0, Math.min(window.innerWidth, Math.round(targetLeft)));
+      const r = Math.max(0, Math.min(window.innerWidth, Math.round(targetRight)));
+      const b = Math.max(y, Math.min(window.innerHeight, Math.round(targetBottom)));
+      const h = Math.max(0, b - y);
+
+      topP.style.top = '0px';
+      topP.style.left = '0px';
+      topP.style.width = '100vw';
+      topP.style.height = `${y}px`;
+
+      bottomP.style.top = `${b}px`;
+      bottomP.style.left = '0px';
+      bottomP.style.width = '100vw';
+      bottomP.style.height = `${Math.max(0, window.innerHeight - b)}px`;
+
+      leftP.style.top = `${y}px`;
+      leftP.style.left = '0px';
+      leftP.style.width = `${x}px`;
+      leftP.style.height = `${h}px`;
+
+      rightP.style.top = `${y}px`;
+      rightP.style.left = `${r}px`;
+      rightP.style.width = `${Math.max(0, window.innerWidth - r)}px`;
+      rightP.style.height = `${h}px`;
     };
-  }, [isOpen, stage, currentStepIndex, resolveCurrentStep, sessionStepKey]);
 
-  // ── Resize and Scroll Listeners ──
-  useEffect(() => {
-    if (!isOpen || stage !== 'touring') return;
+    // Safe scrolling: guarantees elements are comfortably positioned below the header
+    const scrollToTargetSafely = (element) => {
+      if (!element) return;
+      const headerEl = document.querySelector('.bbdrts-main-header');
+      const headerBottom = headerEl ? Math.round(headerEl.getBoundingClientRect().bottom) : 75;
 
-    const handleWindowUpdate = () => {
-      if (rafRef.current) return;
-      rafRef.current = requestAnimationFrame(() => {
-        rafRef.current = null;
-        if (currentStep?.target) {
-          const el = document.querySelector(currentStep.target);
-          if (el) updateTargetGeometry(el);
+      // Sidebar target detection: Always scroll page smoothly back to top so sidebar is never scrolled off
+      const isSidebar = Boolean(
+        element.closest('.ref-sidebar') || 
+        element.id?.includes('tab-') || 
+        element.id?.includes('sepolia-node') ||
+        element.classList.contains('ref-nav-item')
+      );
+
+      if (isSidebar) {
+        if (window.scrollY > 5) {
+          window.scrollTo({
+            top: 0,
+            behavior: 'smooth'
+          });
+        }
+        return;
+      }
+
+      // Step 4: First Campaign Card — User explicitly wants camera positioned with card at top below header (Image 2),
+      // leaving ample room BELOW for the popover card!
+      const isCampaignCard = Boolean(
+        element.id === 'tour-donor-first-campaign' || 
+        element.closest('#tour-donor-first-campaign') ||
+        element.id === 'tour-donor-featured-causes' ||
+        element.closest('#tour-donor-featured-causes')
+      );
+
+      if (isCampaignCard) {
+        const rect = element.getBoundingClientRect();
+        // Position card top right below header with 16px breathing room
+        const desiredTop = headerBottom + 16;
+        const scrollDelta = Math.round(rect.top - desiredTop);
+        if (Math.abs(scrollDelta) > 5) {
+          window.scrollBy({
+            top: scrollDelta,
+            behavior: 'smooth'
+          });
+        }
+        return;
+      }
+
+      // For other dashboard elements:
+      const rect = element.getBoundingClientRect();
+      const availableHeight = window.innerHeight - headerBottom;
+
+      let desiredTop;
+      if (rect.height <= availableHeight - 80) {
+        desiredTop = headerBottom + Math.max(16, Math.round((availableHeight - rect.height) / 2));
+      } else {
+        desiredTop = headerBottom + 20;
+      }
+
+      const scrollDelta = Math.round(rect.top - desiredTop);
+      if (Math.abs(scrollDelta) > 10) {
+        window.scrollBy({
+          top: scrollDelta,
+          behavior: 'smooth'
+        });
+      }
+    };
+
+    let scrollRafId = null;
+    const handleWindowChange = () => {
+      if (scrollRafId) return;
+      scrollRafId = requestAnimationFrame(() => {
+        scrollRafId = null;
+        updateBlurPanels();
+        if (driverRef.current) {
+          try {
+            driverRef.current.refresh();
+          } catch (_) {}
         }
       });
     };
+    window.addEventListener('resize', handleWindowChange, { passive: true });
+    window.addEventListener('scroll', handleWindowChange, { passive: true });
+    window.addEventListener('scrollend', handleWindowChange, { passive: true });
 
-    window.addEventListener('resize', handleWindowUpdate, { passive: true });
-    window.addEventListener('scroll', handleWindowUpdate, { passive: true });
+    const cleanupSurround = () => {
+      if (scrollRafId) cancelAnimationFrame(scrollRafId);
+      window.removeEventListener('resize', handleWindowChange);
+      window.removeEventListener('scroll', handleWindowChange);
+      window.removeEventListener('scrollend', handleWindowChange);
+      const s = document.getElementById(surroundId);
+      if (s) s.remove();
+      const g = document.getElementById(headerGuardId);
+      if (g) g.remove();
+    };
+
+    const totalSteps = currentSteps.length;
+    const currentRole = roleNameRef.current;
+    const currentTheme = themeRef.current;
+
+    const driverSteps = currentSteps.map((s, idx) => {
+      const stepNumber = idx + 1;
+      const badgeText = s.badge || `Step ${stepNumber} of ${totalSteps} • ${currentRole} Tutorial`;
+      const iconHtml = s.icon
+        ? `<span class="material-symbols-outlined driver-step-icon">${s.icon}</span>`
+        : '';
+
+      const popoverTitle = `
+        <div class="driver-popover-badge">
+          <span class="material-symbols-outlined" style="font-size: 13px;">help</span>
+          <span>${badgeText}</span>
+        </div>
+        <div class="driver-step-title-row">
+          ${iconHtml}
+          <span>${s.title || ''}</span>
+        </div>
+      `;
+
+      return {
+        element: s.target,
+        popover: {
+          title: popoverTitle,
+          description: s.description || '',
+          side: s.placement || 'bottom',
+          align: s.align || 'start',
+          showButtons: idx === 0 ? ['next', 'close'] : ['previous', 'next', 'close'],
+          nextBtnText: idx === totalSteps - 1 ? "Got It, Let's Go! ✓" : 'Next →',
+          prevBtnText: '← Back',
+        }
+      };
+    });
+
+    const driverObj = driver({
+      showProgress: true,
+      animate: true,
+      smoothScroll: false, // Handled by our custom safe headroom scrolling
+      allowClose: true,
+      skipMissingElement: true,
+      stagePadding: 12,
+      stageRadius: 12,
+      popoverOffset: 14,
+      overlayColor: 'rgba(0, 0, 0, 0.45)', // Cinematic dark tint complementing 4-panel blur
+      // Safe backdrop behavior: Clicking outside does NOT dismiss the tour mid-tutorial
+      overlayClickBehavior: () => {
+        // Deliberate no-op: prevents accidental dismissal when reading or clicking around
+      },
+      popoverClass: `bbdrts-tour-popover theme-${currentTheme}`,
+      progressText: 'Step {{current}} of {{total}}',
+      steps: driverSteps,
+      onHighlightStarted: (element) => {
+        // Softly dim the blur surround during spotlight scroll transition
+        const surround = document.getElementById(surroundId);
+        if (surround) surround.style.opacity = '0.35';
+        scrollToTargetSafely(element);
+      },
+      onHighlighted: (element) => {
+        // Spotlight has settled: lock blur panels to the exact resting target
+        updateBlurPanels(element);
+        const surround = document.getElementById(surroundId);
+        if (surround) surround.style.opacity = '1';
+
+        // Re-align Driver.js popover and blur panels across the full smooth scroll settling window
+        const refreshOnce = () => {
+          if (driverRef.current) {
+            try {
+              driverRef.current.refresh();
+            } catch (_) {}
+          }
+          updateBlurPanels(element);
+        };
+
+        [60, 140, 260, 420, 600].forEach(ms => setTimeout(refreshOnce, ms));
+      },
+      onCloseClick: () => {
+        if (driverRef.current) {
+          try {
+            driverRef.current.destroy();
+          } catch (_) {}
+        }
+      },
+      onPopoverRender: (popoverDOM) => {
+        if (!popoverDOM) return;
+        if (popoverDOM.closeButton) {
+          popoverDOM.closeButton.innerHTML = '✕';
+          popoverDOM.closeButton.setAttribute('title', 'Close tutorial (Esc)');
+          popoverDOM.closeButton.onclick = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (driverRef.current) {
+              try {
+                driverRef.current.destroy();
+              } catch (_) {}
+            }
+          };
+        }
+
+        // Overlap Prevention: guarantees the popover never covers the highlighted element
+        const wrapper = popoverDOM.wrapper;
+        if (wrapper) {
+          setTimeout(() => {
+            const activeEl = document.querySelector('.driver-active-element');
+            if (!activeEl) return;
+            const headerEl = document.querySelector('.bbdrts-main-header');
+            const headerBottom = headerEl ? Math.round(headerEl.getBoundingClientRect().bottom) : 75;
+
+            const aRect = activeEl.getBoundingClientRect();
+            const pRect = wrapper.getBoundingClientRect();
+
+            const isOverlapping = (
+              pRect.left < aRect.right &&
+              pRect.right > aRect.left &&
+              pRect.top < aRect.bottom &&
+              pRect.bottom > aRect.top
+            );
+
+            if (isOverlapping) {
+              const spaceBelow = window.innerHeight - aRect.bottom;
+              const spaceAbove = aRect.top - headerBottom;
+
+              if (spaceBelow >= pRect.height + 14) {
+                wrapper.style.top = `${Math.round(aRect.bottom + 12)}px`;
+                wrapper.style.bottom = 'auto';
+                const desiredLeft = Math.round(aRect.left + (aRect.width - pRect.width) / 2);
+                wrapper.style.left = `${Math.max(16, Math.min(window.innerWidth - pRect.width - 16, desiredLeft))}px`;
+              } else if (spaceAbove >= pRect.height + 14) {
+                wrapper.style.top = `${Math.round(aRect.top - pRect.height - 12)}px`;
+                wrapper.style.bottom = 'auto';
+                const desiredLeft = Math.round(aRect.left + (aRect.width - pRect.width) / 2);
+                wrapper.style.left = `${Math.max(16, Math.min(window.innerWidth - pRect.width - 16, desiredLeft))}px`;
+              }
+            }
+          }, 80);
+        }
+      },
+      onDestroyed: () => {
+        cleanupSurround();
+        if (!isClosingRef.current) {
+          isClosingRef.current = true;
+          try {
+            localStorage.setItem(tourKeyRef.current, 'true');
+            localStorage.removeItem('bbdrts_tour_force_launch');
+            localStorage.removeItem('bbdrts_is_new_registration');
+          } catch (_) {}
+          if (typeof onCloseRef.current === 'function') {
+            onCloseRef.current();
+          }
+        }
+        driverRef.current = null;
+      }
+    });
+
+    driverRef.current = driverObj;
+
+    // Calibrated reveal delay before launching drive() to ensure layout has completely mounted
+    const timer = setTimeout(() => {
+      try {
+        driverObj.drive();
+        setTimeout(updateBlurPanels, 60);
+      } catch (err) {
+        console.warn('Driver.js drive() error:', err);
+      }
+    }, 380);
 
     return () => {
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
-      window.removeEventListener('resize', handleWindowUpdate);
-      window.removeEventListener('scroll', handleWindowUpdate);
-    };
-  }, [isOpen, stage, currentStep, updateTargetGeometry]);
-
-  // ── Tour Completion & Exit Handlers ──
-  const handleCompleteTour = useCallback(() => {
-    if (isClosingRef.current) return;
-    isClosingRef.current = true;
-
-    try {
-      localStorage.setItem(tourKey, 'true');
-      localStorage.removeItem('bbdrts_tour_force_launch');
-      localStorage.removeItem('bbdrts_is_new_registration');
-      sessionStorage.removeItem(sessionStepKey);
-      if (dontShowAgain) {
-        localStorage.setItem(`${tourKey}_never_show`, 'true');
-      }
-    } catch (_) {}
-
-    if (typeof onClose === 'function') {
-      onClose();
-    }
-  }, [tourKey, sessionStepKey, dontShowAgain, onClose]);
-
-  const handleSkipTour = useCallback(() => {
-    handleCompleteTour();
-  }, [handleCompleteTour]);
-
-  const handleStartTourFromWelcome = () => {
-    setStage('touring');
-    setCurrentStepIndex(0);
-  };
-
-  const handleNext = () => {
-    if (currentStepIndex < totalSteps - 1) {
-      setCurrentStepIndex(prev => prev + 1);
-    } else {
-      setStage('completed');
-    }
-  };
-
-  const handleBack = () => {
-    if (currentStepIndex > 0) {
-      setCurrentStepIndex(prev => prev - 1);
-    }
-  };
-
-  // ── Keyboard Accessibility Navigation ──
-  useEffect(() => {
-    if (!isOpen) return;
-
-    const handleKeyDown = (e) => {
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        handleSkipTour();
-      } else if (e.key === 'ArrowRight' || e.key === 'Enter') {
-        e.preventDefault();
-        if (stage === 'welcome') {
-          handleStartTourFromWelcome();
-        } else if (stage === 'touring') {
-          handleNext();
-        } else if (stage === 'completed') {
-          handleCompleteTour();
-        }
-      } else if (e.key === 'ArrowLeft') {
-        e.preventDefault();
-        if (stage === 'touring') {
-          handleBack();
-        }
+      clearTimeout(timer);
+      cleanupSurround();
+      if (driverRef.current) {
+        try {
+          driverRef.current.destroy();
+        } catch (_) {}
+        driverRef.current = null;
       }
     };
+  }, [isOpen]);
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, stage, currentStepIndex, totalSteps, handleSkipTour, handleCompleteTour]);
-
-  if (!isOpen) return null;
-
-  // ── Progress Metrics ──
-  const progressPercent = totalSteps > 0
-    ? Math.round(((currentStepIndex + 1) / totalSteps) * 100)
-    : 100;
-
-  return (
-    <div className={`bbdrts-tour-root theme-${theme}`} role="dialog" aria-modal="true">
-      {/* ── Fixed Header Blur Guard (Guarantees sticky navbar is 100% blurred at all times) ── */}
-      <div
-        className="bbdrts-tour-header-guard"
-        style={{ height: `${headerHeight}px` }}
-        aria-hidden="true"
-      />
-
-      {/* ══════════════════════════════════════════════════════════
-          STAGE 1: PRE-TOUR WELCOME MODAL
-          ══════════════════════════════════════════════════════════ */}
-      {stage === 'welcome' && (
-        <div className="bbdrts-modal-overlay">
-          <div className="bbdrts-welcome-card" role="document">
-            <div className="bbdrts-welcome-badge">
-              <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>hub</span>
-              <span>BBDRTS Protocol Onboarding</span>
-            </div>
-
-            <div className="bbdrts-welcome-icon-wrap">
-              <span className="material-symbols-outlined bbdrts-welcome-hero-icon">
-                {roleName.toLowerCase() === 'donor' ? 'volunteer_activism' : 'corporate_fare'}
-              </span>
-            </div>
-
-            <h2 className="bbdrts-welcome-title">
-              Welcome to your {roleName} Command Center
-            </h2>
-
-            <p className="bbdrts-welcome-desc">
-              Take a 2-minute interactive guided walkthrough to discover verified emergency relief appeals, milestone-based escrow verification, dual payment rails (Web3 ETH &amp; GCash/Maya), and live Doppler weather radar intelligence.
-            </p>
-
-            <div className="bbdrts-welcome-highlights">
-              <div className="bbdrts-highlight-item">
-                <span className="material-symbols-outlined bbdrts-highlight-icon">verified_user</span>
-                <div className="bbdrts-highlight-text">
-                  <strong>100% Direct Giving</strong>
-                  <span>Zero platform commission, zero gateway cuts.</span>
-                </div>
-              </div>
-              <div className="bbdrts-highlight-item">
-                <span className="material-symbols-outlined bbdrts-highlight-icon">account_balance_wallet</span>
-                <div className="bbdrts-highlight-text">
-                  <strong>Dual Payment Rails</strong>
-                  <span>Sepolia ETH via MetaMask or instant GCash/Maya QR.</span>
-                </div>
-              </div>
-              <div className="bbdrts-highlight-item">
-                <span className="material-symbols-outlined bbdrts-highlight-icon">photo_camera</span>
-                <div className="bbdrts-highlight-text">
-                  <strong>Milestone Escrow Proofs</strong>
-                  <span>Funds unlocked only after geotagged relief proof.</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="bbdrts-welcome-actions">
-              <button
-                type="button"
-                className="bbdrts-btn-primary"
-                onClick={handleStartTourFromWelcome}
-                autoFocus
-              >
-                <span>Start Interactive Tour</span>
-                <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>arrow_forward</span>
-              </button>
-
-              <button
-                type="button"
-                className="bbdrts-btn-ghost"
-                onClick={handleSkipTour}
-              >
-                Skip for Now
-              </button>
-            </div>
-
-            <label className="bbdrts-checkbox-row">
-              <input
-                type="checkbox"
-                checked={dontShowAgain}
-                onChange={(e) => setDontShowAgain(e.target.checked)}
-              />
-              <span>Don't show this walkthrough automatically again</span>
-            </label>
-          </div>
-        </div>
-      )}
-
-      {/* ══════════════════════════════════════════════════════════
-          STAGE 2: ACTIVE SPOTLIGHT & SMART FLOATING CARD
-          ══════════════════════════════════════════════════════════ */}
-      {stage === 'touring' && spotlightRect && (
-        <>
-          {/* ── 4-Panel Blur Surround (Blurs background outside, center 100% crystal-clear) ── */}
-          <div
-            className={`bbdrts-tour-blur-surround ${isTransitioning ? 'transitioning' : ''}`}
-            aria-hidden="true"
-          >
-            {/* Top Panel */}
-            <div
-              className="bbdrts-blur-panel"
-              style={{
-                top: 0,
-                left: 0,
-                width: '100vw',
-                height: `${spotlightRect.top}px`
-              }}
-            />
-            {/* Bottom Panel */}
-            <div
-              className="bbdrts-blur-panel"
-              style={{
-                top: `${spotlightRect.bottom}px`,
-                left: 0,
-                width: '100vw',
-                height: `calc(100vh - ${spotlightRect.bottom}px)`
-              }}
-            />
-            {/* Left Panel */}
-            <div
-              className="bbdrts-blur-panel"
-              style={{
-                top: `${spotlightRect.top}px`,
-                left: 0,
-                width: `${spotlightRect.left}px`,
-                height: `${spotlightRect.height}px`
-              }}
-            />
-            {/* Right Panel */}
-            <div
-              className="bbdrts-blur-panel"
-              style={{
-                top: `${spotlightRect.top}px`,
-                left: `${spotlightRect.right}px`,
-                width: `calc(100vw - ${spotlightRect.right}px)`,
-                height: `${spotlightRect.height}px`
-              }}
-            />
-          </div>
-
-          {/* ── Gliding Spotlight Focus Frame (Radiant animated border & elevation) ── */}
-          <div
-            className="bbdrts-spotlight-frame"
-            style={{
-              top: `${spotlightRect.top}px`,
-              left: `${spotlightRect.left}px`,
-              width: `${spotlightRect.width}px`,
-              height: `${spotlightRect.height}px`
-            }}
-            aria-hidden="true"
-          />
-
-          {/* ── Smart Floating Tutorial Card ── */}
-          <div
-            ref={cardRef}
-            className={`bbdrts-floating-card side-${cardPosition.side} ${isTransitioning ? 'transitioning' : ''}`}
-            style={{
-              top: `${cardPosition.top}px`,
-              left: `${cardPosition.left}px`
-            }}
-            role="document"
-          >
-            {/* Directional Pointer Arrow */}
-            <div
-              className={`bbdrts-card-arrow arrow-side-${cardPosition.side}`}
-              style={{
-                left: (cardPosition.side === 'bottom' || cardPosition.side === 'top') ? cardPosition.arrowLeft : undefined
-              }}
-              aria-hidden="true"
-            />
-
-            {/* Close Button ('✕') */}
-            <button
-              type="button"
-              className="bbdrts-card-close-btn"
-              onClick={handleSkipTour}
-              title="Close tour (Esc)"
-              aria-label="Close tour"
-            >
-              ✕
-            </button>
-
-            {/* Header: Category Badge & Step Counter */}
-            <div className="bbdrts-card-header">
-              <div className="bbdrts-card-badge">
-                <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>
-                  {currentStep?.icon || 'help'}
-                </span>
-                <span>{currentStep?.badge || `Step ${currentStepIndex + 1} of ${totalSteps}`}</span>
-              </div>
-              <span className="bbdrts-card-step-count">
-                {currentStepIndex + 1}/{totalSteps}
-              </span>
-            </div>
-
-            {/* Title Row */}
-            <div className="bbdrts-card-title-row">
-              <span className="material-symbols-outlined bbdrts-step-icon">
-                {currentStep?.icon || 'help'}
-              </span>
-              <h3 className="bbdrts-card-title">{currentStep?.title}</h3>
-            </div>
-
-            {/* Description Body */}
-            <p className="bbdrts-card-desc">{currentStep?.description}</p>
-
-            {/* Animated Progress Bar */}
-            <div className="bbdrts-progress-bar-wrap" aria-hidden="true">
-              <div
-                className="bbdrts-progress-bar-fill"
-                style={{ width: `${progressPercent}%` }}
-              />
-            </div>
-
-            {/* Footer Navigation Buttons */}
-            <div className="bbdrts-card-footer">
-              <button
-                type="button"
-                className="bbdrts-skip-link"
-                onClick={handleSkipTour}
-              >
-                Skip Tour
-              </button>
-
-              <div className="bbdrts-card-nav-btns">
-                {currentStepIndex > 0 && (
-                  <button
-                    type="button"
-                    className="bbdrts-btn-back"
-                    onClick={handleBack}
-                  >
-                    ← Back
-                  </button>
-                )}
-
-                <button
-                  type="button"
-                  className="bbdrts-btn-next"
-                  onClick={handleNext}
-                  autoFocus
-                >
-                  <span>{currentStepIndex === totalSteps - 1 ? "Finish Tour ✓" : "Next →"}</span>
-                </button>
-              </div>
-            </div>
-          </div>
-        </>
-      )}
-
-      {/* ══════════════════════════════════════════════════════════
-          STAGE 3: POST-TOUR CELEBRATION MODAL
-          ══════════════════════════════════════════════════════════ */}
-      {stage === 'completed' && (
-        <div className="bbdrts-modal-overlay">
-          <div className="bbdrts-celebration-card" role="document">
-            <div className="bbdrts-celebration-icon-wrap">
-              <span className="material-symbols-outlined bbdrts-celebration-hero-icon">
-                military_tech
-              </span>
-            </div>
-
-            <div className="bbdrts-welcome-badge" style={{ marginBottom: '12px' }}>
-              <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>verified</span>
-              <span>Onboarding Completed</span>
-            </div>
-
-            <h2 className="bbdrts-celebration-title">You're All Set!</h2>
-
-            <p className="bbdrts-celebration-desc">
-              You now have the full operational understanding to explore emergency relief campaigns, track on-chain escrow proofs, and deploy humanitarian aid with 100% cryptographic transparency.
-            </p>
-
-            <div className="bbdrts-celebration-checklist">
-              <div className="bbdrts-check-item">
-                <span className="material-symbols-outlined bbdrts-check-icon">check_circle</span>
-                <span>Verified profile &amp; zero-commission direct giving</span>
-              </div>
-              <div className="bbdrts-check-item">
-                <span className="material-symbols-outlined bbdrts-check-icon">check_circle</span>
-                <span>Multi-channel giving via Web3 Sepolia ETH &amp; GCash/Maya</span>
-              </div>
-              <div className="bbdrts-check-item">
-                <span className="material-symbols-outlined bbdrts-check-icon">check_circle</span>
-                <span>Ground-zero photo &amp; receipt verification ledger</span>
-              </div>
-            </div>
-
-            <div className="bbdrts-celebration-actions">
-              <button
-                type="button"
-                className="bbdrts-btn-primary"
-                onClick={handleCompleteTour}
-                autoFocus
-              >
-                <span>Start Exploring Dashboard</span>
-                <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>rocket_launch</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
+  return null;
 }
