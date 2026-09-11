@@ -98,10 +98,18 @@ export default function DonorView({ contract, walletAddress, campaigns, fetchCam
       description: 'Welcome to BBDRTS! Your profile is cryptographically secured on the Ethereum Sepolia blockchain. 100% of your contributions go straight to relief causes with zero platform commission, zero gateway cuts, and zero political interception.'
     },
     {
+      target: '#tour-donor-actions',
+      title: 'Rapid Action Navigation & Public Ledger',
+      icon: 'bolt',
+      badge: 'Step 2 of 8 • Quick Actions',
+      placement: 'bottom',
+      description: 'Jump directly into active emergency campaigns, inspect your philanthropic Honors Ladder, or verify the public Sepolia blockchain ledger on Etherscan anytime with 100% public transparency.'
+    },
+    {
       target: '#tour-donor-badge-card',
       title: 'Honors Ladder & Philanthropic Badges',
       icon: 'military_tech',
-      badge: 'Step 2 of 8 • Recognition',
+      badge: 'Step 3 of 8 • Recognition',
       placement: 'bottom',
       description: 'Every peso and ETH you give earns humanitarian milestones on your Honors Ladder: First Responder, Community Guardian, and Relief Champion. Track your next milestone and inspect verified on-chain credentials.'
     },
@@ -109,33 +117,25 @@ export default function DonorView({ contract, walletAddress, campaigns, fetchCam
       target: '#tour-donor-metrics',
       title: 'Live Relief Analytics & Contract Health',
       icon: 'analytics',
-      badge: 'Step 3 of 8 • Transparency',
+      badge: 'Step 4 of 8 • Transparency',
       placement: 'bottom',
       description: 'Monitor your personal contributions, active emergency appeals nationwide, EVM smart contract verification status, and real-time humanitarian relief funds deployed across the Philippines.'
     },
     {
       target: '#tour-donor-first-campaign',
-      title: 'Verified Emergency Relief Appeals',
+      title: 'Active Appeals & Dual Payment Rails (ETH & E-Wallets)',
       icon: 'emergency',
-      badge: 'Step 4 of 8 • Active Appeals',
+      badge: 'Step 5 of 8 • Disaster Appeals & Giving',
       placement: 'top',
-      description: 'Accredited Philippine NGOs post emergency disaster appeals here. Review calamity urgency badges (Critical, High), affected municipalities, target funding goals, and live progress bars.'
-    },
-    {
-      target: '#tour-donor-actions',
-      title: 'Dual Payment Rails: Web3 ETH & E-Wallets',
-      icon: 'payments',
-      badge: 'Step 5 of 8 • Instant Giving',
-      placement: 'bottom',
-      description: 'Contribute via Web3 Crypto (Sepolia ETH using MetaMask) OR instant Philippine E-Wallets (GCash & Maya QR Gateway). Real-time fiat exchange calculates exact values in Philippine Pesos (₱). You can also toggle Anonymous Giving to protect your privacy.'
+      description: 'Accredited Philippine NGOs post emergency disaster appeals here. Contribute via dual payment rails: Web3 Crypto (Sepolia ETH via MetaMask) OR instant Philippine E-Wallets (GCash & Maya QR Gateway). You can also toggle Anonymous Giving to protect your privacy.'
     },
     {
       target: '#tour-donor-tab-donations',
-      title: 'Audit Trail & Digital Tax Receipts',
+      title: 'Milestone Proof Escrow & Digital Tax Receipts',
       icon: 'receipt_long',
-      badge: 'Step 6 of 8 • Audit Ledger',
+      badge: 'Step 6 of 8 • Escrow & Tax Proof',
       placement: 'right',
-      description: 'Relief funds are held in smart contract escrow until NGOs upload geotagged delivery photos and merchant receipts from the disaster zone. Access this tab anytime to inspect ground-zero proofs and download official printable PDF tax receipts.'
+      description: 'Relief funds remain locked in smart contract escrow until NGOs upload geotagged delivery photos and merchant receipts from the disaster zone. Access this tab anytime to inspect ground-zero proofs and download official printable PDF tax receipts.'
     },
     {
       target: '#tour-donor-tab-radar',
@@ -819,12 +819,12 @@ export default function DonorView({ contract, walletAddress, campaigns, fetchCam
                 </div>
 
                 {fetchingCampaigns && campaigns.length === 0 ? (
-                  <div className="empty-state">
+                  <div className="empty-state" id="tour-donor-first-campaign">
                     <div className="spinner spinner-light" style={{ width: 28, height: 28 }} />
                     <div className="empty-title">Reading from blockchain…</div>
                   </div>
                 ) : campaigns.length === 0 ? (
-                  <div className="empty-state">
+                  <div className="empty-state" id="tour-donor-first-campaign">
                     <div className="empty-icon">📭</div>
                     <div className="empty-title">No active campaigns on the ledger yet</div>
                   </div>

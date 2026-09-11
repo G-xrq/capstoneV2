@@ -6,10 +6,11 @@ import './GuidedTour.css';
 /**
  * Universal Guided Spotlight Onboarding Tour Component
  * Powered by Driver.js (v1.8.0) + 4-Panel Blur Surround:
- * - 4-Panel backdrop blur blurs the page outside while the active box remains 100% sharp
+ * - 4-Panel backdrop blur blurs the page outside while the active box remains 100% crystal-clear
  * - Zero GPU compositor locks, zero requestAnimationFrame loops, 60fps hardware-accelerated transitions
  * - Calibrated reveal delay (spotlight glides and settles first, card fades in calmly)
  * - Safe overlay click protection (prevents accidental tour dismissals mid-tutorial)
+ * - Native onDestroyed lifecycle for 100% reliable close button ('✕') and Escape key handling
  */
 export default function GuidedTour({
   isOpen,
@@ -83,6 +84,9 @@ export default function GuidedTour({
 
     const updateBlurPanels = (targetEl) => {
       const el = targetEl || document.querySelector('.driver-active-element');
+      const surround = document.getElementById(surroundId);
+      if (!surround) return;
+
       if (!el || !topP || !bottomP || !leftP || !rightP) {
         if (topP) {
           topP.style.top = '0px';
@@ -97,13 +101,19 @@ export default function GuidedTour({
       }
 
       const rect = el.getBoundingClientRect();
-      const pad = 10;
-      const x = Math.max(0, Math.round(rect.left - pad));
-      const y = Math.max(0, Math.round(rect.top - pad));
-      const w = Math.min(window.innerWidth - x, Math.round(rect.width + pad * 2));
-      const h = Math.min(window.innerHeight - y, Math.round(rect.height + pad * 2));
-      const r = x + w;
-      const b = y + h;
+      if (rect.width === 0 && rect.height === 0) return;
+
+      const pad = 14;
+      const targetLeft = rect.left - pad;
+      const targetTop = rect.top - pad;
+      const targetRight = rect.right + pad;
+      const targetBottom = rect.bottom + pad;
+
+      const x = Math.max(0, Math.min(window.innerWidth, Math.round(targetLeft)));
+      const y = Math.max(0, Math.min(window.innerHeight, Math.round(targetTop)));
+      const r = Math.max(0, Math.min(window.innerWidth, Math.round(targetRight)));
+      const b = Math.max(0, Math.min(window.innerHeight, Math.round(targetBottom)));
+      const h = Math.max(0, b - y);
 
       topP.style.top = '0px';
       topP.style.left = '0px';
@@ -113,7 +123,7 @@ export default function GuidedTour({
       bottomP.style.top = `${b}px`;
       bottomP.style.left = '0px';
       bottomP.style.width = '100vw';
-      bottomP.style.height = `calc(100vh - ${b}px)`;
+      bottomP.style.height = `${Math.max(0, window.innerHeight - b)}px`;
 
       leftP.style.top = `${y}px`;
       leftP.style.left = '0px';
@@ -122,17 +132,23 @@ export default function GuidedTour({
 
       rightP.style.top = `${y}px`;
       rightP.style.left = `${r}px`;
-      rightP.style.width = `calc(100vw - ${r}px)`;
+      rightP.style.width = `${Math.max(0, window.innerWidth - r)}px`;
       rightP.style.height = `${h}px`;
     };
 
+    let scrollRafId = null;
     const handleWindowChange = () => {
-      updateBlurPanels();
+      if (scrollRafId) return;
+      scrollRafId = requestAnimationFrame(() => {
+        scrollRafId = null;
+        updateBlurPanels();
+      });
     };
-    window.addEventListener('resize', handleWindowChange);
+    window.addEventListener('resize', handleWindowChange, { passive: true });
     window.addEventListener('scroll', handleWindowChange, { passive: true });
 
     const cleanupSurround = () => {
+      if (scrollRafId) cancelAnimationFrame(scrollRafId);
       window.removeEventListener('resize', handleWindowChange);
       window.removeEventListener('scroll', handleWindowChange);
       const s = document.getElementById(surroundId);
@@ -181,10 +197,10 @@ export default function GuidedTour({
       smoothScroll: true,
       allowClose: true,
       skipMissingElement: true,
-      stagePadding: 10,
-      stageRadius: 12,
-      popoverOffset: 14,
-      overlayColor: 'rgba(0, 0, 0, 0.25)', // Subtle dark tint complementing 4-panel blur
+      stagePadding: 14,
+      stageRadius: 14,
+      popoverOffset: 16,
+      overlayColor: 'rgba(0, 0, 0, 0.45)', // Cinematic dark tint complementing 4-panel blur
       // Safe backdrop behavior: Clicking outside does NOT dismiss the tour mid-tutorial
       overlayClickBehavior: () => {
         // Deliberate no-op: prevents accidental dismissal when reading or clicking around
@@ -193,21 +209,28 @@ export default function GuidedTour({
       progressText: 'Step {{current}} of {{total}}',
       steps: driverSteps,
       onHighlightStarted: (element) => {
-        updateBlurPanels(element);
+        // Softly dim the blur surround during spotlight scroll transition to eliminate flickering
+        const surround = document.getElementById(surroundId);
+        if (surround) surround.style.opacity = '0.35';
       },
       onHighlighted: (element) => {
+        // Spotlight and smooth-scroll have settled: lock blur panels to the exact resting target
         updateBlurPanels(element);
+        const surround = document.getElementById(surroundId);
+        if (surround) surround.style.opacity = '1';
+        setTimeout(() => updateBlurPanels(element), 60);
       },
       onCloseClick: () => {
         if (driverRef.current) {
           try {
             driverRef.current.destroy();
           } catch (_) {}
-          driverRef.current = null;
         }
       },
       onPopoverRender: (popoverDOM) => {
         if (popoverDOM && popoverDOM.closeButton) {
+          popoverDOM.closeButton.innerHTML = '✕';
+          popoverDOM.closeButton.setAttribute('title', 'Close tutorial (Esc)');
           popoverDOM.closeButton.onclick = (e) => {
             e.preventDefault();
             e.stopPropagation();
@@ -215,12 +238,11 @@ export default function GuidedTour({
               try {
                 driverRef.current.destroy();
               } catch (_) {}
-              driverRef.current = null;
             }
           };
         }
       },
-      onDestroyStarted: () => {
+      onDestroyed: () => {
         cleanupSurround();
         if (!isClosingRef.current) {
           isClosingRef.current = true;
@@ -239,15 +261,15 @@ export default function GuidedTour({
 
     driverRef.current = driverObj;
 
-    // Small calm delay before launching drive() to ensure layout is ready
+    // Calibrated reveal delay before launching drive() to ensure layout has completely mounted
     const timer = setTimeout(() => {
       try {
         driverObj.drive();
-        setTimeout(updateBlurPanels, 50);
+        setTimeout(updateBlurPanels, 60);
       } catch (err) {
         console.warn('Driver.js drive() error:', err);
       }
-    }, 280);
+    }, 380);
 
     return () => {
       clearTimeout(timer);
