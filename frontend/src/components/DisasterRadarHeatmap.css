@@ -1209,10 +1209,10 @@
 .storm-tier-item {
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-size: 10px;
-  padding: 2px 4px;
-  border-radius: 4px;
+  gap: 8px;
+  font-size: 11px;
+  padding: 4px 6px;
+  border-radius: 6px;
   cursor: pointer;
   transition: var(--transition, 0.2s ease);
 }
@@ -1227,24 +1227,28 @@
 }
 
 .tier-bullet {
-  width: 7px;
-  height: 7px;
+  width: 9px;
+  height: 9px;
   border-radius: 50%;
   flex-shrink: 0;
 }
 
 .tier-causes-tag {
-  color: var(--text-muted, #a1a1aa);
-  font-size: 9.5px;
+  color: var(--text-primary, #ffffff);
+  font-size: 11px;
   font-weight: 700;
-  min-width: 32px;
+  min-width: 36px;
   flex-shrink: 0;
   white-space: nowrap;
 }
 
+[data-theme="light"] .tier-causes-tag {
+  color: #0f172a;
+}
+
 .tier-desc-name {
-  font-size: 10px;
-  font-weight: 600;
+  font-size: 11.5px;
+  font-weight: 700;
   flex: 1;
   white-space: nowrap;
   overflow: hidden;
@@ -1252,13 +1256,14 @@
 }
 
 .tier-count-chip {
-  font-size: 9px;
+  font-size: 10px;
   color: var(--text-muted, #737373);
   font-family: var(--font-mono, monospace);
   background-color: var(--bg-subcard, #282828);
   padding: 1px 4px;
   border-radius: 3px;
 }
+
 
 /* ── Hotspot Dossier HUD Drawer (Right Panel) ── */
 .radar-dossier-panel {

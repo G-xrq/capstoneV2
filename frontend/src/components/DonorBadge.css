@@ -1,6 +1,7 @@
 /* ============================================================
-   BBDRTS 7-Tier Disaster Relief Donor Badge & Honors System
-   Strictly Visual-Only Custom Badge Emblems (No Text Inside)
+   BBDRTS 15-Society Disaster Relief Philanthropic Recognition System
+   Dignified Humanitarian Merit Emblems (Zero Text Inside)
+   Prominent, prestigious donor recognition with exact giving amounts.
    ============================================================ */
 
 .donor-badge-wrapper {
@@ -15,13 +16,13 @@
   cursor: pointer;
 }
 
-/* ── Base Badge Emblem (Circular / Shield Vector Medal) ── */
+/* ── Base Badge Emblem (Circular Humanitarian Medallion) ── */
 .donor-badge-emblem {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   position: relative;
-  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: all 0.2s ease-out;
   border-radius: 50%;
   box-sizing: border-box;
 }
@@ -32,6 +33,24 @@
 }
 
 /* ── Sizing Architecture ── */
+.size-xs .donor-badge-emblem.icon-only {
+  width: 18px;
+  height: 18px;
+}
+.size-xs .custom-donor-badge-svg {
+  width: 14px;
+  height: 14px;
+}
+.size-xs.donor-badge-wrapper {
+  vertical-align: middle;
+  display: inline-flex;
+  align-items: center;
+}
+.size-xs .donor-badge-emblem {
+  border-width: 1px !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12) !important;
+}
+
 .size-sm .donor-badge-emblem.icon-only {
   width: 24px;
   height: 24px;
@@ -71,175 +90,180 @@
 .custom-donor-badge-svg {
   display: block;
   flex-shrink: 0;
-  transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), filter 0.22s ease;
+  transition: transform 0.2s ease-out;
 }
 
 .donor-badge-wrapper.is-interactive:hover .custom-donor-badge-svg {
-  transform: scale(1.12);
+  transform: scale(1.06);
 }
 
-/* ── 12 Tier Variants & Metallic Sheen ── */
+/* ── 15 Dignified Humanitarian Recognition Societies ── */
 
-/* Tier 1: Contributor (₱1+) — Emerald Relief Sprout Gem */
+.donor-badge-emblem {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+
+.donor-badge-wrapper.is-interactive:hover .donor-badge-emblem {
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.16), 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* Tier 1: Community Contributor (₱1+) */
 .tier-1 .donor-badge-emblem {
-  background: radial-gradient(circle at 35% 25%, rgba(52, 211, 153, 0.25), rgba(16, 185, 129, 0.12));
-  border: 1.5px solid rgba(16, 185, 129, 0.45);
-  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.2);
+  background: rgba(16, 185, 129, 0.08);
+  border: 1.5px solid rgba(16, 185, 129, 0.35);
 }
 .tier-1.is-interactive:hover .donor-badge-emblem {
-  background: radial-gradient(circle at 35% 25%, rgba(52, 211, 153, 0.35), rgba(16, 185, 129, 0.22));
   border-color: #10b981;
-  box-shadow: 0 0 16px rgba(16, 185, 129, 0.45);
 }
 
-/* Tier 2: Supporter (₱1,000+) — Cyan Tactical Compass Shield */
+/* Tier 2: Relief Sustainer (₱1,000+) */
 .tier-2 .donor-badge-emblem {
-  background: radial-gradient(circle at 35% 25%, rgba(125, 211, 252, 0.25), rgba(2, 132, 199, 0.12));
-  border: 1.5px solid rgba(56, 189, 248, 0.5);
-  box-shadow: 0 2px 8px rgba(56, 189, 248, 0.25);
+  background: rgba(2, 132, 199, 0.08);
+  border: 1.5px solid rgba(2, 132, 199, 0.35);
 }
 .tier-2.is-interactive:hover .donor-badge-emblem {
-  background: radial-gradient(circle at 35% 25%, rgba(125, 211, 252, 0.35), rgba(2, 132, 199, 0.22));
-  border-color: #38bdf8;
-  box-shadow: 0 0 16px rgba(56, 189, 248, 0.5);
+  border-color: #0284c7;
 }
 
-/* Tier 3: Relief Partner (₱5,000+) — Cobalt Partnership Shield */
+/* Tier 3: Frontline Partner (₱5,000+) */
 .tier-3 .donor-badge-emblem {
-  background: radial-gradient(circle at 35% 25%, rgba(147, 197, 253, 0.25), rgba(59, 130, 246, 0.12));
-  border: 1.5px solid rgba(96, 165, 250, 0.5);
-  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.25);
+  background: rgba(37, 99, 235, 0.08);
+  border: 1.5px solid rgba(37, 99, 235, 0.35);
 }
 .tier-3.is-interactive:hover .donor-badge-emblem {
-  background: radial-gradient(circle at 35% 25%, rgba(147, 197, 253, 0.35), rgba(59, 130, 246, 0.22));
-  border-color: #60a5fa;
-  box-shadow: 0 0 16px rgba(59, 130, 246, 0.5);
+  border-color: #2563eb;
 }
 
-/* Tier 4: Benefactor (₱10,000+) — Royal Amethyst Prism */
+/* Tier 4: Shelter Benefactor (₱10,000+) */
 .tier-4 .donor-badge-emblem {
-  background: radial-gradient(circle at 35% 25%, rgba(233, 213, 255, 0.28), rgba(168, 85, 247, 0.14));
-  border: 1.5px solid rgba(192, 132, 252, 0.55);
-  box-shadow: 0 2px 10px rgba(168, 85, 247, 0.3);
+  background: rgba(124, 58, 237, 0.08);
+  border: 1.5px solid rgba(124, 58, 237, 0.35);
 }
 .tier-4.is-interactive:hover .donor-badge-emblem {
-  background: radial-gradient(circle at 35% 25%, rgba(233, 213, 255, 0.4), rgba(168, 85, 247, 0.25));
-  border-color: #c084fc;
-  box-shadow: 0 0 18px rgba(168, 85, 247, 0.55);
+  border-color: #7c3aed;
 }
 
-/* Tier 5: Advocate (₱25,000+) — Phoenix Flame & Wing */
+/* Tier 5: Compassion Advocate (₱25,000+) */
 .tier-5 .donor-badge-emblem {
-  background: radial-gradient(circle at 35% 25%, rgba(254, 205, 211, 0.28), rgba(244, 63, 94, 0.14));
-  border: 1.5px solid rgba(244, 63, 94, 0.55);
-  box-shadow: 0 2px 10px rgba(244, 63, 94, 0.3);
+  background: rgba(225, 29, 72, 0.08);
+  border: 1.5px solid rgba(225, 29, 72, 0.35);
 }
 .tier-5.is-interactive:hover .donor-badge-emblem {
-  background: radial-gradient(circle at 35% 25%, rgba(254, 205, 211, 0.4), rgba(244, 63, 94, 0.25));
-  border-color: #f43f5e;
-  box-shadow: 0 0 20px rgba(244, 63, 94, 0.6);
+  border-color: #e11d48;
 }
 
-/* Tier 6: Philanthropist (₱50,000+) — Golden Heart Medallion */
+/* Tier 6: Community Philanthropist (₱50,000+) */
 .tier-6 .donor-badge-emblem {
-  background: radial-gradient(circle at 35% 25%, rgba(254, 240, 138, 0.3), rgba(245, 158, 11, 0.15));
-  border: 1.5px solid rgba(245, 158, 11, 0.6);
-  box-shadow: 0 2px 12px rgba(245, 158, 11, 0.35);
+  background: rgba(217, 119, 6, 0.08);
+  border: 1.5px solid rgba(217, 119, 6, 0.35);
 }
 .tier-6.is-interactive:hover .donor-badge-emblem {
-  background: radial-gradient(circle at 35% 25%, rgba(254, 240, 138, 0.42), rgba(245, 158, 11, 0.26));
-  border-color: #f59e0b;
-  box-shadow: 0 0 22px rgba(245, 158, 11, 0.65);
+  border-color: #d97706;
 }
 
-/* Tier 7: Humanitarian (₱100,000+) — Star of Mercy Cross */
+/* Tier 7: Distinguished Humanitarian (₱100,000+) */
 .tier-7 .donor-badge-emblem {
-  background: radial-gradient(circle at 35% 25%, rgba(254, 202, 202, 0.32), rgba(239, 68, 68, 0.16));
-  border: 1.6px solid rgba(239, 68, 68, 0.65);
-  box-shadow: 0 2px 12px rgba(239, 68, 68, 0.38);
+  background: rgba(220, 38, 38, 0.08);
+  border: 1.5px solid rgba(220, 38, 38, 0.35);
 }
 .tier-7.is-interactive:hover .donor-badge-emblem {
-  background: radial-gradient(circle at 35% 25%, rgba(254, 202, 202, 0.45), rgba(239, 68, 68, 0.28));
-  border-color: #ef4444;
-  box-shadow: 0 0 22px rgba(239, 68, 68, 0.7);
+  border-color: #dc2626;
 }
 
-/* Tier 8: Distinguished Humanitarian (₱250,000+) — Winged Diamond Crest */
+/* Tier 8: Pillar of Mercy (₱250,000+) */
 .tier-8 .donor-badge-emblem {
-  background: radial-gradient(circle at 35% 25%, rgba(204, 251, 241, 0.32), rgba(20, 184, 166, 0.16));
-  border: 1.6px solid rgba(20, 184, 166, 0.65);
-  box-shadow: 0 2px 12px rgba(20, 184, 166, 0.38);
+  background: rgba(13, 148, 136, 0.08);
+  border: 1.5px solid rgba(13, 148, 136, 0.35);
 }
 .tier-8.is-interactive:hover .donor-badge-emblem {
-  background: radial-gradient(circle at 35% 25%, rgba(204, 251, 241, 0.45), rgba(20, 184, 166, 0.28));
-  border-color: #14b8a6;
-  box-shadow: 0 0 24px rgba(20, 184, 166, 0.75);
+  border-color: #0d9488;
 }
 
-/* Tier 9: Patron of Relief (₱500,000+) — Heraldic Patron Shield */
+/* Tier 9: Patron of Relief (₱500,000+) */
 .tier-9 .donor-badge-emblem {
-  background: radial-gradient(circle at 35% 25%, rgba(191, 219, 254, 0.35), rgba(59, 130, 246, 0.18));
-  border: 1.7px solid rgba(59, 130, 246, 0.7);
-  box-shadow: 0 2px 14px rgba(59, 130, 246, 0.42);
+  background: rgba(29, 78, 216, 0.08);
+  border: 1.5px solid rgba(29, 78, 216, 0.35);
 }
 .tier-9.is-interactive:hover .donor-badge-emblem {
-  background: radial-gradient(circle at 35% 25%, rgba(191, 219, 254, 0.5), rgba(59, 130, 246, 0.3));
-  border-color: #3b82f6;
-  box-shadow: 0 0 26px rgba(59, 130, 246, 0.8);
+  border-color: #1d4ed8;
 }
 
-/* Tier 10: Grand Benefactor (₱1,000,000+) — Sovereign Monarch Crown */
+/* Tier 10: Disaster Relief Champion (₱1,000,000+) */
 .tier-10 .donor-badge-emblem {
-  background: radial-gradient(circle at 35% 25%, rgba(254, 240, 138, 0.4), rgba(234, 179, 8, 0.2));
-  border: 1.8px solid rgba(234, 179, 8, 0.75);
-  box-shadow: 0 2px 16px rgba(234, 179, 8, 0.48);
+  background: rgba(2, 132, 199, 0.1);
+  border: 1.5px solid rgba(2, 132, 199, 0.4);
 }
 .tier-10.is-interactive:hover .donor-badge-emblem {
-  background: radial-gradient(circle at 35% 25%, rgba(254, 240, 138, 0.55), rgba(234, 179, 8, 0.35));
-  border-color: #eab308;
-  box-shadow: 0 0 28px rgba(234, 179, 8, 0.9);
+  border-color: #0284c7;
 }
 
-/* Tier 11: Principal Benefactor (₱2,500,000+) — Celestial Solar Nova */
+/* Tier 11: Principal Benefactor (₱2,500,000+) */
 .tier-11 .donor-badge-emblem {
-  background: radial-gradient(circle at 35% 25%, rgba(245, 208, 254, 0.4), rgba(168, 85, 247, 0.22));
-  border: 1.8px solid rgba(168, 85, 247, 0.8);
-  box-shadow: 0 2px 18px rgba(168, 85, 247, 0.52);
+  background: rgba(126, 34, 206, 0.1);
+  border: 1.5px solid rgba(126, 34, 206, 0.4);
 }
 .tier-11.is-interactive:hover .donor-badge-emblem {
-  background: radial-gradient(circle at 35% 25%, rgba(245, 208, 254, 0.55), rgba(168, 85, 247, 0.38));
-  border-color: #a855f7;
-  box-shadow: 0 0 30px rgba(168, 85, 247, 0.95);
+  border-color: #7e22ce;
 }
 
-/* Tier 12: Legacy Benefactor (₱5,000,000+) — Eternal Transcendence Diamond (Apex Mythic) */
+/* Tier 12: Legacy Benefactor (₱5,000,000+) */
 .tier-12 .donor-badge-emblem {
-  background: radial-gradient(circle at 35% 25%, rgba(167, 243, 208, 0.45), rgba(0, 255, 163, 0.25));
-  border: 2px solid rgba(0, 255, 163, 0.85);
-  box-shadow: 0 2px 20px rgba(0, 255, 163, 0.55), 0 0 12px rgba(192, 132, 252, 0.4);
+  background: rgba(5, 150, 105, 0.1);
+  border: 1.5px solid rgba(5, 150, 105, 0.45);
 }
 .tier-12.is-interactive:hover .donor-badge-emblem {
-  background: radial-gradient(circle at 35% 25%, rgba(167, 243, 208, 0.6), rgba(0, 255, 163, 0.4));
-  border-color: #00ffa3;
-  box-shadow: 0 0 34px rgba(0, 255, 163, 1), 0 0 20px rgba(250, 204, 21, 0.6);
+  border-color: #059669;
 }
 
-/* ── True Floating Portal Overlay Tooltip (Immune to parent overflow:hidden and stacking contexts) ── */
+/* Tier 13: Visionary Benefactor (₱10,000,000+) */
+.tier-13 .donor-badge-emblem {
+  background: rgba(22, 163, 74, 0.1);
+  border: 1.5px solid rgba(22, 163, 74, 0.45);
+}
+.tier-13.is-interactive:hover .donor-badge-emblem {
+  border-color: #16a34a;
+}
+
+/* Tier 14: Distinguished Lifesaver (₱25,000,000+) */
+.tier-14 .donor-badge-emblem {
+  background: rgba(180, 83, 9, 0.1);
+  border: 1.5px solid rgba(180, 83, 9, 0.45);
+}
+.tier-14.is-interactive:hover .donor-badge-emblem {
+  border-color: #b45309;
+}
+
+/* Tier 15: Honorary Relief Trustee (₱50,000,000+) */
+.tier-15 .donor-badge-emblem {
+  background: rgba(71, 85, 105, 0.12);
+  border: 1.5px solid rgba(71, 85, 105, 0.5);
+}
+.tier-15.is-interactive:hover .donor-badge-emblem {
+  border-color: #475569;
+}
+
+/* ── Light Theme Adaptations for Badge Emblems ── */
+[data-theme="light"] .donor-badge-emblem {
+  background: #ffffff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+/* ── Floating Portal Overlay Tooltip ── */
 .donor-badge-tooltip-overlay {
   position: fixed;
-  width: 220px;
+  width: 250px;
   background: var(--bg-surface, #131722);
   border: 1px solid var(--border-strong, rgba(255, 255, 255, 0.16));
   border-radius: 12px;
-  padding: 10px 14px;
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.75), 0 0 0 1px rgba(255, 255, 255, 0.08);
-  backdrop-filter: blur(18px);
-  -webkit-backdrop-filter: blur(18px);
+  padding: 12px 15px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   z-index: 999999;
   pointer-events: none;
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 6px;
   text-align: left;
   box-sizing: border-box;
 }
@@ -247,7 +271,13 @@
 [data-theme="light"] .donor-badge-tooltip-overlay {
   background: #ffffff;
   border-color: rgba(0, 0, 0, 0.12);
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.16), 0 0 0 1px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(0, 0, 0, 0.05);
+}
+
+[data-theme="cyber"] .donor-badge-tooltip-overlay {
+  background: #0a1322;
+  border-color: rgba(0, 255, 163, 0.3);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.7);
 }
 
 .donor-badge-tooltip-overlay.place-above {
@@ -260,7 +290,6 @@
   animation: dbtFadeInOverlayBelow 0.14s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
-/* Arrow pointers pointing directly at badge */
 .donor-badge-tooltip-overlay.place-above::after {
   content: '';
   position: absolute;
@@ -284,9 +313,15 @@
 [data-theme="light"] .donor-badge-tooltip-overlay.place-above::after {
   border-top-color: #ffffff;
 }
-
 [data-theme="light"] .donor-badge-tooltip-overlay.place-below::after {
   border-bottom-color: #ffffff;
+}
+
+[data-theme="cyber"] .donor-badge-tooltip-overlay.place-above::after {
+  border-top-color: #0a1322;
+}
+[data-theme="cyber"] .donor-badge-tooltip-overlay.place-below::after {
+  border-bottom-color: #0a1322;
 }
 
 @keyframes dbtFadeInOverlayAbove {
@@ -311,65 +346,11 @@
   }
 }
 
-/* ── Interactive Tooltip Card (Legacy inline fallback) ── */
-.donor-badge-tooltip {
-  position: absolute;
-  bottom: calc(100% + 8px);
-  left: 50%;
-  transform: translateX(-50%);
-  width: 250px;
-  background: var(--bg-surface, #131722);
-  border: 1px solid var(--border-strong, rgba(255, 255, 255, 0.15));
-  border-radius: 12px;
-  padding: 12px 14px;
-  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.65), 0 0 1px rgba(255, 255, 255, 0.2);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  z-index: 1000;
-  animation: dbtFadeIn 0.16s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-  pointer-events: none;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  text-align: left;
-}
-
-[data-theme="light"] .donor-badge-tooltip {
-  background: #ffffff;
-  border-color: rgba(0, 0, 0, 0.12);
-  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.12);
-}
-
-.donor-badge-tooltip::after {
-  content: '';
-  position: absolute;
-  top: 100%;
-  left: 50%;
-  transform: translateX(-50%);
-  border: 6px solid transparent;
-  border-top-color: var(--bg-surface, #131722);
-}
-
-[data-theme="light"] .donor-badge-tooltip::after {
-  border-top-color: #ffffff;
-}
-
-@keyframes dbtFadeIn {
-  from {
-    opacity: 0;
-    transform: translateX(-50%) translateY(4px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(-50%) translateY(0);
-  }
-}
-
 .dbt-header {
   display: flex;
   align-items: center;
-  gap: 7px;
-  padding-bottom: 5px;
+  gap: 8px;
+  padding-bottom: 6px;
   border-bottom: 1px solid var(--border, rgba(255, 255, 255, 0.08));
 }
 
@@ -378,47 +359,36 @@
 }
 
 .dbt-tier-title {
-  font-size: 0.82rem;
-  font-weight: 800;
+  font-size: 0.84rem;
+  font-weight: 700;
   letter-spacing: -0.2px;
-  flex: 1;
+  display: block;
+}
+
+.dbt-subtitle {
+  font-size: 0.68rem;
+  font-weight: 500;
+  color: var(--text-muted, #94a3b8);
+  display: block;
 }
 
 .dbt-rank-tag {
   font-size: 0.62rem;
-  font-weight: 800;
+  font-weight: 700;
   color: #10b981;
   background: rgba(16, 185, 129, 0.12);
   border: 1px solid rgba(16, 185, 129, 0.3);
-  padding: 1px 5px;
+  padding: 2px 6px;
   border-radius: 4px;
   letter-spacing: 0.5px;
-}
-
-.dbt-subtitle {
-  font-size: 0.72rem;
-  font-weight: 600;
-  color: var(--text-muted, #94a3b8);
-  margin-top: 1px;
-}
-
-.dbt-desc {
-  font-size: 0.7rem;
-  line-height: 1.35;
-  color: var(--text-secondary, #cbd5e1);
-  margin-top: 2px;
-}
-
-[data-theme="light"] .dbt-desc {
-  color: #475569;
 }
 
 .dbt-stats-row {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-top: 6px;
-  padding: 6px 8px;
+  margin-top: 2px;
+  padding: 6px 10px;
   border-radius: 6px;
   background: var(--bg-card, rgba(255, 255, 255, 0.03));
   border: 1px solid var(--border, rgba(255, 255, 255, 0.06));
@@ -427,6 +397,11 @@
 [data-theme="light"] .dbt-stats-row {
   background: #f8fafc;
   border-color: #e2e8f0;
+}
+
+[data-theme="cyber"] .dbt-stats-row {
+  background: rgba(0, 255, 163, 0.04);
+  border-color: rgba(0, 255, 163, 0.15);
 }
 
 .dbt-stat {
@@ -444,7 +419,7 @@
 }
 
 .dbt-stat-val {
-  font-size: 0.76rem;
+  font-size: 0.82rem;
   font-weight: 800;
   color: var(--text-primary, #ffffff);
 }
@@ -453,74 +428,26 @@
   color: #0f172a;
 }
 
-.dbt-stat-val small {
-  font-size: 0.65rem;
-  color: var(--text-muted, #94a3b8);
-  font-weight: 500;
-}
-
-/* Next Tier Progress in Tooltip */
-.dbt-progress-block {
-  margin-top: 6px;
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-
-.dbt-progress-header {
-  display: flex;
-  justify-content: space-between;
-  font-size: 0.68rem;
+.dbt-desc {
+  font-size: 0.72rem;
   color: var(--text-secondary, #cbd5e1);
+  line-height: 1.4;
+  margin-top: 2px;
 }
 
-[data-theme="light"] .dbt-progress-header {
+[data-theme="light"] .dbt-desc {
   color: #475569;
-}
-
-.dbt-progress-track {
-  width: 100%;
-  height: 5px;
-  background: var(--bg-input, rgba(255, 255, 255, 0.08));
-  border-radius: 999px;
-  overflow: hidden;
-}
-
-[data-theme="light"] .dbt-progress-track {
-  background: #e2e8f0;
-}
-
-.dbt-progress-fill {
-  height: 100%;
-  border-radius: 999px;
-  transition: width 0.3s ease;
-}
-
-.dbt-progress-hint {
-  font-size: 0.64rem;
-  color: var(--text-muted, #94a3b8);
-  margin-top: 1px;
 }
 
 .dbt-max-badge {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 5px;
   font-size: 0.68rem;
-  font-weight: 700;
-  color: #00ffa3;
-  margin-top: 5px;
-}
-
-.dbt-footer-cta {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-size: 0.64rem;
   font-weight: 600;
-  color: var(--text-muted, #94a3b8);
-  margin-top: 5px;
-  padding-top: 4px;
+  color: #10b981;
+  margin-top: 4px;
+  padding-top: 5px;
   border-top: 1px solid var(--border, rgba(255, 255, 255, 0.06));
 }
 
@@ -532,17 +459,23 @@
   background: var(--bg-card, #161a23);
   border: 1px solid var(--border, rgba(255, 255, 255, 0.09));
   border-radius: 16px;
-  padding: 18px 22px;
+  padding: 20px 24px;
   margin-bottom: 20px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
-  transition: all 0.25s ease;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+  transition: all 0.2s ease;
   overflow: hidden;
 }
 
 [data-theme="light"] .donor-progress-card {
   background: #ffffff;
   border-color: rgba(0, 0, 0, 0.08);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+}
+
+[data-theme="cyber"] .donor-progress-card {
+  background: #0d1b2e;
+  border-color: rgba(0, 255, 163, 0.2);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
 }
 
 .donor-progress-card.unranked {
@@ -570,8 +503,8 @@
 }
 
 .dpc-unranked-ghost {
-  opacity: 0.4;
-  filter: grayscale(1);
+  opacity: 0.5;
+  filter: grayscale(0.6);
 }
 
 .dpc-info {
@@ -591,7 +524,7 @@
 .dpc-title {
   margin: 0;
   font-size: 1.05rem;
-  font-weight: 800;
+  font-weight: 700;
   color: var(--text-primary, #ffffff);
 }
 
@@ -615,15 +548,21 @@
   padding: 8px 14px;
   border-radius: 8px;
   font-size: 0.82rem;
-  font-weight: 700;
+  font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
 .dpc-ladder-btn:hover {
-  background: rgba(16, 185, 129, 0.12);
+  background: rgba(16, 185, 129, 0.1);
   border-color: #10b981;
   color: #10b981;
+}
+
+[data-theme="light"] .dpc-ladder-btn {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+  color: #0f172a;
 }
 
 /* Ranked Card Layout */
@@ -653,21 +592,14 @@
 }
 
 .dpc-badge-col:hover .dpc-badge-emblem-wrap {
-  transform: scale(1.08);
-}
-
-.dpc-badge-tier-tag {
-  font-size: 0.7rem;
-  font-weight: 800;
-  letter-spacing: 0.5px;
-  text-transform: uppercase;
+  transform: scale(1.05);
 }
 
 .dpc-content-col {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 
 .dpc-header-row {
@@ -684,38 +616,31 @@
   margin-bottom: 2px;
 }
 
-.dpc-standing-label {
-  font-size: 0.68rem;
-  font-weight: 700;
-  color: var(--text-muted, #94a3b8);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
 .dpc-verified-pill {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
-  font-size: 0.64rem;
+  gap: 4px;
+  font-size: 0.65rem;
   font-weight: 700;
   color: #10b981;
   background: rgba(16, 185, 129, 0.1);
   border: 1px solid rgba(16, 185, 129, 0.25);
-  padding: 1px 6px;
+  padding: 2px 7px;
   border-radius: 999px;
+  letter-spacing: 0.4px;
 }
 
 .dpc-tier-name {
   margin: 0;
-  font-size: 1.35rem;
-  font-weight: 800;
+  font-size: 1.3rem;
+  font-weight: 700;
   letter-spacing: -0.3px;
   line-height: 1.2;
 }
 
 .dpc-tier-subtitle {
   font-size: 0.78rem;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--text-secondary, #94a3b8);
 }
 
@@ -726,7 +651,7 @@
 
 .dpc-metric-num {
   display: block;
-  font-size: 1.25rem;
+  font-size: 1.28rem;
   font-weight: 800;
   color: var(--text-primary, #ffffff);
   letter-spacing: -0.3px;
@@ -738,99 +663,53 @@
 
 .dpc-metric-lbl {
   font-size: 0.68rem;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--text-muted, #94a3b8);
 }
 
-/* Progress Track in Progress Card */
-.dpc-prog-wrapper {
+/* Society Impact Body */
+.dpc-impact-body {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 8px;
 }
 
-.dpc-prog-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-size: 0.76rem;
-}
-
-.dpc-next-tier-target {
-  display: flex;
-  align-items: center;
-  gap: 6px;
+.dpc-society-desc {
+  margin: 0;
+  font-size: 0.8rem;
   color: var(--text-secondary, #cbd5e1);
+  line-height: 1.45;
 }
 
-[data-theme="light"] .dpc-next-tier-target {
-  color: #334155;
+[data-theme="light"] .dpc-society-desc {
+  color: #475569;
 }
 
-.dpc-next-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  background: var(--bg-input, rgba(255, 255, 255, 0.05));
-  border: 1px solid var(--border, rgba(255, 255, 255, 0.1));
-  padding: 2px 8px;
-  border-radius: 6px;
-  font-size: 0.74rem;
-}
-
-[data-theme="light"] .dpc-next-pill {
-  background: #f1f5f9;
-  border-color: #cbd5e1;
-}
-
-.dpc-goal-amount {
-  color: var(--text-muted, #94a3b8);
-  font-weight: 500;
-}
-
-.dpc-pct-text {
-  font-size: 0.84rem;
-  font-weight: 800;
-  font-family: var(--font-mono, monospace);
-}
-
-.dpc-prog-track {
-  width: 100%;
-  height: 8px;
-  background: var(--bg-input, rgba(0, 0, 0, 0.35));
-  border-radius: 999px;
-  overflow: hidden;
-  border: 1px solid var(--border, rgba(255, 255, 255, 0.06));
-}
-
-[data-theme="light"] .dpc-prog-track {
-  background: #e2e8f0;
-  border-color: #cbd5e1;
-}
-
-.dpc-prog-bar {
-  height: 100%;
-  border-radius: 999px;
-  transition: width 0.6s cubic-bezier(0.16, 1, 0.3, 1);
-  box-shadow: 0 0 10px currentColor;
-}
-
-.dpc-prog-footer {
+.dpc-society-footer {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 0.74rem;
+  padding-top: 8px;
+  border-top: 1px solid var(--border, rgba(255, 255, 255, 0.06));
 }
 
-.dpc-prog-remaining {
+[data-theme="light"] .dpc-society-footer {
+  border-top-color: rgba(0, 0, 0, 0.06);
+}
+
+.dpc-next-society-hint {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.74rem;
   color: var(--text-muted, #94a3b8);
 }
 
-.dpc-prog-remaining strong {
+.dpc-next-society-hint strong {
   color: var(--text-primary, #ffffff);
 }
 
-[data-theme="light"] .dpc-prog-remaining strong {
+[data-theme="light"] .dpc-next-society-hint strong {
   color: #0f172a;
 }
 
@@ -850,55 +729,25 @@
 
 .dpc-ladder-link:hover {
   text-decoration: underline;
-  transform: translateX(2px);
-}
-
-/* Apex Banner */
-.dpc-apex-banner {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  background: rgba(0, 255, 163, 0.08);
-  border: 1px solid rgba(0, 255, 163, 0.25);
-  border-radius: 10px;
-  padding: 10px 14px;
-}
-
-.dpc-apex-left {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.dpc-apex-left strong {
-  display: block;
-  font-size: 0.82rem;
-  color: #00ffa3;
-}
-
-.dpc-apex-left p {
-  margin: 0;
-  font-size: 0.74rem;
-  color: var(--text-secondary, #cbd5e1);
 }
 
 /* ============================================================
-   Badge Upgrade Celebration Modal (Subtle & Dignified)
+   Official Commendation Plaque / Certificate Modal
    ============================================================ */
 .donor-upgrade-backdrop {
   position: fixed;
   inset: 0;
   width: 100vw;
   height: 100vh;
-  background: rgba(5, 8, 14, 0.85);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  background: rgba(5, 8, 14, 0.82);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
   z-index: 999999;
   display: flex;
   align-items: center;
   justify-content: center;
   overscroll-behavior: contain;
-  animation: dubFadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: dubFadeIn 0.2s ease-out forwards;
 }
 
 @keyframes dubFadeIn {
@@ -906,30 +755,36 @@
   to { opacity: 1; }
 }
 
-.donor-upgrade-card {
+.donor-upgrade-card.donor-commendation-plaque {
   position: relative;
   background: #151922;
-  border: 1.5px solid rgba(255, 255, 255, 0.15);
-  border-radius: 22px;
-  padding: 36px 32px 28px;
-  max-width: 440px;
-  width: 90%;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 20px;
+  padding: 32px 30px 24px;
+  max-width: 480px;
+  width: 92%;
   text-align: center;
-  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.75);
-  animation: dubScaleUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+  animation: dubScaleUp 0.25s ease-out forwards;
   overflow: hidden;
 }
 
-[data-theme="light"] .donor-upgrade-card {
+[data-theme="light"] .donor-upgrade-card.donor-commendation-plaque {
   background: #ffffff;
   border-color: rgba(0, 0, 0, 0.12);
-  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.12);
+}
+
+[data-theme="cyber"] .donor-upgrade-card.donor-commendation-plaque {
+  background: #0d1b2e;
+  border-color: rgba(0, 255, 163, 0.35);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7);
 }
 
 @keyframes dubScaleUp {
   from {
     opacity: 0;
-    transform: scale(0.9) translateY(16px);
+    transform: scale(0.95) translateY(10px);
   }
   to {
     opacity: 1;
@@ -937,41 +792,37 @@
   }
 }
 
-.donor-upgrade-shimmer {
-  position: absolute;
-  top: -50%;
-  left: -50%;
-  width: 200%;
-  height: 200%;
-  background: radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.08) 0%, transparent 60%);
-  pointer-events: none;
+.donor-plaque-topbar {
+  margin-bottom: 12px;
+}
+
+.donor-plaque-org-tag {
+  font-size: 0.65rem;
+  font-weight: 800;
+  color: #10b981;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
 }
 
 .donor-upgrade-emblem-halo {
-  width: 100px;
-  height: 100px;
+  width: 88px;
+  height: 88px;
   margin: 0 auto 16px;
   border-radius: 50%;
-  border: 2px solid;
+  border: 1.5px solid;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(255, 255, 255, 0.04);
-  animation: dubHaloPulse 3s infinite ease-in-out;
-}
-
-@keyframes dubHaloPulse {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.05); }
+  background: rgba(255, 255, 255, 0.03);
 }
 
 .donor-upgrade-svg {
-  filter: drop-shadow(0 4px 12px currentColor);
+  display: block;
 }
 
 .donor-upgrade-eyebrow {
   font-size: 0.68rem;
-  font-weight: 800;
+  font-weight: 700;
   letter-spacing: 1px;
   text-transform: uppercase;
   margin-bottom: 6px;
@@ -980,8 +831,8 @@
 
 .donor-upgrade-title {
   margin: 0 0 4px 0;
-  font-size: 1.45rem;
-  font-weight: 800;
+  font-size: 1.35rem;
+  font-weight: 700;
   color: var(--text-primary, #ffffff);
 }
 
@@ -997,7 +848,7 @@
 
 .donor-upgrade-subtitle {
   font-size: 0.8rem;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--text-muted, #94a3b8);
   margin: 2px 0 10px 0;
 }
@@ -1006,11 +857,45 @@
   font-size: 0.82rem;
   color: var(--text-secondary, #cbd5e1);
   line-height: 1.5;
-  margin: 0 0 16px 0;
+  margin: 0 0 14px 0;
 }
 
 [data-theme="light"] .donor-upgrade-desc {
   color: #475569;
+}
+
+.donor-plaque-amount-callout {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: var(--bg-card, rgba(255, 255, 255, 0.04));
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.08));
+  padding: 10px 14px;
+  border-radius: 10px;
+  margin-bottom: 12px;
+}
+
+[data-theme="light"] .donor-plaque-amount-callout {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+}
+
+.donor-plaque-amount-lbl {
+  font-size: 0.64rem;
+  font-weight: 600;
+  color: var(--text-muted, #94a3b8);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.donor-plaque-amount-val {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: var(--text-primary, #ffffff);
+}
+
+[data-theme="light"] .donor-plaque-amount-val {
+  color: #0f172a;
 }
 
 .donor-upgrade-badge-seal {
@@ -1018,17 +903,17 @@
   align-items: center;
   gap: 5px;
   font-size: 0.72rem;
-  font-weight: 700;
+  font-weight: 600;
   color: #10b981;
-  background: rgba(16, 185, 129, 0.1);
-  border: 1px solid rgba(16, 185, 129, 0.25);
+  background: rgba(16, 185, 129, 0.08);
+  border: 1px solid rgba(16, 185, 129, 0.2);
   padding: 4px 10px;
   border-radius: 999px;
   margin-bottom: 6px;
 }
 
 /* ============================================================
-   7-Tier Honors Ladder Modal Layout
+   15-Society Directory Modal Layout
    ============================================================ */
 .donor-modal-backdrop {
   position: fixed;
@@ -1039,10 +924,10 @@
   bottom: 0;
   width: 100vw;
   height: 100vh;
-  background: rgba(5, 8, 14, 0.85);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  z-index: 999999;
+  background: rgba(5, 8, 14, 0.82);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  z-index: 1000000060 !important;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1054,21 +939,711 @@
 .donor-modal-card {
   position: relative;
   background: var(--bg-surface, #151922);
-  border: 1px solid var(--border-strong, rgba(255, 255, 255, 0.14));
-  border-radius: 20px;
-  padding: 24px 28px;
-  max-width: 640px;
+  border: 1px solid var(--border-strong, rgba(255, 255, 255, 0.12));
+  border-radius: 18px;
+  padding: 24px 28px 20px 28px;
+  max-width: 740px;
   width: 100%;
-  max-height: 88vh;
-  overflow-y: auto;
+  height: min(840px, 88vh) !important;
+  min-height: min(840px, 88vh) !important;
+  max-height: 88vh !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
   overscroll-behavior: contain;
-  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.75);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+  box-sizing: border-box !important;
+}
+
+@media (max-width: 640px) {
+  .donor-modal-card {
+    padding: 16px 14px 14px 14px !important;
+    height: 94vh !important;
+    min-height: 94vh !important;
+    max-height: 94vh !important;
+    max-width: 96vw !important;
+  }
+}
+
+.donor-portfolio-content,
+.donor-ledger-content,
+.donor-directory-content {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  overflow-y: auto !important;
+  overscroll-behavior: contain !important;
+  padding-right: 6px !important;
+}
+
+.donor-portfolio-content::-webkit-scrollbar,
+.donor-ledger-content::-webkit-scrollbar,
+.donor-directory-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.donor-portfolio-content::-webkit-scrollbar-track,
+.donor-ledger-content::-webkit-scrollbar-track,
+.donor-directory-content::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 999px;
+}
+
+.donor-portfolio-content::-webkit-scrollbar-thumb,
+.donor-ledger-content::-webkit-scrollbar-thumb,
+.donor-directory-content::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 999px;
+}
+
+.donor-portfolio-content::-webkit-scrollbar-thumb:hover,
+.donor-ledger-content::-webkit-scrollbar-thumb:hover,
+.donor-directory-content::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.25);
 }
 
 [data-theme="light"] .donor-modal-card {
   background: #ffffff;
-  border-color: rgba(0, 0, 0, 0.12);
-  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.12);
+  border-color: rgba(0, 0, 0, 0.1);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.1);
+}
+
+[data-theme="cyber"] .donor-modal-card {
+  background: #0a1322;
+  border-color: rgba(0, 255, 163, 0.25);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7);
+}
+
+/* ── Donor Progress Card Enhanced Action Group ── */
+.dpc-actions-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dpc-cert-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  color: #10b981;
+  border-radius: 8px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.dpc-cert-action-btn:hover {
+  background: rgba(16, 185, 129, 0.22);
+  border-color: #10b981;
+  transform: translateY(-1px);
+}
+
+[data-theme="light"] .dpc-cert-action-btn {
+  background: rgba(5, 150, 105, 0.08);
+  border-color: rgba(5, 150, 105, 0.25);
+  color: #059669;
+}
+
+/* ── Modal Portfolio Tab Switcher ── */
+.donor-portfolio-tabs {
+  display: grid !important;
+  grid-template-columns: repeat(3, 1fr) !important;
+  gap: 6px !important;
+  height: 44px !important;
+  min-height: 44px !important;
+  max-height: 44px !important;
+  background: var(--bg-card, rgba(255, 255, 255, 0.03)) !important;
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.08)) !important;
+  padding: 4px !important;
+  border-radius: 12px !important;
+  margin-bottom: 18px !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+  align-items: stretch !important;
+  flex-shrink: 0 !important;
+}
+
+[data-theme="light"] .donor-portfolio-tabs {
+  background: #f1f5f9 !important;
+  border-color: #e2e8f0 !important;
+}
+
+.donor-tab-btn {
+  width: 100% !important;
+  min-width: 0 !important;
+  height: 36px !important;
+  min-height: 36px !important;
+  max-height: 36px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 6px !important;
+  padding: 0 8px !important;
+  border-radius: 8px !important;
+  font-size: 0.78rem !important;
+  font-weight: 600 !important;
+  line-height: 1 !important;
+  color: var(--text-muted, #94a3b8) !important;
+  background: transparent !important;
+  border: 1px solid transparent !important;
+  cursor: pointer !important;
+  transition: background 0.15s ease, color 0.15s ease !important;
+  box-sizing: border-box !important;
+  white-space: nowrap !important;
+}
+
+.donor-tab-btn:hover {
+  color: var(--text-primary, #ffffff) !important;
+}
+
+.donor-tab-btn.is-active {
+  color: var(--text-primary, #ffffff) !important;
+  background: var(--bg-surface, #1e2533) !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25) !important;
+}
+
+.donor-tab-count-badge {
+  background: #10b981 !important;
+  color: #ffffff !important;
+  font-size: 0.65rem !important;
+  font-weight: 700 !important;
+  padding: 0 6px !important;
+  height: 18px !important;
+  min-height: 18px !important;
+  max-height: 18px !important;
+  border-radius: 999px !important;
+  line-height: 18px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  box-sizing: border-box !important;
+  flex-shrink: 0 !important;
+}
+
+@media (max-width: 600px) {
+  .donor-portfolio-tabs {
+    height: 40px !important;
+    min-height: 40px !important;
+    max-height: 40px !important;
+  }
+
+  .donor-tab-btn {
+    font-size: 0.7rem !important;
+    padding: 0 4px !important;
+    gap: 4px !important;
+    height: 32px !important;
+    min-height: 32px !important;
+    max-height: 32px !important;
+  }
+}
+
+[data-theme="light"] .donor-tab-btn.is-active {
+  color: #0f172a;
+  background: #ffffff;
+  border-color: #e2e8f0;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="cyber"] .donor-tab-btn.is-active {
+  color: #00ffa3;
+  background: rgba(0, 255, 163, 0.12);
+  border-color: rgba(0, 255, 163, 0.3);
+}
+
+/* ── Portfolio Hero Dedication ── */
+.donor-portfolio-dedication {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  background: rgba(16, 185, 129, 0.06);
+  border-left: 3px solid #10b981;
+  padding: 8px 12px;
+  border-radius: 0 8px 8px 0;
+  margin-top: 10px;
+  font-size: 0.78rem;
+  font-style: italic;
+  color: var(--text-secondary, #cbd5e1);
+  line-height: 1.4;
+}
+
+[data-theme="light"] .donor-portfolio-dedication {
+  color: #334155;
+  background: rgba(5, 150, 105, 0.06);
+}
+
+/* ── Tangible Relief Footprint Section ── */
+.donor-impact-footprint-section {
+  background: var(--bg-card, rgba(255, 255, 255, 0.02));
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.06));
+  border-radius: 14px;
+  padding: 16px;
+  margin-bottom: 20px;
+}
+
+[data-theme="light"] .donor-impact-footprint-section {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+}
+
+.donor-footprint-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.donor-footprint-title {
+  font-size: 0.86rem;
+  font-weight: 700;
+  color: var(--text-primary, #ffffff);
+}
+
+[data-theme="light"] .donor-footprint-title {
+  color: #0f172a;
+}
+
+.donor-footprint-sub {
+  margin: 0 0 14px 0;
+  font-size: 0.73rem;
+  color: var(--text-muted, #94a3b8);
+  line-height: 1.35;
+}
+
+.donor-footprint-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+
+@media (max-width: 640px) {
+  .donor-footprint-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.donor-footprint-item {
+  background: var(--bg-surface, rgba(255, 255, 255, 0.03));
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.06));
+  border-radius: 10px;
+  padding: 12px 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  transition: transform 0.2s ease, border-color 0.2s ease;
+}
+
+.donor-footprint-item:hover {
+  transform: translateY(-2px);
+  border-color: rgba(16, 185, 129, 0.3);
+}
+
+[data-theme="light"] .donor-footprint-item {
+  background: #ffffff;
+  border-color: #e2e8f0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.donor-footprint-icon-circle {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 8px;
+}
+
+.donor-footprint-icon-circle.food {
+  background: rgba(16, 185, 129, 0.12);
+  color: #10b981;
+}
+
+.donor-footprint-icon-circle.water {
+  background: rgba(2, 132, 199, 0.12);
+  color: #0284c7;
+}
+
+.donor-footprint-icon-circle.medical {
+  background: rgba(225, 29, 72, 0.12);
+  color: #e11d48;
+}
+
+.donor-footprint-icon-circle.escrow {
+  background: rgba(124, 58, 237, 0.12);
+  color: #7c3aed;
+}
+
+.donor-footprint-icon-circle .material-symbols-outlined {
+  font-size: 18px;
+}
+
+.donor-footprint-val {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: var(--text-primary, #ffffff);
+  margin-bottom: 2px;
+}
+
+[data-theme="light"] .donor-footprint-val {
+  color: #0f172a;
+}
+
+.donor-footprint-lbl {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--text-secondary, #94a3b8);
+  line-height: 1.25;
+  margin-bottom: 4px;
+}
+
+.donor-footprint-desc {
+  font-size: 0.62rem;
+  color: var(--text-muted, #64748b);
+  line-height: 1.25;
+}
+
+/* ── Digital Certificate of Humanitarian Philanthropy ── */
+.donor-certificate-frame {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.03) 0%, rgba(16, 185, 129, 0.04) 100%);
+  border: 2px solid rgba(16, 185, 129, 0.4);
+  border-radius: 16px;
+  padding: 6px;
+  position: relative;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+  margin-bottom: 16px;
+}
+
+[data-theme="light"] .donor-certificate-frame {
+  background: linear-gradient(135deg, #ffffff 0%, #f0fdf4 100%);
+  border-color: rgba(5, 150, 105, 0.4);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
+}
+
+.donor-cert-inner {
+  border: 1px dashed rgba(16, 185, 129, 0.3);
+  border-radius: 12px;
+  padding: 24px 20px;
+  background: var(--bg-surface, #121721);
+  text-align: center;
+  position: relative;
+}
+
+[data-theme="light"] .donor-cert-inner {
+  background: #ffffff;
+  border-color: rgba(5, 150, 105, 0.25);
+}
+
+.donor-cert-header {
+  margin-bottom: 16px;
+}
+
+.donor-cert-gov-seal {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: rgba(16, 185, 129, 0.1);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 10px auto;
+}
+
+.donor-cert-org {
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 1.2px;
+  color: var(--text-muted, #94a3b8);
+  text-transform: uppercase;
+}
+
+.donor-cert-network-sub {
+  font-size: 0.65rem;
+  color: var(--text-muted, #64748b);
+  margin-top: 2px;
+}
+
+.donor-cert-main-title {
+  font-size: 1.15rem;
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: #10b981;
+  margin-top: 8px;
+  text-transform: uppercase;
+}
+
+[data-theme="light"] .donor-cert-main-title {
+  color: #059669;
+}
+
+.donor-cert-ribbon-line {
+  width: 90px;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #10b981, transparent);
+  margin: 8px auto 0 auto;
+}
+
+.donor-cert-intro {
+  font-size: 0.72rem;
+  color: var(--text-muted, #94a3b8);
+  margin: 0 0 6px 0;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+}
+
+.donor-cert-holder-name {
+  font-size: 1.45rem;
+  font-weight: 800;
+  color: var(--text-primary, #ffffff);
+  margin: 0 0 10px 0;
+  letter-spacing: -0.3px;
+}
+
+[data-theme="light"] .donor-cert-holder-name {
+  color: #0f172a;
+}
+
+.donor-cert-prose {
+  font-size: 0.78rem;
+  color: var(--text-secondary, #cbd5e1);
+  line-height: 1.5;
+  max-width: 540px;
+  margin: 0 auto 16px auto;
+}
+
+[data-theme="light"] .donor-cert-prose {
+  color: #475569;
+}
+
+.donor-cert-badge-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--bg-card, rgba(255, 255, 255, 0.04));
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.08));
+  padding: 8px 16px;
+  border-radius: 999px;
+  margin-bottom: 18px;
+}
+
+[data-theme="light"] .donor-cert-badge-row {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+}
+
+.donor-cert-badge-circle {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 1.5px solid;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.donor-cert-badge-text {
+  text-align: left;
+}
+
+.donor-cert-society-name {
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.donor-cert-society-meta {
+  font-size: 0.7rem;
+  color: var(--text-muted, #94a3b8);
+}
+
+.donor-cert-society-meta strong {
+  color: var(--text-primary, #ffffff);
+}
+
+[data-theme="light"] .donor-cert-society-meta strong {
+  color: #0f172a;
+}
+
+.donor-cert-footer-grid {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  border-top: 1px solid var(--border, rgba(255, 255, 255, 0.08));
+  padding-top: 12px;
+  margin-top: 10px;
+}
+
+[data-theme="light"] .donor-cert-footer-grid {
+  border-top-color: #e2e8f0;
+}
+
+.donor-cert-col {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.donor-cert-meta-lbl {
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  color: var(--text-muted, #64748b);
+  text-transform: uppercase;
+}
+
+.donor-cert-hash-link {
+  font-size: 0.72rem;
+  font-family: monospace;
+  color: #38bdf8;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.donor-cert-hash-link:hover {
+  text-decoration: underline;
+}
+
+.donor-cert-standard-val {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--text-muted, #94a3b8);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* ── Certificate Actions Bar ── */
+.donor-cert-actions-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 12px 10px 6px 10px;
+  flex-wrap: wrap;
+}
+
+.donor-cert-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: 8px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.donor-cert-action-btn.primary {
+  background: #10b981;
+  color: #ffffff;
+  border: 1px solid #10b981;
+}
+
+.donor-cert-action-btn.primary:hover {
+  background: #059669;
+  border-color: #059669;
+  transform: translateY(-1px);
+}
+
+.donor-cert-action-btn.secondary {
+  background: var(--bg-card, rgba(255, 255, 255, 0.06));
+  color: var(--text-primary, #ffffff);
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.12));
+}
+
+.donor-cert-action-btn.secondary:hover {
+  background: var(--bg-input, rgba(255, 255, 255, 0.12));
+}
+
+[data-theme="light"] .donor-cert-action-btn.secondary {
+  background: #f1f5f9;
+  color: #0f172a;
+  border-color: #cbd5e1;
+}
+
+.donor-cert-action-btn.outline {
+  background: transparent;
+  color: #38bdf8;
+  border: 1px solid rgba(56, 189, 248, 0.35);
+}
+
+.donor-cert-action-btn.outline:hover {
+  background: rgba(56, 189, 248, 0.08);
+  border-color: #38bdf8;
+}
+
+.donor-tier-row-desc {
+  font-size: 0.68rem;
+  color: var(--text-muted, #94a3b8);
+  line-height: 1.35;
+  margin-top: 3px;
+}
+
+[data-theme="light"] .donor-tier-row-desc {
+  color: #64748b;
+}
+
+.donor-modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 14px;
+  border-top: 1px solid var(--border, rgba(255, 255, 255, 0.08));
+  flex-shrink: 0 !important;
+  margin-top: auto !important;
+}
+
+[data-theme="light"] .donor-modal-footer {
+  border-top-color: rgba(0, 0, 0, 0.08);
+}
+
+.donor-footer-verified {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.72rem;
+  color: var(--text-muted, #94a3b8);
+}
+
+/* ── Print Media Stylesheet for Official Diploma Output ── */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .donor-certificate-frame,
+  .donor-certificate-frame * {
+    visibility: visible;
+  }
+  .donor-certificate-frame {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    border: 2px solid #000000 !important;
+    background: #ffffff !important;
+    box-shadow: none !important;
+  }
+  .donor-cert-inner {
+    background: #ffffff !important;
+    border-color: #999999 !important;
+    color: #000000 !important;
+  }
+  .donor-cert-holder-name,
+  .donor-cert-main-title {
+    color: #000000 !important;
+  }
+  .donor-cert-actions-bar {
+    display: none !important;
+  }
 }
 
 .donor-modal-header {
@@ -1078,6 +1653,7 @@
   padding-bottom: 14px;
   border-bottom: 1px solid var(--border, rgba(255, 255, 255, 0.08));
   margin-bottom: 16px;
+  flex-shrink: 0 !important;
 }
 
 [data-theme="light"] .donor-modal-header {
@@ -1091,8 +1667,8 @@
 }
 
 .donor-modal-badge-preview {
-  width: 50px;
-  height: 50px;
+  width: 48px;
+  height: 48px;
   border-radius: 50%;
   border: 1.5px solid;
   display: flex;
@@ -1104,7 +1680,7 @@
 .donor-modal-title {
   margin: 0;
   font-size: 1.15rem;
-  font-weight: 800;
+  font-weight: 700;
   color: var(--text-primary, #ffffff);
 }
 
@@ -1147,13 +1723,17 @@
 .donor-current-card {
   background: var(--bg-card, rgba(255, 255, 255, 0.03));
   border: 1.5px solid;
-  border-radius: 14px;
+  border-radius: 12px;
   padding: 16px;
   margin-bottom: 18px;
 }
 
 [data-theme="light"] .donor-current-card {
   background: #f8fafc;
+}
+
+[data-theme="cyber"] .donor-current-card {
+  background: rgba(0, 255, 163, 0.04);
 }
 
 .donor-current-top {
@@ -1175,13 +1755,13 @@
 .donor-current-name {
   margin: 2px 0 0 0;
   font-size: 1.15rem;
-  font-weight: 800;
+  font-weight: 700;
 }
 
 .donor-current-sub {
   font-size: 0.74rem;
   color: var(--text-muted, #94a3b8);
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .donor-current-metric {
@@ -1205,7 +1785,7 @@
 }
 
 .donor-current-desc {
-  margin: 0 0 10px 0;
+  margin: 0 0 8px 0;
   font-size: 0.78rem;
   color: var(--text-secondary, #cbd5e1);
   line-height: 1.4;
@@ -1215,42 +1795,22 @@
   color: #475569;
 }
 
-/* Modal Ladder Progress */
-.donor-ladder-prog {
+.donor-current-next-society {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
-  margin-top: 8px;
-}
-
-.donor-ladder-prog-hdr {
-  display: flex;
-  justify-content: space-between;
-  font-size: 0.72rem;
-  color: var(--text-secondary, #cbd5e1);
-}
-
-.donor-ladder-prog-track {
-  width: 100%;
-  height: 6px;
-  background: var(--bg-input, rgba(0, 0, 0, 0.4));
-  border-radius: 999px;
-  overflow: hidden;
-}
-
-[data-theme="light"] .donor-ladder-prog-track {
-  background: #e2e8f0;
-}
-
-.donor-ladder-prog-fill {
-  height: 100%;
-  border-radius: 999px;
-  transition: width 0.3s ease;
-}
-
-.donor-ladder-prog-ftr {
-  font-size: 0.68rem;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.74rem;
   color: var(--text-muted, #94a3b8);
+  padding-top: 8px;
+  border-top: 1px solid var(--border, rgba(255, 255, 255, 0.06));
+}
+
+.donor-current-next-society strong {
+  color: var(--text-primary, #ffffff);
+}
+
+[data-theme="light"] .donor-current-next-society strong {
+  color: #0f172a;
 }
 
 .donor-ladder-title {
@@ -1267,26 +1827,26 @@
   color: #0f172a;
 }
 
-/* 12-Tier List in Modal */
+/* 15 Recognition Societies Directory */
 .donor-ladder-list {
-  display: flex;
-  flex-direction: column;
-  gap: 7px;
-  margin-bottom: 16px;
-  max-height: 480px;
-  overflow-y: auto;
-  padding-right: 4px;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 10px !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+  padding-bottom: 8px !important;
 }
 
 .donor-tier-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 10px 14px;
-  border-radius: 10px;
-  background: var(--bg-card, rgba(255, 255, 255, 0.03));
-  border: 1px solid var(--border, rgba(255, 255, 255, 0.06));
-  transition: all 0.2s ease;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  padding: 13px 16px !important;
+  border-radius: 12px !important;
+  background: var(--bg-card, rgba(255, 255, 255, 0.03)) !important;
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.06)) !important;
+  transition: all 0.2s ease !important;
+  flex-shrink: 0 !important;
 }
 
 [data-theme="light"] .donor-tier-row {
@@ -1294,19 +1854,20 @@
   border-color: #e2e8f0;
 }
 
+[data-theme="cyber"] .donor-tier-row {
+  background: rgba(0, 255, 163, 0.03);
+  border-color: rgba(0, 255, 163, 0.1);
+}
+
 .donor-tier-row.is-active {
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.05);
   border-width: 1.5px;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
 [data-theme="light"] .donor-tier-row.is-active {
   background: #ffffff;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.06);
-}
-
-.donor-tier-row.is-locked {
-  opacity: 0.65;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 }
 
 .donor-tier-left {
@@ -1316,8 +1877,8 @@
 }
 
 .donor-tier-icon-circle {
-  width: 40px;
-  height: 40px;
+  width: 38px;
+  height: 38px;
   border-radius: 50%;
   border: 1px solid;
   display: flex;
@@ -1340,31 +1901,40 @@
 
 .donor-tier-row-name {
   font-size: 0.82rem;
-  font-weight: 800;
+  font-weight: 700;
 }
 
 .donor-tier-current-tag {
   font-size: 0.6rem;
-  font-weight: 800;
+  font-weight: 700;
   color: #10b981;
-  background: rgba(16, 185, 129, 0.15);
-  padding: 1px 5px;
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  padding: 1px 6px;
   border-radius: 4px;
 }
 
 .donor-tier-unlocked-tag {
   font-size: 0.6rem;
-  font-weight: 700;
+  font-weight: 600;
+  color: #0284c7;
+  background: rgba(2, 132, 199, 0.1);
+  border: 1px solid rgba(2, 132, 199, 0.2);
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+[data-theme="dark"] .donor-tier-unlocked-tag,
+:root:not([data-theme="light"]) .donor-tier-unlocked-tag {
   color: #38bdf8;
   background: rgba(56, 189, 248, 0.12);
-  padding: 1px 5px;
-  border-radius: 4px;
+  border-color: rgba(56, 189, 248, 0.25);
 }
 
 .donor-tier-row-sub {
   font-size: 0.72rem;
   color: var(--text-muted, #94a3b8);
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .donor-tier-row-crit {
@@ -1376,22 +1946,505 @@
   color: #64748b;
 }
 
-.donor-modal-footer {
+
+
+/* ── Complete Verified Blockchain Ledger Tab ── */
+.donor-ledger-content {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.donor-ledger-header {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 12px !important;
+  flex-wrap: wrap !important;
+  padding-bottom: 12px !important;
+  border-bottom: 1px solid var(--border, rgba(255, 255, 255, 0.08)) !important;
+  flex-shrink: 0 !important;
+}
+
+.donor-ledger-stats-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 20px;
+  background: rgba(16, 185, 129, 0.08);
+  border: 1px solid rgba(16, 185, 129, 0.2);
+  font-size: 0.78rem;
+  color: #10b981;
+}
+
+/* ── Sleek Modern Payment Rail Filter Segmented Control ── */
+.donor-ledger-filter-row {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 5px !important;
+  padding: 4px !important;
+  background: rgba(255, 255, 255, 0.03) !important;
+  border: 1px solid rgba(255, 255, 255, 0.07) !important;
+  border-radius: 11px !important;
+  flex-wrap: nowrap !important;
+  overflow-x: auto !important;
+  scrollbar-width: none !important;
+  -webkit-overflow-scrolling: touch;
+  flex-shrink: 0 !important;
+  width: fit-content !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+  margin-bottom: 2px !important;
+}
+
+.donor-ledger-filter-row::-webkit-scrollbar {
+  display: none !important;
+}
+
+.donor-ledger-filter-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 7px !important;
+  padding: 6px 13px !important;
+  border-radius: 8px !important;
+  font-size: 0.76rem !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.1px !important;
+  color: var(--text-secondary, #94a3b8) !important;
+  background: transparent !important;
+  border: 1px solid transparent !important;
+  cursor: pointer !important;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  user-select: none !important;
+  white-space: nowrap !important;
+  flex-shrink: 0 !important;
+  box-sizing: border-box !important;
+  height: 32px !important;
+  line-height: 1 !important;
+}
+
+.donor-ledger-filter-btn:hover:not(.is-active) {
+  color: var(--text-primary, #ffffff) !important;
+  background: rgba(255, 255, 255, 0.05) !important;
+  border-color: rgba(255, 255, 255, 0.06) !important;
+}
+
+.donor-ledger-filter-btn .rail-icon {
+  font-size: 15px !important;
+  line-height: 1 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex-shrink: 0 !important;
+  opacity: 0.85;
+  transition: all 0.18s ease !important;
+}
+
+.donor-ledger-filter-btn:hover .rail-icon,
+.donor-ledger-filter-btn.is-active .rail-icon {
+  opacity: 1 !important;
+}
+
+.donor-ledger-filter-btn .filter-count-pill {
+  font-size: 0.68rem !important;
+  font-weight: 700 !important;
+  padding: 1px 6px !important;
+  border-radius: 5px !important;
+  background: rgba(255, 255, 255, 0.06) !important;
+  color: var(--text-muted, #94a3b8) !important;
+  transition: all 0.18s ease !important;
+  line-height: 1.3 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex-shrink: 0 !important;
+  font-variant-numeric: tabular-nums !important;
+}
+
+.donor-ledger-filter-btn:hover .filter-count-pill {
+  color: var(--text-primary, #ffffff) !important;
+  background: rgba(255, 255, 255, 0.1) !important;
+}
+
+.donor-ledger-filter-btn.is-active {
+  background: linear-gradient(135deg, var(--rail-bg, rgba(16, 185, 129, 0.16)), rgba(255, 255, 255, 0.04)) !important;
+  border-color: var(--rail-color, #10b981) !important;
+  color: #ffffff !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.14) !important;
+}
+
+.donor-ledger-filter-btn.is-active .rail-icon {
+  filter: drop-shadow(0 0 5px var(--rail-color)) !important;
+}
+
+.donor-ledger-filter-btn.is-active .filter-count-pill {
+  background: rgba(255, 255, 255, 0.2) !important;
+  color: #ffffff !important;
+  box-shadow: none !important;
+}
+
+[data-theme="light"] .donor-ledger-filter-row {
+  background: #f1f5f9 !important;
+  border-color: #e2e8f0 !important;
+}
+
+[data-theme="light"] .donor-ledger-filter-btn {
+  color: #64748b !important;
+}
+
+[data-theme="light"] .donor-ledger-filter-btn:hover:not(.is-active) {
+  background: #e2e8f0 !important;
+  color: #0f172a !important;
+}
+
+[data-theme="light"] .donor-ledger-filter-btn.is-active {
+  background: #ffffff !important;
+  border-color: var(--rail-color, #10b981) !important;
+  color: #0f172a !important;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08) !important;
+}
+
+[data-theme="light"] .donor-ledger-filter-btn .filter-count-pill {
+  background: rgba(0, 0, 0, 0.06) !important;
+  color: #64748b !important;
+}
+
+[data-theme="light"] .donor-ledger-filter-btn.is-active .filter-count-pill {
+  background: rgba(0, 0, 0, 0.08) !important;
+  color: #0f172a !important;
+}
+
+[data-theme="cyber"] .donor-ledger-filter-row {
+  background: rgba(0, 255, 163, 0.03) !important;
+  border-color: rgba(0, 255, 163, 0.15) !important;
+}
+
+[data-theme="cyber"] .donor-ledger-filter-btn.is-active {
+  box-shadow: 0 0 12px var(--rail-color) !important;
+}
+
+/* ── High-Fidelity Skeleton Loader for Complete Ledger (Matches Card Geometry 1:1) ── */
+.donor-ledger-skeleton-list,
+.donor-ledger-list {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 10px !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+  flex-shrink: 0 !important;
+}
+
+.donor-ledger-skeleton-list {
+  animation: donorSkeletonFadeIn 0.2s ease-out;
+}
+
+.donor-ledger-card,
+.donor-ledger-skeleton-card {
+  position: relative;
+  display: flex !important;
+  align-items: center !important;
+  gap: 14px !important;
+  padding: 12px 16px !important;
+  border-radius: 12px !important;
+  background: var(--bg-surface, #182030) !important;
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.08)) !important;
+  box-sizing: border-box !important;
+  height: 80px !important;
+  min-height: 80px !important;
+  max-height: 80px !important;
+  overflow: hidden !important;
+  width: 100% !important;
+  flex-shrink: 0 !important;
+}
+
+.donor-ledger-card {
+  transition: all 0.15s ease !important;
+}
+
+.donor-ledger-card:hover {
+  border-color: rgba(56, 189, 248, 0.35) !important;
+  background: var(--bg-card-hover, rgba(255, 255, 255, 0.03)) !important;
+  transform: translateY(-1px);
+}
+
+.donor-ledger-skeleton-avatar {
+  width: 40px !important;
+  height: 40px !important;
+  border-radius: 10px !important;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.03) 25%, rgba(255, 255, 255, 0.09) 50%, rgba(255, 255, 255, 0.03) 75%);
+  background-size: 200% 100%;
+  animation: donorShimmer 1.4s infinite;
+  flex-shrink: 0;
+}
+
+.donor-ledger-skeleton-details {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 5px;
+  min-width: 0;
+}
+
+.donor-ledger-skeleton-pill {
+  border-radius: 4px;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.03) 25%, rgba(255, 255, 255, 0.09) 50%, rgba(255, 255, 255, 0.03) 75%);
+  background-size: 200% 100%;
+  animation: donorShimmer 1.4s infinite;
+}
+
+.donor-ledger-skeleton-pill.title {
+  width: 58%;
+  height: 14px;
+}
+
+.donor-ledger-skeleton-pill.sub-date {
+  width: 72%;
+  height: 12px;
+}
+
+.donor-ledger-skeleton-pill.hash {
+  width: 44%;
+  height: 11px;
+}
+
+.donor-ledger-skeleton-amounts {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.donor-ledger-skeleton-pill.amt-php {
+  width: 76px;
+  height: 16px;
+}
+
+.donor-ledger-skeleton-pill.amt-eth {
+  width: 52px;
+  height: 12px;
+}
+
+@keyframes donorShimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+@keyframes donorSkeletonFadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.donor-data-fade-in {
+  animation: donorSkeletonFadeIn 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Light Theme overrides for Skeleton & Cards */
+[data-theme="light"] .donor-ledger-card,
+[data-theme="light"] .donor-ledger-skeleton-card {
+  background: #ffffff !important;
+  border-color: #e2e8f0 !important;
+}
+
+[data-theme="light"] .donor-ledger-card {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+[data-theme="light"] .donor-ledger-card:hover {
+  border-color: #cbd5e1 !important;
+  background: #f8fafc !important;
+}
+
+[data-theme="cyber"] .donor-ledger-card {
+  background: #091220 !important;
+  border-color: rgba(0, 255, 163, 0.15) !important;
+}
+
+[data-theme="light"] .donor-ledger-skeleton-avatar,
+[data-theme="light"] .donor-ledger-skeleton-pill {
+  background: linear-gradient(90deg, rgba(0, 0, 0, 0.03) 25%, rgba(0, 0, 0, 0.08) 50%, rgba(0, 0, 0, 0.03) 75%);
+  background-size: 200% 100%;
+}
+
+/* Sleek payment rail avatar - soft rounded square, not a button */
+.donor-ledger-icon-wrap {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding-top: 12px;
-  border-top: 1px solid var(--border, rgba(255, 255, 255, 0.08));
+  justify-content: center;
+  flex-shrink: 0;
 }
 
-[data-theme="light"] .donor-modal-footer {
-  border-top-color: rgba(0, 0, 0, 0.08);
+.donor-ledger-icon-wrap .material-symbols-outlined {
+  font-size: 20px;
 }
 
-.donor-footer-verified {
+/* Center details column */
+.donor-ledger-details {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.donor-ledger-title-line {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 0.72rem;
+}
+
+.donor-ledger-campaign-name {
+  font-size: 0.86rem;
+  font-weight: 700;
+  color: var(--text-primary, #ffffff);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+[data-theme="light"] .donor-ledger-campaign-name {
+  color: #0f172a;
+}
+
+.donor-ledger-sub-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.74rem;
   color: var(--text-muted, #94a3b8);
+  flex-wrap: wrap;
+}
+
+.donor-ledger-rail-name {
+  font-weight: 700;
+  font-size: 0.72rem;
+  letter-spacing: 0.2px;
+}
+
+.donor-ledger-sep {
+  opacity: 0.35;
+  font-size: 0.7rem;
+}
+
+.donor-ledger-org {
+  color: var(--text-secondary, #cbd5e1);
+}
+
+[data-theme="light"] .donor-ledger-org {
+  color: #475569;
+}
+
+/* Subtle, clean monospace on-chain verification link (no bulky buttons) */
+.donor-ledger-hash-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 1px;
+}
+
+.donor-ledger-hash-link,
+.donor-ledger-hash-verified {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.72rem;
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  color: #38bdf8;
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.donor-ledger-hash-link:hover {
+  color: #7dd3fc;
+  text-decoration: underline;
+}
+
+.donor-ledger-hash-verified {
+  color: #10b981;
+}
+
+.donor-ledger-hash-link .hash-icon,
+.donor-ledger-hash-verified .hash-icon {
+  font-size: 13px;
+}
+
+.donor-ledger-hash-copy {
+  background: transparent;
+  border: none;
+  color: var(--text-muted, #94a3b8);
+  cursor: pointer;
+  padding: 0 3px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  border-radius: 4px;
+  transition: color 0.15s;
+}
+
+.donor-ledger-hash-copy:hover {
+  color: var(--text-primary, #ffffff);
+}
+
+.donor-ledger-hash-copy .material-symbols-outlined {
+  font-size: 13px;
+}
+
+.donor-ledger-hash-copy .copied-toast {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: #10b981;
+}
+
+/* Right-aligned amounts */
+.donor-ledger-amounts {
+  text-align: right;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+.donor-ledger-php {
+  font-size: 0.94rem;
+  font-weight: 800;
+  color: #10b981;
+  letter-spacing: -0.2px;
+}
+
+.donor-ledger-eth {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-muted, #94a3b8);
+}
+
+.donor-cert-view-all-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  margin-top: 10px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, rgba(56, 189, 248, 0.15), rgba(14, 165, 233, 0.08));
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  color: #38bdf8;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.donor-cert-view-all-btn:hover {
+  background: linear-gradient(135deg, rgba(56, 189, 248, 0.25), rgba(14, 165, 233, 0.15));
+  color: #ffffff;
+  transform: translateY(-1px);
 }

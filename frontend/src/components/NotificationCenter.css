@@ -770,6 +770,25 @@
   font-size: 0.75rem;
 }
 
+/* ── Ambient Background Scrim with Soft Blur when Notification Dropdown is Open ── */
+.bbdrts-notif-dropdown-backdrop {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.46);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+  z-index: 999;
+  animation: notifBackdropFade 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+[data-theme="light"] .bbdrts-notif-dropdown-backdrop {
+  background: rgba(15, 23, 42, 0.28);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
 /* ============================================================
    Rich Notification Detail Card Modal
    (Minimalist Header & Action Icon Button)

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import SecCertificateModal from './SecCertificateModal';
 import './NgoProfileModal.css';
 
@@ -30,6 +31,18 @@ export default function NgoProfileModal({ orgId, orgData, onClose, onSelectCampa
         });
     }
   }, [orgId, orgData]);
+
+  // Keyboard accessibility: Escape closes modal (unless SEC preview is active)
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        if (previewCertUrl) return;
+        if (typeof onClose === 'function') onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onClose, previewCertUrl]);
 
   if (!profile && !loading && !error) return null;
 
@@ -96,7 +109,7 @@ export default function NgoProfileModal({ orgId, orgData, onClose, onSelectCampa
     setTimeout(() => setCopiedWallet(false), 2000);
   };
 
-  return (
+  const modalNode = (
     <div className="ngo-profile-backdrop" onClick={onClose} data-theme={theme}>
       <div className="ngo-split-modal" onClick={e => e.stopPropagation()}>
 
@@ -678,4 +691,6 @@ export default function NgoProfileModal({ orgId, orgData, onClose, onSelectCampa
       />
     </div>
   );
+
+  return typeof document !== 'undefined' ? createPortal(modalNode, document.body) : null;
 }

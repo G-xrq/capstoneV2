@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useToast } from '../context/ToastContext';
 import './NotificationCenter.css';
 
@@ -65,6 +66,7 @@ export default function NotificationCenter({ dbUser, theme, onSelectNotification
         { id: 'all', label: 'All' },
         { id: 'unread', label: 'Unread', count: unreadCount },
         { id: 'DONATION', label: 'Donations' },
+        { id: 'MILESTONE', label: 'Milestone Proofs' },
         { id: 'SECURITY', label: 'Security' },
         { id: 'SYSTEM', label: 'System' }
       ];
@@ -357,6 +359,8 @@ export default function NotificationCenter({ dbUser, theme, onSelectNotification
     switch (t) {
       case 'DONATION': return 'volunteer_activism';
       case 'CAMPAIGN': return 'campaign';
+      case 'MILESTONE':
+      case 'RELIEF_PROOF': return 'verified';
       case 'VERIFICATION':
       case 'KYC': return 'verified_user';
       case 'SECURITY': return 'shield_lock';
@@ -372,6 +376,8 @@ export default function NotificationCenter({ dbUser, theme, onSelectNotification
     switch (t) {
       case 'DONATION': return '#22c55e';
       case 'CAMPAIGN': return '#f59e0b';
+      case 'MILESTONE':
+      case 'RELIEF_PROOF': return '#10b981';
       case 'VERIFICATION':
       case 'KYC': return '#38bdf8';
       case 'SECURITY': return '#a855f7';
@@ -387,6 +393,8 @@ export default function NotificationCenter({ dbUser, theme, onSelectNotification
     switch (t) {
       case 'DONATION': return 'Donation Activity';
       case 'CAMPAIGN': return 'Disaster Relief Campaign';
+      case 'MILESTONE': return 'Relief Milestone Verified';
+      case 'RELIEF_PROOF': return 'Proof-of-Delivery Evidence';
       case 'VERIFICATION':
       case 'KYC': return 'SEC Accreditation & Governance';
       case 'SECURITY': return 'Protocol Security Alert';
@@ -474,6 +482,19 @@ export default function NotificationCenter({ dbUser, theme, onSelectNotification
           </span>
         )}
       </button>
+
+      {/* ── Ambient Background Scrim with Soft Blur when Notifications Dropdown is Open ── */}
+      {isOpen && !selectedNotif && typeof document !== 'undefined' && createPortal(
+        <div
+          className="bbdrts-notif-dropdown-backdrop"
+          onClick={() => {
+            setIsOpen(false);
+            setActiveMenuId(null);
+          }}
+          aria-hidden="true"
+        />,
+        document.body
+      )}
 
       {/* Dropdown Panel */}
       {isOpen && (
@@ -763,8 +784,8 @@ export default function NotificationCenter({ dbUser, theme, onSelectNotification
         </div>
       )}
 
-      {/* ── Standard Consistent Notification Detail Card Modal ── */}
-      {selectedNotif && (
+      {/* ── Standard Consistent Notification Detail Card Modal (Portaled to Escape Header Stacking Context) ── */}
+      {selectedNotif && typeof document !== 'undefined' && createPortal(
         <div className="bbdrts-notif-modal-backdrop" onClick={() => setSelectedNotif(null)}>
           <div className="bbdrts-notif-card-modal" onClick={e => e.stopPropagation()} data-theme={theme}>
             
@@ -917,7 +938,8 @@ export default function NotificationCenter({ dbUser, theme, onSelectNotification
             </div>
 
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
     </div>

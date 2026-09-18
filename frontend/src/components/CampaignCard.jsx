@@ -4,7 +4,7 @@ import { ethers } from 'ethers';
 import { ROLES } from '../roleConfig';
 import LocationMapPicker from './LocationMapPicker';
 import { useToast } from '../context/ToastContext';
-import DonorBadge, { globalDonorRegistry } from './DonorBadge';
+import DonorBadge, { DonorTierModal, globalDonorRegistry } from './DonorBadge';
 import EditCampaignModal from './EditCampaignModal';
 import { API_URL } from '../config';
 import './MultiRailProgress.css';
@@ -50,6 +50,111 @@ export const getOrgDisplayName = (orgAddress, orgName, campaignId) => {
 export const formatCampaignTitle = (title, id) => {
   if (!title || !String(title).trim()) return `Disaster Relief Campaign #${id}`;
   return title.trim();
+};
+
+export const parseSafeDate = (dateVal) => {
+  if (!dateVal) return null;
+  if (dateVal instanceof Date) return isNaN(dateVal.getTime()) ? null : dateVal;
+  if (typeof dateVal === 'string') {
+    let s = dateVal.trim();
+    // If format is "YYYY-MM-DD HH:MM:SS" (MySQL standard raw timestamp), convert space to 'T' and append 'Z' for UTC
+    if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}/.test(s)) {
+      s = s.replace(' ', 'T') + 'Z';
+    } else if (s.includes('T') && !s.endsWith('Z') && !s.includes('+') && !s.match(/-\d{2}:\d{2}$/)) {
+      s = s + 'Z';
+    }
+    const d = new Date(s);
+    if (!isNaN(d.getTime())) return d;
+  }
+  const fallback = new Date(dateVal);
+  return isNaN(fallback.getTime()) ? null : fallback;
+};
+
+export const formatLedgerDate = (dateVal) => {
+  if (!dateVal) return 'Recently Verified';
+  try {
+    const d = parseSafeDate(dateVal);
+    if (!d) return 'Recently Verified';
+    return d.toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  } catch (_) {
+    return 'Recently Verified';
+  }
+};
+
+export const formatTimeAgo = (dateVal) => {
+  if (!dateVal) return null;
+  try {
+    const d = parseSafeDate(dateVal);
+    if (!d) return null;
+    const now = new Date();
+    const diffMs = now.getTime() - d.getTime();
+    if (isNaN(diffMs)) return 'Just now';
+    if (diffMs < 0) return 'Just now';
+    const diffSec = Math.floor(diffMs / 1000);
+    if (diffSec < 60) return 'Just now';
+    const diffMin = Math.floor(diffSec / 60);
+    if (diffMin < 60) return `${diffMin}m ago`;
+    const diffHours = Math.floor(diffMin / 60);
+    if (diffHours < 24) return `${diffHours}h ago`;
+    const diffDays = Math.floor(diffHours / 24);
+    if (diffDays < 30) return `${diffDays}d ago`;
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  } catch (_) {
+    return null;
+  }
+};
+
+export const getTransactionRailMeta = (txHash, paymentMethod = '') => {
+  const hash = (txHash || '').toUpperCase();
+  const pm = (paymentMethod || '').toUpperCase();
+  if (pm.includes('GCASH') || hash.startsWith('FIAT-GCAS') || hash.includes('GCASH')) {
+    return {
+      railKey: 'GCASH',
+      name: 'GCash QR Ph',
+      badgeClass: 'rail-badge-gcash',
+      icon: 'qr_code_2',
+      dotClass: 'gcash-dot',
+      color: '#0052FF',
+      isWeb3: hash.startsWith('0X') && hash.length === 66
+    };
+  }
+  if (pm.includes('MAYA') || hash.startsWith('FIAT-MAYA') || hash.includes('MAYA')) {
+    return {
+      railKey: 'MAYA',
+      name: 'Maya E-Wallet',
+      badgeClass: 'rail-badge-maya',
+      icon: 'account_balance_wallet',
+      dotClass: 'maya-dot',
+      color: '#00D68F',
+      isWeb3: hash.startsWith('0X') && hash.length === 66
+    };
+  }
+  if (pm.includes('BANK') || pm.includes('CARD') || hash.startsWith('FIAT-BANK') || hash.startsWith('FIAT-CARD') || hash.startsWith('FIAT-CRED') || hash.includes('CARD') || hash.includes('BANK')) {
+    return {
+      railKey: 'CARD',
+      name: 'Cards & Bank',
+      badgeClass: 'rail-badge-card',
+      icon: 'credit_card',
+      dotClass: 'card-dot',
+      color: '#a855f7',
+      isWeb3: hash.startsWith('0X') && hash.length === 66
+    };
+  }
+  return {
+    railKey: 'ONCHAIN',
+    name: 'Web3 Sepolia',
+    badgeClass: 'rail-badge-onchain',
+    icon: 'token',
+    dotClass: 'onchain-dot',
+    color: '#f59e0b',
+    isWeb3: true
+  };
 };
 
 export const getCampaignAuditDetails = (arg1, arg2, arg3) => {
@@ -309,6 +414,38 @@ export default function CampaignCard(props) {
   const [ledgerOpen, setLedgerOpen] = useState(false);
   const [history, setHistory] = useState(null);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [ledgerSearch, setLedgerSearch] = useState('');
+  const [ledgerRailFilter, setLedgerRailFilter] = useState('ALL');
+  const [ledgerIdentityFilter, setLedgerIdentityFilter] = useState('ALL');
+  const [ledgerSort, setLedgerSort] = useState('NEWEST');
+  const [ledgerDateFilter, setLedgerDateFilter] = useState('');
+  const [datePickerOpen, setDatePickerOpen] = useState(false);
+  const [calViewDate, setCalViewDate] = useState(() => new Date());
+  const datePickerContainerRef = useRef(null);
+  const [copiedHashKey, setCopiedHashKey] = useState('');
+  const [selectedLedgerDonor, setSelectedLedgerDonor] = useState(null);
+
+  const handleCopyHash = (e, text, label = 'Reference') => {
+    if (e && e.stopPropagation) e.stopPropagation();
+    if (!text) return;
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text);
+      } else {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+      }
+      setCopiedHashKey(text);
+      showSuccess?.(`${label} copied to clipboard! 📋`, 'Copied');
+      setTimeout(() => setCopiedHashKey(''), 2200);
+    } catch (_) {
+      showWarning?.('Unable to copy to clipboard', 'Copy Failed');
+    }
+  };
 
   // Category & meta info determination
   const catInfo = useMemo(() => getCampaignCategoryInfo(camp), [camp]);
@@ -337,18 +474,263 @@ export default function CampaignCard(props) {
     return s;
   }, [camp.targetDate, camp.target_date]);
 
+  // Delivery Date & Campaign Operational Status (Option A: Graceful Distribution Phase)
+  const deliveryDateStatus = useMemo(() => {
+    if (!camp.isActive) {
+      return {
+        isOverdue: false,
+        label: 'Concluded',
+        badgeClass: 'badge-closed',
+        icon: 'lock',
+        tooltip: 'Relief campaign operations have concluded.'
+      };
+    }
+    const raw = camp.targetDate || camp.target_date;
+    if (!raw || !String(raw).trim()) {
+      return {
+        isOverdue: false,
+        label: 'Active Relief Drive',
+        badgeClass: 'badge-active',
+        icon: 'check_circle',
+        tooltip: 'Active relief drive accepting emergency contributions.'
+      };
+    }
+    const parsed = Date.parse(raw);
+    if (isNaN(parsed)) {
+      return {
+        isOverdue: false,
+        label: 'Active Relief Drive',
+        badgeClass: 'badge-active',
+        icon: 'check_circle',
+        tooltip: 'Active relief drive accepting emergency contributions.'
+      };
+    }
+
+    const targetDateObj = new Date(parsed);
+    targetDateObj.setHours(23, 59, 59, 999);
+    const now = new Date();
+
+    if (now > targetDateObj) {
+      return {
+        isOverdue: true,
+        label: 'Distribution in Progress',
+        sublabel: 'Ongoing Relief Aid',
+        badgeClass: 'badge-distribution',
+        icon: 'local_shipping',
+        tooltip: `Target delivery milestone (${formattedDeliveryDate}) reached! Field teams are actively deploying relief goods. The campaign remains open to receive ongoing emergency donations.`
+      };
+    }
+
+    return {
+      isOverdue: false,
+      label: 'Active Relief Drive',
+      badgeClass: 'badge-active',
+      icon: 'check_circle',
+      tooltip: `Active disaster relief fundraising towards target delivery on ${formattedDeliveryDate}.`
+    };
+  }, [camp.isActive, camp.targetDate, camp.target_date, formattedDeliveryDate]);
+
+  // ── Campaign Operational Lifecycle Window (Creation ... Deactivation / Target / Today) ──
+  const campaignLifecycle = useMemo(() => {
+    // 1. Start Date determination (Creation date / earliest ledger record / fallback)
+    let start = null;
+    const rawCreated = camp.createdAt || camp.created_at || camp.creationDate;
+    if (rawCreated) {
+      const p = Date.parse(rawCreated);
+      if (!isNaN(p)) start = new Date(p);
+    }
+    // If earlier donation exists in history, extend start to include it
+    if (Array.isArray(history) && history.length > 0) {
+      const times = history.map(h => h.createdAt ? Date.parse(h.createdAt) : null).filter(t => t && !isNaN(t));
+      if (times.length > 0) {
+        const earliestTx = new Date(Math.min(...times));
+        if (!start || earliestTx < start) start = earliestTx;
+      }
+    }
+    if (!start) start = new Date(Date.now() - 7 * 86400000);
+
+    // 2. End Date determination (Deactivation date / Target delivery date / Today)
+    let end = null;
+    if (!camp.isActive) {
+      const rawDeactivated = camp.updatedAt || camp.updated_at || camp.deactivatedAt;
+      if (rawDeactivated) {
+        const p = Date.parse(rawDeactivated);
+        if (!isNaN(p)) end = new Date(p);
+      }
+    }
+    if (!end && (camp.targetDate || camp.target_date)) {
+      const rawTarget = camp.targetDate || camp.target_date;
+      const p = Date.parse(rawTarget);
+      if (!isNaN(p)) end = new Date(p);
+    }
+    if (!end) {
+      end = new Date(); // Active campaign -> runs up to today
+    }
+    if (end < start) {
+      end = new Date(start.getTime() + 14 * 86400000);
+    }
+
+    const toIso = (d) => {
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${y}-${m}-${day}`;
+    };
+
+    const startIso = toIso(start);
+    const endIso = toIso(end);
+    const formattedStart = start.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    const formattedEnd = end.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+
+    return {
+      startDate: start,
+      endDate: end,
+      startIso,
+      endIso,
+      formattedStart,
+      formattedEnd,
+      label: `${formattedStart} – ${formattedEnd}`,
+      isDeactivated: !camp.isActive
+    };
+  }, [camp.createdAt, camp.created_at, camp.creationDate, camp.isActive, camp.targetDate, camp.target_date, camp.updatedAt, camp.updated_at, camp.deactivatedAt, history]);
+
+  // Sync calendar view month to campaign start date
+  useEffect(() => {
+    if (campaignLifecycle.startDate) {
+      setCalViewDate(new Date(campaignLifecycle.startDate));
+    }
+  }, [campaignLifecycle.startDate]);
+
+  // Click outside to close custom calendar popover
+  useEffect(() => {
+    if (!datePickerOpen) return;
+    const handleOutsideClick = (e) => {
+      if (datePickerContainerRef.current && !datePickerContainerRef.current.contains(e.target)) {
+        setDatePickerOpen(false);
+      }
+    };
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') setDatePickerOpen(false);
+    };
+    document.addEventListener('mousedown', handleOutsideClick);
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', handleOutsideClick);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [datePickerOpen]);
+
+  // Set of dates (YYYY-MM-DD) that have donation transactions recorded
+  const donationDateSet = useMemo(() => {
+    const s = new Set();
+    if (Array.isArray(history)) {
+      history.forEach((tx) => {
+        if (tx.createdAt) {
+          const d = parseSafeDate(tx.createdAt);
+          if (d) {
+            const y = d.getFullYear();
+            const m = String(d.getMonth() + 1).padStart(2, '0');
+            const day = String(d.getDate()).padStart(2, '0');
+            s.add(`${y}-${m}-${day}`);
+          }
+        }
+      });
+    }
+    return s;
+  }, [history]);
+
+  // Generate 35 or 42 calendar grid cells for currently viewed month
+  const calMonthData = useMemo(() => {
+    const year = calViewDate.getFullYear();
+    const month = calViewDate.getMonth();
+
+    const firstDayOfWeek = new Date(year, month, 1).getDay(); // 0 (Sun) to 6 (Sat)
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const daysInPrevMonth = new Date(year, month, 0).getDate();
+
+    const cells = [];
+
+    // Leading days from previous month
+    for (let i = firstDayOfWeek - 1; i >= 0; i--) {
+      const dayNum = daysInPrevMonth - i;
+      const prevDate = new Date(year, month - 1, dayNum);
+      const iso = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
+      cells.push({
+        dayNum,
+        iso,
+        isCurrentMonth: false,
+        dateObj: prevDate
+      });
+    }
+
+    // Days in current month
+    for (let d = 1; d <= daysInMonth; d++) {
+      const curDate = new Date(year, month, d);
+      const iso = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+      cells.push({
+        dayNum: d,
+        iso,
+        isCurrentMonth: true,
+        dateObj: curDate
+      });
+    }
+
+    // Trailing days from next month
+    const totalCells = cells.length <= 35 ? 35 : 42;
+    const remaining = totalCells - cells.length;
+    for (let d = 1; d <= remaining; d++) {
+      const nextDate = new Date(year, month + 1, d);
+      const iso = `${nextDate.getFullYear()}-${String(nextDate.getMonth() + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+      cells.push({
+        dayNum: d,
+        iso,
+        isCurrentMonth: false,
+        dateObj: nextDate
+      });
+    }
+
+    return cells;
+  }, [calViewDate]);
+
+  const handlePrevMonth = (e) => {
+    e.stopPropagation();
+    setCalViewDate(prev => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
+  };
+
+  const handleNextMonth = (e) => {
+    e.stopPropagation();
+    setCalViewDate(prev => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
+  };
+
+  const handleJumpToCampaign = (e) => {
+    e.stopPropagation();
+    setCalViewDate(new Date(campaignLifecycle.startDate));
+  };
+
+  const handleSelectDate = (iso) => {
+    if (ledgerDateFilter === iso) {
+      setLedgerDateFilter('');
+    } else {
+      setLedgerDateFilter(iso);
+    }
+    setDatePickerOpen(false);
+  };
+
   // Modal States
   const [modalOpen, setModalOpen] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [donateStep, setDonateStep] = useState(1);
   const [customMsg, setCustomMsg] = useState('');
-  const [txHash, setTxHash] = useState('');
   const [isAnonymous, setIsAnonymous] = useState(false);
-  const [legalConfirm, setLegalConfirm] = useState(false);
   const [receiptBase64, setReceiptBase64] = useState('');
   const [isUploading, setIsUploading] = useState(false);
   const [deactivateModal, setDeactivateModal] = useState({ show: false, step: 0, hash: '', error: '' });
   const [editModalOpen, setEditModalOpen] = useState(false);
+  const [txHash, setTxHash] = useState('');
+  const [legalConfirm, setLegalConfirm] = useState(false);
+  const [certModalOpen, setCertModalOpen] = useState(false);
+  const [auditProofExpanded, setAuditProofExpanded] = useState(false);
+  const [showAllocationDrawer, setShowAllocationDrawer] = useState(false);
 
   // Fiat Gateway Additions
   const [donorName, setDonorName] = useState('');
@@ -359,6 +741,97 @@ export default function CampaignCard(props) {
   const [cardExpiry, setCardExpiry] = useState('');
   const [cardCvv, setCardCvv] = useState('');
   const [isFlipped, setIsFlipped] = useState(false);
+
+  // ── Mission Utility State: Campaign Tracking & Verified Sharing ──
+  const campId = camp.id || 1;
+
+  const getTrackStorageKey = (uid) => {
+    let userIdentifier = uid;
+    if (!userIdentifier && typeof window !== 'undefined') {
+      try {
+        const u = localStorage.getItem('bbdrts_user');
+        if (u) {
+          const parsed = JSON.parse(u);
+          userIdentifier = parsed?.id ? `u_${parsed.id}` : (parsed?.email ? `u_${parsed.email}` : null);
+        }
+      } catch (_) {}
+    }
+    if (!userIdentifier && walletAddress) {
+      userIdentifier = `w_${walletAddress.toLowerCase()}`;
+    }
+    return `bbdrts_tracked_${userIdentifier || 'guest'}_camp_${campId}`;
+  };
+
+  const [isTracked, setIsTracked] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const key = getTrackStorageKey();
+      return localStorage.getItem(key) === 'true';
+    }
+    return false;
+  });
+
+  // Re-evaluate when user changes or campaign changes
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const key = getTrackStorageKey();
+      setIsTracked(localStorage.getItem(key) === 'true');
+    }
+  }, [campId, walletAddress]);
+
+  const [isCopied, setIsCopied] = useState(false);
+
+  const handleToggleTrack = (e) => {
+    e.stopPropagation();
+    const next = !isTracked;
+    setIsTracked(next);
+    if (typeof window !== 'undefined') {
+      const key = getTrackStorageKey();
+      localStorage.setItem(key, String(next));
+    }
+    if (next) {
+      showSuccess(`Now tracking Campaign #${campId} for milestone & ledger updates! 👁️`);
+    } else {
+      showInfo(`Removed Campaign #${campId} from your tracked operations`);
+    }
+  };
+
+  const handleShare = async (e) => {
+    e.stopPropagation();
+    const campaignTitle = formatCampaignTitle(camp.title, campId);
+    const shareUrl = `${window.location.origin}${window.location.pathname}?campaign=${campId}`;
+
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `BBDRTS — ${campaignTitle}`,
+          text: `Support this verified blockchain disaster relief campaign: ${campaignTitle}`,
+          url: shareUrl
+        });
+        showSuccess('Campaign link shared successfully! 🚀');
+        return;
+      } catch (err) {
+        if (err.name === 'AbortError') return;
+      }
+    }
+
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(shareUrl);
+      } else {
+        const textArea = document.createElement('textarea');
+        textArea.value = shareUrl;
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+      }
+      setIsCopied(true);
+      showSuccess('Verified campaign link copied to clipboard! 📋');
+      setTimeout(() => setIsCopied(false), 2400);
+    } catch (_) {
+      showWarning('Unable to copy link to clipboard');
+    }
+  };
 
   // Mock Gateway State
   const [gatewayMethod, setGatewayMethod] = useState('');
@@ -412,6 +885,18 @@ export default function CampaignCard(props) {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [detailsOpen]);
+
+  // Close public ledger modal on Escape
+  useEffect(() => {
+    if (!ledgerOpen) return;
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        setLedgerOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [ledgerOpen]);
 
   // Optical True-Zoom Magnifier Lens (280px, 1.5x Magnification, Symmetrical Invariance)
   const [magnifierActive, setMagnifierActive] = useState(false);
@@ -661,7 +1146,7 @@ export default function CampaignCard(props) {
 
   const isPublic = role === ROLES.PUBLIC;
 
-  // Robust Campaign Ownership Detection
+  // Robust Campaign Ownership Detection (Strictly authenticated to the current NGO)
   const campOrgAddr = camp.orgAddress || camp.org_address || camp.organization_wallet;
   let loggedInUser = null;
   try {
@@ -669,11 +1154,13 @@ export default function CampaignCard(props) {
     if (stored) loggedInUser = JSON.parse(stored);
   } catch (_) {}
 
+  const currentOrgId = props.currentUser?.id || loggedInUser?.id || props.currentUser?.orgId;
+
   // A Donor, Public/guest, or Admin can NEVER be an owner of a campaign
-  const isOwner = role === ROLES.ORGANIZATION && (
-    (Boolean(walletAddress) && Boolean(campOrgAddr) && walletAddress.toLowerCase() === campOrgAddr.toLowerCase()) ||
-    (loggedInUser && loggedInUser.role === 'organization' && camp.orgId && Number(camp.orgId) === Number(loggedInUser.id)) ||
-    (loggedInUser && loggedInUser.role === 'organization' && loggedInUser.wallet_address && Boolean(campOrgAddr) && loggedInUser.wallet_address.toLowerCase() === campOrgAddr.toLowerCase())
+  // An NGO can ONLY be an owner if the campaign's orgId strictly matches this NGO
+  const isOwner = role === ROLES.ORGANIZATION && Boolean(
+    (currentOrgId && camp.orgId && Number(camp.orgId) === Number(currentOrgId)) ||
+    (!camp.orgId && Boolean(walletAddress) && Boolean(campOrgAddr) && walletAddress.toLowerCase() === campOrgAddr.toLowerCase())
   );
   const isNgoViewer = role === ROLES.ORGANIZATION;
 
@@ -691,13 +1178,14 @@ export default function CampaignCard(props) {
       history.forEach((tx) => {
         const amt = parseFloat(tx.rawAmount || tx.amount || 0) || 0;
         const hash = (tx.txHash || tx.Tx_Hash || '').toUpperCase();
-        if (hash.startsWith('FIAT-GCAS') || hash.includes('GCASH')) {
+        const pm = (tx.paymentMethod || tx.Payment_Method || '').toUpperCase();
+        if (pm.includes('GCASH') || hash.startsWith('FIAT-GCAS') || hash.includes('GCASH')) {
           gcashAmt += amt;
           gcashCnt++;
-        } else if (hash.startsWith('FIAT-MAYA') || hash.includes('MAYA')) {
+        } else if (pm.includes('MAYA') || hash.startsWith('FIAT-MAYA') || hash.includes('MAYA')) {
           mayaAmt += amt;
           mayaCnt++;
-        } else if (hash.startsWith('FIAT-BANK') || hash.startsWith('FIAT-CARD') || hash.startsWith('FIAT-CRED') || hash.includes('BANK') || hash.includes('CARD')) {
+        } else if (pm.includes('BANK') || pm.includes('CARD') || hash.startsWith('FIAT-BANK') || hash.startsWith('FIAT-CARD') || hash.startsWith('FIAT-CRED') || hash.includes('BANK') || hash.includes('CARD')) {
           bankAmt += amt;
           bankCnt++;
         } else {
@@ -774,11 +1262,229 @@ export default function CampaignCard(props) {
     camp.isActive &&
     (role === ROLES.ADMIN || (role === ROLES.ORGANIZATION && isOwner));
 
+  // ── Public Ledger Filters, Search, Rail Aggregations & Telemetry ──
+  const ledgerCounts = useMemo(() => {
+    if (!Array.isArray(history)) return { all: 0, onchain: 0, gcash: 0, maya: 0, card: 0, named: 0, guest: 0, anon: 0 };
+    let onchain = 0, gcash = 0, maya = 0, card = 0;
+    const uniqueNamed = new Set();
+    const uniqueGuest = new Set();
+    const uniqueAnon = new Set();
+
+    history.forEach((tx) => {
+      const hash = (tx.txHash || '').toUpperCase();
+      const pm = (tx.paymentMethod || tx.Payment_Method || '').toUpperCase();
+      if (pm.includes('GCASH') || hash.startsWith('FIAT-GCAS') || hash.includes('GCASH')) gcash++;
+      else if (pm.includes('MAYA') || hash.startsWith('FIAT-MAYA') || hash.includes('MAYA')) maya++;
+      else if (pm.includes('BANK') || pm.includes('CARD') || hash.startsWith('FIAT-BANK') || hash.startsWith('FIAT-CARD') || hash.startsWith('FIAT-CRED') || hash.includes('CARD') || hash.includes('BANK')) card++;
+      else onchain++;
+
+      const isGuest = Boolean(tx.isGuest || (!tx.donorId && (!tx.wallet || tx.wallet === '' || tx.wallet === '0x0000000000000000000000000000000000000000')));
+
+      if (tx.isAnonymous) {
+        uniqueAnon.add(tx.txHash || Math.random());
+      } else if (isGuest) {
+        uniqueGuest.add(tx.txHash || Math.random());
+      } else {
+        const idKey = tx.donorId ? `id_${tx.donorId}` : (tx.wallet && tx.wallet !== '0x0000000000000000000000000000000000000000' ? tx.wallet.toLowerCase() : tx.donor || Math.random());
+        uniqueNamed.add(idKey);
+      }
+    });
+    return { all: history.length, onchain, gcash, maya, card, named: uniqueNamed.size, guest: uniqueGuest.size, anon: uniqueAnon.size };
+  }, [history]);
+
+  const ledgerTelemetry = useMemo(() => {
+    if (!Array.isArray(history) || history.length === 0) {
+      return {
+        totalPhp: 0,
+        totalEth: 0,
+        onchainCount: 0,
+        gatewayCount: 0,
+        uniqueDonors: 0,
+        namedCount: 0,
+        guestCount: 0,
+        anonCount: 0,
+        latestDate: null
+      };
+    }
+
+    let totalPhp = 0;
+    let totalEth = 0;
+    let onchainCount = 0;
+    let gatewayCount = 0;
+    const uniqueNamedEntities = new Set();
+    const uniqueGuestEntities = new Set();
+    const uniqueAnonEntities = new Set();
+    let latestTimestamp = 0;
+
+    history.forEach((rec) => {
+      const p = rec.phpAmount || Math.round((rec.rawAmount || parseFloat(rec.amount || 0)) * 170000);
+      const e = parseFloat(rec.rawAmount || rec.amount || 0);
+      totalPhp += p;
+      totalEth += e;
+
+      const hash = (rec.txHash || '').toUpperCase();
+      const pm = (rec.paymentMethod || rec.Payment_Method || '').toUpperCase();
+      if (pm.includes('GCASH') || pm.includes('MAYA') || pm.includes('BANK') || pm.includes('CARD') || hash.startsWith('FIAT-')) {
+        gatewayCount++;
+      } else {
+        onchainCount++;
+      }
+
+      const isGuest = Boolean(rec.isGuest || (!rec.donorId && (!rec.wallet || rec.wallet === '' || rec.wallet === '0x0000000000000000000000000000000000000000')));
+
+      if (rec.isAnonymous) {
+        uniqueAnonEntities.add(rec.txHash || `anon_${Math.random()}`);
+      } else if (isGuest) {
+        uniqueGuestEntities.add(rec.txHash || `guest_${Math.random()}`);
+      } else {
+        let idKey = null;
+        if (rec.donorId) {
+          idKey = `id_${rec.donorId}`;
+        } else if (rec.wallet && rec.wallet !== '0x0000000000000000000000000000000000000000') {
+          idKey = rec.wallet.toLowerCase();
+        } else if (rec.donor && rec.donor !== 'Anonymous' && rec.donor !== 'Guest Donor') {
+          idKey = rec.donor.toLowerCase();
+        } else {
+          idKey = `donor_${rec.txHash || Math.random()}`;
+        }
+        uniqueNamedEntities.add(idKey);
+      }
+
+      if (rec.createdAt) {
+        const d = parseSafeDate(rec.createdAt);
+        const t = d ? d.getTime() : NaN;
+        if (!isNaN(t) && t > latestTimestamp) latestTimestamp = t;
+      }
+    });
+
+    const totalUniqueDonors = uniqueNamedEntities.size + uniqueGuestEntities.size + uniqueAnonEntities.size;
+
+    return {
+      totalPhp,
+      totalEth,
+      onchainCount,
+      gatewayCount,
+      uniqueDonors: totalUniqueDonors,
+      namedCount: uniqueNamedEntities.size,
+      guestCount: uniqueGuestEntities.size,
+      anonCount: uniqueAnonEntities.size,
+      latestDate: latestTimestamp > 0 ? new Date(latestTimestamp) : null
+    };
+  }, [history]);
+
+  const isAnyFilterActive = ledgerRailFilter !== 'ALL' || ledgerIdentityFilter !== 'ALL' || ledgerSearch.trim() !== '' || Boolean(ledgerDateFilter) || ledgerSort !== 'NEWEST';
+
+  const handleResetFilters = () => {
+    setLedgerRailFilter('ALL');
+    setLedgerIdentityFilter('ALL');
+    setLedgerSearch('');
+    setLedgerDateFilter('');
+    setLedgerSort('NEWEST');
+  };
+
+  const formatLedgerSelectedDate = (isoStr) => {
+    if (!isoStr) return 'Date';
+    const parts = String(isoStr).split('-');
+    if (parts.length !== 3) return 'Date';
+    const d = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+    if (isNaN(d.getTime())) return 'Date';
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  };
+
+  const handleOpenLedgerDatePicker = (e) => {
+    if (e.target.closest('.ledger-date-clear-icon-btn')) return;
+    if (ledgerDateInputRef.current) {
+      if (typeof ledgerDateInputRef.current.showPicker === 'function') {
+        try {
+          ledgerDateInputRef.current.showPicker();
+        } catch (_) {
+          ledgerDateInputRef.current.focus();
+        }
+      } else {
+        ledgerDateInputRef.current.focus();
+      }
+    }
+  };
+
+  const filteredHistory = useMemo(() => {
+    if (!Array.isArray(history)) return [];
+    return history
+      .filter((rec) => {
+        const hash = (rec.txHash || '').toUpperCase();
+        const pm = (rec.paymentMethod || rec.Payment_Method || '').toUpperCase();
+
+        // 1. Payment Rail Filter
+        if (ledgerRailFilter === 'ONCHAIN') {
+          if (pm.includes('GCASH') || pm.includes('MAYA') || pm.includes('BANK') || pm.includes('CARD') || hash.startsWith('FIAT-')) return false;
+        } else if (ledgerRailFilter === 'GCASH') {
+          if (!pm.includes('GCASH') && !hash.startsWith('FIAT-GCAS') && !hash.includes('GCASH')) return false;
+        } else if (ledgerRailFilter === 'MAYA') {
+          if (!pm.includes('MAYA') && !hash.startsWith('FIAT-MAYA') && !hash.includes('MAYA')) return false;
+        } else if (ledgerRailFilter === 'CARD') {
+          if (!pm.includes('BANK') && !pm.includes('CARD') && !hash.startsWith('FIAT-BANK') && !hash.startsWith('FIAT-CARD') && !hash.startsWith('FIAT-CRED') && !hash.includes('CARD') && !hash.includes('BANK')) return false;
+        }
+
+        // 2. Identity Filter (All | Verified | Guest | Anonymous)
+        if (ledgerIdentityFilter === 'VERIFIED') {
+          if (rec.isAnonymous || rec.isGuest) return false;
+        } else if (ledgerIdentityFilter === 'GUEST') {
+          if (!rec.isGuest || rec.isAnonymous) return false;
+        } else if (ledgerIdentityFilter === 'ANON') {
+          if (!rec.isAnonymous) return false;
+        }
+
+        // 3. Search Query Filter (txHash, donor name, wallet address, amount)
+        if (ledgerSearch.trim() !== '') {
+          const q = ledgerSearch.toLowerCase().trim();
+          const matchTx = (rec.txHash || '').toLowerCase().includes(q);
+          const matchDonor = (rec.donor || '').toLowerCase().includes(q);
+          const matchWallet = (rec.wallet || '').toLowerCase().includes(q);
+          const approxPhp = String(rec.phpAmount || Math.round((rec.rawAmount || parseFloat(rec.amount || 0)) * 170000));
+          const matchAmount = approxPhp.includes(q) || String(rec.amount || '').includes(q);
+          if (!matchTx && !matchDonor && !matchWallet && !matchAmount) return false;
+        }
+
+        // 4. Bounded Date Filter (exact date match within campaign operational lifecycle)
+        if (ledgerDateFilter) {
+          if (!rec.createdAt) return false;
+          try {
+            const recD = parseSafeDate(rec.createdAt);
+            if (!recD) return false;
+            const recY = recD.getFullYear();
+            const recM = String(recD.getMonth() + 1).padStart(2, '0');
+            const recDay = String(recD.getDate()).padStart(2, '0');
+            const recIso = `${recY}-${recM}-${recDay}`;
+            if (recIso !== ledgerDateFilter) return false;
+          } catch (_) {
+            return false;
+          }
+        }
+
+        return true;
+      })
+      .sort((a, b) => {
+        const amtA = parseFloat(a.rawAmount || a.amount || 0);
+        const amtB = parseFloat(b.rawAmount || b.amount || 0);
+        if (ledgerSort === 'AMOUNT_HIGH') return amtB - amtA;
+        if (ledgerSort === 'AMOUNT_LOW') return amtA - amtB;
+        if (ledgerSort === 'OLDEST') {
+          const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+          const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+          return timeA - timeB;
+        }
+        // Default NEWEST
+        const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return timeB - timeA;
+      });
+  }, [history, ledgerRailFilter, ledgerIdentityFilter, ledgerSearch, ledgerSort, ledgerDateFilter]);
+
   /* ── Checkout Modal Logic ─────────────────────── */
   const handleOpenCheckout = () => {
     const parsed = parseFloat(amount);
-    if (isNaN(parsed) || parsed <= 0)
-      return showWarning('Please enter a valid amount greater than ₱0.', 'Invalid Donation Amount');
+    if (isNaN(parsed) || parsed <= 0) {
+      return showWarning('Please enter a valid donation amount greater than ₱0.', 'Enter Amount');
+    }
     setDonateStep(0); // Start at Payment Selector
     setCustomMsg('');
     setTxHash('');
@@ -1093,7 +1799,7 @@ export default function CampaignCard(props) {
 
       if (!res.ok) throw new Error('Payment verification failed');
       const data = await res.json();
-      setTxHash(data.tx_hash || `FIAT-${(gatewayMethod || 'GCAS').toUpperCase().substring(0,4)}-${finalRef}`);
+      setTxHash(data.tx_hash || finalRef);
 
       setGatewayStep(4); // Success step
       if (walletAddress) {
@@ -1104,6 +1810,7 @@ export default function CampaignCard(props) {
         setDonateStep(4); // Master Success Phase of CampaignCard
         onDonated?.(); // Refresh
         fetchHistory(true); // Refresh ledger
+        window.dispatchEvent(new CustomEvent('bbdrts_donation_success'));
       }, 1600);
 
     } catch (err) {
@@ -1144,14 +1851,14 @@ export default function CampaignCard(props) {
         });
         if (!res.ok) throw new Error('Card payment authorization failed');
         const data = await res.json();
-        setTxHash(data.tx_hash || 'FIAT-CARD');
+        setTxHash(data.tx_hash || '');
       } else {
         const parsed = parseFloat(amount);
         const ethAmount = parsed / 170000;
         const response = await fetch(`${apiUrl}/api/manual-donations`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', ...(token && token !== 'null' ? { 'Authorization': `Bearer ${token}` } : {}) },
-          body: JSON.stringify({ campaign_id: Number(camp.id), amount: ethAmount, payment_method: paymentMethod, receipt_base64: receiptBase64 })
+          body: JSON.stringify({ campaign_id: Number(camp.id), amount: ethAmount, payment_method: paymentMethod, receipt_base64: receiptBase64, is_anonymous: isAnonymous })
         });
         const data = await response.json();
         if (!response.ok) throw new Error(data.error || 'Failed to submit');
@@ -1238,37 +1945,55 @@ export default function CampaignCard(props) {
               ? rawEth.toFixed(7).replace(/\.?0+$/, '')
               : rawEth.toFixed(6).replace(/\.?0+$/, '');
             const approxPhp = Math.round(rawEth * 170000);
-            const globalEth = d.globalTotalEth !== undefined && d.globalTotalEth !== null
-              ? parseFloat(d.globalTotalEth)
-              : rawEth;
+            const isGuest = Boolean(d.isGuest ?? (!d.donorId && (!d.wallet || d.wallet === '' || d.wallet === '0x0000000000000000000000000000000000000000')));
+            const globalEth = isGuest
+              ? 0
+              : (d.globalTotalEth !== undefined && d.globalTotalEth !== null
+                  ? parseFloat(d.globalTotalEth)
+                  : rawEth);
             const globalPhp = Math.round(globalEth * 170000);
 
-            if (d.wallet && d.wallet !== '0x0000000000000000000000000000000000000000') {
-              globalDonorRegistry.set(d.wallet, {
-                totalEth: globalEth,
-                totalPhp: globalPhp,
-                donorName: d.donorName
-              });
-            }
-            if (d.donorId) {
-              globalDonorRegistry.set(`id_${d.donorId}`, {
-                totalEth: globalEth,
-                totalPhp: globalPhp,
-                donorName: d.donorName
-              });
+            if (!isGuest) {
+              if (d.wallet && d.wallet !== '0x0000000000000000000000000000000000000000') {
+                globalDonorRegistry.set(d.wallet, {
+                  totalEth: globalEth,
+                  totalPhp: globalPhp,
+                  donorName: d.donorName
+                });
+              }
+              if (d.donorId) {
+                globalDonorRegistry.set(`id_${d.donorId}`, {
+                  totalEth: globalEth,
+                  totalPhp: globalPhp,
+                  donorName: d.donorName
+                });
+              }
             }
 
+            const resolvedDonorName = d.Is_Anonymous
+              ? 'Anonymous'
+              : isGuest
+                ? 'Guest Donor'
+                : (d.donorName || 'Verified Donor');
+
             return {
-              donor: d.Is_Anonymous ? '🕵️ Anonymous' : (d.donorName || 'Verified Supporter'),
+              donor: resolvedDonorName,
               wallet: d.wallet,
               donorId: d.donorId,
+              isGuest,
               isAnonymous: Boolean(d.Is_Anonymous),
+              hideBadge: Boolean(d.hideBadge),
+              avatarUrl: d.avatarUrl || '',
+              username: d.username || '',
+              location: d.location || '',
+              bio: d.bio || '',
               amount: ethStr,
               rawAmount: rawEth,
               phpAmount: approxPhp,
               globalAmountEth: globalEth,
               globalAmountPhp: globalPhp,
               txHash: d.Tx_Hash,
+              paymentMethod: d.paymentMethod || d.Payment_Method || 'Crypto',
               createdAt: d.createdAt
             };
           });
@@ -1306,6 +2031,8 @@ export default function CampaignCard(props) {
                 globalAmountEth: gEth,
                 globalAmountPhp: gPhp,
                 txHash: txHash,
+                paymentMethod: 'Crypto',
+                createdAt: new Date().toISOString()
               });
 
               // Auto-sync this on-chain donation to the backend database
@@ -1349,9 +2076,35 @@ export default function CampaignCard(props) {
     }
   }, [camp.id]);
 
+  const cardRootRef = useRef(null);
+  const isTargetFromUrl = useMemo(() => {
+    if (typeof window === 'undefined') return false;
+    const p = new URLSearchParams(window.location.search);
+    return p.get('campaign') && String(p.get('campaign')) === String(camp.id);
+  }, [camp.id]);
+
+  useEffect(() => {
+    // Fallback scroll if not already positioned by view
+    if (isTargetFromUrl && cardRootRef.current) {
+      const timer = setTimeout(() => {
+        const rect = cardRootRef.current?.getBoundingClientRect();
+        if (rect && (rect.top < 0 || rect.bottom > (window.innerHeight + 100))) {
+          const targetY = window.pageYOffset + rect.top - 85;
+          window.scrollTo({ top: Math.max(0, targetY), behavior: 'smooth' });
+        }
+      }, 600);
+      return () => clearTimeout(timer);
+    }
+  }, [isTargetFromUrl]);
+
   /* ── Render ───────────────────────────────────── */
   return (
-    <div className={`card glow campaign-card fade-in ${!camp.isActive ? 'campaign-closed' : ''} ${showRailTelemetry ? 'telemetry-dropdown-active' : ''}`}>
+    <div
+      ref={cardRootRef}
+      id={props.id || `campaign-${camp.id}`}
+      className={`card glow campaign-card fade-in ${!camp.isActive ? 'campaign-closed' : ''} ${showRailTelemetry ? 'telemetry-dropdown-active' : ''} ${isTargetFromUrl ? 'campaign-card-targeted' : ''}`}
+      style={{ scrollMarginTop: '120px' }}
+    >
       <div className="campaign-card-body">
 
         {/* ── Left: Campaign Cover Media ── */}
@@ -1401,22 +2154,32 @@ export default function CampaignCard(props) {
 
         {/* ── Center: Info ── */}
         <div className="campaign-info">
-          {/* Top Meta Row: Category Pill + Status Badge */}
+          {/* Top Meta Row: Clean, Uncrowded Badges */}
           <div className="campaign-header-top">
             <div className={`campaign-category-pill ${catInfo.colorClass}`}>
               <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>{catInfo.icon}</span>
               <span>{catInfo.prefix}-00{camp.id} • {catInfo.label}</span>
             </div>
 
-            <span className={`badge ${camp.isActive ? 'badge-active' : 'badge-closed'}`}>
-              <span className="status-dot" />
-              {camp.isActive ? 'Active' : 'Closed'}
-            </span>
+            {isTargetFromUrl && (
+              <span className="campaign-targeted-badge" title="You were directed directly to this campaign via a shared link">
+                <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>share_location</span>
+                <span>Shared Link</span>
+              </span>
+            )}
 
-            {formattedDeliveryDate && (
-              <span className="campaign-date-pill" title={`Target Relief Delivery Date: ${formattedDeliveryDate}`}>
-                <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>event</span>
-                <span>Due {formattedDeliveryDate}</span>
+            {deliveryDateStatus.isOverdue ? (
+              <span 
+                className="badge badge-distribution"
+                title={deliveryDateStatus.tooltip}
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>local_shipping</span>
+                <span>Distribution in Progress</span>
+              </span>
+            ) : (
+              <span className={`badge ${camp.isActive ? 'badge-active' : 'badge-closed'}`} title={deliveryDateStatus.tooltip}>
+                <span className="status-dot" />
+                <span>{camp.isActive ? (formattedDeliveryDate ? `Active • Due ${formattedDeliveryDate}` : 'Active') : 'Concluded'}</span>
               </span>
             )}
 
@@ -1681,7 +2444,7 @@ export default function CampaignCard(props) {
                   </span>
                 </div>
                 <div className="amount-block">
-                  <span className="amount-label">Tracking ID</span>
+                  <span className="amount-label">Campaign ID</span>
                   <span className="amount-value" style={{ color: 'var(--text-secondary)' }}>
                     #{camp.id}
                   </span>
@@ -1689,6 +2452,8 @@ export default function CampaignCard(props) {
               </div>
             );
           })()}
+
+
 
           {/* Campaign Tags Row */}
           {campaignTags && campaignTags.length > 0 && (
@@ -1728,9 +2493,9 @@ export default function CampaignCard(props) {
                   <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>info</span>
                   <span>Details & Map</span>
                 </button>
-                <button className="btn btn-ghost btn-sm btn-full" onClick={toggleLedger}>
+                <button className="btn btn-ghost btn-sm btn-full" onClick={toggleLedger} title="Open public blockchain ledger modal">
                   <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>receipt_long</span>
-                  <span>{ledgerOpen ? '▲ Hide Ledger' : '▼ Public Ledger'}</span>
+                  <span>Public Ledger</span>
                 </button>
               </div>
             </div>
@@ -1765,7 +2530,7 @@ export default function CampaignCard(props) {
                   title="Inspect public blockchain ledger & donation history"
                 >
                   <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>receipt_long</span>
-                  <span>{ledgerOpen ? 'Hide' : 'Ledger'}</span>
+                  <span>Public Ledger</span>
                 </button>
               </div>
 
@@ -1812,9 +2577,10 @@ export default function CampaignCard(props) {
                   type="button"
                   className="btn btn-ghost btn-sm btn-full"
                   onClick={toggleLedger}
+                  title="Open public blockchain ledger modal"
                 >
                   <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>receipt_long</span>
-                  <span>{ledgerOpen ? '▲ Hide Ledger' : '▼ Public Ledger'}</span>
+                  <span>Public Ledger</span>
                 </button>
               </div>
             </div>
@@ -1905,130 +2671,812 @@ export default function CampaignCard(props) {
                   <span>Details & Map</span>
                 </button>
 
-                <button className="btn btn-ghost btn-sm btn-full" onClick={toggleLedger}>
+                <button className="btn btn-ghost btn-sm btn-full" onClick={toggleLedger} title="Open public blockchain ledger modal">
                   <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>receipt_long</span>
-                  <span>{ledgerOpen ? '▲ Hide Ledger' : '▼ Public Ledger'}</span>
+                  <span>Public Ledger</span>
                 </button>
               </div>
             </>
           )}
+
+          {/* ── Bottom Corner Right: Mission Tracking & Share Tools ── */}
+          <div className="campaign-utility-footer">
+            <div className="campaign-utility-cluster">
+              <button
+                type="button"
+                className={`campaign-utility-pill track-pill ${isTracked ? 'active' : ''}`}
+                onClick={handleToggleTrack}
+                title={isTracked ? 'Untrack campaign' : 'Track campaign for milestone & ledger updates'}
+                aria-label="Track campaign"
+              >
+                <span className="material-symbols-outlined utility-icon">visibility</span>
+                <span className="utility-label">{isTracked ? 'Tracking' : 'Track'}</span>
+              </button>
+
+              <button
+                type="button"
+                className={`campaign-utility-pill share-pill ${isCopied ? 'copied' : ''}`}
+                onClick={handleShare}
+                title={isCopied ? 'Link copied!' : 'Share verified campaign link'}
+                aria-label="Share campaign"
+              >
+                <span className="material-symbols-outlined utility-icon">
+                  {isCopied ? 'check' : 'share'}
+                </span>
+                <span className="utility-label">{isCopied ? 'Copied' : 'Share'}</span>
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* ── Public Transaction Ledger Panel ── */}
-      {ledgerOpen && (
-        <div className="ledger-panel">
-          <div className="ledger-header">
-            <div className="ledger-header-left">
-              <span className="material-symbols-outlined ledger-header-icon">verified_user</span>
-              <span className="ledger-header-title">Public Blockchain Ledger — Campaign #{camp.id}</span>
-            </div>
-            <div className="ledger-header-right">
-              <span className="ledger-header-note">
-                Immutable, tamper-proof receipts verifiable on Sepolia Etherscan
-              </span>
-            </div>
-          </div>
-
-          {historyLoading ? (
-            <div className="ledger-empty">
-              <div className="spinner spinner-light" />
-              <span>Querying Sepolia blockchain events…</span>
-            </div>
-          ) : !history || history.length === 0 ? (
-            <div className="ledger-empty">
-              <span className="material-symbols-outlined" style={{ fontSize: '26px', color: 'var(--text-muted)' }}>inbox</span>
-              <span>No donations recorded for this campaign yet.</span>
-            </div>
-          ) : (
-            <div className="ledger-list">
-              {history.map((rec, idx) => (
-                <div key={idx} className="ledger-record-card">
-                  {/* Top Row: Donor info on the left, Amount on the right */}
-                  <div className="ledger-record-top">
-                    <div className="ledger-donor-meta">
-                      <div className="ledger-avatar-badge">
-                        <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>
-                          {rec.isAnonymous ? 'visibility_off' : 'person'}
-                        </span>
-                      </div>
-                      <div className="ledger-donor-text">
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                          <span className="ledger-donor-name">
-                            {rec.isAnonymous 
-                              ? '🕵️ Anonymous Patron' 
-                              : (rec.donor && !rec.donor.includes('@') 
-                                  ? rec.donor 
-                                  : (rec.donor ? rec.donor.split('@')[0].replace(/[\._\d]/g, ' ').trim().split(' ').filter(Boolean).map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ') || 'Verified Donor' : 'Verified Donor')
-                                )
-                            }
-                          </span>
-                          <DonorBadge
-                            size="sm"
-                            donorId={rec.donorId}
-                            walletAddress={rec.wallet}
-                            amountEth={rec.globalAmountEth}
-                            amountPhp={rec.globalAmountPhp}
-                            showLabel={false}
-                            showTooltip={true}
-                            showProgress={false}
-                          />
-                        </div>
-                        {rec.wallet && !rec.isAnonymous && (
-                          <span className="ledger-wallet-tag" title={rec.wallet}>
-                            {shortAddr(rec.wallet)}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="ledger-amount-meta">
-                      <span className="ledger-amount-eth">+{rec.amount} ETH</span>
-                      <span className="ledger-amount-php">
-                        ≈ ₱{(rec.phpAmount || Math.round((rec.rawAmount || parseFloat(rec.amount || 0)) * 170000)).toLocaleString('en-US')} PHP
-                      </span>
+      {/* ── Public Transaction Ledger Explorer Modal Card ── */}
+      {ledgerOpen && createPortal(
+        <div
+          className="ledger-modal-backdrop fade-in"
+          onClick={() => setLedgerOpen(false)}
+        >
+          <div
+            className="ledger-modal-card bounce-in"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* 1. Masterclass Header with Security Protocol Chip */}
+            <div className="ledger-header">
+              <div className="ledger-header-left">
+                <div className="ledger-header-badge-icon">
+                  <span className="material-symbols-outlined">account_balance</span>
+                </div>
+                <div className="ledger-header-title-block">
+                  <div className="ledger-header-title-row">
+                    <span className="ledger-header-title">Public Blockchain Ledger</span>
+                    <span className="ledger-campaign-pill">Campaign #{camp.id}</span>
+                    <div className="ledger-security-badge" title="Cryptographically audited with Sepolia EVM immutability">
+                      <span className="ledger-pulse-dot" />
+                      <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>verified_user</span>
+                      <span>Sepolia Verified · 100% Immutable</span>
                     </div>
                   </div>
+                  <span className="ledger-header-subtitle">
+                    Public, tamper-proof record of verified crypto, e-wallet, and bank donations
+                  </span>
+                </div>
+              </div>
 
-                  {/* Bottom Row: On-chain Verification & Etherscan Link vs Off-Chain Gateway Audit */}
-                  <div className="ledger-record-bottom">
-                    {rec.txHash?.startsWith('FIAT-') ? (
-                      <>
-                        <div className="ledger-verified-chip" style={{ background: 'rgba(56, 189, 248, 0.12)', color: '#38bdf8', borderColor: 'rgba(56, 189, 248, 0.3)' }}>
-                          <span className="material-symbols-outlined" style={{ fontSize: '14px', color: '#38bdf8' }}>account_balance_wallet</span>
-                          <span>Off-Chain Gateway Audit</span>
-                        </div>
-                        <div className="ledger-proof-link" style={{ cursor: 'default', background: 'rgba(255,255,255,0.05)', borderColor: 'rgba(255,255,255,0.1)', color: 'var(--text-muted)' }} title="Gateway Audit Receipt">
-                          <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>receipt_long</span>
-                          <span className="ledger-hash-text">{rec.txHash}</span>
-                        </div>
-                      </>
-                    ) : (
-                      <>
-                        <div className="ledger-verified-chip">
-                          <span className="material-symbols-outlined" style={{ fontSize: '14px', color: 'var(--accent)' }}>verified</span>
-                          <span>Verified On-Chain</span>
-                        </div>
-                        <a
-                          href={`${SEPOLIA_EXPLORER}${rec.txHash}`}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="ledger-proof-link"
-                          title="Inspect Transaction on Sepolia Etherscan"
-                        >
-                          <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>receipt</span>
-                          <span className="ledger-hash-text">{rec.txHash ? `${rec.txHash.slice(0, 16)}...${rec.txHash.slice(-10)}` : 'Proof'}</span>
-                          <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>open_in_new</span>
-                        </a>
-                      </>
-                    )}
+              <div className="ledger-header-actions">
+                <button
+                  type="button"
+                  className={`ledger-sync-btn ${historyLoading ? 'is-syncing' : ''}`}
+                  onClick={() => fetchHistory(true)}
+                  disabled={historyLoading}
+                  title="Query Sepolia blockchain and sync database receipts"
+                >
+                  <span className={`material-symbols-outlined ledger-sync-icon ${historyLoading ? 'spin-anim' : ''}`}>
+                    sync
+                  </span>
+                  <span>{historyLoading ? 'Syncing…' : 'Sync'}</span>
+                </button>
+
+                <button
+                  type="button"
+                  className="ledger-modal-close-btn"
+                  onClick={() => setLedgerOpen(false)}
+                  title="Close Ledger (Esc)"
+                  aria-label="Close Public Ledger"
+                >
+                  <span className="material-symbols-outlined">close</span>
+                </button>
+              </div>
+            </div>
+
+            {/* 2. High-Impact 3-Card KPI Ribbon (Zero Truncation) */}
+            <div className="ledger-kpi-ribbon">
+              <div className="ledger-kpi-item">
+                <div className="ledger-kpi-icon-wrap kpi-green">
+                  <span className="material-symbols-outlined">payments</span>
+                </div>
+                <div className="ledger-kpi-data">
+                  <span className="ledger-kpi-label">Audited Volume</span>
+                  <div className="ledger-kpi-value-row">
+                    <span className="ledger-kpi-primary-val">₱{ledgerTelemetry.totalPhp.toLocaleString('en-US')}</span>
+                    <span className="ledger-kpi-secondary-val">
+                      ≈ {ledgerTelemetry.totalEth < 0.0001 ? ledgerTelemetry.totalEth.toFixed(6) : ledgerTelemetry.totalEth.toFixed(4)} ETH
+                    </span>
                   </div>
                 </div>
-              ))}
+              </div>
+
+              <div className="ledger-kpi-item">
+                <div className="ledger-kpi-icon-wrap kpi-blue">
+                  <span className="material-symbols-outlined">receipt_long</span>
+                </div>
+                <div className="ledger-kpi-data">
+                  <span className="ledger-kpi-label">Recorded Transactions</span>
+                  <div className="ledger-kpi-value-row">
+                    <span className="ledger-kpi-primary-val">{ledgerTelemetry.onchainCount + ledgerTelemetry.gatewayCount} Receipts</span>
+                    <span className="ledger-kpi-badge-val">
+                      {ledgerTelemetry.onchainCount} On-Chain · {ledgerTelemetry.gatewayCount} Gateway
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="ledger-kpi-item">
+                <div className="ledger-kpi-icon-wrap kpi-purple">
+                  <span className="material-symbols-outlined">groups</span>
+                </div>
+                <div className="ledger-kpi-data">
+                  <span className="ledger-kpi-label">Community Contributors</span>
+                  <div className="ledger-kpi-value-row">
+                    <span className="ledger-kpi-primary-val">{ledgerTelemetry.uniqueDonors} Donors</span>
+                    <span className="ledger-kpi-badge-val">
+                      {ledgerTelemetry.namedCount} Verified · {ledgerTelemetry.guestCount} Guest · {ledgerTelemetry.anonCount} Anon
+                    </span>
+                  </div>
+                </div>
+              </div>
             </div>
-          )}
-        </div>
+
+            {historyLoading ? (
+              <div className="ledger-empty">
+                <div className="spinner spinner-light" />
+                <span>Querying Sepolia blockchain events &amp; audited ledger…</span>
+              </div>
+            ) : !history || history.length === 0 ? (
+              <div className="ledger-empty">
+                <span className="material-symbols-outlined" style={{ fontSize: '32px', color: 'var(--text-muted)' }}>inbox</span>
+                <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>No donations recorded for this campaign yet.</span>
+                <span style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>Be the first to donate and establish an immutable record on Sepolia!</span>
+              </div>
+            ) : (
+              <>
+                {/* 3. Masterclass Web3 Control Center */}
+                <div className="ledger-control-center">
+                  {/* Row 1: Payment Rails Navigation */}
+                  <div className="ledger-rails-row">
+                    <div className="ledger-rail-tabs">
+                      <button
+                        type="button"
+                        className={`ledger-rail-tab ${ledgerRailFilter === 'ALL' ? 'active' : ''}`}
+                        onClick={() => setLedgerRailFilter('ALL')}
+                      >
+                        <span className="material-symbols-outlined rail-tab-icon">hub</span>
+                        <span>All Rails</span>
+                        <span className="ledger-pill-count">{ledgerCounts.all}</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        className={`ledger-rail-tab ${ledgerRailFilter === 'ONCHAIN' ? 'active tab-onchain' : ''}`}
+                        onClick={() => setLedgerRailFilter('ONCHAIN')}
+                      >
+                        <span className="ledger-rail-dot onchain-dot" />
+                        <span>Sepolia EVM</span>
+                        <span className="ledger-pill-count">{ledgerCounts.onchain}</span>
+                      </button>
+
+                      {ledgerCounts.gcash > 0 && (
+                        <button
+                          type="button"
+                          className={`ledger-rail-tab ${ledgerRailFilter === 'GCASH' ? 'active tab-gcash' : ''}`}
+                          onClick={() => setLedgerRailFilter('GCASH')}
+                        >
+                          <span className="ledger-rail-dot gcash-dot" />
+                          <span>GCash</span>
+                          <span className="ledger-pill-count">{ledgerCounts.gcash}</span>
+                        </button>
+                      )}
+
+                      {ledgerCounts.maya > 0 && (
+                        <button
+                          type="button"
+                          className={`ledger-rail-tab ${ledgerRailFilter === 'MAYA' ? 'active tab-maya' : ''}`}
+                          onClick={() => setLedgerRailFilter('MAYA')}
+                        >
+                          <span className="ledger-rail-dot maya-dot" />
+                          <span>Maya</span>
+                          <span className="ledger-pill-count">{ledgerCounts.maya}</span>
+                        </button>
+                      )}
+
+                      {ledgerCounts.card > 0 && (
+                        <button
+                          type="button"
+                          className={`ledger-rail-tab ${ledgerRailFilter === 'CARD' ? 'active tab-card' : ''}`}
+                          onClick={() => setLedgerRailFilter('CARD')}
+                        >
+                          <span className="ledger-rail-dot card-dot" />
+                          <span>Cards &amp; Bank</span>
+                          <span className="ledger-pill-count">{ledgerCounts.card}</span>
+                        </button>
+                      )}
+                    </div>
+
+                    {isAnyFilterActive && (
+                      <button
+                        type="button"
+                        className="ledger-clear-all-btn"
+                        onClick={handleResetFilters}
+                        title="Reset all filters"
+                      >
+                        <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>restart_alt</span>
+                        <span>Reset Filters</span>
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Row 2: Search, Contributor Type, Date & Sort */}
+                  <div className="ledger-filters-row">
+                    <div className="ledger-search-box">
+                      <span className="material-symbols-outlined ledger-search-icon">search</span>
+                      <input
+                        type="text"
+                        className="ledger-search-input"
+                        placeholder="Search donor, tx hash, wallet, amount..."
+                        value={ledgerSearch}
+                        onChange={(e) => setLedgerSearch(e.target.value)}
+                      />
+                      {ledgerSearch && (
+                        <button
+                          type="button"
+                          className="ledger-search-clear"
+                          onClick={() => setLedgerSearch('')}
+                          title="Clear search query"
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Contributor Identity Segmented Filter */}
+                    <div className="ledger-identity-tabs">
+                      <button
+                        type="button"
+                        className={`ledger-id-tab ${ledgerIdentityFilter === 'ALL' ? 'active' : ''}`}
+                        onClick={() => setLedgerIdentityFilter('ALL')}
+                      >
+                        All Donors
+                      </button>
+                      <button
+                        type="button"
+                        className={`ledger-id-tab ${ledgerIdentityFilter === 'VERIFIED' ? 'active' : ''}`}
+                        onClick={() => setLedgerIdentityFilter('VERIFIED')}
+                      >
+                        Verified ({ledgerCounts.named})
+                      </button>
+                      {ledgerCounts.guest > 0 && (
+                        <button
+                          type="button"
+                          className={`ledger-id-tab ${ledgerIdentityFilter === 'GUEST' ? 'active' : ''}`}
+                          onClick={() => setLedgerIdentityFilter('GUEST')}
+                        >
+                          Guest ({ledgerCounts.guest})
+                        </button>
+                      )}
+                      {ledgerCounts.anon > 0 && (
+                        <button
+                          type="button"
+                          className={`ledger-id-tab ${ledgerIdentityFilter === 'ANON' ? 'active' : ''}`}
+                          onClick={() => setLedgerIdentityFilter('ANON')}
+                        >
+                          Anonymous ({ledgerCounts.anon})
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Date & Sort Group */}
+                    <div className="ledger-aux-controls">
+                      <div className="ledger-custom-date-container" ref={datePickerContainerRef}>
+                        <button
+                          type="button"
+                          className={`ledger-date-btn-wrapper ${ledgerDateFilter ? 'is-active' : ''}`}
+                          onClick={() => setDatePickerOpen(prev => !prev)}
+                          title={ledgerDateFilter ? `Active filter: ${formatLedgerSelectedDate(ledgerDateFilter)}` : 'Filter transactions by date'}
+                        >
+                          <span className="material-symbols-outlined ledger-date-btn-icon">calendar_month</span>
+                          <span className="ledger-date-btn-text">
+                            {ledgerDateFilter ? formatLedgerSelectedDate(ledgerDateFilter) : 'Date'}
+                          </span>
+                          {ledgerDateFilter ? (
+                            <span
+                              role="button"
+                              tabIndex={0}
+                              className="ledger-date-clear-icon-btn"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setLedgerDateFilter('');
+                              }}
+                              title="Clear date filter"
+                            >
+                              ✕
+                            </span>
+                          ) : (
+                            <span className="ledger-date-btn-arrow">{datePickerOpen ? '▴' : '▾'}</span>
+                          )}
+                        </button>
+
+                        {datePickerOpen && (
+                          <div className="ledger-custom-calendar-popover" onClick={(e) => e.stopPropagation()}>
+                            {/* 1. Month Header & Nav */}
+                            <div className="cal-header">
+                              <button
+                                type="button"
+                                className="cal-nav-btn"
+                                onClick={handlePrevMonth}
+                                title="Previous Month"
+                              >
+                                <span className="material-symbols-outlined">chevron_left</span>
+                              </button>
+
+                              <div className="cal-month-title">
+                                {calViewDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                              </div>
+
+                              <button
+                                type="button"
+                                className="cal-nav-btn"
+                                onClick={handleNextMonth}
+                                title="Next Month"
+                              >
+                                <span className="material-symbols-outlined">chevron_right</span>
+                              </button>
+                            </div>
+
+                            {/* 2. Active Campaign Lifecycle Banner */}
+                            <div className="cal-lifecycle-banner">
+                              <span className="cal-pulse-dot" />
+                              <span className="cal-lifecycle-text">
+                                {campaignLifecycle.isDeactivated ? 'Campaign Timeline: ' : 'Active Window: '}
+                                {campaignLifecycle.formattedStart} – {campaignLifecycle.formattedEnd}
+                              </span>
+                            </div>
+
+                            {/* 3. Weekday Labels */}
+                            <div className="cal-weekdays">
+                              <span>Su</span>
+                              <span>Mo</span>
+                              <span>Tu</span>
+                              <span>We</span>
+                              <span>Th</span>
+                              <span>Fr</span>
+                              <span>Sa</span>
+                            </div>
+
+                            {/* 4. Days Grid */}
+                            <div className="cal-grid">
+                              {calMonthData.map((cell) => {
+                                const inLifecycle = cell.iso >= campaignLifecycle.startIso && cell.iso <= campaignLifecycle.endIso;
+                                const isStart = cell.iso === campaignLifecycle.startIso;
+                                const isEnd = cell.iso === campaignLifecycle.endIso;
+                                const isSelected = ledgerDateFilter === cell.iso;
+                                const hasDonations = donationDateSet.has(cell.iso);
+
+                                let cellClass = 'cal-day';
+                                if (!cell.isCurrentMonth) cellClass += ' cal-day-outside';
+                                if (inLifecycle) cellClass += ' cal-day-lifecycle';
+                                if (isStart) cellClass += ' cal-day-start';
+                                if (isEnd) cellClass += ' cal-day-end';
+                                if (isSelected) cellClass += ' cal-day-selected';
+                                if (hasDonations) cellClass += ' cal-day-has-tx';
+
+                                return (
+                                  <button
+                                    key={cell.iso}
+                                    type="button"
+                                    className={cellClass}
+                                    onClick={() => handleSelectDate(cell.iso)}
+                                    title={`${cell.iso}${hasDonations ? ' · Has recorded donations' : ''}${inLifecycle ? ' · Active campaign timeframe' : ''}`}
+                                  >
+                                    <span className="cal-day-num">{cell.dayNum}</span>
+                                    {hasDonations && <span className="cal-day-tx-dot" />}
+                                  </button>
+                                );
+                              })}
+                            </div>
+
+                            {/* 5. Footer with Legend & Actions */}
+                            <div className="cal-footer">
+                              <div className="cal-legend">
+                                <span className="cal-legend-item">
+                                  <span className="cal-legend-swatch lifecycle-swatch" />
+                                  <span>Active Window</span>
+                                </span>
+                                <span className="cal-legend-item">
+                                  <span className="cal-legend-dot tx-dot-swatch" />
+                                  <span>Donation</span>
+                                </span>
+                              </div>
+
+                              <div className="cal-actions">
+                                {ledgerDateFilter ? (
+                                  <button
+                                    type="button"
+                                    className="cal-action-btn cal-clear-btn"
+                                    onClick={() => {
+                                      setLedgerDateFilter('');
+                                      setDatePickerOpen(false);
+                                    }}
+                                  >
+                                    Clear Filter
+                                  </button>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    className="cal-action-btn cal-jump-btn"
+                                    onClick={handleJumpToCampaign}
+                                    title="View active campaign month"
+                                  >
+                                    Active Month
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="ledger-sort-wrapper">
+                        <span className="material-symbols-outlined ledger-sort-icon">sort</span>
+                        <select
+                          className="ledger-sort-select"
+                          value={ledgerSort}
+                          onChange={(e) => setLedgerSort(e.target.value)}
+                          aria-label="Sort ledger records"
+                        >
+                          <option value="NEWEST">Newest</option>
+                          <option value="OLDEST">Oldest</option>
+                          <option value="AMOUNT_HIGH">Highest Amount</option>
+                          <option value="AMOUNT_LOW">Lowest Amount</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 4. High-Density Structured Ledger Table */}
+                {filteredHistory.length === 0 ? (
+                  <div className="ledger-no-results">
+                    <span className="material-symbols-outlined ledger-no-results-icon">
+                      {ledgerDateFilter ? 'event_busy' : 'filter_alt_off'}
+                    </span>
+                    <span className="ledger-no-results-title">
+                      {ledgerDateFilter
+                        ? `No transactions recorded on ${formatLedgerSelectedDate(ledgerDateFilter)}`
+                        : 'No transactions match your query'}
+                    </span>
+                    <span className="ledger-no-results-desc">
+                      {ledgerDateFilter
+                        ? `No transactions found for ${formatLedgerSelectedDate(ledgerDateFilter)}. Try selecting another date or clear the filter to view all recorded donations.`
+                        : 'Try loosening your search keywords or resetting active filters.'}
+                    </span>
+                    <button
+                      type="button"
+                      className="btn btn-outline btn-sm"
+                      style={{ marginTop: '8px', fontSize: '0.74rem' }}
+                      onClick={() => {
+                        setLedgerSearch('');
+                        setLedgerRailFilter('ALL');
+                        setLedgerIdentityFilter('ALL');
+                        setLedgerDateFilter('');
+                      }}
+                    >
+                      {ledgerDateFilter ? 'View All Campaign Dates' : 'Reset All Filters'}
+                    </button>
+                  </div>
+                ) : (
+                  <div className="ledger-table-container">
+                    <table className="ledger-table">
+                      <thead>
+                        <tr>
+                          <th style={{ width: '18%' }}>Date &amp; Time</th>
+                          <th style={{ width: '28%' }}>Contributor</th>
+                          <th style={{ width: '16%' }}>Channel</th>
+                          <th style={{ width: '22%' }}>Audit Proof / Tx</th>
+                          <th style={{ width: '16%', textAlign: 'right' }}>Amount</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredHistory.map((rec, idx) => {
+                          const railMeta = getTransactionRailMeta(rec.txHash, rec.paymentMethod);
+                          const isCopied = copiedHashKey === rec.txHash;
+                          const isAnon = Boolean(rec.isAnonymous);
+                          const isGuest = Boolean(rec.isGuest || (!rec.donorId && (!rec.wallet || rec.wallet === '' || rec.wallet === '0x0000000000000000000000000000000000000000')));
+
+                          const parsedDate = parseSafeDate(rec.createdAt);
+                          const recDateStr = parsedDate
+                            ? parsedDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                            : 'Recently';
+                          const recTimeStr = parsedDate
+                            ? parsedDate.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+                            : '';
+                          const recIsoDate = parsedDate
+                            ? `${parsedDate.getFullYear()}-${String(parsedDate.getMonth() + 1).padStart(2, '0')}-${String(parsedDate.getDate()).padStart(2, '0')}`
+                            : '';
+                          const isDateMatched = ledgerDateFilter && recIsoDate === ledgerDateFilter;
+                          const timeAgo = formatTimeAgo(rec.createdAt);
+
+                          const donorDisplayName = isAnon
+                            ? 'Anonymous Donor'
+                            : isGuest
+                              ? (rec.donor && rec.donor !== 'Verified Donor' && rec.donor !== 'Verified Supporter' ? rec.donor : 'Guest Donor')
+                              : (rec.donor && !rec.donor.includes('@')
+                                  ? rec.donor
+                                  : (rec.donor
+                                      ? rec.donor.split('@')[0].replace(/[\._\d]/g, ' ').trim().split(' ').filter(Boolean).map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ') || 'Verified Donor'
+                                      : 'Verified Donor')
+                                );
+
+                          return (
+                            <tr key={idx} className={`ledger-row ${isDateMatched ? 'ledger-row-highlight' : ''}`}>
+                              {/* 1. Date & Time */}
+                              <td>
+                                <div className="ledger-cell-datetime">
+                                  <span className={`ledger-date-val ${isDateMatched ? 'matched-date' : ''}`}>
+                                    {recDateStr}
+                                  </span>
+                                  <div className="ledger-time-sub">
+                                    <span>{recTimeStr}</span>
+                                    {timeAgo && <span className="ledger-timeago-dot">· {timeAgo}</span>}
+                                  </div>
+                                </div>
+                              </td>
+
+                              {/* 2. Contributor */}
+                              <td>
+                                <div className="ledger-cell-contributor">
+                                  <div 
+                                    className={`ledger-avatar-dot ${isAnon ? 'dot-anon' : isGuest ? 'dot-guest' : 'dot-named'} ${!isGuest && !isAnon ? 'is-clickable' : ''}`}
+                                    onClick={() => {
+                                      if (!isGuest && !isAnon) setSelectedLedgerDonor(rec);
+                                    }}
+                                    title={!isGuest && !isAnon ? `View ${donorDisplayName}'s Donor Profile & Honors` : undefined}
+                                  >
+                                    {isAnon ? (
+                                      <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>
+                                        visibility_off
+                                      </span>
+                                    ) : isGuest ? (
+                                      <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>
+                                        person_outline
+                                      </span>
+                                    ) : rec.avatarUrl && (rec.avatarUrl.startsWith('data:') || rec.avatarUrl.startsWith('http')) ? (
+                                      <img src={rec.avatarUrl} alt={donorDisplayName} className="ledger-avatar-photo" />
+                                    ) : rec.avatarUrl && rec.avatarUrl.length < 30 ? (
+                                      <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>
+                                        {rec.avatarUrl}
+                                      </span>
+                                    ) : (
+                                      <span className="ledger-avatar-initials">
+                                        {(donorDisplayName || '?').split(' ').filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase() || 'V'}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="ledger-contributor-info">
+                                    <div className="ledger-contributor-name-line">
+                                      {!isGuest && !isAnon ? (
+                                        <button
+                                          type="button"
+                                          className="ledger-contributor-name-btn"
+                                          onClick={() => setSelectedLedgerDonor(rec)}
+                                          title={`View ${donorDisplayName}'s Profile & Impact`}
+                                        >
+                                          {donorDisplayName}
+                                        </button>
+                                      ) : (
+                                        <span className="ledger-contributor-name" title={donorDisplayName}>
+                                          {donorDisplayName}
+                                        </span>
+                                      )}
+                                      {!isGuest && !isAnon && !rec.hideBadge && (rec.donorId || rec.wallet) && (
+                                        <DonorBadge
+                                          size="xs"
+                                          donorId={rec.donorId}
+                                          walletAddress={rec.wallet}
+                                          amountEth={rec.globalAmountEth}
+                                          amountPhp={rec.globalAmountPhp}
+                                          showLabel={false}
+                                          showTooltip={true}
+                                          showProgress={false}
+                                        />
+                                      )}
+                                    </div>
+                                    {rec.wallet && !isAnon && rec.wallet !== '0x0000000000000000000000000000000000000000' ? (
+                                      <div className="ledger-wallet-inline">
+                                        <span className="ledger-wallet-mono" title={rec.wallet}>
+                                          {shortAddr(rec.wallet)}
+                                        </span>
+                                        <button
+                                          type="button"
+                                          className="ledger-copy-inline-icon"
+                                          onClick={(e) => handleCopyHash(e, rec.wallet, 'Wallet address')}
+                                          title="Copy wallet address"
+                                        >
+                                          <span className="material-symbols-outlined" style={{ fontSize: '11px' }}>
+                                            {copiedHashKey === rec.wallet ? 'check' : 'content_copy'}
+                                          </span>
+                                        </button>
+                                      </div>
+                                    ) : isAnon ? (
+                                      <span className="ledger-anon-tag">Private Donor</span>
+                                    ) : isGuest ? (
+                                      <span className="ledger-guest-tag">Guest Supporter</span>
+                                    ) : rec.username ? (
+                                      <span className="ledger-username-tag" title={`@${rec.username}`}>
+                                        @{rec.username}
+                                      </span>
+                                    ) : (
+                                      <span className="ledger-verified-tag">Verified Contributor</span>
+                                    )}
+                                  </div>
+                                </div>
+                              </td>
+
+                              {/* 3. Channel */}
+                              <td>
+                                <div className="ledger-cell-channel">
+                                  <span className={`ledger-channel-badge ${railMeta.badgeClass}`}>
+                                    <span className={`ledger-rail-dot ${railMeta.dotClass}`} />
+                                    <span>{railMeta.name}</span>
+                                  </span>
+                                  <span className="ledger-channel-audit-text">
+                                    {railMeta.railKey === 'ONCHAIN' ? 'Sepolia Mined' : 'Relayed On-Chain'}
+                                  </span>
+                                </div>
+                              </td>
+
+                              {/* 4. Audit Proof / Tx Hash */}
+                              <td>
+                                <div className="ledger-cell-proof">
+                                  <div className="ledger-proof-hash-line">
+                                    {(() => {
+                                      const rawHash = rec.txHash || '';
+                                      let cleanDisplay = rawHash;
+                                      if (cleanDisplay.startsWith('FIAT-GCAS-')) cleanDisplay = 'GCASH-' + cleanDisplay.slice(10);
+                                      else if (cleanDisplay.startsWith('FIAT-MAYA-')) cleanDisplay = 'MAYA-' + cleanDisplay.slice(10);
+                                      else if (cleanDisplay.startsWith('FIAT-BANK-')) cleanDisplay = 'BANK-' + cleanDisplay.slice(10);
+                                      else if (cleanDisplay.startsWith('FIAT-CARD-')) cleanDisplay = 'CARD-' + cleanDisplay.slice(10);
+                                      else if (cleanDisplay.startsWith('FIAT-')) cleanDisplay = 'REF-' + cleanDisplay.slice(5);
+
+                                      const shortDisplay = cleanDisplay
+                                        ? cleanDisplay.length > 20
+                                          ? `${cleanDisplay.slice(0, 8)}...${cleanDisplay.slice(-6)}`
+                                          : cleanDisplay
+                                        : 'Confirmed';
+
+                                      return (
+                                        <span className="ledger-proof-mono" title={cleanDisplay || 'Confirmed'}>
+                                          {shortDisplay}
+                                        </span>
+                                      );
+                                    })()}
+                                    {rec.txHash && (
+                                      <button
+                                        type="button"
+                                        className={`ledger-proof-copy-btn ${isCopied ? 'copied' : ''}`}
+                                        onClick={(e) => handleCopyHash(e, rec.txHash, 'Transaction reference')}
+                                        title="Copy transaction reference"
+                                      >
+                                        <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>
+                                          {isCopied ? 'check' : 'content_copy'}
+                                        </span>
+                                      </button>
+                                    )}
+                                  </div>
+                                  {rec.txHash && (() => {
+                                    const isRealMinedTx = rec.txHash.startsWith('0x') && rec.txHash.length === 66 && !rec.txHash.startsWith('0x19ddb');
+                                    const explorerHref = (railMeta.railKey === 'ONCHAIN' || isRealMinedTx)
+                                      ? `${SEPOLIA_EXPLORER}${rec.txHash}`
+                                      : 'https://sepolia.etherscan.io/address/0xB8Effb4f0394946a01da9C5342fC2e70c1E99ddA';
+                                    const linkLabel = isRealMinedTx
+                                      ? 'View on Etherscan'
+                                      : (railMeta.railKey === 'ONCHAIN' ? 'Sepolia Explorer' : 'Contract Proof');
+                                    const linkTitle = isRealMinedTx
+                                      ? `Inspect mined ${railMeta.name} transaction on Sepolia Etherscan (On-chain ETH valuation)`
+                                      : 'Inspect multi-sig escrow contract on Sepolia Etherscan';
+
+                                    return (
+                                      <a
+                                        href={explorerHref}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="ledger-etherscan-link"
+                                        title={linkTitle}
+                                      >
+                                        <span>{linkLabel}</span>
+                                        <span className="material-symbols-outlined" style={{ fontSize: '11px' }}>open_in_new</span>
+                                      </a>
+                                    );
+                                  })()}
+                                </div>
+                              </td>
+
+                              {/* 5. Amount */}
+                              <td style={{ textAlign: 'right' }}>
+                                <div className="ledger-cell-amount">
+                                  <span className="ledger-amount-primary">
+                                    ₱{(rec.phpAmount || Math.round((rec.rawAmount || parseFloat(rec.amount || 0)) * 170000)).toLocaleString('en-US')}
+                                  </span>
+                                  <span className="ledger-amount-secondary">
+                                    +{rec.amount} ETH
+                                  </span>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </>
+            )}
+
+            {/* 5. Clean Modal Footer */}
+            <div className="ledger-modal-footer">
+              <div className="ledger-footer-status">
+                <span className="material-symbols-outlined" style={{ fontSize: '14px', color: 'var(--accent, #22c55e)' }}>verified_user</span>
+                <span>Decentralized &amp; Cryptographically Audited Ledger</span>
+              </div>
+              <div className="ledger-footer-actions">
+                <span className="ledger-footer-count">Showing {filteredHistory.length} of {history.length} records</span>
+                <button
+                  type="button"
+                  className="btn btn-outline btn-sm"
+                  onClick={() => setLedgerOpen(false)}
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>,
+        document.body
       )}
+
+      {/* ── Interactive Donor Profile & Honors Modal ── */}
+      {selectedLedgerDonor && (
+        <DonorTierModal
+          isOpen={Boolean(selectedLedgerDonor)}
+          onClose={() => setSelectedLedgerDonor(null)}
+          walletAddress={selectedLedgerDonor.wallet}
+          donorId={selectedLedgerDonor.donorId}
+          txHash={selectedLedgerDonor.txHash || selectedLedgerDonor.Tx_Hash}
+          totalDonatedEth={selectedLedgerDonor.globalAmountEth || selectedLedgerDonor.rawAmount || 0}
+          totalDonatedPhp={selectedLedgerDonor.globalAmountPhp || selectedLedgerDonor.phpAmount || 0}
+          donationCount={1}
+          campaignsSupported={selectedLedgerDonor.campaignsSupported || 1}
+          dedication={selectedLedgerDonor.dedication || selectedLedgerDonor.bio || ''}
+          donorName={selectedLedgerDonor.donor || 'Verified Contributor'}
+        />
+      )}
+
+      {/* ── Donor's Own Philanthropy Certificate Modal ── */}
+      {certModalOpen && (() => {
+        let loggedUser = null;
+        try {
+          const raw = localStorage.getItem('bbdrts_user');
+          if (raw) loggedUser = JSON.parse(raw);
+        } catch (_) {}
+        const userEth = (Number(amount || 0)) / 170000;
+        const userPhp = Number(amount || 0);
+        const resolvedName = isAnonymous
+          ? 'Anonymous Donor'
+          : (donorName || loggedUser?.display_name || loggedUser?.name || 'Verified Philanthropist');
+        return (
+          <DonorTierModal
+            isOpen={certModalOpen}
+            onClose={() => setCertModalOpen(false)}
+            walletAddress={walletAddress || loggedUser?.wallet_address || ''}
+            donorId={loggedUser?.id || loggedUser?.Donor_ID || ''}
+            txHash={txHash}
+            totalDonatedEth={userEth}
+            totalDonatedPhp={userPhp}
+            donationCount={1}
+            campaignsSupported={1}
+            dedication={customMsg || loggedUser?.bio || 'In solidarity with disaster relief efforts.'}
+            donorName={resolvedName}
+          />
+        );
+      })()}
 
       {/* ── Premium Checkout Modal ── */}
       {modalOpen && createPortal(
@@ -2443,20 +3891,87 @@ export default function CampaignCard(props) {
                       <strong style={{ fontSize: '0.96rem', color: '#22c55e' }}>₱{Number(amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })} <span style={{ fontSize: '0.76rem', color: 'var(--text-muted, #94a3b8)' }}>(≈ {((Number(amount || 0)) / 170000).toFixed(5)} ETH)</span></strong>
                     </div>
 
-                    {txHash && (
-                      <div style={{ paddingTop: '8px', borderTop: '1px solid var(--border, rgba(255,255,255,0.08))' }}>
-                        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted, #94a3b8)', marginBottom: '4px' }}>Transaction Proof:</div>
-                        <a
-                          href={`${SEPOLIA_EXPLORER}${txHash}`}
-                          target="_blank"
-                          rel="noreferrer"
-                          style={{ color: '#22c55e', textDecoration: 'none', wordBreak: 'break-all', fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: '6px', fontFamily: 'monospace' }}
-                        >
-                          <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>open_in_new</span>
-                          {txHash.slice(0, 20)}...{txHash.slice(-10)}
-                        </a>
+                    {txHash && (() => {
+                      const isRealMinedTx = txHash.startsWith('0x') && txHash.length === 66 && !txHash.startsWith('0x19ddb');
+                      const explorerUrl = isRealMinedTx
+                        ? `${SEPOLIA_EXPLORER}${txHash}`
+                        : 'https://sepolia.etherscan.io/address/0xB8Effb4f0394946a01da9C5342fC2e70c1E99ddA';
+                      const linkTitle = isRealMinedTx
+                        ? 'Inspect mined transaction on Sepolia Etherscan'
+                        : 'Inspect verified contract on Sepolia Etherscan';
+                      return (
+                        <div style={{ paddingTop: '8px', borderTop: '1px solid var(--border, rgba(255,255,255,0.08))' }}>
+                          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted, #94a3b8)', marginBottom: '4px' }}>Transaction Proof:</div>
+                          <a
+                            href={explorerUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            style={{ color: '#22c55e', textDecoration: 'none', wordBreak: 'break-all', fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: '6px', fontFamily: 'monospace' }}
+                            title={linkTitle}
+                          >
+                            <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>open_in_new</span>
+                            {txHash.slice(0, 20)}...{txHash.slice(-10)}
+                          </a>
+                        </div>
+                      );
+                    })()}
+                  </div>
+
+                  {/* Donor Recognition & Certificate Callout */}
+                  <div style={{
+                    margin: '12px 0 16px',
+                    padding: '12px 14px',
+                    background: 'linear-gradient(135deg, rgba(217, 119, 6, 0.12), rgba(245, 158, 11, 0.05))',
+                    border: '1px solid rgba(245, 158, 11, 0.35)',
+                    borderRadius: '10px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px',
+                    textAlign: 'left'
+                  }}>
+                    <div style={{
+                      width: '38px',
+                      height: '38px',
+                      borderRadius: '50%',
+                      background: 'linear-gradient(135deg, #d97706, #b45309)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0,
+                      boxShadow: '0 2px 8px rgba(217, 119, 6, 0.4)'
+                    }}>
+                      <span className="material-symbols-outlined" style={{ color: '#fff', fontSize: '20px' }}>workspace_premium</span>
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: '0.84rem', fontWeight: 800, color: 'var(--text-primary, #fff)', letterSpacing: '0.2px' }}>
+                        Certificate of Philanthropy Minted
                       </div>
-                    )}
+                      <div style={{ fontSize: '0.74rem', color: 'var(--text-muted, #94a3b8)', marginTop: '2px', lineHeight: 1.3 }}>
+                        Your support is recorded on the verified relief ledger. Claim and download your official credential.
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setCertModalOpen(true)}
+                      style={{
+                        padding: '8px 12px',
+                        background: 'linear-gradient(135deg, #d97706, #b45309)',
+                        color: '#fff',
+                        border: 'none',
+                        borderRadius: '8px',
+                        fontWeight: 700,
+                        fontSize: '0.76rem',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '5px',
+                        whiteSpace: 'nowrap',
+                        boxShadow: '0 2px 6px rgba(0,0,0,0.2)'
+                      }}
+                    >
+                      <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>military_tech</span>
+                      <span>View Honors</span>
+                    </button>
                   </div>
 
                   <div style={{ display: 'flex', gap: '10px' }}>
@@ -2884,6 +4399,48 @@ export default function CampaignCard(props) {
                           </div>
                         </div>
 
+                        {/* Anonymous Toggle for Card Donation */}
+                        <div
+                          onClick={() => setIsAnonymous(!isAnonymous)}
+                          style={{
+                            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                            padding: '10px 14px', background: isAnonymous ? 'rgba(34, 197, 94, 0.08)' : 'var(--bg-card, rgba(255,255,255,0.02))',
+                            border: `1px solid ${isAnonymous ? 'rgba(34, 197, 94, 0.4)' : 'var(--border, rgba(255,255,255,0.08))'}`,
+                            borderRadius: '12px', cursor: 'pointer', transition: 'all 0.2s ease', userSelect: 'none', marginTop: '6px'
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            <div style={{
+                              width: '32px', height: '32px', borderRadius: '50%',
+                              background: isAnonymous ? 'rgba(34, 197, 94, 0.15)' : 'rgba(255,255,255,0.05)',
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              color: isAnonymous ? '#22c55e' : 'var(--text-muted, #94a3b8)',
+                              transition: 'all 0.2s ease'
+                            }}>
+                              <span className="material-symbols-outlined" style={{ fontSize: '1.15rem' }}>visibility_off</span>
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column' }}>
+                              <span style={{ fontSize: '0.84rem', fontWeight: '700', color: isAnonymous ? '#22c55e' : 'var(--text-primary, #fff)' }}>
+                                {isAnonymous ? 'Anonymous Card Donation' : 'Donate Anonymously'}
+                              </span>
+                              <span style={{ fontSize: '0.7rem', color: 'var(--text-muted, #94a3b8)' }}>
+                                {isAnonymous ? 'Cardholder name will not appear on public ledger' : 'Mask cardholder identity on public campaign ledger'}
+                              </span>
+                            </div>
+                          </div>
+                          <div style={{
+                            width: '38px', height: '20px', borderRadius: '20px',
+                            background: isAnonymous ? '#22c55e' : 'rgba(255,255,255,0.15)',
+                            position: 'relative', transition: '0.2s', flexShrink: 0
+                          }}>
+                            <div style={{
+                              width: '16px', height: '16px', background: '#fff', borderRadius: '50%',
+                              position: 'absolute', top: '2px', left: isAnonymous ? '20px' : '2px',
+                              transition: '0.2s', boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                            }} />
+                          </div>
+                        </div>
+
                       </div>
 
                       {/* Action Buttons */}
@@ -3203,6 +4760,48 @@ export default function CampaignCard(props) {
                               />
                             </label>
                           )}
+                        </div>
+
+                        {/* Anonymous Toggle for GCash & Maya */}
+                        <div
+                          onClick={() => setIsAnonymous(!isAnonymous)}
+                          style={{
+                            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                            padding: '10px 14px', background: isAnonymous ? 'rgba(34, 197, 94, 0.08)' : 'var(--bg-card, rgba(255,255,255,0.02))',
+                            border: `1px solid ${isAnonymous ? 'rgba(34, 197, 94, 0.4)' : 'var(--border, rgba(255,255,255,0.08))'}`,
+                            borderRadius: '12px', cursor: 'pointer', transition: 'all 0.2s ease', userSelect: 'none', marginBottom: '14px'
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            <div style={{
+                              width: '32px', height: '32px', borderRadius: '50%',
+                              background: isAnonymous ? 'rgba(34, 197, 94, 0.15)' : 'rgba(255,255,255,0.05)',
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              color: isAnonymous ? '#22c55e' : 'var(--text-muted, #94a3b8)',
+                              transition: 'all 0.2s ease'
+                            }}>
+                              <span className="material-symbols-outlined" style={{ fontSize: '1.15rem' }}>visibility_off</span>
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column' }}>
+                              <span style={{ fontSize: '0.84rem', fontWeight: '700', color: isAnonymous ? '#22c55e' : 'var(--text-primary, #fff)' }}>
+                                {isAnonymous ? `Anonymous ${gatewayMethod} Donation` : 'Donate Anonymously'}
+                              </span>
+                              <span style={{ fontSize: '0.7rem', color: 'var(--text-muted, #94a3b8)' }}>
+                                {isAnonymous ? 'Mask your account name & details on public ledger' : 'Cloak donor identity on the public transparency ledger'}
+                              </span>
+                            </div>
+                          </div>
+                          <div style={{
+                            width: '38px', height: '20px', borderRadius: '20px',
+                            background: isAnonymous ? '#22c55e' : 'rgba(255,255,255,0.15)',
+                            position: 'relative', transition: '0.2s', flexShrink: 0
+                          }}>
+                            <div style={{
+                              width: '16px', height: '16px', background: '#fff', borderRadius: '50%',
+                              position: 'absolute', top: '2px', left: isAnonymous ? '20px' : '2px',
+                              transition: '0.2s', boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                            }} />
+                          </div>
                         </div>
 
                         {/* Action Buttons */}
@@ -3772,34 +5371,68 @@ export default function CampaignCard(props) {
                       )}
                     </div>
 
-                  {/* Allocations breakdown (if present) */}
-                  {audit.allocations && Array.isArray(audit.allocations) && audit.allocations.length > 0 && (
-                    <div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '10px' }}>
-                        <span className="material-symbols-outlined" style={{ fontSize: '16px', color: 'var(--accent, #22c55e)' }}>pie_chart</span>
-                        <span style={{ fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--text-muted, #94a3b8)' }}>
-                          Planned Relief Allocation
-                        </span>
-                      </div>
+                  {/* Allocations breakdown with Proof of Allocation & Policies */}
+                  {audit.allocations && Array.isArray(audit.allocations) && audit.allocations.length > 0 && (() => {
+                    const targetPhp = parseFloat(camp.targetAmount || 0) * 170000;
+                    return (
+                      <div style={{ marginTop: '10px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span className="material-symbols-outlined" style={{ fontSize: '16px', color: 'var(--accent, #22c55e)' }}>pie_chart</span>
+                            <span style={{ fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--text-primary, #ffffff)' }}>
+                              Proof of Fund Allocation
+                            </span>
+                          </div>
+                          <span style={{ fontSize: '0.68rem', background: 'rgba(34, 197, 94, 0.12)', color: '#22c55e', border: '1px solid rgba(34, 197, 94, 0.25)', padding: '2px 7px', borderRadius: '10px', fontWeight: 700 }}>
+                            TRANSPARENCY AUDIT
+                          </span>
+                        </div>
 
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                        {audit.allocations.map((item, idx) => {
-                          const cleanLabel = (item.label || '').replace(/[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu, '').trim();
-                          return (
-                            <div key={idx}>
-                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px', fontSize: '0.8rem' }}>
-                                <span style={{ color: 'var(--text-secondary, #cbd5e1)', fontWeight: 500 }}>{cleanLabel}</span>
-                                <span style={{ color: 'var(--accent, #22c55e)', fontWeight: 700 }}>{item.pct}%</span>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                          {audit.allocations.map((item, idx) => {
+                            const cleanLabel = (item.label || '').replace(/[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu, '').trim();
+                            const itemPhp = (targetPhp * (item.pct / 100)).toLocaleString('en-US', { maximumFractionDigits: 0 });
+                            return (
+                              <div key={idx}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px', fontSize: '0.78rem' }}>
+                                  <span style={{ color: 'var(--text-secondary, #cbd5e1)', fontWeight: 500 }}>{cleanLabel}</span>
+                                  <span style={{ color: 'var(--text-muted, #94a3b8)', fontSize: '0.75rem' }}>
+                                    <strong style={{ color: 'var(--accent, #22c55e)' }}>₱{itemPhp}</strong> ({item.pct}%)
+                                  </span>
+                                </div>
+                                <div style={{ height: '5px', background: 'rgba(255, 255, 255, 0.06)', borderRadius: '3px', overflow: 'hidden' }}>
+                                  <div style={{ width: `${item.pct}%`, height: '100%', background: 'linear-gradient(90deg, #16a34a, #22c55e)', borderRadius: '3px' }} />
+                                </div>
                               </div>
-                              <div style={{ height: '5px', background: 'rgba(255, 255, 255, 0.06)', borderRadius: '3px', overflow: 'hidden' }}>
-                                <div style={{ width: `${item.pct}%`, height: '100%', background: 'linear-gradient(90deg, #16a34a, #22c55e)', borderRadius: '3px' }} />
-                              </div>
+                            );
+                          })}
+                        </div>
+
+                        {/* Operational Policy Disclosures in Modal */}
+                        <div style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                          <div style={{ background: 'rgba(34, 197, 94, 0.06)', border: '1px solid rgba(34, 197, 94, 0.25)', borderRadius: '8px', padding: '8px 10px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', color: '#22c55e', marginBottom: '3px' }}>
+                              <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>savings</span>
+                              <span>Surplus Reserve Policy</span>
                             </div>
-                          );
-                        })}
+                            <p style={{ margin: 0, fontSize: '0.7rem', color: 'var(--text-secondary, #cbd5e1)', lineHeight: '1.4' }}>
+                              Contributions exceeding 100% of the target goal roll over into the <strong>Calamity Response Reserve Fund</strong> for future emergency operations and unbudgeted disaster relief.
+                            </p>
+                          </div>
+
+                          <div style={{ background: 'rgba(56, 189, 248, 0.06)', border: '1px solid rgba(56, 189, 248, 0.25)', borderRadius: '8px', padding: '8px 10px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', color: '#38bdf8', marginBottom: '3px' }}>
+                              <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>priority_high</span>
+                              <span>Partial Funding Priority Rule</span>
+                            </div>
+                            <p style={{ margin: 0, fontSize: '0.7rem', color: 'var(--text-secondary, #cbd5e1)', lineHeight: '1.4' }}>
+                              If the deadline arrives before reaching the full target, accumulated funds are immediately disbursed to <strong>immediate survival necessities (food packs, clean water & medical aid)</strong> first.
+                            </p>
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    );
+                  })()}
                 </div>
 
                 {/* Right Column: Ground Deployment Audit & Map */}
@@ -3911,10 +5544,11 @@ export default function CampaignCard(props) {
                     className="btn btn-primary glow"
                     style={{ flex: 1.6, padding: '10px 16px', fontSize: '0.88rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
                     onClick={() => {
-                      setDetailsOpen(false);
-                      if (!amount || parseFloat(amount) <= 0) {
-                        setAmount('500');
+                      const parsed = parseFloat(amount);
+                      if (isNaN(parsed) || parsed <= 0) {
+                        return showWarning('Please enter a valid donation amount greater than ₱0.', 'Enter Amount');
                       }
+                      setDetailsOpen(false);
                       setDonateStep(0); // Explicitly open multi-rail payment choices (MetaMask, GCash, Maya, Bank)
                       setCustomMsg('');
                       setTxHash('');

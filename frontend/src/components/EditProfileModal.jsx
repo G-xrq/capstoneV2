@@ -119,6 +119,7 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
     notifSmsAlerts: true,
     notifMilestones: true,
     notifReliefProof: true,
+    is_anonymous: false,
     banner_url: '',
     regionCode: '',
     regionName: '',
@@ -249,6 +250,25 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
   const [notifSmsAlerts, setNotifSmsAlerts] = useState(initialPrefs.notifSmsAlerts !== false);
   const [notifMilestones, setNotifMilestones] = useState(initialPrefs.notifMilestones !== false);
   const [notifReliefProof, setNotifReliefProof] = useState(initialPrefs.notifReliefProof !== false);
+  const [isAnonymous, setIsAnonymous] = useState(() => {
+    if (currentUser?.is_anonymous !== undefined) return Boolean(currentUser.is_anonymous);
+    if (initialPrefs.is_anonymous !== undefined) return Boolean(initialPrefs.is_anonymous);
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('bbdrts_anon_default') === 'true';
+    }
+    return false;
+  });
+  const [showBadge, setShowBadge] = useState(() => {
+    if (currentUser?.show_badge !== undefined) return Boolean(currentUser.show_badge);
+    if (currentUser?.hide_badge !== undefined) return !currentUser.hide_badge;
+    if (initialPrefs.show_badge !== undefined) return Boolean(initialPrefs.show_badge);
+    if (initialPrefs.hide_badge !== undefined) return !initialPrefs.hide_badge;
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem('bbdrts_show_badge');
+      if (stored !== null) return stored === 'true';
+    }
+    return true;
+  });
   const [bio, setBio] = useState(currentUser?.bio || '');
   const [emergencyHotline, setEmergencyHotline] = useState(currentUser?.emergency_hotline || '');
   const [website, setWebsite] = useState(currentUser?.website || '');
@@ -715,18 +735,18 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
             municipality: cityName,
             barangay: barangayName,
             phone_verified: true,
-            banner_url: bannerUrl,
+            banner_url: bannerUrl && !bannerUrl.startsWith('data:') ? bannerUrl : '',
             gcash_name: gcashName,
             gcash_number: gcashNumber,
-            gcash_qr_url: gcashQrUrl,
+            gcash_qr_url: gcashQrUrl && !gcashQrUrl.startsWith('data:') ? gcashQrUrl : '',
             maya_name: mayaName,
             maya_number: mayaNumber,
-            maya_qr_url: mayaQrUrl,
+            maya_qr_url: mayaQrUrl && !mayaQrUrl.startsWith('data:') ? mayaQrUrl : '',
             bank_name: bankName,
             bank_account_name: bankAccountName,
             bank_account_number: bankAccountNumber,
             bank_details: [bankName, bankAccountName, bankAccountNumber ? `Acct: ${bankAccountNumber}` : ''].filter(Boolean).join(' • ') || bankDetails,
-            bank_qr_url: bankQrUrl,
+            bank_qr_url: bankQrUrl && !bankQrUrl.startsWith('data:') ? bankQrUrl : '',
             notifEmailReceipts,
             notifSmsAlerts,
             notifMilestones,
@@ -743,6 +763,9 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
           phone,
           location: constructedLocation || location,
           bio,
+          is_anonymous: isAnonymous,
+          show_badge: showBadge,
+          hide_badge: !showBadge,
           preferences: JSON.stringify({
             regionCode,
             regionName,
@@ -757,6 +780,10 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
             municipality: cityName,
             barangay: barangayName,
             phone_verified: true,
+            is_anonymous: isAnonymous,
+            anonymous: isAnonymous,
+            show_badge: showBadge,
+            hide_badge: !showBadge,
             notifEmailReceipts,
             notifSmsAlerts,
             notifMilestones,
@@ -791,6 +818,12 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
       if (data.user) {
         try {
           localStorage.setItem('bbdrts_user', JSON.stringify(data.user));
+          localStorage.setItem('bbdrts_anon_default', String(isAnonymous));
+          localStorage.setItem('bbdrts_show_badge', String(showBadge));
+          if (data.user?.id || data.user?.email) {
+            localStorage.setItem(`bbdrts_anon_default_${data.user.id || data.user.email}`, String(isAnonymous));
+            localStorage.setItem(`bbdrts_show_badge_${data.user.id || data.user.email}`, String(showBadge));
+          }
         } catch (_) { }
         window.dispatchEvent(new CustomEvent('bbdrts_profile_updated', { detail: data.user }));
       }
@@ -1498,6 +1531,32 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
                             onChange={e => setNotifReliefProof(e.target.checked)}
                           />
                         </label>
+
+                        <label className="bbdrts-toggle-row">
+                          <div className="bbdrts-toggle-meta">
+                            <strong>Anonymous Mode & Leaderboard Privacy</strong>
+                            <span>Mask your public persona as "Anonymous" on honor rolls, rankings, and public searches.</span>
+                          </div>
+                          <input
+                            type="checkbox"
+                            className="bbdrts-switch-checkbox"
+                            checked={isAnonymous}
+                            onChange={e => setIsAnonymous(e.target.checked)}
+                          />
+                        </label>
+
+                        <label className="bbdrts-toggle-row">
+                          <div className="bbdrts-toggle-meta">
+                            <strong>Display Merit Badge on Public Ledgers</strong>
+                            <span>Show your cumulative honors tier medal on public receipts and the leaderboard (your name remains visible even when disabled).</span>
+                          </div>
+                          <input
+                            type="checkbox"
+                            className="bbdrts-switch-checkbox"
+                            checked={showBadge}
+                            onChange={e => setShowBadge(e.target.checked)}
+                          />
+                        </label>
                       </div>
                     </div>
                   </div>
@@ -2023,8 +2082,8 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
                     <div className="bbdrts-studio-banner-notice">
                       <span className="material-symbols-outlined" style={{ color: '#38bdf8' }}>account_balance_wallet</span>
                       <div>
-                        <strong>Direct Electronic Relief Disbursement Channels</strong>
-                        <span>Configure verified GCash, Maya, and Commercial Bank accounts with official account holder credentials for emergency fiat aid disbursements.</span>
+                        <strong>Payment Accounts for Relief Operations</strong>
+                        <span>Set up your verified GCash, Maya, and Bank accounts to receive donations for emergency disaster relief.</span>
                       </div>
                     </div>
 

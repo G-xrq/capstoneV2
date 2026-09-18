@@ -138,12 +138,350 @@ export default function OrganizationView({
     'Evacuation Support'
   ];
 
+  // Multilingual keyword dictionary mapping disaster & relief scenarios to ALL necessary operation tags (English, Tagalog, Bisaya/Cebuano)
+  const TAG_KEYWORD_RULES = [
+    // 1. Flood / Baha / Lunop (Inundation, high water)
+    // Necessary tags: Flood Relief, Disaster Recovery, Emergency Food, Water Sanitation, Urgent Response, Evacuation Support, Shelter Recovery
+    {
+      name: 'Flood Disaster',
+      tags: ['Flood Relief', 'Disaster Recovery', 'Emergency Food', 'Water Sanitation', 'Urgent Response', 'Evacuation Support', 'Shelter Recovery'],
+      keywords: [
+        'flood', 'floods', 'flooding', 'flash flood', 'flashflood', 'deluge', 'inundat', 'submerged', 'water level', 'storm surge',
+        'baha', 'pagbaha', 'binaha', 'bumabaha', 'lubog', 'inundasyon', 'daluyong', 'ragasa',
+        'lunop', 'nalunop', 'nagbaha', 'nibaha', 'lapok'
+      ]
+    },
+    // 2. Typhoon / Bagyo / Storm / Cyclone / Tropical Storm / Super Typhoon
+    // Necessary tags: Disaster Recovery, Emergency Food, Water Sanitation, Shelter Recovery, Urgent Response, Evacuation Support, Children Support, Elderly Care, Community Rebuilding
+    {
+      name: 'Typhoon / Severe Storm',
+      tags: ['Disaster Recovery', 'Emergency Food', 'Water Sanitation', 'Shelter Recovery', 'Urgent Response', 'Evacuation Support', 'Children Support', 'Elderly Care', 'Community Rebuilding'],
+      keywords: [
+        'typhoon', 'super typhoon', 'storm', 'tropical storm', 'cyclone', 'monsoon', 'habagat', 'heavy rain', 'gale', 'calamity',
+        'odette', 'kristine', 'carina', 'yolanda', 'pepit', 'leon', 'marce', 'nika', 'egay', 'paeng', 'agaton', 'rai', 'haiyan',
+        'bagyo', 'unos', 'sigwa', 'hanging habagat', 'malakas na ulan', 'delubyo', 'hagupit',
+        'bagyohay', 'kusog nga hangin', 'makusog nga ulan'
+      ]
+    },
+    // 3. Earthquake / Lindol / Linog / Tremor
+    // Necessary tags: Disaster Recovery, Shelter Recovery, Medical Aid, First Aid Kits, Emergency Food, Water Sanitation, Urgent Response, Evacuation Support, Community Rebuilding
+    {
+      name: 'Earthquake Disaster',
+      tags: ['Disaster Recovery', 'Shelter Recovery', 'Medical Aid', 'First Aid Kits', 'Emergency Food', 'Water Sanitation', 'Urgent Response', 'Evacuation Support', 'Community Rebuilding'],
+      keywords: [
+        'earthquake', 'quake', 'aftershock', 'tremor', 'ground shaking', 'faultline', 'seismic',
+        'lindol', 'lumindol', 'naglindol', 'paglindol', 'pagyanig', 'yanig', 'nayanig',
+        'linog', 'nilinog', 'naglinog', 'tay-og', 'pagtay-og', 'natay-og', 'uyog'
+      ]
+    },
+    // 4. Fire / Conflagration / Sunog / Kasunogan
+    // Necessary tags: Shelter Recovery, Emergency Food, Evacuation Support, Urgent Response, Water Sanitation, First Aid Kits, Medical Aid, Community Rebuilding
+    {
+      name: 'Fire Calamity',
+      tags: ['Shelter Recovery', 'Emergency Food', 'Evacuation Support', 'Urgent Response', 'Water Sanitation', 'First Aid Kits', 'Medical Aid', 'Community Rebuilding'],
+      keywords: [
+        'fire', 'conflagration', 'blaze', 'burnt', 'burned', 'house fire', 'residential fire',
+        'sunog', 'nasunog', 'nasunugan', 'kasunogan', 'apoy', 'natupok', 'lumiyab',
+        'kalayo', 'kaayo', 'ugdaw', 'naugdaw', 'napildi sa sunog'
+      ]
+    },
+    // 5. Landslide / Pagguho / Dahili / Mudslide
+    // Necessary tags: Disaster Recovery, Urgent Response, Shelter Recovery, Evacuation Support, Emergency Food, Medical Aid, First Aid Kits
+    {
+      name: 'Landslide Disaster',
+      tags: ['Disaster Recovery', 'Urgent Response', 'Shelter Recovery', 'Evacuation Support', 'Emergency Food', 'Medical Aid', 'First Aid Kits'],
+      keywords: [
+        'landslide', 'mudslide', 'rockslide', 'soil erosion', 'debris flow',
+        'pagguho', 'guho', 'gumuho', 'tabon', 'natabunan', 'guho ng lupa',
+        'dahili', 'nidahili', 'nagdahili', 'nahugno', 'natabunan sa yuta'
+      ]
+    },
+    // 6. Volcano / Eruption / Bulkan / Ashfall / Lahar
+    // Necessary tags: Disaster Recovery, Evacuation Support, Emergency Food, Water Sanitation, Medical Aid, Urgent Response, Shelter Recovery
+    {
+      name: 'Volcanic Eruption',
+      tags: ['Disaster Recovery', 'Evacuation Support', 'Emergency Food', 'Water Sanitation', 'Medical Aid', 'Urgent Response', 'Shelter Recovery'],
+      keywords: [
+        'volcano', 'volcanic', 'eruption', 'ashfall', 'lava', 'lahar', 'pyroclastic', 'mayon', 'taal', 'kanlaon', 'bulusan', 'pinatubo',
+        'bulkan', 'pagputok', 'pagsabog ng bulkan', 'abo',
+        'pagbuto sa bulkan', 'abo sa bulkan'
+      ]
+    },
+    // 7. Tsunami / Storm Surge / Daluyong
+    // Necessary tags: Disaster Recovery, Flood Relief, Evacuation Support, Shelter Recovery, Emergency Food, Water Sanitation, Urgent Response
+    {
+      name: 'Tsunami & Storm Surge',
+      tags: ['Disaster Recovery', 'Flood Relief', 'Evacuation Support', 'Shelter Recovery', 'Emergency Food', 'Water Sanitation', 'Urgent Response'],
+      keywords: [
+        'tsunami', 'storm surge', 'daluyong', 'dambuhalang alon', 'balud', 'hunas'
+      ]
+    },
+    // 8. Evacuation / Bakwit / Displaced Families
+    // Necessary tags: Evacuation Support, Emergency Food, Water Sanitation, Shelter Recovery, Urgent Response, Children Support, Elderly Care
+    {
+      name: 'Evacuation & Displacement',
+      tags: ['Evacuation Support', 'Emergency Food', 'Water Sanitation', 'Shelter Recovery', 'Urgent Response', 'Children Support', 'Elderly Care'],
+      keywords: [
+        'evacuation', 'evacuate', 'evacuee', 'evacuees', 'displaced', 'displacement', 'temporary shelter', 'evacuation center',
+        'likas', 'paglikas', 'lumikas', 'nagsilikas', 'nawalan ng tahanan',
+        'bakwit', 'mga bakwit', 'namakwit', 'nanglayas', 'pamalhin', 'nawad-an ug balay'
+      ]
+    },
+    // 9. Emergency Food / Relief Goods / Feeding / Hunger / Bugas / Pagkaon
+    // Necessary tags: Emergency Food, Children Support, Community Rebuilding, Urgent Response
+    {
+      name: 'Food Aid & Feeding',
+      tags: ['Emergency Food', 'Children Support', 'Community Rebuilding', 'Urgent Response'],
+      keywords: [
+        'food', 'food pack', 'relief pack', 'relief goods', 'ration', 'hunger', 'nutrition', 'malnutrition', 'starvation', 'groceries', 'feeding', 'rice', 'meal',
+        'pagkain', 'bigas', 'kanin', 'gutom', 'pakain', 'ayuda', 'pamahagi', 'de-lata',
+        'pagkaon', 'bugas', 'sud-an', 'kan-on', 'rasyon', 'kagutom'
+      ]
+    },
+    // 10. Medical Mission / Outbreak / Health Crisis / Tambal / Gamot
+    // Necessary tags: Medical Aid, First Aid Kits, Urgent Response, Children Support, Elderly Care
+    {
+      name: 'Medical & Healthcare',
+      tags: ['Medical Aid', 'First Aid Kits', 'Urgent Response', 'Children Support', 'Elderly Care'],
+      keywords: [
+        'medical', 'medicine', 'medicines', 'hospital', 'doctor', 'nurse', 'patient', 'clinic', 'pharma', 'health', 'disease', 'illness', 'outbreak', 'epidemic', 'dengue', 'cholera', 'measles', 'infection',
+        'gamot', 'doktor', 'nars', 'pagamutan', 'ospital', 'kalusugan', 'sakit', 'karamdaman', 'lunas', 'pampagaling',
+        'tambal', 'tambalanan', 'masakiton', 'balatian', 'kaayohan'
+      ]
+    },
+    // 11. Clean Drinking Water / Sanitation / Hygiene / WASH / Tubig
+    // Necessary tags: Water Sanitation, Urgent Response, Medical Aid
+    {
+      name: 'Water & Sanitation',
+      tags: ['Water Sanitation', 'Urgent Response', 'Medical Aid'],
+      keywords: [
+        'water', 'drinking water', 'potable', 'sanitation', 'hygiene', 'filter', 'filtration', 'clean water', 'wash', 'mineral water',
+        'tubig', 'inumin', 'inuming tubig', 'kalinisan', 'pansala', 'hugasan',
+        'ilimnon', 'mainum', 'limpyong tubig', 'sanitasyon'
+      ]
+    },
+    // 12. Shelter Recovery / Roofing / Tarpaulins / Tents / Atop / Trapal
+    // Necessary tags: Shelter Recovery, Community Rebuilding, Disaster Recovery, Urgent Response
+    {
+      name: 'Shelter & Housing Recovery',
+      tags: ['Shelter Recovery', 'Community Rebuilding', 'Disaster Recovery', 'Urgent Response'],
+      keywords: [
+        'shelter', 'roof', 'roofing', 'tarpaulin', 'tarpaulins', 'tarp', 'tarps', 'tent', 'tents', 'housing', 'homeless', 'rebuild home', 'cgi sheet', 'timber', 'house repair',
+        'bubong', 'bubungan', 'tolda', 'tirahan', 'bahay', 'nasirang bahay', 'pansamantalang tirahan', 'trapo', 'yero',
+        'atop', 'trapal', 'balay', 'payag', 'nahugno', 'nagusbat', 'panimalay', 'pasilong', 'mapasilongan', 'sin'
+      ]
+    },
+    // 13. Children & Youth Support / Bata / Kabataan
+    // Necessary tags: Children Support, Emergency Food, Medical Aid
+    {
+      name: 'Children & Youth',
+      tags: ['Children Support', 'Emergency Food', 'Medical Aid'],
+      keywords: [
+        'child', 'children', 'kid', 'kids', 'infant', 'baby', 'pediatric', 'orphan', 'student', 'school',
+        'bata', 'mga bata', 'sanggol', 'anak', 'kabataan', 'mag-aaral', 'paaralan', 'paslit',
+        'masuso', 'batang gamay', 'eskwela', 'tulunghaan'
+      ]
+    },
+    // 14. Elderly Care / Senior Citizens / Tigulang / Lolo & Lola
+    // Necessary tags: Elderly Care, Medical Aid, Emergency Food
+    {
+      name: 'Elderly Care',
+      tags: ['Elderly Care', 'Medical Aid', 'Emergency Food'],
+      keywords: [
+        'elderly', 'senior', 'seniors', 'aged', 'grandparent', 'grandparents', 'pensioner', 'senior citizen',
+        'matanda', 'mga matatanda', 'lolo', 'lola', 'nakatatanda', 'may edad',
+        'tiguwang', 'tigulang', 'mga tigulang', 'katigulangan', 'apohan'
+      ]
+    },
+    // 15. Blood Donation / Red Cross / Dugo / Sandugo
+    // Necessary tags: Blood Donation, Medical Aid, Urgent Response
+    {
+      name: 'Blood Donation',
+      tags: ['Blood Donation', 'Medical Aid', 'Urgent Response'],
+      keywords: [
+        'blood', 'transfusion', 'donor', 'plasma', 'platelet', 'red cross', 'blood donation', 'blood drive',
+        'dugo', 'sandugo', 'donasyon ng dugo', 'salin ng dugo',
+        'donar ug dugo', 'kuhaag dugo'
+      ]
+    },
+    // 16. First Aid / Trauma / Wounds / Bandages
+    // Necessary tags: First Aid Kits, Medical Aid, Urgent Response
+    {
+      name: 'First Aid & Trauma',
+      tags: ['First Aid Kits', 'Medical Aid', 'Urgent Response'],
+      keywords: [
+        'first aid', 'bandage', 'gauze', 'antiseptic', 'wound', 'splint', 'trauma kit',
+        'paunang lunas', 'benda', 'gasang pantapal', 'sugat', 'gamit pansugat',
+        'paunang tabang', 'bendahe', 'samad', 'patambal'
+      ]
+    },
+    // 17. Livelihood Assistance / Fisherfolk / Farmers / Bangka
+    // Necessary tags: Livelihood Assistance, Community Rebuilding
+    {
+      name: 'Livelihood Assistance',
+      tags: ['Livelihood Assistance', 'Community Rebuilding'],
+      keywords: [
+        'livelihood', 'fisherman', 'fishermen', 'fisherfolk', 'boat', 'banca', 'farmer', 'crop', 'harvest', 'seed', 'vendor',
+        'kabuhayan', 'mangingisda', 'bangka', 'magsasaka', 'pananim', 'ani', 'tindero', 'hanapbuhay',
+        'panginabuhian', 'mananagat', 'baroto', 'mag-uuma', 'uma', 'tanum'
+      ]
+    },
+    // 18. Community Rebuilding / Bayanihan / Pagbangon
+    // Necessary tags: Community Rebuilding, Disaster Recovery, Livelihood Assistance
+    {
+      name: 'Community Rebuilding',
+      tags: ['Community Rebuilding', 'Disaster Recovery', 'Livelihood Assistance'],
+      keywords: [
+        'community', 'rebuild', 'rebuilding', 'recovery', 'rehabilitat', 'restoration', 'infrastructure', 'barangay',
+        'pamayanan', 'bayanihan', 'pagbangon', 'kumpuni', 'pagsasaayos', 'tulong-tulong',
+        'komunidad', 'timbayayong', 'ayohon', 'panaghiusa'
+      ]
+    },
+    // 19. Urgent Response / SOS / Rescue / Saklolo / Tabang
+    // Necessary tags: Urgent Response, Evacuation Support, First Aid Kits
+    {
+      name: 'Urgent & Rescue',
+      tags: ['Urgent Response', 'Evacuation Support', 'First Aid Kits'],
+      keywords: [
+        'urgent', 'emergency', 'emergencies', 'critical', 'sos', 'rapid', 'immediate', 'crisis', 'rescue', 'alarm', 'alert',
+        'agaran', 'madalian', 'saklolo', 'sakuna', 'krisis', 'sagip',
+        'dinali-an', 'tabang', 'luwas', 'kuyaw', 'alarma', 'dali'
+      ]
+    }
+  ];
 
+  const detectTagsFromTitle = (titleText) => {
+    if (!titleText || typeof titleText !== 'string') return [];
+    const normalized = titleText.toLowerCase();
+    const matchedSet = new Set();
+
+    for (const rule of TAG_KEYWORD_RULES) {
+      let matched = false;
+      for (const kw of rule.keywords) {
+        if (kw.includes(' ')) {
+          if (normalized.includes(kw)) {
+            matched = true;
+            break;
+          }
+        } else {
+          const escaped = kw.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
+          const regex = new RegExp(`(^|[^a-zA-Z0-9])${escaped}`, 'i');
+          if (regex.test(normalized)) {
+            matched = true;
+            break;
+          }
+        }
+      }
+      if (matched && Array.isArray(rule.tags)) {
+        rule.tags.forEach(tag => {
+          if (PRESET_CAMPAIGN_TAGS.includes(tag)) {
+            matchedSet.add(tag);
+          }
+        });
+      }
+    }
+    return Array.from(matchedSet);
+  };
+
+  const detectCategoryFromTitle = (titleText) => {
+    if (!titleText || typeof titleText !== 'string') return null;
+    const lower = titleText.toLowerCase();
+
+    // Check for Disaster Relief keywords (English, Tagalog, Bisaya)
+    const disasterKeywords = [
+      'flood', 'floods', 'flooding', 'deluge', 'baha', 'pagbaha', 'binaha', 'lunop', 'nalunop', 'nagbaha', 'storm surge', 'daluyong',
+      'typhoon', 'super typhoon', 'storm', 'cyclone', 'bagyo', 'unos', 'habagat', 'odette', 'kristine', 'carina', 'yolanda', 'pepit', 'leon', 'marce', 'nika', 'egay', 'paeng', 'agaton',
+      'earthquake', 'quake', 'lindol', 'linog', 'tay-og', 'aftershock', 'tremor',
+      'landslide', 'pagguho', 'dahili', 'mudslide',
+      'volcano', 'bulkan', 'eruption', 'ashfall', 'mayon', 'taal', 'kanlaon',
+      'fire', 'sunog', 'kasunogan', 'ugdaw', 'conflagration',
+      'calamity', 'kalamidad', 'sakuna', 'rescue', 'evacuation', 'bakwit', 'likas', 'displaced', 'tsunami'
+    ];
+
+    for (const kw of disasterKeywords) {
+      if (kw.includes(' ')) {
+        if (lower.includes(kw)) return 'DR';
+      } else {
+        const regex = new RegExp(`(^|[^a-zA-Z0-9])${kw.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}`, 'i');
+        if (regex.test(lower)) return 'DR';
+      }
+    }
+
+    // Check for Charitable Aid keywords
+    const charitableKeywords = [
+      'charity', 'charitable', 'outreach', 'feeding', 'feeding program', 'scholarship', 'education', 'school supplies',
+      'orphan', 'orphanage', 'elderly home', 'community pantry', 'community development',
+      'medical mission', 'dental mission', 'blood donation', 'blood drive', 'livelihood', 'poverty',
+      'kawanggawa', 'kabuhayan', 'ayuda sa komunidad', 'tulong sa kapwa', 'panginabuhian'
+    ];
+
+    for (const kw of charitableKeywords) {
+      if (kw.includes(' ')) {
+        if (lower.includes(kw)) return 'CD';
+      } else {
+        const regex = new RegExp(`(^|[^a-zA-Z0-9])${kw.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}`, 'i');
+        if (regex.test(lower)) return 'CD';
+      }
+    }
+
+    return null;
+  };
 
   const [title, setTitle] = useState('');
   const [targetAmount, setTargetAmount] = useState('');
   const [category, setCategory] = useState('DR');
-  const [selectedTags, setSelectedTags] = useState(['Flood Relief', 'Emergency Food']);
+  const manuallySelectedCategoryRef = useRef(false);
+  const [isCategoryAuto, setIsCategoryAuto] = useState(false);
+  const [selectedTags, setSelectedTags] = useState([]);
+  const manuallySelectedTagsRef = useRef(new Set());
+  const manuallyDeselectedTagsRef = useRef(new Set());
+  const autoDetectedTagsRef = useRef([]);
+
+  const handleTitleChange = (newTitle) => {
+    setTitle(newTitle);
+    const newDetected = detectTagsFromTitle(newTitle);
+    const oldDetected = autoDetectedTagsRef.current;
+    autoDetectedTagsRef.current = newDetected;
+
+    // Auto-select category if user hasn't manually overridden
+    if (!manuallySelectedCategoryRef.current) {
+      const autoCat = detectCategoryFromTitle(newTitle);
+      if (autoCat) {
+        setCategory(autoCat);
+        setIsCategoryAuto(true);
+      } else {
+        setIsCategoryAuto(false);
+      }
+    }
+
+    setSelectedTags(prev => {
+      const prevSet = new Set(prev);
+      oldDetected.forEach(t => {
+        if (!newDetected.includes(t) && !manuallySelectedTagsRef.current.has(t)) {
+          prevSet.delete(t);
+        }
+      });
+      newDetected.forEach(t => {
+        if (!manuallyDeselectedTagsRef.current.has(t)) {
+          prevSet.add(t);
+        }
+      });
+      return Array.from(prevSet);
+    });
+  };
+
+  const handleTagToggle = (tag) => {
+    if (selectedTags.includes(tag)) {
+      setSelectedTags(selectedTags.filter(t => t !== tag));
+      manuallyDeselectedTagsRef.current.add(tag);
+      manuallySelectedTagsRef.current.delete(tag);
+    } else {
+      setSelectedTags([...selectedTags, tag]);
+      manuallySelectedTagsRef.current.add(tag);
+      manuallyDeselectedTagsRef.current.delete(tag);
+    }
+  };
+
   const [locationRegion, setLocationRegion] = useState('');
   const [street, setStreet] = useState('');
   const [barangay, setBarangay] = useState('');
@@ -157,8 +495,115 @@ export default function OrganizationView({
   const [mapSearchTrigger, setMapSearchTrigger] = useState(0);
   const [isFindingLocation, setIsFindingLocation] = useState(false);
   const [beneficiariesImpact, setBeneficiariesImpact] = useState('');
-  const [urgency, setUrgency] = useState('HIGH (EMERGENCY AID)');
+  const [urgency, setUrgency] = useState('');
   const [targetDate, setTargetDate] = useState('');
+
+  // Custom Calendar State for Target Relief Delivery Date
+  const [deliveryDatePickerOpen, setDeliveryDatePickerOpen] = useState(false);
+  const [calViewDate, setCalViewDate] = useState(() => new Date());
+  const deliveryDateContainerRef = useRef(null);
+
+  useEffect(() => {
+    if (!deliveryDatePickerOpen) return;
+    const handleOutside = (e) => {
+      if (deliveryDateContainerRef.current && !deliveryDateContainerRef.current.contains(e.target)) {
+        setDeliveryDatePickerOpen(false);
+      }
+    };
+    const handleKey = (e) => {
+      if (e.key === 'Escape') setDeliveryDatePickerOpen(false);
+    };
+    document.addEventListener('mousedown', handleOutside);
+    document.addEventListener('keydown', handleKey);
+    return () => {
+      document.removeEventListener('mousedown', handleOutside);
+      document.removeEventListener('keydown', handleKey);
+    };
+  }, [deliveryDatePickerOpen]);
+
+  // Sync calendar month when targetDate changes
+  useEffect(() => {
+    if (targetDate) {
+      const d = new Date(targetDate + 'T00:00:00');
+      if (!isNaN(d.getTime())) {
+        setCalViewDate(d);
+      }
+    }
+  }, [targetDate]);
+
+  const handlePrevCalMonth = () => {
+    setCalViewDate(prev => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
+  };
+  const handleNextCalMonth = () => {
+    setCalViewDate(prev => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
+  };
+
+  const calMonthCells = useMemo(() => {
+    const year = calViewDate.getFullYear();
+    const month = calViewDate.getMonth();
+    const firstDayOfWeek = new Date(year, month, 1).getDay();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const daysInPrevMonth = new Date(year, month, 0).getDate();
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayIso = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
+
+    const cells = [];
+    for (let i = firstDayOfWeek - 1; i >= 0; i--) {
+      const dayNum = daysInPrevMonth - i;
+      const prevDate = new Date(year, month - 1, dayNum);
+      const iso = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
+      cells.push({ dayNum, iso, isCurrentMonth: false, isPast: iso < todayIso, isToday: iso === todayIso });
+    }
+    for (let d = 1; d <= daysInMonth; d++) {
+      const iso = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+      cells.push({ dayNum: d, iso, isCurrentMonth: true, isPast: iso < todayIso, isToday: iso === todayIso });
+    }
+    const remaining = 7 - (cells.length % 7);
+    if (remaining < 7) {
+      for (let j = 1; j <= remaining; j++) {
+        const nextDate = new Date(year, month + 1, j);
+        const iso = `${nextDate.getFullYear()}-${String(nextDate.getMonth() + 1).padStart(2, '0')}-${String(j).padStart(2, '0')}`;
+        cells.push({ dayNum: j, iso, isCurrentMonth: false, isPast: iso < todayIso, isToday: iso === todayIso });
+      }
+    }
+    return cells;
+  }, [calViewDate]);
+
+  const formatSelectedDeliveryDate = (dateStr) => {
+    if (!dateStr) return '';
+    try {
+      const d = new Date(dateStr + 'T00:00:00');
+      if (isNaN(d.getTime())) return dateStr;
+      return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    } catch {
+      return dateStr;
+    }
+  };
+
+  const handleTargetDateChange = (newDate) => {
+    setTargetDate(newDate);
+    if (newDate) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const chosen = new Date(newDate + 'T00:00:00');
+      chosen.setHours(0, 0, 0, 0);
+      const diffTime = chosen.getTime() - today.getTime();
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+      if (diffDays <= 5) {
+        setUrgency('HIGH (EMERGENCY AID)');
+      } else if (diffDays <= 14) {
+        setUrgency('MEDIUM (URGENT REHABILITATION)');
+      } else {
+        setUrgency('STABLE (CHARITABLE AID)');
+      }
+    } else {
+      setUrgency('');
+    }
+  };
+
   const [documentUrl, setDocumentUrl] = useState('');
   const [contactInfo, setContactInfo] = useState('');
 
@@ -330,9 +775,12 @@ export default function OrganizationView({
   const [pendingDonations, setPendingDonations] = useState([]);
   const [loadingPending, setLoadingPending] = useState(false);
 
-  const myCampaigns = campaigns.filter(
-    (c) => c.orgAddress?.toLowerCase() === walletAddress?.toLowerCase()
-  );
+  const myCampaigns = campaigns.filter((c) => {
+    if (currentUser?.id && c.orgId) {
+      return Number(c.orgId) === Number(currentUser.id);
+    }
+    return Boolean(walletAddress) && c.orgAddress?.toLowerCase() === walletAddress?.toLowerCase();
+  });
 
   const totalRaisedByMe = myCampaigns
     .reduce((s, c) => s + parseFloat(c.currentAmount || 0), 0);
@@ -438,39 +886,26 @@ export default function OrganizationView({
     setCurrentPageMy(1);
   }, [categoryFilterMy, urgencyFilterMy, selectedTagsMy, campaignSortMy, searchQueryMy]);
 
-  const handleGranularAddressFromMap = ({ street: s, barangay: b, city: c, province: p, region: r, country: cnt, zip: z, landmark: l }) => {
-    if (s) setStreet(s);
-    if (b) setBarangay(b);
-    if (c) setCity(c);
-    if (p) {
-      setProvince(p);
-      if (!r) {
-        r = getRegionForProvince(p);
-      }
-    }
-    if (r) setRegion(r);
-    if (cnt) setCountry(cnt);
-    if (z) setZipCode(z);
-    if (l && !landmark) setLandmark(l);
+  const handleGranularAddressFromMap = ({ street: s = '', barangay: b = '', city: c = '', province: p = '', region: r = '', country: cnt = 'Philippines', zip: z = '', landmark: l = '', fullAddress = '' }) => {
+    const resolvedRegion = r || (p ? getRegionForProvince(p) : '') || '';
+    setStreet(s);
+    setBarangay(b);
+    setCity(c);
+    setProvince(p);
+    setRegion(resolvedRegion);
+    setCountry(cnt || 'Philippines');
+    setZipCode(z);
+    setLandmark(l);
 
-    const activeStreet = s || street;
-    const activeBarangay = b || barangay;
-    const activeCity = c || city;
-    const activeProvince = p || province;
-    const activeRegion = r || region;
-    const activeZip = z || zipCode;
-    const activeLandmark = l || landmark;
-    const activeCountry = cnt || country || 'Philippines';
-
-    const constructed = [
-      activeStreet,
-      activeBarangay,
-      activeCity,
-      activeProvince,
-      activeRegion ? `(${activeRegion})` : '',
-      activeZip,
-      activeCountry,
-      activeLandmark ? `(Landmark: ${activeLandmark})` : ''
+    const constructed = fullAddress || [
+      s,
+      b,
+      c,
+      p,
+      resolvedRegion ? `(${resolvedRegion})` : '',
+      z,
+      cnt || 'Philippines',
+      l ? `(Landmark: ${l})` : ''
     ].filter(Boolean).join(', ');
 
     setLocationRegion(constructed);
@@ -666,12 +1101,12 @@ export default function OrganizationView({
     },
     {
       target: '#tour-ngo-sepolia-node',
-      title: 'Sepolia Node Status & Tutorial Replay',
+      title: 'Blockchain Status & Tutorial Replay',
       icon: 'hub',
       badge: 'System Status',
       placement: 'right',
       align: 'end',
-      description: 'Displays live Ethereum Sepolia smart contract synchronization and node health. You can restart this guided walkthrough anytime from the "Guided Tutorial" button in the sidebar.'
+      description: 'Shows the live status of the blockchain network connected to this system. You can restart this guided walkthrough anytime from the "Guided Tutorial" button in the sidebar.'
     }
   ], []);
 
@@ -1061,8 +1496,11 @@ export default function OrganizationView({
       setBankQrUrl('');
       setDescription('');
       setTargetDate('');
-      setDocumentUrl('');
-      setUrgency('HIGH (EMERGENCY AID)');
+      setUrgency('');
+      setSelectedTags([]);
+      autoDetectedTagsRef.current = [];
+      manuallySelectedTagsRef.current.clear();
+      manuallyDeselectedTagsRef.current.clear();
       fetchCampaigns();
       fetchOrgDonations();
       showSuccess(
@@ -1110,7 +1548,9 @@ export default function OrganizationView({
               </div>
               <div>
                 <div className="ref-sidebar-name">{orgDisplayName}</div>
-                <div className="ref-sidebar-id">BBDRTS-NGO-2026-0001</div>
+                <div className="ref-sidebar-id">
+                  {currentUser?.system_id || `BBDRTS-NGO-2026-${String(currentUser?.id || 1).padStart(4, '0')}`}
+                </div>
               </div>
             </div>
 
@@ -1209,7 +1649,7 @@ export default function OrganizationView({
           <div className="ref-sidebar-widget" id="tour-ngo-sepolia-node" style={{ marginTop: '20px' }}>
             <div className="ref-widget-header">
               <span className="ref-status-dot"></span>
-              <span className="ref-widget-title">Sepolia EVM Protocol</span>
+              <span className="ref-widget-title">Blockchain Network Status</span>
             </div>
             <div className="ref-widget-detail">
               <div className="ref-widget-row">
@@ -1219,8 +1659,8 @@ export default function OrganizationView({
                 </span>
               </div>
               <div className="ref-widget-row">
-                <span>Contract Health</span>
-                <span className="ref-widget-value">100% Immutable</span>
+                <span>System Status</span>
+                <span className="ref-widget-value">Secure &amp; Verified</span>
               </div>
             </div>
           </div>
@@ -1270,7 +1710,7 @@ export default function OrganizationView({
                     <h1>{orgDisplayName || 'Organization Dashboard'}</h1>
                     <p>
                       <span className="material-symbols-outlined" style={{ fontSize: '13px', color: '#22c55e', verticalAlign: 'middle', marginRight: '4px' }}>verified</span>
-                      NGO Organization Protocol • Entity Address: <code style={{ color: 'var(--accent)', fontSize: '0.82rem', fontFamily: 'var(--font-mono)' }}>{shortAddr(walletAddress)}</code>
+                      Verified Organization • Wallet Address: <code style={{ color: 'var(--accent)', fontSize: '0.82rem', fontFamily: 'var(--font-mono)' }}>{shortAddr(walletAddress)}</code>
                     </p>
                   </div>
                 </div>
@@ -1397,6 +1837,7 @@ export default function OrganizationView({
                         contract={contract}
                         role={ROLES.ORGANIZATION}
                         walletAddress={walletAddress}
+                        currentUser={currentUser}
                         onDonated={fetchCampaigns}
                         onDeactivated={fetchCampaigns}
                         onCampaignUpdated={fetchCampaigns}
@@ -1780,7 +2221,7 @@ export default function OrganizationView({
                   <div className={viewModeOrg === 'grid' || viewModeOrg === 'grid-3' || viewModeOrg === 'grid-2' ? 'campaigns-grid' : 'campaigns-list'}>
                     {paginatedAllCampaigns.map((camp) => (
                       <CampaignCard key={camp.id} camp={camp} contract={contract}
-                        role={ROLES.ORGANIZATION} walletAddress={walletAddress}
+                        role={ROLES.ORGANIZATION} walletAddress={walletAddress} currentUser={currentUser}
                         onDonated={fetchCampaigns} onDeactivated={fetchCampaigns} onCampaignUpdated={fetchCampaigns} />
                     ))}
                   </div>
@@ -2214,7 +2655,7 @@ export default function OrganizationView({
                   <div className={viewModeOrg === 'grid' || viewModeOrg === 'grid-3' || viewModeOrg === 'grid-2' ? 'campaigns-grid' : 'campaigns-list'}>
                     {paginatedMyCampaigns.map((camp) => (
                       <CampaignCard key={camp.id} camp={camp} contract={contract}
-                        role={ROLES.ORGANIZATION} walletAddress={walletAddress}
+                        role={ROLES.ORGANIZATION} walletAddress={walletAddress} currentUser={currentUser}
                         onDonated={fetchCampaigns} onDeactivated={fetchCampaigns} onCampaignUpdated={fetchCampaigns} />
                     ))}
                   </div>
@@ -2284,14 +2725,15 @@ export default function OrganizationView({
                 <div className="card glow fade-in deploy-campaign-card">
                   <div className="section-header" style={{ marginBottom: '16px' }}>
                     <h2 className="section-title">
-                      <span className="material-symbols-outlined section-title-icon" style={{ marginRight: '8px' }}>rocket_launch</span> Deploy Relief Campaign
+                      <span className="material-symbols-outlined section-title-icon" style={{ marginRight: '8px' }}>rocket_launch</span> Deploy Monetary Relief Campaign
                     </h2>
                     <span className="badge badge-info">NGO Organization Portal</span>
                   </div>
                   <p style={{ fontSize: '0.88rem', color: 'var(--text-muted)', marginBottom: '18px', lineHeight: 1.5 }}>
-                    Deploy a new relief operation under your official organization name (<strong>{orgDisplayName}</strong>).{' '}
+                    Deploy a new monetary calamity relief operation under your official organization name (<strong>{orgDisplayName}</strong>).{' '}
+                    BBDRTS processes digital financial contributions (Philippine e-wallets, cards, bank transfer & crypto) directly to accredited field operations. Physical in-kind goods collections are not accepted by this protocol.{' '}
                     {walletAddress ? (
-                      <>This action creates a verified campaign linked to your authorized wallet (<code style={{ fontSize: '0.82rem', color: 'var(--accent)' }}>{shortAddr(walletAddress)}</code>).</>
+                      <>Linked to authorized wallet (<code style={{ fontSize: '0.82rem', color: 'var(--accent)' }}>{shortAddr(walletAddress)}</code>).</>
                     ) : (
                       <>Relief operation details will be published directly to the public humanitarian ledger.</>
                     )}
@@ -2299,36 +2741,54 @@ export default function OrganizationView({
 
 
                   <form className="create-form" onSubmit={handleCreateCampaign} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                    {/* Section 1: Campaign Essentials */}
+                    {/* Section 1: Campaign Identity & Mission Details (Merged Step 1 & Step 3 per instructor guidance) */}
                     <div className="deploy-section-card">
                       <div className="deploy-section-header">
                         <div className="deploy-section-title">
                           <span className="material-symbols-outlined deploy-section-icon">campaign</span>
-                          <span>1. Basic Campaign Information</span>
+                          <span>1. Campaign Identity & Mission Details</span>
                         </div>
-                        <span className="deploy-step-pill">Step 1 of 4</span>
+                        <span className="deploy-step-pill">Step 1 of 3</span>
                       </div>
 
                       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
                         {/* Campaign Title (Full Width) */}
                         <div style={{ gridColumn: '1 / -1' }}>
-                          <label className="deploy-input-label">
-                            Campaign Title *
-                          </label>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <label className="deploy-input-label" style={{ margin: 0 }}>
+                              Campaign Title *
+                            </label>
+                            {autoDetectedTagsRef.current.length > 0 && (
+                              <span style={{ fontSize: '0.72rem', color: 'var(--accent, #22c55e)', fontWeight: 600 }}>
+                                ✨ {autoDetectedTagsRef.current.length} tags auto-selected based on relief context
+                              </span>
+                            )}
+                          </div>
                           <input className="input deploy-field-input" type="text" required
-                            placeholder="e.g., Super Typhoon Emergency Relief Operation"
-                            value={title} onChange={(e) => setTitle(e.target.value)} disabled={creating} />
+                            placeholder="e.g., Flash Flood Relief Operation or Bagyo Odette Tabang"
+                            value={title} onChange={(e) => handleTitleChange(e.target.value)} disabled={creating} />
                         </div>
 
-                        {/* Relief Category */}
+                        {/* Relief Category (Auto-chooses based on title, or manually selectable) */}
                         <div>
-                          <label className="deploy-input-label">
-                            Relief Category *
-                          </label>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px' }}>
+                            <label className="deploy-input-label" style={{ margin: 0 }}>
+                              Relief Category *
+                            </label>
+                            {isCategoryAuto && (
+                              <span style={{ fontSize: '0.68rem', color: 'var(--accent, #22c55e)', fontWeight: 600 }}>
+                                Auto-set from title
+                              </span>
+                            )}
+                          </div>
                           <select
                             className="input deploy-field-input"
                             value={category}
-                            onChange={(e) => setCategory(e.target.value)}
+                            onChange={(e) => {
+                              setCategory(e.target.value);
+                              manuallySelectedCategoryRef.current = true;
+                              setIsCategoryAuto(false);
+                            }}
                             disabled={creating}
                           >
                             <option value="DR">🌊 Disaster Relief (DR)</option>
@@ -2363,31 +2823,216 @@ export default function OrganizationView({
                           )}
                         </div>
 
-                        {/* Urgency Status */}
-                        <div>
-                          <label className="deploy-input-label">
-                            Urgency Status
-                          </label>
-                          <select className="input deploy-field-input" value={urgency} onChange={(e) => setUrgency(e.target.value)} disabled={creating}>
-                            <option value="HIGH (EMERGENCY AID)">🔴 Emergency High Aid</option>
-                            <option value="MEDIUM (URGENT REHABILITATION)">🟡 Urgent Medium Rehabilitation</option>
-                            <option value="STABLE (CHARITABLE AID)">🟢 Standard Aid Operation</option>
-                          </select>
+                        {/* SWAPPED INPUT ORDER: 1. Target Relief Delivery Date (Custom Web3 Calendar Popover) */}
+                        <div style={{ position: 'relative' }} ref={deliveryDateContainerRef}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px' }}>
+                            <label className="deploy-input-label" style={{ margin: 0 }}>
+                              Target Relief Delivery Date
+                            </label>
+                            {targetDate && (
+                              <span style={{ fontSize: '0.68rem', color: 'var(--accent, #22c55e)', fontWeight: 600 }}>
+                                ✓ Date set
+                              </span>
+                            )}
+                          </div>
+                          <div style={{ position: 'relative' }}>
+                            <button
+                              type="button"
+                              onClick={() => !creating && setDeliveryDatePickerOpen(prev => !prev)}
+                              disabled={creating}
+                              className="input deploy-field-input"
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                width: '100%',
+                                cursor: creating ? 'not-allowed' : 'pointer',
+                                textAlign: 'left',
+                                padding: '9px 12px',
+                                background: 'var(--bg-input, rgba(255,255,255,0.03))',
+                                border: targetDate ? '1.5px solid var(--accent, #22c55e)' : '1px solid var(--border)',
+                                borderRadius: '10px'
+                              }}
+                              title="Click to open calendar and select delivery target date"
+                            >
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden' }}>
+                                <span className="material-symbols-outlined" style={{ fontSize: '1.15rem', color: targetDate ? 'var(--accent)' : 'var(--text-muted)' }}>
+                                  calendar_month
+                                </span>
+                                <span style={{ fontSize: '0.84rem', fontWeight: targetDate ? 700 : 500, color: targetDate ? 'var(--text-primary)' : 'var(--text-muted)' }}>
+                                  {targetDate ? formatSelectedDeliveryDate(targetDate) : 'Select Delivery Date...'}
+                                </span>
+                              </div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                {targetDate ? (
+                                  <span
+                                    role="button"
+                                    tabIndex={0}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleTargetDateChange('');
+                                    }}
+                                    style={{
+                                      padding: '2px 6px',
+                                      borderRadius: '6px',
+                                      fontSize: '0.72rem',
+                                      color: 'var(--text-muted)',
+                                      background: 'rgba(255,255,255,0.08)',
+                                      cursor: 'pointer'
+                                    }}
+                                    title="Clear date"
+                                  >
+                                    ✕
+                                  </span>
+                                ) : (
+                                  <span className="material-symbols-outlined" style={{ fontSize: '1.1rem', color: 'var(--text-muted)' }}>
+                                    {deliveryDatePickerOpen ? 'expand_less' : 'expand_more'}
+                                  </span>
+                                )}
+                              </div>
+                            </button>
+
+                            {/* Custom Calendar Popover matching CampaignCard ledger calendar */}
+                            {deliveryDatePickerOpen && (
+                              <div
+                                className="ledger-custom-calendar-popover"
+                                onClick={(e) => e.stopPropagation()}
+                                style={{
+                                  position: 'absolute',
+                                  top: 'calc(100% + 6px)',
+                                  left: 0,
+                                  right: 'auto',
+                                  width: '300px',
+                                  zIndex: 100
+                                }}
+                              >
+                                {/* Month Header */}
+                                <div className="cal-header">
+                                  <button
+                                    type="button"
+                                    className="cal-nav-btn"
+                                    onClick={handlePrevCalMonth}
+                                    title="Previous Month"
+                                  >
+                                    <span className="material-symbols-outlined">chevron_left</span>
+                                  </button>
+                                  <div className="cal-month-title">
+                                    {calViewDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                                  </div>
+                                  <button
+                                    type="button"
+                                    className="cal-nav-btn"
+                                    onClick={handleNextCalMonth}
+                                    title="Next Month"
+                                  >
+                                    <span className="material-symbols-outlined">chevron_right</span>
+                                  </button>
+                                </div>
+
+                                {/* Urgency Helper Banner */}
+                                <div className="cal-lifecycle-banner" style={{ fontSize: '0.66rem', padding: '3px 8px' }}>
+                                  <span className="cal-pulse-dot" />
+                                  <span className="cal-lifecycle-text">
+                                    Auto Urgency: ≤5d High • 6–14d Medium • &gt;14d Stable
+                                  </span>
+                                </div>
+
+                                {/* Weekday Labels */}
+                                <div className="cal-weekdays">
+                                  <span>Su</span>
+                                  <span>Mo</span>
+                                  <span>Tu</span>
+                                  <span>We</span>
+                                  <span>Th</span>
+                                  <span>Fr</span>
+                                  <span>Sa</span>
+                                </div>
+
+                                {/* Days Grid */}
+                                <div className="cal-grid">
+                                  {calMonthCells.map((cell) => {
+                                    const isSelected = targetDate === cell.iso;
+                                    let cellClass = 'cal-day';
+                                    if (!cell.isCurrentMonth) cellClass += ' cal-day-outside';
+                                    if (cell.isPast) cellClass += ' cal-day-past';
+                                    if (isSelected) cellClass += ' cal-day-selected';
+
+                                    const today = new Date();
+                                    today.setHours(0, 0, 0, 0);
+                                    const cellDate = new Date(cell.iso + 'T00:00:00');
+                                    const diffDays = Math.ceil((cellDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+
+                                    let dotColor = null;
+                                    if (!cell.isPast && cell.isCurrentMonth) {
+                                      if (diffDays <= 5) dotColor = '#ef4444';
+                                      else if (diffDays <= 14) dotColor = '#eab308';
+                                      else dotColor = '#22c55e';
+                                    }
+
+                                    return (
+                                      <button
+                                        key={cell.iso}
+                                        type="button"
+                                        className={cellClass}
+                                        disabled={cell.isPast}
+                                        onClick={() => {
+                                          handleTargetDateChange(cell.iso);
+                                          setDeliveryDatePickerOpen(false);
+                                        }}
+                                        style={{
+                                          opacity: cell.isPast ? 0.35 : 1,
+                                          cursor: cell.isPast ? 'not-allowed' : 'pointer',
+                                          border: cell.isToday ? '1px dashed var(--accent, #22c55e)' : 'none',
+                                          background: isSelected ? 'var(--accent, #22c55e)' : (cell.isToday ? 'rgba(34,197,94,0.08)' : 'transparent'),
+                                          color: isSelected ? '#000000' : 'inherit',
+                                          fontWeight: isSelected || cell.isToday ? 700 : 500,
+                                          position: 'relative'
+                                        }}
+                                        title={cell.isPast ? 'Past date unavailable' : `${cell.iso} (${diffDays === 0 ? 'Today' : `${diffDays} days from now`})`}
+                                      >
+                                        <span className="cal-day-num">{cell.dayNum}</span>
+                                        {dotColor && !isSelected && (
+                                          <span
+                                            style={{
+                                              width: '4px',
+                                              height: '4px',
+                                              borderRadius: '50%',
+                                              background: dotColor,
+                                              position: 'absolute',
+                                              bottom: '3px'
+                                            }}
+                                          />
+                                        )}
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                          <div style={{ marginTop: '4px', fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                            Selecting a date will auto-fill the Urgency Status below.
+                          </div>
                         </div>
 
-                        {/* Target Relief Delivery Date */}
+                        {/* SWAPPED INPUT ORDER: 2. Urgency Status (Auto-filled once date is selected, or manually adjustable) */}
                         <div>
-                          <label className="deploy-input-label">
-                            Target Relief Delivery Date
-                          </label>
-                          <input
-                            className="input deploy-field-input"
-                            type="date"
-                            min={new Date().toISOString().split('T')[0]}
-                            value={targetDate}
-                            onChange={(e) => setTargetDate(e.target.value)}
-                            disabled={creating}
-                          />
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px' }}>
+                            <label className="deploy-input-label" style={{ margin: 0 }}>
+                              Urgency Status
+                            </label>
+                            {urgency && (
+                              <span style={{ fontSize: '0.68rem', color: 'var(--accent, #22c55e)', fontWeight: 600 }}>
+                                Auto-set from target date
+                              </span>
+                            )}
+                          </div>
+                          <select className="input deploy-field-input" value={urgency} onChange={(e) => setUrgency(e.target.value)} disabled={creating}>
+                            <option value="">-- Select or Auto-filled by Delivery Date --</option>
+                            <option value="HIGH (EMERGENCY AID)">🔴 Emergency High Aid (≤ 5 Days)</option>
+                            <option value="MEDIUM (URGENT REHABILITATION)">🟡 Urgent Medium Rehabilitation (6–14 Days)</option>
+                            <option value="STABLE (CHARITABLE AID)">🟢 Standard Aid Operation (&gt; 14 Days)</option>
+                          </select>
                         </div>
 
                         {/* Estimated Beneficiaries (Full Width) */}
@@ -2400,40 +3045,86 @@ export default function OrganizationView({
                             value={beneficiariesImpact} onChange={(e) => setBeneficiariesImpact(e.target.value)} disabled={creating} />
                         </div>
 
-                        {/* Campaign Focus Tags */}
+                        {/* Campaign Focus Tags (No 4-tag limit, auto-detects from title keywords) */}
                         <div style={{ gridColumn: '1 / -1', marginTop: '4px' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
                             <label className="deploy-input-label" style={{ margin: 0 }}>
-                              Campaign Operation Tags (Select up to 4 tags to display on the card)
+                              Campaign Operation Tags (Select appropriate tags for this relief campaign)
                             </label>
-                            <span style={{ fontSize: '0.74rem', color: selectedTags.length >= 4 ? 'var(--accent)' : 'var(--text-muted)', fontWeight: 600 }}>
-                              {selectedTags.length}/4 Selected
+                            <span style={{ fontSize: '0.74rem', color: selectedTags.length > 0 ? 'var(--accent)' : 'var(--text-muted)', fontWeight: 600 }}>
+                              {selectedTags.length} Selected
                             </span>
+                          </div>
+                          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted, #94a3b8)', marginBottom: '8px' }}>
+                            Disaster keywords in your title (English, Bisaya, or Tagalog) automatically select all necessary operation tags. You can also manually select or deselect any tags as appropriate.
                           </div>
                           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
                             {PRESET_CAMPAIGN_TAGS.map((tag) => {
                               const isSelected = selectedTags.includes(tag);
+                              const isAuto = autoDetectedTagsRef.current.includes(tag) && isSelected;
                               return (
                                 <button
                                   key={tag}
                                   type="button"
-                                  onClick={() => {
-                                    if (isSelected) {
-                                      setSelectedTags(selectedTags.filter(t => t !== tag));
-                                    } else {
-                                      if (selectedTags.length >= 4) {
-                                        return showWarning('You can select up to 4 tags per campaign.', 'Max Tags Limit');
-                                      }
-                                      setSelectedTags([...selectedTags, tag]);
-                                    }
-                                  }}
+                                  onClick={() => handleTagToggle(tag)}
                                   className={`deploy-tag-chip ${isSelected ? 'active' : ''}`}
+                                  title={isAuto ? 'Auto-detected from campaign title keyword. Click to toggle.' : `Click to toggle ${tag}`}
                                 >
                                   <span>{isSelected ? '✓' : '+'}</span>
                                   <span>{tag}</span>
+                                  {isAuto && (
+                                    <span style={{ fontSize: '9px', opacity: 0.85, marginLeft: '3px', background: 'rgba(34, 197, 94, 0.25)', border: '1px solid rgba(34, 197, 94, 0.4)', padding: '1px 4px', borderRadius: '3px' }}>
+                                      auto
+                                    </span>
+                                  )}
                                 </button>
                               );
                             })}
+                          </div>
+                        </div>
+
+                        {/* Mission Purpose, Narrative & Emergency Contact (Integrated into Step 1 as requested) */}
+                        <div style={{ gridColumn: '1 / -1', marginTop: '14px', paddingTop: '16px', borderTop: '1px solid var(--border)' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
+                            <span className="material-symbols-outlined" style={{ fontSize: '1.2rem', color: 'var(--accent, #22c55e)' }}>contact_support</span>
+                            <span style={{ fontSize: '0.84rem', fontWeight: 700, color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                              Mission Narrative & Verification Details
+                            </span>
+                          </div>
+
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '16px', marginBottom: '14px' }}>
+                            <div>
+                              <label className="deploy-input-label">
+                                Emergency Contact Hotline / Email
+                              </label>
+                              <input className="input deploy-field-input" type="text"
+                                placeholder="e.g., relief@redcross.org.ph • (053) 570-8899"
+                                value={contactInfo} onChange={(e) => setContactInfo(e.target.value)} disabled={creating} />
+                            </div>
+
+                            <div>
+                              <label className="deploy-input-label">
+                                Official Document / Verification Link (Optional)
+                              </label>
+                              <input className="input deploy-field-input" type="url"
+                                placeholder="e.g., https://redcross.org.ph/press-release-102"
+                                value={documentUrl} onChange={(e) => setDocumentUrl(e.target.value)} disabled={creating} />
+                            </div>
+                          </div>
+
+                          <div>
+                            <label className="deploy-input-label">
+                              Mission & Campaign Description
+                            </label>
+                            <textarea
+                              className="input deploy-field-input"
+                              rows="3"
+                              placeholder="Provide mission background, emergency relief scope, and on-ground deployment plan..."
+                              value={description}
+                              onChange={(e) => setDescription(e.target.value)}
+                              disabled={creating}
+                              style={{ width: '100%', resize: 'none' }}
+                            />
                           </div>
                         </div>
                       </div>
@@ -2448,10 +3139,10 @@ export default function OrganizationView({
                             <span>2. Target Location & Interactive Pin Map</span>
                           </div>
                           <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '4px' }}>
-                            Pinpoint deployment area on the interactive topographic map. Granular address details update automatically.
+                            Click anywhere on the map to set the relief area. Address fields will fill in automatically.
                           </div>
                         </div>
-                        <span className="deploy-step-pill">Step 2 of 4</span>
+                        <span className="deploy-step-pill">Step 2 of 3</span>
                       </div>
 
                       {/* 2-Column Responsive Layout: Granular Address Details (Left) & Stable Map View (Right) */}
@@ -2462,7 +3153,7 @@ export default function OrganizationView({
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px' }}>
                             <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                               <span className="material-symbols-outlined" style={{ fontSize: '1.1rem', color: '#ef4444' }}>location_on</span>
-                              Granular Address Details
+                              Complete Address Details
                             </div>
                             {(street || barangay || city || province || region || zipCode || landmark || locationRegion || gpsCoordinates) && (
                               <button
@@ -2670,7 +3361,7 @@ export default function OrganizationView({
                             {isFindingLocation ? (
                               <>
                                 <span className="material-symbols-outlined spin" style={{ fontSize: '1.25rem', color: '#16a34a' }}>progress_activity</span>
-                                <span style={{ color: '#0f172a' }}>Pinpointing Location on Map...</span>
+                                <span style={{ color: '#0f172a' }}>Finding Location on Map...</span>
                               </>
                             ) : (
                               <>
@@ -2771,7 +3462,7 @@ export default function OrganizationView({
                                 setIsFindingLocation(false);
                                 showSuccess(
                                   `Location found: ${res.name || res.display_name?.split(',')[0] || 'Map pinned successfully'}.`,
-                                  'Map Pinpoint Complete'
+                                  'Map Location Set'
                                 );
                                 if (!zipCode && res.address?.postcode) {
                                   setZipCode(res.address.postcode);
@@ -2781,7 +3472,7 @@ export default function OrganizationView({
                                 setIsFindingLocation(false);
                                 if (!status.success) {
                                   showWarning(
-                                    'Could not pinpoint exact address on map. Please verify City / Province or click directly on the map.',
+                                    'Could not find the address on the map. Please check the City / Province or click directly on the map.',
                                     'Location Search'
                                   );
                                 }
@@ -2800,52 +3491,7 @@ export default function OrganizationView({
                       </div>
                     </div>
 
-                    {/* Section 3: Purpose & Contact */}
-                    <div className="deploy-section-card">
-                      <div className="deploy-section-header">
-                        <div className="deploy-section-title">
-                          <span className="material-symbols-outlined deploy-section-icon">contact_support</span>
-                          <span>3. Mission Purpose & Emergency Contact</span>
-                        </div>
-                        <span className="deploy-step-pill">Step 3 of 4</span>
-                      </div>
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '16px', marginBottom: '14px' }}>
-                        <div>
-                          <label className="deploy-input-label">
-                            Emergency Contact Hotline / Email
-                          </label>
-                          <input className="input deploy-field-input" type="text"
-                            placeholder="e.g., relief@redcross.org.ph • (053) 570-8899"
-                            value={contactInfo} onChange={(e) => setContactInfo(e.target.value)} disabled={creating} />
-                        </div>
-
-                        <div>
-                          <label className="deploy-input-label">
-                            Official Document / Verification Link (Optional)
-                          </label>
-                          <input className="input deploy-field-input" type="url"
-                            placeholder="e.g., https://redcross.org.ph/press-release-102"
-                            value={documentUrl} onChange={(e) => setDocumentUrl(e.target.value)} disabled={creating} />
-                        </div>
-                      </div>
-
-                      <div>
-                        <label className="deploy-input-label">
-                          Mission & Campaign Description
-                        </label>
-                        <textarea
-                          className="input deploy-field-input"
-                          rows="3"
-                          placeholder="Provide mission background, emergency relief scope, and on-ground deployment plan..."
-                          value={description}
-                          onChange={(e) => setDescription(e.target.value)}
-                          disabled={creating}
-                          style={{ width: '100%', resize: 'none' }}
-                        />
-                      </div>
-                    </div>
-
-                    {/* Section 4: Official Multi-Channel E-Wallet & Bank Settings */}
+                    {/* Section 3: Official Multi-Channel E-Wallet & Bank Settings */}
                     {(() => {
                       const profileReliefData = getProfileReliefChannels();
                       return (
@@ -2854,13 +3500,13 @@ export default function OrganizationView({
                             <div>
                               <div className="deploy-section-title">
                                 <span className="material-symbols-outlined deploy-section-icon">account_balance_wallet</span>
-                                <span>4. Official Multi-Channel Payment Settings</span>
+                                <span>3. Official Multi-Channel Payment Settings</span>
                               </div>
                               <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '3px' }}>
                                 Configure receiving channels for donors contributing via GCash, Maya, or direct Bank Transfer.
                               </div>
                             </div>
-                            <span className="deploy-step-pill">Step 4 of 4</span>
+                            <span className="deploy-step-pill">Step 3 of 3</span>
                           </div>
 
                           {/* Payment Channel Switcher & Actions Toolbar */}
@@ -3470,13 +4116,13 @@ export default function OrganizationView({
               <div style={{ marginBottom: '40px', background: 'rgba(56, 189, 248, 0.03)', border: '1px solid rgba(56, 189, 248, 0.15)', padding: '24px', borderRadius: '16px' }}>
                 <h3 style={{ marginTop: 0, marginBottom: '16px', display: 'flex', alignItems: 'center', fontSize: '1.1rem', color: '#38bdf8' }}>
                   <span className="material-symbols-outlined" style={{ marginRight: '8px' }}>pending_actions</span>
-                  Pending Fiat Verifications (Off-Chain)
+                  Pending E-Wallet & Bank Verifications
                 </h3>
 
                 {loadingPending ? (
                   <div style={{ textAlign: 'center', padding: '20px' }}><div className="spinner spinner-light" /></div>
                 ) : pendingDonations.length === 0 ? (
-                  <div style={{ textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem' }}>No pending fiat donations require verification.</div>
+                  <div style={{ textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem' }}>No pending donations require verification.</div>
                 ) : (
                   <div style={{ overflowX: 'auto' }}>
                     <table className="table" style={{ minWidth: '800px', fontSize: '0.85rem' }}>

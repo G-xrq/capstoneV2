@@ -115,14 +115,14 @@ const DONOR_HIGHLIGHTS = [
   {
     icon: 'currency_exchange',
     color: '#38bdf8',
-    title: 'Dual Web3 & Philippine E-Wallet Rails',
-    desc: 'Donate via Sepolia Ethereum crypto or standard Philippine fiat QR (GCash & Maya) with instant cryptographic receipt hashing.'
+    title: 'Crypto & Philippine E-Wallets',
+    desc: 'Donate via Ethereum crypto or Philippine QR (GCash & Maya) with instant digital receipt verification.'
   },
   {
-    icon: 'military_tech',
-    color: '#fbbf24',
-    title: '12-Tier Honors Ladder & Soulbound Badges',
-    desc: 'Climb from Bayanihan Starter to National Hero. Earn permanent on-chain soulbound NFT badges and leaderboard recognition.'
+    icon: 'volunteer_activism',
+    color: '#10b981',
+    title: '15 Donor Badge Levels',
+    desc: 'Verified badges recognizing your disaster relief donations as you help more families in need.'
   },
   {
     icon: 'radar',
@@ -299,18 +299,12 @@ export default function GuidedTour({
       document.body.appendChild(headerGuardEl);
     }
 
-    // ── 2. 4-Panel Blur Surround ──
+    // ── 2. Seamless Unified Blur Surround (Zero horizontal seams / panel lines) ──
     const surroundId = 'bbdrts-tour-blur-surround';
     let surroundEl = document.getElementById(surroundId);
     if (!surroundEl) {
       surroundEl = document.createElement('div');
       surroundEl.id = surroundId;
-      surroundEl.innerHTML = `
-        <div class="bbdrts-blur-panel bbdrts-blur-top"></div>
-        <div class="bbdrts-blur-panel bbdrts-blur-bottom"></div>
-        <div class="bbdrts-blur-panel bbdrts-blur-left"></div>
-        <div class="bbdrts-blur-panel bbdrts-blur-right"></div>
-      `;
       document.body.appendChild(surroundEl);
     }
 
@@ -319,11 +313,6 @@ export default function GuidedTour({
       if (headerGuardEl) headerGuardEl.classList.add('is-active');
       if (surroundEl) surroundEl.classList.add('is-active');
     });
-
-    const topP = surroundEl.querySelector('.bbdrts-blur-top');
-    const bottomP = surroundEl.querySelector('.bbdrts-blur-bottom');
-    const leftP = surroundEl.querySelector('.bbdrts-blur-left');
-    const rightP = surroundEl.querySelector('.bbdrts-blur-right');
 
     // ── Unified Synchronous Layout Engine ──
     const syncTourLayout = (targetElement, isScrollEvent = false) => {
@@ -339,16 +328,12 @@ export default function GuidedTour({
         guard.style.height = `${headerBottom}px`;
       }
 
-      if (!el || !topP || !bottomP || !leftP || !rightP) {
-        if (topP) {
-          topP.style.top = '0px';
-          topP.style.left = '0px';
-          topP.style.width = '100vw';
-          topP.style.height = '100vh';
-        }
-        if (bottomP) { bottomP.style.height = '0px'; }
-        if (leftP) { leftP.style.width = '0px'; }
-        if (rightP) { rightP.style.width = '0px'; }
+      const w = window.innerWidth;
+      const winH = window.innerHeight;
+
+      if (!el) {
+        surround.style.clipPath = 'none';
+        surround.style.webkitClipPath = 'none';
         return;
       }
 
@@ -366,46 +351,33 @@ export default function GuidedTour({
       const x = Math.max(0, Math.min(window.innerWidth, Math.round(targetLeft)));
       const r = Math.max(0, Math.min(window.innerWidth, Math.round(targetRight)));
       const b = Math.max(y, Math.min(window.innerHeight, Math.round(targetBottom)));
-      const h = Math.max(0, b - y);
 
-      topP.style.top = '0px';
-      topP.style.left = '0px';
-      topP.style.width = '100vw';
-      topP.style.height = `${y}px`;
+      const rad = 12;
+      const boxW = r - x;
+      const boxH = b - y;
+      const cr = Math.min(rad, boxW / 2, boxH / 2);
+      const l = Math.floor(Math.max(cr, 0));
+      const u = x + l;
+      const d = y;
+      const f = Math.max(0, boxW - l * 2);
+      const p = Math.max(0, boxH - l * 2);
+      const pathData = `M${w},0L0,0L0,${winH}L${w},${winH}L${w},0Z M${u},${d} h${f} a${l},${l} 0 0 1 ${l},${l} v${p} a${l},${l} 0 0 1 -${l},${l} h-${f} a${l},${l} 0 0 1 -${l},-${l} v-${p} a${l},${l} 0 0 1 ${l},-${l} z`;
 
-      bottomP.style.top = `${b}px`;
-      bottomP.style.left = '0px';
-      bottomP.style.width = '100vw';
-      bottomP.style.height = `${Math.max(0, window.innerHeight - b)}px`;
-
-      leftP.style.top = `${y}px`;
-      leftP.style.left = '0px';
-      leftP.style.width = `${x}px`;
-      leftP.style.height = `${h}px`;
-
-      rightP.style.top = `${y}px`;
-      rightP.style.left = `${r}px`;
-      rightP.style.width = `${Math.max(0, window.innerWidth - r)}px`;
-      rightP.style.height = `${h}px`;
+      // Seamless single-element clip-path cutout: zero panel slices, zero horizontal seams
+      try {
+        surround.style.clipPath = `path('${pathData}')`;
+        surround.style.webkitClipPath = `path('${pathData}')`;
+      } catch (_) {}
+      if (!surround.style.clipPath || surround.style.clipPath === 'none') {
+        const poly = `polygon(evenodd, 0 0, ${w}px 0, ${w}px ${winH}px, 0 ${winH}px, 0 0, ${x}px ${y}px, ${r}px ${y}px, ${r}px ${b}px, ${x}px ${b}px, ${x}px ${y}px)`;
+        surround.style.clipPath = poly;
+        surround.style.webkitClipPath = poly;
+      }
 
       // Synchronously update Driver.js SVG cutout path on every frame
       const pathEl = document.querySelector('.driver-overlay path');
       if (pathEl) {
-        const rad = 12;
-        const w = window.innerWidth;
-        const winH = window.innerHeight;
-        const boxW = rect.width + pad * 2;
-        const boxH = rect.height + pad * 2;
-        const cr = Math.min(rad, boxW / 2, boxH / 2);
-        const l = Math.floor(Math.max(cr, 0));
-        const u = rect.left - pad + l;
-        const d = rect.top - pad;
-        const f = boxW - l * 2;
-        const p = boxH - l * 2;
-        pathEl.setAttribute(
-          'd',
-          `M${w},0L0,0L0,${winH}L${w},${winH}L${w},0Z M${u},${d} h${f} a${l},${l} 0 0 1 ${l},${l} v${p} a${l},${l} 0 0 1 -${l},${l} h-${f} a${l},${l} 0 0 1 -${l},-${l} v-${p} a${l},${l} 0 0 1 ${l},-${l} z`
-        );
+        pathEl.setAttribute('d', pathData);
       }
 
       // Synchronously update popover card during manual scroll

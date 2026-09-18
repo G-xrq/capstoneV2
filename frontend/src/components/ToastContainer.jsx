@@ -1,3 +1,5 @@
+import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import './Toast.css';
 
 const ICON_MAP = {
@@ -8,10 +10,30 @@ const ICON_MAP = {
 };
 
 export default function ToastContainer({ toasts, onDismiss }) {
+  const [theme, setTheme] = useState(() => (
+    typeof document !== 'undefined'
+      ? (document.documentElement.getAttribute('data-theme') || 'dark')
+      : 'dark'
+  ));
+
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    const updateTheme = () => {
+      const currentTheme = document.documentElement.getAttribute('data-theme') || 'dark';
+      setTheme(currentTheme);
+    };
+    const observer = new MutationObserver(updateTheme);
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['data-theme']
+    });
+    return () => observer.disconnect();
+  }, []);
+
   if (!toasts || toasts.length === 0) return null;
 
-  return (
-    <div className="toast-container" aria-live="polite">
+  const content = (
+    <div className="toast-container" aria-live="polite" data-theme={theme}>
       {toasts.map((t) => (
         <div key={t.id} className={`toast-card toast-${t.type}`}>
           <div className="toast-icon-wrapper">
@@ -59,4 +81,6 @@ export default function ToastContainer({ toasts, onDismiss }) {
       ))}
     </div>
   );
+
+  return typeof document !== 'undefined' ? createPortal(content, document.body) : null;
 }

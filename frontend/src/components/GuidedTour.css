@@ -32,37 +32,30 @@
   opacity: 1;
 }
 
-/* ── 2. 4-Panel Blur Surround (Blurs background outside, keeping cutout 100% sharp) ── */
+/* ── 2. Seamless Unified Blur Surround (Zero horizontal seams / zero lines across screen) ── */
 #bbdrts-tour-blur-surround {
   position: fixed;
-  inset: 0;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
   pointer-events: none;
   z-index: 999999998 !important;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: none !important;
+  outline: none !important;
+  box-shadow: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
   opacity: 0;
   transition: opacity 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: clip-path, -webkit-clip-path;
 }
 
 #bbdrts-tour-blur-surround.is-active {
   opacity: 1;
-}
-
-.bbdrts-blur-panel {
-  position: fixed;
-  background: rgba(0, 0, 0, 0.45);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  pointer-events: none;
-  /* Buttery-smooth morphing when changing steps (Point 3 fix) */
-  transition: top 0.35s cubic-bezier(0.16, 1, 0.3, 1),
-              left 0.35s cubic-bezier(0.16, 1, 0.3, 1),
-              width 0.35s cubic-bezier(0.16, 1, 0.3, 1),
-              height 0.35s cubic-bezier(0.16, 1, 0.3, 1);
-  will-change: top, left, width, height;
-}
-
-/* When actively scrolling with mouse wheel, disable transition for 0ms instantaneous GPU tracking (Point 4 fix) */
-#bbdrts-tour-blur-surround.is-scrolling .bbdrts-blur-panel {
-  transition: none !important;
 }
 
 /* ── 3. SVG Cutout Backdrop Overlay ── */

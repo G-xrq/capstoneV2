@@ -161,7 +161,8 @@
   gap: 10px;
 }
 
-.bbdrts-footer-link-item a {
+.bbdrts-footer-link-item a,
+.bbdrts-footer-link-btn {
   color: var(--text-muted, #94a3b8);
   text-decoration: none;
   font-size: 0.82rem;
@@ -169,13 +170,20 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-family: inherit;
   transition: all 0.2s ease;
 }
 
-.bbdrts-footer-link-item a:hover {
+.bbdrts-footer-link-item a:hover,
+.bbdrts-footer-link-btn:hover {
   color: #22c55e;
   transform: translateX(3px);
 }
+
 
 .bbdrts-footer-academic-card {
   background: var(--bg-card, rgba(255, 255, 255, 0.03));
@@ -230,12 +238,21 @@
   gap: 16px;
 }
 
-.bbdrts-footer-legal-links a {
+.bbdrts-footer-legal-links a,
+.bbdrts-footer-legal-btn {
   color: var(--text-muted, #64748b);
   text-decoration: none;
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.76rem;
   transition: color 0.2s ease;
 }
 
-.bbdrts-footer-legal-links a:hover {
+.bbdrts-footer-legal-links a:hover,
+.bbdrts-footer-legal-btn:hover {
   color: var(--text-primary, #ffffff);
 }
+

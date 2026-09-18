@@ -26,6 +26,7 @@
     top: 90px;
     max-height: calc(100vh - 110px);
     overflow-y: auto;
+    overflow-x: hidden;
     box-shadow: var(--shadow-card);
     transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
 }
@@ -134,6 +135,189 @@
 
 .ref-widget-value.green {
     color: var(--accent);
+}
+
+/* ── Expandable System Status Accordion ── */
+.ref-sidebar-accordion {
+    padding: 0 !important;
+    overflow: hidden;
+    margin-top: 14px;
+    border: 1px solid var(--border);
+    background: var(--bg-subcard);
+    transition: all 0.2s ease;
+}
+
+.ref-sidebar-accordion:hover {
+    border-color: rgba(255, 255, 255, 0.18);
+}
+
+.ref-accordion-header {
+    all: unset;
+    box-sizing: border-box;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 14px;
+    cursor: pointer;
+    user-select: none;
+    transition: background-color 0.15s ease;
+    gap: 8px;
+}
+
+.ref-accordion-header:hover {
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.ref-accordion-title-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+    min-width: 0;
+}
+
+.ref-accordion-badge-group {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+.ref-status-live-chip {
+    font-size: 0.62rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    color: #22c55e;
+    background: rgba(34, 197, 94, 0.12);
+    border: 1px solid rgba(34, 197, 94, 0.3);
+    padding: 1px 6px;
+    border-radius: 4px;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.ref-accordion-caret {
+    font-size: 18px !important;
+    color: var(--text-muted);
+    transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.ref-accordion-caret.expanded {
+    transform: rotate(180deg);
+}
+
+.ref-accordion-content {
+    padding: 0 14px 12px 14px;
+    border-top: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.06));
+    animation: fadeIn 0.2s ease;
+}
+
+.ref-tech-ledger-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.74rem;
+    color: var(--accent, #22c55e);
+    text-decoration: none;
+    transition: opacity 0.15s ease;
+}
+
+.ref-tech-ledger-link:hover {
+    text-decoration: underline;
+    opacity: 0.85;
+}
+
+/* ── Compact Sidebar Theme Strip ── */
+.ref-sidebar-theme-strip {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    margin-top: 10px;
+    padding: 8px 10px;
+    border-radius: 10px;
+    background: var(--bg-subcard);
+    border: 1px solid var(--border);
+    box-sizing: border-box;
+    width: 100%;
+    overflow: hidden;
+}
+
+.ref-theme-strip-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+}
+
+.ref-theme-strip-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.73rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+.ref-theme-active-tag {
+    font-size: 0.64rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    color: var(--accent, #22c55e);
+    background: rgba(34, 197, 94, 0.1);
+    padding: 1px 6px;
+    border-radius: 4px;
+    border: 1px solid rgba(34, 197, 94, 0.2);
+}
+
+.ref-theme-pill-group {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 4px;
+    background: var(--bg-inset, rgba(0, 0, 0, 0.25));
+    padding: 3px;
+    border-radius: 8px;
+    border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.06));
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.ref-theme-pill-btn {
+    all: unset;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 5px 2px;
+    border-radius: 6px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+    white-space: nowrap;
+    box-sizing: border-box;
+    min-width: 0;
+}
+
+.ref-theme-pill-btn:hover {
+    color: var(--text-primary);
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.ref-theme-pill-btn.active {
+    background: var(--bg-card);
+    color: var(--text-primary);
+    font-weight: 700;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+    border: 1px solid var(--border);
+}
+
+.ref-theme-pill-name {
+    font-size: 0.68rem;
+    letter-spacing: 0.2px;
 }
 
 .ref-sidebar-footer-info {
@@ -412,6 +596,367 @@
     border-color: var(--accent);
     color: var(--accent);
     background-color: var(--accent-dim);
+}
+
+/* ── Unified Compact Donor Hero Banner ── */
+.ref-hero-unified {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding: 22px 24px;
+}
+
+.ref-hero-top-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+
+.ref-hero-identity {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    min-width: 0;
+}
+
+.ref-hero-titles {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+
+.ref-hero-name-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.ref-hero-name {
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: var(--text-primary);
+    margin: 0;
+    line-height: 1.2;
+}
+
+.ref-hero-tier-pill {
+    all: unset;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--bg-card-hover, rgba(255, 255, 255, 0.06));
+    border: 1px solid var(--border-strong, rgba(255, 255, 255, 0.14));
+    padding: 3px 10px 3px 6px;
+    border-radius: 20px;
+    font-size: 0.76rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    transition: all 0.2s ease;
+}
+
+.ref-hero-tier-pill:hover {
+    background: var(--accent-dim, rgba(34, 197, 94, 0.12));
+    border-color: var(--accent, #22c55e);
+    transform: translateY(-1px);
+}
+
+.ref-hero-sub-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+    flex-wrap: wrap;
+}
+
+.ref-hero-verified-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    color: #22c55e;
+    font-weight: 600;
+}
+
+.ref-hero-verified-badge .material-symbols-outlined {
+    font-size: 15px;
+}
+
+.ref-hero-divider {
+    color: var(--text-muted);
+    opacity: 0.6;
+}
+
+.ref-hero-wallet {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.ref-hero-code {
+    font-family: var(--font-mono, monospace);
+    font-size: 0.78rem;
+    color: var(--accent, #22c55e);
+    background: var(--bg-inset, rgba(0, 0, 0, 0.2));
+    padding: 1px 6px;
+    border-radius: 4px;
+    border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
+}
+
+/* Right Column: Donated Amount & Tier Subtitle */
+.ref-hero-impact-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    text-align: right;
+    gap: 3px;
+}
+
+.ref-hero-stat-amt {
+    font-size: 1.55rem;
+    font-weight: 850;
+    color: var(--text-primary);
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    letter-spacing: -0.02em;
+}
+
+.ref-hero-stat-donated {
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    letter-spacing: normal;
+}
+
+.ref-hero-stat-tier-line {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.82rem;
+    font-weight: 700;
+}
+
+.ref-hero-tier-label {
+    font-weight: 700;
+}
+
+.ref-hero-tier-next {
+    color: var(--text-muted);
+    font-weight: 500;
+    font-size: 0.78rem;
+}
+
+/* ── Next Tier Upgrade Card with Kinda Big Badge ── */
+.ref-hero-upgrade-card {
+    background: var(--bg-subcard, rgba(255, 255, 255, 0.03));
+    border: 1px solid var(--border-subtle, rgba(255, 255, 255, 0.08));
+    border-radius: 14px;
+    padding: 13px 18px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.ref-hero-upgrade-card:hover {
+    background: var(--bg-card-hover, rgba(255, 255, 255, 0.06));
+    border-color: rgba(255, 255, 255, 0.18);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+}
+
+.ref-hero-upgrade-badge-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    flex-shrink: 0;
+    min-width: 54px;
+}
+
+.ref-hero-upgrade-badge-box {
+    width: 52px;
+    height: 52px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-inset, rgba(0, 0, 0, 0.25));
+    border-radius: 12px;
+    border: 1px solid var(--border, rgba(255, 255, 255, 0.1));
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+    transition: transform 0.2s ease;
+}
+
+.ref-hero-upgrade-card:hover .ref-hero-upgrade-badge-box {
+    transform: scale(1.05);
+}
+
+.ref-hero-upgrade-badge-tag {
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.3px;
+    text-transform: uppercase;
+}
+
+.ref-hero-upgrade-content {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+}
+
+.ref-hero-upgrade-hdr {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    font-size: 0.82rem;
+    color: var(--text-secondary);
+}
+
+.ref-hero-upgrade-txt {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.ref-hero-upgrade-txt strong {
+    color: var(--text-primary);
+}
+
+.ref-hero-goal-dim {
+    color: var(--text-muted);
+    font-size: 0.78rem;
+    margin-left: 2px;
+}
+
+.ref-hero-upgrade-pct {
+    font-size: 0.92rem;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+    flex-shrink: 0;
+}
+
+.ref-hero-upgrade-track {
+    width: 100%;
+    height: 8px;
+    background: var(--bg-input, rgba(0, 0, 0, 0.35));
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.ref-hero-upgrade-fill {
+    height: 100%;
+    border-radius: 10px;
+    transition: width 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.ref-hero-upgrade-sub {
+    font-size: 0.76rem;
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    flex-wrap: wrap;
+}
+
+.ref-hero-highlight-amount {
+    color: #22c55e;
+    font-weight: 800;
+    background: rgba(34, 197, 94, 0.15);
+    padding: 1px 7px;
+    border-radius: 6px;
+    border: 1px solid rgba(34, 197, 94, 0.3);
+    display: inline-block;
+    letter-spacing: 0.2px;
+}
+
+.ref-hero-status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.65rem;
+    font-weight: 700;
+    color: #10b981;
+    background: rgba(16, 185, 129, 0.1);
+    border: 1px solid rgba(16, 185, 129, 0.25);
+    padding: 2px 7px;
+    border-radius: 999px;
+    letter-spacing: 0.4px;
+}
+
+.ref-hero-honor-action {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.ref-hero-honor-btn {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    background: var(--bg-card, rgba(255, 255, 255, 0.04));
+    border: 1px solid var(--border, rgba(255, 255, 255, 0.12));
+    padding: 8px 14px;
+    border-radius: 10px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    transition: all 0.2s ease;
+}
+
+.ref-hero-upgrade-card:hover .ref-hero-honor-btn {
+    background: rgba(16, 185, 129, 0.12);
+    border-color: #10b981;
+    color: #10b981;
+}
+
+@media (max-width: 768px) {
+    .ref-hero-upgrade-card {
+        flex-wrap: wrap;
+        gap: 14px;
+    }
+    .ref-hero-upgrade-content {
+        order: 3;
+        width: 100%;
+        flex: 1 1 100%;
+    }
+    .ref-hero-upgrade-badge-col {
+        order: 1;
+    }
+    .ref-hero-honor-action {
+        order: 2;
+        margin-left: auto;
+    }
+}
+
+/* Hero Action Buttons */
+.ref-hero-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    padding-top: 4px;
+}
+
+@media (max-width: 768px) {
+    .ref-hero-impact-stat {
+        align-items: flex-start;
+        text-align: left;
+        margin-top: 4px;
+    }
 }
 
 /* ── 4-Column Metric Stat Cards Grid ── */

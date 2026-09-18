@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { ethers } from 'ethers';
-import { connectWallet } from './web3Connection';
+import { connectWallet, hydrateContract } from './web3Connection';
 import { ROLES, ROLE_META } from './roleConfig';
 import LandingView from './views/LandingView';
 import AuthView from './views/AuthView';
@@ -91,6 +91,11 @@ export default function App() {
         .then(data => {
           if (data.user) {
             setDbUser(data.user);
+            const userIsAnon = Boolean(data.user.is_anonymous);
+            localStorage.setItem('bbdrts_anon_default', String(userIsAnon));
+            if (data.user.id || data.user.email) {
+              localStorage.setItem(`bbdrts_anon_default_${data.user.id || data.user.email}`, String(userIsAnon));
+            }
             if (data.user.wallet_address) {
               setWalletAddress(data.user.wallet_address);
             }
@@ -144,7 +149,6 @@ export default function App() {
         .then(async accounts => {
           if (accounts.length > 0 && accounts[0].toLowerCase() === dbUser.wallet_address.toLowerCase()) {
             try {
-              const { hydrateContract } = await import('./web3Connection.js');
               const contract = await hydrateContract();
               contractRef.current = contract;
               setActiveContract(contract);
@@ -256,7 +260,6 @@ export default function App() {
       let contract = activeContract || contractRef.current;
       if (!contract && window.ethereum && user.wallet_address) {
         try {
-          const { hydrateContract } = await import('./web3Connection.js');
           contract = await hydrateContract();
           contractRef.current = contract;
           setActiveContract(contract);
@@ -278,6 +281,14 @@ export default function App() {
       // Trigger smooth exit transition
       setAuthTransition(prev => ({ ...prev, closing: true }));
       setDbUser(user);
+      const userIsAnon = Boolean(
+        user?.is_anonymous || 
+        (typeof user?.preferences === 'object' ? (user?.preferences?.is_anonymous || user?.preferences?.anonymous) : false)
+      );
+      localStorage.setItem('bbdrts_anon_default', String(userIsAnon));
+      if (user?.id || user?.email) {
+        localStorage.setItem(`bbdrts_anon_default_${user.id || user.email}`, String(userIsAnon));
+      }
       if (user.wallet_address) setWalletAddress(user.wallet_address);
       setShowAuth(false);
 
@@ -321,6 +332,9 @@ export default function App() {
 
     // Step 2: Purging Local Storage & Keys
     localStorage.removeItem('bbdrts_token');
+    localStorage.removeItem('token');
+    localStorage.removeItem('bbdrts_user');
+    localStorage.removeItem('bbdrts_anon_default');
     contractRef.current = null;
     setActiveContract(null);
     setWalletAddress('');
@@ -335,7 +349,7 @@ export default function App() {
     // Smooth exit
     setAuthTransition(prev => ({ ...prev, closing: true }));
     setDbUser(null);
-    setShowAuth(false);
+    setShowAuth(true);
 
     setTimeout(() => {
       setAuthTransition({
@@ -385,6 +399,7 @@ export default function App() {
             description: lc.description,
             urgency: lc.urgency,
             targetDate: lc.targetDate || lc.target_date,
+            createdAt: lc.createdAt || lc.created_at,
             documentUrl: lc.documentUrl || lc.document_url,
             orgName: lc.orgName || lc.org_name
           };
@@ -402,6 +417,7 @@ export default function App() {
               description: dbCampaigns[dbIndex].description || enriched.description,
               urgency: dbCampaigns[dbIndex].urgency || enriched.urgency,
               targetDate: dbCampaigns[dbIndex].targetDate || enriched.targetDate,
+              createdAt: dbCampaigns[dbIndex].createdAt || enriched.createdAt,
               documentUrl: dbCampaigns[dbIndex].documentUrl || enriched.documentUrl
             };
             validLocal.push(lc);

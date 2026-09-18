@@ -1,56 +1,60 @@
 /* ── Glassmorphism Toast Notification System (Theme Adaptive) ── */
 
 .toast-container {
-  position: fixed;
-  bottom: 24px;
-  right: 24px;
-  z-index: 1000000;
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-end;
-  gap: 12px;
-  max-width: 420px;
-  width: calc(100vw - 48px);
-  pointer-events: none;
+  position: fixed !important;
+  bottom: 24px !important;
+  right: 24px !important;
+  z-index: 2147483647 !important; /* Maximum 32-bit signed integer z-index to overlay all modals & backdrops */
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: flex-end !important;
+  gap: 12px !important;
+  max-width: 420px !important;
+  width: calc(100vw - 48px) !important;
+  pointer-events: none !important;
 }
 
 .toast-card {
-  pointer-events: auto;
-  position: relative;
+  pointer-events: auto !important;
+  position: relative !important;
+  z-index: 2147483647 !important;
   overflow: hidden;
   display: flex;
   align-items: flex-start;
   gap: 14px;
   padding: 16px 18px;
   border-radius: var(--radius-md, 14px);
-  background: var(--bg-card, #222222);
-  border: 1px solid var(--border-strong, rgba(255, 255, 255, 0.14));
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  box-shadow: 0 16px 38px rgba(0, 0, 0, 0.5), 0 0 0 1px var(--border, rgba(255, 255, 255, 0.08));
+  background: var(--bg-card, #1e293b);
+  border: 1px solid var(--border-strong, rgba(255, 255, 255, 0.18));
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.85), 0 0 0 1px var(--border, rgba(255, 255, 255, 0.14));
   animation: slideInRight 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   transition: all 0.25s ease;
 }
 
-[data-theme="light"] .toast-card {
-  background: rgba(255, 255, 255, 0.96);
-  border-color: rgba(0, 0, 0, 0.12);
-  box-shadow: 0 16px 38px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(0, 0, 0, 0.05);
+[data-theme="light"] .toast-card,
+.toast-container[data-theme="light"] .toast-card {
+  background: rgba(255, 255, 255, 0.98);
+  border-color: rgba(0, 0, 0, 0.15);
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.22), 0 0 0 1px rgba(0, 0, 0, 0.08);
 }
 
-[data-theme="cyber"] .toast-card {
-  background: rgba(22, 24, 31, 0.94);
-  border-color: rgba(0, 255, 163, 0.2);
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.65), 0 0 20px rgba(0, 255, 163, 0.12);
+[data-theme="cyber"] .toast-card,
+.toast-container[data-theme="cyber"] .toast-card {
+  background: rgba(22, 24, 31, 0.96);
+  border-color: rgba(0, 255, 163, 0.35);
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.85), 0 0 25px rgba(0, 255, 163, 0.2);
 }
 
 .toast-card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.6), 0 0 0 1px var(--border-strong, rgba(255, 255, 255, 0.2));
+  box-shadow: 0 28px 65px rgba(0, 0, 0, 0.9), 0 0 0 1px var(--border-strong, rgba(255, 255, 255, 0.25));
 }
 
-[data-theme="light"] .toast-card:hover {
-  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.16), 0 0 0 1px rgba(0, 0, 0, 0.18);
+[data-theme="light"] .toast-card:hover,
+.toast-container[data-theme="light"] .toast-card:hover {
+  box-shadow: 0 28px 65px rgba(0, 0, 0, 0.26), 0 0 0 1px rgba(0, 0, 0, 0.2);
 }
 
 .toast-icon-wrapper {

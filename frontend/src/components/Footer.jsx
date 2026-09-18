@@ -1,9 +1,15 @@
 import { useState } from 'react';
 import { contractAddress } from '../contractConfig';
+import GovernanceModal from './GovernanceModal';
 import './Footer.css';
 
 export default function Footer({ onNavigate }) {
   const [copied, setCopied] = useState(false);
+  const [govModal, setGovModal] = useState({ open: false, tab: 'governance' });
+
+  const openGov = (tab = 'governance') => {
+    setGovModal({ open: true, tab });
+  };
 
   const handleCopyContract = (e) => {
     e.preventDefault();
@@ -92,7 +98,7 @@ export default function Footer({ onNavigate }) {
               <li className="bbdrts-footer-link-item">
                 <a href="#campaigns">
                   <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>chevron_right</span>
-                  <span>Instant Fiat Gateway (GCash/Maya)</span>
+                  <span>GCash & Maya Donations</span>
                 </a>
               </li>
               <li className="bbdrts-footer-link-item">
@@ -112,34 +118,34 @@ export default function Footer({ onNavigate }) {
             </div>
             <ul className="bbdrts-footer-links">
               <li className="bbdrts-footer-link-item">
-                <a href="#architecture">
+                <button type="button" className="bbdrts-footer-link-btn" onClick={() => openGov('accreditation')}>
                   <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>chevron_right</span>
                   <span>NGO Accreditation Protocol</span>
-                </a>
+                </button>
               </li>
               <li className="bbdrts-footer-link-item">
-                <a href="#architecture">
+                <button type="button" className="bbdrts-footer-link-btn" onClick={() => openGov('governance')}>
                   <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>chevron_right</span>
                   <span>Anti-Sybil Role Hierarchy</span>
-                </a>
+                </button>
               </li>
               <li className="bbdrts-footer-link-item">
-                <a href="#architecture">
+                <button type="button" className="bbdrts-footer-link-btn" onClick={() => openGov('allocation')}>
                   <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>chevron_right</span>
-                  <span>Disaster Response Standards</span>
-                </a>
+                  <span>Fund Allocation & Surplus Rules</span>
+                </button>
               </li>
               <li className="bbdrts-footer-link-item">
-                <a href="#architecture">
+                <button type="button" className="bbdrts-footer-link-btn" onClick={() => openGov('accreditation')}>
                   <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>chevron_right</span>
-                  <span>NDRRMC Guidelines Compliance</span>
-                </a>
+                  <span>NDRRMC RA 10121 Compliance</span>
+                </button>
               </li>
               <li className="bbdrts-footer-link-item">
-                <a href="#architecture">
+                <button type="button" className="bbdrts-footer-link-btn" onClick={() => openGov('security')}>
                   <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>chevron_right</span>
-                  <span>Auditing & Transparency Reports</span>
-                </a>
+                  <span>Auditing & Security Standards</span>
+                </button>
               </li>
             </ul>
           </div>
@@ -151,7 +157,12 @@ export default function Footer({ onNavigate }) {
               <span>Institutional Origin</span>
             </div>
             
-            <div className="bbdrts-footer-academic-card">
+            <div 
+              className="bbdrts-footer-academic-card"
+              onClick={() => openGov('academic')}
+              style={{ cursor: 'pointer' }}
+              title="Click to view Academic Capstone Research Documentation"
+            >
               <div className="bbdrts-academic-title">College of Computer Studies</div>
               <div className="bbdrts-academic-sub">Saint Joseph College · SJC Maasin</div>
               <div style={{ margin: '8px 0', fontSize: '0.74rem', color: 'var(--text-muted)' }}>
@@ -180,14 +191,21 @@ export default function Footer({ onNavigate }) {
           </div>
 
           <div className="bbdrts-footer-legal-links">
-            <a href="#architecture">Security Policy</a>
+            <button type="button" className="bbdrts-footer-legal-btn" onClick={() => openGov('security')}>Security Policy</button>
             <span>•</span>
-            <a href="#architecture">Terms of Governance</a>
+            <button type="button" className="bbdrts-footer-legal-btn" onClick={() => openGov('governance')}>Terms of Governance</button>
             <span>•</span>
-            <a href="#architecture">Open-Source Audit</a>
+            <button type="button" className="bbdrts-footer-legal-btn" onClick={() => openGov('security')}>Open-Source Audit</button>
           </div>
         </div>
       </div>
+
+      <GovernanceModal
+        isOpen={govModal.open}
+        onClose={() => setGovModal({ ...govModal, open: false })}
+        initialTab={govModal.tab}
+      />
     </footer>
   );
 }
+

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 
 /**
  * Normalizes any SVG, base64, or XML document URL so browsers can render it reliably without broken image icons.
@@ -96,8 +97,9 @@ export default function SecCertificateModal({
     }
   };
 
-  return (
+  const modalNode = (
     <div
+      className="sec-cert-backdrop"
       style={{
         position: 'fixed',
         top: 0,
@@ -109,7 +111,7 @@ export default function SecCertificateModal({
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        zIndex: 999999,
+        zIndex: 1000000080,
         padding: '20px'
       }}
       onClick={onClose}
@@ -261,4 +263,6 @@ export default function SecCertificateModal({
       </div>
     </div>
   );
+
+  return typeof document !== 'undefined' ? createPortal(modalNode, document.body) : null;
 }

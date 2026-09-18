@@ -8,6 +8,8 @@ import { useToast } from '../context/ToastContext';
 import EditProfileModal from './EditProfileModal';
 import DonorBadge from './DonorBadge';
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+
 export default function SettingsPanel({ 
   contract, 
   currentUser, 
@@ -28,9 +30,187 @@ export default function SettingsPanel({
   const { showSuccess, showError } = useToast();
   const [manualWallet, setManualWallet] = useState('');
   const [emailNotify, setEmailNotify] = useState(true);
-  const [anonDefault, setAnonDefault] = useState(false);
+  const getIsAnonymousFromUser = (user) => {
+    if (!user) return false;
+    if (user.is_anonymous !== undefined) return Boolean(user.is_anonymous);
+    if (user.preferences) {
+      try {
+        const p = typeof user.preferences === 'string' ? JSON.parse(user.preferences) : user.preferences;
+        if (p?.is_anonymous !== undefined) return Boolean(p.is_anonymous);
+        if (p?.anonymous !== undefined) return Boolean(p.anonymous);
+      } catch (_) {}
+    }
+    if (typeof window !== 'undefined') {
+      const userKey = `bbdrts_anon_default_${user.id || user.email}`;
+      const userScoped = localStorage.getItem(userKey);
+      if (userScoped !== null) return userScoped === 'true';
+    }
+    return false;
+  };
+
+  const getShowBadgeFromUser = (user) => {
+    if (!user) return true;
+    if (user.show_badge !== undefined) return Boolean(user.show_badge);
+    if (user.hide_badge !== undefined) return !user.hide_badge;
+    if (user.preferences) {
+      try {
+        const p = typeof user.preferences === 'string' ? JSON.parse(user.preferences) : user.preferences;
+        if (p?.show_badge !== undefined) return Boolean(p.show_badge);
+        if (p?.hide_badge !== undefined) return !p.hide_badge;
+      } catch (_) {}
+    }
+    if (typeof window !== 'undefined') {
+      const userKey = `bbdrts_show_badge_${user.id || user.email}`;
+      const userScoped = localStorage.getItem(userKey);
+      if (userScoped !== null) return userScoped === 'true';
+    }
+    return true;
+  };
+
+  const [anonDefault, setAnonDefault] = useState(() => getIsAnonymousFromUser(currentUser));
+  const [showBadge, setShowBadge] = useState(() => getShowBadgeFromUser(currentUser));
   const [glassFx, setGlassFx] = useState(true);
   const [calamityAlerts, setCalamityAlerts] = useState(true);
+
+  useEffect(() => {
+    const isAnon = getIsAnonymousFromUser(currentUser);
+    setAnonDefault(isAnon);
+    const badgeVis = getShowBadgeFromUser(currentUser);
+    setShowBadge(badgeVis);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('bbdrts_anon_default', String(isAnon));
+      localStorage.setItem('bbdrts_show_badge', String(badgeVis));
+      if (currentUser?.id || currentUser?.email) {
+        localStorage.setItem(`bbdrts_anon_default_${currentUser.id || currentUser.email}`, String(isAnon));
+        localStorage.setItem(`bbdrts_show_badge_${currentUser.id || currentUser.email}`, String(badgeVis));
+      }
+    }
+  }, [currentUser?.id, currentUser?.is_anonymous, currentUser?.show_badge, currentUser?.hide_badge, currentUser?.preferences]);
+
+  const handleToggleAnonymous = async () => {
+    const nextVal = !anonDefault;
+    setAnonDefault(nextVal);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('bbdrts_anon_default', String(nextVal));
+      if (currentUser?.id || currentUser?.email) {
+        localStorage.setItem(`bbdrts_anon_default_${currentUser.id || currentUser.email}`, String(nextVal));
+      }
+    }
+
+    if (currentUser) {
+      let currentPrefs = {};
+      if (currentUser.preferences) {
+        try {
+          currentPrefs = typeof currentUser.preferences === 'string' ? JSON.parse(currentUser.preferences) : currentUser.preferences;
+        } catch (_) {}
+      }
+      const updatedPrefs = { ...currentPrefs, is_anonymous: nextVal, anonymous: nextVal };
+      const updatedUser = {
+        ...currentUser,
+        is_anonymous: nextVal,
+        preferences: updatedPrefs
+      };
+
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('bbdrts_user', JSON.stringify(updatedUser));
+        window.dispatchEvent(new CustomEvent('bbdrts_profile_updated', { detail: updatedUser }));
+      }
+      if (typeof onProfileUpdated === 'function') {
+        onProfileUpdated(updatedUser);
+      }
+
+      const token = typeof window !== 'undefined' ? (localStorage.getItem('bbdrts_token') || localStorage.getItem('token')) : null;
+      if (token) {
+        try {
+          await fetch(`${API_URL}/api/auth/profile`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+              id: currentUser.id,
+              role: currentUser.role || 'donor',
+              is_anonymous: nextVal,
+              preferences: updatedPrefs
+            })
+          });
+        } catch (err) {
+          console.warn('Failed to sync anonymous mode to server:', err);
+        }
+      }
+    }
+
+    showSuccess(
+      nextVal
+        ? 'Anonymous Mode enabled. Your name is now masked as "Anonymous" on the leaderboard.'
+        : 'Anonymous Mode disabled. Your public identity is now visible on the leaderboard.',
+      nextVal ? 'Privacy Shield Active' : 'Public Recognition Enabled'
+    );
+  };
+
+  const handleToggleShowBadge = async () => {
+    const nextVal = !showBadge;
+    setShowBadge(nextVal);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('bbdrts_show_badge', String(nextVal));
+      if (currentUser?.id || currentUser?.email) {
+        localStorage.setItem(`bbdrts_show_badge_${currentUser.id || currentUser.email}`, String(nextVal));
+      }
+    }
+
+    if (currentUser) {
+      let currentPrefs = {};
+      if (currentUser.preferences) {
+        try {
+          currentPrefs = typeof currentUser.preferences === 'string' ? JSON.parse(currentUser.preferences) : currentUser.preferences;
+        } catch (_) {}
+      }
+      const updatedPrefs = { ...currentPrefs, show_badge: nextVal, hide_badge: !nextVal };
+      const updatedUser = {
+        ...currentUser,
+        show_badge: nextVal,
+        hide_badge: !nextVal,
+        preferences: updatedPrefs
+      };
+
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('bbdrts_user', JSON.stringify(updatedUser));
+        window.dispatchEvent(new CustomEvent('bbdrts_profile_updated', { detail: updatedUser }));
+      }
+      if (typeof onProfileUpdated === 'function') {
+        onProfileUpdated(updatedUser);
+      }
+
+      const token = typeof window !== 'undefined' ? (localStorage.getItem('bbdrts_token') || localStorage.getItem('token')) : null;
+      if (token) {
+        try {
+          await fetch(`${API_URL}/api/auth/profile`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+              id: currentUser.id,
+              role: currentUser.role || 'donor',
+              show_badge: nextVal,
+              preferences: updatedPrefs
+            })
+          });
+        } catch (err) {
+          console.warn('Failed to sync badge visibility to server:', err);
+        }
+      }
+    }
+
+    showSuccess(
+      nextVal
+        ? 'Merit Badge is now visible next to your name on public ledgers.'
+        : 'Merit Badge hidden. Your name remains visible on the leaderboard & public ledger without the tier medal.',
+      nextVal ? 'Honor Badge Visible' : 'Modest Recognition Enabled'
+    );
+  };
 
   // Text Size Scale Options
   const TEXT_SIZE_OPTIONS = [
@@ -121,7 +301,7 @@ export default function SettingsPanel({
   }
   
   const userInitials = displayName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() || 'US';
-  const userId = isOrg ? 'BBDRTS-NGO-2026-0001' : 'BBDRTS-DONOR-2026-0001';
+  const userId = currentUser?.system_id || (isOrg ? `BBDRTS-NGO-2026-${String(currentUser?.id || 1).padStart(4, '0')}` : `BBDRTS-DONOR-2026-${String(currentUser?.id || 1).padStart(4, '0')}`);
 
   const handleSaveProfile = (e) => {
     e.preventDefault();
@@ -245,12 +425,12 @@ export default function SettingsPanel({
                     minWidth: '120px',
                     cursor: onOpenHonorsLadder ? 'pointer' : 'default'
                   }}
-                  title="Click to view 12-Tier Honors Ladder"
+                  title="Click to view Philanthropic Recognition Circles"
                 >
-                  <div style={{ fontSize: '0.7rem', color: 'var(--text-muted, #94a3b8)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Honors Standing</div>
+                  <div style={{ fontSize: '0.7rem', color: 'var(--text-muted, #94a3b8)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Recognition Standing</div>
                   <strong style={{ fontSize: '0.9rem', color: '#10b981', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
-                    <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>military_tech</span>
-                    <span>Honors</span>
+                    <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>volunteer_activism</span>
+                    <span>Recognition</span>
                   </strong>
                 </div>
               )}
@@ -509,18 +689,28 @@ export default function SettingsPanel({
               </div>
 
               <div 
-                onClick={() => {
-                  setAnonDefault(!anonDefault);
-                  showSuccess(`Default Anonymous Mode ${!anonDefault ? 'enabled' : 'disabled'}.`);
-                }}
+                onClick={handleToggleAnonymous}
                 style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: 'var(--bg-input, rgba(0,0,0,0.2))', border: '1px solid var(--border, rgba(255,255,255,0.05))', borderRadius: '10px', cursor: 'pointer' }}
               >
                 <div>
                   <div style={{ fontSize: '0.86rem', fontWeight: 600, color: 'var(--text-primary, #fff)' }}>Default Anonymous Mode</div>
-                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted, #94a3b8)' }}>Pre-check anonymous checkbox</div>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted, #94a3b8)' }}>Mask identity on leaderboard & pre-check anonymous donations</div>
                 </div>
                 <div style={{ width: '38px', height: '20px', borderRadius: '20px', background: anonDefault ? '#22c55e' : 'rgba(255,255,255,0.15)', position: 'relative', transition: '0.2s', flexShrink: 0 }}>
                   <div style={{ width: '16px', height: '16px', borderRadius: '50%', background: '#fff', position: 'absolute', top: '2px', left: anonDefault ? '20px' : '2px', transition: '0.2s' }} />
+                </div>
+              </div>
+
+              <div 
+                onClick={handleToggleShowBadge}
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: 'var(--bg-input, rgba(0,0,0,0.2))', border: '1px solid var(--border, rgba(255,255,255,0.05))', borderRadius: '10px', cursor: 'pointer' }}
+              >
+                <div>
+                  <div style={{ fontSize: '0.86rem', fontWeight: 600, color: 'var(--text-primary, #fff)' }}>Public Merit Badge Visibility</div>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted, #94a3b8)' }}>Show tier badge on public ledgers & leaderboard (name stays visible)</div>
+                </div>
+                <div style={{ width: '38px', height: '20px', borderRadius: '20px', background: showBadge ? '#22c55e' : 'rgba(255,255,255,0.15)', position: 'relative', transition: '0.2s', flexShrink: 0 }}>
+                  <div style={{ width: '16px', height: '16px', borderRadius: '50%', background: '#fff', position: 'absolute', top: '2px', left: showBadge ? '20px' : '2px', transition: '0.2s' }} />
                 </div>
               </div>
 

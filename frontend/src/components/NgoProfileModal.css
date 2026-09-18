@@ -14,7 +14,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 9999999;
+  z-index: 1000000060 !important;
   padding: 16px;
   animation: ngoBackdropFade 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }

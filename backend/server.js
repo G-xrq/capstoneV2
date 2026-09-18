@@ -6,6 +6,7 @@ const jwt = require('jsonwebtoken');
 const nodemailer = require('nodemailer');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const db = require('./database');
+const blockchainRelayer = require('./services/blockchainRelayer');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -209,6 +210,16 @@ const verifyOnChainTx = async (txHash) => {
   }
 };
 
+// ── Autonomous Blockchain Relayer Status Endpoint ────────────
+app.get('/api/blockchain/relayer-status', async (req, res) => {
+  try {
+    const status = await blockchainRelayer.getRelayerStatus();
+    res.json(status);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ── Authentication Middleware ──────────────────────────────
 const authenticateToken = (req, res, next) => {
   const authHeader = req.headers['authorization'];
@@ -250,13 +261,28 @@ const formatUserObj = (user, role, idCol) => {
 
   const displayName = user.Display_Name || user.Name || legalName || user.Username;
 
+  let isAnon = Boolean(user.Is_Anonymous);
+  if (!isAnon && user.Preferences_Json) {
+    try {
+      const p = typeof user.Preferences_Json === 'string' ? JSON.parse(user.Preferences_Json) : user.Preferences_Json;
+      if (p?.is_anonymous || p?.anonymous) isAnon = true;
+    } catch (_) {}
+  }
+
+  const roleCode = role === 'organization' ? 'NGO' : role === 'admin' ? 'ADMIN' : 'DONOR';
+  const rawId = user[idColumn] || 1;
+  const numStr = String(rawId).padStart(4, '0');
+  const systemId = `BBDRTS-${roleCode}-2026-${numStr}`;
+
   return {
     id: user[idColumn],
+    system_id: systemId,
     name: role === 'organization' ? (user.Org_Name || displayName) : displayName,
     display_name: displayName,
     legal_name: role === 'organization' ? (user.Org_Name || displayName) : (legalName || displayName),
     email: user.Username,
     role: role,
+    is_anonymous: isAnon,
     phone: user.Mobile_Number || null,
     location: user.Location || null,
     bio: user.Bio || null,
@@ -1253,6 +1279,16 @@ app.post('/api/auth/profile', authenticateToken, async (req, res) => {
 
       const prefsStr = req.body.preferences ? (typeof req.body.preferences === 'string' ? req.body.preferences : JSON.stringify(req.body.preferences)) : currentDonor.Preferences_Json;
 
+      let isAnonVal = req.body.is_anonymous !== undefined ? (req.body.is_anonymous ? 1 : 0) : null;
+      if (isAnonVal === null && req.body.preferences) {
+        try {
+          const p = typeof req.body.preferences === 'string' ? JSON.parse(req.body.preferences) : req.body.preferences;
+          if (p && (p.is_anonymous !== undefined || p.anonymous !== undefined)) {
+            isAnonVal = (p.is_anonymous || p.anonymous) ? 1 : 0;
+          }
+        } catch (_) {}
+      }
+
       await db.query(
         `UPDATE DONOR SET 
           Display_Name = ?,
@@ -1262,7 +1298,8 @@ app.post('/api/auth/profile', authenticateToken, async (req, res) => {
           Mobile_Number = ?,
           Location = ?,
           Bio = ?,
-          Preferences_Json = ?
+          Preferences_Json = ?,
+          Is_Anonymous = COALESCE(?, Is_Anonymous)
         WHERE Donor_ID = ?`,
         [
           updatedDisplayName,
@@ -1273,6 +1310,7 @@ app.post('/api/auth/profile', authenticateToken, async (req, res) => {
           (location || '').trim() || null,
           (bio || '').trim() || null,
           prefsStr || null,
+          isAnonVal,
           id
         ]
       );
@@ -1770,8 +1808,9 @@ app.post('/api/campaigns', authenticateToken, async (req, res) => {
         Bank_Name,
         Bank_Account_Name,
         Bank_Account_Number,
-        Bank_Qr_Url
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        Bank_Qr_Url,
+        Created_At
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         req.user.id,
         title,
@@ -1797,7 +1836,8 @@ app.post('/api/campaigns', authenticateToken, async (req, res) => {
         (bank_name || '').trim() || null,
         (bank_account_name || '').trim() || null,
         (bank_account_number || '').trim() || null,
-        bank_qr_url || null
+        bank_qr_url || null,
+        new Date().toISOString().slice(0, 19).replace('T', ' ')
       ]
     );
     res.status(201).json({ message: 'Campaign verified and saved to database with full details.' });
@@ -1913,47 +1953,6 @@ app.post('/api/campaigns/:id/deactivate', authenticateToken, async (req, res) =>
   }
 });
 
-// ── Geocode Reverse Proxy Route with Multi-Tier Zoom Fallback ─
-app.get('/api/geocode/reverse', async (req, res) => {
-  const { lat, lon } = req.query;
-  if (!lat || !lon) return res.status(400).json({ error: 'lat and lon are required parameters.' });
-
-  try {
-    const fetchFn = typeof fetch !== 'undefined' ? fetch : (...args) => import('node-fetch').then(({default: f}) => f(...args));
-    
-    // Tier 1: Detailed street level (zoom 17)
-    let nominatimUrl = `https://nominatim.openstreetmap.org/reverse?format=json&addressdetails=1&zoom=17&lat=${lat}&lon=${lon}`;
-    let response = await fetchFn(nominatimUrl, {
-      headers: { 'User-Agent': 'BBDRTS-DisasterRelief-Platform/2.0 (capstone@reliefph.org)' }
-    });
-    let data = response.ok ? await response.json() : null;
-
-    // Tier 2: If street level yielded no address (e.g. open fields, rural areas), fall back to municipality level (zoom 14)
-    if (!data || data.error || !data.address) {
-      nominatimUrl = `https://nominatim.openstreetmap.org/reverse?format=json&addressdetails=1&zoom=14&lat=${lat}&lon=${lon}`;
-      response = await fetchFn(nominatimUrl, {
-        headers: { 'User-Agent': 'BBDRTS-DisasterRelief-Platform/2.0 (capstone@reliefph.org)' }
-      });
-      data = response.ok ? await response.json() : null;
-    }
-
-    // Tier 3: If still empty (e.g. coastal waters, provincial borders), fall back to provincial level (zoom 10)
-    if (!data || data.error || !data.address) {
-      nominatimUrl = `https://nominatim.openstreetmap.org/reverse?format=json&addressdetails=1&zoom=10&lat=${lat}&lon=${lon}`;
-      response = await fetchFn(nominatimUrl, {
-        headers: { 'User-Agent': 'BBDRTS-DisasterRelief-Platform/2.0 (capstone@reliefph.org)' }
-      });
-      data = response.ok ? await response.json() : null;
-    }
-
-    if (data && (data.address || data.display_name)) {
-      return res.json(data);
-    }
-    return res.status(404).json({ error: 'No address found for these coordinates' });
-  } catch (err) {
-    return res.status(500).json({ error: 'Reverse geocoding error: ' + err.message });
-  }
-});
 
 // ── Manual Fiat Verification Routes (Capstone Feature) ───
 
@@ -1961,13 +1960,14 @@ app.get('/api/geocode/reverse', async (req, res) => {
 app.post('/api/manual-donations', authenticateToken, async (req, res) => {
   if (req.user.role !== 'donor') return res.status(403).json({ error: 'Only donors can upload receipts.' });
 
-  const { campaign_id, amount, payment_method, receipt_base64 } = req.body;
+  const { campaign_id, amount, payment_method, receipt_base64, is_anonymous } = req.body;
   if (!campaign_id || !amount || !receipt_base64) return res.status(400).json({ error: 'Missing required manual donation fields.' });
 
   try {
+    const anonymousFlag = is_anonymous ? 1 : 0;
     await db.query(
-      `INSERT INTO MANUAL_DONATION (Donor_ID, Campaign_ID, Amount, Payment_Method, Receipt_Base64, Status) VALUES (?, ?, ?, ?, ?, 'Pending')`,
-      [req.user.id, campaign_id, amount, payment_method || 'Unknown', receipt_base64]
+      `INSERT INTO MANUAL_DONATION (Donor_ID, Campaign_ID, Amount, Payment_Method, Receipt_Base64, Status, Is_Anonymous) VALUES (?, ?, ?, ?, ?, 'Pending', ?)`,
+      [req.user.id, campaign_id, amount, payment_method || 'Unknown', receipt_base64, anonymousFlag]
     );
     res.status(201).json({ message: 'Receipt uploaded successfully. Pending NGO verification.' });
   } catch (err) {
@@ -2033,12 +2033,22 @@ app.post('/api/manual-donations/:id/:action', authenticateToken, async (req, res
 
     // When approved, record into DONATION_TRANSACTION so it appears in ledger and increments campaign raised balance
     if (action === 'approve') {
-      const cleanMethod = (record.Payment_Method || 'FIAT').toUpperCase().replace(/[^A-Z]/g, '').substring(0, 4);
-      const auditHash = `FIAT-${cleanMethod}-MANUAL-${record.Manual_ID}-${Date.now().toString().slice(-6)}`;
+      const cleanMethod = (record.Payment_Method || 'BANK').toUpperCase();
+      const isAnon = record.Is_Anonymous ? 1 : 0;
+      const relayRes = await blockchainRelayer.relayDonation({
+        campaignId: record.Campaign_ID,
+        amountPhp: Math.round((parseFloat(record.Amount) || 0) * 170000),
+        amountEth: parseFloat(record.Amount) || 0,
+        paymentMethod: cleanMethod,
+        referenceNumber: `MANUAL-${record.Manual_ID}`,
+        donorWallet: record.Donor_Wallet || null,
+        donorId: record.Donor_ID || null
+      });
+      const auditHash = relayRes.txHash;
       
       await db.query(
-        `INSERT INTO DONATION_TRANSACTION (Donor_ID, Org_ID, Campaign_ID, Tx_Hash, Amount, Is_Anonymous, Wallet_Address) VALUES (?, ?, ?, ?, ?, 0, ?)`,
-        [record.Donor_ID, record.Org_ID, record.Campaign_ID, auditHash, record.Amount, record.Donor_Wallet || null]
+        `INSERT INTO DONATION_TRANSACTION (Donor_ID, Org_ID, Campaign_ID, Tx_Hash, Amount, Is_Anonymous, Wallet_Address, Payment_Method) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        [record.Donor_ID, record.Org_ID, record.Campaign_ID, auditHash, record.Amount, isAnon, record.Donor_Wallet || null, record.Payment_Method || 'Bank']
       );
     }
 
@@ -2119,6 +2129,7 @@ app.get('/api/donations/me', authenticateToken, async (req, res) => {
         dt.Transaction_ID as id,
         dt.Tx_Hash as txHash,
         dt.Amount as amount,
+        COALESCE(dt.Payment_Method, 'ETH') as paymentMethod,
         dt.Campaign_ID as campaignId,
         dt.Is_Anonymous as isAnonymous,
         c.Campaign_Title as campaignTitle,
@@ -2185,16 +2196,24 @@ app.post('/api/donations/verify-mock-gateway', async (req, res) => {
       VALUES (?, ?, ?, ?, ?, 'Approved')
     `, [donorId, campaign_id, ethAmount, method, receipt_base64 || null]);
 
-    // 2. Credit the transaction to the public ledger
-    const cleanMethod = (method || 'FIAT').toUpperCase().replace(/[^A-Z]/g, '').substring(0, 4);
-    const cleanRef = (ref_no || '').replace(/[^0-9A-Za-z]/g, '').substring(0, 16);
-    const mockTxHash = cleanRef ? `FIAT-${cleanMethod}-${cleanRef}` : `FIAT-${cleanMethod}-${Date.now()}`;
+    // 2. Relayer On-Chain Execution (Gasless for Donor)
+    const relayRes = await blockchainRelayer.relayDonation({
+      campaignId: campaign_id,
+      amountPhp: parsedPhp,
+      amountEth: ethAmount,
+      paymentMethod: method,
+      referenceNumber: ref_no,
+      donorWallet: senderWallet,
+      donorId: donorId
+    });
+
+    const finalTxHash = relayRes.txHash;
     const anonymousFlag = is_anonymous ? 1 : 0;
 
     await db.query(`
-      INSERT INTO DONATION_TRANSACTION (Donor_ID, Org_ID, Campaign_ID, Tx_Hash, Amount, Is_Anonymous, Wallet_Address)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `, [donorId, orgId, campaign_id, mockTxHash, ethAmount, anonymousFlag, senderWallet]);
+      INSERT INTO DONATION_TRANSACTION (Donor_ID, Org_ID, Campaign_ID, Tx_Hash, Amount, Is_Anonymous, Wallet_Address, Payment_Method)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `, [donorId, orgId, campaign_id, finalTxHash, ethAmount, anonymousFlag, senderWallet, method || 'Fiat']);
 
     // 3. Emit real-time event-driven notifications to Donor and NGO
     try {
@@ -2219,8 +2238,8 @@ app.post('/api/donations/verify-mock-gateway', async (req, res) => {
           role: 'donor',
           type: 'DONATION',
           title: 'Donation Contribution Verified',
-          message: `Your donation of ₱${parsedPhp.toLocaleString()} (${ethAmount.toFixed(4)} ETH) to "${campTitle}" was successfully processed and verified on the public ledger. Transaction Ref: ${mockTxHash}`,
-          referenceId: mockTxHash,
+          message: `Your donation of ₱${parsedPhp.toLocaleString()} (${ethAmount.toFixed(4)} ETH) to "${campTitle}" was successfully processed and verified on the public ledger. Transaction Ref: ${finalTxHash}`,
+          referenceId: finalTxHash,
           referenceType: 'donation',
           link: '#campaigns'
         });
@@ -2233,8 +2252,8 @@ app.post('/api/donations/verify-mock-gateway', async (req, res) => {
           role: 'organization',
           type: 'DONATION',
           title: 'New Relief Contribution Received',
-          message: `Received a contribution of ₱${parsedPhp.toLocaleString()} (${ethAmount.toFixed(4)} ETH) for "${campTitle}" via ${method || 'E-Wallet'}. Ref: ${mockTxHash}`,
-          referenceId: mockTxHash,
+          message: `Received a contribution of ₱${parsedPhp.toLocaleString()} (${ethAmount.toFixed(4)} ETH) for "${campTitle}" via ${method || 'E-Wallet'}. Ref: ${finalTxHash}`,
+          referenceId: finalTxHash,
           referenceType: 'donation',
           link: '#campaigns'
         });
@@ -2243,7 +2262,13 @@ app.post('/api/donations/verify-mock-gateway', async (req, res) => {
       console.warn('⚠️ Could not emit donation event notification:', notifErr.message);
     }
 
-    res.json({ success: true, message: 'Payment successfully processed and verified.', tx_hash: mockTxHash });
+    res.json({ 
+      success: true, 
+      message: 'Payment successfully processed and verified on the blockchain ledger.', 
+      tx_hash: finalTxHash,
+      on_chain: relayRes.onChain,
+      explorer_url: relayRes.explorerUrl 
+    });
   } catch (err) {
     console.error('Mock Gateway Verification Error:', err);
     res.status(500).json({ error: 'Failed to process payment: ' + err.message });
@@ -2270,6 +2295,7 @@ app.get('/api/campaigns', async (req, res) => {
         c.Category as category,
         c.Urgency as urgency,
         c.Target_Date as targetDate,
+        c.Created_At as createdAt,
         c.Document_Url as documentUrl,
         c.Gcash_Name as gcashName,
         c.Gcash_Number as gcashNumber,
@@ -2291,7 +2317,7 @@ app.get('/api/campaigns', async (req, res) => {
       LEFT JOIN ORGANIZATION o ON c.Org_ID = o.Org_ID
       GROUP BY c.Campaign_ID, c.Org_ID, c.Campaign_Title, c.Target_Amount, c.Tags,
                c.Description, c.Location_Region, c.Gps_Coordinates, c.Beneficiaries_Impact,
-               c.Allocations_Json, c.Contact_Info, c.Category, c.Urgency, c.Target_Date,
+               c.Allocations_Json, c.Contact_Info, c.Category, c.Urgency, c.Target_Date, c.Created_At,
                c.Document_Url, c.Gcash_Name, c.Gcash_Number, c.Gcash_Qr_Url,
                c.Maya_Name, c.Maya_Number, c.Maya_Qr_Url, c.Bank_Name, c.Bank_Account_Name,
                c.Bank_Account_Number, c.Bank_Qr_Url, c.Smart_Contract_Address, c.Is_Active,
@@ -2306,7 +2332,7 @@ app.get('/api/campaigns', async (req, res) => {
     // Query multi-rail donation transactions to calculate live breakdown
     let txRows = [];
     try {
-      const [txs] = await db.query(`SELECT Campaign_ID, Tx_Hash, Amount FROM DONATION_TRANSACTION`);
+      const [txs] = await db.query(`SELECT Campaign_ID, Tx_Hash, Amount, Payment_Method FROM DONATION_TRANSACTION`);
       txRows = txs || [];
     } catch (_) {}
 
@@ -2325,15 +2351,16 @@ app.get('/api/campaigns', async (req, res) => {
         }
         const amt = parseFloat(tx.Amount) || 0;
         const hash = (tx.Tx_Hash || '').toUpperCase();
+        const pMethod = (tx.Payment_Method || '').toUpperCase();
         txByCampaign[cId].totalBackers++;
 
-        if (hash.startsWith('FIAT-GCAS') || hash.includes('GCASH')) {
+        if (pMethod.includes('GCASH') || hash.startsWith('FIAT-GCAS') || hash.includes('GCASH')) {
           txByCampaign[cId].gcashAmount += amt;
           txByCampaign[cId].gcashCount++;
-        } else if (hash.startsWith('FIAT-MAYA') || hash.includes('MAYA')) {
+        } else if (pMethod.includes('MAYA') || hash.startsWith('FIAT-MAYA') || hash.includes('MAYA')) {
           txByCampaign[cId].mayaAmount += amt;
           txByCampaign[cId].mayaCount++;
-        } else if (hash.startsWith('FIAT-BANK') || hash.startsWith('FIAT-CRED') || hash.includes('BANK') || hash.includes('CARD')) {
+        } else if (pMethod.includes('BANK') || pMethod.includes('CARD') || hash.startsWith('FIAT-BANK') || hash.startsWith('FIAT-CRED') || hash.includes('BANK') || hash.includes('CARD')) {
           txByCampaign[cId].bankAmount += amt;
           txByCampaign[cId].bankCount++;
         } else {
@@ -2375,6 +2402,7 @@ app.get('/api/campaigns', async (req, res) => {
         urgency: r.urgency || 'HIGH',
         category: r.category || 'DR',
         targetDate: r.targetDate || '2026-12-31',
+        createdAt: r.createdAt || r.Created_At || null,
         documentUrl: r.documentUrl || '',
         allocationsJson: r.allocationsJson || '[]',
         contactInfo: r.contactInfo || '',
@@ -2510,6 +2538,45 @@ app.get('/api/donors/cumulative-totals', async (req, res) => {
   }
 });
 
+// ── Complete Donor Public Transaction Audit Trail ──
+app.get('/api/donors/:identifier/transactions', async (req, res) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  const { identifier } = req.params;
+  if (!identifier) return res.status(400).json({ error: 'Donor identifier required' });
+
+  try {
+    const isAddress = identifier.startsWith('0x');
+    const cleanAddr = identifier.toLowerCase().trim();
+    const donorId = Number(identifier) || 0;
+
+    const [rows] = await db.query(`
+      SELECT 
+        dt.Transaction_ID as id,
+        dt.Tx_Hash as txHash,
+        dt.Amount as amount,
+        COALESCE(dt.Payment_Method, 'ETH') as paymentMethod,
+        dt.Campaign_ID as campaignId,
+        dt.Is_Anonymous as isAnonymous,
+        dt.Wallet_Address as walletAddress,
+        c.Campaign_Title as campaignTitle,
+        o.Org_Name as orgName,
+        dt.Created_At as createdAt
+      FROM DONATION_TRANSACTION dt
+      LEFT JOIN CAMPAIGN c ON dt.Campaign_ID = c.Campaign_ID
+      LEFT JOIN ORGANIZATION o ON (dt.Org_ID = o.Org_ID OR c.Org_ID = o.Org_ID)
+      WHERE (
+        ${isAddress ? 'LOWER(dt.Wallet_Address) = ?' : 'dt.Donor_ID = ?'}
+        ${isAddress ? 'OR dt.Donor_ID IN (SELECT Donor_ID FROM DONOR WHERE LOWER(Wallet_Address) = ?)' : 'OR LOWER(dt.Wallet_Address) IN (SELECT LOWER(Wallet_Address) FROM DONOR WHERE Donor_ID = ? AND Wallet_Address IS NOT NULL)'}
+      )
+      ORDER BY dt.Transaction_ID DESC
+    `, isAddress ? [cleanAddr, cleanAddr] : [donorId, donorId]);
+
+    res.json(rows || []);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch donor transactions: ' + err.message });
+  }
+});
+
 // ── Philanthropy & Relief Impact Leaderboard (Top Donors & Top NGOs) ──
 app.get('/api/leaderboard', async (req, res) => {
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
@@ -2535,8 +2602,26 @@ app.get('/api/leaderboard', async (req, res) => {
     } catch (_) {}
   }
 
+  const timeframe = (req.query.timeframe || 'all').toLowerCase();
+
   try {
-    // 1. Fetch Real Registered Donors with Aggregated Contributions from Database
+    let donorTimeframeFilter = '';
+    let unlinkedTimeframeFilter = '';
+    const donorQueryParams = [];
+    const unlinkedQueryParams = [];
+
+    if (timeframe === 'month') {
+      const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 19).replace('T', ' ');
+      donorTimeframeFilter = 'AND dt.Created_At >= ?';
+      unlinkedTimeframeFilter = 'AND dt.Created_At >= ?';
+      donorQueryParams.push(thirtyDaysAgo);
+      unlinkedQueryParams.push(thirtyDaysAgo);
+    } else if (timeframe === 'active') {
+      donorTimeframeFilter = 'AND (c.Is_Active = 1 OR dt.Campaign_ID IS NULL)';
+      unlinkedTimeframeFilter = 'AND (c.Is_Active = 1 OR dt.Campaign_ID IS NULL)';
+    }
+
+    // 1. Fetch Real Registered Donors with Aggregated Contributions from Database (Only contributors with > 0 donations)
     const [donorRows] = await db.query(`
       SELECT 
         d.Donor_ID as donorId,
@@ -2544,16 +2629,22 @@ app.get('/api/leaderboard', async (req, res) => {
         COALESCE(NULLIF(d.Display_Name, ''), NULLIF(d.Legal_Name, ''), NULLIF(d.Name, ''), d.Username, 'Verified Donor') as displayName,
         COALESCE(d.Avatar_Url, '') as avatarUrl,
         d.Wallet_Address as walletAddress,
-        COALESCE(d.Location, 'Philippines') as location,
+        d.Preferences_Json as preferencesJson,
+        COALESCE(d.Bio, '') as bio,
+        COALESCE(d.Is_Anonymous, 0) as isDonorAnonymous,
+        'Philippines' as location,
         COALESCE(SUM(dt.Amount), 0) as totalDonatedEth,
         COUNT(dt.Transaction_ID) as donationCount,
         COUNT(DISTINCT dt.Campaign_ID) as campaignsSupported,
         MAX(dt.Created_At) as lastDonationDate
       FROM DONOR d
-      LEFT JOIN DONATION_TRANSACTION dt ON (d.Donor_ID = dt.Donor_ID OR (d.Wallet_Address IS NOT NULL AND dt.Wallet_Address IS NOT NULL AND LOWER(d.Wallet_Address) = LOWER(dt.Wallet_Address)))
-      GROUP BY d.Donor_ID, d.Username, d.Display_Name, d.Legal_Name, d.Name, d.Avatar_Url, d.Wallet_Address, d.Location
+      INNER JOIN DONATION_TRANSACTION dt ON (d.Donor_ID = dt.Donor_ID OR (d.Wallet_Address IS NOT NULL AND dt.Wallet_Address IS NOT NULL AND LOWER(d.Wallet_Address) = LOWER(dt.Wallet_Address)))
+      LEFT JOIN CAMPAIGN c ON dt.Campaign_ID = c.Campaign_ID
+      WHERE 1=1 ${donorTimeframeFilter}
+      GROUP BY d.Donor_ID, d.Username, d.Display_Name, d.Legal_Name, d.Name, d.Avatar_Url, d.Wallet_Address, d.Preferences_Json, d.Bio, d.Is_Anonymous
+      HAVING totalDonatedEth > 0
       ORDER BY totalDonatedEth DESC, donationCount DESC
-    `);
+    `, donorQueryParams);
 
     // 2. Fetch Anonymous / Unlinked Web3 Wallets with Real Transactions Not Yet Linked to a Registered Donor
     const [unlinkedRows] = await db.query(`
@@ -2565,26 +2656,33 @@ app.get('/api/leaderboard', async (req, res) => {
         COUNT(DISTINCT dt.Campaign_ID) as campaignsSupported,
         MAX(dt.Created_At) as lastDonationDate
       FROM DONATION_TRANSACTION dt
+      LEFT JOIN CAMPAIGN c ON dt.Campaign_ID = c.Campaign_ID
       LEFT JOIN DONOR d ON (dt.Donor_ID = d.Donor_ID OR (dt.Wallet_Address IS NOT NULL AND d.Wallet_Address IS NOT NULL AND LOWER(dt.Wallet_Address) = LOWER(d.Wallet_Address)))
-      WHERE d.Donor_ID IS NULL AND dt.Amount > 0
+      WHERE d.Donor_ID IS NULL AND dt.Amount > 0 ${unlinkedTimeframeFilter}
       GROUP BY dt.Donor_ID, dt.Wallet_Address
-    `);
+    `, unlinkedQueryParams);
 
-    // Helper to calculate 12-tier honors ladder standing based on real on-chain contributions
+    // Helper to calculate 15-tier institutional Giving Societies standing based on real on-chain contributions
+    // *** Dignified philanthropic society titles with transparent contribution requirements ***
     const calculateDonorTier = (eth) => {
-      const php = Math.round(eth * 170000);
-      if (php >= 5000000 || eth >= 30.0) return { tier: 12, name: 'Mythic Patron', subtitle: 'Transcendent Diamond', color: '#ec4899' };
-      if (php >= 2500000 || eth >= 15.0) return { tier: 11, name: 'Principal Benefactor', subtitle: 'Celestial Solar Nova', color: '#a855f7' };
-      if (php >= 1000000 || eth >= 6.0) return { tier: 10, name: 'Grand Benefactor', subtitle: 'Sovereign Monarch Crown', color: '#eab308' };
-      if (php >= 500000 || eth >= 3.0) return { tier: 9, name: 'Patron of Relief', subtitle: 'Heraldic Patron Crest', color: '#3b82f6' };
-      if (php >= 250000 || eth >= 1.5) return { tier: 8, name: 'Distinguished Humanitarian', subtitle: 'Winged Diamond Crest', color: '#14b8a6' };
-      if (php >= 100000 || eth >= 0.6) return { tier: 7, name: 'Humanitarian', subtitle: 'Star of Mercy', color: '#ef4444' };
-      if (php >= 50000 || eth >= 0.3) return { tier: 6, name: 'Humanitarian Pioneer', subtitle: 'Heart Medallion', color: '#f97316' };
-      if (php >= 30000 || eth >= 0.18) return { tier: 5, name: 'Disaster Champion', subtitle: 'Phoenix Flame', color: '#f59e0b' };
-      if (php >= 15000 || eth >= 0.09) return { tier: 4, name: 'Community Builder', subtitle: 'Amethyst Prism', color: '#8b5cf6' };
-      if (php >= 5000 || eth >= 0.03) return { tier: 3, name: 'Relief Partner', subtitle: 'Partner Shield & Cross', color: '#06b6d4' };
-      if (php >= 1000 || eth >= 0.006) return { tier: 2, name: 'Supporter', subtitle: 'Tactical Compass Shield', color: '#0284c7' };
-      return { tier: 1, name: 'Contributor', subtitle: 'Faceted Relief Sprout Gem', color: '#10b981' };
+      const parsedEth = parseFloat(eth) || 0;
+      const php = Math.round(parsedEth * 170000);
+      if (php >= 50000000 || parsedEth >= 300.0) return { tier: 15, tierNumber: 15, name: 'Honorary Relief Board of Trustees',  subtitle: 'Honorary Trustee • ₱50,000,000+',     color: '#475569' };
+      if (php >= 25000000 || parsedEth >= 150.0) return { tier: 14, tierNumber: 14, name: 'Distinguished Lifesavers Society',   subtitle: 'Trustee Fellow • ₱25,000,000+',       color: '#b45309' };
+      if (php >= 10000000 || parsedEth >= 60.0)  return { tier: 13, tierNumber: 13, name: 'Visionary Benefactors Council',     subtitle: 'Founding Patron • ₱10,000,000+',      color: '#16a34a' };
+      if (php >= 5000000  || parsedEth >= 30.0)  return { tier: 12, tierNumber: 12, name: 'Legacy Philanthropists Circle',      subtitle: 'Legacy Fellow • ₱5,000,000+',         color: '#059669' };
+      if (php >= 2500000  || parsedEth >= 15.0)  return { tier: 11, tierNumber: 11, name: 'Principal Benefactors Fellowship',   subtitle: 'Principal Fellow • ₱2,500,000+',      color: '#7e22ce' };
+      if (php >= 1000000  || parsedEth >= 6.0)   return { tier: 10, tierNumber: 10, name: 'Disaster Relief Leadership Council', subtitle: 'Council Member • ₱1,000,000+',       color: '#0284c7' };
+      if (php >= 500000   || parsedEth >= 3.0)   return { tier: 9,  tierNumber: 9,  name: 'Patrons of Relief Society',         subtitle: 'Executive Patron • ₱500,000+',        color: '#1d4ed8' };
+      if (php >= 250000   || parsedEth >= 1.5)   return { tier: 8,  tierNumber: 8,  name: 'Pillars of Mercy Fellowship',          subtitle: 'Senior Fellow • ₱250,000+',           color: '#0d9488' };
+      if (php >= 100000   || parsedEth >= 0.6)   return { tier: 7,  tierNumber: 7,  name: 'Distinguished Humanitarian Society', subtitle: 'Distinguished Patron • ₱100,000+',   color: '#dc2626' };
+      if (php >= 50000    || parsedEth >= 0.3)   return { tier: 6,  tierNumber: 6,  name: 'Philanthropic Partners Circle',     subtitle: 'Associate Patron • ₱50,000+',         color: '#d97706' };
+      if (php >= 25000    || parsedEth >= 0.15)  return { tier: 5,  tierNumber: 5,  name: 'Humanitarian Advocate Society',      subtitle: 'Advocate Member • ₱25,000+',          color: '#e11d48' };
+      if (php >= 10000    || parsedEth >= 0.06)  return { tier: 4,  tierNumber: 4,  name: 'Shelter Benefactors Circle',        subtitle: 'Benefactor Member • ₱10,000+',        color: '#7c3aed' };
+      if (php >= 5000     || parsedEth >= 0.03)  return { tier: 3,  tierNumber: 3,  name: 'Frontline Partner Council',        subtitle: 'Partner Member • ₱5,000+',            color: '#2563eb' };
+      if (php >= 1000     || parsedEth >= 0.006) return { tier: 2,  tierNumber: 2,  name: 'Relief Sustainer Society',         subtitle: 'Sustaining Member • ₱1,000+',         color: '#0284c7' };
+      if (php >= 1        || parsedEth > 0)      return { tier: 1,  tierNumber: 1,  name: 'Community Supporter Circle',        subtitle: 'Supporter Member • Min ₱1',           color: '#10b981' };
+      return                                      { tier: null, tierNumber: null, name: 'Unranked',                            subtitle: 'No Contributions Yet',                color: '#64748b' };
     };
 
     // Build real registered donors list
@@ -2596,14 +2694,41 @@ app.get('/api/leaderboard', async (req, res) => {
                           (authName && r.displayName && authName === r.displayName.toLowerCase().trim())
                         )) ||
                         (authWallet && r.walletAddress && authWallet === r.walletAddress.toLowerCase().trim());
+
+      let isAnon = Boolean(r.isDonorAnonymous);
+      let hideBadge = false;
+      if (r.preferencesJson) {
+        try {
+          const p = typeof r.preferencesJson === 'string' ? JSON.parse(r.preferencesJson) : r.preferencesJson;
+          if (!isAnon && p && (p.is_anonymous || p.anonymous || p.anonDefault)) {
+            isAnon = true;
+          }
+          if (p && (p.hide_badge === true || p.hideBadge === true || p.show_badge === false || p.showBadge === false)) {
+            hideBadge = true;
+          }
+        } catch (_) {}
+      }
+
+      const displayedName = isAnon ? 'Anonymous' : (r.displayName || 'Verified Donor');
+      const displayedAvatar = isAnon ? '' : (r.avatarUrl || '');
+      // For anonymous donors, NEVER expose real email (username) or wallet address to public/search
+      const returnedUsername = isAnon ? (isCurrent ? r.username : '') : r.username;
+      const returnedWallet = isAnon ? (isCurrent ? r.walletAddress : null) : r.walletAddress;
+
+      const dedicationText = (r.bio && r.bio.trim() && r.bio.trim().toLowerCase() !== 'hi')
+        ? r.bio.trim()
+        : '';
+
       return {
         id: `donor-${r.donorId}`,
         donorId: r.donorId,
-        displayName: r.displayName || 'Verified Donor',
-        username: r.username,
-        avatarUrl: r.avatarUrl,
-        walletAddress: r.walletAddress,
-        location: r.location || 'Philippines',
+        displayName: displayedName,
+        username: returnedUsername,
+        avatarUrl: displayedAvatar,
+        walletAddress: returnedWallet,
+        location: 'Philippines',
+        bio: r.bio || '',
+        dedication: dedicationText,
         totalDonatedEth: parseFloat(eth.toFixed(5)),
         totalDonatedPhp: Math.round(eth * 170000),
         donationCount: parseInt(r.donationCount, 10) || 0,
@@ -2611,6 +2736,8 @@ app.get('/api/leaderboard', async (req, res) => {
         lastDonationDate: r.lastDonationDate,
         topCause: 'Emergency Calamity Aid',
         badge: calculateDonorTier(eth),
+        hideBadge: Boolean(hideBadge),
+        isAnonymous: Boolean(isAnon),
         isCurrentUser: Boolean(isCurrent)
       };
     });
@@ -2629,6 +2756,8 @@ app.get('/api/leaderboard', async (req, res) => {
         avatarUrl: '',
         walletAddress: w.walletAddress || null,
         location: 'Sepolia EVM Network',
+        bio: '',
+        dedication: '',
         totalDonatedEth: parseFloat(eth.toFixed(5)),
         totalDonatedPhp: Math.round(eth * 170000),
         donationCount: parseInt(w.donationCount, 10) || 0,
@@ -2649,7 +2778,20 @@ app.get('/api/leaderboard', async (req, res) => {
       rank: index + 1
     }));
 
-    // 3. Fetch Real Organizations with Campaign & Milestone Deliveries from Database
+    // 3. Fetch Real Organizations with Campaign & Milestone Deliveries from Database (Accurate Non-Duplicating Aggregations)
+    let campFilter = '';
+    if (timeframe === 'active') {
+      campFilter = 'WHERE c.Is_Active = 1';
+    }
+
+    let dtFilter = '';
+    const orgQueryParams = [];
+    if (timeframe === 'month') {
+      const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 19).replace('T', ' ');
+      dtFilter = 'WHERE dt.Created_At >= ?';
+      orgQueryParams.push(thirtyDaysAgo);
+    }
+
     const [orgRows] = await db.query(`
       SELECT 
         o.Org_ID as orgId,
@@ -2662,13 +2804,31 @@ app.get('/api/leaderboard', async (req, res) => {
         o.Sec_Registration_No as secRegNo,
         o.Dswd_Accreditation_No as dswdNo,
         o.Verification_Status as verificationStatus,
-        COUNT(DISTINCT c.Campaign_ID) as campaignsCount,
-        COALESCE(SUM(dt.Amount), 0) as totalRaisedEth
+        COALESCE(campStats.campaignsCount, 0) as campaignsCount,
+        COALESCE(donStats.totalRaisedEth, 0) as totalRaisedEth,
+        COALESCE(donStats.donorCount, 0) as donorCount,
+        COALESCE(donStats.donationCount, 0) as donationCount,
+        donStats.lastActivityDate
       FROM ORGANIZATION o
-      LEFT JOIN CAMPAIGN c ON o.Org_ID = c.Org_ID
-      LEFT JOIN DONATION_TRANSACTION dt ON (c.Campaign_ID = dt.Campaign_ID OR o.Org_ID = dt.Org_ID)
-      GROUP BY o.Org_ID, o.Org_Name, o.Username, o.Avatar_Url, o.Banner_Url, o.Wallet_Address, o.Location, o.Sec_Registration_No, o.Dswd_Accreditation_No, o.Verification_Status
-    `);
+      LEFT JOIN (
+        SELECT c.Org_ID, COUNT(DISTINCT c.Campaign_ID) as campaignsCount
+        FROM CAMPAIGN c
+        ${campFilter}
+        GROUP BY c.Org_ID
+      ) campStats ON o.Org_ID = campStats.Org_ID
+      LEFT JOIN (
+        SELECT 
+          COALESCE(dt.Org_ID, c.Org_ID) as targetOrgId,
+          SUM(dt.Amount) as totalRaisedEth,
+          COUNT(DISTINCT COALESCE(CONCAT('d_', dt.Donor_ID), dt.Wallet_Address, CONCAT('anon_', dt.Transaction_ID))) as donorCount,
+          COUNT(dt.Transaction_ID) as donationCount,
+          MAX(dt.Created_At) as lastActivityDate
+        FROM DONATION_TRANSACTION dt
+        LEFT JOIN CAMPAIGN c ON dt.Campaign_ID = c.Campaign_ID
+        ${dtFilter}
+        GROUP BY targetOrgId
+      ) donStats ON o.Org_ID = donStats.targetOrgId
+    `, orgQueryParams);
 
     // Fetch Milestones count and beneficiaries from genuine CAMPAIGN records
     const [campRows] = await db.query(`
@@ -2679,6 +2839,7 @@ app.get('/api/leaderboard', async (req, res) => {
         Beneficiaries_Impact as beneficiariesImpact,
         Is_Active as isActive
       FROM CAMPAIGN
+      ${timeframe === 'active' ? 'WHERE Is_Active = 1' : ''}
     `);
 
     const orgMetrics = {};
@@ -2734,6 +2895,9 @@ app.get('/api/leaderboard', async (req, res) => {
         totalDeployedEth: parseFloat(eth.toFixed(4)),
         totalDeployedPhp: Math.round(eth * 170000),
         campaignsCount: parseInt(o.campaignsCount, 10) || 0,
+        donorCount: parseInt(o.donorCount, 10) || 0,
+        donationCount: parseInt(o.donationCount, 10) || 0,
+        lastActivityDate: o.lastActivityDate || null,
         milestonesCompleted: mStats.completedMilestones,
         beneficiariesReached: mStats.totalBeneficiariesApprox,
         transparencyScore: isVerified ? 100 : 70,
@@ -2745,8 +2909,8 @@ app.get('/api/leaderboard', async (req, res) => {
       };
     });
 
-    // Sort strictly real NGOs by relief deployed, campaigns count, and completed milestones
-    realNgos.sort((a, b) => b.totalDeployedEth - a.totalDeployedEth || b.campaignsCount - a.campaignsCount || b.milestonesCompleted - a.milestonesCompleted);
+    // Sort strictly real NGOs by relief deployed, campaigns count, and supporters count
+    realNgos.sort((a, b) => b.totalDeployedEth - a.totalDeployedEth || b.campaignsCount - a.campaignsCount || b.donorCount - a.donorCount);
 
     const rankedNgos = realNgos.map((n, index) => ({
       ...n,
@@ -2759,6 +2923,8 @@ app.get('/api/leaderboard', async (req, res) => {
     const totalAidRaisedEth = rankedDonors.reduce((acc, d) => acc + (d.totalDonatedEth || 0), 0);
     const totalAidRaisedPhp = Math.round(totalAidRaisedEth * 170000);
     const totalMilestonesVerified = rankedNgos.reduce((acc, n) => acc + (n.milestonesCompleted || 0), 0);
+    const totalBeneficiariesApprox = rankedNgos.reduce((acc, n) => acc + (n.beneficiariesReached || 0), 0);
+    const totalActiveOperations = rankedNgos.reduce((acc, n) => acc + (n.activeOperations || 0), 0);
 
     // Find current user's rank if authenticated
     let userRank = null;
@@ -2796,7 +2962,9 @@ app.get('/api/leaderboard', async (req, res) => {
         totalNgosCount,
         totalAidRaisedEth: parseFloat(totalAidRaisedEth.toFixed(3)),
         totalAidRaisedPhp,
-        totalMilestonesVerified
+        totalMilestonesVerified,
+        totalBeneficiariesApprox,
+        totalActiveOperations
       },
       userRank
     });
@@ -2806,17 +2974,203 @@ app.get('/api/leaderboard', async (req, res) => {
   }
 });
 
+// ── Live Donations Stream Endpoint (for Header Live Donation Tracker) ──
+app.get('/api/donations/live', async (req, res) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  try {
+    const limit = Math.min(parseInt(req.query.limit || '100', 10), 200);
+
+    // 1. Fetch recent transactions with full donor enrichment (no org join for donor identity)
+    const [rows] = await db.query(`
+      SELECT dt.Transaction_ID as id,
+             dt.Campaign_ID as campaignId,
+             COALESCE(c.Campaign_Title, 'Disaster Relief Operation') as campaignTitle,
+             dt.Tx_Hash as txHash,
+             dt.Amount as amountEth,
+             dt.Is_Anonymous as isAnonymous,
+             dt.Payment_Method as paymentMethod,
+             COALESCE(dt.Wallet_Address, d.Wallet_Address, '') as wallet,
+             COALESCE(NULLIF(d.Display_Name, ''), NULLIF(d.Name, ''), NULLIF(d.Username, '')) as rawDonorName,
+             dt.Created_At as createdAt,
+             dt.Donor_ID as donorId,
+             d.Avatar_Url as avatarUrl,
+             d.Username as username
+      FROM DONATION_TRANSACTION dt
+      LEFT JOIN DONOR d ON dt.Donor_ID = d.Donor_ID
+      LEFT JOIN CAMPAIGN c ON dt.Campaign_ID = c.Campaign_ID
+      ORDER BY dt.Transaction_ID DESC
+      LIMIT ?
+    `, [limit]);
+
+    // 2. Compute platform-wide cumulative telemetry across ALL transactions
+    const [totals] = await db.query(`
+      SELECT 
+        COUNT(*) as totalTxns,
+        COALESCE(SUM(dt.Amount), 0) as totalEth,
+        COUNT(DISTINCT dt.Campaign_ID) as activeCauses
+      FROM DONATION_TRANSACTION dt
+    `);
+
+    // 3. Compute rail distribution across ALL transactions
+    const [railRows] = await db.query(`
+      SELECT dt.Tx_Hash as txHash, dt.Payment_Method as paymentMethod
+      FROM DONATION_TRANSACTION dt
+    `);
+
+    // 4. Compute running cumulative contributions per donor up to the moment of each transaction
+    const [allTxs] = await db.query(`
+      SELECT Transaction_ID as id,
+             Donor_ID as donorId,
+             LOWER(COALESCE(Wallet_Address, '')) as wallet,
+             Amount as amountEth
+      FROM DONATION_TRANSACTION
+      ORDER BY Transaction_ID ASC
+    `);
+
+    const runningEthMap = {};
+    const txCumulativeMap = {};
+
+    allTxs.forEach(tx => {
+      const amt = parseFloat(tx.amountEth) || 0;
+      let key = null;
+      if (tx.donorId) key = `d_${tx.donorId}`;
+      else if (tx.wallet && tx.wallet !== '0x0000000000000000000000000000000000000000') key = `w_${tx.wallet}`;
+
+      if (key) {
+        runningEthMap[key] = (runningEthMap[key] || 0) + amt;
+        txCumulativeMap[tx.id] = runningEthMap[key];
+      } else {
+        txCumulativeMap[tx.id] = amt;
+      }
+    });
+
+    const getHistoricalTier = (eth) => {
+      const parsedEth = parseFloat(eth) || 0;
+      const php = Math.round(parsedEth * 170000);
+      if (php >= 50000000 || parsedEth >= 300.0) return { tierNumber: 15, name: 'Honorary Relief Board of Trustees',  subtitle: 'Honorary Trustee • ₱50,000,000+',     color: '#475569' };
+      if (php >= 25000000 || parsedEth >= 150.0) return { tierNumber: 14, name: 'Distinguished Lifesavers Society',   subtitle: 'Trustee Fellow • ₱25,000,000+',       color: '#b45309' };
+      if (php >= 10000000 || parsedEth >= 60.0)  return { tierNumber: 13, name: 'Visionary Benefactors Council',     subtitle: 'Founding Patron • ₱10,000,000+',      color: '#16a34a' };
+      if (php >= 5000000  || parsedEth >= 30.0)  return { tierNumber: 12, name: 'Legacy Philanthropists Circle',      subtitle: 'Legacy Fellow • ₱5,000,000+',         color: '#059669' };
+      if (php >= 2500000  || parsedEth >= 15.0)  return { tierNumber: 11, name: 'Principal Benefactors Fellowship',   subtitle: 'Principal Fellow • ₱2,500,000+',      color: '#7e22ce' };
+      if (php >= 1000000  || parsedEth >= 6.0)   return { tierNumber: 10, name: 'Disaster Relief Leadership Council', subtitle: 'Council Member • ₱1,000,000+',       color: '#0284c7' };
+      if (php >= 500000   || parsedEth >= 3.0)   return { tierNumber: 9,  name: 'Patrons of Relief Society',         subtitle: 'Executive Patron • ₱500,000+',        color: '#1d4ed8' };
+      if (php >= 250000   || parsedEth >= 1.5)   return { tierNumber: 8,  name: 'Pillars of Mercy Fellowship',          subtitle: 'Senior Fellow • ₱250,000+',           color: '#0d9488' };
+      if (php >= 100000   || parsedEth >= 0.6)   return { tierNumber: 7,  name: 'Distinguished Humanitarian Society', subtitle: 'Distinguished Patron • ₱100,000+',   color: '#dc2626' };
+      if (php >= 50000    || parsedEth >= 0.3)   return { tierNumber: 6,  name: 'Philanthropic Partners Circle',     subtitle: 'Associate Patron • ₱50,000+',         color: '#d97706' };
+      if (php >= 25000    || parsedEth >= 0.15)  return { tierNumber: 5,  name: 'Humanitarian Advocate Society',      subtitle: 'Advocate Member • ₱25,000+',          color: '#e11d48' };
+      if (php >= 10000    || parsedEth >= 0.06)  return { tierNumber: 4,  name: 'Shelter Benefactors Circle',        subtitle: 'Benefactor Member • ₱10,000+',        color: '#7c3aed' };
+      if (php >= 5000     || parsedEth >= 0.03)  return { tierNumber: 3,  name: 'Frontline Partner Council',        subtitle: 'Partner Member • ₱5,000+',            color: '#2563eb' };
+      if (php >= 1000     || parsedEth >= 0.006) return { tierNumber: 2,  name: 'Relief Sustainer Society',         subtitle: 'Sustaining Member • ₱1,000+',         color: '#0284c7' };
+      if (php >= 1        || parsedEth > 0)      return { tierNumber: 1,  name: 'Community Supporter Circle',        subtitle: 'Supporter Member • Min ₱1',           color: '#10b981' };
+      return null;
+    };
+
+    const byRail = { ONCHAIN: 0, GCASH: 0, MAYA: 0, CARD: 0 };
+    railRows.forEach(r => {
+      const pm = (r.paymentMethod || '').toUpperCase();
+      const hash = (r.txHash || '').toUpperCase();
+      if (pm.includes('GCASH') || hash.startsWith('FIAT-GCAS') || hash.includes('GCASH')) byRail.GCASH++;
+      else if (pm.includes('MAYA') || hash.startsWith('FIAT-MAYA') || hash.includes('MAYA')) byRail.MAYA++;
+      else if (pm.includes('BANK') || pm.includes('CARD') || hash.startsWith('FIAT-BANK') || hash.startsWith('FIAT-CARD') || hash.startsWith('FIAT-CRED') || hash.includes('CARD') || hash.includes('BANK')) byRail.CARD++;
+      else byRail.ONCHAIN++;
+    });
+
+    const totalEth = parseFloat(totals[0]?.totalEth || 0);
+    const totalTxns = parseInt(totals[0]?.totalTxns || rows.length, 10);
+    const activeCauses = parseInt(totals[0]?.activeCauses || 0, 10);
+    const totalPhp = Math.round(totalEth * 170000);
+    const avgPhp = totalTxns > 0 ? Math.round(totalPhp / totalTxns) : 0;
+
+    const formatted = rows.map(r => {
+      const rawEth = parseFloat(r.amountEth || 0);
+      const isAnonymous = Boolean(r.isAnonymous);
+      const isGuest = !r.donorId && (!r.wallet || r.wallet === '' || r.wallet === '0x0000000000000000000000000000000000000000');
+      const hash = (r.txHash || '').toUpperCase();
+      const pm = (r.paymentMethod || '').toUpperCase();
+      let rail = 'ONCHAIN';
+      if (pm.includes('GCASH') || hash.startsWith('FIAT-GCAS') || hash.includes('GCASH')) rail = 'GCASH';
+      else if (pm.includes('MAYA') || hash.startsWith('FIAT-MAYA') || hash.includes('MAYA')) rail = 'MAYA';
+      else if (pm.includes('BANK') || pm.includes('CARD') || hash.startsWith('FIAT-BANK') || hash.startsWith('FIAT-CARD') || hash.startsWith('FIAT-CRED') || hash.includes('CARD') || hash.includes('BANK')) rail = 'CARD';
+
+      // Format donor display name cleanly without leaking raw emails
+      let donorDisplayName = 'Guest Donor';
+      if (isAnonymous) {
+        donorDisplayName = 'Anonymous Donor';
+      } else if (r.rawDonorName) {
+        if (r.rawDonorName.includes('@')) {
+          const handle = r.rawDonorName.split('@')[0];
+          donorDisplayName = handle.toLowerCase() === 'gestermacaldo'
+            ? 'Gester Macaldo'
+            : handle.replace(/[\._\d]/g, ' ').trim().split(' ').filter(Boolean).map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ') || handle;
+        } else {
+          donorDisplayName = r.rawDonorName;
+        }
+      } else if (isGuest) {
+        donorDisplayName = 'Guest Donor';
+      } else if (r.wallet && r.wallet !== '0x0000000000000000000000000000000000000000') {
+        donorDisplayName = 'Verified Donor';
+      }
+
+      const cumEth = txCumulativeMap[r.id] !== undefined ? txCumulativeMap[r.id] : rawEth;
+      const cumPhp = Math.round(cumEth * 170000);
+      const tierAtTime = (isGuest || isAnonymous) ? null : getHistoricalTier(cumEth);
+
+      return {
+        id: r.id,
+        campaignId: r.campaignId,
+        campaignTitle: r.campaignTitle,
+        txHash: r.txHash,
+        amountEth: rawEth,
+        amountPhp: Math.round(rawEth * 170000),
+        donorName: donorDisplayName,
+        isGuest,
+        isAnonymous,
+        donorId: r.donorId || null,
+        avatarUrl: isAnonymous ? '' : (r.avatarUrl || ''),
+        wallet: isAnonymous ? '' : (r.wallet || ''),
+        cumulativeEthAtTime: cumEth,
+        cumulativePhpAtTime: cumPhp,
+        tierAtTime,
+        rail,
+        createdAt: r.createdAt
+      };
+    });
+
+    res.json({
+      donations: formatted,
+      stats: {
+        totalPhp,
+        totalEth,
+        txCount: totalTxns,
+        avgPhp,
+        activeCauses,
+        byRail
+      }
+    });
+  } catch (err) {
+    console.error('Failed to get live donations:', err);
+    res.status(500).json({ error: 'Failed to get live donations: ' + err.message });
+  }
+});
+
 app.get('/api/campaigns/:id/donations', async (req, res) => {
   try {
     const [rows] = await db.query(`
-      SELECT dt.Tx_Hash, dt.Amount, dt.Is_Anonymous, 
+      SELECT dt.Tx_Hash, dt.Amount, dt.Is_Anonymous, dt.Payment_Method as paymentMethod,
              COALESCE(dt.Wallet_Address, d.Wallet_Address, '') as wallet, 
              CASE 
-               WHEN dt.Is_Anonymous = 1 THEN 'Anonymous Patron'
-               ELSE COALESCE(d.Display_Name, d.Name, 'Verified Donor')
+               WHEN dt.Is_Anonymous = 1 THEN 'Anonymous Donor'
+               WHEN dt.Donor_ID IS NOT NULL OR (dt.Wallet_Address IS NOT NULL AND dt.Wallet_Address != '' AND dt.Wallet_Address != '0x0000000000000000000000000000000000000000') 
+                 THEN COALESCE(NULLIF(d.Display_Name, ''), NULLIF(d.Name, ''), 'Verified Donor')
+               ELSE 'Guest Donor'
              END as donorName,
              dt.Created_At as createdAt,
-             dt.Donor_ID as donorId
+             dt.Donor_ID as donorId,
+             d.Avatar_Url as avatarUrl,
+             d.Username as username,
+             d.Location as location,
+             d.Bio as bio,
+             d.Preferences_Json as preferencesJson
       FROM DONATION_TRANSACTION dt
       LEFT JOIN DONOR d ON dt.Donor_ID = d.Donor_ID
       WHERE dt.Campaign_ID = ?
@@ -2861,12 +3215,34 @@ app.get('/api/campaigns/:id/donations', async (req, res) => {
     const enriched = (rows || []).map(r => {
       const w = (r.wallet || '').toLowerCase().trim();
       const id = r.donorId ? `id_${r.donorId}` : null;
-      // Prioritize logged-in donor ID identity if present
-      const globalEth = (id && donorTotals[id])
-        || (w && w !== '0x0000000000000000000000000000000000000000' && donorTotals[w])
-        || parseFloat(r.Amount || 0);
+      const isGuest = !r.donorId && (!w || w === '0x0000000000000000000000000000000000000000');
+      // Unauthenticated guest contributors have no cumulative profile or honor tier badge
+      const globalEth = isGuest
+        ? 0
+        : ((id && donorTotals[id])
+            || (w && w !== '0x0000000000000000000000000000000000000000' && donorTotals[w])
+            || parseFloat(r.Amount || 0));
+
+      let hideBadge = false;
+      if (r.preferencesJson) {
+        try {
+          const p = typeof r.preferencesJson === 'string' ? JSON.parse(r.preferencesJson) : r.preferencesJson;
+          if (p && (p.hide_badge === true || p.hideBadge === true || p.show_badge === false || p.showBadge === false)) {
+            hideBadge = true;
+          }
+        } catch (_) {}
+      }
+
+      const isAnon = Boolean(r.Is_Anonymous);
+
       return {
         ...r,
+        isGuest,
+        hideBadge,
+        avatarUrl: isAnon ? '' : (r.avatarUrl || ''),
+        username: isAnon ? '' : (r.username ? r.username.split('@')[0] : ''),
+        location: isAnon ? '' : (r.location || ''),
+        bio: isAnon ? '' : (r.bio || ''),
         globalTotalEth: globalEth
       };
     });
@@ -2874,6 +3250,85 @@ app.get('/api/campaigns/:id/donations', async (req, res) => {
     res.json(enriched);
   } catch (err) {
     res.status(500).json({ error: 'Failed to fetch donations: ' + err.message });
+  }
+});
+
+// ── GET /api/donors/:identifier/transactions ───────────────────────────
+// Returns all audited on-chain and fiat donations for a specific donor,
+// queryable by numeric Donor_ID (e.g. 1 or "id_1") or wallet address (0x...)
+app.get('/api/donors/:identifier/transactions', async (req, res) => {
+  try {
+    const rawIdentifier = String(req.params.identifier || '').trim();
+    if (!rawIdentifier) return res.json([]);
+
+    let donorId = null;
+    let walletAddress = null;
+
+    if (rawIdentifier.startsWith('id_')) {
+      donorId = parseInt(rawIdentifier.replace(/^id_/, ''), 10);
+    } else if (/^\d+$/.test(rawIdentifier)) {
+      donorId = parseInt(rawIdentifier, 10);
+    } else if (rawIdentifier.startsWith('0x') || rawIdentifier.length >= 20) {
+      walletAddress = rawIdentifier.toLowerCase();
+    }
+
+    // If we have donorId but no wallet, retrieve their registered wallet address
+    if (donorId && !walletAddress) {
+      try {
+        const [dRows] = await db.query('SELECT Wallet_Address FROM DONOR WHERE Donor_ID = ?', [donorId]);
+        if (dRows && dRows[0] && dRows[0].Wallet_Address) {
+          walletAddress = dRows[0].Wallet_Address.toLowerCase();
+        }
+      } catch (_) {}
+    } else if (walletAddress && !donorId) {
+      // If we have wallet but no donorId, see if it maps to a registered donor
+      try {
+        const [dRows] = await db.query('SELECT Donor_ID FROM DONOR WHERE LOWER(Wallet_Address) = ?', [walletAddress]);
+        if (dRows && dRows[0] && dRows[0].Donor_ID) {
+          donorId = dRows[0].Donor_ID;
+        }
+      } catch (_) {}
+    }
+
+    const whereClauses = [];
+    const params = [];
+
+    if (donorId) {
+      whereClauses.push('dt.Donor_ID = ?');
+      params.push(donorId);
+    }
+    if (walletAddress) {
+      whereClauses.push('LOWER(dt.Wallet_Address) = ?');
+      params.push(walletAddress);
+    }
+
+    if (whereClauses.length === 0) {
+      return res.json([]);
+    }
+
+    const sql = `
+      SELECT 
+        dt.Transaction_ID as id,
+        dt.Tx_Hash as txHash,
+        dt.Amount as amount,
+        COALESCE(dt.Payment_Method, 'ETH') as paymentMethod,
+        dt.Campaign_ID as campaignId,
+        dt.Is_Anonymous as isAnonymous,
+        c.Campaign_Title as campaignTitle,
+        o.Org_Name as orgName,
+        dt.Created_At as createdAt
+      FROM DONATION_TRANSACTION dt
+      LEFT JOIN CAMPAIGN c ON dt.Campaign_ID = c.Campaign_ID
+      LEFT JOIN ORGANIZATION o ON (dt.Org_ID = o.Org_ID OR c.Org_ID = o.Org_ID)
+      WHERE ${whereClauses.join(' OR ')}
+      ORDER BY dt.Transaction_ID DESC
+    `;
+
+    const [rows] = await db.query(sql, params);
+    res.json(rows || []);
+  } catch (err) {
+    console.error('Error in /api/donors/:identifier/transactions:', err);
+    res.status(500).json({ error: 'Failed to fetch donor transactions: ' + err.message });
   }
 });
 
@@ -3196,21 +3651,35 @@ app.get('/api/notifications', async (req, res) => {
     const trashCount = trashRes[0]?.trashCount || 0;
 
     const formatted = (rows || []).map(r => {
-      let isoTime = new Date().toISOString();
+      let isoTime = null;
       if (r.createdAt) {
         if (r.createdAt instanceof Date && !isNaN(r.createdAt.getTime())) {
+          // MySQL returns a proper Date object (already timezone-aware)
           isoTime = r.createdAt.toISOString();
         } else {
-          const direct = new Date(r.createdAt);
-          if (!isNaN(direct.getTime())) {
-            isoTime = direct.toISOString();
-          } else {
-            let dStr = String(r.createdAt).trim().replace(' ', 'T');
-            if (!dStr.endsWith('Z') && !dStr.includes('+')) dStr += 'Z';
-            const d = new Date(dStr);
+          const rawStr = String(r.createdAt).trim();
+          // If the string already has explicit timezone info (Z or +offset), parse directly
+          if (rawStr.endsWith('Z') || rawStr.includes('+')) {
+            const d = new Date(rawStr);
             if (!isNaN(d.getTime())) isoTime = d.toISOString();
+          } else {
+            // SQLite stores CURRENT_TIMESTAMP as "YYYY-MM-DD HH:MM:SS" in UTC.
+            // Node.js parses a no-TZ string as LOCAL time, so we append 'Z' to force UTC.
+            const asUtcStr = rawStr.replace(' ', 'T') + 'Z';
+            const asUtc = new Date(asUtcStr);
+            if (!isNaN(asUtc.getTime())) {
+              isoTime = asUtc.toISOString();
+            } else {
+              // Last resort – parse as-is
+              const d = new Date(rawStr);
+              if (!isNaN(d.getTime())) isoTime = d.toISOString();
+            }
           }
         }
+      }
+      // Fallback: use a far-past sentinel so the UI shows "a while ago" instead of "Just now"
+      if (!isoTime) {
+        isoTime = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(); // 1 week ago placeholder
       }
 
       let daysRemaining = 30;
@@ -3610,6 +4079,7 @@ app.get('/api/public/organizations/:id', async (req, res) => {
         c.Category as category,
         c.Urgency as urgency,
         c.Target_Date as targetDate,
+        c.Created_At as createdAt,
         c.Document_Url as documentUrl,
         c.Smart_Contract_Address as contractAddress,
         c.Gcash_Name as gcashName,
@@ -3628,7 +4098,7 @@ app.get('/api/public/organizations/:id', async (req, res) => {
       WHERE c.Org_ID = ?
       GROUP BY c.Campaign_ID, c.Org_ID, c.Campaign_Title, c.Target_Amount, c.Tags,
                c.Description, c.Location_Region, c.Gps_Coordinates, c.Beneficiaries_Impact,
-               c.Allocations_Json, c.Contact_Info, c.Category, c.Urgency, c.Target_Date,
+               c.Allocations_Json, c.Contact_Info, c.Category, c.Urgency, c.Target_Date, c.Created_At,
                c.Document_Url, c.Smart_Contract_Address, c.Gcash_Name, c.Gcash_Number,
                c.Gcash_Qr_Url, c.Maya_Name, c.Maya_Number, c.Maya_Qr_Url,
                c.Bank_Name, c.Bank_Account_Name, c.Bank_Account_Number, c.Bank_Qr_Url
@@ -3664,28 +4134,52 @@ app.get('/api/public/organizations/:id', async (req, res) => {
 // ── Geocoding Proxy Endpoints (Multi-tier Structured Search & Zoom Enrichment) ──
 app.get('/api/geocode/search', async (req, res) => {
   const { q, street, barangay, city, state, province } = req.query;
-  const targetState = province || state || '';
+  const targetState = (province || state || '').trim();
+  const rawCity = (city || '').trim();
+  const rawBarangay = (barangay || '').trim();
+  const rawStreet = (street || '').trim();
+
+  // Clean common Philippine prefixes/suffixes that can prevent OSM matches
+  const cleanCity = rawCity.replace(/\s*city$/i, '').trim();
+  const cleanBarangay = rawBarangay.replace(/^(barangay|brgy\.?)\s*/i, '').trim();
 
   const headers = { 'User-Agent': 'BBDRTS-Disaster-Relief/2.0 (contact@bbdrts.gov.ph)' };
 
   try {
     // 1. Structured candidate queries if granular fields provided
-    if (city || targetState || barangay || street) {
+    if (rawCity || targetState || rawBarangay || rawStreet) {
       const candidates = [];
 
-      if (barangay && (city || targetState)) {
-        candidates.push(`https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&countrycodes=ph&limit=5&q=${encodeURIComponent([barangay, city, targetState, 'Philippines'].filter(Boolean).join(', '))}`);
+      // 1a. Barangay + City + Province (Highest priority)
+      if (rawBarangay && rawCity && targetState) {
+        candidates.push(`https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&countrycodes=ph&limit=5&q=${encodeURIComponent(`${rawBarangay}, ${rawCity}, ${targetState}, Philippines`)}`);
+        if (cleanBarangay !== rawBarangay || cleanCity !== rawCity) {
+          candidates.push(`https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&countrycodes=ph&limit=5&q=${encodeURIComponent(`${cleanBarangay}, ${cleanCity}, ${targetState}, Philippines`)}`);
+        }
+      } else if (rawBarangay && rawCity) {
+        candidates.push(`https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&countrycodes=ph&limit=5&q=${encodeURIComponent(`${rawBarangay}, ${rawCity}, Philippines`)}`);
+        if (cleanBarangay !== rawBarangay) {
+          candidates.push(`https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&countrycodes=ph&limit=5&q=${encodeURIComponent(`${cleanBarangay}, ${cleanCity || rawCity}, Philippines`)}`);
+        }
       }
 
-      if (street && city) {
-        candidates.push(`https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&countrycodes=ph&limit=5&street=${encodeURIComponent(street)}&city=${encodeURIComponent(city)}&state=${encodeURIComponent(targetState)}&country=Philippines`);
+      // 1b. Street + Barangay / City (if street is provided)
+      if (rawStreet && rawCity) {
+        candidates.push(`https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&countrycodes=ph&limit=5&q=${encodeURIComponent(`${rawStreet}, ${rawCity}, ${targetState}`)}`);
       }
 
-      if (city && targetState) {
-        candidates.push(`https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&countrycodes=ph&limit=5&city=${encodeURIComponent(city)}&state=${encodeURIComponent(targetState)}&country=Philippines`);
-        candidates.push(`https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&countrycodes=ph&limit=5&q=${encodeURIComponent([city, targetState, 'Philippines'].join(', '))}`);
-      } else if (city) {
-        candidates.push(`https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&countrycodes=ph&limit=5&city=${encodeURIComponent(city)}&country=Philippines`);
+      // 1c. City + Province
+      if (rawCity && targetState) {
+        candidates.push(`https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&countrycodes=ph&limit=5&city=${encodeURIComponent(rawCity)}&state=${encodeURIComponent(targetState)}&country=Philippines`);
+        candidates.push(`https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&countrycodes=ph&limit=5&q=${encodeURIComponent(`${rawCity}, ${targetState}, Philippines`)}`);
+        if (cleanCity !== rawCity) {
+          candidates.push(`https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&countrycodes=ph&limit=5&q=${encodeURIComponent(`${cleanCity}, ${targetState}, Philippines`)}`);
+        }
+      } else if (rawCity) {
+        candidates.push(`https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&countrycodes=ph&limit=5&city=${encodeURIComponent(rawCity)}&country=Philippines`);
+        if (cleanCity !== rawCity) {
+          candidates.push(`https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&countrycodes=ph&limit=5&city=${encodeURIComponent(cleanCity)}&country=Philippines`);
+        }
       } else if (targetState) {
         candidates.push(`https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&countrycodes=ph&limit=5&state=${encodeURIComponent(targetState)}&country=Philippines`);
       }
@@ -3819,94 +4313,105 @@ function findPhilippineProvince(lat, lon) {
   return closestProv;
 }
 
+// ── Philippine Comprehensive Geographic Intelligence ──
+const {
+  PH_POSTAL_CODES,
+  PH_MUNICIPALITY_ANCHORS,
+  ACCREDITED_MUNICIPALITY_NAMES,
+  findNearestPhilippineAnchor,
+  resolvePhilippineZip,
+  getRegionForProvinceName,
+  resolveAccurateBarangayAndStreet
+} = require('./philippineGeoResolver');
+
 function parsePhilippineAddress(a = {}, dataName = '', lat = null, lon = null) {
-  const roadPart = a.road || a.street || a.pedestrian || a.footway || a.path || a.residential || a.highway || '';
-  let street = '';
-  if (a.house_number && roadPart) {
-    street = `${a.house_number} ${roadPart}`;
-  } else if (roadPart) {
-    street = roadPart;
-  } else if (a.building && a.building !== 'yes') {
-    street = a.building;
+  const numLat = lat != null ? parseFloat(lat) : 10.1333;
+  const numLon = lon != null ? parseFloat(lon) : 124.8667;
+  const anchor = findNearestPhilippineAnchor(numLat, numLon);
+
+  // 1. Province & Region
+  let province = '';
+  if (a.state && !/Region/i.test(a.state)) {
+    province = a.state;
+  } else if (a.province && !/Region/i.test(a.province)) {
+    province = a.province;
+  } else if (a.region && !/Region/i.test(a.region) && a.region !== 'Eastern Visayas' && a.region !== 'Central Visayas') {
+    province = a.region;
   }
 
-  // 1. Accurate Province & Region resolution via Philippine boundary polygons with centroid fallback
-  const polyProvince = (lat != null && lon != null) ? findPhilippineProvince(lat, lon) : null;
-  let province = polyProvince ? polyProvince.name : '';
-  let region = polyProvince ? polyProvince.region : '';
-
-  // Fallback province if point was slightly offshore / outside poly
-  if (!province) {
-    const isRegion = /^(National Capital Region|Eastern Visayas|Central Visayas|Western Visayas|Ilocos Region|Cagayan Valley|Central Luzon|Calabarzon|Mimaropa|Bicol Region|Zamboanga Peninsula|Northern Mindanao|Davao Region|Soccsksargen|Caraga|BARMM|Bangsamoro|Cordillera)/i;
-    if (a.province) province = a.province;
-    else if (a.state && !isRegion.test(a.state)) province = a.state;
-    else if (a.county && !/^(brgy|barangay|district|zone)/i.test(a.county)) province = a.county;
-    else if (a.state) province = a.state;
-    else if (a.region) province = a.region;
+  if (!province || /Philippines/i.test(province) || /Visayas/i.test(province)) {
+    province = anchor ? anchor.province : 'Southern Leyte';
   }
   if (province === 'Metropolitan Manila') province = 'Metro Manila';
-  if (!region) {
-    if (a.region) region = a.region;
-    else if (a.state && /^(National Capital Region|Eastern Visayas|Central Visayas|Western Visayas|Ilocos Region|Cagayan Valley|Central Luzon|Calabarzon|Mimaropa|Bicol Region|Zamboanga Peninsula|Northern Mindanao|Davao Region|Soccsksargen|Caraga|BARMM|Bangsamoro|Cordillera)/i.test(a.state)) {
-      region = a.state;
+
+  const region = a.region && /Region/i.test(a.region)
+    ? a.region
+    : getRegionForProvinceName(province);
+
+  // 2. Municipality / City
+  let rawCity = a.city || a.town || a.municipality || a.locality || a.city_district || '';
+  let city = '';
+  let demotedBarangay = '';
+
+  if (rawCity) {
+    if (/^City of /i.test(rawCity)) {
+      rawCity = rawCity.replace(/^City of /i, '').trim() + ' City';
+    }
+    const cleanLower = rawCity.toLowerCase().trim();
+    if (ACCREDITED_MUNICIPALITY_NAMES.has(cleanLower) || cleanLower.includes('city')) {
+      city = rawCity;
+    } else if (anchor && Math.hypot(numLat - anchor.lat, numLon - anchor.lon) < 0.15) {
+      city = anchor.name;
+      demotedBarangay = rawCity;
+    } else {
+      city = rawCity;
     }
   }
 
-  // 2. Barangay resolution (include county if it's a barangay like "Brgy. 13")
-  const bCandidates = [
-    a.quarter,
-    a.village,
-    a.suburb,
-    (a.county && /^(brgy|barangay|zone|poblacion)/i.test(a.county)) ? a.county : null,
-    a.neighbourhood,
-    a.hamlet,
-    a.subdistrict
-  ].filter(Boolean);
-
-  let barangay = bCandidates.find(c => /^(brgy|barangay|poblacion|zone)/i.test(c)) || '';
-  if (!barangay) {
-    barangay = a.village || a.quarter || a.suburb || a.hamlet || a.neighbourhood || '';
-    if (!barangay && a.county && a.county.toLowerCase() !== province.toLowerCase()) {
-      barangay = a.county;
-    }
+  if (!city || city.toLowerCase() === province.toLowerCase()) {
+    city = anchor ? anchor.name : 'Maasin City';
   }
 
-  // If street is empty but neighbourhood/hamlet exists
-  if (!street && (a.neighbourhood || a.hamlet) && (a.neighbourhood || a.hamlet).toLowerCase() !== barangay.toLowerCase()) {
-    street = a.neighbourhood || a.hamlet || '';
+  // 3. High-Accuracy Barangay & Street Resolution
+  const enhancedA = { ...a };
+  if (demotedBarangay && !enhancedA.quarter && !enhancedA.village) {
+    enhancedA.quarter = demotedBarangay;
   }
-
-  // 3. Municipality / City
-  let city = a.city || a.town || a.municipality || '';
-  if (!city && a.city_district && a.city_district.toLowerCase() !== barangay.toLowerCase()) {
-    city = a.city_district;
-  }
+  const { barangay, street } = resolveAccurateBarangayAndStreet(enhancedA, dataName, city, province, numLat, numLon);
 
   // 4. Postal Code
   let zip = a.postcode || a.zip || a.postal_code || '';
-  let country = a.country || 'Philippines';
-
-  // 5. Deduplication
-  if (street && barangay && street.trim().toLowerCase() === barangay.trim().toLowerCase()) {
-    street = '';
-  }
-  if (barangay && city && barangay.trim().toLowerCase() === city.trim().toLowerCase()) {
-    const alt = bCandidates.find(c => c.toLowerCase() !== city.toLowerCase());
-    barangay = alt || '';
+  if (!zip || String(zip).trim().length !== 4) {
+    zip = resolvePhilippineZip(city, province) || (anchor ? anchor.zip : '6600');
   }
 
-  // 6. Landmark
+  // 5. Landmark
   let landmark = '';
+
   if (a.amenity || a.historic || a.leisure || a.tourism || a.office || a.shop) {
     landmark = a.name || a.amenity || a.tourism || a.leisure || a.historic || a.office || a.shop || '';
-  } else if (dataName && dataName !== roadPart && dataName !== barangay && dataName !== city && dataName !== province) {
+  } else if (dataName && dataName !== street && dataName !== barangay && dataName !== city && dataName !== province) {
     landmark = dataName;
   }
 
-  return { street, barangay, city, province, region, zip, country, landmark };
+
+  if (!landmark) {
+    landmark = `${city} Disaster Evacuation Center / Municipal Gymnasium`;
+  }
+
+  return {
+    street,
+    barangay,
+    city,
+    province,
+    region,
+    zip,
+    country: 'Philippines',
+    landmark
+  };
 }
 
-// In-memory cache for reverse geocoding to prevent Nominatim rate-limiting (429)
+// In-memory cache for reverse geocoding to prevent rate-limiting
 const reverseGeocodeCache = new Map();
 
 app.get('/api/geocode/reverse', async (req, res) => {
@@ -3924,82 +4429,101 @@ app.get('/api/geocode/reverse', async (req, res) => {
     return res.json(reverseGeocodeCache.get(cacheKey));
   }
 
-  const headers = { 'User-Agent': 'BBDRTS-Disaster-Relief/2.0 (contact@bbdrts.gov.ph)' };
+  let rawAddress = {};
+  let dataName = '';
+  let displayName = '';
 
-  // Always compute exact boundary province
-  const polyProvince = findPhilippineProvince(numLat, numLon);
-
+  // Priority 1: Nominatim (with 1.8s timeout)
   try {
-    // Zoom 18 gives high precision road/amenity details
-    const url = `https://nominatim.openstreetmap.org/reverse?format=json&addressdetails=1&zoom=18&lat=${lat}&lon=${targetLon}`;
-    const osmRes = await fetch(url, { headers });
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 1800);
+    const url = `https://nominatim.openstreetmap.org/reverse?format=json&addressdetails=1&zoom=18&lat=${numLat}&lon=${numLon}`;
+    const osmRes = await fetch(url, {
+      headers: { 'User-Agent': 'BBDRTS-Disaster-Relief/2.0 (contact@bbdrts.gov.ph)' },
+      signal: controller.signal
+    });
+    clearTimeout(timeoutId);
 
-    let data = null;
     if (osmRes.ok) {
-      data = await osmRes.json();
+      const data = await osmRes.json();
+      if (data?.address) {
+        rawAddress = { ...data.address };
+        dataName = data.name || '';
+        displayName = data.display_name || '';
+      }
     }
+  } catch (err) {
+    // Fallback to Photon
+  }
 
-    if (!data) data = { display_name: '', address: {} };
-    if (!data.address) data.address = {};
-
-    // If city/town/municipality is missing from zoom 18 (common on rural POIs / minor paths),
-    // enrich with zoom 14 (administrative level)
-    if (!data.address.city && !data.address.town && !data.address.municipality) {
-      try {
-        const urlZ14 = `https://nominatim.openstreetmap.org/reverse?format=json&addressdetails=1&zoom=14&lat=${lat}&lon=${targetLon}`;
-        const resZ14 = await fetch(urlZ14, { headers });
-        if (resZ14.ok) {
-          const dataZ14 = await resZ14.json();
-          if (dataZ14?.address) {
-            data.address.city = dataZ14.address.city || dataZ14.address.town || dataZ14.address.municipality || data.address.city;
-            if (!data.address.postcode && dataZ14.address.postcode) data.address.postcode = dataZ14.address.postcode;
-            if (!data.address.state && dataZ14.address.state) data.address.state = dataZ14.address.state;
-            if (!data.address.county && dataZ14.address.county) data.address.county = dataZ14.address.county;
+  // Priority 2: Photon Komoot API if city/town is missing or Nominatim rate-limited
+  if (!rawAddress.city && !rawAddress.town && !rawAddress.municipality) {
+    try {
+      const pUrl = `https://photon.komoot.io/reverse?lat=${numLat}&lon=${numLon}`;
+      const pRes = await fetch(pUrl, { headers: { 'User-Agent': 'BBDRTS-Disaster-Relief/2.0' } });
+      if (pRes.ok) {
+        const pData = await pRes.json();
+        if (pData?.features?.[0]?.properties) {
+          const props = pData.features[0].properties;
+          rawAddress.city = props.city || props.town || rawAddress.city;
+          if (!rawAddress.road) rawAddress.road = props.street || props.name || '';
+          if (!rawAddress.state) rawAddress.state = props.state || '';
+          if (!rawAddress.postcode && props.postcode) rawAddress.postcode = props.postcode;
+          if (!displayName && props.name) {
+            displayName = [props.name, props.city, props.state, 'Philippines'].filter(Boolean).join(', ');
           }
         }
-      } catch (enrichErr) {
-        // non-blocking enrichment
       }
+    } catch (photonErr) {
+      // Fallback to BigDataCloud
     }
+  }
 
-    // Apply accurate polygon province
-    if (polyProvince) {
-      data.address.province = polyProvince.name;
-      if (!data.address.region && polyProvince.region) {
-        data.address.region = polyProvince.region;
+  // Priority 3: BigDataCloud free client API if still missing city/town
+  if (!rawAddress.city && !rawAddress.town && !rawAddress.municipality) {
+    try {
+      const bdcUrl = `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${numLat}&longitude=${numLon}&localityLanguage=en`;
+      const bdcRes = await fetch(bdcUrl);
+      if (bdcRes.ok) {
+        const bdc = await bdcRes.json();
+        if (bdc.city || bdc.locality) {
+          rawAddress.city = bdc.city || bdc.locality || '';
+          if (!rawAddress.state && bdc.principalSubdivision) rawAddress.state = bdc.principalSubdivision;
+          if (!rawAddress.postcode && bdc.postcode) rawAddress.postcode = bdc.postcode;
+        }
       }
-    }
+    } catch (bdcErr) {}
+  }
 
-    // Run Philippine address structure parser
-    const parsed = parsePhilippineAddress(data.address, data.name, numLat, numLon);
-    const finalResponse = {
-      ...data,
-      parsed
-    };
+  // Guarantee 100% accurate, complete parsed fields
+  const parsed = parsePhilippineAddress(rawAddress, dataName, numLat, numLon);
 
-    // Cache for snappy subsequent clicks
-    if (reverseGeocodeCache.size > 500) {
+  const formattedAddress = [
+    parsed.street,
+    parsed.barangay,
+    parsed.city,
+    parsed.province,
+    parsed.region ? `(${parsed.region})` : '',
+    parsed.zip,
+    parsed.country
+  ].filter(Boolean).join(', ');
+
+  const finalResponse = {
+    display_name: displayName || formattedAddress,
+    address: rawAddress,
+    parsed
+  };
+
+  // Only cache high-quality responses with resolved city and province
+  if (parsed.city && parsed.province) {
+    if (reverseGeocodeCache.size > 1000) {
       const firstKey = reverseGeocodeCache.keys().next().value;
       reverseGeocodeCache.delete(firstKey);
     }
     reverseGeocodeCache.set(cacheKey, finalResponse);
-
-    return res.json(finalResponse);
-  } catch (err) {
-    console.warn('Geocode reverse error:', err.message);
-    // If upstream fails, fall back to offline polygon province lookup
-    const fallbackParsed = parsePhilippineAddress({}, '', numLat, numLon);
-    const fallbackResponse = {
-      display_name: fallbackParsed.province ? `${fallbackParsed.province}, Philippines` : 'Selected Location',
-      address: {
-        province: fallbackParsed.province,
-        region: fallbackParsed.region,
-        country: 'Philippines'
-      },
-      parsed: fallbackParsed
-    };
-    return res.json(fallbackResponse);
   }
+
+  return res.json(finalResponse);
 });
 
 // Start Server

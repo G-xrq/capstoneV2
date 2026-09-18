@@ -2361,7 +2361,7 @@ function DisasterRadarHeatmapInner({
                   <div className="storm-tier-item clear-tier">
                     <span className="tier-bullet" style={{ background: '#ffffff', border: '1px solid #94a3b8' }}></span>
                     <span className="tier-causes-tag">0</span>
-                    <span className="tier-desc-name" style={{ color: currentTheme === 'light' ? '#64748b' : '#94a3b8' }}>
+                    <span className="tier-desc-name" style={{ color: currentTheme === 'light' ? '#334155' : '#e2e8f0' }}>
                       Clear Terrain
                     </span>
                   </div>
@@ -2387,13 +2387,14 @@ function DisasterRadarHeatmapInner({
                           }}
                         ></span>
                         <span className="tier-causes-tag">{tagText}</span>
-                        <span className="tier-desc-name" style={{ color: lvl === 6 ? '#f8fafc' : t.color }}>
+                        <span className="tier-desc-name" style={{ color: currentTheme === 'light' ? '#0f172a' : '#f8fafc' }}>
                           {t.label}
                         </span>
                         {matches > 0 && <span className="tier-match-count">({matches})</span>}
                       </div>
                     );
                   })}
+
                 </div>
               </>
             )}

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import CampaignCard from '../components/CampaignCard';
 import DisasterRadarHeatmap from '../components/DisasterRadarHeatmap';
 import { contractAddress } from '../contractConfig';
@@ -18,6 +18,13 @@ export default function LandingView({ onConnect, hasMetaMask, contract, onOpenNg
   const [activeCategory, setActiveCategory] = useState('ALL');
   const [searchQuery, setSearchQuery] = useState('');
   const [contractCopied, setContractCopied] = useState(false);
+
+  // Deep Link URL Target Campaign Detection (?campaign=14)
+  const [targetCampaignId, setTargetCampaignId] = useState(() => {
+    if (typeof window === 'undefined') return null;
+    return new URLSearchParams(window.location.search).get('campaign');
+  });
+  const targetScrolledRef = useRef(false);
 
   const handleCopyContract = () => {
     navigator.clipboard.writeText(contractAddress);
@@ -79,17 +86,67 @@ export default function LandingView({ onConnect, hasMetaMask, contract, onOpenNg
       }, 50);
     };
 
+    const handleCategoryNav = (e) => {
+      const cat = e.detail?.category || 'ALL';
+      setActiveCategory(cat);
+      setSearchQuery('');
+      setCurrentPage(1);
+      setTimeout(() => {
+        const el = document.getElementById('campaigns');
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 60);
+    };
+
     window.addEventListener('bbdrts_navigate_radar', handleRadarNav);
     window.addEventListener('bbdrts_navigate_campaigns', handleCampaignsNav);
+    window.addEventListener('bbdrts_filter_category', handleCategoryNav);
     return () => {
       window.removeEventListener('bbdrts_navigate_radar', handleRadarNav);
       window.removeEventListener('bbdrts_navigate_campaigns', handleCampaignsNav);
+      window.removeEventListener('bbdrts_filter_category', handleCategoryNav);
     };
   }, []);
 
   // Pagination state (2 causes per page)
   const [currentPage, setCurrentPage] = useState(1);
   const CAMPAIGNS_PER_PAGE = 2;
+
+  // Find targeted campaign object from live campaigns list
+  const targetCampaign = useMemo(() => {
+    if (!targetCampaignId || campaigns.length === 0) return null;
+    return campaigns.find(c => String(c.id) === String(targetCampaignId)) || null;
+  }, [targetCampaignId, campaigns]);
+
+  // Deep Link Auto-Navigation: calculate exact page, reset filters, and smooth-scroll directly to targeted campaign
+  useEffect(() => {
+    if (!targetCampaignId || campaigns.length === 0 || targetScrolledRef.current) return;
+
+    const idx = campaigns.findIndex(c => String(c.id) === String(targetCampaignId));
+    if (idx !== -1) {
+      targetScrolledRef.current = true;
+      setActiveCategory('ALL');
+      setSearchQuery('');
+
+      const targetPage = Math.floor(idx / CAMPAIGNS_PER_PAGE) + 1;
+      setCurrentPage(targetPage);
+
+      let attempts = 0;
+      const scrollTimer = setInterval(() => {
+        attempts++;
+        const el = document.getElementById(`campaign-${targetCampaignId}`);
+        if (el) {
+          clearInterval(scrollTimer);
+          const rect = el.getBoundingClientRect();
+          const targetY = window.pageYOffset + rect.top - 85;
+          window.scrollTo({ top: Math.max(0, targetY), behavior: 'smooth' });
+        } else if (attempts >= 30) {
+          clearInterval(scrollTimer);
+        }
+      }, 80);
+
+      return () => clearInterval(scrollTimer);
+    }
+  }, [targetCampaignId, campaigns]);
 
   // Filtered campaigns based on category & search query
   const filteredCampaigns = useMemo(() => {
@@ -112,10 +169,17 @@ export default function LandingView({ onConnect, hasMetaMask, contract, onOpenNg
     });
   }, [campaigns, activeCategory, searchQuery]);
 
-  // Reset to page 1 whenever filters or search query change
+  // Reset to page 1 whenever user changes filter or search query
+  const isInitialFilterMount = useRef(true);
   useEffect(() => {
-    setCurrentPage(1);
-  }, [activeCategory, searchQuery]);
+    if (isInitialFilterMount.current) {
+      isInitialFilterMount.current = false;
+      return;
+    }
+    if (!targetCampaignId || targetScrolledRef.current) {
+      setCurrentPage(1);
+    }
+  }, [activeCategory, searchQuery, targetCampaignId]);
 
   const totalPages = Math.ceil(filteredCampaigns.length / CAMPAIGNS_PER_PAGE) || 1;
 
@@ -141,13 +205,21 @@ export default function LandingView({ onConnect, hasMetaMask, contract, onOpenNg
             </div>
 
             <h1 className="bbdrts-hero-title">
-              Transparent Donation & Relief{' '}
+              Monetary Disaster Relief & Allocation{' '}
               <span className="bbdrts-hero-title-gradient">Powered by Blockchain</span>
             </h1>
 
             <p className="bbdrts-hero-lead">
-              An open, immutable donation and relief transparency platform deployed on Ethereum Sepolia EVM. Ensuring 100% verifiable fund distribution to accredited humanitarian, charitable, and disaster response operations across the Philippines.
+              A cryptographically auditable monetary disaster relief and fund allocation platform. BBDRS exclusively processes direct monetary calamity contributions to accredited humanitarian organizations, guaranteeing immutable proof of fund allocation and real-time distribution tracking.
             </p>
+
+            {/* Panel Requirement: Explicit Monetary Scope Callout */}
+            <div className="bbdrts-monetary-scope-callout">
+              <span className="material-symbols-outlined" style={{ color: '#22c55e', fontSize: '20px', flexShrink: 0, marginTop: '2px' }}>payments</span>
+              <div>
+                <strong>Monetary Contributions Only:</strong> All campaigns facilitate verified digital financial assistance directly disbursed to accredited field operations via Philippine e-wallets, bank transfers, and smart contract escrow. Physical in-kind relief goods (e.g. used clothing or perishable food drop-offs) are not accepted or handled.
+              </div>
+            </div>
 
             <div className="bbdrts-hero-actions">
               <a href="#campaigns" className="bbdrts-btn-primary">
@@ -305,8 +377,14 @@ export default function LandingView({ onConnect, hasMetaMask, contract, onOpenNg
             <>
               <div className="campaigns-list" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                 {paginatedCampaigns.map(campaign => (
-                  <div key={campaign.id} id={`campaign-${campaign.id}`} style={{ scrollMarginTop: '100px' }}>
+                  <div 
+                    key={campaign.id} 
+                    id={`campaign-${campaign.id}`} 
+                    className={String(campaign.id) === String(targetCampaignId) ? 'target-campaign-highlight' : ''}
+                    style={{ scrollMarginTop: '100px', borderRadius: '16px' }}
+                  >
                     <CampaignCard
+                      id={`campaign-${campaign.id}`}
                       camp={campaign}
                       onDonate={() => onConnect()}
                       userRole="PUBLIC"
@@ -399,9 +477,9 @@ export default function LandingView({ onConnect, hasMetaMask, contract, onOpenNg
 
             <div className="bbdrts-lifecycle-card">
               <div className="bbdrts-step-num">STEP 02</div>
-              <h3 className="bbdrts-step-title">Multi-Rail Contribution</h3>
+              <h3 className="bbdrts-step-title">Flexible Donations</h3>
               <p className="bbdrts-step-desc">
-                Donors contribute through Web3 MetaMask (ETH) or Instant Fiat rails (GCash, Maya, Bank Transfer).
+                Donors can donate using Crypto (ETH) or popular e-wallets and banks (GCash, Maya, Bank Transfer).
               </p>
             </div>
 
@@ -438,7 +516,7 @@ export default function LandingView({ onConnect, hasMetaMask, contract, onOpenNg
                   Verified Sepolia Smart Contract
                 </div>
                 <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>
-                  Solidity 0.8.20 · 0% Intermediary Fee
+                  Solidity 0.8.20 · Direct NGO Escrow Disbursement
                 </div>
               </div>
             </div>
