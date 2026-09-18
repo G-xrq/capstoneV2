@@ -11,7 +11,7 @@ export default function EditCampaignModal({ camp, isOpen, onClose, onSaved }) {
   const [contactInfo, setContactInfo] = useState('');
   const [beneficiariesImpact, setBeneficiariesImpact] = useState('');
   const [locationRegion, setLocationRegion] = useState('');
-  const [urgency, setUrgency] = useState('HIGH');
+  const [urgency, setUrgency] = useState('HIGH (EMERGENCY AID)');
   const [tags, setTags] = useState('');
   const [documentUrl, setDocumentUrl] = useState('');
   const [saving, setSaving] = useState(false);
@@ -23,7 +23,7 @@ export default function EditCampaignModal({ camp, isOpen, onClose, onSaved }) {
       setContactInfo(camp.contactInfo || camp.contact_info || '');
       setBeneficiariesImpact(camp.beneficiariesImpact || camp.beneficiaries_impact || '');
       setLocationRegion(camp.locationRegion || camp.location_region || camp.location || '');
-      setUrgency(camp.urgency || 'HIGH');
+      setUrgency(camp.urgency || 'HIGH (EMERGENCY AID)');
       const rawTags = camp.tags || camp.tags_json || camp.tagsJson;
       if (Array.isArray(rawTags)) {
         setTags(rawTags.join(', '));
@@ -50,7 +50,7 @@ export default function EditCampaignModal({ camp, isOpen, onClose, onSaved }) {
       setSaving(true);
       const token = localStorage.getItem('bbdrts_token');
       if (!token) {
-        showWarning('Please login to edit campaign logistics.', 'Authentication Required');
+        showWarning('Please log in to edit campaign details.', 'Authentication Required');
         return;
       }
 
@@ -74,10 +74,10 @@ export default function EditCampaignModal({ camp, isOpen, onClose, onSaved }) {
 
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.error || 'Failed to update campaign logistics.');
+        throw new Error(errData.error || 'Failed to update campaign details.');
       }
 
-      showSuccess('Campaign operational logistics updated successfully!', 'Changes Saved');
+      showSuccess('Campaign details updated successfully!', 'Changes Saved');
       onSaved?.();
       onClose();
     } catch (err) {
@@ -88,38 +88,75 @@ export default function EditCampaignModal({ camp, isOpen, onClose, onSaved }) {
     }
   };
 
+  const targetPhp = parseFloat(camp.targetAmount || 1) * 170000;
+
   return createPortal(
     <div
-      className="bbdrts-edit-profile-backdrop"
+      className="modal-overlay"
       onClick={onClose}
-      style={{ zIndex: 9999999 }}
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        width: '100vw',
+        height: '100vh',
+        background: 'rgba(0, 0, 0, 0.78)',
+        backdropFilter: 'blur(8px)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 999999,
+        padding: '16px'
+      }}
     >
       <div
-        className="bbdrts-profile-studio-modal"
+        className="card glow fade-in"
         onClick={(e) => e.stopPropagation()}
-        style={{ maxWidth: '680px', height: 'auto', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}
+        style={{
+          maxWidth: '780px',
+          width: '100%',
+          maxHeight: '92vh',
+          display: 'flex',
+          flexDirection: 'column',
+          padding: 0,
+          overflow: 'hidden',
+          borderRadius: '18px',
+          background: 'var(--bg-card, #131622)',
+          border: '1px solid var(--border, rgba(255, 255, 255, 0.12))',
+          boxShadow: '0 24px 64px rgba(0, 0, 0, 0.75)'
+        }}
       >
-        {/* Modal Header */}
-        <div className="bbdrts-studio-header">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+        {/* Modal Top Banner */}
+        <div style={{
+          padding: '20px 24px',
+          background: 'linear-gradient(135deg, rgba(2, 132, 199, 0.12) 0%, rgba(34, 197, 94, 0.08) 100%)',
+          borderBottom: '1px solid var(--border, rgba(255, 255, 255, 0.08))',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '14px'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
             <div style={{
-              width: '36px',
-              height: '36px',
-              borderRadius: '10px',
-              background: 'var(--accent-dim, rgba(34, 197, 94, 0.12))',
+              width: '42px',
+              height: '42px',
+              borderRadius: '12px',
+              background: 'linear-gradient(135deg, #0284c7, #22c55e)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              color: 'var(--accent, #22c55e)'
+              color: '#ffffff',
+              boxShadow: '0 4px 14px rgba(2, 132, 199, 0.35)',
+              flexShrink: 0
             }}>
-              <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>edit_note</span>
+              <span className="material-symbols-outlined" style={{ fontSize: '22px' }}>edit_note</span>
             </div>
             <div>
-              <div style={{ fontWeight: 800, fontSize: '1.05rem', color: 'var(--text-primary)' }}>
-                Edit Campaign Operational Logistics
-              </div>
-              <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                Campaign #{camp.id} • {camp.title}
+              <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                Edit Campaign Details
+              </h3>
+              <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                Campaign #{camp.id} • <strong style={{ color: 'var(--text-secondary)' }}>{camp.title}</strong>
               </div>
             </div>
           </div>
@@ -128,12 +165,17 @@ export default function EditCampaignModal({ camp, isOpen, onClose, onSaved }) {
             type="button"
             onClick={onClose}
             style={{
-              background: 'none',
-              border: 'none',
+              background: 'rgba(255, 255, 255, 0.06)',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
+              borderRadius: '50%',
+              width: '32px',
+              height: '32px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
               color: 'var(--text-muted)',
-              fontSize: '1.2rem',
               cursor: 'pointer',
-              padding: '4px'
+              transition: 'all 0.15s ease'
             }}
             title="Close"
           >
@@ -141,222 +183,220 @@ export default function EditCampaignModal({ camp, isOpen, onClose, onSaved }) {
           </button>
         </div>
 
-        {/* Informational Banner */}
+        {/* Financial Lock Notice Strip */}
         <div style={{
-          background: 'var(--bg-subcard)',
-          borderBottom: '1px solid var(--border)',
-          padding: '10px 20px',
+          background: 'rgba(56, 189, 248, 0.05)',
+          borderBottom: '1px solid rgba(56, 189, 248, 0.15)',
+          padding: '10px 24px',
           display: 'flex',
           alignItems: 'center',
-          gap: '8px',
+          gap: '10px',
           fontSize: '0.78rem',
           color: 'var(--text-secondary)'
         }}>
-          <span className="material-symbols-outlined" style={{ color: 'var(--accent, #22c55e)', fontSize: '16px' }}>lock</span>
+          <span className="material-symbols-outlined" style={{ color: '#38bdf8', fontSize: '18px', flexShrink: 0 }}>lock</span>
           <span>
-            Financial target (<strong style={{ color: 'var(--text-primary)' }}>₱{(parseFloat(camp.targetAmount || 1) * 170000).toLocaleString('en-US')} PHP</strong>) is cryptographically locked on Sepolia EVM. Operational relief logistics below can be updated at any time.
+            Financial goal (<strong style={{ color: 'var(--text-primary)' }}>₱{targetPhp.toLocaleString('en-US', { maximumFractionDigits: 0 })} PHP</strong>) is permanently recorded on the blockchain. You can update relief dates, contact information, target location, and field updates below.
           </span>
         </div>
 
-        {/* Scrollable Form Body */}
-        <form onSubmit={handleSubmit} style={{ overflowY: 'auto', padding: '20px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          {/* Row 1: Target Delivery Date & Urgency Priority */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+        {/* Scrollable Form Content (Matching Deploy Form Card Style) */}
+        <form onSubmit={handleSubmit} style={{ overflowY: 'auto', padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          
+          {/* Section 1: Relief Timeline & Priority */}
+          <div className="deploy-section-card" style={{
+            background: 'rgba(255, 255, 255, 0.02)',
+            border: '1px solid var(--border, rgba(255, 255, 255, 0.08))',
+            borderRadius: '14px',
+            padding: '18px'
+          }}>
+            <div className="deploy-section-header" style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              marginBottom: '16px',
+              paddingBottom: '10px',
+              borderBottom: '1px solid rgba(255, 255, 255, 0.06)'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 700, color: 'var(--text-primary)', fontSize: '0.95rem' }}>
+                <span className="material-symbols-outlined" style={{ color: '#0284c7', fontSize: '20px' }}>schedule</span>
+                <span>1. Relief Timeline & Priority Level</span>
+              </div>
+              <span className="badge badge-info" style={{ fontSize: '0.7rem' }}>Timeline</span>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '16px' }}>
+              {/* Target Relief Delivery Date */}
+              <div>
+                <label className="deploy-input-label" style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                  Target Relief Delivery Date
+                </label>
+                <input
+                  type="date"
+                  className="input deploy-field-input"
+                  value={targetDate}
+                  onChange={(e) => setTargetDate(e.target.value)}
+                  style={{ width: '100%', boxSizing: 'border-box' }}
+                />
+              </div>
+
+              {/* Priority / Urgency */}
+              <div>
+                <label className="deploy-input-label" style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                  Relief Priority Level
+                </label>
+                <select
+                  className="input deploy-field-input"
+                  value={urgency}
+                  onChange={(e) => setUrgency(e.target.value)}
+                  style={{ width: '100%', boxSizing: 'border-box', cursor: 'pointer' }}
+                >
+                  <option value="HIGH (EMERGENCY AID)">🚨 Emergency Aid (High Priority)</option>
+                  <option value="MEDIUM (URGENT REHABILITATION)">⚡ Urgent Rehabilitation (Medium Priority)</option>
+                  <option value="STABLE (CHARITABLE AID)">🌱 Sustained Support (Stable)</option>
+                </select>
+              </div>
+
+              {/* Campaign Tags */}
+              <div style={{ gridColumn: '1 / -1' }}>
+                <label className="deploy-input-label" style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                  Relief Focus Tags (comma-separated)
+                </label>
+                <input
+                  type="text"
+                  className="input deploy-field-input"
+                  placeholder="e.g. Typhoon Disaster Aid, Immediate Food Packs, Clean Water Access"
+                  value={tags}
+                  onChange={(e) => setTags(e.target.value)}
+                  style={{ width: '100%', boxSizing: 'border-box' }}
+                />
+              </div>
+
+              {/* Mission Purpose & Description */}
+              <div style={{ gridColumn: '1 / -1' }}>
+                <label className="deploy-input-label" style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                  Campaign Mission & Public Appeal
+                </label>
+                <textarea
+                  rows={4}
+                  className="input deploy-field-input"
+                  placeholder="Describe the urgent situation on the ground, the relief operations being conducted, and how donations will help..."
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  style={{ width: '100%', boxSizing: 'border-box', resize: 'vertical', lineHeight: 1.6 }}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Section 2: Relief Area & Location */}
+          <div className="deploy-section-card" style={{
+            background: 'rgba(255, 255, 255, 0.02)',
+            border: '1px solid var(--border, rgba(255, 255, 255, 0.08))',
+            borderRadius: '14px',
+            padding: '18px'
+          }}>
+            <div className="deploy-section-header" style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              marginBottom: '16px',
+              paddingBottom: '10px',
+              borderBottom: '1px solid rgba(255, 255, 255, 0.06)'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 700, color: 'var(--text-primary)', fontSize: '0.95rem' }}>
+                <span className="material-symbols-outlined" style={{ color: '#22c55e', fontSize: '20px' }}>location_on</span>
+                <span>2. Relief Operation Area</span>
+              </div>
+              <span className="badge badge-info" style={{ fontSize: '0.7rem' }}>Location</span>
+            </div>
+
             <div>
-              <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '6px' }}>
-                📅 Target Relief Delivery Date
+              <label className="deploy-input-label" style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                Complete Address & Distribution Area
               </label>
               <input
                 type="text"
-                placeholder="e.g. Nov 30, 2026 or Immediate Dispatch"
-                value={targetDate}
-                onChange={(e) => setTargetDate(e.target.value)}
-                style={{
-                  width: '100%',
-                  background: 'var(--bg-input)',
-                  border: '1px solid var(--border)',
-                  borderRadius: '10px',
-                  padding: '9px 12px',
-                  color: 'var(--text-primary)',
-                  fontSize: '0.85rem',
-                  outline: 'none',
-                  boxSizing: 'border-box'
-                }}
+                className="input deploy-field-input"
+                placeholder="e.g. Barangay San Jose, Sogod, Southern Leyte • Municipal Evacuation Center"
+                value={locationRegion}
+                onChange={(e) => setLocationRegion(e.target.value)}
+                style={{ width: '100%', boxSizing: 'border-box' }}
               />
-            </div>
-
-            <div>
-              <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '6px' }}>
-                ⚡ Urgency Priority Level
-              </label>
-              <select
-                value={urgency}
-                onChange={(e) => setUrgency(e.target.value)}
-                style={{
-                  width: '100%',
-                  background: 'var(--bg-input)',
-                  border: '1px solid var(--border)',
-                  borderRadius: '10px',
-                  padding: '9px 12px',
-                  color: 'var(--text-primary)',
-                  fontSize: '0.85rem',
-                  outline: 'none',
-                  boxSizing: 'border-box',
-                  cursor: 'pointer'
-                }}
-              >
-                <option value="CRITICAL">🔴 CRITICAL (Level 4 Flash Calamity)</option>
-                <option value="HIGH">🟠 HIGH (Emergency Aid Dispatch)</option>
-                <option value="MEDIUM">🟡 MEDIUM (Sustained Relief Support)</option>
-                <option value="STABLE">🟢 STABLE / ESSENTIAL (Rehabilitation Aid)</option>
-              </select>
+              <div style={{ marginTop: '6px', fontSize: '0.74rem', color: 'var(--text-muted)' }}>
+                Specifying the exact barangay, municipality, and relief landmark ensures full transparency for donors and review panels.
+              </div>
             </div>
           </div>
 
-          {/* Row 2: Emergency Hotline / Contact Desk */}
-          <div>
-            <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '6px' }}>
-              📞 Emergency Hotline / Ground Contact Desk
-            </label>
-            <input
-              type="text"
-              placeholder="e.g. Mobile: +63 917 123 4567 | Desk: hotline@reliefph.org"
-              value={contactInfo}
-              onChange={(e) => setContactInfo(e.target.value)}
-              style={{
-                width: '100%',
-                background: 'var(--bg-input)',
-                border: '1px solid var(--border)',
-                borderRadius: '10px',
-                padding: '9px 12px',
-                color: 'var(--text-primary)',
-                fontSize: '0.85rem',
-                outline: 'none',
-                boxSizing: 'border-box'
-              }}
-            />
-          </div>
+          {/* Section 3: Community Impact & Field Contacts */}
+          <div className="deploy-section-card" style={{
+            background: 'rgba(255, 255, 255, 0.02)',
+            border: '1px solid var(--border, rgba(255, 255, 255, 0.08))',
+            borderRadius: '14px',
+            padding: '18px'
+          }}>
+            <div className="deploy-section-header" style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              marginBottom: '16px',
+              paddingBottom: '10px',
+              borderBottom: '1px solid rgba(255, 255, 255, 0.06)'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 700, color: 'var(--text-primary)', fontSize: '0.95rem' }}>
+                <span className="material-symbols-outlined" style={{ color: '#38bdf8', fontSize: '20px' }}>groups</span>
+                <span>3. Community Impact & Verification</span>
+              </div>
+              <span className="badge badge-info" style={{ fontSize: '0.7rem' }}>Transparency</span>
+            </div>
 
-          {/* Row 3: Target Beneficiaries / Families Impacted */}
-          <div>
-            <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '6px' }}>
-              👥 Beneficiaries Scope & Impact Target
-            </label>
-            <input
-              type="text"
-              placeholder="e.g. 500 Coastal Fisherfolk Families & Evacuees"
-              value={beneficiariesImpact}
-              onChange={(e) => setBeneficiariesImpact(e.target.value)}
-              style={{
-                width: '100%',
-                background: 'var(--bg-input)',
-                border: '1px solid var(--border)',
-                borderRadius: '10px',
-                padding: '9px 12px',
-                color: 'var(--text-primary)',
-                fontSize: '0.85rem',
-                outline: 'none',
-                boxSizing: 'border-box'
-              }}
-            />
-          </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '16px' }}>
+              {/* Beneficiary Impact Target */}
+              <div>
+                <label className="deploy-input-label" style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                  Target Beneficiaries & Families
+                </label>
+                <input
+                  type="text"
+                  className="input deploy-field-input"
+                  placeholder="e.g. 500 Families / 2,000 Individuals in Southern Leyte"
+                  value={beneficiariesImpact}
+                  onChange={(e) => setBeneficiariesImpact(e.target.value)}
+                  style={{ width: '100%', boxSizing: 'border-box' }}
+                />
+              </div>
 
-          {/* Row 4: Distribution Location & Landmark */}
-          <div>
-            <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '6px' }}>
-              📍 Distribution Location & Relief Evacuation Landmark
-            </label>
-            <input
-              type="text"
-              placeholder="e.g. Southern Leyte Sports Complex Evacuation Center"
-              value={locationRegion}
-              onChange={(e) => setLocationRegion(e.target.value)}
-              style={{
-                width: '100%',
-                background: 'var(--bg-input)',
-                border: '1px solid var(--border)',
-                borderRadius: '10px',
-                padding: '9px 12px',
-                color: 'var(--text-primary)',
-                fontSize: '0.85rem',
-                outline: 'none',
-                boxSizing: 'border-box'
-              }}
-            />
-          </div>
+              {/* Official Hotline / Contact Desk */}
+              <div>
+                <label className="deploy-input-label" style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                  Official Field Contact & Hotline
+                </label>
+                <input
+                  type="text"
+                  className="input deploy-field-input"
+                  placeholder="e.g. Director Juan Santos • 0917-123-4567"
+                  value={contactInfo}
+                  onChange={(e) => setContactInfo(e.target.value)}
+                  style={{ width: '100%', boxSizing: 'border-box' }}
+                />
+              </div>
 
-          {/* Row 5: Tags (Comma Separated) */}
-          <div>
-            <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '6px' }}>
-              🏷️ Campaign Tags (comma-separated)
-            </label>
-            <input
-              type="text"
-              placeholder="e.g. Typhoon Relief, Immediate Food Packs, Clean Water"
-              value={tags}
-              onChange={(e) => setTags(e.target.value)}
-              style={{
-                width: '100%',
-                background: 'var(--bg-input)',
-                border: '1px solid var(--border)',
-                borderRadius: '10px',
-                padding: '9px 12px',
-                color: 'var(--text-primary)',
-                fontSize: '0.85rem',
-                outline: 'none',
-                boxSizing: 'border-box'
-              }}
-            />
-          </div>
-
-          {/* Row 6: Mission Scope & Humanitarian Description */}
-          <div>
-            <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '6px' }}>
-              📝 Mission Purpose & Humanitarian Scope
-            </label>
-            <textarea
-              rows={4}
-              placeholder="Detail the emergency response objectives, supply distribution plans, and ground logistics..."
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              style={{
-                width: '100%',
-                background: 'var(--bg-input)',
-                border: '1px solid var(--border)',
-                borderRadius: '10px',
-                padding: '10px 12px',
-                color: 'var(--text-primary)',
-                fontSize: '0.85rem',
-                outline: 'none',
-                boxSizing: 'border-box',
-                resize: 'vertical',
-                lineHeight: 1.5
-              }}
-            />
-          </div>
-
-          {/* Row 7: Official Press Release / Verification Document Link */}
-          <div>
-            <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '6px' }}>
-              🔗 Official Verification Document / Press Release URL
-            </label>
-            <input
-              type="url"
-              placeholder="https://..."
-              value={documentUrl}
-              onChange={(e) => setDocumentUrl(e.target.value)}
-              style={{
-                width: '100%',
-                background: 'var(--bg-input)',
-                border: '1px solid var(--border)',
-                borderRadius: '10px',
-                padding: '9px 12px',
-                color: 'var(--text-primary)',
-                fontSize: '0.85rem',
-                outline: 'none',
-                boxSizing: 'border-box'
-              }}
-            />
+              {/* Supporting Document / Proof URL */}
+              <div style={{ gridColumn: '1 / -1' }}>
+                <label className="deploy-input-label" style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '6px' }}>
+                  Official Resolution / Transparency Document URL (Optional)
+                </label>
+                <input
+                  type="url"
+                  className="input deploy-field-input"
+                  placeholder="https://drive.google.com/... or official public PDF URL"
+                  value={documentUrl}
+                  onChange={(e) => setDocumentUrl(e.target.value)}
+                  style={{ width: '100%', boxSizing: 'border-box' }}
+                />
+              </div>
+            </div>
           </div>
 
           {/* Modal Actions Footer */}
@@ -364,34 +404,41 @@ export default function EditCampaignModal({ camp, isOpen, onClose, onSaved }) {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'flex-end',
-            gap: '10px',
-            marginTop: '10px',
+            gap: '12px',
+            marginTop: '8px',
             paddingTop: '16px',
-            borderTop: '1px solid var(--border)'
+            borderTop: '1px solid var(--border, rgba(255, 255, 255, 0.08))'
           }}>
             <button
               type="button"
-              className="btn btn-ghost btn-sm"
+              className="btn btn-outline"
               onClick={onClose}
               disabled={saving}
+              style={{ padding: '9px 18px' }}
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="btn btn-primary btn-sm glow"
+              className="btn btn-primary glow"
               disabled={saving}
-              style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 18px' }}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '9px 24px',
+                fontWeight: 700
+              }}
             >
               {saving ? (
                 <>
                   <div className="spinner spinner-light" style={{ width: 16, height: 16 }} />
-                  <span>Saving Updates…</span>
+                  <span>Saving Changes…</span>
                 </>
               ) : (
                 <>
-                  <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>save</span>
-                  <span>Save Logistics Update</span>
+                  <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>check_circle</span>
+                  <span>Save Changes</span>
                 </>
               )}
             </button>

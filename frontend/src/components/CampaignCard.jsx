@@ -2506,10 +2506,10 @@ export default function CampaignCard(props) {
                 type="button"
                 className="btn btn-primary btn-sm btn-full"
                 onClick={() => setEditModalOpen(true)}
-                title="Update ground relief logistics and operational details"
+                title="Update relief mission details and operational information"
               >
                 <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>edit_square</span>
-                <span>Edit Logistics</span>
+                <span>Edit Campaign</span>
               </button>
 
               <div className="campaign-owner-action-row">
@@ -5537,7 +5537,7 @@ export default function CampaignCard(props) {
                     }}
                   >
                     <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>edit_note</span>
-                    Edit Campaign Logistics
+                    Edit Campaign Details
                   </button>
                 ) : canDonate ? (
                   <button
