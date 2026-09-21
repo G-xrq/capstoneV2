@@ -8,6 +8,7 @@
   color: var(--text-secondary, #cbd5e1);
   margin-top: auto;
   position: relative;
+  z-index: 1;
   overflow: hidden;
   user-select: none;
 }

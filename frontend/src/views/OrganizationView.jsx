@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { ethers } from 'ethers';
 import { isLocalhost, API_URL } from '../config';
-import CampaignCard, { shortAddr, formatCampaignTitle, getOrgDisplayName, getCampaignTags, getCampaignAuditDetails } from '../components/CampaignCard';
+import CampaignCard, { shortAddr, formatCampaignTitle, getOrgDisplayName, getCampaignTags, getCampaignAuditDetails, getCampaignCategoryInfo, getCampaignCoverData } from '../components/CampaignCard';
 import LocationMapPicker from '../components/LocationMapPicker';
 import { ROLES } from '../roleConfig';
 import SettingsPanel from '../components/SettingsPanel';
@@ -70,11 +71,14 @@ export default function OrganizationView({
 
   // Filter & Sort States for "Ledger"
   const [ledgerFilter, setLedgerFilter] = useState('ALL');
-  const [ledgerSort, setLedgerSort] = useState('NEWEST');
-  const [searchQueryLedger, setSearchQueryLedger] = useState('');
   const [ledgerRailFilter, setLedgerRailFilter] = useState('ALL');
   const [ledgerCampaignFilter, setLedgerCampaignFilter] = useState('ALL');
+  const [ledgerSort, setLedgerSort] = useState('NEWEST');
+  const [searchQueryLedger, setSearchQueryLedger] = useState('');
   const [currentPageLedger, setCurrentPageLedger] = useState(1);
+  const [ledgerViewMode, setLedgerViewMode] = useState('cards');
+  const [selectedVoucherTx, setSelectedVoucherTx] = useState(null);
+  const [proofPreviewModalImg, setProofPreviewModalImg] = useState(null);
 
   // View Layout Mode for Campaigns: 'list' or 'grid' (2-column option removed per user request)
   const [viewModeOrg, setViewModeOrg] = useState(() => {
@@ -955,25 +959,111 @@ export default function OrganizationView({
     }
   };
 
-  const handleVerifyDonation = async (id, action) => {
+  // ── Real NGO E-Wallet & Bank Slip Cross-Verification States ──
+  const [verifyingDonation, setVerifyingDonation] = useState(null);
+  const [confirmedAmountPhp, setConfirmedAmountPhp] = useState('');
+  const [confirmedRefNo, setConfirmedRefNo] = useState('');
+  const [checkAccountVerified, setCheckAccountVerified] = useState(false);
+  const [checkAmountMatched, setCheckAmountMatched] = useState(false);
+  const [verifyingSubmitting, setVerifyingSubmitting] = useState(false);
+
+  // Rejection modal states
+  const [rejectingDonation, setRejectingDonation] = useState(null);
+  const [rejectionReason, setRejectionReason] = useState('');
+  const [rejectingSubmitting, setRejectingSubmitting] = useState(false);
+
+  const handleOpenVerification = (donation) => {
+    setVerifyingDonation(donation);
+    const phpVal = Math.round(parseFloat(donation.Amount || 0) * 170000);
+    setConfirmedAmountPhp(String(phpVal));
+    setConfirmedRefNo(donation.Reference_Number || '');
+    setCheckAccountVerified(false);
+    setCheckAmountMatched(false);
+  };
+
+  const handleOpenRejection = (donation) => {
+    setRejectingDonation(donation);
+    setRejectionReason('Payment could not be verified in our official account statements.');
+  };
+
+  const handleConfirmApproval = async () => {
+    if (!verifyingDonation) return;
+    if (!checkAccountVerified || !checkAmountMatched) {
+      showWarning('Please complete both verification checklist items before approving.', 'Audit Checklist Required');
+      return;
+    }
+    const numericAmount = parseFloat(confirmedAmountPhp);
+    if (isNaN(numericAmount) || numericAmount <= 0) {
+      showWarning('Please enter a valid received amount in PHP.', 'Invalid Amount');
+      return;
+    }
+
+    setVerifyingSubmitting(true);
     try {
       const token = localStorage.getItem('bbdrts_token');
       const apiUrl = API_URL;
-      const res = await fetch(`${apiUrl}/api/manual-donations/${id}/${action}`, {
+      const res = await fetch(`${apiUrl}/api/manual-donations/${verifyingDonation.Manual_ID}/approve`, {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` }
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          confirmed_amount_php: numericAmount,
+          reference_number: confirmedRefNo.trim() || undefined
+        })
       });
+      const data = await res.json();
       if (res.ok) {
-        showSuccess(`Donation ${action === 'approve' ? 'Approved & Recorded to Ledger' : 'Rejected'} successfully.`, 'Verification Complete');
+        showSuccess(data.message || `Donation of ₱${numericAmount.toLocaleString()} verified and recorded to blockchain ledger.`, 'Payment Confirmed & Recorded');
+        setVerifyingDonation(null);
         fetchPendingDonations();
         fetchOrgDonations();
         if (typeof fetchCampaigns === 'function') fetchCampaigns();
       } else {
-        const err = await res.json();
-        showError(err.error, 'Verification Failed');
+        showError(data.error || 'Failed to approve donation.', 'Verification Failed');
+      }
+    } catch (error) {
+      showError(error.message, 'Verification Error');
+    } finally {
+      setVerifyingSubmitting(false);
+    }
+  };
+
+  const handleConfirmRejection = async () => {
+    if (!rejectingDonation) return;
+    if (!rejectionReason.trim()) {
+      showWarning('Please provide an audit reason for rejecting this payment slip.', 'Reason Required');
+      return;
+    }
+
+    setRejectingSubmitting(true);
+    try {
+      const token = localStorage.getItem('bbdrts_token');
+      const apiUrl = API_URL;
+      const res = await fetch(`${apiUrl}/api/manual-donations/${rejectingDonation.Manual_ID}/reject`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          rejection_reason: rejectionReason.trim()
+        })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showSuccess(data.message || 'Donation slip rejected and donor notified.', 'Donation Rejected');
+        setRejectingDonation(null);
+        fetchPendingDonations();
+        fetchOrgDonations();
+      } else {
+        showError(data.error || 'Failed to reject donation.', 'Error');
       }
     } catch (error) {
       showError(error.message, 'Error');
+    } finally {
+      setRejectingSubmitting(false);
     }
   };
 
@@ -989,17 +1079,17 @@ export default function OrganizationView({
   const [viewingKycCert, setViewingKycCert] = useState(false);
   const [showGuidedTour, setShowGuidedTour] = useState(false);
 
-  const userTourKey = currentUser?.id 
-    ? `bbdrts_tour_ngo_${currentUser.id}` 
-    : currentUser?.email 
-      ? `bbdrts_tour_ngo_${currentUser.email}` 
+  const userTourKey = currentUser?.id
+    ? `bbdrts_tour_ngo_${currentUser.id}`
+    : currentUser?.email
+      ? `bbdrts_tour_ngo_${currentUser.email}`
       : 'bbdrts_tour_ngo_done';
 
   // Auto-launch Guided Tour ONLY for brand new NGO registrations
   useEffect(() => {
     try {
-      const isNewSignup = localStorage.getItem('bbdrts_tour_force_launch') === 'true' || 
-                          localStorage.getItem('bbdrts_is_new_registration') === 'true';
+      const isNewSignup = localStorage.getItem('bbdrts_tour_force_launch') === 'true' ||
+        localStorage.getItem('bbdrts_is_new_registration') === 'true';
       const userTourDone = localStorage.getItem(userTourKey) === 'true';
 
       if (isNewSignup && !userTourDone) {
@@ -1025,7 +1115,7 @@ export default function OrganizationView({
 
         return () => clearInterval(pollInterval);
       }
-    } catch (_) {}
+    } catch (_) { }
   }, [userTourKey]);
 
   const handleStartTour = () => {
@@ -1173,7 +1263,7 @@ export default function OrganizationView({
     try {
       setKycSaving(true);
       setKycStepText('🤖 Gemini Vision AI: Analyzing institutional seal & document authenticity...');
-      
+
       const token = localStorage.getItem('bbdrts_token');
       const apiUrl = API_URL;
 
@@ -1326,65 +1416,86 @@ export default function OrganizationView({
     currentPageMy * campaignsPerPage
   );
 
-  // Amount Calculation Helper for Ledger (Accurate handling of Fiat Gateway and Web3 ETH)
-  const getDonationAmounts = (d) => {
-    const rawAmt = parseFloat(d?.amount) || 0;
-    const method = (d?.paymentMethod || 'ETH').toUpperCase();
-    const isFiat = method.includes('GCASH') || method.includes('MAYA') || method.includes('BANK') || method.includes('CARD') || method.includes('FIAT') || (d?.txHash && d.txHash.toUpperCase().startsWith('FIAT'));
-    let phpAmt = 0;
-    let ethAmt = 0;
-    if (isFiat) {
-      if (rawAmt > 50) {
-        phpAmt = rawAmt;
-        ethAmt = rawAmt / 170000;
-      } else {
-        ethAmt = rawAmt;
-        phpAmt = Math.round(rawAmt * 170000);
-      }
-    } else {
-      ethAmt = rawAmt;
-      phpAmt = Math.round(rawAmt * 170000);
-    }
-    return { phpAmt, ethAmt, isFiat };
-  };
-
-  // KPI Summary for Donation Ledger
-  const ledgerMetrics = useMemo(() => {
-    let totalPhp = 0;
+  // Telemetry across all received donations for the organization
+  const ledgerTelemetry = useMemo(() => {
+    const list = orgDonations || [];
     let totalEth = 0;
-    let ewalletCount = 0;
-    let ewalletPhp = 0;
-    let web3Count = 0;
-    let web3Eth = 0;
-
-    (orgDonations || []).forEach(d => {
-      const { phpAmt, ethAmt, isFiat } = getDonationAmounts(d);
-      totalPhp += phpAmt;
-      totalEth += ethAmt;
-      if (isFiat) {
-        ewalletCount++;
-        ewalletPhp += phpAmt;
-      } else {
-        web3Count++;
-        web3Eth += ethAmt;
-      }
+    const railCounts = { eth: 0, gcash: 0, maya: 0, bank: 0, other: 0 };
+    list.forEach(d => {
+      const amt = parseFloat(d.amount || 0) || 0;
+      totalEth += amt;
+      const m = String(d.paymentMethod || 'ETH').toUpperCase();
+      if (m.includes('ETH') || m.includes('CRYPTO') || m.includes('SEPOLIA')) railCounts.eth++;
+      else if (m.includes('GCASH')) railCounts.gcash++;
+      else if (m.includes('MAYA') || m.includes('PAYMAYA')) railCounts.maya++;
+      else if (m.includes('BANK')) railCounts.bank++;
+      else railCounts.other++;
     });
-
     return {
-      totalPhp,
       totalEth,
-      totalCount: (orgDonations || []).length,
-      ewalletCount,
-      ewalletPhp,
-      web3Count,
-      web3Eth
+      totalPhp: Math.round(totalEth * 170000),
+      totalCount: list.length,
+      railCounts
     };
   }, [orgDonations]);
 
-  // Export CSV Audit Report
+  // Filter & Sort Ledger Transactions
+  const filteredLedger = useMemo(() => {
+    return (orgDonations || [])
+      .filter(d => {
+        // Category filter
+        if (ledgerFilter !== 'ALL') {
+          const matchCamp = campaigns.find(c => String(c.id) === String(d.campaignId));
+          const campTitle = matchCamp ? formatCampaignTitle(matchCamp.title, matchCamp.id) : '';
+          const isCharity = /charity|school|orphan|food|feed|community|aid|blood|medical/i.test(campTitle);
+          if (ledgerFilter === 'DR' && isCharity) return false;
+          if (ledgerFilter === 'CD' && !isCharity) return false;
+        }
+
+        // Payment Rail filter
+        if (ledgerRailFilter !== 'ALL') {
+          const m = String(d.paymentMethod || 'ETH').toUpperCase();
+          if (ledgerRailFilter === 'ETH' && !m.includes('ETH') && !m.includes('CRYPTO') && !m.includes('SEPOLIA')) return false;
+          if (ledgerRailFilter === 'GCASH' && !m.includes('GCASH')) return false;
+          if (ledgerRailFilter === 'MAYA' && !m.includes('MAYA')) return false;
+          if (ledgerRailFilter === 'BANK' && !m.includes('BANK')) return false;
+        }
+
+        // Campaign filter
+        if (ledgerCampaignFilter !== 'ALL') {
+          if (String(d.campaignId) !== String(ledgerCampaignFilter)) return false;
+        }
+
+        // Search query filter
+        if (searchQueryLedger.trim()) {
+          const q = searchQueryLedger.toLowerCase().trim();
+          const txHash = (d.txHash || '').toLowerCase();
+          const matchCamp = campaigns.find(c => String(c.id) === String(d.campaignId));
+          const campTitle = matchCamp ? formatCampaignTitle(matchCamp.title, matchCamp.id).toLowerCase() : '';
+          const donorName = (d.donorName || '').toLowerCase();
+          const donorWallet = (d.donorWallet || '').toLowerCase();
+          return txHash.includes(q) || campTitle.includes(q) || String(d.campaignId).includes(q) || donorName.includes(q) || donorWallet.includes(q);
+        }
+        return true;
+      })
+      .sort((a, b) => {
+        if (ledgerSort === 'AMOUNT_HIGH') return (parseFloat(b.amount) || 0) - (parseFloat(a.amount) || 0);
+        if (ledgerSort === 'AMOUNT_LOW') return (parseFloat(a.amount) || 0) - (parseFloat(b.amount) || 0);
+        if (ledgerSort === 'OLDEST') return (a.id || 0) - (b.id || 0);
+        return (b.id || 0) - (a.id || 0);
+      });
+  }, [orgDonations, ledgerFilter, ledgerRailFilter, ledgerCampaignFilter, searchQueryLedger, ledgerSort, campaigns]);
+
+  const totalPagesLedger = Math.ceil(filteredLedger.length / campaignsPerPage);
+  const paginatedLedger = filteredLedger.slice(
+    (currentPageLedger - 1) * campaignsPerPage,
+    currentPageLedger * campaignsPerPage
+  );
+
+  // Professional CSV Export for Financial Audits
   const handleExportLedgerCsv = () => {
     if (!filteredLedger || filteredLedger.length === 0) {
-      showWarning('No transactions available to export under current filters.', 'No Data');
+      showWarning('No transactions available to export.', 'Export Empty');
       return;
     }
     const headers = [
@@ -1394,38 +1505,36 @@ export default function OrganizationView({
       'Campaign Title',
       'Category',
       'Donor Name',
-      'Donor Email',
       'Donor Wallet',
-      'Payment Channel',
-      'Amount (PHP)',
+      'Payment Rail',
       'Amount (ETH)',
+      'Amount (PHP)',
       'Transaction Hash',
-      'Status'
+      'Verification Status'
     ];
-    const rows = filteredLedger.map(d => {
+    const rows = filteredLedger.map((d) => {
       const matchCamp = campaigns.find(c => String(c.id) === String(d.campaignId));
-      const title = matchCamp ? formatCampaignTitle(matchCamp.title, matchCamp.id) : (d.campaignTitle || `Campaign #${d.campaignId}`);
-      const isCharity = /charity|school|orphan|food|feed|community|aid|blood|medical/i.test(title);
-      const category = isCharity ? 'Charitable Aid' : 'Disaster Relief';
-      const { phpAmt, ethAmt } = getDonationAmounts(d);
-      const donorDisplay = d.isAnonymous ? 'Anonymous Philanthropist' : (d.donorName || d.donorWallet || 'Community Contributor');
-      const dateStr = d.createdAt ? new Date(d.createdAt).toLocaleString('en-US') : 'N/A';
-      const rail = (d.paymentMethod || 'ETH').toUpperCase();
-
+      const rawTitle = matchCamp ? matchCamp.title : `Disaster Relief Campaign #${d.campaignId}`;
+      const campTitle = formatCampaignTitle(rawTitle, d.campaignId);
+      const isCharity = /charity|school|orphan|food|feed|community|aid|blood|medical/i.test(campTitle);
+      const catLabel = isCharity ? 'Charitable Aid' : 'Disaster Relief';
+      const donor = d.isAnonymous ? 'Anonymous Supporter' : (d.donorName || 'Public Philanthropist');
+      const amtEth = parseFloat(d.amount || 0).toFixed(4);
+      const amtPhp = Math.round(parseFloat(d.amount || 0) * 170000);
+      const dateStr = d.createdAt ? new Date(d.createdAt).toLocaleString() : 'Recent On-Chain';
       return [
-        d.id || '',
+        `"${d.id || ''}"`,
         `"${dateStr}"`,
-        d.campaignId || '',
-        `"${title.replace(/"/g, '""')}"`,
-        `"${category}"`,
-        `"${donorDisplay.replace(/"/g, '""')}"`,
-        `"${(d.donorEmail || '').replace(/"/g, '""')}"`,
+        `"${d.campaignId || ''}"`,
+        `"${campTitle.replace(/"/g, '""')}"`,
+        `"${catLabel}"`,
+        `"${donor.replace(/"/g, '""')}"`,
         `"${d.donorWallet || ''}"`,
-        `"${rail}"`,
-        phpAmt.toFixed(2),
-        ethAmt.toFixed(6),
+        `"${d.paymentMethod || 'ETH'}"`,
+        `"${amtEth}"`,
+        `"${amtPhp}"`,
         `"${d.txHash || ''}"`,
-        '"Verified On-Chain"'
+        `"Verified On-Chain"`
       ].join(',');
     });
 
@@ -1433,76 +1542,12 @@ export default function OrganizationView({
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement('a');
     link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `Donation_Ledger_${(orgDisplayName || 'Organization').replace(/\s+/g, '_')}_${new Date().toISOString().slice(0, 10)}.csv`);
+    link.setAttribute('download', `bbdrts_donation_ledger_audit_${new Date().toISOString().slice(0, 10)}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
-    showSuccess('Audit report exported successfully!', 'CSV Downloaded');
+    showSuccess(`Exported ${filteredLedger.length} ledger transactions to CSV.`, 'Export Completed');
   };
-
-  // Filter & Sort Ledger Transactions
-  const filteredLedger = (orgDonations || [])
-    .filter(d => {
-      // 1. Category Filter
-      if (ledgerFilter !== 'ALL') {
-        const matchCamp = campaigns.find(c => String(c.id) === String(d.campaignId));
-        const campTitle = matchCamp ? formatCampaignTitle(matchCamp.title, matchCamp.id) : (d.campaignTitle || '');
-        const isCharity = /charity|school|orphan|food|feed|community|aid|blood|medical/i.test(campTitle);
-        if (ledgerFilter === 'DR' && isCharity) return false;
-        if (ledgerFilter === 'CD' && !isCharity) return false;
-      }
-
-      // 2. Payment Rail Filter
-      if (ledgerRailFilter !== 'ALL') {
-        const method = (d.paymentMethod || 'ETH').toUpperCase();
-        if (ledgerRailFilter === 'GCASH' && !method.includes('GCASH')) return false;
-        if (ledgerRailFilter === 'MAYA' && !method.includes('MAYA')) return false;
-        if (ledgerRailFilter === 'BANK' && !method.includes('BANK')) return false;
-        if (ledgerRailFilter === 'ETH' && (method.includes('GCASH') || method.includes('MAYA') || method.includes('BANK') || method.includes('CARD') || method.includes('FIAT'))) return false;
-      }
-
-      // 3. Campaign Filter
-      if (ledgerCampaignFilter !== 'ALL') {
-        if (String(d.campaignId) !== String(ledgerCampaignFilter)) return false;
-      }
-
-      // 4. Search Filter
-      if (searchQueryLedger.trim()) {
-        const q = searchQueryLedger.toLowerCase().trim();
-        const txHash = (d.txHash || '').toLowerCase();
-        const matchCamp = campaigns.find(c => String(c.id) === String(d.campaignId));
-        const campTitle = matchCamp ? formatCampaignTitle(matchCamp.title, matchCamp.id).toLowerCase() : (d.campaignTitle || '').toLowerCase();
-        const donorName = (d.donorName || '').toLowerCase();
-        const donorWallet = (d.donorWallet || '').toLowerCase();
-        const donorEmail = (d.donorEmail || '').toLowerCase();
-        const pMethod = (d.paymentMethod || '').toLowerCase();
-
-        return (
-          txHash.includes(q) ||
-          campTitle.includes(q) ||
-          String(d.campaignId).includes(q) ||
-          donorName.includes(q) ||
-          donorWallet.includes(q) ||
-          donorEmail.includes(q) ||
-          pMethod.includes(q)
-        );
-      }
-      return true;
-    })
-    .sort((a, b) => {
-      const aAmt = getDonationAmounts(a);
-      const bAmt = getDonationAmounts(b);
-      if (ledgerSort === 'AMOUNT_HIGH') return bAmt.phpAmt - aAmt.phpAmt;
-      if (ledgerSort === 'AMOUNT_LOW') return aAmt.phpAmt - bAmt.phpAmt;
-      if (ledgerSort === 'OLDEST') return (a.id || 0) - (b.id || 0);
-      return (b.id || 0) - (a.id || 0);
-    });
-
-  const totalPagesLedger = Math.ceil(filteredLedger.length / campaignsPerPage);
-  const paginatedLedger = filteredLedger.slice(
-    (currentPageLedger - 1) * campaignsPerPage,
-    currentPageLedger * campaignsPerPage
-  );
 
   // Deploy Campaign Logic
   const handleCreateCampaign = async (e) => {
@@ -1781,7 +1826,7 @@ export default function OrganizationView({
                 <span>Profile & Settings</span>
               </button>
 
-              <button 
+              <button
                 type="button"
                 className="ref-nav-item"
                 onClick={handleStartTour}
@@ -1831,68 +1876,233 @@ export default function OrganizationView({
           */}
 
           {/* ── 1. DASHBOARD OVERVIEW TAB ONLY ── */}
-          {activeTab === 'dashboard' && (
+          {activeTab === 'dashboard' && (() => {
+            /* true when a real image banner is set → dark overlay is active → need white text */
+            const heroBannerActive = !!(currentUser?.banner_url && (
+              currentUser.banner_url.startsWith('data:') ||
+              currentUser.banner_url.startsWith('http') ||
+              currentUser.banner_url.startsWith('/')
+            ));
+            const heroText  = heroBannerActive ? '#ffffff' : 'var(--text-primary)';
+            const heroSub   = heroBannerActive ? 'rgba(255,255,255,0.75)' : 'var(--text-secondary)';
+            const heroDot   = heroBannerActive ? 'rgba(255,255,255,0.3)' : 'var(--border)';
+            const heroBtnBg = heroBannerActive ? 'rgba(255,255,255,0.08)' : 'var(--bg-inset)';
+            const heroBtnBd = heroBannerActive ? 'rgba(255,255,255,0.18)' : 'var(--border)';
+            const heroDivider = heroBannerActive ? 'rgba(255,255,255,0.1)' : 'var(--border)';
+            return (
             <>
-              {/* Top Hero Banner (Image 1 Redesign) */}
-              <div className="ngo-hero-card" id="tour-ngo-welcome">
-                {currentUser?.banner_url && (
-                  <div
-                    className="ngo-hero-bg-overlay"
-                    style={{
-                      backgroundImage: `url(${currentUser.banner_url})`
-                    }}
-                  />
-                )}
-                <div className="ngo-hero-content">
-                  <div className="ngo-hero-identity">
-                    <div className="ngo-hero-avatar-wrapper">
-                      <div className="ngo-hero-avatar">
-                        {currentUser?.avatar_url && (currentUser.avatar_url.startsWith('data:') || currentUser.avatar_url.startsWith('http')) ? (
-                          <img src={currentUser.avatar_url} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                        ) : currentUser?.avatar_url && currentUser.avatar_url.length < 30 ? (
-                          <span className="material-symbols-outlined" style={{ fontSize: '32px', color: '#38bdf8' }}>{currentUser.avatar_url}</span>
-                        ) : (
-                          orgInitials
-                        )}
-                      </div>
-                      <div className="ngo-hero-avatar-online" title="System Active & Connected" />
+              {/* Top Hero Banner — Sleek High-Impact Organization Identity */}
+              <div
+                className="ref-welcome-card"
+                id="tour-ngo-welcome"
+                style={{
+                  padding: '24px 28px',
+                  borderRadius: '16px',
+                  marginBottom: '22px',
+                  position: 'relative',
+                  overflow: 'hidden',
+                  borderBottom: 'none',
+                  ...(currentUser?.banner_url && (currentUser.banner_url.startsWith('data:') || currentUser.banner_url.startsWith('http') || currentUser.banner_url.startsWith('/'))
+                    ? { backgroundImage: `linear-gradient(rgba(10,12,18,0.75), rgba(10,12,18,0.92)), url(${currentUser.banner_url})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+                    : currentUser?.banner_url && currentUser.banner_url.startsWith('linear-gradient')
+                      ? { background: currentUser.banner_url }
+                      : {})
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '20px', marginBottom: '18px' }}>
+                  {/* Left: Avatar & Identity */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '16px', minWidth: '240px' }} id="tour-ngo-identity">
+                    <div
+                      style={{
+                        width: '64px',
+                        height: '64px',
+                        borderRadius: '50%',
+                        overflow: 'hidden',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        background: 'rgba(255,255,255,0.06)',
+                        border: '2px solid rgba(255,255,255,0.18)',
+                        boxShadow: '0 4px 16px rgba(0,0,0,0.4)',
+                        flexShrink: 0
+                      }}
+                    >
+                      {currentUser?.avatar_url && (currentUser.avatar_url.startsWith('data:') || currentUser.avatar_url.startsWith('http')) ? (
+                        <img src={currentUser.avatar_url} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      ) : currentUser?.avatar_url && currentUser.avatar_url.length < 30 ? (
+                        <span className="material-symbols-outlined" style={{ fontSize: '32px', color: 'var(--accent, #22c55e)' }}>{currentUser.avatar_url}</span>
+                      ) : (
+                        <span style={{ fontSize: '1.4rem', fontWeight: 800, color: '#fff' }}>{orgInitials}</span>
+                      )}
                     </div>
 
-                    <div className="ngo-hero-details">
-                      <h1 className="ngo-hero-title">{orgDisplayName || 'Organization Dashboard'}</h1>
-                      <div className="ngo-hero-meta-row">
-                        <span className="ngo-badge-verified">
-                          <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>verified</span>
-                          <span>Verified Non-Profit NGO</span>
-                        </span>
-                        <div
-                          className="ngo-wallet-chip"
-                          onClick={() => {
-                            if (walletAddress) {
-                              navigator.clipboard.writeText(walletAddress);
-                              showSuccess('Wallet address copied to clipboard!', 'Address Copied');
-                            }
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+                        <h1 style={{ margin: 0, fontSize: '1.55rem', fontWeight: 850, color: heroText, letterSpacing: '-0.01em' }}>
+                          {orgDisplayName || 'Organization Dashboard'}
+                        </h1>
+                        <span
+                          style={{
+                            background: currentUser?.verification_status === 'Approved' ? 'rgba(34, 197, 94, 0.15)' : 'rgba(245, 158, 11, 0.15)',
+                            color: currentUser?.verification_status === 'Approved' ? '#22c55e' : '#f59e0b',
+                            border: `1px solid ${currentUser?.verification_status === 'Approved' ? 'rgba(34, 197, 94, 0.35)' : 'rgba(245, 158, 11, 0.35)'}`,
+                            fontSize: '0.72rem',
+                            fontWeight: 700,
+                            padding: '3px 10px',
+                            borderRadius: '9999px',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px'
                           }}
-                          title="Click to copy wallet address"
                         >
-                          <span className="material-symbols-outlined" style={{ fontSize: '14px', color: '#38bdf8' }}>account_balance_wallet</span>
-                          <span>{shortAddr(walletAddress)}</span>
-                          <span className="material-symbols-outlined" style={{ fontSize: '13px', opacity: 0.7 }}>content_copy</span>
-                        </div>
+                          <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>
+                            {currentUser?.verification_status === 'Approved' ? 'verified' : 'hourglass_top'}
+                          </span>
+                          <span>{currentUser?.verification_status === 'Approved' ? 'SEC ACCREDITED' : 'ACCREDITATION PENDING'}</span>
+                        </span>
+                      </div>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px', fontSize: '0.84rem', color: heroSub, flexWrap: 'wrap' }}>
+                        <span style={{ color: '#22c55e', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                          <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>verified</span>
+                          <span>{currentUser?.verification_status === 'Approved' ? 'Verified Organization' : 'Pending Verification'}</span>
+                        </span>
+                        <span style={{ color: heroDot }}>•</span>
+                        <span>
+                          Wallet Address:{' '}
+                          <code
+                            style={{
+                              color: 'var(--accent, #22c55e)',
+                              background: 'rgba(34, 197, 94, 0.1)',
+                              padding: '2px 8px',
+                              borderRadius: '6px',
+                              fontSize: '0.82rem',
+                              fontFamily: 'var(--font-mono)'
+                            }}
+                          >
+                            {shortAddr(walletAddress)}
+                          </code>
+                        </span>
                       </div>
                     </div>
                   </div>
 
-                  <div className="ngo-hero-actions" id="tour-ngo-actions">
-                    <button className="ngo-btn-deploy" onClick={() => setActiveTab('create')}>
-                      <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>rocket_launch</span>
-                      <span>Deploy Campaign</span>
-                    </button>
-                    <a href="https://sepolia.etherscan.io" target="_blank" rel="noreferrer" className="ngo-btn-ledger">
-                      <span className="material-symbols-outlined" style={{ fontSize: '20px', color: '#38bdf8' }}>analytics</span>
-                      <span>Public Ledger</span>
-                    </a>
+                  {/* Right: Mobilized Aid Summary Callout */}
+                  <div
+                    id="tour-ngo-impact"
+                    style={{
+                      textAlign: 'right',
+                      background: 'rgba(0, 0, 0, 0.35)',
+                      backdropFilter: 'blur(6px)',
+                      padding: '12px 20px',
+                      borderRadius: '12px',
+                      border: '1px solid rgba(255, 255, 255, 0.08)'
+                    }}
+                  >
+                    <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                      Total Aid Mobilized
+                    </div>
+                    <div style={{ fontSize: '1.65rem', fontWeight: 850, color: heroText, letterSpacing: '-0.02em', margin: '2px 0' }}>
+                      ₱{(totalRaisedByMe * 170000).toLocaleString('en-US', { maximumFractionDigits: 0 })}{' '}
+                      <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>PHP</span>
+                    </div>
+                    <div style={{ fontSize: '0.82rem', color: 'var(--accent, #22c55e)', fontWeight: 700 }}>
+                      {totalRaisedByMe.toFixed(4)} ETH · {myCampaigns.length} Operations
+                    </div>
                   </div>
+                </div>
+
+                {/* Bottom Row: Clean Action Buttons matching Image 1 */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', paddingTop: '14px', borderTop: `1px solid ${heroDivider}` }} id="tour-ngo-actions">
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('create')}
+                    style={{
+                      background: 'var(--accent, #22c55e)',
+                      color: '#000000',
+                      border: 'none',
+                      borderRadius: '9999px',
+                      padding: '8px 20px',
+                      fontSize: '0.85rem',
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      boxShadow: '0 4px 12px rgba(34, 197, 94, 0.35)',
+                      transition: 'all 0.18s ease'
+                    }}
+                  >
+                    <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>rocket_launch</span>
+                    <span>Deploy Campaign</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('ledger')}
+                    style={{
+                      background: heroBtnBg,
+                      color: heroText,
+                      border: `1px solid ${heroBtnBd}`,
+                      borderRadius: '9999px',
+                      padding: '8px 18px',
+                      fontSize: '0.85rem',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      transition: 'all 0.18s ease'
+                    }}
+                  >
+                    <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#0284c7' }}>receipt_long</span>
+                    <span>Donation Ledger</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('radar-heatmap')}
+                    style={{
+                      background: heroBtnBg,
+                      color: heroText,
+                      border: `1px solid ${heroBtnBd}`,
+                      borderRadius: '9999px',
+                      padding: '8px 18px',
+                      fontSize: '0.85rem',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      transition: 'all 0.18s ease'
+                    }}
+                  >
+                    <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#38bdf8' }}>radar</span>
+                    <span>Relief Radar</span>
+                  </button>
+
+                  <a
+                    href="https://sepolia.etherscan.io"
+                    target="_blank"
+                    rel="noreferrer"
+                    style={{
+                      background: heroBtnBg,
+                      color: heroText,
+                      border: `1px solid ${heroBtnBd}`,
+                      borderRadius: '9999px',
+                      padding: '8px 18px',
+                      fontSize: '0.85rem',
+                      fontWeight: 600,
+                      textDecoration: 'none',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      marginLeft: 'auto'
+                    }}
+                  >
+                    <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#a855f7' }}>analytics</span>
+                    <span>Public Ledger ↗</span>
+                  </a>
                 </div>
               </div>
 
@@ -1918,7 +2128,7 @@ export default function OrganizationView({
                       <div style={{ fontWeight: 800, color: '#fef08a', fontSize: '0.95rem' }}>
                         Institutional SEC Non-Profit Accreditation Pending
                       </div>
-                      <div style={{ color: '#cbd5e1', fontSize: '0.8rem', marginTop: '2px' }}>
+                      <div style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', marginTop: '2px' }}>
                         Submit your SEC Registration Number, Board of Trustees, and Certificate to unlock on-chain campaign deployment.
                       </div>
                     </div>
@@ -1934,59 +2144,175 @@ export default function OrganizationView({
                 </div>
               )}
 
-              {/* 4-Metric Command Stat Cards Grid (Individual Color Accents) */}
-              <div className="ngo-metrics-grid" id="tour-ngo-metrics">
-                {/* 1. Total Raised - Emerald Accent */}
-                <div className="ngo-metric-card ngo-card-emerald">
-                  <div className="ngo-metric-icon-badge">
-                    <span className="material-symbols-outlined" style={{ fontSize: '26px' }}>account_balance_wallet</span>
+              {/* 4-Metric Stat Cards Grid — Premium Redesign */}
+              <div className="ref-metrics-grid" id="tour-ngo-metrics" style={{ marginBottom: '28px', gap: '16px' }}>
+
+                {/* 1. Total Raised */}
+                <div className="ref-metric-card" style={{
+                  padding: '20px 22px',
+                  textAlign: 'left',
+                  borderLeft: '3px solid #38bdf8',
+                  background: 'linear-gradient(135deg, rgba(2, 132, 199, 0.06) 0%, var(--bg-card, #212121) 60%)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '10px'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: '0.74rem', fontWeight: 700, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.6px' }}>Total Raised</span>
+                    <div style={{
+                      width: '34px', height: '34px', borderRadius: '10px',
+                      background: 'rgba(2, 132, 199, 0.15)', border: '1px solid rgba(56, 189, 248, 0.25)',
+                      color: '#38bdf8', display: 'flex', alignItems: 'center', justifyContent: 'center'
+                    }}>
+                      <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>account_balance_wallet</span>
+                    </div>
                   </div>
-                  <div className="ngo-metric-label">Total Raised</div>
-                  <div className="ngo-metric-num">{totalRaisedByMe.toFixed(4)} <span style={{ fontSize: '0.95rem', fontWeight: 600 }}>ETH</span></div>
-                  <div className="ngo-metric-chip ngo-chip-emerald">
-                    <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>trending_up</span>
-                    <span>≈ ₱{(totalRaisedByMe * 170000).toLocaleString('en-US', { maximumFractionDigits: 0 })} PHP</span>
+                  <div>
+                    <div style={{ fontSize: '1.9rem', fontWeight: 850, color: 'var(--text-primary)', letterSpacing: '-0.03em', lineHeight: 1 }}>
+                      {totalRaisedByMe.toFixed(4)}
+                      <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-secondary)', marginLeft: '5px' }}>ETH</span>
+                    </div>
+                    <div style={{ fontSize: '0.78rem', color: '#38bdf8', fontWeight: 600, marginTop: '4px' }}>
+                      ≈ ₱{(totalRaisedByMe * 170000).toLocaleString('en-US', { maximumFractionDigits: 0 })} PHP
+                    </div>
+                  </div>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted, #64748b)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>verified_user</span>
+                    <span>Blockchain-audited total</span>
                   </div>
                 </div>
 
-                {/* 2. Relief Operations - Sky Accent */}
-                <div className="ngo-metric-card ngo-card-sky">
-                  <div className="ngo-metric-icon-badge">
-                    <span className="material-symbols-outlined" style={{ fontSize: '26px' }}>campaign</span>
+                {/* 2. My Deployed Campaigns */}
+                <div className="ref-metric-card" style={{
+                  padding: '20px 22px',
+                  textAlign: 'left',
+                  borderLeft: '3px solid #22c55e',
+                  background: 'linear-gradient(135deg, rgba(34, 197, 94, 0.06) 0%, var(--bg-card, #212121) 60%)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '10px'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: '0.74rem', fontWeight: 700, color: '#22c55e', textTransform: 'uppercase', letterSpacing: '0.6px' }}>Relief Operations</span>
+                    <div style={{
+                      width: '34px', height: '34px', borderRadius: '10px',
+                      background: 'rgba(34, 197, 94, 0.15)', border: '1px solid rgba(34, 197, 94, 0.25)',
+                      color: '#22c55e', display: 'flex', alignItems: 'center', justifyContent: 'center'
+                    }}>
+                      <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>rocket_launch</span>
+                    </div>
                   </div>
-                  <div className="ngo-metric-label">Relief Operations</div>
-                  <div className="ngo-metric-num">{myCampaigns.length}</div>
-                  <div className="ngo-metric-chip ngo-chip-sky">
-                    <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>bolt</span>
-                    <span>{myCampaigns.filter(c => c.isActive).length} Active Operations</span>
+                  <div>
+                    <div style={{ fontSize: '1.9rem', fontWeight: 850, color: 'var(--text-primary)', letterSpacing: '-0.03em', lineHeight: 1 }}>
+                      {myCampaigns.length}
+                      <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-secondary)', marginLeft: '5px' }}>Campaigns</span>
+                    </div>
+                    <div style={{ fontSize: '0.78rem', color: '#22c55e', fontWeight: 600, marginTop: '4px' }}>
+                      {myCampaigns.filter(c => c.isActive).length} Active · {myCampaigns.filter(c => !c.isActive).length} Closed
+                    </div>
+                  </div>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted, #64748b)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>location_on</span>
+                    <span>Deployed on Sepolia EVM</span>
                   </div>
                 </div>
 
-                {/* 3. Received Donations - Violet Accent */}
-                <div className="ngo-metric-card ngo-card-violet">
-                  <div className="ngo-metric-icon-badge">
-                    <span className="material-symbols-outlined" style={{ fontSize: '26px' }}>receipt_long</span>
+                {/* 3. Received Donations */}
+                <div
+                  className="ref-metric-card"
+                  onClick={() => setActiveTab('ledger')}
+                  title="View full donation ledger"
+                  style={{
+                    padding: '20px 22px',
+                    textAlign: 'left',
+                    borderLeft: '3px solid #a78bfa',
+                    background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.06) 0%, var(--bg-card, #212121) 60%)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '10px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: '0.74rem', fontWeight: 700, color: '#a78bfa', textTransform: 'uppercase', letterSpacing: '0.6px' }}>Donations Received</span>
+                    <div style={{
+                      width: '34px', height: '34px', borderRadius: '10px',
+                      background: 'rgba(139, 92, 246, 0.15)', border: '1px solid rgba(167, 139, 250, 0.25)',
+                      color: '#a78bfa', display: 'flex', alignItems: 'center', justifyContent: 'center'
+                    }}>
+                      <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>receipt_long</span>
+                    </div>
                   </div>
-                  <div className="ngo-metric-label">Received Donations</div>
-                  <div className="ngo-metric-num">{orgDonations ? orgDonations.length : 0}</div>
-                  <div className="ngo-metric-chip ngo-chip-violet">
-                    <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>verified</span>
-                    <span>100% On-Chain Relayed</span>
+                  <div>
+                    <div style={{ fontSize: '1.9rem', fontWeight: 850, color: 'var(--text-primary)', letterSpacing: '-0.03em', lineHeight: 1 }}>
+                      {orgDonations ? orgDonations.length : 0}
+                      <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-secondary)', marginLeft: '5px' }}>Receipts</span>
+                    </div>
+                    <div style={{ fontSize: '0.78rem', color: '#a78bfa', fontWeight: 600, marginTop: '4px' }}>
+                      ≈ ₱{((orgDonations || []).reduce((s, d) => s + (d.phpAmount || Math.round((parseFloat(d.amount || 0)) * 170000)), 0)).toLocaleString('en-US', { maximumFractionDigits: 0 })} PHP total
+                    </div>
+                  </div>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted, #64748b)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>open_in_new</span>
+                    <span>Click to view full ledger</span>
                   </div>
                 </div>
 
-                {/* 4. SEC Accreditation Status - Teal Accent */}
-                <div className="ngo-metric-card ngo-card-teal">
-                  <div className="ngo-metric-icon-badge">
-                    <span className="material-symbols-outlined" style={{ fontSize: '26px' }}>verified_user</span>
+                {/* 4. Verification Status */}
+                <div
+                  className="ref-metric-card"
+                  onClick={() => { fetchKycData(); setActiveTab('sec-kyc'); }}
+                  title="View SEC accreditation standing"
+                  style={{
+                    padding: '20px 22px',
+                    textAlign: 'left',
+                    borderLeft: `3px solid ${currentUser?.verification_status === 'Approved' ? '#22c55e' : '#f59e0b'}`,
+                    background: currentUser?.verification_status === 'Approved'
+                      ? 'linear-gradient(135deg, rgba(34, 197, 94, 0.06) 0%, var(--bg-card, #212121) 60%)'
+                      : 'linear-gradient(135deg, rgba(245, 158, 11, 0.06) 0%, var(--bg-card, #212121) 60%)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '10px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{
+                      fontSize: '0.74rem', fontWeight: 700,
+                      color: currentUser?.verification_status === 'Approved' ? '#22c55e' : '#f59e0b',
+                      textTransform: 'uppercase', letterSpacing: '0.6px'
+                    }}>SEC Accreditation</span>
+                    <div style={{
+                      width: '34px', height: '34px', borderRadius: '10px',
+                      background: currentUser?.verification_status === 'Approved' ? 'rgba(34, 197, 94, 0.15)' : 'rgba(245, 158, 11, 0.15)',
+                      border: `1px solid ${currentUser?.verification_status === 'Approved' ? 'rgba(34, 197, 94, 0.25)' : 'rgba(245, 158, 11, 0.25)'}`,
+                      color: currentUser?.verification_status === 'Approved' ? '#22c55e' : '#f59e0b',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center'
+                    }}>
+                      <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>
+                        {currentUser?.verification_status === 'Approved' ? 'verified' : 'hourglass_top'}
+                      </span>
+                    </div>
                   </div>
-                  <div className="ngo-metric-label">Accreditation Status</div>
-                  <div className="ngo-metric-num" style={{ fontSize: '1.25rem', color: currentUser?.verification_status === 'Approved' ? '#34d399' : '#fbbf24', marginTop: '4px' }}>
-                    {currentUser?.verification_status === 'Approved' ? '✓ Approved NGO' : '⌛ Pending SEC'}
+                  <div>
+                    <div style={{
+                      fontSize: '1.25rem', fontWeight: 850,
+                      color: currentUser?.verification_status === 'Approved' ? '#22c55e' : '#f59e0b',
+                      letterSpacing: '-0.01em', lineHeight: 1
+                    }}>
+                      {currentUser?.verification_status === 'Approved' ? 'Approved NGO' : 'Pending Review'}
+                    </div>
+                    <div style={{
+                      fontSize: '0.78rem',
+                      color: currentUser?.verification_status === 'Approved' ? '#22c55e' : '#f59e0b',
+                      fontWeight: 600, marginTop: '4px', opacity: 0.8
+                    }}>
+                      {currentUser?.verification_status === 'Approved' ? 'SEC Non-Profit Accredited' : 'Awaiting admin approval'}
+                    </div>
                   </div>
-                  <div className="ngo-metric-chip ngo-chip-teal" style={{ marginTop: '8px' }}>
-                    <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>shield</span>
-                    <span>Admin Verified Access</span>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted, #64748b)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>open_in_new</span>
+                    <span>Click to manage KYC docs</span>
                   </div>
                 </div>
               </div>
@@ -2032,7 +2358,8 @@ export default function OrganizationView({
                 )}
               </div>
             </>
-          )}
+            );
+          })()}
 
           {/* ── 2. ALL CAMPAIGNS TAB ── */}
           {activeTab === 'all-campaigns' && (
@@ -3332,7 +3659,7 @@ export default function OrganizationView({
 
                       {/* 2-Column Responsive Layout: Granular Address Details (Left) & Stable Map View (Right) */}
                       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '22px', alignItems: 'start' }}>
-                        
+
                         {/* ── Left Column: Granular Address Details ── */}
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px' }}>
@@ -4282,427 +4609,761 @@ export default function OrganizationView({
           {/* ── 5. DONATION LEDGER TAB ── */}
           {activeTab === 'ledger' && (
             <div style={{ marginTop: '8px' }}>
-              <div className="section-header" id="tour-ngo-ledger-header">
+              <div className="section-header" id="tour-ngo-ledger-header" style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.08)', paddingBottom: '12px', marginBottom: '16px' }}>
                 <div>
                   <h2 className="section-title" style={{ fontSize: '1.4rem' }}>
-                    <span className="material-symbols-outlined section-title-icon" style={{ marginRight: '8px', color: '#0284c7' }}>receipt_long</span> Organization Donation Ledger
+                    <span className="material-symbols-outlined section-title-icon" style={{ marginRight: '8px', color: '#0284c7' }}>receipt_long</span>
+                    Organization Financial Ledger & Audit Receipts
                   </h2>
                   <p style={{ fontSize: '0.82rem', color: '#94a3b8', marginTop: '4px' }}>
-                    Real-time transaction receipts and institutional audit records for {orgDisplayName}.
+                    Immutable, tamper-proof real-time transaction receipts for contributions received by {orgDisplayName}.
                   </p>
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                  <button className="ngo-btn-export-csv" onClick={handleExportLedgerCsv} title="Download complete financial audit report in CSV format">
-                    <span className="material-symbols-outlined" style={{ fontSize: '17px' }}>download</span>
-                    <span>Export CSV Audit</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    className="btn btn-outline btn-sm"
+                    onClick={handleExportLedgerCsv}
+                    title="Export filtered ledger records to a standard CSV spreadsheet"
+                    style={{ borderRadius: '8px', padding: '6px 14px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                  >
+                    <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>file_download</span>
+                    <span>Export CSV</span>
                   </button>
-                  <button className="btn btn-ghost btn-sm" onClick={fetchOrgDonations} disabled={loadingOrgDonations}>
+                  <button
+                    type="button"
+                    className="btn btn-outline btn-sm"
+                    onClick={() => window.print()}
+                    title="Print formal audit report"
+                    style={{ borderRadius: '8px', padding: '6px 14px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                  >
+                    <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>print</span>
+                    <span>Audit Report</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm"
+                    onClick={fetchOrgDonations}
+                    disabled={loadingOrgDonations}
+                    title="Re-query the blockchain and database for latest transactions"
+                  >
                     {loadingOrgDonations ? <div className="spinner spinner-light" /> : '↻ Sync Ledger'}
                   </button>
                 </div>
               </div>
 
-              {/* ── Real-Time KPI Summary Strip ── */}
-              <div className="ngo-ledger-kpi-strip">
-                <div className="ngo-ledger-kpi-tile">
-                  <div className="ngo-ledger-kpi-icon" style={{ background: 'rgba(16, 185, 129, 0.15)', color: '#10b981' }}>
-                    <span className="material-symbols-outlined" style={{ fontSize: '24px' }}>account_balance_wallet</span>
+              {/* ── 4-Stat Metric Cards Grid for Ledger — Premium Redesign ── */}
+              <div className="ref-metrics-grid" style={{ marginBottom: '22px', gap: '16px' }}>
+
+                {/* 1. Green: Total Funds Received */}
+                <div className="ref-metric-card" style={{
+                  padding: '20px 22px', textAlign: 'left',
+                  borderLeft: '3px solid #22c55e',
+                  background: 'linear-gradient(135deg, rgba(34,197,94,0.06) 0%, var(--bg-card,#212121) 60%)',
+                  display: 'flex', flexDirection: 'column', gap: '10px'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: '0.74rem', fontWeight: 700, color: '#22c55e', textTransform: 'uppercase', letterSpacing: '0.6px' }}>Total Funds Received</span>
+                    <div style={{ width: '34px', height: '34px', borderRadius: '10px', background: 'rgba(34,197,94,0.15)', border: '1px solid rgba(34,197,94,0.25)', color: '#22c55e', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>account_balance_wallet</span>
+                    </div>
                   </div>
                   <div>
-                    <div className="ngo-ledger-kpi-val">₱{ledgerMetrics.totalPhp.toLocaleString('en-US', { maximumFractionDigits: 0 })}</div>
-                    <div className="ngo-ledger-kpi-lbl">Total Volume ({ledgerMetrics.totalEth.toFixed(4)} ETH)</div>
+                    <div style={{ fontSize: '1.9rem', fontWeight: 850, color: 'var(--text-primary)', letterSpacing: '-0.03em', lineHeight: 1 }}>
+                      {totalRaisedByMe.toFixed(4)}
+                      <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-secondary)', marginLeft: '5px' }}>ETH</span>
+                    </div>
+                    <div style={{ fontSize: '0.78rem', color: '#22c55e', fontWeight: 600, marginTop: '4px' }}>
+                      ≈ ₱{(totalRaisedByMe * 170000).toLocaleString('en-US', { maximumFractionDigits: 0 })} PHP Total
+                    </div>
+                  </div>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted,#64748b)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>verified_user</span>
+                    <span>Blockchain-audited total</span>
                   </div>
                 </div>
 
-                <div className="ngo-ledger-kpi-tile">
-                  <div className="ngo-ledger-kpi-icon" style={{ background: 'rgba(2, 132, 199, 0.15)', color: '#38bdf8' }}>
-                    <span className="material-symbols-outlined" style={{ fontSize: '24px' }}>receipt_long</span>
+                {/* 2. Blue: Verified Audit Receipts */}
+                <div className="ref-metric-card" style={{
+                  padding: '20px 22px', textAlign: 'left',
+                  borderLeft: '3px solid #38bdf8',
+                  background: 'linear-gradient(135deg, rgba(2,132,199,0.06) 0%, var(--bg-card,#212121) 60%)',
+                  display: 'flex', flexDirection: 'column', gap: '10px'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: '0.74rem', fontWeight: 700, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.6px' }}>Verified Transactions</span>
+                    <div style={{ width: '34px', height: '34px', borderRadius: '10px', background: 'rgba(2,132,199,0.15)', border: '1px solid rgba(56,189,248,0.25)', color: '#38bdf8', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>receipt_long</span>
+                    </div>
                   </div>
                   <div>
-                    <div className="ngo-ledger-kpi-val">{ledgerMetrics.totalCount}</div>
-                    <div className="ngo-ledger-kpi-lbl">Total Verified Transactions</div>
+                    <div style={{ fontSize: '1.9rem', fontWeight: 850, color: 'var(--text-primary)', letterSpacing: '-0.03em', lineHeight: 1 }}>
+                      {ledgerTelemetry.totalCount}
+                      <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-secondary)', marginLeft: '5px' }}>Recorded</span>
+                    </div>
+                    <div style={{ fontSize: '0.78rem', color: '#38bdf8', fontWeight: 600, marginTop: '4px' }}>
+                      100% Sepolia EVM Audited
+                    </div>
+                  </div>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted,#64748b)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>open_in_new</span>
+                    <span>Click to view full ledger</span>
                   </div>
                 </div>
 
-                <div className="ngo-ledger-kpi-tile">
-                  <div className="ngo-ledger-kpi-icon" style={{ background: 'rgba(139, 92, 246, 0.15)', color: '#c084fc' }}>
-                    <span className="material-symbols-outlined" style={{ fontSize: '24px' }}>credit_card</span>
+                {/* 3. Purple: Multi-Rail Distribution */}
+                <div className="ref-metric-card" style={{
+                  padding: '20px 22px', textAlign: 'left',
+                  borderLeft: '3px solid #a78bfa',
+                  background: 'linear-gradient(135deg, rgba(139,92,246,0.06) 0%, var(--bg-card,#212121) 60%)',
+                  display: 'flex', flexDirection: 'column', gap: '10px'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: '0.74rem', fontWeight: 700, color: '#a78bfa', textTransform: 'uppercase', letterSpacing: '0.6px' }}>Payment Rails Breakdown</span>
+                    <div style={{ width: '34px', height: '34px', borderRadius: '10px', background: 'rgba(139,92,246,0.15)', border: '1px solid rgba(167,139,250,0.25)', color: '#a78bfa', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>payments</span>
+                    </div>
                   </div>
                   <div>
-                    <div className="ngo-ledger-kpi-val">₱{ledgerMetrics.ewalletPhp.toLocaleString('en-US', { maximumFractionDigits: 0 })}</div>
-                    <div className="ngo-ledger-kpi-lbl">E-Wallets & Banks ({ledgerMetrics.ewalletCount})</div>
+                    <div style={{ fontSize: '1.35rem', fontWeight: 850, color: 'var(--text-primary)', letterSpacing: '-0.02em', lineHeight: 1 }}>
+                      {ledgerTelemetry.railCounts.eth} Crypto
+                      <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-secondary)', marginLeft: '6px' }}>· {ledgerTelemetry.railCounts.gcash + ledgerTelemetry.railCounts.maya + ledgerTelemetry.railCounts.bank} Fiat Rails</span>
+                    </div>
+                    <div style={{ fontSize: '0.78rem', color: '#a78bfa', fontWeight: 600, marginTop: '4px' }}>
+                      GCash ({ledgerTelemetry.railCounts.gcash}) · Maya ({ledgerTelemetry.railCounts.maya}) · Bank ({ledgerTelemetry.railCounts.bank})
+                    </div>
+                  </div>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted,#64748b)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>account_tree</span>
+                    <span>Multi-rail payment routing</span>
                   </div>
                 </div>
 
-                <div className="ngo-ledger-kpi-tile">
-                  <div className="ngo-ledger-kpi-icon" style={{ background: 'rgba(6, 182, 212, 0.15)', color: '#22d3ee' }}>
-                    <span className="material-symbols-outlined" style={{ fontSize: '24px' }}>token</span>
+                {/* 4. Orange/Green: Pending Verifications */}
+                <div className="ref-metric-card" style={{
+                  padding: '20px 22px', textAlign: 'left',
+                  borderLeft: `3px solid ${pendingDonations.length > 0 ? '#f59e0b' : '#22c55e'}`,
+                  background: pendingDonations.length > 0
+                    ? 'linear-gradient(135deg, rgba(245,158,11,0.06) 0%, var(--bg-card,#212121) 60%)'
+                    : 'linear-gradient(135deg, rgba(34,197,94,0.06) 0%, var(--bg-card,#212121) 60%)',
+                  display: 'flex', flexDirection: 'column', gap: '10px'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: '0.74rem', fontWeight: 700, color: pendingDonations.length > 0 ? '#f59e0b' : '#22c55e', textTransform: 'uppercase', letterSpacing: '0.6px' }}>Offline Verifications</span>
+                    <div style={{ width: '34px', height: '34px', borderRadius: '10px', background: pendingDonations.length > 0 ? 'rgba(245,158,11,0.15)' : 'rgba(34,197,94,0.15)', border: `1px solid ${pendingDonations.length > 0 ? 'rgba(245,158,11,0.25)' : 'rgba(34,197,94,0.25)'}`, color: pendingDonations.length > 0 ? '#f59e0b' : '#22c55e', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>pending_actions</span>
+                    </div>
                   </div>
                   <div>
-                    <div className="ngo-ledger-kpi-val">{ledgerMetrics.web3Eth.toFixed(4)} ETH</div>
-                    <div className="ngo-ledger-kpi-lbl">Sepolia Web3 ({ledgerMetrics.web3Count})</div>
+                    <div style={{ fontSize: '1.9rem', fontWeight: 850, color: pendingDonations.length > 0 ? '#f59e0b' : 'var(--text-primary)', letterSpacing: '-0.03em', lineHeight: 1 }}>
+                      {pendingDonations.length}
+                      <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-secondary)', marginLeft: '5px' }}>Pending</span>
+                    </div>
+                    <div style={{ fontSize: '0.78rem', color: pendingDonations.length > 0 ? '#f59e0b' : '#22c55e', fontWeight: 600, marginTop: '4px' }}>
+                      {pendingDonations.length > 0 ? 'Action required in review table below' : 'All payment slips verified'}
+                    </div>
+                  </div>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted,#64748b)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>task_alt</span>
+                    <span>E-wallet & bank slip status</span>
                   </div>
                 </div>
               </div>
 
-              {/* ── Pending Manual Donations Section (Capstone) ── */}
-              <div style={{ marginBottom: '28px', background: 'rgba(56, 189, 248, 0.03)', border: '1px solid rgba(56, 189, 248, 0.15)', padding: '20px 24px', borderRadius: '16px' }}>
-                <h3 style={{ marginTop: 0, marginBottom: '14px', display: 'flex', alignItems: 'center', fontSize: '1.05rem', color: '#38bdf8' }}>
-                  <span className="material-symbols-outlined" style={{ marginRight: '8px' }}>pending_actions</span>
-                  Pending E-Wallet & Bank Verifications
-                </h3>
+              {/* ── Pending Manual Donations Section (E-Wallets & Banks) ── */}
+              {pendingDonations.length > 0 && (
+                <div style={{
+                  marginBottom: '26px',
+                  background: 'rgba(56, 189, 248, 0.04)',
+                  border: '1px solid rgba(56, 189, 248, 0.25)',
+                  padding: '20px 24px',
+                  borderRadius: '16px'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px', flexWrap: 'wrap', gap: '8px' }}>
+                    <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', fontSize: '1.08rem', color: '#38bdf8', fontWeight: 800 }}>
+                      <span className="material-symbols-outlined" style={{ marginRight: '8px' }}>pending_actions</span>
+                      Pending E-Wallet & Bank Slip Verifications ({pendingDonations.length})
+                    </h3>
+                    <span className="ref-status-live-chip">
+                      ACTION REQUIRED
+                    </span>
+                  </div>
 
-                {loadingPending ? (
-                  <div style={{ textAlign: 'center', padding: '20px' }}><div className="spinner spinner-light" /></div>
-                ) : pendingDonations.length === 0 ? (
-                  <div style={{ textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem' }}>No pending donations require verification. All receipts synchronized.</div>
-                ) : (
-                  <div style={{ overflowX: 'auto' }}>
-                    <table className="table" style={{ minWidth: '800px', fontSize: '0.85rem' }}>
-                      <thead>
-                        <tr>
-                          <th>Donor</th>
-                          <th>Campaign</th>
-                          <th>Method</th>
-                          <th>Amount (ETH)</th>
-                          <th>Receipt</th>
-                          <th style={{ textAlign: 'right' }}>Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {pendingDonations.map((d) => (
-                          <tr key={d.Manual_ID}>
-                            <td>{d.Donor_Name || 'Anonymous'}</td>
-                            <td>{d.Campaign_Title}</td>
-                            <td><span style={{ padding: '4px 8px', background: 'rgba(255,255,255,0.1)', borderRadius: '4px', fontSize: '0.75rem' }}>{d.Payment_Method}</span></td>
-                            <td style={{ color: '#00ffa3', fontWeight: 'bold' }}>{parseFloat(d.Amount).toFixed(4)} ETH</td>
-                            <td>
-                              {d.Receipt_Base64 ? (
-                                <a href={d.Receipt_Base64} target="_blank" rel="noreferrer" style={{ color: '#38bdf8', textDecoration: 'underline' }}>View Screenshot</a>
-                              ) : (
-                                <span style={{ color: '#64748b' }}>No Image</span>
-                              )}
-                            </td>
-                            <td style={{ textAlign: 'right', display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-                              <button className="btn btn-sm" style={{ background: '#10b981', color: '#fff', border: 'none' }} onClick={() => handleVerifyDonation(d.Manual_ID, 'approve')}>Approve</button>
-                              <button className="btn btn-sm" style={{ background: 'rgba(239, 68, 68, 0.2)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.5)' }} onClick={() => handleVerifyDonation(d.Manual_ID, 'reject')}>Reject</button>
-                            </td>
+                  {loadingPending ? (
+                    <div style={{ textAlign: 'center', padding: '20px' }}><div className="spinner spinner-light" /></div>
+                  ) : (
+                    <div style={{ overflowX: 'auto' }}>
+                      <table className="table" style={{ minWidth: '800px', fontSize: '0.85rem' }}>
+                        <thead>
+                          <tr>
+                            <th>Donor Name</th>
+                            <th>Relief Campaign</th>
+                            <th>Payment Rail</th>
+                            <th>Amount (ETH)</th>
+                            <th>Uploaded Slip</th>
+                            <th style={{ textAlign: 'right' }}>Review Action</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </div>
+                        </thead>
+                        <tbody>
+                          {pendingDonations.map((d) => (
+                            <tr key={d.Manual_ID}>
+                              <td style={{ fontWeight: 600 }}>{d.Donor_Name || 'Anonymous Donor'}</td>
+                              <td>{d.Campaign_Title}</td>
+                              <td>
+                                <span style={{ padding: '3px 8px', background: 'rgba(255,255,255,0.08)', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 600 }}>
+                                  {d.Payment_Method}
+                                </span>
+                              </td>
+                              <td style={{ color: 'var(--accent, #22c55e)', fontWeight: 800 }}>
+                                {parseFloat(d.Amount).toFixed(4)} ETH
+                                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', display: 'block', fontWeight: 500 }}>
+                                  ≈ ₱{(parseFloat(d.Amount) * 170000).toLocaleString()} PHP
+                                </span>
+                              </td>
+                              <td>
+                                {d.Receipt_Base64 ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => setProofPreviewModalImg(d.Receipt_Base64)}
+                                    style={{
+                                      background: 'rgba(56, 189, 248, 0.15)',
+                                      border: '1px solid rgba(56, 189, 248, 0.3)',
+                                      color: '#38bdf8',
+                                      padding: '4px 10px',
+                                      borderRadius: '6px',
+                                      fontSize: '0.75rem',
+                                      cursor: 'pointer',
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '4px'
+                                    }}
+                                  >
+                                    <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>image</span>
+                                    <span>Preview Receipt</span>
+                                  </button>
+                                ) : (
+                                  <span style={{ color: '#64748b' }}>No Slip Uploaded</span>
+                                )}
+                              </td>
+                              <td style={{ textAlign: 'right', display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                                <button
+                                  type="button"
+                                  className="btn btn-sm"
+                                  style={{ background: '#10b981', color: '#fff', border: 'none', padding: '6px 14px', display: 'inline-flex', alignItems: 'center', gap: '5px', fontWeight: 700 }}
+                                  onClick={() => handleOpenVerification(d)}
+                                  title="Review donor slip and cross-reference with account statement"
+                                >
+                                  <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>fact_check</span>
+                                  <span>Review &amp; Verify</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  className="btn btn-sm"
+                                  style={{ background: 'rgba(239, 68, 68, 0.12)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.35)', padding: '6px 12px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                                  onClick={() => handleOpenRejection(d)}
+                                  title="Reject unverified or mismatched payment slip"
+                                >
+                                  <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>cancel</span>
+                                  <span>Reject</span>
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              )}
 
-              {/* ── Multi-Dimensional Filter & Search Toolbar ── */}
-              <div className="ngo-ledger-toolbar-box">
-                {/* Row 1: Search & Campaign Filter */}
-                <div className="ngo-ledger-toolbar-row">
-                  <div className="ngo-ledger-search-wrap">
-                    <span className="material-symbols-outlined" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', fontSize: '1.15rem', pointerEvents: 'none' }}>
+              {/* ── Interactive Filter & Sort Toolbar ── */}
+              <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                gap: '12px',
+                marginBottom: '20px',
+                flexWrap: 'wrap',
+                background: 'var(--bg-subcard, rgba(15, 23, 42, 0.5))',
+                padding: '12px 18px',
+                borderRadius: '12px',
+                border: '1px solid var(--border, rgba(255, 255, 255, 0.08))'
+              }}>
+                {/* Search Input */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: '1 1 240px', minWidth: '220px' }}>
+                  <div style={{ position: 'relative', width: '100%' }}>
+                    <span className="material-symbols-outlined" style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', fontSize: '1rem', pointerEvents: 'none' }}>
                       search
                     </span>
                     <input
                       type="text"
-                      className="ngo-ledger-search-input"
-                      placeholder="Search by tx hash, donor, wallet, or campaign..."
+                      placeholder="Search tx hash, campaign, or donor..."
                       value={searchQueryLedger}
                       onChange={(e) => setSearchQueryLedger(e.target.value)}
+                      style={{
+                        width: '100%',
+                        background: 'var(--bg-input, rgba(30, 41, 59, 0.9))',
+                        color: 'var(--text-primary, #fff)',
+                        border: '1px solid var(--border, rgba(255, 255, 255, 0.15))',
+                        borderRadius: '8px',
+                        padding: '7px 28px 7px 32px',
+                        fontSize: '0.82rem',
+                        outline: 'none',
+                        boxSizing: 'border-box'
+                      }}
                     />
                     {searchQueryLedger && (
                       <button
+                        type="button"
                         onClick={() => setSearchQueryLedger('')}
-                        style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '0.9rem', padding: 0 }}
+                        style={{ position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '0.82rem', padding: 0 }}
                       >
                         ✕
                       </button>
                     )}
                   </div>
-
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: '1 1 200px' }}>
-                    <span style={{ fontSize: '0.8rem', color: '#94a3b8', fontWeight: 600, whiteSpace: 'nowrap' }}>Campaign:</span>
-                    <select
-                      className="ngo-ledger-select"
-                      style={{ width: '100%' }}
-                      value={ledgerCampaignFilter}
-                      onChange={(e) => setLedgerCampaignFilter(e.target.value)}
-                    >
-                      <option value="ALL">All Campaigns ({campaigns.length})</option>
-                      {campaigns.map(c => (
-                        <option key={c.id} value={String(c.id)}>
-                          #{c.id} - {formatCampaignTitle(c.title, c.id).slice(0, 32)}...
-                        </option>
-                      ))}
-                    </select>
-                  </div>
                 </div>
 
-                {/* Row 2: Rails, Categories, and Sorting */}
-                <div className="ngo-ledger-toolbar-row" style={{ paddingTop: '8px', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                    <span style={{ fontSize: '0.8rem', color: '#94a3b8', fontWeight: 600 }}>Payment Rail:</span>
-                    <select
-                      className="ngo-ledger-select"
-                      value={ledgerRailFilter}
-                      onChange={(e) => setLedgerRailFilter(e.target.value)}
-                    >
-                      <option value="ALL">All Channels</option>
-                      <option value="GCASH">GCash Gateway</option>
-                      <option value="MAYA">Maya Gateway</option>
-                      <option value="BANK">Bank Transfer</option>
-                      <option value="ETH">Sepolia ETH (Web3)</option>
-                    </select>
+                {/* Category Filter */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 600 }}>Category:</span>
+                  <select
+                    value={ledgerFilter}
+                    onChange={(e) => { setLedgerFilter(e.target.value); setCurrentPageLedger(1); }}
+                    style={{
+                      background: 'var(--bg-input, rgba(30, 41, 59, 0.9))',
+                      color: 'var(--text-primary, #fff)',
+                      border: '1px solid var(--border, rgba(255, 255, 255, 0.15))',
+                      borderRadius: '8px',
+                      padding: '6px 12px',
+                      fontSize: '0.82rem',
+                      outline: 'none',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <option value="ALL">All Categories ({orgDonations ? orgDonations.length : 0})</option>
+                    <option value="DR">🌊 Disaster Relief (DR)</option>
+                    <option value="CD">🤝 Charitable Aid (CD)</option>
+                  </select>
+                </div>
 
-                    <span style={{ fontSize: '0.8rem', color: '#94a3b8', fontWeight: 600, marginLeft: '6px' }}>Category:</span>
-                    <select
-                      className="ngo-ledger-select"
-                      value={ledgerFilter}
-                      onChange={(e) => setLedgerFilter(e.target.value)}
-                    >
-                      <option value="ALL">All Categories</option>
-                      <option value="DR">🌊 Disaster Relief</option>
-                      <option value="CD">🤝 Charitable Aid</option>
-                    </select>
-                  </div>
+                {/* Payment Rail Filter */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 600 }}>Rail:</span>
+                  <select
+                    value={ledgerRailFilter}
+                    onChange={(e) => { setLedgerRailFilter(e.target.value); setCurrentPageLedger(1); }}
+                    style={{
+                      background: 'var(--bg-input, rgba(30, 41, 59, 0.9))',
+                      color: 'var(--text-primary, #fff)',
+                      border: '1px solid var(--border, rgba(255, 255, 255, 0.15))',
+                      borderRadius: '8px',
+                      padding: '6px 12px',
+                      fontSize: '0.82rem',
+                      outline: 'none',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <option value="ALL">All Rails ({orgDonations ? orgDonations.length : 0})</option>
+                    <option value="ETH">⚡ Crypto (Sepolia ETH)</option>
+                    <option value="GCASH">📱 GCash E-Wallet</option>
+                    <option value="MAYA">💳 Maya E-Wallet</option>
+                    <option value="BANK">🏦 Bank Transfer</option>
+                  </select>
+                </div>
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ fontSize: '0.8rem', color: '#94a3b8', fontWeight: 600 }}>Sort By:</span>
-                    <select
-                      className="ngo-ledger-select"
-                      value={ledgerSort}
-                      onChange={(e) => setLedgerSort(e.target.value)}
-                    >
-                      <option value="NEWEST">Newest First</option>
-                      <option value="OLDEST">Oldest First</option>
-                      <option value="AMOUNT_HIGH">Amount: High to Low</option>
-                      <option value="AMOUNT_LOW">Amount: Low to High</option>
-                    </select>
-                  </div>
+                {/* Specific Campaign Filter */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 600 }}>Campaign:</span>
+                  <select
+                    value={ledgerCampaignFilter}
+                    onChange={(e) => { setLedgerCampaignFilter(e.target.value); setCurrentPageLedger(1); }}
+                    style={{
+                      background: 'var(--bg-input, rgba(30, 41, 59, 0.9))',
+                      color: 'var(--text-primary, #fff)',
+                      border: '1px solid var(--border, rgba(255, 255, 255, 0.15))',
+                      borderRadius: '8px',
+                      padding: '6px 12px',
+                      fontSize: '0.82rem',
+                      outline: 'none',
+                      cursor: 'pointer',
+                      maxWidth: '180px'
+                    }}
+                  >
+                    <option value="ALL">All Campaigns</option>
+                    {myCampaigns.map(c => (
+                      <option key={c.id} value={c.id}>#{c.id} - {c.title.slice(0, 22)}...</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Sort Order */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 600 }}>Sort:</span>
+                  <select
+                    value={ledgerSort}
+                    onChange={(e) => setLedgerSort(e.target.value)}
+                    style={{
+                      background: 'var(--bg-input, rgba(30, 41, 59, 0.9))',
+                      color: 'var(--text-primary, #fff)',
+                      border: '1px solid var(--border, rgba(255, 255, 255, 0.15))',
+                      borderRadius: '8px',
+                      padding: '6px 12px',
+                      fontSize: '0.82rem',
+                      outline: 'none',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <option value="NEWEST">✨ Newest First</option>
+                    <option value="AMOUNT_HIGH">💎 Highest Amount</option>
+                    <option value="AMOUNT_LOW">📉 Lowest Amount</option>
+                    <option value="OLDEST">⏳ Oldest First</option>
+                  </select>
+                </div>
+
+                {/* View Mode Toggle */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'var(--bg-inset, rgba(0, 0, 0, 0.25))', padding: '3px', borderRadius: '8px', border: '1px solid var(--border-subtle)' }}>
+                  <button
+                    type="button"
+                    onClick={() => setLedgerViewMode('cards')}
+                    className={`btn btn-xs ${ledgerViewMode === 'cards' ? 'btn-primary' : 'btn-ghost'}`}
+                    style={{ padding: '4px 8px', fontSize: '0.74rem', display: 'flex', alignItems: 'center', gap: '4px' }}
+                    title="Card View"
+                  >
+                    <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>view_agenda</span>
+                    <span>Cards</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setLedgerViewMode('table')}
+                    className={`btn btn-xs ${ledgerViewMode === 'table' ? 'btn-primary' : 'btn-ghost'}`}
+                    style={{ padding: '4px 8px', fontSize: '0.74rem', display: 'flex', alignItems: 'center', gap: '4px' }}
+                    title="Audit Table View"
+                  >
+                    <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>table_rows</span>
+                    <span>Table</span>
+                  </button>
                 </div>
               </div>
 
-              {!orgDonations || orgDonations.length === 0 ? (
+              {/* ── Main Ledger Content ── */}
+              {loadingOrgDonations ? (
+                <div className="empty-state">
+                  <div className="spinner spinner-light" style={{ width: 28, height: 28 }} />
+                  <div className="empty-title">Synchronizing on-chain ledger entries…</div>
+                </div>
+              ) : !orgDonations || orgDonations.length === 0 ? (
                 <div className="empty-state">
                   <div className="empty-icon">📜</div>
                   <div className="empty-title">No transactions recorded yet</div>
                   <div className="empty-desc">
-                    When donors contribute to your relief campaigns via GCash, Maya, Bank Transfer, or Sepolia ETH, immutable receipts will appear here in real time.
+                    When donors contribute to your relief campaigns, immutable cryptographic receipts will appear here in real time.
                   </div>
                 </div>
               ) : filteredLedger.length === 0 ? (
                 <div className="empty-state">
                   <div className="empty-icon">📭</div>
-                  <div className="empty-title">No transactions match your active filters</div>
+                  <div className="empty-title">No transactions match these filter criteria</div>
                   <div className="empty-desc">
-                    Try clearing your search query or adjusting the payment rail / category filter dropdowns.
+                    Try adjusting the search keyword, category, or payment rail filter above.
                   </div>
-                  <button
-                    className="btn btn-outline btn-sm"
-                    style={{ marginTop: '12px' }}
-                    onClick={() => {
-                      setSearchQueryLedger('');
-                      setLedgerRailFilter('ALL');
-                      setLedgerCampaignFilter('ALL');
-                      setLedgerFilter('ALL');
-                    }}
-                  >
-                    Reset All Filters
-                  </button>
                 </div>
-              ) : (
-                <>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                    {paginatedLedger.map((d, idx) => {
-                      const matchCamp = campaigns.find(c => String(c.id) === String(d.campaignId));
-                      const rawTitle = matchCamp ? matchCamp.title : (d.campaignTitle || `Disaster Relief Campaign #${d.campaignId}`);
-                      const campTitle = formatCampaignTitle(rawTitle, d.campaignId);
-                      const isCharity = /charity|school|orphan|food|feed|community|aid|blood|medical/i.test(campTitle);
-                      const catCode = isCharity ? `CD-00${d.campaignId}` : `DR-00${d.campaignId}`;
-                      const catLabel = isCharity ? 'Charitable Aid' : 'Disaster Relief';
+              ) : ledgerViewMode === 'cards' ? (
+                /* ── CARDS VIEW ── */
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                  {paginatedLedger.map((d, idx) => {
+                    const matchCamp = campaigns.find(c => String(c.id) === String(d.campaignId)) || { id: d.campaignId, title: `Relief Campaign #${d.campaignId}` };
+                    const rawTitle = matchCamp ? matchCamp.title : `Disaster Relief Campaign #${d.campaignId}`;
+                    const campTitle = formatCampaignTitle(rawTitle, d.campaignId);
+                    const catInfo = getCampaignCategoryInfo(matchCamp);
+                    const coverData = getCampaignCoverData(matchCamp);
+                    const method = String(d.paymentMethod || 'ETH').toUpperCase();
+                    const isCrypto = method.includes('ETH') || method.includes('CRYPTO') || method.includes('SEPOLIA');
+                    const donorDisplay = d.isAnonymous ? 'Anonymous Supporter' : (d.donorName || 'Public Philanthropist');
 
-                      const { phpAmt, ethAmt, isFiat } = getDonationAmounts(d);
-                      const rail = (d.paymentMethod || 'ETH').toUpperCase();
-                      const dateDisplay = d.createdAt
-                        ? new Date(d.createdAt).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })
-                        : 'On-Chain Verified';
-
-                      return (
-                        <div key={d.id || idx} className="ngo-ledger-card">
-                          {/* Card Header: Category Tag & Financial Amount */}
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px' }}>
-                            <div>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px', flexWrap: 'wrap' }}>
-                                <span className={`badge ${isCharity ? 'badge-info' : 'badge-warning'}`} style={{ fontSize: '0.72rem' }}>
-                                  {catCode} • {catLabel}
-                                </span>
-
-                                {rail.includes('GCASH') && <span className="ngo-channel-chip ngo-channel-gcash">GCash</span>}
-                                {rail.includes('MAYA') && <span className="ngo-channel-chip ngo-channel-maya">Maya</span>}
-                                {rail.includes('BANK') && <span className="ngo-channel-chip ngo-channel-bank">Bank</span>}
-                                {(!rail.includes('GCASH') && !rail.includes('MAYA') && !rail.includes('BANK')) && (
-                                  <span className="ngo-channel-chip ngo-channel-eth">Sepolia ETH</span>
-                                )}
-
-                                <span style={{ fontSize: '0.76rem', color: '#10b981', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
-                                  <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>verified</span>
-                                  <span>Verified On-Chain</span>
-                                </span>
-                              </div>
-
-                              <h3 style={{ margin: 0, fontSize: '1.18rem', color: '#ffffff', fontWeight: 700 }}>
-                                {campTitle}
-                              </h3>
-                            </div>
-
-                            <div style={{ textAlign: 'right' }}>
-                              {isFiat ? (
-                                <>
-                                  <div style={{ fontSize: '1.35rem', fontWeight: 850, color: '#10b981' }}>
-                                    +₱{phpAmt.toLocaleString('en-US', { maximumFractionDigits: 0 })} <span style={{ fontSize: '0.85rem' }}>PHP</span>
-                                  </div>
-                                  <div style={{ fontSize: '0.8rem', color: '#38bdf8', fontWeight: 600, marginTop: '2px' }}>
-                                    ≈ {ethAmt.toFixed(6)} ETH (Relayed)
-                                  </div>
-                                </>
-                              ) : (
-                                <>
-                                  <div style={{ fontSize: '1.35rem', fontWeight: 850, color: '#38bdf8' }}>
-                                    +{ethAmt.toFixed(4)} <span style={{ fontSize: '0.85rem' }}>ETH</span>
-                                  </div>
-                                  <div style={{ fontSize: '0.8rem', color: '#10b981', fontWeight: 600, marginTop: '2px' }}>
-                                    ≈ ₱{phpAmt.toLocaleString('en-US', { maximumFractionDigits: 0 })} PHP
-                                  </div>
-                                </>
-                              )}
+                    return (
+                      <div
+                        key={idx}
+                        className="contribution-receipt-card fade-in"
+                        style={{
+                          background: 'var(--bg-card, rgba(15, 23, 42, 0.65))',
+                          border: '1px solid var(--border, rgba(255, 255, 255, 0.08))',
+                          borderRadius: '16px',
+                          overflow: 'hidden',
+                          boxShadow: 'var(--shadow-card, 0 4px 16px rgba(0,0,0,0.35))'
+                        }}
+                      >
+                        <div className="receipt-card-body" style={{ padding: '18px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap' }}>
+                          {/* Left: Thumbnail */}
+                          <div className="receipt-media-thumb" style={{ width: '90px', height: '90px', borderRadius: '12px', overflow: 'hidden', position: 'relative', flexShrink: 0 }}>
+                            <img src={coverData.imageUrl} alt={campTitle} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, transparent 40%, rgba(0,0,0,0.8) 100%)' }} />
+                            <div style={{ position: 'absolute', bottom: '4px', left: '6px', fontSize: '0.62rem', color: '#fff', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '2px' }}>
+                              <span className="material-symbols-outlined" style={{ fontSize: '10px' }}>location_on</span>
+                              <span>{coverData.locationTag || 'PH'}</span>
                             </div>
                           </div>
 
-                          {/* Card Middle: Donor Identification */}
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px', background: 'rgba(0,0,0,0.25)', padding: '10px 14px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                              <span style={{ fontSize: '0.78rem', color: '#94a3b8', fontWeight: 600 }}>Donor:</span>
+                          {/* Center: Metadata */}
+                          <div style={{ flex: '1 1 300px', minWidth: '240px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px', flexWrap: 'wrap' }}>
+                              <span className={`campaign-category-pill ${catInfo.colorClass}`} style={{ fontSize: '0.68rem', padding: '2px 8px' }}>
+                                <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>{catInfo.icon}</span>
+                                <span>{catInfo.prefix}-00{d.campaignId} • {catInfo.label}</span>
+                              </span>
+
+                              <span className="receipt-verified-tag" style={{ fontSize: '0.68rem', color: 'var(--success, #22c55e)', display: 'inline-flex', alignItems: 'center', gap: '3px', fontWeight: 600 }}>
+                                <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>verified</span>
+                                <span>Verified On-Chain</span>
+                              </span>
+
                               {d.isAnonymous ? (
-                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: '#cbd5e1', fontSize: '0.82rem', background: 'rgba(255,255,255,0.06)', padding: '2px 8px', borderRadius: '4px' }}>
-                                  <span className="material-symbols-outlined" style={{ fontSize: '14px', color: '#94a3b8' }}>visibility_off</span>
-                                  <span>Anonymous Contributor</span>
+                                <span className="badge" style={{ background: 'rgba(255,255,255,0.08)', color: 'var(--text-muted)', fontSize: '0.68rem', padding: '2px 8px', borderRadius: '4px' }}>
+                                  <span className="material-symbols-outlined" style={{ fontSize: '11px', verticalAlign: 'middle', marginRight: '2px' }}>visibility_off</span>
+                                  Anonymous Donor
                                 </span>
                               ) : (
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                                  <span style={{ color: '#ffffff', fontWeight: 700, fontSize: '0.86rem' }}>
-                                    {d.donorName || 'Community Supporter'}
-                                  </span>
-                                  {d.donorEmail && (
-                                    <span style={{ color: '#94a3b8', fontSize: '0.78rem' }}>({d.donorEmail})</span>
-                                  )}
-                                  {d.donorWallet && (
-                                    <code style={{ fontSize: '0.74rem', color: '#38bdf8', background: 'rgba(56, 189, 248, 0.12)', padding: '2px 6px', borderRadius: '4px' }}>
-                                      {shortAddr(d.donorWallet)}
-                                    </code>
-                                  )}
-                                </div>
+                                <span className="badge badge-active" style={{ fontSize: '0.68rem', padding: '2px 8px', borderRadius: '4px' }}>
+                                  Public Donor
+                                </span>
                               )}
+
+                              <span style={{
+                                fontSize: '0.68rem',
+                                fontWeight: 700,
+                                padding: '2px 8px',
+                                borderRadius: '4px',
+                                background: isCrypto ? 'rgba(168, 85, 247, 0.15)' : method.includes('GCASH') ? 'rgba(56, 189, 248, 0.15)' : 'rgba(16, 185, 129, 0.15)',
+                                color: isCrypto ? '#c084fc' : method.includes('GCASH') ? '#38bdf8' : '#34d399',
+                                border: `1px solid ${isCrypto ? 'rgba(168, 85, 247, 0.3)' : method.includes('GCASH') ? 'rgba(56, 189, 248, 0.3)' : 'rgba(16, 185, 129, 0.3)'}`
+                              }}>
+                                {method}
+                              </span>
                             </div>
 
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.78rem', color: '#94a3b8' }}>
-                              <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>schedule</span>
-                              <span>{dateDisplay}</span>
+                            <h3 style={{ margin: '0 0 6px 0', fontSize: '1.05rem', color: 'var(--text-primary)', fontWeight: 700 }}>
+                              {campTitle}
+                            </h3>
+
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.78rem', color: 'var(--text-secondary)', flexWrap: 'wrap' }}>
+                              <span>Donor: <strong style={{ color: 'var(--text-primary)' }}>{donorDisplay}</strong></span>
+                              {d.donorWallet && (
+                                <span>Wallet: <code className="ref-hero-code" style={{ fontSize: '0.72rem' }}>{shortAddr(d.donorWallet)}</code></span>
+                              )}
+                              <span style={{ color: 'var(--text-muted)' }}>•</span>
+                              <span>{d.createdAt ? new Date(d.createdAt).toLocaleString() : 'Audited On-Chain'}</span>
                             </div>
                           </div>
 
-                          {/* Card Footer: Hash, Explorer & Copy */}
-                          <div style={{
-                            paddingTop: '6px',
-                            display: 'flex',
-                            justify: 'space-between',
-                            alignItems: 'center',
-                            flexWrap: 'wrap',
-                            gap: '8px',
-                            fontSize: '0.78rem'
-                          }}>
-                            <div style={{ fontFamily: 'monospace', color: '#94a3b8' }}>
-                              <span style={{ color: '#cbd5e1', fontWeight: 600 }}>Tx Hash:</span> {d.txHash ? `${d.txHash.slice(0, 18)}…${d.txHash.slice(-8)}` : 'Verified Internal Relayer'}
+                          {/* Right: Amount & Actions */}
+                          <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px', flexShrink: 0 }}>
+                            <div>
+                              <div style={{ fontSize: '1.3rem', fontWeight: 850, color: 'var(--accent, #22c55e)', letterSpacing: '-0.01em' }}>
+                                +{parseFloat(d.amount).toFixed(4)} <span style={{ fontSize: '0.85rem' }}>ETH</span>
+                              </div>
+                              <div style={{ fontSize: '0.82rem', color: 'var(--accent-blue, #38bdf8)', fontWeight: 600 }}>
+                                ≈ ₱{Math.round(parseFloat(d.amount) * 170000).toLocaleString('en-US')} PHP
+                              </div>
                             </div>
 
-                            <div style={{ display: 'flex', gap: '8px' }}>
-                              {d.txHash && (
-                                <button
-                                  className="btn btn-ghost btn-sm"
-                                  onClick={() => {
-                                    navigator.clipboard.writeText(d.txHash);
-                                    showSuccess('Transaction hash copied to clipboard!', 'Hash Copied');
-                                  }}
-                                  style={{ padding: '4px 10px', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '4px' }}
-                                >
-                                  <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>content_copy</span>
-                                  <span>Copy</span>
-                                </button>
-                              )}
-                              {d.txHash && !d.txHash.startsWith('FIAT-') ? (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <button
+                                type="button"
+                                className="btn btn-outline btn-xs"
+                                onClick={() => setSelectedVoucherTx(d)}
+                                style={{ padding: '4px 10px', fontSize: '0.72rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                                title="Inspect official cryptographic receipt voucher"
+                              >
+                                <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>verified</span>
+                                <span>Voucher</span>
+                              </button>
+
+                              <button
+                                type="button"
+                                className="btn btn-ghost btn-xs"
+                                onClick={() => {
+                                  navigator.clipboard.writeText(d.txHash);
+                                  showSuccess('Transaction hash copied to clipboard!', 'Hash Copied');
+                                }}
+                                style={{ padding: '4px 8px', fontSize: '0.72rem' }}
+                                title="Copy Transaction Hash"
+                              >
+                                📋 Copy
+                              </button>
+
+                              {d.txHash && !d.txHash.startsWith('MOCK') && (
                                 <a
                                   href={`https://sepolia.etherscan.io/tx/${d.txHash}`}
                                   target="_blank"
                                   rel="noreferrer"
-                                  className="btn btn-outline btn-sm"
-                                  style={{ padding: '4px 10px', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '4px' }}
+                                  className="btn btn-outline btn-xs"
+                                  style={{ padding: '4px 8px', fontSize: '0.72rem' }}
+                                  title="View on Sepolia Etherscan Block Explorer"
                                 >
-                                  <span>Etherscan</span>
-                                  <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>open_in_new</span>
+                                  ↗ Etherscan
                                 </a>
-                              ) : (
-                                <span style={{ padding: '4px 10px', fontSize: '0.74rem', color: '#10b981', background: 'rgba(16,185,129,0.1)', borderRadius: '6px', fontWeight: 600 }}>
-                                  Relayed On-Chain
-                                </span>
                               )}
                             </div>
                           </div>
                         </div>
-                      );
-                    })}
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                /* ── AUDIT TABLE VIEW ── */
+                <div style={{
+                  background: 'var(--bg-card, rgba(15, 23, 42, 0.65))',
+                  borderRadius: '16px',
+                  border: '1px solid var(--border)',
+                  overflow: 'hidden',
+                  boxShadow: 'var(--shadow-card)'
+                }}>
+                  <div style={{ overflowX: 'auto' }}>
+                    <table className="table" style={{ width: '100%', minWidth: '920px', fontSize: '0.84rem' }}>
+                      <thead>
+                        <tr style={{ background: 'var(--bg-subcard)' }}>
+                          <th style={{ padding: '12px 16px' }}>Tx Hash</th>
+                          <th style={{ padding: '12px 16px' }}>Date / Timestamp</th>
+                          <th style={{ padding: '12px 16px' }}>Campaign</th>
+                          <th style={{ padding: '12px 16px' }}>Donor</th>
+                          <th style={{ padding: '12px 16px' }}>Payment Rail</th>
+                          <th style={{ padding: '12px 16px' }}>Amount (ETH)</th>
+                          <th style={{ padding: '12px 16px' }}>Peso Value (PHP)</th>
+                          <th style={{ padding: '12px 16px', textAlign: 'right' }}>Audit Action</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {paginatedLedger.map((d, idx) => {
+                          const matchCamp = campaigns.find(c => String(c.id) === String(d.campaignId));
+                          const rawTitle = matchCamp ? matchCamp.title : `Campaign #${d.campaignId}`;
+                          const campTitle = formatCampaignTitle(rawTitle, d.campaignId);
+                          const donor = d.isAnonymous ? 'Anonymous Donor' : (d.donorName || 'Public Supporter');
+
+                          return (
+                            <tr key={idx} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
+                              <td style={{ padding: '12px 16px', fontFamily: 'var(--font-mono)' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                  <span style={{ color: 'var(--accent, #22c55e)' }}>
+                                    {d.txHash ? `${d.txHash.slice(0, 8)}…${d.txHash.slice(-6)}` : 'N/A'}
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      navigator.clipboard.writeText(d.txHash);
+                                      showSuccess('Transaction hash copied!', 'Copied');
+                                    }}
+                                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 0 }}
+                                    title="Copy Hash"
+                                  >
+                                    📋
+                                  </button>
+                                </div>
+                              </td>
+                              <td style={{ padding: '12px 16px', color: 'var(--text-secondary)' }}>
+                                {d.createdAt ? new Date(d.createdAt).toLocaleString() : 'Audited'}
+                              </td>
+                              <td style={{ padding: '12px 16px', fontWeight: 600, color: 'var(--text-primary)', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                {campTitle}
+                              </td>
+                              <td style={{ padding: '12px 16px' }}>
+                                <span style={{ color: d.isAnonymous ? 'var(--text-muted)' : 'var(--text-primary)', fontWeight: d.isAnonymous ? 400 : 700 }}>
+                                  {donor}
+                                </span>
+                              </td>
+                              <td style={{ padding: '12px 16px' }}>
+                                <span style={{ padding: '2px 8px', borderRadius: '4px', background: 'rgba(255,255,255,0.08)', fontSize: '0.74rem', fontWeight: 700 }}>
+                                  {d.paymentMethod || 'ETH'}
+                                </span>
+                              </td>
+                              <td style={{ padding: '12px 16px', color: 'var(--accent, #22c55e)', fontWeight: 800 }}>
+                                +{parseFloat(d.amount).toFixed(4)} ETH
+                              </td>
+                              <td style={{ padding: '12px 16px', color: '#38bdf8', fontWeight: 600 }}>
+                                ≈ ₱{Math.round(parseFloat(d.amount) * 170000).toLocaleString('en-US')}
+                              </td>
+                              <td style={{ padding: '12px 16px', textAlign: 'right' }}>
+                                <div style={{ display: 'inline-flex', gap: '6px' }}>
+                                  <button
+                                    type="button"
+                                    className="btn btn-xs btn-outline"
+                                    onClick={() => setSelectedVoucherTx(d)}
+                                    style={{ padding: '3px 8px', fontSize: '0.72rem' }}
+                                  >
+                                    Voucher
+                                  </button>
+                                  {d.txHash && !d.txHash.startsWith('MOCK') && (
+                                    <a
+                                      href={`https://sepolia.etherscan.io/tx/${d.txHash}`}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="btn btn-xs btn-ghost"
+                                      style={{ padding: '3px 8px', fontSize: '0.72rem' }}
+                                    >
+                                      ↗
+                                    </a>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* ── Centered Pagination Controls ── */}
+              {totalPagesLedger > 1 && (
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginTop: '24px',
+                  padding: '12px 0',
+                  flexWrap: 'wrap',
+                  gap: '12px'
+                }}>
+                  <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                    Showing {(currentPageLedger - 1) * campaignsPerPage + 1}–{Math.min(currentPageLedger * campaignsPerPage, filteredLedger.length)} of {filteredLedger.length} verified transactions
                   </div>
 
-                  {/* Centered Pagination Controls */}
-                  {totalPagesLedger > 1 && (
-                    <div style={{
-                      display: 'flex',
-                      justify: 'center',
-                      alignItems: 'center',
-                      gap: '8px',
-                      marginTop: '24px',
-                      padding: '12px 0'
-                    }}>
-                      <button
-                        className="btn btn-ghost btn-sm"
-                        onClick={() => setCurrentPageLedger(p => Math.max(1, p - 1))}
-                        disabled={currentPageLedger === 1}
-                        style={{ display: 'flex', alignItems: 'center', gap: '4px' }}
-                      >
-                        <span className="material-symbols-outlined" style={{ fontSize: '1.1rem' }}>chevron_left</span> Previous
-                      </button>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-sm"
+                      onClick={() => setCurrentPageLedger(p => Math.max(1, p - 1))}
+                      disabled={currentPageLedger === 1}
+                      style={{ display: 'flex', alignItems: 'center', gap: '4px' }}
+                    >
+                      <span className="material-symbols-outlined" style={{ fontSize: '1.1rem' }}>chevron_left</span> Previous
+                    </button>
 
-                      {Array.from({ length: totalPagesLedger }, (_, i) => i + 1).map((pageNum) => (
-                        <button
-                          key={pageNum}
-                          className={`btn btn-sm ${currentPageLedger === pageNum ? 'btn-primary' : 'btn-ghost'}`}
-                          onClick={() => setCurrentPageLedger(pageNum)}
-                          style={{ minWidth: '36px', height: '36px', borderRadius: '8px', fontWeight: currentPageLedger === pageNum ? 700 : 400 }}
-                        >
-                          {pageNum}
-                        </button>
-                      ))}
-
+                    {Array.from({ length: totalPagesLedger }, (_, i) => i + 1).map((pageNum) => (
                       <button
-                        className="btn btn-ghost btn-sm"
-                        onClick={() => setCurrentPageLedger(p => Math.min(totalPagesLedger, p + 1))}
-                        disabled={currentPageLedger === totalPagesLedger}
-                        style={{ display: 'flex', alignItems: 'center', gap: '4px' }}
+                        key={pageNum}
+                        type="button"
+                        className={`btn btn-sm ${currentPageLedger === pageNum ? 'btn-primary' : 'btn-ghost'}`}
+                        onClick={() => setCurrentPageLedger(pageNum)}
+                        style={{ minWidth: '34px', height: '34px', borderRadius: '8px', fontWeight: currentPageLedger === pageNum ? 700 : 400 }}
                       >
-                        Next <span className="material-symbols-outlined" style={{ fontSize: '1.1rem' }}>chevron_right</span>
+                        {pageNum}
                       </button>
-                    </div>
-                  )}
-                </>
+                    ))}
+
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-sm"
+                      onClick={() => setCurrentPageLedger(p => Math.min(totalPagesLedger, p + 1))}
+                      disabled={currentPageLedger === totalPagesLedger}
+                      style={{ display: 'flex', alignItems: 'center', gap: '4px' }}
+                    >
+                      Next <span className="material-symbols-outlined" style={{ fontSize: '1.1rem' }}>chevron_right</span>
+                    </button>
+                  </div>
+                </div>
               )}
             </div>
           )}
@@ -5221,6 +5882,868 @@ export default function OrganizationView({
             )}
           </div>
         </div>
+      )}
+
+      {/* ── Official Cryptographic Receipt Voucher Modal ── */}
+      {selectedVoucherTx && (() => {
+        const matchCamp = campaigns.find(c => String(c.id) === String(selectedVoucherTx.campaignId));
+        const rawTitle = matchCamp ? matchCamp.title : `Disaster Relief Campaign #${selectedVoucherTx.campaignId}`;
+        const campTitle = formatCampaignTitle(rawTitle, selectedVoucherTx.campaignId);
+        const donorDisplay = selectedVoucherTx.isAnonymous ? 'Anonymous Supporter' : (selectedVoucherTx.donorName || 'Public Philanthropist');
+        const amtEth = parseFloat(selectedVoucherTx.amount || 0).toFixed(4);
+        const amtPhp = Math.round(parseFloat(selectedVoucherTx.amount || 0) * 170000);
+
+        return (
+          <div
+            className="bbdrts-edit-profile-backdrop"
+            onClick={() => setSelectedVoucherTx(null)}
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              width: '100vw',
+              height: '100vh',
+              background: 'rgba(0, 0, 0, 0.78)',
+              backdropFilter: 'blur(8px)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 9999999,
+              padding: '20px'
+            }}
+          >
+            <div
+              className="fade-in"
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                width: '100%',
+                maxWidth: '600px',
+                background: 'var(--bg-card, #1c1c1c)',
+                border: '1px solid var(--border-strong, rgba(255, 255, 255, 0.16))',
+                borderRadius: '18px',
+                overflow: 'hidden',
+                boxShadow: '0 24px 60px rgba(0, 0, 0, 0.65)'
+              }}
+            >
+              {/* Voucher Header */}
+              <div style={{
+                padding: '18px 24px',
+                background: 'var(--bg-subcard, #242424)',
+                borderBottom: '1px solid var(--border)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <div style={{
+                    width: '40px',
+                    height: '40px',
+                    borderRadius: '12px',
+                    background: 'rgba(34, 197, 94, 0.15)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#22c55e',
+                    border: '1px solid rgba(34, 197, 94, 0.3)'
+                  }}>
+                    <span className="material-symbols-outlined" style={{ fontSize: '22px' }}>verified</span>
+                  </div>
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                      Official Audit Voucher
+                    </h3>
+                    <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>
+                      ReliefLink PH Humanitarian Protocol · Blockchain Audited
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setSelectedVoucherTx(null)}
+                  className="btn btn-ghost btn-sm"
+                  style={{ color: 'var(--text-muted)' }}
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Verified Ribbon */}
+              <div style={{
+                padding: '10px 24px',
+                background: 'linear-gradient(90deg, rgba(34, 197, 94, 0.15), transparent)',
+                borderBottom: '1px solid var(--border-subtle)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                fontSize: '0.78rem'
+              }}>
+                <span style={{ color: '#22c55e', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                  <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>check_circle</span>
+                  Verified On-Chain Transaction
+                </span>
+                <span style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                  ID #{selectedVoucherTx.id || 'ON-CHAIN'}
+                </span>
+              </div>
+
+              {/* Voucher Details Body */}
+              <div style={{ padding: '22px 24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+                  <div>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 700, marginBottom: '3px' }}>
+                      Beneficiary Organization
+                    </div>
+                    <div style={{ fontSize: '0.92rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                      {orgDisplayName}
+                    </div>
+                  </div>
+
+                  <div>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 700, marginBottom: '3px' }}>
+                      Payment Method Rail
+                    </div>
+                    <div style={{ fontSize: '0.92rem', fontWeight: 700, color: '#38bdf8' }}>
+                      {selectedVoucherTx.paymentMethod || 'ETH'}
+                    </div>
+                  </div>
+
+                  <div style={{ gridColumn: '1 / -1' }}>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 700, marginBottom: '3px' }}>
+                      Relief Campaign
+                    </div>
+                    <div style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                      {campTitle}
+                    </div>
+                  </div>
+
+                  <div>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 700, marginBottom: '3px' }}>
+                      Contributor / Donor
+                    </div>
+                    <div style={{ fontSize: '0.88rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                      {donorDisplay}
+                    </div>
+                  </div>
+
+                  <div>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 700, marginBottom: '3px' }}>
+                      Contribution Timestamp
+                    </div>
+                    <div style={{ fontSize: '0.84rem', color: 'var(--text-secondary)' }}>
+                      {selectedVoucherTx.createdAt ? new Date(selectedVoucherTx.createdAt).toLocaleString() : 'Audited On-Chain'}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Amount Highlight Box */}
+                <div style={{
+                  background: 'var(--bg-subcard)',
+                  border: '1px solid var(--border)',
+                  borderRadius: '12px',
+                  padding: '14px 18px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between'
+                }}>
+                  <div>
+                    <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', fontWeight: 600 }}>Amount Transferred</div>
+                    <div style={{ fontSize: '1.45rem', fontWeight: 850, color: 'var(--accent, #22c55e)' }}>
+                      +{amtEth} ETH
+                    </div>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', fontWeight: 600 }}>Fiat Equivalent (PHP)</div>
+                    <div style={{ fontSize: '1.2rem', fontWeight: 800, color: '#38bdf8' }}>
+                      ≈ ₱{amtPhp.toLocaleString('en-US')}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Tx Hash Box */}
+                <div>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 700, marginBottom: '4px' }}>
+                    Cryptographic Transaction Hash
+                  </div>
+                  <div style={{
+                    background: 'var(--bg-input)',
+                    border: '1px solid var(--border)',
+                    borderRadius: '8px',
+                    padding: '8px 12px',
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: '0.78rem',
+                    color: 'var(--text-primary)',
+                    wordBreak: 'break-all',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: '8px'
+                  }}>
+                    <span>{selectedVoucherTx.txHash}</span>
+                    <button
+                      type="button"
+                      className="btn btn-xs btn-ghost"
+                      onClick={() => {
+                        navigator.clipboard.writeText(selectedVoucherTx.txHash);
+                        showSuccess('Hash copied to clipboard!', 'Copied');
+                      }}
+                      title="Copy Hash"
+                    >
+                      📋
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Voucher Footer Actions */}
+              <div style={{
+                padding: '14px 24px',
+                background: 'var(--bg-subcard)',
+                borderTop: '1px solid var(--border)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'flex-end',
+                gap: '10px'
+              }}>
+                <button
+                  type="button"
+                  className="btn btn-outline btn-sm"
+                  onClick={() => window.print()}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>print</span>
+                  <span>Print Voucher</span>
+                </button>
+                {selectedVoucherTx.txHash && !selectedVoucherTx.txHash.startsWith('MOCK') && (
+                  <a
+                    href={`https://sepolia.etherscan.io/tx/${selectedVoucherTx.txHash}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="btn btn-outline btn-sm"
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', textDecoration: 'none' }}
+                  >
+                    <span>Etherscan ↗</span>
+                  </a>
+                )}
+                <button
+                  type="button"
+                  className="btn btn-primary btn-sm"
+                  onClick={() => setSelectedVoucherTx(null)}
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ── Proof of Payment Screenshot Preview Modal ── */}
+      {proofPreviewModalImg && (
+        <div
+          className="bbdrts-edit-profile-backdrop"
+          onClick={() => setProofPreviewModalImg(null)}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: '100vw',
+            height: '100vh',
+            background: 'rgba(0, 0, 0, 0.85)',
+            backdropFilter: 'blur(8px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999999,
+            padding: '24px'
+          }}
+        >
+          <div
+            className="fade-in"
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              maxWidth: '540px',
+              maxHeight: '90vh',
+              background: 'var(--bg-card)',
+              borderRadius: '16px',
+              border: '1px solid var(--border)',
+              overflow: 'hidden',
+              display: 'flex',
+              flexDirection: 'column'
+            }}
+          >
+            <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>Uploaded Payment Slip Screenshot</div>
+              <button type="button" onClick={() => setProofPreviewModalImg(null)} className="btn btn-ghost btn-sm">✕</button>
+            </div>
+            <div style={{ padding: '16px', overflow: 'auto', textAlign: 'center', background: '#000' }}>
+              <img src={proofPreviewModalImg} alt="Uploaded Payment Slip" style={{ maxWidth: '100%', maxHeight: '65vh', objectFit: 'contain', borderRadius: '8px' }} />
+            </div>
+            <div style={{ padding: '12px 20px', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+              <a href={proofPreviewModalImg} download="payment_slip.png" className="btn btn-outline btn-sm">
+                Download Slip
+              </a>
+              <button type="button" onClick={() => setProofPreviewModalImg(null)} className="btn btn-primary btn-sm">
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Real NGO E-Wallet & Bank Slip Cross-Verification Modal ── */}
+      {verifyingDonation && createPortal(
+        <div
+          className="modal-overlay fade-in"
+          onClick={() => !verifyingSubmitting && setVerifyingDonation(null)}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: '100vw',
+            height: '100vh',
+            background: 'rgba(5, 7, 12, 0.85)',
+            backdropFilter: 'blur(10px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 99999,
+            padding: '16px'
+          }}
+        >
+          <div
+            className="card bounce-in"
+            onClick={e => e.stopPropagation()}
+            style={{
+              width: '860px',
+              maxWidth: '96vw',
+              maxHeight: '92vh',
+              background: 'var(--bg-card, #131622)',
+              border: '1px solid var(--border, rgba(255, 255, 255, 0.14))',
+              borderRadius: '20px',
+              boxShadow: '0 25px 60px -12px rgba(0, 0, 0, 0.85)',
+              color: 'var(--text-primary, #ffffff)',
+              display: 'flex',
+              flexDirection: 'column',
+              overflow: 'hidden'
+            }}
+          >
+            {/* Modal Header */}
+            <div style={{
+              padding: '18px 24px',
+              borderBottom: '1px solid var(--border, rgba(255, 255, 255, 0.08))',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              background: 'rgba(255, 255, 255, 0.02)'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{
+                  width: '42px',
+                  height: '42px',
+                  borderRadius: '12px',
+                  background: 'rgba(56, 189, 248, 0.15)',
+                  border: '1px solid rgba(56, 189, 248, 0.3)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#38bdf8'
+                }}>
+                  <span className="material-symbols-outlined" style={{ fontSize: '24px' }}>fact_check</span>
+                </div>
+                <div>
+                  <div style={{ fontWeight: 800, fontSize: '1.12rem', letterSpacing: '-0.01em', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span>Confirm Received Donation</span>
+                    <span style={{
+                      fontSize: '0.7rem',
+                      fontWeight: 700,
+                      padding: '2px 8px',
+                      borderRadius: '6px',
+                      background: 'rgba(56, 189, 248, 0.15)',
+                      color: '#38bdf8',
+                      border: '1px solid rgba(56, 189, 248, 0.3)',
+                      textTransform: 'uppercase'
+                    }}>
+                      {verifyingDonation.Payment_Method || 'E-Wallet'}
+                    </span>
+                  </div>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted, #94a3b8)', marginTop: '2px' }}>
+                    Cross-reference incoming funds with your actual account statement before on-chain recording
+                  </div>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => !verifyingSubmitting && setVerifyingDonation(null)}
+                disabled={verifyingSubmitting}
+                className="btn btn-ghost btn-sm"
+                style={{ fontSize: '1.2rem', padding: '4px 8px', color: 'var(--text-muted)' }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Modal Scrollable Body */}
+            <div style={{
+              padding: '22px 26px',
+              overflowY: 'auto',
+              display: 'grid',
+              gridTemplateColumns: 'minmax(280px, 360px) 1fr',
+              gap: '24px'
+            }}>
+              {/* Left Column: Uploaded Receipt Preview */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <div style={{ fontSize: '0.78rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.6px', color: 'var(--text-muted)' }}>
+                  Donor's Uploaded Transfer Receipt
+                </div>
+                
+                <div style={{
+                  background: '#07090e',
+                  border: '1px solid var(--border, rgba(255, 255, 255, 0.1))',
+                  borderRadius: '14px',
+                  overflow: 'hidden',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  position: 'relative',
+                  minHeight: '260px',
+                  maxHeight: '380px'
+                }}>
+                  {verifyingDonation.Receipt_Base64 ? (
+                    <>
+                      <img
+                        src={verifyingDonation.Receipt_Base64}
+                        alt="Receipt slip"
+                        style={{
+                          maxWidth: '100%',
+                          maxHeight: '320px',
+                          objectFit: 'contain',
+                          cursor: 'zoom-in'
+                        }}
+                        onClick={() => setProofPreviewModalImg(verifyingDonation.Receipt_Base64)}
+                        title="Click to view full size"
+                      />
+                      <div style={{
+                        position: 'absolute',
+                        bottom: '10px',
+                        display: 'flex',
+                        gap: '8px'
+                      }}>
+                        <button
+                          type="button"
+                          onClick={() => setProofPreviewModalImg(verifyingDonation.Receipt_Base64)}
+                          style={{
+                            background: 'rgba(0, 0, 0, 0.75)',
+                            backdropFilter: 'blur(6px)',
+                            border: '1px solid rgba(255, 255, 255, 0.2)',
+                            color: '#fff',
+                            borderRadius: '6px',
+                            padding: '4px 10px',
+                            fontSize: '0.75rem',
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px'
+                          }}
+                        >
+                          <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>zoom_in</span>
+                          <span>Full Size</span>
+                        </button>
+                        <a
+                          href={verifyingDonation.Receipt_Base64}
+                          download={`receipt_${verifyingDonation.Manual_ID}.png`}
+                          style={{
+                            background: 'rgba(0, 0, 0, 0.75)',
+                            backdropFilter: 'blur(6px)',
+                            border: '1px solid rgba(255, 255, 255, 0.2)',
+                            color: '#fff',
+                            borderRadius: '6px',
+                            padding: '4px 10px',
+                            fontSize: '0.75rem',
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            textDecoration: 'none'
+                          }}
+                        >
+                          <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>download</span>
+                          <span>Save</span>
+                        </a>
+                      </div>
+                    </>
+                  ) : (
+                    <div style={{ padding: '30px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                      <span className="material-symbols-outlined" style={{ fontSize: '36px', opacity: 0.5, marginBottom: '8px', display: 'block' }}>receipt_long</span>
+                      <span>No slip image was attached by donor</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Donor claim metadata card */}
+                <div style={{
+                  background: 'rgba(255, 255, 255, 0.03)',
+                  border: '1px solid var(--border, rgba(255, 255, 255, 0.06))',
+                  borderRadius: '12px',
+                  padding: '12px 14px',
+                  fontSize: '0.78rem',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '6px'
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: 'var(--text-muted)' }}>Donor:</span>
+                    <span style={{ fontWeight: 600 }}>{verifyingDonation.Donor_Name || 'Anonymous'}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: 'var(--text-muted)' }}>Relief Campaign:</span>
+                    <span style={{ fontWeight: 600, textAlign: 'right', maxWidth: '180px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={verifyingDonation.Campaign_Title}>
+                      {verifyingDonation.Campaign_Title}
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: 'var(--text-muted)' }}>Claimed Amount:</span>
+                    <span style={{ fontWeight: 700, color: '#38bdf8' }}>
+                      ₱{Math.round(parseFloat(verifyingDonation.Amount || 0) * 170000).toLocaleString()} ({parseFloat(verifyingDonation.Amount || 0).toFixed(4)} ETH)
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Right Column: NGO Verification Controls */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                
+                {/* Audit Callout Banner */}
+                <div style={{
+                  background: 'linear-gradient(90deg, rgba(245, 158, 11, 0.08) 0%, rgba(245, 158, 11, 0.02) 100%)',
+                  border: '1px solid rgba(245, 158, 11, 0.25)',
+                  borderRadius: '12px',
+                  padding: '12px 16px',
+                  display: 'flex',
+                  gap: '12px',
+                  alignItems: 'flex-start'
+                }}>
+                  <span className="material-symbols-outlined" style={{ color: '#f59e0b', fontSize: '20px', marginTop: '2px', flexShrink: 0 }}>security</span>
+                  <div style={{ fontSize: '0.8rem', lineHeight: '1.45', color: 'var(--text-secondary)' }}>
+                    <strong style={{ color: '#f59e0b' }}>Account Check Required:</strong> Confirm that the money has physically arrived in your official <strong>{verifyingDonation.Payment_Method}</strong> account or merchant statement. If transaction fees were deducted, adjust the confirmed amount below.
+                  </div>
+                </div>
+
+                {/* Confirmed Received Amount Input */}
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, marginBottom: '6px', color: 'var(--text-primary)' }}>
+                    Actual Amount Received by NGO (₱ PHP) <span style={{ color: '#ef4444' }}>*</span>
+                  </label>
+                  <div style={{ position: 'relative' }}>
+                    <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', fontWeight: 800, color: 'var(--text-muted)', fontSize: '0.95rem' }}>₱</span>
+                    <input
+                      type="number"
+                      step="any"
+                      min="1"
+                      value={confirmedAmountPhp}
+                      onChange={e => setConfirmedAmountPhp(e.target.value)}
+                      placeholder="e.g. 1700"
+                      style={{
+                        width: '100%',
+                        background: 'var(--bg-input, rgba(30, 41, 59, 0.8))',
+                        border: '1px solid var(--border, rgba(255, 255, 255, 0.15))',
+                        borderRadius: '10px',
+                        padding: '10px 14px 10px 32px',
+                        color: 'var(--text-primary, #ffffff)',
+                        fontSize: '1rem',
+                        fontWeight: 800,
+                        outline: 'none',
+                        boxSizing: 'border-box'
+                      }}
+                    />
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '6px', fontSize: '0.75rem' }}>
+                    <span style={{ color: 'var(--text-muted)' }}>
+                      Minted to Campaign: <strong style={{ color: 'var(--accent, #22c55e)' }}>{((parseFloat(confirmedAmountPhp) || 0) / 170000).toFixed(6)} ETH</strong>
+                    </span>
+                    <span style={{ color: 'var(--text-muted)' }}>Rate: 1 ETH = ₱170,000</span>
+                  </div>
+                </div>
+
+                {/* Reference / Transaction Trace Number */}
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, marginBottom: '6px', color: 'var(--text-primary)' }}>
+                    Transaction Reference / Trace No. <span style={{ color: 'var(--text-muted)', fontWeight: 500 }}>(Cross-reference code)</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={confirmedRefNo}
+                    onChange={e => setConfirmedRefNo(e.target.value)}
+                    placeholder="e.g. GCash Ref # 100293847529 or Maya Trace ID"
+                    style={{
+                      width: '100%',
+                      background: 'var(--bg-input, rgba(30, 41, 59, 0.8))',
+                      border: '1px solid var(--border, rgba(255, 255, 255, 0.15))',
+                      borderRadius: '10px',
+                      padding: '9px 12px',
+                      color: 'var(--text-primary, #ffffff)',
+                      fontSize: '0.85rem',
+                      outline: 'none',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                </div>
+
+                {/* Audit Attestation Checklist */}
+                <div style={{
+                  background: 'rgba(255, 255, 255, 0.02)',
+                  border: '1px solid var(--border, rgba(255, 255, 255, 0.08))',
+                  borderRadius: '12px',
+                  padding: '12px 14px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '10px'
+                }}>
+                  <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', cursor: 'pointer', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                    <input
+                      type="checkbox"
+                      checked={checkAccountVerified}
+                      onChange={e => setCheckAccountVerified(e.target.checked)}
+                      style={{ marginTop: '3px', cursor: 'pointer', accentColor: '#22c55e' }}
+                    />
+                    <span>I have opened our official <strong>{verifyingDonation.Payment_Method}</strong> balance and confirmed receipt of these funds.</span>
+                  </label>
+
+                  <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', cursor: 'pointer', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                    <input
+                      type="checkbox"
+                      checked={checkAmountMatched}
+                      onChange={e => setCheckAmountMatched(e.target.checked)}
+                      style={{ marginTop: '3px', cursor: 'pointer', accentColor: '#22c55e' }}
+                    />
+                    <span>The confirmed amount of <strong>₱{(parseFloat(confirmedAmountPhp) || 0).toLocaleString()}</strong> accurately reflects what was credited to our organization.</span>
+                  </label>
+                </div>
+
+              </div>
+            </div>
+
+            {/* Modal Footer Actions */}
+            <div style={{
+              padding: '16px 24px',
+              borderTop: '1px solid var(--border, rgba(255, 255, 255, 0.08))',
+              background: 'rgba(255, 255, 255, 0.02)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: '12px'
+            }}>
+              <button
+                type="button"
+                className="btn btn-sm"
+                style={{ background: 'rgba(239, 68, 68, 0.12)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.35)', padding: '7px 14px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                onClick={() => {
+                  const cur = verifyingDonation;
+                  setVerifyingDonation(null);
+                  handleOpenRejection(cur);
+                }}
+                disabled={verifyingSubmitting}
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>cancel</span>
+                <span>Reject Slip</span>
+              </button>
+
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  onClick={() => setVerifyingDonation(null)}
+                  disabled={verifyingSubmitting}
+                >
+                  Cancel
+                </button>
+                
+                <button
+                  type="button"
+                  className="btn btn-primary btn-sm"
+                  style={{
+                    padding: '8px 20px',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    fontWeight: 700,
+                    opacity: (!checkAccountVerified || !checkAmountMatched || !(parseFloat(confirmedAmountPhp) > 0) || verifyingSubmitting) ? 0.5 : 1,
+                    cursor: (!checkAccountVerified || !checkAmountMatched || !(parseFloat(confirmedAmountPhp) > 0) || verifyingSubmitting) ? 'not-allowed' : 'pointer'
+                  }}
+                  onClick={handleConfirmApproval}
+                  disabled={!checkAccountVerified || !checkAmountMatched || !(parseFloat(confirmedAmountPhp) > 0) || verifyingSubmitting}
+                >
+                  {verifyingSubmitting ? (
+                    <>
+                      <div className="spinner spinner-light" style={{ width: 14, height: 14 }} />
+                      <span>Recording to Blockchain...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>verified</span>
+                      <span>Confirm &amp; Record to Ledger</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* ── Rejection Modal with Reason Selection ── */}
+      {rejectingDonation && createPortal(
+        <div
+          className="modal-overlay fade-in"
+          onClick={() => !rejectingSubmitting && setRejectingDonation(null)}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: '100vw',
+            height: '100vh',
+            background: 'rgba(5, 7, 12, 0.85)',
+            backdropFilter: 'blur(10px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 99999,
+            padding: '16px'
+          }}
+        >
+          <div
+            className="card bounce-in"
+            onClick={e => e.stopPropagation()}
+            style={{
+              width: '540px',
+              maxWidth: '95vw',
+              background: 'var(--bg-card, #131622)',
+              border: '1px solid rgba(239, 68, 68, 0.3)',
+              borderRadius: '18px',
+              boxShadow: '0 25px 60px -12px rgba(0, 0, 0, 0.85)',
+              color: 'var(--text-primary, #ffffff)',
+              padding: '24px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '16px'
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{
+                width: '40px',
+                height: '40px',
+                borderRadius: '10px',
+                background: 'rgba(239, 68, 68, 0.15)',
+                border: '1px solid rgba(239, 68, 68, 0.3)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#ef4444'
+              }}>
+                <span className="material-symbols-outlined" style={{ fontSize: '22px' }}>warning</span>
+              </div>
+              <div>
+                <div style={{ fontWeight: 800, fontSize: '1.08rem' }}>Reject Payment Slip</div>
+                <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                  Provide an audit reason to notify the donor.
+                </div>
+              </div>
+            </div>
+
+            <div style={{
+              background: 'rgba(255, 255, 255, 0.03)',
+              borderRadius: '10px',
+              padding: '10px 14px',
+              fontSize: '0.8rem',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '4px'
+            }}>
+              <div><strong>Donor:</strong> {rejectingDonation.Donor_Name || 'Anonymous'}</div>
+              <div><strong>Rail:</strong> {rejectingDonation.Payment_Method} · <strong>Claimed:</strong> ₱{Math.round(parseFloat(rejectingDonation.Amount || 0) * 170000).toLocaleString()}</div>
+            </div>
+
+            <div>
+              <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, marginBottom: '6px' }}>
+                Select Reason for Rejection:
+              </label>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                {[
+                  'Payment not received in official organization account statements',
+                  'Receipt screenshot is unreadable, blurry, or missing key details',
+                  'Amount on receipt does not match the claimed donation',
+                  'Duplicate or expired transaction receipt slip'
+                ].map(r => (
+                  <button
+                    key={r}
+                    type="button"
+                    onClick={() => setRejectionReason(r)}
+                    style={{
+                      textAlign: 'left',
+                      padding: '8px 12px',
+                      borderRadius: '8px',
+                      border: rejectionReason === r ? '1px solid #ef4444' : '1px solid var(--border, rgba(255,255,255,0.08))',
+                      background: rejectionReason === r ? 'rgba(239, 68, 68, 0.12)' : 'rgba(255,255,255,0.02)',
+                      color: rejectionReason === r ? '#fff' : 'var(--text-secondary)',
+                      fontSize: '0.78rem',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    {r}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, marginBottom: '6px' }}>
+                Detailed Audit Note for Donor:
+              </label>
+              <textarea
+                rows={3}
+                value={rejectionReason}
+                onChange={e => setRejectionReason(e.target.value)}
+                placeholder="Explain why this payment slip could not be confirmed..."
+                style={{
+                  width: '100%',
+                  background: 'var(--bg-input, rgba(30, 41, 59, 0.8))',
+                  border: '1px solid var(--border, rgba(255, 255, 255, 0.15))',
+                  borderRadius: '10px',
+                  padding: '10px',
+                  color: '#fff',
+                  fontSize: '0.82rem',
+                  resize: 'none',
+                  outline: 'none',
+                  boxSizing: 'border-box'
+                }}
+              />
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '6px' }}>
+              <button
+                type="button"
+                className="btn btn-ghost btn-sm"
+                onClick={() => setRejectingDonation(null)}
+                disabled={rejectingSubmitting}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn btn-sm"
+                style={{ background: '#ef4444', color: '#fff', border: 'none', padding: '8px 18px', fontWeight: 700 }}
+                onClick={handleConfirmRejection}
+                disabled={!rejectionReason.trim() || rejectingSubmitting}
+              >
+                {rejectingSubmitting ? 'Rejecting...' : 'Confirm Rejection'}
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
       )}
 
       {/* Interactive Guided Onboarding Spotlight Tour */}

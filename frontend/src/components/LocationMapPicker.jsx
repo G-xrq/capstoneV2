@@ -266,23 +266,7 @@ export default function LocationMapPicker({
         });
       }
       if (markerRef.current) {
-        const displayTitle = [p.barangay, p.city].filter(Boolean).join(', ') || p.province || 'Pinned Location';
-        markerRef.current.bindPopup(`
-          <div style="font-family: inherit; padding: 2px 4px; min-width: 170px;">
-            <div style="font-size: 0.7rem; color: #22c55e; font-weight: 700; display: flex; align-items: center; gap: 4px; margin-bottom: 2px;">
-                            <span class="material-symbols-outlined" style="font-size: 13px;">verified</span> Location Confirmed
-            </div>
-            <div style="font-size: 0.82rem; font-weight: 700; color: #f8fafc; line-height: 1.25;">
-              ${displayTitle}
-            </div>
-            <div style="font-size: 0.72rem; color: #cbd5e1; margin-top: 1px;">
-              ${[p.province, region ? `(${region})` : '', p.zip ? `• Zip ${p.zip}` : ''].filter(Boolean).join(' ')}
-            </div>
-            <div style="font-size: 0.68rem; color: #94a3b8; margin-top: 3px;">
-              ${newGps}
-            </div>
-          </div>
-        `, { closeButton: false, offset: [0, -38] }).openPopup();
+        markerRef.current.unbindPopup();
       }
       return;
     }
@@ -316,22 +300,7 @@ export default function LocationMapPicker({
     }
 
     if (markerRef.current) {
-      markerRef.current.bindPopup(`
-        <div style="font-family: inherit; padding: 2px 4px; min-width: 170px;">
-          <div style="font-size: 0.7rem; color: #22c55e; font-weight: 700; display: flex; align-items: center; gap: 4px; margin-bottom: 2px;">
-                          <span class="material-symbols-outlined" style="font-size: 13px;">verified</span> Location Confirmed
-          </div>
-          <div style="font-size: 0.82rem; font-weight: 700; color: #f8fafc; line-height: 1.25;">
-            ${brgyFallback}, ${cityFallback}
-          </div>
-          <div style="font-size: 0.72rem; color: #cbd5e1; margin-top: 1px;">
-            ${provFallback} (${regFallback}) • Zip ${zipFallback}
-          </div>
-          <div style="font-size: 0.68rem; color: #94a3b8; margin-top: 3px;">
-            ${newGps}
-          </div>
-        </div>
-      `, { closeButton: false, offset: [0, -38] }).openPopup();
+      markerRef.current.unbindPopup();
     }
   };
 
@@ -446,27 +415,13 @@ export default function LocationMapPicker({
           const { lat, lng } = e.latlng;
           marker.setLatLng([lat, lng]);
           map.panTo([lat, lng]);
-
-          marker.bindPopup(`
-            <div style="font-family: inherit; padding: 2px 4px; display: flex; align-items: center; gap: 6px; font-size: 0.74rem; color: #38bdf8;">
-              <span class="material-symbols-outlined spin" style="font-size: 14px;">progress_activity</span>
-              <span>Getting address...</span>
-            </div>
-          `, { closeButton: false, offset: [0, -38] }).openPopup();
-
+          marker.unbindPopup();
           performReverseGeocode(lat, lng);
         });
 
         marker.on('dragend', (e) => {
           const { lat, lng } = e.target.getLatLng();
-
-          marker.bindPopup(`
-            <div style="font-family: inherit; padding: 2px 4px; display: flex; align-items: center; gap: 6px; font-size: 0.74rem; color: #38bdf8;">
-              <span class="material-symbols-outlined spin" style="font-size: 14px;">progress_activity</span>
-              <span>Getting address...</span>
-            </div>
-          `, { closeButton: false, offset: [0, -38] }).openPopup();
-
+          marker.unbindPopup();
           performReverseGeocode(lat, lng);
         });
       }
@@ -528,21 +483,7 @@ export default function LocationMapPicker({
       if (mapRef.current && markerRef.current) {
         markerRef.current.setLatLng([lat, lon]);
         mapRef.current.setView([lat, lon], zoomLevel);
-
-        const titleText = top?.name || top?.display_name?.split(',').slice(0, 2).join(', ') || 'Confirmed Location';
-        markerRef.current.bindPopup(`
-          <div style="font-family: inherit; padding: 2px 4px; min-width: 170px;">
-            <div style="font-size: 0.7rem; color: #22c55e; font-weight: 700; display: flex; align-items: center; gap: 4px; margin-bottom: 2px;">
-                            <span class="material-symbols-outlined" style="font-size: 13px;">verified</span> Location Confirmed
-            </div>
-            <div style="font-size: 0.82rem; font-weight: 700; color: #f8fafc; line-height: 1.25;">
-              ${titleText}
-            </div>
-            <div style="font-size: 0.68rem; color: #94a3b8; margin-top: 3px;">
-              ${newGps}
-            </div>
-          </div>
-        `, { closeButton: false, offset: [0, -38] }).openPopup();
+        markerRef.current.unbindPopup();
       }
 
       if (onChangeGpsRef.current) onChangeGpsRef.current(newGps);
@@ -640,12 +581,7 @@ export default function LocationMapPicker({
         if (mapRef.current && markerRef.current) {
           markerRef.current.setLatLng([lat, lng]);
           mapRef.current.setView([lat, lng], 16);
-          markerRef.current.bindPopup(`
-            <div style="font-family: inherit; padding: 2px 4px; display: flex; align-items: center; gap: 6px; font-size: 0.74rem; color: #38bdf8;">
-              <span class="material-symbols-outlined spin" style="font-size: 14px;">progress_activity</span>
-              <span>Resolving GPS headquarters address...</span>
-            </div>
-          `, { closeButton: false, offset: [0, -38] }).openPopup();
+          markerRef.current.unbindPopup();
         }
         const latFormatted = lat.toFixed(4);
         const lngFormatted = lng.toFixed(4);

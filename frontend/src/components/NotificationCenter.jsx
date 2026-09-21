@@ -837,9 +837,22 @@ export default function NotificationCenter({ dbUser, theme, onSelectNotification
                   {formatExactDate(selectedNotif.createdAt)}
                 </span>
                 {selectedNotif.referenceId && (
-                  <span className="bbdrts-notif-card-meta-item ref">
+                  <span
+                    className="bbdrts-notif-card-meta-item ref"
+                    title={`Click to copy: ${selectedNotif.referenceId}`}
+                    onClick={() => {
+                      navigator.clipboard?.writeText(selectedNotif.referenceId);
+                      showSuccess('Reference hash copied to clipboard!', 'Copied');
+                    }}
+                    style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '3px' }}
+                  >
                     <span className="material-symbols-outlined">tag</span>
-                    Ref: {selectedNotif.referenceId}
+                    <span>
+                      Ref: {selectedNotif.referenceId.length > 22
+                        ? `${selectedNotif.referenceId.slice(0, 10)}...${selectedNotif.referenceId.slice(-8)}`
+                        : selectedNotif.referenceId}
+                    </span>
+                    <span className="material-symbols-outlined" style={{ fontSize: '13px', opacity: 0.7 }}>content_copy</span>
                   </span>
                 )}
               </div>

@@ -942,67 +942,149 @@ export default function DonorView({ contract, walletAddress, campaigns, fetchCam
                 </div>
               </div>
 
-              {/* 4-Metric Stat Cards Grid — Accurate Real-Time System Data */}
-              <div className="ref-metrics-grid" id="tour-donor-metrics">
-                {/* 1. Green Circle - My Contribution Receipts */}
-                <div className="ref-metric-card">
-                  <div className="ref-metric-icon-circle green">
-                    <span className="material-symbols-outlined" style={{ fontSize: '24px' }}>receipt_long</span>
-                  </div>
-                  <div className="ref-metric-title">My Contributions</div>
-                  <div style={{ margin: '10px 0 12px' }}>
-                    <span className="ref-pill-badge">
-                      {donorReceiptsCount} receipts recorded
-                    </span>
-                  </div>
-                  <div className="ref-metric-sub">Verified on Sepolia Ledger</div>
-                </div>
+              {/* 4-Metric Stat Cards Grid — Premium Redesign */}
+              <div className="ref-metrics-grid" id="tour-donor-metrics" style={{ gap: '16px' }}>
 
-                {/* 2. Blue Circle - Active Relief Campaigns on Platform */}
-                <div className="ref-metric-card">
-                  <div className="ref-metric-icon-circle blue">
-                    <span className="material-symbols-outlined" style={{ fontSize: '24px' }}>campaign</span>
+                {/* 1. My Contributions */}
+                <div className="ref-metric-card" onClick={() => setActiveTab('my-donations')} style={{
+                  padding: '20px 22px',
+                  textAlign: 'left',
+                  borderLeft: '3px solid #22c55e',
+                  background: 'linear-gradient(135deg, rgba(34, 197, 94, 0.06) 0%, var(--bg-card, #212121) 60%)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '10px',
+                  cursor: 'pointer'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: '0.74rem', fontWeight: 700, color: '#22c55e', textTransform: 'uppercase', letterSpacing: '0.6px' }}>My Contributions</span>
+                    <div style={{
+                      width: '34px', height: '34px', borderRadius: '10px',
+                      background: 'rgba(34, 197, 94, 0.15)', border: '1px solid rgba(34, 197, 94, 0.25)',
+                      color: '#22c55e', display: 'flex', alignItems: 'center', justifyContent: 'center'
+                    }}>
+                      <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>receipt_long</span>
+                    </div>
                   </div>
-                  <div className="ref-metric-title">Relief Campaigns</div>
-                  <div style={{ margin: '10px 0 12px' }}>
-                    <span className="ref-pill-badge">
-                      {activeCampaignsCount} of {campaigns.length} active
-                    </span>
+                  <div>
+                    <div style={{ fontSize: '1.9rem', fontWeight: 850, color: 'var(--text-primary)', letterSpacing: '-0.03em', lineHeight: 1 }}>
+                      {donorReceiptsCount}
+                      <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-secondary)', marginLeft: '5px' }}>Receipts</span>
+                    </div>
+                    <div style={{ fontSize: '0.78rem', color: '#22c55e', fontWeight: 600, marginTop: '4px' }}>
+                      Verified on Sepolia Ledger
+                    </div>
                   </div>
-                  <div className="ref-metric-sub" style={{ color: '#0284c7' }}>
-                    {uniqueCausesCount > 0 ? `You supported ${uniqueCausesCount} cause${uniqueCausesCount !== 1 ? 's' : ''}` : 'Open for Aid Assistance'}
-                  </div>
-                </div>
-
-                {/* 3. Purple Circle - Donor's Personal ETH Contributed */}
-                <div className="ref-metric-card">
-                  <div className="ref-metric-icon-circle purple">
-                    <span className="material-symbols-outlined" style={{ fontSize: '24px' }}>account_balance_wallet</span>
-                  </div>
-                  <div className="ref-metric-title">Total Contributed</div>
-                  <div style={{ margin: '10px 0 12px' }}>
-                    <span className="ref-pill-badge">
-                      {totalDonated} ETH
-                    </span>
-                  </div>
-                  <div className="ref-metric-sub" style={{ color: '#9333ea' }}>
-                    ≈ ₱{Math.round(totalDonatedPhp).toLocaleString('en-US')} PHP
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted, #64748b)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>open_in_new</span>
+                    <span>Click to view all donations</span>
                   </div>
                 </div>
 
-                {/* 4. Orange Circle - Donor Recognition Standing */}
-                <div className="ref-metric-card" style={{ cursor: 'pointer' }} onClick={() => setShowTierModal(true)} title="View Recognition Circles">
-                  <div className="ref-metric-icon-circle orange">
-                    <span className="material-symbols-outlined" style={{ fontSize: '24px' }}>volunteer_activism</span>
+                {/* 2. Relief Campaigns */}
+                <div className="ref-metric-card" onClick={() => setActiveTab('campaigns')} style={{
+                  padding: '20px 22px',
+                  textAlign: 'left',
+                  borderLeft: '3px solid #38bdf8',
+                  background: 'linear-gradient(135deg, rgba(2, 132, 199, 0.06) 0%, var(--bg-card, #212121) 60%)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '10px',
+                  cursor: 'pointer'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: '0.74rem', fontWeight: 700, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.6px' }}>Relief Campaigns</span>
+                    <div style={{
+                      width: '34px', height: '34px', borderRadius: '10px',
+                      background: 'rgba(2, 132, 199, 0.15)', border: '1px solid rgba(56, 189, 248, 0.25)',
+                      color: '#38bdf8', display: 'flex', alignItems: 'center', justifyContent: 'center'
+                    }}>
+                      <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>campaign</span>
+                    </div>
                   </div>
-                  <div className="ref-metric-title">Recognition Standing</div>
-                  <div style={{ margin: '10px 0 12px' }}>
-                    <span className="ref-pill-badge" style={{ color: activeTierInfo?.tier ? activeTierInfo.tier.color : 'inherit' }}>
-                      {activeTierInfo?.tier ? `${activeTierInfo.tier.name}` : 'Community Contributor'}
-                    </span>
+                  <div>
+                    <div style={{ fontSize: '1.9rem', fontWeight: 850, color: 'var(--text-primary)', letterSpacing: '-0.03em', lineHeight: 1 }}>
+                      {activeCampaignsCount}
+                      <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-secondary)', marginLeft: '5px' }}>Active</span>
+                    </div>
+                    <div style={{ fontSize: '0.78rem', color: '#38bdf8', fontWeight: 600, marginTop: '4px' }}>
+                      {campaigns.length} total · {uniqueCausesCount > 0 ? `You supported ${uniqueCausesCount} cause${uniqueCausesCount !== 1 ? 's' : ''}` : 'Open for Aid'}
+                    </div>
                   </div>
-                  <div className="ref-metric-sub" style={{ color: '#f59e0b' }}>
-                    {activeTierInfo?.tier ? `${activeTierInfo.tier.name} Circle` : 'Make your first donation'}
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted, #64748b)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>open_in_new</span>
+                    <span>Click to browse campaigns</span>
+                  </div>
+                </div>
+
+                {/* 3. Total Contributed */}
+                <div className="ref-metric-card" style={{
+                  padding: '20px 22px',
+                  textAlign: 'left',
+                  borderLeft: '3px solid #a78bfa',
+                  background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.06) 0%, var(--bg-card, #212121) 60%)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '10px'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: '0.74rem', fontWeight: 700, color: '#a78bfa', textTransform: 'uppercase', letterSpacing: '0.6px' }}>Total Contributed</span>
+                    <div style={{
+                      width: '34px', height: '34px', borderRadius: '10px',
+                      background: 'rgba(139, 92, 246, 0.15)', border: '1px solid rgba(167, 139, 250, 0.25)',
+                      color: '#a78bfa', display: 'flex', alignItems: 'center', justifyContent: 'center'
+                    }}>
+                      <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>account_balance_wallet</span>
+                    </div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '1.9rem', fontWeight: 850, color: 'var(--text-primary)', letterSpacing: '-0.03em', lineHeight: 1 }}>
+                      {totalDonated}
+                      <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-secondary)', marginLeft: '5px' }}>ETH</span>
+                    </div>
+                    <div style={{ fontSize: '0.78rem', color: '#a78bfa', fontWeight: 600, marginTop: '4px' }}>
+                      ≈ ₱{Math.round(totalDonatedPhp).toLocaleString('en-US')} PHP
+                    </div>
+                  </div>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted, #64748b)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>verified_user</span>
+                    <span>On-chain verified contribution</span>
+                  </div>
+                </div>
+
+                {/* 4. Recognition Standing */}
+                <div className="ref-metric-card" onClick={() => setShowTierModal(true)} title="View Recognition Circles" style={{
+                  padding: '20px 22px',
+                  textAlign: 'left',
+                  borderLeft: `3px solid ${activeTierInfo?.tier?.color || '#f59e0b'}`,
+                  background: `linear-gradient(135deg, ${activeTierInfo?.tier ? activeTierInfo.tier.color + '0f' : 'rgba(245,158,11,0.06)'} 0%, var(--bg-card, #212121) 60%)`,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '10px',
+                  cursor: 'pointer'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: '0.74rem', fontWeight: 700, color: activeTierInfo?.tier?.color || '#f59e0b', textTransform: 'uppercase', letterSpacing: '0.6px' }}>Recognition</span>
+                    <div style={{
+                      width: '34px', height: '34px', borderRadius: '10px',
+                      background: activeTierInfo?.tier ? activeTierInfo.tier.color + '26' : 'rgba(245,158,11,0.15)',
+                      border: `1px solid ${activeTierInfo?.tier ? activeTierInfo.tier.color + '40' : 'rgba(245,158,11,0.25)'}`,
+                      color: activeTierInfo?.tier?.color || '#f59e0b', display: 'flex', alignItems: 'center', justifyContent: 'center'
+                    }}>
+                      <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>volunteer_activism</span>
+                    </div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '1.2rem', fontWeight: 850, color: activeTierInfo?.tier?.color || '#f59e0b', letterSpacing: '-0.01em', lineHeight: 1 }}>
+                      {activeTierInfo?.tier ? activeTierInfo.tier.name : 'Unranked'}
+                    </div>
+                    <div style={{ fontSize: '0.78rem', color: activeTierInfo?.tier?.color || '#f59e0b', fontWeight: 600, marginTop: '4px', opacity: 0.85 }}>
+                      {activeTierInfo?.tier ? `${activeTierInfo.tier.name} Circle` : 'Make your first donation'}
+                    </div>
+                  </div>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted, #64748b)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>open_in_new</span>
+                    <span>Click to view Honor Roll</span>
                   </div>
                 </div>
               </div>
@@ -1527,62 +1609,147 @@ export default function DonorView({ contract, walletAddress, campaigns, fetchCam
                 onOpenLadder={() => setShowTierModal(true)}
               />
 
-              {/* 4-Stat Metric Cards Grid */}
-              <div className="ref-metrics-grid" style={{ marginBottom: '20px' }}>
+              {/* 4-Stat Metric Cards Grid — Premium Redesign */}
+              <div className="ref-metrics-grid" style={{ marginBottom: '22px', gap: '16px' }}>
+
                 {/* 1. Green: Total Contributed */}
-                <div className="ref-metric-card">
-                  <div className="ref-metric-icon-circle green">
-                    <span className="material-symbols-outlined" style={{ fontSize: '24px' }}>volunteer_activism</span>
+                <div className="ref-metric-card" style={{
+                  padding: '20px 22px',
+                  textAlign: 'left',
+                  borderLeft: '3px solid #22c55e',
+                  background: 'linear-gradient(135deg, rgba(34, 197, 94, 0.06) 0%, var(--bg-card, #212121) 60%)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '10px'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: '0.74rem', fontWeight: 700, color: '#22c55e', textTransform: 'uppercase', letterSpacing: '0.6px' }}>Total Contributed</span>
+                    <div style={{
+                      width: '34px', height: '34px', borderRadius: '10px',
+                      background: 'rgba(34, 197, 94, 0.15)', border: '1px solid rgba(34, 197, 94, 0.25)',
+                      color: '#22c55e', display: 'flex', alignItems: 'center', justifyContent: 'center'
+                    }}>
+                      <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>volunteer_activism</span>
+                    </div>
                   </div>
-                  <div className="ref-metric-title">Total Contributed</div>
-                  <div style={{ margin: '10px 0 12px' }}>
-                    <span className="ref-pill-badge" style={{ fontSize: '1.05rem', fontWeight: 800 }}>
-                      {totalDonated} ETH
-                    </span>
+                  <div>
+                    <div style={{ fontSize: '1.9rem', fontWeight: 850, color: 'var(--text-primary)', letterSpacing: '-0.03em', lineHeight: 1 }}>
+                      {totalDonated}
+                      <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-secondary)', marginLeft: '5px' }}>ETH</span>
+                    </div>
+                    <div style={{ fontSize: '0.78rem', color: '#22c55e', fontWeight: 600, marginTop: '4px' }}>
+                      Personal ETH Contributed
+                    </div>
                   </div>
-                  <div className="ref-metric-sub">Personal ETH Contributed</div>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted, #64748b)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>verified_user</span>
+                    <span>On-chain verified contribution</span>
+                  </div>
                 </div>
 
                 {/* 2. Blue: Peso Equivalent */}
-                <div className="ref-metric-card">
-                  <div className="ref-metric-icon-circle blue">
-                    <span className="material-symbols-outlined" style={{ fontSize: '24px' }}>currency_exchange</span>
+                <div className="ref-metric-card" style={{
+                  padding: '20px 22px',
+                  textAlign: 'left',
+                  borderLeft: '3px solid #38bdf8',
+                  background: 'linear-gradient(135deg, rgba(2, 132, 199, 0.06) 0%, var(--bg-card, #212121) 60%)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '10px'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: '0.74rem', fontWeight: 700, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.6px' }}>Peso Value (PHP)</span>
+                    <div style={{
+                      width: '34px', height: '34px', borderRadius: '10px',
+                      background: 'rgba(2, 132, 199, 0.15)', border: '1px solid rgba(56, 189, 248, 0.25)',
+                      color: '#38bdf8', display: 'flex', alignItems: 'center', justifyContent: 'center'
+                    }}>
+                      <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>currency_exchange</span>
+                    </div>
                   </div>
-                  <div className="ref-metric-title">Peso Value (PHP)</div>
-                  <div style={{ margin: '10px 0 12px' }}>
-                    <span className="ref-pill-badge" style={{ fontSize: '1.05rem', fontWeight: 800, color: '#0284c7' }}>
+                  <div>
+                    <div style={{ fontSize: '1.9rem', fontWeight: 850, color: 'var(--text-primary)', letterSpacing: '-0.03em', lineHeight: 1 }}>
                       ≈ ₱{Math.round(totalDonatedPhp).toLocaleString('en-US')}
-                    </span>
+                      <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-secondary)', marginLeft: '5px' }}>PHP</span>
+                    </div>
+                    <div style={{ fontSize: '0.78rem', color: '#38bdf8', fontWeight: 600, marginTop: '4px' }}>
+                      Real-Time Conversion
+                    </div>
                   </div>
-                  <div className="ref-metric-sub" style={{ color: '#0284c7' }}>Real-Time Conversion</div>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted, #64748b)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>payments</span>
+                    <span>1 ETH ≈ ₱170,000 Live Rate</span>
+                  </div>
                 </div>
 
                 {/* 3. Purple: Verified Receipts */}
-                <div className="ref-metric-card">
-                  <div className="ref-metric-icon-circle purple">
-                    <span className="material-symbols-outlined" style={{ fontSize: '24px' }}>receipt_long</span>
+                <div className="ref-metric-card" style={{
+                  padding: '20px 22px',
+                  textAlign: 'left',
+                  borderLeft: '3px solid #a78bfa',
+                  background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.06) 0%, var(--bg-card, #212121) 60%)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '10px'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: '0.74rem', fontWeight: 700, color: '#a78bfa', textTransform: 'uppercase', letterSpacing: '0.6px' }}>Verified Receipts</span>
+                    <div style={{
+                      width: '34px', height: '34px', borderRadius: '10px',
+                      background: 'rgba(139, 92, 246, 0.15)', border: '1px solid rgba(167, 139, 250, 0.25)',
+                      color: '#a78bfa', display: 'flex', alignItems: 'center', justifyContent: 'center'
+                    }}>
+                      <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>receipt_long</span>
+                    </div>
                   </div>
-                  <div className="ref-metric-title">Verified Receipts</div>
-                  <div style={{ margin: '10px 0 12px' }}>
-                    <span className="ref-pill-badge" style={{ fontSize: '1.05rem', fontWeight: 800, color: '#9333ea' }}>
-                      {myDonations ? myDonations.length : 0} recorded
-                    </span>
+                  <div>
+                    <div style={{ fontSize: '1.9rem', fontWeight: 850, color: 'var(--text-primary)', letterSpacing: '-0.03em', lineHeight: 1 }}>
+                      {myDonations ? myDonations.length : 0}
+                      <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-secondary)', marginLeft: '5px' }}>Recorded</span>
+                    </div>
+                    <div style={{ fontSize: '0.78rem', color: '#a78bfa', fontWeight: 600, marginTop: '4px' }}>
+                      100% Sepolia EVM Audited
+                    </div>
                   </div>
-                  <div className="ref-metric-sub" style={{ color: '#9333ea' }}>100% Sepolia EVM Audited</div>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted, #64748b)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>verified</span>
+                    <span>Immutable smart contract logs</span>
+                  </div>
                 </div>
 
                 {/* 4. Orange: Supported Causes */}
-                <div className="ref-metric-card">
-                  <div className="ref-metric-icon-circle orange">
-                    <span className="material-symbols-outlined" style={{ fontSize: '24px' }}>campaign</span>
+                <div className="ref-metric-card" style={{
+                  padding: '20px 22px',
+                  textAlign: 'left',
+                  borderLeft: '3px solid #f59e0b',
+                  background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.06) 0%, var(--bg-card, #212121) 60%)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '10px'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ fontSize: '0.74rem', fontWeight: 700, color: '#f59e0b', textTransform: 'uppercase', letterSpacing: '0.6px' }}>Causes Supported</span>
+                    <div style={{
+                      width: '34px', height: '34px', borderRadius: '10px',
+                      background: 'rgba(245, 158, 11, 0.15)', border: '1px solid rgba(245, 158, 11, 0.25)',
+                      color: '#f59e0b', display: 'flex', alignItems: 'center', justifyContent: 'center'
+                    }}>
+                      <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>campaign</span>
+                    </div>
                   </div>
-                  <div className="ref-metric-title">Causes Supported</div>
-                  <div style={{ margin: '10px 0 12px' }}>
-                    <span className="ref-pill-badge" style={{ fontSize: '1.05rem', fontWeight: 800, color: '#f59e0b' }}>
-                      {uniqueCausesCount} campaigns
-                    </span>
+                  <div>
+                    <div style={{ fontSize: '1.9rem', fontWeight: 850, color: 'var(--text-primary)', letterSpacing: '-0.03em', lineHeight: 1 }}>
+                      {uniqueCausesCount}
+                      <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-secondary)', marginLeft: '5px' }}>Campaigns</span>
+                    </div>
+                    <div style={{ fontSize: '0.78rem', color: '#f59e0b', fontWeight: 600, marginTop: '4px' }}>
+                      Direct Community Aid
+                    </div>
                   </div>
-                  <div className="ref-metric-sub" style={{ color: '#f59e0b' }}>Direct Community Aid</div>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted, #64748b)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>handshake</span>
+                    <span>Direct humanitarian impact</span>
+                  </div>
                 </div>
               </div>
 

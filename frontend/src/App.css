@@ -2229,6 +2229,87 @@
   background-color: var(--accent-dim, rgba(34, 197, 94, 0.08));
 }
 
+/* ── Tag Overflow "+N" Popover ── */
+.tag-overflow-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.tag-overflow-wrap .campaign-tag-pill.overflow-pill {
+  cursor: pointer;
+  color: var(--text-muted);
+  background: var(--bg-inset, rgba(255,255,255,0.05));
+  border-color: var(--border);
+  font-weight: 700;
+}
+
+.tag-overflow-wrap:hover .campaign-tag-pill.overflow-pill {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-dim, rgba(34,197,94,0.08));
+}
+
+.tag-overflow-popover {
+  display: none;
+  position: absolute;
+  top: calc(100% + 7px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9999;
+  background: var(--bg-surface, #1e2028);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px 12px;
+  box-shadow: 0 8px 28px rgba(0,0,0,0.45), 0 2px 8px rgba(0,0,0,0.25);
+  white-space: nowrap;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 130px;
+  backdrop-filter: blur(12px);
+}
+
+/* small arrow pointing UP toward the badge */
+.tag-overflow-popover::before {
+  content: '';
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 6px solid transparent;
+  border-bottom-color: var(--border);
+}
+
+.tag-overflow-popover::after {
+  content: '';
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-bottom: -1px;
+  border: 5px solid transparent;
+  border-bottom-color: var(--bg-surface, #1e2028);
+  z-index: 1;
+}
+
+.tag-overflow-wrap:hover .tag-overflow-popover {
+  display: flex;
+}
+
+.tag-overflow-popover-label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--border-subtle, rgba(255,255,255,0.06));
+  margin-bottom: 2px;
+}
+
+.tag-overflow-popover .campaign-tag-pill {
+  font-size: 0.71rem;
+}
+
 /* ============================================================
    Donate Action Section (right side of card)
    ============================================================ */

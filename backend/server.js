@@ -1960,14 +1960,15 @@ app.post('/api/campaigns/:id/deactivate', authenticateToken, async (req, res) =>
 app.post('/api/manual-donations', authenticateToken, async (req, res) => {
   if (req.user.role !== 'donor') return res.status(403).json({ error: 'Only donors can upload receipts.' });
 
-  const { campaign_id, amount, payment_method, receipt_base64, is_anonymous } = req.body;
+  const { campaign_id, amount, payment_method, receipt_base64, is_anonymous, reference_number, ref_no } = req.body;
   if (!campaign_id || !amount || !receipt_base64) return res.status(400).json({ error: 'Missing required manual donation fields.' });
 
   try {
     const anonymousFlag = is_anonymous ? 1 : 0;
+    const finalRef = (reference_number || ref_no || '').trim() || null;
     await db.query(
-      `INSERT INTO MANUAL_DONATION (Donor_ID, Campaign_ID, Amount, Payment_Method, Receipt_Base64, Status, Is_Anonymous) VALUES (?, ?, ?, ?, ?, 'Pending', ?)`,
-      [req.user.id, campaign_id, amount, payment_method || 'Unknown', receipt_base64, anonymousFlag]
+      `INSERT INTO MANUAL_DONATION (Donor_ID, Campaign_ID, Amount, Payment_Method, Receipt_Base64, Status, Is_Anonymous, Reference_Number) VALUES (?, ?, ?, ?, ?, 'Pending', ?, ?)`,
+      [req.user.id, campaign_id, amount, payment_method || 'Unknown', receipt_base64, anonymousFlag, finalRef]
     );
     res.status(201).json({ message: 'Receipt uploaded successfully. Pending NGO verification.' });
   } catch (err) {
@@ -1980,20 +1981,24 @@ app.get('/api/manual-donations/pending', authenticateToken, async (req, res) => 
   try {
     if (req.user.role === 'admin') {
       const [rows] = await db.query(`
-        SELECT m.*, d.Username as Donor_Name, c.Campaign_Title 
+        SELECT m.*, d.Username as Donor_Name, d.Username as Donor_Email_Real, c.Campaign_Title, o.Org_Name
         FROM MANUAL_DONATION m 
-        JOIN DONOR d ON m.Donor_ID = d.Donor_ID 
+        LEFT JOIN DONOR d ON m.Donor_ID = d.Donor_ID 
         JOIN CAMPAIGN c ON m.Campaign_ID = c.Campaign_ID 
+        LEFT JOIN ORGANIZATION o ON c.Org_ID = o.Org_ID
         WHERE m.Status = 'Pending'
+        ORDER BY m.Manual_ID DESC
       `);
       return res.json(rows);
     } else if (req.user.role === 'organization') {
       const [rows] = await db.query(`
-        SELECT m.*, d.Username as Donor_Name, c.Campaign_Title 
+        SELECT m.*, d.Username as Donor_Name, d.Username as Donor_Email_Real, c.Campaign_Title, o.Org_Name
         FROM MANUAL_DONATION m 
-        JOIN DONOR d ON m.Donor_ID = d.Donor_ID 
+        LEFT JOIN DONOR d ON m.Donor_ID = d.Donor_ID 
         JOIN CAMPAIGN c ON m.Campaign_ID = c.Campaign_ID 
+        LEFT JOIN ORGANIZATION o ON c.Org_ID = o.Org_ID
         WHERE m.Status = 'Pending' AND c.Org_ID = ?
+        ORDER BY m.Manual_ID DESC
       `, [req.user.id]);
       return res.json(rows);
     } else {
@@ -2004,19 +2009,21 @@ app.get('/api/manual-donations/pending', authenticateToken, async (req, res) => 
   }
 });
 
-// 3. Approve or Reject Manual Donation
+// 3. Approve or Reject Manual Donation (NGO Real Cross-Verification)
 app.post('/api/manual-donations/:id/:action', authenticateToken, async (req, res) => {
   if (req.user.role !== 'admin' && req.user.role !== 'organization') return res.status(403).json({ error: 'Access denied.' });
   
   const { id, action } = req.params;
+  const { confirmed_amount_php, reference_number, rejection_reason } = req.body || {};
   const newStatus = action === 'approve' ? 'Approved' : 'Rejected';
   
   try {
     const [manualRows] = await db.query(`
-      SELECT m.*, c.Org_ID, d.Wallet_Address as Donor_Wallet
+      SELECT m.*, c.Org_ID, c.Campaign_Title, d.Username as Donor_Email, d.Wallet_Address as Donor_Wallet, o.Org_Name
       FROM MANUAL_DONATION m
       JOIN CAMPAIGN c ON m.Campaign_ID = c.Campaign_ID
       LEFT JOIN DONOR d ON m.Donor_ID = d.Donor_ID
+      LEFT JOIN ORGANIZATION o ON c.Org_ID = o.Org_ID
       WHERE m.Manual_ID = ?
     `, [id]);
 
@@ -2026,34 +2033,101 @@ app.post('/api/manual-donations/:id/:action', authenticateToken, async (req, res
     const record = manualRows[0];
 
     if (req.user.role === 'organization' && record.Org_ID !== req.user.id) {
-       return res.status(403).json({ error: 'Not authorized to approve this receipt.' });
+       return res.status(403).json({ error: 'Not authorized to verify this payment slip.' });
     }
 
-    await db.query(`UPDATE MANUAL_DONATION SET Status = ? WHERE Manual_ID = ?`, [newStatus, id]);
-
-    // When approved, record into DONATION_TRANSACTION so it appears in ledger and increments campaign raised balance
     if (action === 'approve') {
       const cleanMethod = (record.Payment_Method || 'BANK').toUpperCase();
       const isAnon = record.Is_Anonymous ? 1 : 0;
+      
+      // Calculate verified amount: if NGO specified confirmed_amount_php, use it, else fallback to record.Amount * 170000
+      const parsedPhp = (confirmed_amount_php !== undefined && parseFloat(confirmed_amount_php) > 0)
+        ? parseFloat(confirmed_amount_php)
+        : Math.round((parseFloat(record.Amount) || 0) * 170000);
+      const finalEth = parsedPhp / 170000;
+      const finalRef = (reference_number && reference_number.trim())
+        ? reference_number.trim()
+        : `MANUAL-${record.Manual_ID}`;
+
+      // Update MANUAL_DONATION
+      await db.query(`
+        UPDATE MANUAL_DONATION 
+        SET Status = 'Approved', Amount = ?, Reference_Number = ?, Confirmed_Amount = ?, Verified_At = CURRENT_TIMESTAMP 
+        WHERE Manual_ID = ?
+      `, [finalEth, finalRef, finalEth, id]);
+
+      // Relay on-chain
       const relayRes = await blockchainRelayer.relayDonation({
         campaignId: record.Campaign_ID,
-        amountPhp: Math.round((parseFloat(record.Amount) || 0) * 170000),
-        amountEth: parseFloat(record.Amount) || 0,
+        amountPhp: parsedPhp,
+        amountEth: finalEth,
         paymentMethod: cleanMethod,
-        referenceNumber: `MANUAL-${record.Manual_ID}`,
+        referenceNumber: finalRef,
         donorWallet: record.Donor_Wallet || null,
         donorId: record.Donor_ID || null
       });
       const auditHash = relayRes.txHash;
       
+      // Insert into DONATION_TRANSACTION
       await db.query(
         `INSERT INTO DONATION_TRANSACTION (Donor_ID, Org_ID, Campaign_ID, Tx_Hash, Amount, Is_Anonymous, Wallet_Address, Payment_Method) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-        [record.Donor_ID, record.Org_ID, record.Campaign_ID, auditHash, record.Amount, isAnon, record.Donor_Wallet || null, record.Payment_Method || 'Bank']
+        [record.Donor_ID, record.Org_ID, record.Campaign_ID, auditHash, finalEth, isAnon, record.Donor_Wallet || null, record.Payment_Method || 'Bank']
       );
-    }
 
-    res.json({ message: `Manual donation ${newStatus.toLowerCase()} successfully and synchronized to ledger.` });
+      // Notify donor that their donation was verified and confirmed by the NGO
+      if (record.Donor_Email) {
+        await sendNotificationToUser({
+          userEmail: record.Donor_Email,
+          role: 'donor',
+          type: 'DONATION',
+          title: `Donation Verified: ₱${parsedPhp.toLocaleString()} via ${record.Payment_Method}`,
+          message: `${record.Org_Name || 'The NGO'} has verified and confirmed receipt of your ₱${parsedPhp.toLocaleString()} contribution for "${record.Campaign_Title}". Transaction has been audited on the Sepolia blockchain ledger (Ref: ${finalRef}).`,
+          referenceId: auditHash,
+          referenceType: 'TRANSACTION',
+          link: `/#campaign-${record.Campaign_ID}`
+        });
+      }
+
+      res.json({
+        success: true,
+        message: `Donation of ₱${parsedPhp.toLocaleString()} (${finalEth.toFixed(4)} ETH) verified and recorded to blockchain ledger.`,
+        txHash: auditHash,
+        amountPhp: parsedPhp,
+        amountEth: finalEth
+      });
+    } else {
+      // Rejection flow
+      const reason = (rejection_reason && rejection_reason.trim())
+        ? rejection_reason.trim()
+        : 'Payment could not be verified in organization bank / e-wallet accounts.';
+
+      await db.query(`
+        UPDATE MANUAL_DONATION 
+        SET Status = 'Rejected', Rejection_Reason = ?, Verified_At = CURRENT_TIMESTAMP 
+        WHERE Manual_ID = ?
+      `, [reason, id]);
+
+      if (record.Donor_Email) {
+        await sendNotificationToUser({
+          userEmail: record.Donor_Email,
+          role: 'donor',
+          type: 'SYSTEM',
+          title: `Donation Verification Failed: ${record.Payment_Method}`,
+          message: `Your donation slip for "${record.Campaign_Title}" could not be confirmed by ${record.Org_Name || 'the NGO'}. Reason: ${reason}. Please contact the organization or resubmit with a clear receipt.`,
+          referenceId: String(id),
+          referenceType: 'MANUAL_DONATION',
+          link: `/#campaign-${record.Campaign_ID}`
+        });
+      }
+
+      res.json({
+        success: true,
+        message: `Donation slip rejected. Donor has been notified with the reason.`,
+        reason
+      });
+    }
   } catch (err) {
+    console.error('Error processing manual donation:', err);
     res.status(500).json({ error: 'Failed to process receipt: ' + err.message });
   }
 });
@@ -2129,28 +2203,25 @@ app.get('/api/donations/me', authenticateToken, async (req, res) => {
         dt.Transaction_ID as id,
         dt.Tx_Hash as txHash,
         dt.Amount as amount,
-        COALESCE(dt.Payment_Method, CASE 
-          WHEN UPPER(dt.Tx_Hash) LIKE 'FIAT-GCAS%' THEN 'GCash'
-          WHEN UPPER(dt.Tx_Hash) LIKE 'FIAT-MAYA%' THEN 'Maya'
-          WHEN UPPER(dt.Tx_Hash) LIKE 'FIAT-BANK%' OR UPPER(dt.Tx_Hash) LIKE 'FIAT-CARD%' THEN 'Bank'
-          ELSE 'ETH'
-        END) as paymentMethod,
+        COALESCE(dt.Payment_Method, 'ETH') as paymentMethod,
         dt.Campaign_ID as campaignId,
         dt.Is_Anonymous as isAnonymous,
-        dt.Wallet_Address as donorWallet,
-        d.Display_Name as donorName,
-        d.Username as donorEmail,
         c.Campaign_Title as campaignTitle,
-        c.Category as category,
         o.Org_Name as orgName,
-        dt.Created_At as createdAt
+        dt.Created_At as createdAt,
+        dt.Donor_ID as donorId,
+        COALESCE(dt.Wallet_Address, d.Wallet_Address, '') as donorWallet,
+        COALESCE(NULLIF(d.Display_Name, ''), NULLIF(d.Name, ''), NULLIF(d.Username, '')) as donorName,
+        d.Avatar_Url as donorAvatar
       FROM DONATION_TRANSACTION dt
+      LEFT JOIN DONOR d ON dt.Donor_ID = d.Donor_ID
       LEFT JOIN CAMPAIGN c ON dt.Campaign_ID = c.Campaign_ID
       LEFT JOIN ORGANIZATION o ON (dt.Org_ID = o.Org_ID OR c.Org_ID = o.Org_ID)
-      LEFT JOIN DONOR d ON dt.Donor_ID = d.Donor_ID
-      WHERE ${isDonor ? '(dt.Donor_ID = ? OR (dt.Wallet_Address IS NOT NULL AND LOWER(dt.Wallet_Address) = ?))' : '(dt.Org_ID = ? OR c.Org_ID = ?)'}
+      WHERE ${isDonor 
+        ? '(dt.Donor_ID = ? OR (dt.Wallet_Address IS NOT NULL AND LOWER(dt.Wallet_Address) = ?))' 
+        : '(dt.Org_ID = ? OR c.Org_ID = ? OR (o.Wallet_Address IS NOT NULL AND LOWER(o.Wallet_Address) = ?))'}
       ORDER BY dt.Transaction_ID DESC
-    `, isDonor ? [req.user.id, userWallet || '___none___'] : [req.user.id, req.user.id]);
+    `, isDonor ? [req.user.id, userWallet || '___none___'] : [req.user.id, req.user.id, userWallet || '___none___']);
     res.json(rows || []);
   } catch (err) {
     res.status(500).json({ error: 'Failed to fetch personal donations: ' + err.message });
@@ -2182,8 +2253,11 @@ app.post('/api/donations/verify-mock-gateway', async (req, res) => {
   // Lookup donor by wallet address if donorId is not set
   if (!donorId && !orgId && senderWallet) {
     try {
-      const [donors] = await db.query('SELECT Donor_ID FROM DONOR WHERE LOWER(Wallet_Address) = ?', [senderWallet.toLowerCase()]);
-      if (donors.length > 0) donorId = donors[0].Donor_ID;
+      const [donors] = await db.query('SELECT Donor_ID, Username FROM DONOR WHERE LOWER(Wallet_Address) = ?', [senderWallet.toLowerCase()]);
+      if (donors.length > 0) {
+        donorId = donors[0].Donor_ID;
+        if (!donorEmail) donorEmail = donors[0].Username;
+      }
     } catch (_) {}
   }
 
@@ -2198,34 +2272,19 @@ app.post('/api/donations/verify-mock-gateway', async (req, res) => {
   // Convert PHP amount to ETH equivalent for accurate ledger accounting
   const parsedPhp = parseFloat(amount) || 0;
   const ethAmount = parsedPhp / 170000;
+  const anonymousFlag = is_anonymous ? 1 : 0;
+  const referenceNumber = (ref_no || `REF-${Date.now()}`).trim();
 
   try {
-    // 1. Record the fiat audit record
-    await db.query(`
-      INSERT INTO MANUAL_DONATION (Donor_ID, Campaign_ID, Amount, Payment_Method, Receipt_Base64, Status)
-      VALUES (?, ?, ?, ?, ?, 'Approved')
-    `, [donorId, campaign_id, ethAmount, method, receipt_base64 || null]);
+    // 1. Record the fiat audit record as Pending for NGO verification (Real logic)
+    const [insertRes] = await db.query(`
+      INSERT INTO MANUAL_DONATION (Donor_ID, Campaign_ID, Amount, Payment_Method, Receipt_Base64, Status, Is_Anonymous, Reference_Number)
+      VALUES (?, ?, ?, ?, ?, 'Pending', ?, ?)
+    `, [donorId, campaign_id, ethAmount, method, receipt_base64 || null, anonymousFlag, referenceNumber]);
 
-    // 2. Relayer On-Chain Execution (Gasless for Donor)
-    const relayRes = await blockchainRelayer.relayDonation({
-      campaignId: campaign_id,
-      amountPhp: parsedPhp,
-      amountEth: ethAmount,
-      paymentMethod: method,
-      referenceNumber: ref_no,
-      donorWallet: senderWallet,
-      donorId: donorId
-    });
+    const manualId = insertRes.insertId;
 
-    const finalTxHash = relayRes.txHash;
-    const anonymousFlag = is_anonymous ? 1 : 0;
-
-    await db.query(`
-      INSERT INTO DONATION_TRANSACTION (Donor_ID, Org_ID, Campaign_ID, Tx_Hash, Amount, Is_Anonymous, Wallet_Address, Payment_Method)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `, [donorId, orgId, campaign_id, finalTxHash, ethAmount, anonymousFlag, senderWallet, method || 'Fiat']);
-
-    // 3. Emit real-time event-driven notifications to Donor and NGO
+    // 2. Emit real-time notification to NGO that a payment slip is awaiting verification
     try {
       const [campDetails] = await db.query(`
         SELECT c.Campaign_Title as title, o.Username as orgEmail, o.Org_Name as orgName
@@ -2236,48 +2295,29 @@ app.post('/api/donations/verify-mock-gateway', async (req, res) => {
       const campTitle = campDetails[0]?.title || 'Disaster Relief Operation';
       const orgEmail = campDetails[0]?.orgEmail;
 
-      // Donor Notification
-      if (!donorEmail && donorId) {
-        const [dRows] = await db.query('SELECT Username as email FROM DONOR WHERE Donor_ID = ?', [donorId]);
-        if (dRows && dRows.length > 0) donorEmail = dRows[0].email;
-      }
-
-      if (donorEmail) {
-        await sendNotificationToUser({
-          userEmail: donorEmail,
-          role: 'donor',
-          type: 'DONATION',
-          title: 'Donation Contribution Verified',
-          message: `Your donation of ₱${parsedPhp.toLocaleString()} (${ethAmount.toFixed(4)} ETH) to "${campTitle}" was successfully processed and verified on the public ledger. Transaction Ref: ${finalTxHash}`,
-          referenceId: finalTxHash,
-          referenceType: 'donation',
-          link: '#campaigns'
-        });
-      }
-
-      // NGO Notification
       if (orgEmail) {
         await sendNotificationToUser({
           userEmail: orgEmail,
           role: 'organization',
           type: 'DONATION',
-          title: 'New Relief Contribution Received',
-          message: `Received a contribution of ₱${parsedPhp.toLocaleString()} (${ethAmount.toFixed(4)} ETH) for "${campTitle}" via ${method || 'E-Wallet'}. Ref: ${finalTxHash}`,
-          referenceId: finalTxHash,
-          referenceType: 'donation',
-          link: '#campaigns'
+          title: `New ${method} Slip Awaiting Verification`,
+          message: `Received a new payment slip of ₱${parsedPhp.toLocaleString()} for "${campTitle}" via ${method}. Reference: ${referenceNumber}. Please verify the funds in your account and confirm on the ledger.`,
+          referenceId: String(manualId),
+          referenceType: 'MANUAL_DONATION',
+          link: '#ledger'
         });
       }
     } catch (notifErr) {
-      console.warn('⚠️ Could not emit donation event notification:', notifErr.message);
+      console.warn('⚠️ Could not emit donation pending notification:', notifErr.message);
     }
 
     res.json({ 
       success: true, 
-      message: 'Payment successfully processed and verified on the blockchain ledger.', 
-      tx_hash: finalTxHash,
-      on_chain: relayRes.onChain,
-      explorer_url: relayRes.explorerUrl 
+      pending: true,
+      manual_id: manualId,
+      message: 'Payment receipt submitted successfully! The organization is verifying the transfer. Once confirmed, your contribution will be permanently sealed on the Sepolia blockchain ledger.', 
+      tx_hash: referenceNumber,
+      ref_no: referenceNumber
     });
   } catch (err) {
     console.error('Mock Gateway Verification Error:', err);
@@ -3508,10 +3548,11 @@ async function broadcastNotification({ type = 'SYSTEM', title, message, referenc
 // ── 30-Day Trash Auto-Purge Routine ────────────────────────────
 async function purgeExpiredTrashNotifications() {
   try {
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
     await db.query(`
       DELETE FROM USER_NOTIFICATIONS 
-      WHERE Is_Deleted = 1 AND Deleted_At < datetime('now', '-30 days')
-    `);
+      WHERE Is_Deleted = 1 AND Deleted_At < ?
+    `, [thirtyDaysAgo]);
   } catch (_) {}
 }
 purgeExpiredTrashNotifications();
@@ -3748,7 +3789,7 @@ app.post('/api/notifications/read-all', async (req, res) => {
   try {
     await db.query(`
       UPDATE USER_NOTIFICATIONS 
-      SET Is_Read = 1, Read_At = datetime('now')
+      SET Is_Read = 1, Read_At = CURRENT_TIMESTAMP
       WHERE LOWER(User_Email) = ? AND (Is_Deleted = 0 OR Is_Deleted IS NULL)
     `, [userEmail]);
     res.json({ success: true, message: 'All notifications marked as read for this user.' });
@@ -3774,7 +3815,7 @@ app.post('/api/notifications/:id/read', async (req, res) => {
   try {
     await db.query(`
       UPDATE USER_NOTIFICATIONS 
-      SET Is_Read = 1, Read_At = datetime('now')
+      SET Is_Read = 1, Read_At = CURRENT_TIMESTAMP
       WHERE (User_Notif_ID = ? OR Notification_ID = ?) AND LOWER(User_Email) = ?
     `, [notifId, notifId, userEmail]);
     res.json({ success: true, message: 'Notification marked as read.' });
@@ -3827,7 +3868,7 @@ app.delete('/api/notifications/:id', async (req, res) => {
   try {
     await db.query(`
       UPDATE USER_NOTIFICATIONS 
-      SET Is_Deleted = 1, Deleted_At = datetime('now')
+      SET Is_Deleted = 1, Deleted_At = CURRENT_TIMESTAMP
       WHERE (User_Notif_ID = ? OR Notification_ID = ?) AND LOWER(User_Email) = ?
     `, [notifId, notifId, userEmail]);
     res.json({ success: true, message: 'Notification moved to Trash (retained for 30 days).' });

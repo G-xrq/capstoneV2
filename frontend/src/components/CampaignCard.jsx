@@ -2458,11 +2458,28 @@ export default function CampaignCard(props) {
           {/* Campaign Tags Row */}
           {campaignTags && campaignTags.length > 0 && (
             <div className="campaign-tags-row">
-              {campaignTags.map((tag, idx) => (
+              {campaignTags.slice(0, 3).map((tag, idx) => (
                 <span key={idx} className="campaign-tag-pill">
                   #{tag.replace(/^#/, '')}
                 </span>
               ))}
+              {campaignTags.length > 3 && (
+                <div className="tag-overflow-wrap">
+                  <span className="campaign-tag-pill overflow-pill">
+                    +{campaignTags.length - 3}
+                  </span>
+                  <div className="tag-overflow-popover">
+                    <span className="tag-overflow-popover-label">
+                      {campaignTags.length - 3} more tag{campaignTags.length - 3 !== 1 ? 's' : ''}
+                    </span>
+                    {campaignTags.slice(3).map((tag, idx) => (
+                      <span key={idx} className="campaign-tag-pill">
+                        #{tag.replace(/^#/, '')}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -2506,7 +2523,7 @@ export default function CampaignCard(props) {
                 type="button"
                 className="btn btn-primary btn-sm btn-full"
                 onClick={() => setEditModalOpen(true)}
-                title="Update relief mission details and operational information"
+                title="Update ground relief operations and campaign details"
               >
                 <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>edit_square</span>
                 <span>Edit Campaign</span>
@@ -2682,16 +2699,18 @@ export default function CampaignCard(props) {
           {/* ── Bottom Corner Right: Mission Tracking & Share Tools ── */}
           <div className="campaign-utility-footer">
             <div className="campaign-utility-cluster">
-              <button
-                type="button"
-                className={`campaign-utility-pill track-pill ${isTracked ? 'active' : ''}`}
-                onClick={handleToggleTrack}
-                title={isTracked ? 'Untrack campaign' : 'Track campaign for milestone & ledger updates'}
-                aria-label="Track campaign"
-              >
-                <span className="material-symbols-outlined utility-icon">visibility</span>
-                <span className="utility-label">{isTracked ? 'Tracking' : 'Track'}</span>
-              </button>
+              {!isOwner && (
+                <button
+                  type="button"
+                  className={`campaign-utility-pill track-pill ${isTracked ? 'active' : ''}`}
+                  onClick={handleToggleTrack}
+                  title={isTracked ? 'Untrack campaign' : 'Track campaign for milestone & ledger updates'}
+                  aria-label="Track campaign"
+                >
+                  <span className="material-symbols-outlined utility-icon">visibility</span>
+                  <span className="utility-label">{isTracked ? 'Tracking' : 'Track'}</span>
+                </button>
+              )}
 
               <button
                 type="button"
@@ -3133,49 +3152,53 @@ export default function CampaignCard(props) {
                 </div>
 
                 {/* 4. High-Density Structured Ledger Table */}
-                {filteredHistory.length === 0 ? (
-                  <div className="ledger-no-results">
-                    <span className="material-symbols-outlined ledger-no-results-icon">
-                      {ledgerDateFilter ? 'event_busy' : 'filter_alt_off'}
-                    </span>
-                    <span className="ledger-no-results-title">
-                      {ledgerDateFilter
-                        ? `No transactions recorded on ${formatLedgerSelectedDate(ledgerDateFilter)}`
-                        : 'No transactions match your query'}
-                    </span>
-                    <span className="ledger-no-results-desc">
-                      {ledgerDateFilter
-                        ? `No transactions found for ${formatLedgerSelectedDate(ledgerDateFilter)}. Try selecting another date or clear the filter to view all recorded donations.`
-                        : 'Try loosening your search keywords or resetting active filters.'}
-                    </span>
-                    <button
-                      type="button"
-                      className="btn btn-outline btn-sm"
-                      style={{ marginTop: '8px', fontSize: '0.74rem' }}
-                      onClick={() => {
-                        setLedgerSearch('');
-                        setLedgerRailFilter('ALL');
-                        setLedgerIdentityFilter('ALL');
-                        setLedgerDateFilter('');
-                      }}
-                    >
-                      {ledgerDateFilter ? 'View All Campaign Dates' : 'Reset All Filters'}
-                    </button>
-                  </div>
-                ) : (
-                  <div className="ledger-table-container">
-                    <table className="ledger-table">
-                      <thead>
-                        <tr>
-                          <th style={{ width: '18%' }}>Date &amp; Time</th>
-                          <th style={{ width: '28%' }}>Contributor</th>
-                          <th style={{ width: '16%' }}>Channel</th>
-                          <th style={{ width: '22%' }}>Audit Proof / Tx</th>
-                          <th style={{ width: '16%', textAlign: 'right' }}>Amount</th>
+                <div className="ledger-table-container">
+                  <table className="ledger-table">
+                    <thead>
+                      <tr>
+                        <th style={{ width: '18%' }}>Date &amp; Time</th>
+                        <th style={{ width: '28%' }}>Contributor</th>
+                        <th style={{ width: '16%' }}>Channel</th>
+                        <th style={{ width: '22%' }}>Audit Proof / Tx</th>
+                        <th style={{ width: '16%', textAlign: 'right' }}>Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredHistory.length === 0 ? (
+                        <tr className="ledger-empty-row">
+                          <td colSpan={5} style={{ padding: 0, border: 'none', background: 'transparent' }}>
+                            <div className="ledger-no-results" style={{ padding: '48px 16px', minHeight: '220px' }}>
+                              <span className="material-symbols-outlined ledger-no-results-icon">
+                                {ledgerDateFilter ? 'event_busy' : 'filter_alt_off'}
+                              </span>
+                              <span className="ledger-no-results-title">
+                                {ledgerDateFilter
+                                  ? `No transactions recorded on ${formatLedgerSelectedDate(ledgerDateFilter)}`
+                                  : 'No transactions match your query'}
+                              </span>
+                              <span className="ledger-no-results-desc">
+                                {ledgerDateFilter
+                                  ? `No transactions found for ${formatLedgerSelectedDate(ledgerDateFilter)}. Try selecting another date or clear the filter to view all recorded donations.`
+                                  : 'Try loosening your search keywords or resetting active filters.'}
+                              </span>
+                              <button
+                                type="button"
+                                className="btn btn-outline btn-sm"
+                                style={{ marginTop: '10px', fontSize: '0.74rem' }}
+                                onClick={() => {
+                                  setLedgerSearch('');
+                                  setLedgerRailFilter('ALL');
+                                  setLedgerIdentityFilter('ALL');
+                                  setLedgerDateFilter('');
+                                }}
+                              >
+                                {ledgerDateFilter ? 'View All Campaign Dates' : 'Reset All Filters'}
+                              </button>
+                            </div>
+                          </td>
                         </tr>
-                      </thead>
-                      <tbody>
-                        {filteredHistory.map((rec, idx) => {
+                      ) : (
+                        filteredHistory.map((rec, idx) => {
                           const railMeta = getTransactionRailMeta(rec.txHash, rec.paymentMethod);
                           const isCopied = copiedHashKey === rec.txHash;
                           const isAnon = Boolean(rec.isAnonymous);
@@ -3402,11 +3425,11 @@ export default function CampaignCard(props) {
                               </td>
                             </tr>
                           );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
+                        })
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </>
             )}
 
@@ -5568,7 +5591,7 @@ export default function CampaignCard(props) {
         , document.body);
       })()}
 
-      {/* ── Edit Campaign Operational Logistics Modal ── */}
+      {/* ── Edit Campaign Details & Operations Modal ── */}
       <EditCampaignModal
         camp={camp}
         isOpen={editModalOpen}

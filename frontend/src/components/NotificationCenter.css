@@ -935,6 +935,9 @@
 
 .bbdrts-notif-card-meta-item.ref {
   font-family: var(--font-mono, monospace);
+  word-break: break-all;
+  overflow-wrap: anywhere;
+  max-width: 100%;
 }
 
 .bbdrts-notif-card-meta-item .material-symbols-outlined {
@@ -947,6 +950,10 @@
   border-radius: var(--radius-md, 12px);
   padding: 16px;
   margin-bottom: 16px;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  box-sizing: border-box;
+  max-width: 100%;
 }
 
 [data-theme="light"] .bbdrts-notif-card-message-box {
@@ -959,6 +966,22 @@
   font-size: 0.88rem;
   color: var(--text-secondary, #a3a3a3);
   line-height: 1.55;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.bbdrts-notif-hash-highlight {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.8rem;
+  color: var(--accent, #22c55e);
+  word-break: break-all;
+  overflow-wrap: anywhere;
+  background: rgba(34, 197, 94, 0.08);
+  border: 1px solid rgba(34, 197, 94, 0.2);
+  padding: 1px 6px;
+  border-radius: 4px;
+  display: inline-block;
+  margin-top: 2px;
 }
 
 .bbdrts-notif-trash-notice-box {

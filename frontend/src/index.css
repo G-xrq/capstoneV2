@@ -785,6 +785,8 @@ body[data-text-size="extra-large"] {
 
 /* Smooth Entrance for Dashboards */
 .dashboard-enter-reveal {
+  position: relative;
+  z-index: 5;
   animation: dashboardFadeReveal 0.45s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
