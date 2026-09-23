@@ -5719,10 +5719,10 @@ input:-webkit-autofill:active {
 }
 
 .receipt-media-thumb {
-  width: 140px;
-  height: 105px;
+  width: 96px;
+  height: 96px;
   position: relative;
-  border-radius: 10px;
+  border-radius: 12px;
   overflow: hidden;
   flex-shrink: 0;
   border: 1px solid var(--border);
