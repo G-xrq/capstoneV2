@@ -1,6 +1,7 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { ethers } from 'ethers';
+import Tesseract from 'tesseract.js';
 import { ROLES } from '../roleConfig';
 import LocationMapPicker from './LocationMapPicker';
 import { useToast } from '../context/ToastContext';
@@ -837,6 +838,38 @@ export default function CampaignCard(props) {
   const [gatewayMethod, setGatewayMethod] = useState('');
   const [gatewayStep, setGatewayStep] = useState(0);
   const [gatewayRefNo, setGatewayRefNo] = useState('');
+  const [duplicateRefWarning, setDuplicateRefWarning] = useState(null);
+  const [railMismatchWarning, setRailMismatchWarning] = useState(null);
+
+  // Real-Time Duplicate Receipt Check Listener for Donor Modal
+  useEffect(() => {
+    const currentRef = (refNumber || gatewayRefNo || '').trim();
+    if (!currentRef && (!receiptBase64 || receiptBase64.length < 100)) {
+      setDuplicateRefWarning(null);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch(`${API_URL}/api/donations/check-duplicate-ref`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ref_no: currentRef, receipt_base64: receiptBase64 })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.isDuplicate) {
+            setDuplicateRefWarning(data.reason || 'This reference number or receipt screenshot has already been recorded on the public ledger.');
+          } else {
+            setDuplicateRefWarning(null);
+          }
+        }
+      } catch (_) {}
+    }, 350);
+
+    return () => clearTimeout(timer);
+  }, [refNumber, gatewayRefNo, receiptBase64]);
+
   const [gatewayMobile, setGatewayMobile] = useState('');
   const [gatewayOtp, setGatewayOtp] = useState(['', '', '', '', '', '']);
   const [gatewayMpin, setGatewayMpin] = useState(['', '', '', '']);
@@ -1760,15 +1793,126 @@ export default function CampaignCard(props) {
     if (file.size > 8 * 1024 * 1024) {
       return showWarning("Receipt image must be under 8MB.", "File Too Large");
     }
+
     const reader = new FileReader();
-    reader.onload = () => {
-      setReceiptBase64(reader.result);
-      showSuccess?.("Receipt screenshot uploaded successfully!", "Receipt Attached");
+    reader.onload = async () => {
+      const b64 = reader.result;
+      setReceiptBase64(b64);
+      setRailMismatchWarning(null);
+
+      // ── Real Pixel OCR with Tesseract.js & Server AI Vision Fallback ───────
+      try {
+        const ocrResult = await Tesseract.recognize(file, 'eng');
+        const text = ocrResult?.data?.text || '';
+
+        // Character Normalization Helper ('O'->'0', 'l'->'1', 'S'->'5', 'b'->'6', 'B'->'8')
+        const normText = text
+          .replace(/[O|o|D|Q]/g, '0')
+          .replace(/[I|l|\||\!]/g, '1')
+          .replace(/Z/g, '2')
+          .replace(/[S|s]/g, '5')
+          .replace(/b/g, '6')
+          .replace(/B/g, '8')
+          .replace(/[g|q]/g, '9');
+
+        // GCash 13-digit & Maya Reference Patterns
+        const refMatch = normText.match(/(?:Ref|Ret|Rel|Reference|No|ID)[\s\.\:\#\-]*([0-9\s]{11,18})/i) ||
+                         normText.match(/\b(\d{4}[\s\.\-]+\d{3}[\s\.\-]+\d{6})\b/) ||
+                         normText.match(/\b(00\d{11}|10\d{11}|\d{13})\b/) ||
+                         normText.match(/\b(\d{4}[\s\-]?\d{9})\b/);
+
+        // Strict Amount Regex: Only match when preceded by explicit Amount/Total/Sent keywords or PHP/₱ with decimals
+        const amtMatch = text.match(/(?:Total\s*Amount\s*Sent|Total\s*Amount|Amount\s*Sent|Amount|Total|Paid)[\s\S]{0,35}?(?:PHP|₱|P)?\s*([\d,]+\.\d{2})/i) ||
+                         text.match(/(?:PHP|₱)\s*([\d,]+\.\d{2})/i);
+
+        let extractedRef = null;
+        if (refMatch) {
+          const rawRef = (refMatch[1] || refMatch[0]).trim().replace(/\s+/g, ' ');
+          const digitsOnly = rawRef.replace(/\D/g, '');
+          // Only auto-fill if reference meets strict length requirements (13 digits for GCash, 10-16 for Maya/Bank)
+          if (digitsOnly.length === 13) {
+            extractedRef = `${digitsOnly.slice(0, 4)} ${digitsOnly.slice(4, 7)} ${digitsOnly.slice(7)}`;
+          } else if (digitsOnly.length >= 10 && digitsOnly.length <= 16) {
+            extractedRef = rawRef;
+          }
+        }
+
+        let extractedAmt = null;
+        if (amtMatch) {
+          const parsed = parseFloat(amtMatch[1].replace(/,/g, ''));
+          // Only auto-fill if parsed amount is reasonable and clear
+          if (!isNaN(parsed) && parsed > 0 && parsed < 10000000) {
+            extractedAmt = parsed;
+          }
+        }
+
+        let detectedRail = null;
+        if (/gcash/i.test(text)) detectedRail = 'GCash';
+        else if (/maya|paymaya/i.test(text)) detectedRail = 'Maya';
+
+        // Backend AI Vision Server Fallback for deeper verification
+        if (b64) {
+          try {
+            const apiRes = await fetch(`${API_URL}/api/donations/check-duplicate-ref`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ receipt_base64: b64, payment_method: gatewayMethod })
+            });
+            if (apiRes.ok) {
+              const apiData = await apiRes.json();
+              // Only override with server AI extracted values if client OCR missed it or server has high confidence
+              if (!extractedRef && apiData.extractedRef && apiData.extractedRef.length >= 10) {
+                extractedRef = apiData.extractedRef;
+              }
+              if (!extractedAmt && apiData.extractedAmountPhp && apiData.extractedAmountPhp > 0) {
+                extractedAmt = apiData.extractedAmountPhp;
+              }
+              if (apiData.detectedRail) detectedRail = apiData.detectedRail;
+            }
+          } catch (_) {}
+        }
+
+        // Rail Mismatch Validation on Donor Modal
+        const currentSelectedRail = (gatewayMethod || '').trim().toLowerCase();
+        if (detectedRail && currentSelectedRail) {
+          if (detectedRail.toLowerCase() !== currentSelectedRail) {
+            setRailMismatchWarning(`🚨 Payment Rail Mismatch: You selected ${gatewayMethod}, but uploaded a ${detectedRail} receipt screenshot! Please upload a valid ${gatewayMethod} slip.`);
+          }
+        }
+
+        // ── Strict Auto-Fill Execution ──────────────────────────────────────────
+        // Only fill Reference Number if AI is 100% confident and valid
+        if (extractedRef) {
+          setRefNumber(extractedRef);
+          setGatewayRefNo(extractedRef);
+        }
+
+        // Only fill Amount if AI detected explicit decimal amount with total/currency keyword
+        if (extractedAmt && extractedAmt > 0) {
+          setAmount(String(extractedAmt));
+        }
+
+        // ── Informative User Toast ──────────────────────────────────────────────
+        if (extractedRef && extractedAmt) {
+          showSuccess?.(`✨ AI Vision Extracted Ref #${extractedRef} & Amount ₱${extractedAmt.toLocaleString()} PHP!`, 'Auto-Filled Details');
+        } else if (extractedRef) {
+          showSuccess?.(`✨ AI Vision Extracted Ref #${extractedRef}! Amount not clearly detected, please enter manually.`, 'Reference Auto-Filled');
+        } else if (extractedAmt) {
+          showSuccess?.(`✨ AI Vision Extracted Amount ₱${extractedAmt.toLocaleString()} PHP! Reference number not clearly detected, please enter manually.`, 'Amount Auto-Filled');
+        } else {
+          showSuccess?.("📸 Receipt image attached! AI could not detect reference number or amount with 100% confidence. Please enter details manually.", "Receipt Attached");
+        }
+
+      } catch (tessErr) {
+        console.warn('Tesseract OCR execution error:', tessErr);
+        showSuccess?.("Receipt screenshot attached successfully! Please verify reference number and amount.", "Receipt Attached");
+      }
     };
     reader.readAsDataURL(file);
   };
 
   const verifyGatewayPayment = async () => {
+    if (duplicateRefWarning) return showWarning(duplicateRefWarning, "Duplicate Receipt Blocked");
     const finalAmount = parseFloat(amount || 0);
     if (!finalAmount || finalAmount <= 0) return showWarning("Please enter a valid amount greater than ₱0.", "Invalid Amount");
     const finalRef = (refNumber || gatewayRefNo || '').trim();
@@ -1797,7 +1941,10 @@ export default function CampaignCard(props) {
         })
       });
 
-      if (!res.ok) throw new Error('Payment verification failed');
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || 'Payment verification failed');
+      }
       const data = await res.json();
       setTxHash(data.tx_hash || finalRef);
 
@@ -3606,7 +3753,9 @@ export default function CampaignCard(props) {
                         setGatewayStep(0);
                         setGatewayMobile('');
                         setGatewayOtp(['', '', '', '', '', '']);
-                        setGatewayRefNo(`GCAS-${Math.floor(Math.random() * 1000000)}`);
+                        setGatewayRefNo('');
+                        setRefNumber('');
+                        setReceiptBase64('');
                         setDonateStep(7);
                       }}
                       className="payment-option-btn"
@@ -3631,7 +3780,9 @@ export default function CampaignCard(props) {
                         setGatewayStep(0);
                         setGatewayMobile('');
                         setGatewayOtp(['', '', '', '', '', '']);
-                        setGatewayRefNo(`MAYA-${Math.floor(Math.random() * 1000000)}`);
+                        setGatewayRefNo('');
+                        setRefNumber('');
+                        setReceiptBase64('');
                         setDonateStep(7);
                       }}
                       className="payment-option-btn"
@@ -4661,204 +4812,273 @@ export default function CampaignCard(props) {
 
                     {/* Right Column: Submission Form (Amount, Ref No., Receipt Upload) */}
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                      {(() => {
+                        const isMaya = gatewayMethod === 'Maya';
+                        const railColor = isMaya ? '#00D68F' : '#007DFE';
+                        const railBgLight = isMaya ? 'rgba(0, 214, 143, 0.12)' : 'rgba(0, 125, 254, 0.12)';
+                        const railBorder = isMaya ? 'rgba(0, 214, 143, 0.35)' : 'rgba(0, 125, 254, 0.35)';
+                        const railGradient = isMaya
+                          ? 'linear-gradient(135deg, #00D68F 0%, #00B377 100%)'
+                          : 'linear-gradient(135deg, #007DFE 0%, #0052FF 100%)';
+                        const railShadow = isMaya
+                          ? '0 4px 16px rgba(0, 214, 143, 0.35)'
+                          : '0 4px 16px rgba(0, 125, 254, 0.35)';
 
-                      <div style={{ background: 'var(--bg-card, rgba(255,255,255,0.02))', padding: '20px', borderRadius: '16px', border: '1px solid var(--border, rgba(255,255,255,0.06))' }}>
+                        return (
+                          <div style={{ background: 'var(--bg-card, rgba(255,255,255,0.02))', padding: '20px', borderRadius: '16px', border: `1.5px solid ${railBorder}` }}>
 
-                        {/* 1. Amount Input */}
-                        <div style={{ marginBottom: '14px' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                            <label style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary, #cbd5e1)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                              1. Donation Amount (PHP)
-                            </label>
-                            <span style={{ fontSize: '0.74rem', color: '#22c55e', fontFamily: 'monospace', fontWeight: 600 }}>
-                              ≈ {((parseFloat(amount || 0)) / 170000).toFixed(6)} ETH
-                            </span>
-                          </div>
+                            {/* 1. Amount Input */}
+                            <div style={{ marginBottom: '14px' }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                                <label style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary, #cbd5e1)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                  1. Donation Amount (PHP)
+                                </label>
+                                <span style={{ fontSize: '0.74rem', color: railColor, fontFamily: 'monospace', fontWeight: 700 }}>
+                                  ≈ {((parseFloat(amount || 0)) / 170000).toFixed(6)} ETH
+                                </span>
+                              </div>
 
-                          <div style={{ position: 'relative' }}>
-                            <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', fontWeight: 800, color: 'var(--text-muted, #94a3b8)', fontSize: '1.1rem' }}>₱</span>
-                            <input
-                              type="number"
-                              className="input"
-                              style={{ width: '100%', paddingLeft: '32px', fontSize: '1.1rem', fontWeight: 800, color: '#22c55e', borderRadius: '10px' }}
-                              value={amount}
-                              onChange={(e) => setAmount(e.target.value)}
-                              placeholder="500"
-                              min="1"
-                            />
-                          </div>
+                              <div style={{ position: 'relative' }}>
+                                <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', fontWeight: 800, color: railColor, fontSize: '1.1rem' }}>₱</span>
+                                <input
+                                  type="number"
+                                  className="input"
+                                  style={{ width: '100%', paddingLeft: '32px', fontSize: '1.1rem', fontWeight: 800, color: railColor, borderRadius: '10px', borderColor: railBorder }}
+                                  value={amount}
+                                  onChange={(e) => setAmount(e.target.value)}
+                                  placeholder="500"
+                                  min="1"
+                                />
+                              </div>
 
-                          {/* Quick Preset Chips */}
-                          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '8px' }}>
-                            {['100', '500', '1000', '2500', '5000'].map((preset) => (
-                              <button
-                                key={preset}
-                                type="button"
-                                className="payment-quick-msg-chip"
-                                style={{
-                                  background: amount === preset ? 'rgba(34, 197, 94, 0.2)' : 'rgba(255,255,255,0.05)',
-                                  borderColor: amount === preset ? '#22c55e' : 'rgba(255,255,255,0.1)',
-                                  color: amount === preset ? '#22c55e' : 'var(--text-secondary, #cbd5e1)',
-                                  fontWeight: 700,
-                                  fontSize: '0.75rem',
-                                  padding: '4px 10px',
-                                  borderRadius: '8px'
-                                }}
-                                onClick={() => setAmount(preset)}
-                              >
-                                ₱{Number(preset).toLocaleString()}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-
-                        {/* 2. Reference Number Input */}
-                        <div style={{ marginBottom: '14px' }}>
-                          <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary, #cbd5e1)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '6px' }}>
-                            2. {gatewayMethod} Reference Number
-                          </label>
-                          <div style={{ position: 'relative' }}>
-                            <span className="material-symbols-outlined" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted, #94a3b8)', fontSize: '18px' }}>
-                              pin
-                            </span>
-                            <input
-                              type="text"
-                              className="input"
-                              style={{ width: '100%', paddingLeft: '38px', fontSize: '0.92rem', fontFamily: 'monospace', fontWeight: 700, borderRadius: '10px' }}
-                              value={refNumber || gatewayRefNo}
-                              onChange={(e) => {
-                                setRefNumber(e.target.value);
-                                setGatewayRefNo(e.target.value);
-                              }}
-                              placeholder="e.g. 9012 3456 7890"
-                            />
-                          </div>
-                        </div>
-
-                        {/* 3. Screenshot / Receipt Upload & Preview */}
-                        <div style={{ marginBottom: '16px' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                            <label style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary, #cbd5e1)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                              3. Payment Screenshot / Proof
-                            </label>
-                            {receiptBase64 && (
-                              <button
-                                type="button"
-                                onClick={() => setReceiptBase64('')}
-                                style={{ background: 'transparent', border: 'none', color: '#ef4444', fontSize: '0.72rem', cursor: 'pointer', fontWeight: 600 }}
-                              >
-                                Remove
-                              </button>
-                            )}
-                          </div>
-
-                          {receiptBase64 ? (
-                            <div style={{ position: 'relative', borderRadius: '12px', overflow: 'hidden', border: '1.5px solid rgba(34, 197, 94, 0.4)', background: 'rgba(0,0,0,0.3)', padding: '8px', textAlign: 'center' }}>
-                              <img
-                                src={receiptBase64}
-                                alt="Payment Proof"
-                                style={{ maxHeight: '140px', maxWidth: '100%', objectFit: 'contain', borderRadius: '8px' }}
-                              />
-                              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', marginTop: '6px', fontSize: '0.72rem', color: '#22c55e', fontWeight: 700 }}>
-                                <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>check_circle</span>
-                                Verified Payment Receipt Attached
+                              {/* Quick Preset Chips */}
+                              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '8px' }}>
+                                {['100', '500', '1000', '2500', '5000'].map((preset) => (
+                                  <button
+                                    key={preset}
+                                    type="button"
+                                    className="payment-quick-msg-chip"
+                                    style={{
+                                      background: amount === preset ? railBgLight : 'rgba(255,255,255,0.05)',
+                                      borderColor: amount === preset ? railColor : 'rgba(255,255,255,0.1)',
+                                      color: amount === preset ? railColor : 'var(--text-secondary, #cbd5e1)',
+                                      fontWeight: 700,
+                                      fontSize: '0.75rem',
+                                      padding: '4px 10px',
+                                      borderRadius: '8px'
+                                    }}
+                                    onClick={() => setAmount(preset)}
+                                  >
+                                    ₱{Number(preset).toLocaleString()}
+                                  </button>
+                                ))}
                               </div>
                             </div>
-                          ) : (
-                            <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '16px', border: '1.5px dashed var(--border, rgba(255,255,255,0.15))', borderRadius: '12px', cursor: 'pointer', background: 'rgba(255,255,255,0.02)', transition: '0.2s' }}>
-                              <span className="material-symbols-outlined" style={{ fontSize: '26px', color: 'var(--text-muted, #94a3b8)', marginBottom: '4px' }}>
-                                add_photo_alternate
-                              </span>
-                              <span style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-primary, #ffffff)' }}>
-                                Upload Receipt Screenshot
-                              </span>
-                              <span style={{ fontSize: '0.68rem', color: 'var(--text-muted, #94a3b8)', marginTop: '2px' }}>
-                                PNG, JPG or WebP (Or click Demo Autofill above)
-                              </span>
-                              <input
-                                type="file"
-                                accept="image/*"
-                                onChange={handleReceiptUpload}
-                                style={{ display: 'none' }}
-                              />
-                            </label>
-                          )}
-                        </div>
 
-                        {/* Anonymous Toggle for GCash & Maya */}
-                        <div
-                          onClick={() => setIsAnonymous(!isAnonymous)}
-                          style={{
-                            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                            padding: '10px 14px', background: isAnonymous ? 'rgba(34, 197, 94, 0.08)' : 'var(--bg-card, rgba(255,255,255,0.02))',
-                            border: `1px solid ${isAnonymous ? 'rgba(34, 197, 94, 0.4)' : 'var(--border, rgba(255,255,255,0.08))'}`,
-                            borderRadius: '12px', cursor: 'pointer', transition: 'all 0.2s ease', userSelect: 'none', marginBottom: '14px'
-                          }}
-                        >
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                            <div style={{
-                              width: '32px', height: '32px', borderRadius: '50%',
-                              background: isAnonymous ? 'rgba(34, 197, 94, 0.15)' : 'rgba(255,255,255,0.05)',
-                              display: 'flex', alignItems: 'center', justifyContent: 'center',
-                              color: isAnonymous ? '#22c55e' : 'var(--text-muted, #94a3b8)',
-                              transition: 'all 0.2s ease'
-                            }}>
-                              <span className="material-symbols-outlined" style={{ fontSize: '1.15rem' }}>visibility_off</span>
+                            {/* 2. Reference Number Input */}
+                            <div style={{ marginBottom: '14px' }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                                <label style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary, #cbd5e1)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                  2. {gatewayMethod} Reference Number
+                                </label>
+                                <span style={{ fontSize: '0.68rem', color: railColor, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                                  <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>auto_awesome</span>
+                                  AI Vision OCR Auto-Fill
+                                </span>
+                              </div>
+                              <div style={{ position: 'relative' }}>
+                                <span className="material-symbols-outlined" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: railColor, fontSize: '18px' }}>
+                                  pin
+                                </span>
+                                <input
+                                  type="text"
+                                  className="input"
+                                  style={{
+                                    width: '100%', paddingLeft: '38px', fontSize: '0.92rem', fontFamily: 'monospace', fontWeight: 700, borderRadius: '10px',
+                                    borderColor: (refNumber || gatewayRefNo) ? railColor : 'var(--border, rgba(255,255,255,0.12))',
+                                    boxShadow: (refNumber || gatewayRefNo) ? `0 0 0 2px ${railBgLight}` : 'none'
+                                  }}
+                                  value={refNumber || gatewayRefNo || ''}
+                                  onChange={(e) => {
+                                    setRefNumber(e.target.value);
+                                    setGatewayRefNo(e.target.value);
+                                  }}
+                                  placeholder={isMaya ? "e.g. 9012 3456 7890" : "e.g. 0044 579 175068"}
+                                />
+                              </div>
                             </div>
-                            <div style={{ display: 'flex', flexDirection: 'column' }}>
-                              <span style={{ fontSize: '0.84rem', fontWeight: '700', color: isAnonymous ? '#22c55e' : 'var(--text-primary, #fff)' }}>
-                                {isAnonymous ? `Anonymous ${gatewayMethod} Donation` : 'Donate Anonymously'}
-                              </span>
-                              <span style={{ fontSize: '0.7rem', color: 'var(--text-muted, #94a3b8)' }}>
-                                {isAnonymous ? 'Mask your account name & details on public ledger' : 'Cloak donor identity on the public transparency ledger'}
-                              </span>
-                            </div>
-                          </div>
-                          <div style={{
-                            width: '38px', height: '20px', borderRadius: '20px',
-                            background: isAnonymous ? '#22c55e' : 'rgba(255,255,255,0.15)',
-                            position: 'relative', transition: '0.2s', flexShrink: 0
-                          }}>
-                            <div style={{
-                              width: '16px', height: '16px', background: '#fff', borderRadius: '50%',
-                              position: 'absolute', top: '2px', left: isAnonymous ? '20px' : '2px',
-                              transition: '0.2s', boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
-                            }} />
-                          </div>
-                        </div>
 
-                        {/* Action Buttons */}
-                        <div style={{ display: 'flex', gap: '10px' }}>
-                          <button
-                            className="btn btn-outline"
-                            style={{ flex: 1 }}
-                            onClick={() => setDonateStep(0)}
-                            disabled={gatewayLoading}
-                          >
-                            Back
-                          </button>
-                          <button
-                            className="btn btn-primary"
-                            style={{ flex: 2, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '0.92rem', padding: '12px' }}
-                            onClick={verifyGatewayPayment}
-                            disabled={gatewayLoading || !amount || parseFloat(amount) <= 0 || (!refNumber && !gatewayRefNo) || !receiptBase64}
-                          >
-                            {gatewayLoading ? (
-                              <>
-                                <div className="spinner" style={{ width: '16px', height: '16px', borderWidth: '2px' }} />
-                                <span>Verifying & Recording...</span>
-                              </>
-                            ) : (
-                              <>
-                                <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>check</span>
-                                <span>Confirm & Submit (₱{Number(amount || 500).toLocaleString()})</span>
-                              </>
+                            {/* 3. Screenshot / Receipt Upload & Preview */}
+                            <div style={{ marginBottom: '16px' }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                                <label style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary, #cbd5e1)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                  3. Payment Screenshot / Proof
+                                </label>
+                                {receiptBase64 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setReceiptBase64('')}
+                                    style={{ background: 'transparent', border: 'none', color: '#ef4444', fontSize: '0.72rem', cursor: 'pointer', fontWeight: 600 }}
+                                  >
+                                    Remove
+                                  </button>
+                                )}
+                              </div>
+
+                              {receiptBase64 ? (
+                                <div style={{ position: 'relative', borderRadius: '12px', overflow: 'hidden', border: `1.5px solid ${railColor}`, background: 'rgba(0,0,0,0.3)', padding: '8px', textAlign: 'center' }}>
+                                  <img
+                                    src={receiptBase64}
+                                    alt="Payment Proof"
+                                    style={{ maxHeight: '140px', maxWidth: '100%', objectFit: 'contain', borderRadius: '8px' }}
+                                  />
+                                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', marginTop: '6px', fontSize: '0.72rem', color: railColor, fontWeight: 700 }}>
+                                    <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>check_circle</span>
+                                    Verified Payment Receipt Attached
+                                  </div>
+                                </div>
+                              ) : (
+                                <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '16px', border: `1.5px dashed ${railBorder}`, borderRadius: '12px', cursor: 'pointer', background: railBgLight, transition: '0.2s' }}>
+                                  <span className="material-symbols-outlined" style={{ fontSize: '26px', color: railColor, marginBottom: '4px' }}>
+                                    add_photo_alternate
+                                  </span>
+                                  <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-primary, #ffffff)' }}>
+                                    Upload Receipt Screenshot
+                                  </span>
+                                  <span style={{ fontSize: '0.68rem', color: 'var(--text-muted, #94a3b8)', marginTop: '2px' }}>
+                                    PNG, JPG or WebP (Or click Demo Autofill above)
+                                  </span>
+                                  <input
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={handleReceiptUpload}
+                                    style={{ display: 'none' }}
+                                  />
+                                </label>
+                              )}
+                            </div>
+
+                            {/* Anonymous Toggle for GCash & Maya */}
+                            <div
+                              onClick={() => setIsAnonymous(!isAnonymous)}
+                              style={{
+                                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                                padding: '10px 14px', background: isAnonymous ? railBgLight : 'var(--bg-card, rgba(255,255,255,0.02))',
+                                border: `1px solid ${isAnonymous ? railColor : 'var(--border, rgba(255,255,255,0.08))'}`,
+                                borderRadius: '12px', cursor: 'pointer', transition: 'all 0.2s ease', userSelect: 'none', marginBottom: '14px'
+                              }}
+                            >
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                <div style={{
+                                  width: '32px', height: '32px', borderRadius: '50%',
+                                  background: isAnonymous ? railBgLight : 'rgba(255,255,255,0.05)',
+                                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                  color: isAnonymous ? railColor : 'var(--text-muted, #94a3b8)',
+                                  transition: 'all 0.2s ease'
+                                }}>
+                                  <span className="material-symbols-outlined" style={{ fontSize: '1.15rem' }}>visibility_off</span>
+                                </div>
+                                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                  <span style={{ fontSize: '0.84rem', fontWeight: '700', color: isAnonymous ? railColor : 'var(--text-primary, #fff)' }}>
+                                    {isAnonymous ? `Anonymous ${gatewayMethod} Donation` : 'Donate Anonymously'}
+                                  </span>
+                                  <span style={{ fontSize: '0.7rem', color: 'var(--text-muted, #94a3b8)' }}>
+                                    {isAnonymous ? 'Mask your account name & details on public ledger' : 'Cloak donor identity on the public transparency ledger'}
+                                  </span>
+                                </div>
+                              </div>
+                              <div style={{
+                                width: '38px', height: '20px', borderRadius: '20px',
+                                background: isAnonymous ? railColor : 'rgba(255,255,255,0.15)',
+                                position: 'relative', transition: '0.2s', flexShrink: 0
+                              }}>
+                                <div style={{
+                                  width: '16px', height: '16px', background: '#fff', borderRadius: '50%',
+                                  position: 'absolute', top: '2px', left: isAnonymous ? '20px' : '2px',
+                                  transition: '0.2s', boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                                }} />
+                              </div>
+                            </div>
+
+                            {/* Payment Rail Mismatch Alert Banner */}
+                            {railMismatchWarning && (
+                              <div style={{
+                                background: 'rgba(239, 68, 68, 0.15)',
+                                border: '1.5px solid rgba(239, 68, 68, 0.5)',
+                                borderRadius: '10px',
+                                padding: '10px 14px',
+                                marginBottom: '14px',
+                                color: '#fca5a5',
+                                fontSize: '0.8rem',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '8px'
+                              }}>
+                                <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#ef4444', flexShrink: 0 }}>published_with_changes</span>
+                                <span><strong>Rail Discrepancy Alert:</strong> {railMismatchWarning}</span>
+                              </div>
                             )}
-                          </button>
-                        </div>
 
-                      </div>
+                            {/* Duplicate Receipt Alert Banner */}
+                            {duplicateRefWarning && (
+                              <div style={{
+                                background: 'rgba(239, 68, 68, 0.12)',
+                                border: '1px solid rgba(239, 68, 68, 0.4)',
+                                borderRadius: '10px',
+                                padding: '10px 14px',
+                                marginBottom: '14px',
+                                color: '#ef4444',
+                                fontSize: '0.8rem',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '8px'
+                              }}>
+                                <span className="material-symbols-outlined" style={{ fontSize: '18px', flexShrink: 0 }}>warning</span>
+                                <span><strong>Duplicate Receipt Alert:</strong> {duplicateRefWarning}</span>
+                              </div>
+                            )}
 
+                            {/* Action Buttons */}
+                            <div style={{ display: 'flex', gap: '10px' }}>
+                              <button
+                                className="btn btn-outline"
+                                style={{ flex: 1 }}
+                                onClick={() => setDonateStep(0)}
+                                disabled={gatewayLoading}
+                              >
+                                Back
+                              </button>
+                              <button
+                                className="btn"
+                                style={{
+                                  flex: 2, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '0.92rem', padding: '12px',
+                                  background: (duplicateRefWarning || railMismatchWarning) ? 'rgba(239, 68, 68, 0.2)' : railGradient,
+                                  color: (duplicateRefWarning || railMismatchWarning) ? '#ef4444' : (isMaya ? '#000000' : '#ffffff'),
+                                  fontWeight: 800, borderRadius: '10px', border: (duplicateRefWarning || railMismatchWarning) ? '1px solid #ef4444' : 'none',
+                                  boxShadow: (duplicateRefWarning || railMismatchWarning) ? 'none' : railShadow,
+                                  cursor: (gatewayLoading || !amount || parseFloat(amount) <= 0 || (!refNumber && !gatewayRefNo) || !receiptBase64 || Boolean(duplicateRefWarning) || Boolean(railMismatchWarning)) ? 'not-allowed' : 'pointer',
+                                  opacity: (gatewayLoading || !amount || parseFloat(amount) <= 0 || (!refNumber && !gatewayRefNo) || !receiptBase64 || Boolean(duplicateRefWarning) || Boolean(railMismatchWarning)) ? 0.6 : 1
+                                }}
+                                onClick={verifyGatewayPayment}
+                                disabled={gatewayLoading || !amount || parseFloat(amount) <= 0 || (!refNumber && !gatewayRefNo) || !receiptBase64 || Boolean(duplicateRefWarning) || Boolean(railMismatchWarning)}
+                              >
+                                {gatewayLoading ? (
+                                  <>
+                                    <div className="spinner" style={{ width: '16px', height: '16px', borderWidth: '2px', borderColor: '#ffffff', borderTopColor: 'transparent' }} />
+                                    <span>Verifying & Recording...</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>{(duplicateRefWarning || railMismatchWarning) ? 'block' : 'check'}</span>
+                                    <span>{duplicateRefWarning ? 'Duplicate Receipt Blocked' : (railMismatchWarning ? 'Rail Mismatch Blocked' : `Confirm & Submit (₱${Number(amount || 500).toLocaleString()})`)}</span>
+                                  </>
+                                )}
+                              </button>
+                            </div>
+
+                          </div>
+                        );
+                      })()}
                     </div>
 
                   </div>

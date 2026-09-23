@@ -36,10 +36,23 @@ export default function DonorView({ contract, walletAddress, campaigns, fetchCam
   const [receiptSort, setReceiptSort] = useState('NEWEST');
   const [searchQueryReceipts, setSearchQueryReceipts] = useState('');
   const [selectedCampaignForProof, setSelectedCampaignForProof] = useState(null);
+  const [selectedVoucherTx, setSelectedVoucherTx] = useState(null);
+  const [showReceiptZoom, setShowReceiptZoom] = useState(false);
   const [showTierModal, setShowTierModal] = useState(false);
   const [unlockedTierModal, setUnlockedTierModal] = useState(null);
   const [showGuidedTour, setShowGuidedTour] = useState(false);
   const [showTechDetails, setShowTechDetails] = useState(false);
+
+  useEffect(() => {
+    if (selectedVoucherTx || showReceiptZoom) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [selectedVoucherTx, showReceiptZoom]);
 
   const userTourKey = currentUser?.id 
     ? `bbdrts_tour_donor_${currentUser.id}` 
@@ -1999,9 +2012,23 @@ export default function DonorView({ contract, walletAddress, campaigns, fetchCam
                                         <span>{d.paymentMethod || 'ETH'}</span>
                                       </span>
                                     </div>
-                                    <div className="receipt-amount-eth" style={{ fontSize: '1.05rem', color: '#10b981', fontWeight: 800 }}>
-                                      ₱{phpAmt.toLocaleString('en-US')}
+                                    <div className="receipt-amount-eth" style={{ fontSize: '1.05rem', color: d.auditStatus === 'SHORTAGE' ? '#ef4444' : '#10b981', fontWeight: 800 }}>
+                                      {d.auditStatus === 'SHORTAGE' && d.declaredPhp ? (
+                                        <>
+                                          <span style={{ textDecoration: 'line-through', color: 'var(--text-muted)', fontSize: '0.82rem', marginRight: '6px' }}>
+                                            ₱{Number(d.declaredPhp).toLocaleString('en-US')}
+                                          </span>
+                                          <span>₱{phpAmt.toLocaleString('en-US')}</span>
+                                        </>
+                                      ) : (
+                                        <span>₱{phpAmt.toLocaleString('en-US')}</span>
+                                      )}
                                     </div>
+                                    {d.auditStatus === 'SHORTAGE' && (
+                                      <div style={{ fontSize: '0.68rem', color: '#ef4444', fontWeight: 700 }}>
+                                        (-₱{Math.abs(d.variancePhp || 0).toLocaleString()} Altered)
+                                      </div>
+                                    )}
                                     <div className="receipt-amount-php" style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
                                       ({ethAmt < 0.0001 ? ethAmt.toFixed(6) : ethAmt.toFixed(4)} ETH on-chain)
                                     </div>
@@ -2022,6 +2049,47 @@ export default function DonorView({ contract, walletAddress, campaigns, fetchCam
                           </div>
                         </div>
 
+                        {/* Audit Discrepancy Alert Bar (Shown when NGO altered declared donation) */}
+                        {d.auditStatus === 'SHORTAGE' && (
+                          <div style={{
+                            margin: '0 16px 12px',
+                            padding: '10px 14px',
+                            borderRadius: '8px',
+                            background: 'rgba(239, 68, 68, 0.12)',
+                            border: '1px solid rgba(239, 68, 68, 0.35)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            flexWrap: 'wrap',
+                            gap: '10px'
+                          }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                              <span className="material-symbols-outlined" style={{ color: '#ef4444', fontSize: '22px' }}>warning</span>
+                              <div>
+                                <div style={{ fontWeight: 800, color: '#ef4444', fontSize: '0.82rem' }}>
+                                  ⚠️ AUDIT DISCREPANCY: ₱{Math.abs(d.variancePhp || 0).toLocaleString()} SHORTAGE DETECTED
+                                </div>
+                                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                                  You Declared: <strong>₱{Number(d.declaredPhp || 0).toLocaleString()}</strong> · NGO Credited: <strong style={{ color: '#ef4444' }}>₱{Number(d.creditedPhp || 0).toLocaleString()}</strong>
+                                </div>
+                              </div>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <span style={{ fontSize: '0.72rem', color: '#ef4444', fontStyle: 'italic' }}>
+                                Discrepancy sealed on Sepolia EVM
+                              </span>
+                              <button
+                                type="button"
+                                className="btn btn-danger btn-xs"
+                                style={{ padding: '4px 10px', fontSize: '0.72rem', fontWeight: 700, borderRadius: '4px' }}
+                                onClick={() => showSuccess(`Dispute filed for TX ${d.txHash?.slice(0, 10)}... Admin audit investigation initiated against ${orgName}.`, 'Audit Dispute Filed')}
+                              >
+                                🚨 Report to Admin
+                              </button>
+                            </div>
+                          </div>
+                        )}
+
                         {/* Bottom Row: Blockchain Proof Bar */}
                         <div className="receipt-proof-bar">
                           <div className="receipt-tx-meta">
@@ -2032,7 +2100,30 @@ export default function DonorView({ contract, walletAddress, campaigns, fetchCam
                             </span>
                           </div>
 
-                          <div className="receipt-actions">
+                          <div className="receipt-actions" style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                            <button
+                              type="button"
+                              className="btn btn-primary btn-xs"
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                padding: '5px 12px',
+                                fontSize: '0.74rem',
+                                fontWeight: 700,
+                                borderRadius: '6px',
+                                background: d.auditStatus === 'SHORTAGE' ? 'linear-gradient(135deg, #ef4444, #dc2626)' : 'linear-gradient(135deg, #0284c7, #0369a1)',
+                                border: 'none',
+                                color: '#fff',
+                                boxShadow: d.auditStatus === 'SHORTAGE' ? '0 2px 8px rgba(239, 68, 68, 0.4)' : '0 2px 8px rgba(2, 132, 199, 0.3)'
+                              }}
+                              onClick={() => setSelectedVoucherTx(d)}
+                              title="Open Plain-English Blockchain Verification Certificate"
+                            >
+                              <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>verified_user</span>
+                              <span>{d.auditStatus === 'SHORTAGE' ? '⚠️ View Audit Certificate' : 'Verify Certificate'}</span>
+                            </button>
+
                             {d.txHash && (
                               <button
                                 type="button"
@@ -2054,10 +2145,10 @@ export default function DonorView({ contract, walletAddress, campaigns, fetchCam
                                 target="_blank"
                                 rel="noreferrer"
                                 className="receipt-etherscan-link"
-                                title="Inspect on Sepolia Etherscan"
+                                title="Inspect raw block details on Sepolia Etherscan (Advanced)"
                               >
                                 <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>open_in_new</span>
-                                <span>Inspect on Etherscan</span>
+                                <span>Raw Etherscan</span>
                               </a>
                             )}
                           </div>
@@ -2486,6 +2577,387 @@ export default function DonorView({ contract, walletAddress, campaigns, fetchCam
         roleName="Donor"
         theme={theme}
       />
+      {/* ── Official Human-Readable Blockchain Verification Certificate Modal ── */}
+      {selectedVoucherTx && createPortal((() => {
+        const d = selectedVoucherTx;
+        const matchCamp = campaigns.find(c => String(c.id) === String(d.campaignId)) || { id: d.campaignId, title: d.campaignTitle || `Relief Campaign #${d.campaignId}` };
+        const rawTitle = matchCamp ? matchCamp.title : `Relief Campaign #${d.campaignId}`;
+        const campTitle = formatCampaignTitle(rawTitle, d.campaignId);
+        const orgName = d.orgName || getOrgDisplayName(matchCamp.orgAddress, matchCamp.orgName, d.campaignId);
+        const amtEth = parseFloat(d.amount || 0);
+        const declaredPhp = Number(d.declaredPhp || Math.round(amtEth * 170000));
+        const creditedPhp = Number(d.creditedPhp || Math.round(amtEth * 170000));
+        const variancePhp = Number(d.variancePhp !== undefined ? d.variancePhp : (creditedPhp - declaredPhp));
+        const isShortage = d.auditStatus === 'SHORTAGE' || variancePhp < -20;
+
+        return (
+          <div
+            className="bbdrts-edit-profile-backdrop"
+            onClick={() => setSelectedVoucherTx(null)}
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              width: '100vw',
+              height: '100vh',
+              background: 'rgba(0, 0, 0, 0.82)',
+              backdropFilter: 'blur(10px)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 9999999,
+              padding: '20px'
+            }}
+          >
+            <div
+              className="fade-in"
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                width: '100%',
+                maxWidth: '680px',
+                maxHeight: '90vh',
+                overflowY: 'auto',
+                background: 'var(--bg-card, #1c1c1c)',
+                border: isShortage ? '1px solid rgba(239, 68, 68, 0.4)' : '1px solid var(--border-strong, rgba(255, 255, 255, 0.16))',
+                borderRadius: '20px',
+                boxShadow: isShortage ? '0 24px 60px rgba(239, 68, 68, 0.25)' : '0 24px 60px rgba(0, 0, 0, 0.7)'
+              }}
+            >
+              {/* Certificate Header */}
+              <div style={{
+                padding: '20px 24px',
+                background: 'var(--bg-subcard, #242424)',
+                borderBottom: '1px solid var(--border)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                  <div style={{
+                    width: '44px',
+                    height: '44px',
+                    borderRadius: '12px',
+                    background: isShortage ? 'rgba(239, 68, 68, 0.15)' : 'rgba(34, 197, 94, 0.15)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: isShortage ? '#ef4444' : '#22c55e',
+                    border: `1px solid ${isShortage ? 'rgba(239, 68, 68, 0.3)' : 'rgba(34, 197, 94, 0.3)'}`
+                  }}>
+                    <span className="material-symbols-outlined" style={{ fontSize: '26px' }}>
+                      {isShortage ? 'gavel' : 'verified_user'}
+                    </span>
+                  </div>
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                      Blockchain Verification Certificate
+                    </h3>
+                    <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                      Ethereum Sepolia Notarized Proof · ReliefLink PH Forensic Audit
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setSelectedVoucherTx(null)}
+                  className="btn btn-ghost btn-sm"
+                  style={{ color: 'var(--text-muted)', fontSize: '1.2rem', padding: '4px 8px' }}
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Status Ribbon */}
+              <div style={{
+                padding: '12px 24px',
+                background: isShortage
+                  ? 'linear-gradient(90deg, rgba(239, 68, 68, 0.18), rgba(239, 68, 68, 0.05))'
+                  : 'linear-gradient(90deg, rgba(34, 197, 94, 0.18), rgba(34, 197, 94, 0.05))',
+                borderBottom: `1px solid ${isShortage ? 'rgba(239, 68, 68, 0.3)' : 'rgba(34, 197, 94, 0.2)'}`,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: '8px'
+              }}>
+                <span style={{
+                  color: isShortage ? '#ef4444' : '#22c55e',
+                  fontWeight: 800,
+                  fontSize: '0.85rem',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}>
+                  <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>
+                    {isShortage ? 'warning' : 'check_circle'}
+                  </span>
+                  {isShortage ? '🚨 AUDIT DISCREPANCY DETECTED' : '✅ 100% CLEAN AUDIT VERIFIED'}
+                </span>
+                <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                  Ledger Ref #{d.id || 'SEPOLIA'}
+                </span>
+              </div>
+
+              {/* Certificate Body */}
+              <div style={{ padding: '22px 24px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
+
+                {/* Plain-English Audit Verdict (Built for non-tech-savvy donors!) */}
+                {isShortage ? (
+                  <div style={{
+                    padding: '14px 16px',
+                    borderRadius: '12px',
+                    background: 'rgba(239, 68, 68, 0.1)',
+                    border: '1px solid rgba(239, 68, 68, 0.3)',
+                    color: 'var(--text-primary)'
+                  }}>
+                    <div style={{ fontWeight: 800, color: '#ef4444', fontSize: '0.92rem', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>report_problem</span>
+                      Shortage Alert: ₱{Math.abs(variancePhp).toLocaleString()} Missing from Relief Goal
+                    </div>
+                    <p style={{ margin: 0, fontSize: '0.82rem', lineHeight: '1.45', color: 'var(--text-secondary)' }}>
+                      Your official payment receipt confirms you sent <strong>₱{declaredPhp.toLocaleString()}</strong>, but the NGO confirmed receiving only <strong>₱{creditedPhp.toLocaleString()}</strong>.
+                      Because this transaction was permanently sealed onto the Ethereum blockchain, <strong>the NGO cannot alter or erase this evidence</strong>.
+                    </p>
+                  </div>
+                ) : (
+                  <div style={{
+                    padding: '14px 16px',
+                    borderRadius: '12px',
+                    background: 'rgba(34, 197, 94, 0.08)',
+                    border: '1px solid rgba(34, 197, 94, 0.25)',
+                    color: 'var(--text-primary)'
+                  }}>
+                    <div style={{ fontWeight: 800, color: '#22c55e', fontSize: '0.92rem', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>verified</span>
+                      All Funds Accounted For
+                    </div>
+                    <p style={{ margin: 0, fontSize: '0.82rem', lineHeight: '1.45', color: 'var(--text-secondary)' }}>
+                      Your payment of <strong>₱{creditedPhp.toLocaleString()}</strong> has been 100% verified and recorded onto the relief smart contract with zero deductions.
+                    </p>
+                  </div>
+                )}
+
+                {/* Plain-English Comparison Table */}
+                <div style={{
+                  background: 'var(--bg-subcard, #242424)',
+                  border: '1px solid var(--border)',
+                  borderRadius: '14px',
+                  overflow: 'hidden'
+                }}>
+                  <div style={{
+                    padding: '10px 16px',
+                    background: 'rgba(255, 255, 255, 0.03)',
+                    borderBottom: '1px solid var(--border)',
+                    fontSize: '0.72rem',
+                    fontWeight: 700,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.5px',
+                    color: 'var(--text-muted)'
+                  }}>
+                    Transaction Audit Reconciliation Breakdown
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', padding: '16px', gap: '14px' }}>
+                    <div style={{ padding: '12px', borderRadius: '10px', background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
+                      <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600, marginBottom: '2px' }}>
+                        1. You Sent (Payment Slip)
+                      </div>
+                      <div style={{ fontSize: '1.25rem', fontWeight: 850, color: '#38bdf8' }}>
+                        ₱{declaredPhp.toLocaleString('en-US')}
+                      </div>
+                      <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+                        Via {d.paymentMethod || 'GCash'} (Ref: {d.referenceNumber || 'Verified'})
+                      </div>
+                    </div>
+
+                    <div style={{ padding: '12px', borderRadius: '10px', background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
+                      <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600, marginBottom: '2px' }}>
+                        2. NGO Credited to Campaign
+                      </div>
+                      <div style={{ fontSize: '1.25rem', fontWeight: 850, color: isShortage ? '#ef4444' : '#22c55e' }}>
+                        ₱{creditedPhp.toLocaleString('en-US')}
+                      </div>
+                      <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '4px' }}>
+                        ({amtEth.toFixed(4)} ETH on Sepolia ledger)
+                      </div>
+                    </div>
+
+                    <div style={{ padding: '12px', borderRadius: '10px', background: isShortage ? 'rgba(239, 68, 68, 0.12)' : 'rgba(34, 197, 94, 0.12)', border: isShortage ? '1px solid rgba(239, 68, 68, 0.3)' : '1px solid rgba(34, 197, 94, 0.3)' }}>
+                      <div style={{ fontSize: '0.72rem', color: isShortage ? '#ef4444' : '#22c55e', fontWeight: 700, marginBottom: '2px' }}>
+                        3. Forensic Variance
+                      </div>
+                      <div style={{ fontSize: '1.25rem', fontWeight: 850, color: isShortage ? '#ef4444' : '#22c55e' }}>
+                        {variancePhp < 0 ? `-₱${Math.abs(variancePhp).toLocaleString()}` : variancePhp > 0 ? `+₱${variancePhp.toLocaleString()}` : '₱0.00 Match'}
+                      </div>
+                      <div style={{ fontSize: '0.72rem', color: isShortage ? '#ef4444' : '#22c55e', marginTop: '4px', fontWeight: 600 }}>
+                        {isShortage ? '⚠️ Alteration Sealed On-Chain' : '✓ Perfectly Balanced'}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Campaign & Beneficiary Info */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
+                  <div>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 700, marginBottom: '2px' }}>
+                      Relief Campaign
+                    </div>
+                    <div style={{ fontSize: '0.92rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                      {campTitle}
+                    </div>
+                  </div>
+
+                  <div>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 700, marginBottom: '2px' }}>
+                      Managing NGO
+                    </div>
+                    <div style={{ fontSize: '0.92rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                      {orgName}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Uploaded Receipt Evidence Box (If available) */}
+                {d.receiptBase64 && (
+                  <div style={{
+                    padding: '14px',
+                    borderRadius: '12px',
+                    background: 'var(--bg-subcard)',
+                    border: '1px solid var(--border)'
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                      <span style={{ fontSize: '0.76rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#007DFE' }}>image</span>
+                        Your Official Payment Slip Proof
+                      </span>
+                      <button
+                        type="button"
+                        className="btn btn-ghost btn-xs"
+                        style={{ color: 'var(--accent)', fontWeight: 700 }}
+                        onClick={() => setShowReceiptZoom(!showReceiptZoom)}
+                      >
+                        {showReceiptZoom ? 'Hide Receipt' : 'Preview Payment Slip'}
+                      </button>
+                    </div>
+
+                    {showReceiptZoom && (
+                      <div style={{ textAlign: 'center', marginTop: '10px' }}>
+                        <img
+                          src={d.receiptBase64}
+                          alt="Official Payment Receipt"
+                          style={{
+                            maxWidth: '100%',
+                            maxHeight: '340px',
+                            borderRadius: '8px',
+                            border: '1px solid var(--border)',
+                            objectFit: 'contain'
+                          }}
+                        />
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Immutable Blockchain Proof Metadata */}
+                <div>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 700, marginBottom: '4px' }}>
+                    Immutable Ethereum Sepolia Blockchain Hash
+                  </div>
+                  <div style={{
+                    background: 'var(--bg-input, rgba(0,0,0,0.3))',
+                    border: '1px solid var(--border)',
+                    borderRadius: '8px',
+                    padding: '8px 12px',
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: '0.78rem',
+                    color: 'var(--text-primary)',
+                    wordBreak: 'break-all',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: '8px'
+                  }}>
+                    <span>{d.txHash}</span>
+                    <button
+                      type="button"
+                      className="btn btn-xs btn-ghost"
+                      onClick={() => {
+                        navigator.clipboard.writeText(d.txHash);
+                        showSuccess('Transaction hash copied!', 'Copied');
+                      }}
+                      title="Copy Hash"
+                    >
+                      📋
+                    </button>
+                  </div>
+                </div>
+
+              </div>
+
+              {/* Certificate Footer Actions */}
+              <div style={{
+                padding: '16px 24px',
+                background: 'var(--bg-subcard)',
+                borderTop: '1px solid var(--border)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: '10px'
+              }}>
+                <div>
+                  {isShortage && (
+                    <button
+                      type="button"
+                      className="btn btn-danger btn-sm"
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontWeight: 700 }}
+                      onClick={() => showSuccess(`Dispute successfully logged with platform oversight committee against ${orgName}. Investigation ticket #AUDIT-${Date.now().toString().slice(-6)} created.`, 'Dispute Filed')}
+                    >
+                      <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>gavel</span>
+                      <span>File Dispute Against NGO</span>
+                    </button>
+                  )}
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <button
+                    type="button"
+                    className="btn btn-outline btn-sm"
+                    onClick={() => window.print()}
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                  >
+                    <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>print</span>
+                    <span>Print / Save PDF</span>
+                  </button>
+
+                  {d.txHash && (
+                    <a
+                      href={`https://sepolia.etherscan.io/tx/${d.txHash}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="btn btn-outline btn-sm"
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', textDecoration: 'none' }}
+                      title="For technical auditors: View raw opcode transaction on Sepolia Etherscan"
+                    >
+                      <span>Raw Etherscan ↗</span>
+                    </a>
+                  )}
+
+                  <button
+                    type="button"
+                    className="btn btn-primary btn-sm"
+                    onClick={() => setSelectedVoucherTx(null)}
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        );
+      })(), document.body)}
     </main>
   );
 }

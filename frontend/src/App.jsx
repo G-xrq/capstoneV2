@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { ethers } from 'ethers';
-import { connectWallet, hydrateContract } from './web3Connection';
+import { connectWallet, hydrateContract, getReadOnlyContract } from './web3Connection';
 import { ROLES, ROLE_META } from './roleConfig';
 import LandingView from './views/LandingView';
 import AuthView from './views/AuthView';
@@ -132,7 +132,7 @@ export default function App() {
         setActiveContract(null);
       } else {
         try {
-          const { contract } = await connectWallet();
+          const contract = await hydrateContract();
           contractRef.current = contract;
           setActiveContract(contract);
           setWalletAddress(accounts[0]);
@@ -429,7 +429,7 @@ export default function App() {
         console.warn('Failed to load local campaign cache:', e);
       }
 
-      const contract = contractOverride || contractRef.current;
+      const contract = contractOverride || contractRef.current || getReadOnlyContract();
       if (contract && dbCampaigns.length > 0) {
         try {
           const count = Number(await contract.campaignCount());

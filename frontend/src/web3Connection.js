@@ -70,12 +70,20 @@ export const connectWallet = async (forcePrompt = false) => {
     }
 };
 
-// ── Silent Contract Hydration ──────────────────────────────
+// ── Silent Contract Hydration (Never prompts MetaMask) ─────────
 export const hydrateContract = async () => {
-    if (!window.ethereum) return null;
-    const provider = new ethers.BrowserProvider(window.ethereum);
-    const signer = await provider.getSigner();
-    return new ethers.Contract(contractAddress, contractABI, signer);
+    if (!window.ethereum) return getReadOnlyContract();
+    try {
+        const accounts = await window.ethereum.request({ method: "eth_accounts" });
+        if (accounts && accounts.length > 0) {
+            const provider = new ethers.BrowserProvider(window.ethereum);
+            const signer = await provider.getSigner();
+            return new ethers.Contract(contractAddress, contractABI, signer);
+        }
+    } catch (e) {
+        console.warn("Silent contract hydration fallback:", e);
+    }
+    return getReadOnlyContract();
 };
 
 // ── Read-only contract (no MetaMask required) ──────────────
