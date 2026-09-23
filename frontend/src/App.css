@@ -6171,6 +6171,572 @@ input:-webkit-autofill:active {
   font-size: 15px;
 }
 
+/* ============================================================
+   Blockchain Verification Certificate Modal Styles
+   Unified BBDRTS Design System Tokens (Dark & Light Adaptive)
+   ============================================================ */
+.cert-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.82);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999999;
+  padding: 20px;
+}
+
+.cert-modal-card {
+  width: 100%;
+  max-width: 720px;
+  max-height: 90vh;
+  overflow-y: auto;
+  background: var(--bg-card);
+  border: 1px solid var(--border-strong);
+  border-radius: 20px;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.65), 0 0 30px var(--accent-glow);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  transition: all 0.2s ease;
+}
+
+.cert-modal-card.is-shortage {
+  border-color: rgba(239, 68, 68, 0.4);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.65), 0 0 30px rgba(239, 68, 68, 0.2);
+}
+
+/* Header */
+.cert-header {
+  padding: 20px 24px;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border-top-left-radius: 20px;
+  border-top-right-radius: 20px;
+}
+
+.cert-header-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.cert-seal-icon-box {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  background: var(--accent-dim);
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 16px var(--accent-glow);
+  flex-shrink: 0;
+}
+
+.cert-seal-icon-box.is-shortage {
+  background: rgba(239, 68, 68, 0.12);
+  border-color: var(--danger);
+  color: var(--danger);
+  box-shadow: 0 0 16px rgba(239, 68, 68, 0.25);
+}
+
+.cert-seal-icon-box .material-symbols-outlined {
+  font-size: 28px;
+}
+
+.cert-title-group h3 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  letter-spacing: -0.01em;
+}
+
+.cert-title-group .cert-subtitle {
+  font-size: 0.76rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.cert-close-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: var(--bg-subcard);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-size: 18px;
+}
+
+.cert-close-btn:hover {
+  background: var(--bg-card-hover);
+  color: var(--text-primary);
+  border-color: var(--border-strong);
+}
+
+/* Status Ribbon */
+.cert-status-ribbon {
+  padding: 10px 24px;
+  background: linear-gradient(90deg, var(--accent-dim) 0%, transparent 100%);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.cert-status-ribbon.is-shortage {
+  background: linear-gradient(90deg, rgba(239, 68, 68, 0.14) 0%, transparent 100%);
+  border-bottom-color: rgba(239, 68, 68, 0.25);
+}
+
+.cert-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8rem;
+  font-weight: 750;
+  color: var(--accent);
+  letter-spacing: 0.2px;
+}
+
+.cert-status-badge.is-shortage {
+  color: var(--danger);
+}
+
+.cert-status-badge .cert-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 8px var(--accent-glow);
+}
+
+.cert-status-badge.is-shortage .cert-status-dot {
+  background: var(--danger);
+  box-shadow: 0 0 8px rgba(239, 68, 68, 0.6);
+}
+
+.cert-ledger-id {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+/* Body Content */
+.cert-body {
+  padding: 22px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+/* Forensic Verdict Callout */
+.cert-verdict-banner {
+  padding: 14px 18px;
+  border-radius: 12px;
+  background: var(--bg-subcard);
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--accent);
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+}
+
+.cert-verdict-banner.is-shortage {
+  background: rgba(239, 68, 68, 0.08);
+  border-color: rgba(239, 68, 68, 0.25);
+  border-left-color: var(--danger);
+}
+
+.cert-verdict-banner .verdict-icon {
+  font-size: 22px;
+  color: var(--accent);
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.cert-verdict-banner.is-shortage .verdict-icon {
+  color: var(--danger);
+}
+
+.cert-verdict-title {
+  font-weight: 750;
+  font-size: 0.92rem;
+  color: var(--text-primary);
+  margin-bottom: 3px;
+}
+
+.cert-verdict-banner.is-shortage .cert-verdict-title {
+  color: var(--danger);
+}
+
+.cert-verdict-desc {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  line-height: 1.45;
+  margin: 0;
+}
+
+/* Reconciliation Pipeline */
+.cert-pipeline-box {
+  background: var(--bg-subcard);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.cert-pipeline-header {
+  padding: 10px 18px;
+  background: rgba(255, 255, 255, 0.02);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.cert-pipeline-grid {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr auto 1fr;
+  align-items: center;
+  padding: 16px 18px;
+  gap: 12px;
+}
+
+@media (max-width: 680px) {
+  .cert-pipeline-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  .cert-flow-arrow {
+    display: none;
+  }
+}
+
+.cert-pipe-card {
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  transition: all 0.15s ease;
+}
+
+.cert-pipe-card:hover {
+  border-color: var(--border-strong);
+}
+
+.cert-pipe-card.variance-card {
+  background: var(--accent-dim);
+  border-color: var(--accent);
+}
+
+.cert-pipe-card.variance-card.is-shortage {
+  background: rgba(239, 68, 68, 0.12);
+  border-color: var(--danger);
+}
+
+.cert-pipe-label {
+  font-size: 0.72rem;
+  font-weight: 650;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cert-pipe-amount {
+  font-size: 1.35rem;
+  font-weight: 850;
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
+  margin: 2px 0;
+}
+
+.cert-pipe-amount.accent-amount {
+  color: var(--accent);
+}
+
+.cert-pipe-amount.danger-amount {
+  color: var(--danger);
+}
+
+.cert-pipe-sub {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cert-pipe-sub.accent-sub {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.cert-pipe-sub.danger-sub {
+  color: var(--danger);
+  font-weight: 600;
+}
+
+.cert-flow-arrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--border-strong);
+  font-size: 18px;
+}
+
+/* Metadata Grid */
+.cert-meta-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+@media (max-width: 560px) {
+  .cert-meta-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.cert-meta-card {
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: var(--bg-subcard);
+  border: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cert-meta-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.cert-meta-value {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cert-meta-value .org-badge-icon {
+  font-size: 15px;
+  color: var(--accent);
+}
+
+/* Cryptographic Blockchain Proof */
+.cert-crypto-card {
+  padding: 14px 18px;
+  border-radius: 12px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cert-crypto-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.72rem;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.cert-crypto-title {
+  font-weight: 750;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.cert-crypto-net-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: var(--accent-dim);
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+.cert-crypto-hash-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 12px;
+}
+
+.cert-crypto-hash-code {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--text-primary);
+  word-break: break-all;
+  letter-spacing: 0.2px;
+}
+
+.cert-crypto-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.cert-icon-btn {
+  background: var(--bg-subcard);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-decoration: none;
+}
+
+.cert-icon-btn:hover {
+  background: var(--accent-dim);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.cert-icon-btn .material-symbols-outlined {
+  font-size: 15px;
+}
+
+/* Footer */
+.cert-footer {
+  padding: 16px 24px;
+  background: var(--bg-surface);
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  border-bottom-left-radius: 20px;
+  border-bottom-right-radius: 20px;
+}
+
+.cert-footer-guarantee {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+.cert-footer-guarantee .material-symbols-outlined {
+  font-size: 15px;
+  color: var(--accent);
+}
+
+.cert-footer-buttons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.btn-cert-outline {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 16px;
+  border-radius: 8px;
+  background: var(--bg-subcard);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  font-size: 0.76rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.15s ease;
+}
+
+.btn-cert-outline:hover {
+  background: var(--bg-card-hover);
+  border-color: var(--border-strong);
+  color: var(--text-primary);
+}
+
+.btn-cert-outline .material-symbols-outlined {
+  font-size: 16px;
+  color: var(--accent);
+}
+
+.btn-cert-close {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 18px;
+  border-radius: 8px;
+  background: var(--bg-subcard);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  font-size: 0.76rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-cert-close:hover {
+  background: var(--border-strong);
+  color: var(--text-primary);
+}
+
 /* ═══════════════════════════════════════════════════════════
    PAYMENT GATEWAY & MULTI-RAIL CHECKOUT STYLES
    ═══════════════════════════════════════════════════════════ */
