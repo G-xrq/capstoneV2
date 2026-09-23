@@ -1889,267 +1889,205 @@ export default function DonorView({ contract, walletAddress, campaigns, fetchCam
                     const coverData = getCampaignCoverData(matchCamp);
                     const orgName   = getOrgDisplayName(matchCamp.orgAddress, matchCamp.orgName, d.campaignId);
 
+                    const pm = (d.paymentMethod || 'ETH').toUpperCase();
+                    const isCard = pm.includes('CARD');
+                    const isGcash = pm.includes('GCASH');
+                    const isMaya = pm.includes('MAYA');
+                    const railColor = isCard ? '#f59e0b' : isGcash ? '#007DFE' : isMaya ? '#10b981' : '#8b5cf6';
+                    const railBg = isCard ? 'rgba(245, 158, 11, 0.12)' : isGcash ? 'rgba(0, 125, 254, 0.12)' : isMaya ? 'rgba(16, 185, 129, 0.12)' : 'rgba(139, 92, 246, 0.12)';
+                    const railIcon = isCard ? 'credit_card' : isGcash ? 'smartphone' : isMaya ? 'account_balance_wallet' : 'token';
+                    const ethAmt = parseFloat(d.amount || 0);
+                    const phpAmt = Math.round(ethAmt * 170000);
+                    const isShortage = d.auditStatus === 'SHORTAGE';
+
                     return (
-                      <div key={idx} className="contribution-receipt-card fade-in">
-                        {/* Main Body */}
-                        <div className="receipt-card-body">
-                          {/* Thumbnail */}
-                          <div
-                            className="receipt-media-thumb"
-                            onClick={() => setSelectedCampaignForProof(matchCamp)}
-                            style={{ cursor: 'pointer' }}
-                            title="Click to view campaign details & audit proof"
-                          >
-                            <img src={coverData.imageUrl} alt={campTitle} className="receipt-media-img" />
-                            <div className="receipt-media-badge-top">
-                              <span className="material-symbols-outlined" style={{ fontSize: '11px' }}>{coverData.categoryIcon}</span>
-                              <span>{coverData.categoryTag}</span>
+                      <div key={idx} className={`contribution-receipt-card modern-receipt-card ${isShortage ? 'has-shortage' : ''} fade-in`}>
+                        {/* ── Main Top Row: Clean Thumbnail, Structured Details, Financial Module ── */}
+                        <div className="receipt-main-row">
+                          {/* 1. Left: Clean Media Thumbnail (No overlapping text clutter) */}
+                          <div className="receipt-thumb-clean">
+                            <img src={coverData.imageUrl} alt={campTitle} className="receipt-thumb-img" />
+                            <div className="receipt-thumb-cat-icon" title={catInfo.label}>
+                              <span className="material-symbols-outlined">{catInfo.icon || 'volunteer_activism'}</span>
                             </div>
                           </div>
 
-                          {/* Center: Clean Metadata, Title & Organization */}
-                          <div className="receipt-content-col">
-                            {/* Top Meta: Status & Privacy */}
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                              {d.auditStatus === 'SHORTAGE' ? (
-                                <span style={{
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: '4px',
-                                  padding: '2px 8px',
-                                  borderRadius: '6px',
-                                  fontSize: '0.72rem',
-                                  fontWeight: 700,
-                                  background: 'rgba(239, 68, 68, 0.12)',
-                                  color: '#ef4444',
-                                  border: '1px solid rgba(239, 68, 68, 0.3)'
-                                }}>
-                                  <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>warning</span>
-                                  <span>⚠️ Discrepancy Logged</span>
+                          {/* 2. Center: Clean Typographic Hierarchy */}
+                          <div className="receipt-body-center">
+                            {/* Breadcrumb Header */}
+                            <div className="receipt-header-meta">
+                              <button
+                                type="button"
+                                className="receipt-org-link"
+                                onClick={() => onOpenNgoProfile && onOpenNgoProfile(matchCamp.orgId || 3)}
+                                title="Click to view verified NGO profile"
+                              >
+                                <span className="material-symbols-outlined org-icon">domain</span>
+                                <span>{orgName}</span>
+                                <span className="material-symbols-outlined org-verified">verified</span>
+                              </button>
+
+                              <span className="meta-separator">•</span>
+                              <span className="receipt-cat-tag">{catInfo.label}</span>
+
+                              {isShortage ? (
+                                <span className="receipt-shortage-tag">
+                                  <span className="material-symbols-outlined">warning</span>
+                                  <span>Shortage Detected</span>
                                 </span>
                               ) : (
-                                <span style={{
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: '4px',
-                                  padding: '2px 8px',
-                                  borderRadius: '6px',
-                                  fontSize: '0.72rem',
-                                  fontWeight: 600,
-                                  background: 'rgba(34, 197, 94, 0.1)',
-                                  color: '#16a34a',
-                                  border: '1px solid rgba(34, 197, 94, 0.25)'
-                                }}>
-                                  <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>verified</span>
+                                <span className="receipt-verified-tag-clean">
+                                  <span className="status-dot" />
                                   <span>Confirmed On-Chain</span>
                                 </span>
                               )}
-
-                              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                                <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>
-                                  {d.isAnonymous ? 'visibility_off' : 'public'}
-                                </span>
-                                <span>{d.isAnonymous ? 'Anonymous' : 'Public Record'}</span>
-                              </span>
-
-                              {d.createdAt && (
-                                <>
-                                  <span style={{ color: 'var(--text-muted)', fontSize: '0.75rem' }}>•</span>
-                                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                                    {new Date(d.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
-                                  </span>
-                                </>
-                              )}
                             </div>
 
-                            {/* Title */}
-                            <h3
-                              className="receipt-title"
-                              onClick={() => setSelectedCampaignForProof(matchCamp)}
-                              style={{ cursor: 'pointer' }}
-                              title="Click to view campaign details & audit proof"
-                            >
+                            {/* Campaign Title */}
+                            <h3 className="receipt-title-clean" title={campTitle}>
                               {campTitle}
                             </h3>
 
-                            {/* Subtitle Details: Org & Location */}
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.8rem', color: 'var(--text-secondary)', flexWrap: 'wrap' }}>
-                              <span
-                                style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', cursor: 'pointer', fontWeight: 600, color: 'var(--text-primary)' }}
-                                onClick={() => onOpenNgoProfile && onOpenNgoProfile(matchCamp.orgId || 3)}
-                                title="View verified NGO institutional profile"
-                              >
-                                <span className="material-symbols-outlined" style={{ fontSize: '14px', color: 'var(--accent, #16a34a)' }}>domain</span>
-                                <span>{orgName}</span>
-                              </span>
-
+                            {/* Clean Sub-details (Location, Date, Reference) */}
+                            <div className="receipt-subdetails">
                               {coverData.locationTag && (
-                                <>
-                                  <span style={{ color: 'var(--text-muted)' }}>•</span>
-                                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '2px', color: 'var(--text-muted)' }}>
-                                    <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>location_on</span>
-                                    <span>{coverData.locationTag}</span>
-                                  </span>
-                                </>
+                                <span className="subdetail-item" title="Relief Operation Location">
+                                  <span className="material-symbols-outlined">location_on</span>
+                                  <span>{coverData.locationTag}</span>
+                                </span>
+                              )}
+                              <span className="subdetail-item" title="Contribution Timestamp">
+                                <span className="material-symbols-outlined">calendar_today</span>
+                                <span>{d.createdAt ? new Date(d.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Recent'}</span>
+                              </span>
+                              {d.referenceNumber && (
+                                <span className="subdetail-item" title="Payment Reference Number">
+                                  <span className="material-symbols-outlined">tag</span>
+                                  <span style={{ fontFamily: 'var(--font-mono)' }}>Ref: {d.referenceNumber}</span>
+                                </span>
                               )}
                             </div>
                           </div>
 
-                          {/* Right Amount Column */}
-                          <div className="receipt-amount-col">
-                            {(() => {
-                              const pm = (d.paymentMethod || 'ETH').toUpperCase();
-                              const isCard = pm.includes('CARD');
-                              const isGcash = pm.includes('GCASH');
-                              const isMaya = pm.includes('MAYA');
-                              const railColor = isCard ? '#d97706' : isGcash ? '#0284c7' : isMaya ? '#059669' : '#7c3aed';
-                              const railBg = isCard ? 'rgba(217, 119, 6, 0.1)' : isGcash ? 'rgba(2, 132, 199, 0.1)' : isMaya ? 'rgba(5, 150, 105, 0.1)' : 'rgba(124, 58, 237, 0.1)';
-                              const railIcon = isCard ? 'credit_card' : isGcash ? 'smartphone' : isMaya ? 'account_balance_wallet' : 'token';
-                              const ethAmt = parseFloat(d.amount || 0);
-                              const phpAmt = Math.round(ethAmt * 170000);
+                          {/* 3. Right: Financial Amount & Payment Rail */}
+                          <div className="receipt-financial-col">
+                            <div className="receipt-rail-badge" style={{ color: railColor, background: railBg, borderColor: railColor }}>
+                              <span className="material-symbols-outlined">{railIcon}</span>
+                              <span>{d.paymentMethod || 'ETH'}</span>
+                            </div>
 
-                              return (
-                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '3px' }}>
-                                  <span style={{
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    gap: '4px',
-                                    padding: '2px 8px',
-                                    borderRadius: '6px',
-                                    fontSize: '0.68rem',
-                                    fontWeight: 700,
-                                    color: railColor,
-                                    background: railBg,
-                                    border: `1px solid ${railColor}33`
-                                  }}>
-                                    <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>{railIcon}</span>
-                                    <span>{d.paymentMethod || 'ETH'}</span>
-                                  </span>
-
-                                  <div style={{ fontSize: '1.25rem', fontWeight: 800, color: d.auditStatus === 'SHORTAGE' ? '#ef4444' : 'var(--text-primary)', letterSpacing: '-0.01em', marginTop: '2px' }}>
-                                    {d.auditStatus === 'SHORTAGE' && d.declaredPhp ? (
-                                      <>
-                                        <span style={{ textDecoration: 'line-through', color: 'var(--text-muted)', fontSize: '0.85rem', marginRight: '6px', fontWeight: 500 }}>
-                                          ₱{Number(d.declaredPhp).toLocaleString('en-US')}
-                                        </span>
-                                        <span>₱{phpAmt.toLocaleString('en-US')}</span>
-                                      </>
-                                    ) : (
-                                      <span>₱{phpAmt.toLocaleString('en-US')}</span>
-                                    )}
+                            <div className="receipt-amount-wrapper">
+                              {isShortage && d.declaredPhp ? (
+                                <>
+                                  <div className="receipt-amount-display alert">
+                                    ₱{phpAmt.toLocaleString('en-US')}
                                   </div>
-
-                                  {d.auditStatus === 'SHORTAGE' && (
-                                    <div style={{ fontSize: '0.7rem', color: '#ef4444', fontWeight: 700 }}>
-                                      (-₱{Math.abs(d.variancePhp || 0).toLocaleString()} Altered)
-                                    </div>
-                                  )}
-
-                                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                                    {ethAmt < 0.0001 ? ethAmt.toFixed(6) : ethAmt.toFixed(4)} ETH on-chain
+                                  <div className="receipt-shortage-note">
+                                    <span className="declared-struck">₱{Number(d.declaredPhp).toLocaleString('en-US')}</span>
+                                    <span className="variance-text">(-₱{Math.abs(d.variancePhp || 0).toLocaleString()})</span>
                                   </div>
-                                </div>
-                              );
-                            })()}
+                                  <div className="receipt-amount-eth-sub">
+                                    ({ethAmt < 0.0001 ? ethAmt.toFixed(6) : ethAmt.toFixed(4)} ETH on-chain)
+                                  </div>
+                                </>
+                              ) : (
+                                <>
+                                  <div className="receipt-amount-display">
+                                    ₱{phpAmt.toLocaleString('en-US')}
+                                  </div>
+                                  <div className="receipt-amount-eth-sub">
+                                    ≈ {ethAmt < 0.0001 ? ethAmt.toFixed(6) : ethAmt.toFixed(4)} ETH
+                                  </div>
+                                </>
+                              )}
+                            </div>
                           </div>
                         </div>
 
-                        {/* Audit Discrepancy Alert Bar (Shown when NGO altered declared donation) */}
-                        {d.auditStatus === 'SHORTAGE' && (
-                          <div style={{
-                            margin: '4px 0 0',
-                            padding: '8px 14px',
-                            borderRadius: '8px',
-                            background: 'rgba(239, 68, 68, 0.08)',
-                            border: '1px solid rgba(239, 68, 68, 0.25)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'space-between',
-                            flexWrap: 'wrap',
-                            gap: '8px'
-                          }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                              <span className="material-symbols-outlined" style={{ color: '#ef4444', fontSize: '18px' }}>warning</span>
-                              <span style={{ fontSize: '0.78rem', color: '#ef4444', fontWeight: 700 }}>
-                                Shortage: Declared ₱{Number(d.declaredPhp || 0).toLocaleString()} vs Credited ₱{Number(d.creditedPhp || 0).toLocaleString()}
-                              </span>
+                        {/* ── Middle: Sleek Discrepancy Alert Banner (Only if variance detected) ── */}
+                        {isShortage && (
+                          <div className="receipt-discrepancy-banner">
+                            <div className="discrepancy-info">
+                              <span className="material-symbols-outlined discrepancy-icon">gavel</span>
+                              <div>
+                                <div className="discrepancy-title">
+                                  ⚠️ Audit Discrepancy Notarized on Ethereum Sepolia
+                                </div>
+                                <div className="discrepancy-desc">
+                                  You declared <strong>₱{Number(d.declaredPhp || 0).toLocaleString()}</strong>, but NGO credited <strong>₱{Number(d.creditedPhp || 0).toLocaleString()}</strong> (<strong>-₱{Math.abs(d.variancePhp || 0).toLocaleString()} PHP</strong> shortage).
+                                </div>
+                              </div>
                             </div>
                             <button
                               type="button"
-                              className="btn btn-danger btn-xs"
-                              style={{ padding: '3px 8px', fontSize: '0.7rem', fontWeight: 700, borderRadius: '4px' }}
+                              className="receipt-dispute-btn"
                               onClick={() => showSuccess(`Dispute filed for TX ${d.txHash?.slice(0, 10)}... Admin audit investigation initiated against ${orgName}.`, 'Audit Dispute Filed')}
                             >
-                              🚨 Report Discrepancy
+                              <span className="material-symbols-outlined">flag</span>
+                              <span>File Dispute</span>
                             </button>
                           </div>
                         )}
 
-                        {/* Bottom Row: Minimal Proof & Single Focused Action */}
-                        <div className="receipt-proof-bar" style={{ marginTop: '2px', paddingTop: '10px' }}>
-                          <div className="receipt-tx-meta" style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.75rem' }}>
-                            <span className="material-symbols-outlined" style={{ fontSize: '15px', color: 'var(--text-muted)' }}>fingerprint</span>
-                            <span style={{ color: 'var(--text-muted)' }}>TX:</span>
-                            <code style={{ fontSize: '0.74rem', background: 'var(--bg-input, rgba(0,0,0,0.05))', padding: '2px 6px', borderRadius: '4px', border: '1px solid var(--border)' }}>
+                        {/* ── Bottom Row: Transaction Hash & Action Bar ── */}
+                        <div className="receipt-footer-row">
+                          {/* Left: Compact Hash Token Chip */}
+                          <div className="receipt-hash-chip">
+                            <span className="material-symbols-outlined hash-token-icon">token</span>
+                            <span className="hash-label">TX</span>
+                            <span className="hash-code">
                               {d.txHash ? `${d.txHash.slice(0, 10)}...${d.txHash.slice(-8)}` : 'On-Chain Verified'}
-                            </code>
+                            </span>
                             {d.txHash && (
                               <button
                                 type="button"
-                                style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px', color: 'var(--text-muted)', display: 'inline-flex', alignItems: 'center' }}
+                                className="hash-sub-action"
                                 onClick={() => {
                                   navigator.clipboard.writeText(d.txHash);
-                                  showSuccess('Hash copied to clipboard!', 'Copied');
+                                  showSuccess('Transaction hash copied to clipboard!', 'Hash Copied');
                                 }}
                                 title="Copy TX Hash"
                               >
-                                <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>content_copy</span>
+                                <span className="material-symbols-outlined">content_copy</span>
                               </button>
+                            )}
+                            {d.txHash && (
+                              <a
+                                href={`https://sepolia.etherscan.io/tx/${d.txHash}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="hash-sub-action"
+                                title="Inspect raw block details on Sepolia Etherscan"
+                              >
+                                <span className="material-symbols-outlined">open_in_new</span>
+                              </a>
                             )}
                           </div>
 
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                          {/* Right: Consolidated Action Buttons */}
+                          <div className="receipt-footer-actions">
                             <button
                               type="button"
+                              className="btn-proof-link"
                               onClick={() => setSelectedCampaignForProof(matchCamp)}
-                              style={{
-                                background: 'none',
-                                border: 'none',
-                                color: 'var(--text-secondary)',
-                                fontSize: '0.76rem',
-                                fontWeight: 600,
-                                cursor: 'pointer',
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '3px'
-                              }}
+                              title="View Campaign Accomplishments, Budget Breakdown & Map"
                             >
-                              <span>View Cause Proof</span>
-                              <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>arrow_forward</span>
+                              <span className="material-symbols-outlined">verified</span>
+                              <span>Cause Details</span>
                             </button>
 
                             <button
                               type="button"
-                              className="btn btn-sm"
-                              style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '6px',
-                                padding: '6px 14px',
-                                fontSize: '0.78rem',
-                                fontWeight: 700,
-                                borderRadius: '8px',
-                                background: d.auditStatus === 'SHORTAGE' ? '#ef4444' : 'var(--primary, #0284c7)',
-                                border: 'none',
-                                color: '#fff',
-                                boxShadow: d.auditStatus === 'SHORTAGE' ? '0 2px 8px rgba(239, 68, 68, 0.3)' : '0 2px 8px rgba(2, 132, 199, 0.25)',
-                                cursor: 'pointer'
-                              }}
+                              className={`btn-certificate ${isShortage ? 'shortage' : ''}`}
                               onClick={() => setSelectedVoucherTx(d)}
                               title="Open Plain-English Blockchain Verification Certificate"
                             >
-                              <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>verified_user</span>
-                              <span>{d.auditStatus === 'SHORTAGE' ? '⚠️ View Audit Certificate' : 'Verify Certificate'}</span>
+                              <span className="material-symbols-outlined">
+                                {isShortage ? 'warning' : 'verified_user'}
+                              </span>
+                              <span>
+                                {isShortage ? 'View Audit Certificate' : 'Verify Certificate'}
+                              </span>
                             </button>
                           </div>
                         </div>
