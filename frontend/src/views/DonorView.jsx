@@ -2701,7 +2701,7 @@ export default function DonorView({ contract, walletAddress, campaigns, fetchCam
                       <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600, marginBottom: '2px' }}>
                         1. You Sent (Payment Slip)
                       </div>
-                      <div style={{ fontSize: '1.25rem', fontWeight: 850, color: '#38bdf8' }}>
+                      <div style={{ fontSize: '1.25rem', fontWeight: 850, color: 'var(--text-primary)' }}>
                         ₱{declaredPhp.toLocaleString('en-US')}
                       </div>
                       <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '4px' }}>
@@ -2766,7 +2766,7 @@ export default function DonorView({ contract, walletAddress, campaigns, fetchCam
                   }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
                       <span style={{ fontSize: '0.76rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#007DFE' }}>image</span>
+                        <span className="material-symbols-outlined" style={{ fontSize: '16px', color: 'var(--accent)' }}>image</span>
                         Your Official Payment Slip Proof
                       </span>
                       <button

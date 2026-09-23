@@ -560,9 +560,21 @@ h1, h2, h3, h4 { line-height: 1.25; color: var(--text-primary); }
 }
 
 [data-theme="light"] .contribution-receipt-card {
-  background: #ffffff !important;
-  border: 1px solid rgba(0, 0, 0, 0.1) !important;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04) !important;
+  background: var(--bg-card, #ffffff) !important;
+  border: 1px solid var(--border, rgba(0, 0, 0, 0.1)) !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05) !important;
+}
+
+[data-theme="light"] .contribution-receipt-card:hover {
+  background: var(--bg-card-hover, #f1f5f9) !important;
+}
+
+[data-theme="light"] .btn-certificate {
+  color: #ffffff !important;
+}
+
+[data-theme="light"] .receipt-thumb-clean {
+  background: var(--bg-subcard, #edf0f4) !important;
 }
 
 [data-theme="light"] .receipt-proof-bar {
