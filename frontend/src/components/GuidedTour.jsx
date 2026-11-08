@@ -573,7 +573,7 @@ export default function GuidedTour({
           side: s.placement || 'bottom',
           align: s.align || 'start',
           showButtons: idx === 0 ? ['next', 'close'] : ['previous', 'next', 'close'],
-          nextBtnText: isLastStep ? "Let's Go! ✓" : 'Next →',
+          nextBtnText: isLastStep ? "Let's Go!" : 'Next →',
           prevBtnText: '← Back',
           // Step-level completion hooks guaranteeing confetti fires on last step
           onNextClick: isLastStep
@@ -689,7 +689,7 @@ export default function GuidedTour({
         }
 
         if (popoverDOM.closeButton) {
-          popoverDOM.closeButton.innerHTML = '✕';
+          popoverDOM.closeButton.innerHTML = '<span class="material-symbols-outlined" style="font-size:16px;">close</span>';
           popoverDOM.closeButton.setAttribute('title', 'Close tutorial (Esc)');
           popoverDOM.closeButton.onclick = (e) => {
             e.preventDefault();
@@ -780,7 +780,7 @@ export default function GuidedTour({
             onClick={handleSkipTour}
             title="Close (Esc)"
           >
-            ✕
+            <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>close</span>
           </button>
 
           {/* Modal Header */}

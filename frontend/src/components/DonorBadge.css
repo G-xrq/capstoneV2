@@ -274,12 +274,6 @@
   box-shadow: 0 12px 28px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(0, 0, 0, 0.05);
 }
 
-[data-theme="cyber"] .donor-badge-tooltip-overlay {
-  background: #0a1322;
-  border-color: rgba(0, 255, 163, 0.3);
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.7);
-}
-
 .donor-badge-tooltip-overlay.place-above {
   transform: translate(-50%, -100%);
   animation: dbtFadeInOverlayAbove 0.14s cubic-bezier(0.16, 1, 0.3, 1) forwards;
@@ -315,13 +309,6 @@
 }
 [data-theme="light"] .donor-badge-tooltip-overlay.place-below::after {
   border-bottom-color: #ffffff;
-}
-
-[data-theme="cyber"] .donor-badge-tooltip-overlay.place-above::after {
-  border-top-color: #0a1322;
-}
-[data-theme="cyber"] .donor-badge-tooltip-overlay.place-below::after {
-  border-bottom-color: #0a1322;
 }
 
 @keyframes dbtFadeInOverlayAbove {
@@ -399,11 +386,6 @@
   border-color: #e2e8f0;
 }
 
-[data-theme="cyber"] .dbt-stats-row {
-  background: rgba(0, 255, 163, 0.04);
-  border-color: rgba(0, 255, 163, 0.15);
-}
-
 .dbt-stat {
   display: flex;
   flex-direction: column;
@@ -470,12 +452,6 @@
   background: #ffffff;
   border-color: rgba(0, 0, 0, 0.08);
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
-}
-
-[data-theme="cyber"] .donor-progress-card {
-  background: #0d1b2e;
-  border-color: rgba(0, 255, 163, 0.2);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
 }
 
 .donor-progress-card.unranked {
@@ -775,12 +751,6 @@
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.12);
 }
 
-[data-theme="cyber"] .donor-upgrade-card.donor-commendation-plaque {
-  background: #0d1b2e;
-  border-color: rgba(0, 255, 163, 0.35);
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7);
-}
-
 @keyframes dubScaleUp {
   from {
     opacity: 0;
@@ -1007,12 +977,6 @@
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.1);
 }
 
-[data-theme="cyber"] .donor-modal-card {
-  background: #0a1322;
-  border-color: rgba(0, 255, 163, 0.25);
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7);
-}
-
 /* ── Donor Progress Card Enhanced Action Group ── */
 .dpc-actions-group {
   display: flex;
@@ -1146,12 +1110,6 @@
   background: #ffffff;
   border-color: #e2e8f0;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
-}
-
-[data-theme="cyber"] .donor-tab-btn.is-active {
-  color: #00ffa3;
-  background: rgba(0, 255, 163, 0.12);
-  border-color: rgba(0, 255, 163, 0.3);
 }
 
 /* ── Portfolio Hero Dedication ── */
@@ -1732,10 +1690,6 @@
   background: #f8fafc;
 }
 
-[data-theme="cyber"] .donor-current-card {
-  background: rgba(0, 255, 163, 0.04);
-}
-
 .donor-current-top {
   display: flex;
   align-items: flex-start;
@@ -1852,11 +1806,6 @@
 [data-theme="light"] .donor-tier-row {
   background: #f8fafc;
   border-color: #e2e8f0;
-}
-
-[data-theme="cyber"] .donor-tier-row {
-  background: rgba(0, 255, 163, 0.03);
-  border-color: rgba(0, 255, 163, 0.1);
 }
 
 .donor-tier-row.is-active {
@@ -2116,15 +2065,6 @@
   color: #0f172a !important;
 }
 
-[data-theme="cyber"] .donor-ledger-filter-row {
-  background: rgba(0, 255, 163, 0.03) !important;
-  border-color: rgba(0, 255, 163, 0.15) !important;
-}
-
-[data-theme="cyber"] .donor-ledger-filter-btn.is-active {
-  box-shadow: 0 0 12px var(--rail-color) !important;
-}
-
 /* ── High-Fidelity Skeleton Loader for Complete Ledger (Matches Card Geometry 1:1) ── */
 .donor-ledger-skeleton-list,
 .donor-ledger-list {
@@ -2257,11 +2197,6 @@
 [data-theme="light"] .donor-ledger-card:hover {
   border-color: #cbd5e1 !important;
   background: #f8fafc !important;
-}
-
-[data-theme="cyber"] .donor-ledger-card {
-  background: #091220 !important;
-  border-color: rgba(0, 255, 163, 0.15) !important;
 }
 
 [data-theme="light"] .donor-ledger-skeleton-avatar,

@@ -322,15 +322,16 @@ export default function EditCampaignModal({ camp, isOpen, onClose, onSaved }) {
             onClick={onClose}
             className="btn btn-ghost btn-sm"
             style={{
-              padding: '6px 10px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '6px',
               borderRadius: '8px',
-              color: 'var(--text-muted)',
-              fontSize: '1.1rem',
-              lineHeight: 1
+              color: 'var(--text-muted)'
             }}
             title="Close"
           >
-            ✕
+            <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>close</span>
           </button>
         </div>
 
@@ -398,8 +399,8 @@ export default function EditCampaignModal({ camp, isOpen, onClose, onSaved }) {
                     Target Relief Delivery Date
                   </label>
                   {targetDate && (
-                    <span style={{ fontSize: '0.68rem', color: 'var(--accent, #22c55e)', fontWeight: 600 }}>
-                      ✓ Date set
+                    <span style={{ fontSize: '0.68rem', color: 'var(--accent, #22c55e)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                      <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>check</span> Date set
                     </span>
                   )}
                 </div>
@@ -443,16 +444,18 @@ export default function EditCampaignModal({ camp, isOpen, onClose, onSaved }) {
                             handleTargetDateChange('');
                           }}
                           style={{
-                            padding: '2px 6px',
+                            padding: '2px 4px',
                             borderRadius: '6px',
-                            fontSize: '0.72rem',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
                             color: 'var(--text-muted)',
                             background: 'rgba(255,255,255,0.08)',
                             cursor: 'pointer'
                           }}
                           title="Clear date"
                         >
-                          ✕
+                          <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>close</span>
                         </span>
                       ) : (
                         <span className="material-symbols-outlined" style={{ fontSize: '1.1rem', color: 'var(--text-muted)' }}>
@@ -592,8 +595,8 @@ export default function EditCampaignModal({ camp, isOpen, onClose, onSaved }) {
                     Urgency Status
                   </label>
                   {urgency && (
-                    <span style={{ fontSize: '0.68rem', color: 'var(--accent, #22c55e)', fontWeight: 600 }}>
-                      ✓ Auto-set from target date
+                    <span style={{ fontSize: '0.68rem', color: 'var(--accent, #22c55e)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                      <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>check</span> Auto-set from target date
                     </span>
                   )}
                 </div>
@@ -605,9 +608,9 @@ export default function EditCampaignModal({ camp, isOpen, onClose, onSaved }) {
                   style={{ cursor: 'pointer' }}
                 >
                   <option value="">-- Select or Auto-filled by Delivery Date --</option>
-                  <option value="HIGH (EMERGENCY AID)">🔴 Emergency High Aid (≤ 5 Days)</option>
-                  <option value="MEDIUM (URGENT REHABILITATION)">🟡 Urgent Medium Rehabilitation (6–14 Days)</option>
-                  <option value="STABLE (CHARITABLE AID)">🟢 Standard Aid Operation (&gt; 14 Days)</option>
+                  <option value="HIGH (EMERGENCY AID)">High Emergency Aid (≤ 5 Days)</option>
+                  <option value="MEDIUM (URGENT REHABILITATION)">Urgent Rehabilitation (6–14 Days)</option>
+                  <option value="STABLE (CHARITABLE AID)">Standard Aid Operation (&gt; 14 Days)</option>
                 </select>
                 <div style={{ marginTop: '4px', fontSize: '0.72rem', color: 'var(--text-muted)' }}>
                   Prioritizes campaign dispatch in humanitarian radar and feed.
@@ -729,7 +732,7 @@ export default function EditCampaignModal({ camp, isOpen, onClose, onSaved }) {
                         className={`deploy-tag-chip ${isSelected ? 'active' : ''}`}
                         title={`Click to ${isSelected ? 'remove' : 'add'} ${tag}`}
                       >
-                        <span>{isSelected ? '✓' : '+'}</span>
+                        <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>{isSelected ? 'check' : 'add'}</span>
                         <span>{tag}</span>
                       </button>
                     );
@@ -744,7 +747,7 @@ export default function EditCampaignModal({ camp, isOpen, onClose, onSaved }) {
                       className="deploy-tag-chip active"
                       title="Custom tag. Click to remove."
                     >
-                      <span>✓</span>
+                      <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>check</span>
                       <span>{customTag}</span>
                     </button>
                   ))}

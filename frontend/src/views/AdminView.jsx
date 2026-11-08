@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { ethers } from 'ethers';
 import { isLocalhost, API_URL } from '../config';
 import CampaignCard from '../components/CampaignCard';
@@ -8,10 +8,40 @@ import SettingsPanel from '../components/SettingsPanel';
 import DisasterRadarHeatmap from '../components/DisasterRadarHeatmap';
 import SecCertificateModal from '../components/SecCertificateModal';
 import { useToast } from '../context/ToastContext';
+import './ReferenceDashboard.css';
+import './DashboardOverview.css';
 
-export default function AdminView({ contract, walletAddress, role, campaigns, fetchCampaigns, fetchingCampaigns, currentUser, handleConnectWallet, handleLogout, updateDbWallet, theme, setTheme, textSize, setTextSize }) {
+export default function AdminView({ contract, walletAddress, role, campaigns, fetchCampaigns, fetchingCampaigns, currentUser, handleConnectWallet, handleLogout, updateDbWallet, theme, setTheme, textSize, setTextSize, onActiveTabChange }) {
   const { showSuccess, showError, showWarning, showInfo } = useToast();
   const [activeTab, setActiveTab] = useState('dashboard');
+
+  // Live Dashboard Section Broadcast to ReliefAI
+  const lastAdminTabRef = useRef(null);
+  useEffect(() => {
+    if (lastAdminTabRef.current === activeTab) return;
+    lastAdminTabRef.current = activeTab;
+    const adminTabLabels = {
+      'dashboard': 'Governance & Platform Dashboard',
+      'campaigns': 'All Campaigns & Financial Audit',
+      'radar-heatmap': 'Disaster Heatmap Operations',
+      'create': 'Deploy Emergency Calamity Drive',
+      'approvals': 'Organization KYC & Verification Approvals',
+      'moderators': 'Security & Moderator Permissions',
+      'settings': 'Smart Contract & Platform Settings'
+    };
+    const sectionLabel = adminTabLabels[activeTab] || activeTab;
+    const metaPayload = {
+      tab: activeTab,
+      section: sectionLabel,
+      portal: 'Admin Governance Console',
+      activeTab
+    };
+    if (typeof onActiveTabChange === 'function') {
+      onActiveTabChange(activeTab, metaPayload);
+    }
+  }, [activeTab, onActiveTabChange]);
+
+
 
   // Create campaign form
   const [title, setTitle] = useState('');
@@ -64,6 +94,17 @@ export default function AdminView({ contract, walletAddress, role, campaigns, fe
   });
   const [auditNotes, setAuditNotes] = useState('Duly verified against Philippine SEC Non-Stock Corporate Standards. Identity and non-profit charter confirmed.');
   const [txModal, setTxModal] = useState({ show: false, step: 0, hash: '', type: '', addr: '' });
+  const [showAdminGuide, setShowAdminGuide] = useState(() => {
+    return localStorage.getItem('bbdrts_dismiss_admin_guide') !== 'true';
+  });
+
+  const toggleAdminGuide = () => {
+    setShowAdminGuide(prev => {
+      const next = !prev;
+      localStorage.setItem('bbdrts_dismiss_admin_guide', (!next).toString());
+      return next;
+    });
+  };
 
   const loadOrganizations = async () => {
     try {
@@ -294,7 +335,7 @@ export default function AdminView({ contract, walletAddress, role, campaigns, fe
 
         {/* Testnet Banner */}
         <div className="testnet-banner">
-          <span>🔬</span>
+          <span className="material-symbols-outlined" style={{ fontSize: '18px', color: 'var(--accent)' }}>biotech</span>
           <span>
             <strong>Sepolia Testnet</strong> — Moderator add/remove operations are
             real blockchain transactions that require a small gas fee.{' '}
@@ -308,16 +349,20 @@ export default function AdminView({ contract, walletAddress, role, campaigns, fe
         {/* Tab Bar */}
         <div className="tab-bar">
           <button className={`tab-btn ${activeTab === 'dashboard' ? 'active' : ''}`}
-            onClick={() => setActiveTab('dashboard')}>⚡ Dashboard</button>
+            onClick={() => setActiveTab('dashboard')}>
+            <span className="material-symbols-outlined">dashboard</span> Dashboard</button>
           <button className={`tab-btn ${activeTab === 'campaigns' ? 'active' : ''}`}
-            onClick={() => setActiveTab('campaigns')}>📋 All Campaigns</button>
+            onClick={() => setActiveTab('campaigns')}>
+            <span className="material-symbols-outlined">receipt_long</span> All Campaigns</button>
           <button className={`tab-btn ${activeTab === 'radar-heatmap' ? 'active' : ''}`}
-            onClick={() => setActiveTab('radar-heatmap')}>📡 Relief Radar</button>
+            onClick={() => setActiveTab('radar-heatmap')}>
+            <span className="material-symbols-outlined">radar</span> Relief Radar</button>
           <button className={`tab-btn ${activeTab === 'create' ? 'active' : ''}`}
-            onClick={() => setActiveTab('create')}>🚀 Create Campaign</button>
+            onClick={() => setActiveTab('create')}>
+            <span className="material-symbols-outlined">rocket_launch</span> Create Campaign</button>
           <button className={`tab-btn ${activeTab === 'approvals' ? 'active' : ''}`}
             onClick={() => setActiveTab('approvals')}>
-            ⏳ Approvals
+            <span className="material-symbols-outlined">hourglass_top</span> Approvals
             {pendingOrgsCount > 0 && (
               <span className="tab-count" style={{ background: '#f59e0b', color: '#000', fontWeight: 800 }}>
                 {pendingOrgsCount}
@@ -326,77 +371,188 @@ export default function AdminView({ contract, walletAddress, role, campaigns, fe
           </button>
           <button className={`tab-btn ${activeTab === 'moderators' ? 'active' : ''}`}
             onClick={() => setActiveTab('moderators')}>
-            🛡️ Verified NGOs
+            <span className="material-symbols-outlined">corporate_fare</span> Verified NGOs
             <span className="tab-count">{modCount}/{MAX_ORGANIZATIONS}</span>
           </button>
           <button className={`tab-btn ${activeTab === 'settings' ? 'active' : ''}`}
             onClick={() => setActiveTab('settings')}>
-            ⚙️ System Profile
+            <span className="material-symbols-outlined">settings</span> System Profile
           </button>
         </div>
 
         {/* ── Dashboard Tab ── */}
         {activeTab === 'dashboard' && (
           <div>
-            <div className="admin-welcome">
-              <div className="admin-welcome-icon">⚡</div>
-              <div>
-                <div className="admin-welcome-title">Admin Panel</div>
-                <div className="admin-welcome-addr">
-                  Connected as:{' '}
-                  <span style={{ color: 'var(--warning)', fontFamily: 'var(--font-mono)', fontSize: '0.8rem' }}>
-                    {walletAddress}
-                  </span>
+            {/* First-Time User Onboarding Guide (HCI Priority) */}
+            {showAdminGuide && (
+              <div className="db-welcome-guide">
+                <div className="db-welcome-header">
+                  <div>
+                    <div className="db-welcome-badge">
+                      <span className="material-symbols-outlined">shield_person</span> Governance Quick Guide
+                    </div>
+                    <h2 className="db-welcome-title">Platform Administration & Compliance Overview</h2>
+                    <p className="db-welcome-desc">
+                      Ensure transparency, audit humanitarian relief fund movements, and verify non-profit regulatory credentials across Philippine jurisdictions and the Sepolia blockchain.
+                    </p>
+                  </div>
+                  <button 
+                    type="button" 
+                    className="db-welcome-dismiss"
+                    onClick={toggleAdminGuide}
+                    title="Hide guide"
+                    aria-label="Hide governance guide"
+                  >
+                    <span className="material-symbols-outlined">close</span>
+                  </button>
                 </div>
-                <div style={{ fontSize: '0.73rem', color: 'var(--text-muted)', marginTop: '4px' }}>
-                  Role enforced on-chain by the DonationRelief smart contract (Sepolia).
+
+                <div className="db-guide-steps">
+                  <div className="db-guide-step">
+                    <div className="db-guide-step-num">1</div>
+                    <div className="db-guide-step-title">Review NGO Applications</div>
+                    <div className="db-guide-step-text">
+                      Inspect Philippine SEC non-stock registration certificates, DSWD solicitation permits, and trustee credentials before granting accreditation.
+                    </div>
+                    <button 
+                      type="button"
+                      className="db-guide-action"
+                      onClick={() => setActiveTab('approvals')}
+                    >
+                      Review Approvals <span className="material-symbols-outlined">arrow_forward</span>
+                    </button>
+                  </div>
+
+                  <div className="db-guide-step">
+                    <div className="db-guide-step-num">2</div>
+                    <div className="db-guide-step-title">Sync Verified Wallets</div>
+                    <div className="db-guide-step-text">
+                      Authorize accredited organizations on the Ethereum Sepolia smart contract so they can deploy verifiable relief campaigns.
+                    </div>
+                    <button 
+                      type="button"
+                      className="db-guide-action"
+                      onClick={() => setActiveTab('moderators')}
+                    >
+                      Manage On-Chain NGOs <span className="material-symbols-outlined">arrow_forward</span>
+                    </button>
+                  </div>
+
+                  <div className="db-guide-step">
+                    <div className="db-guide-step-num">3</div>
+                    <div className="db-guide-step-title">Audit Campaigns & Disbursals</div>
+                    <div className="db-guide-step-text">
+                      Track real-time donations, AI receipt scanning evaluations, and cryptographic proof of relief distribution in the field.
+                    </div>
+                    <button 
+                      type="button"
+                      className="db-guide-action"
+                      onClick={() => setActiveTab('campaigns')}
+                    >
+                      Audit Ledger <span className="material-symbols-outlined">arrow_forward</span>
+                    </button>
+                  </div>
                 </div>
+              </div>
+            )}
+
+            {/* Governance hero */}
+            <div className="db-hero">
+              <div className="db-hero-row">
+                <div className="db-identity">
+                  <div className="db-avatar">
+                    <span className="material-symbols-outlined" style={{ fontSize: '26px', color: 'var(--accent)' }}>shield_person</span>
+                  </div>
+                  <div>
+                    <h1 className="db-title">Governance Console</h1>
+                    <div className="db-meta">
+                      <span className="db-chip db-chip--ok">
+                        <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>verified</span>
+                        On-chain Admin
+                      </span>
+                      <span>
+                        Wallet&nbsp;
+                        <code className="db-code">{shortAddr(walletAddress)}</code>
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                {!showAdminGuide && (
+                  <button 
+                    type="button" 
+                    className="btn btn-ghost btn-sm"
+                    onClick={toggleAdminGuide}
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                  >
+                    <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>help_outline</span>
+                    Governance Guide
+                  </button>
+                )}
               </div>
             </div>
 
-            <div className="admin-stat-grid">
-              <div className="stat-card">
-                <div className="stat-card-value">{campaigns.length}</div>
-                <div className="stat-card-label">Total Campaigns</div>
-              </div>
-              <div className="stat-card">
-                <div className="stat-card-value">{activeCampaigns}</div>
-                <div className="stat-card-label">Active</div>
-              </div>
-              <div className="stat-card">
-                <div className="stat-card-value accent">{totalRaised} <span style={{ fontSize: '0.9rem' }}>ETH</span></div>
-                <div className="stat-card-label">Total Raised On-Chain</div>
-              </div>
-              <div className="stat-card">
-                <div className="stat-card-value" style={{ color: pendingOrgsCount > 0 ? 'var(--warning)' : 'var(--info)' }}>
-                  {pendingOrgsCount}
+            <div className="db-stats">
+              <div className="db-stat">
+                <div className="db-stat-head">
+                  <span className="db-stat-label">Total campaigns</span>
+                  <div className="db-stat-icon"><span className="material-symbols-outlined">database</span></div>
                 </div>
-                <div className="stat-card-label">Pending NGO Approvals</div>
+                <div className="db-stat-value">{campaigns.length}</div>
+                <div className="db-stat-sub">Deployed on Sepolia</div>
+              </div>
+              <div className="db-stat">
+                <div className="db-stat-head">
+                  <span className="db-stat-label">Active campaigns</span>
+                  <div className="db-stat-icon"><span className="material-symbols-outlined">rocket_launch</span></div>
+                </div>
+                <div className="db-stat-value">{activeCampaigns}</div>
+                <div className="db-stat-sub">Open for donations</div>
+              </div>
+              <div className="db-stat">
+                <div className="db-stat-head">
+                  <span className="db-stat-label">Total raised on-chain</span>
+                  <div className="db-stat-icon"><span className="material-symbols-outlined">account_balance</span></div>
+                </div>
+                <div className="db-stat-value db-stat-value--ok">
+                  {totalRaised}<span className="db-stat-unit">ETH</span>
+                </div>
+                <div className="db-stat-sub">Immutable ledger total</div>
+              </div>
+              <div className="db-stat" onClick={() => setActiveTab('approvals')} title="Review NGO approvals">
+                <div className="db-stat-head">
+                  <span className="db-stat-label">Pending NGO approvals</span>
+                  <div className={`db-stat-icon ${pendingOrgsCount > 0 ? 'db-stat-icon--warn' : ''}`}>
+                    <span className="material-symbols-outlined">hourglass_top</span>
+                  </div>
+                </div>
+                <div className={`db-stat-value ${pendingOrgsCount > 0 ? 'db-stat-value--warn' : ''}`}>{pendingOrgsCount}</div>
+                <div className="db-stat-sub">{pendingOrgsCount > 0 ? 'Awaiting decision' : 'All caught up'}</div>
               </div>
             </div>
 
-            <div className="admin-quick-actions">
-              <h2 className="section-title" style={{ marginBottom: '14px' }}>
-                <span className="section-title-icon">⚡</span> Quick Actions
+            <div className="db-section-row">
+              <h2 className="db-section-title">
+                <span className="material-symbols-outlined">bolt</span> Quick Actions
               </h2>
-              <div className="admin-actions-grid">
-                <button className="admin-action-card" onClick={() => setActiveTab('approvals')}>
-                  <span style={{ fontSize: '1.6rem' }}>⏳</span>
-                  <span>Review Approvals {pendingOrgsCount > 0 ? `(${pendingOrgsCount})` : ''}</span>
-                </button>
-                <button className="admin-action-card" onClick={() => setActiveTab('create')}>
-                  <span style={{ fontSize: '1.6rem' }}>🚀</span>
-                  <span>Deploy Campaign</span>
-                </button>
-                <button className="admin-action-card" onClick={() => setActiveTab('moderators')}>
-                  <span style={{ fontSize: '1.6rem' }}>🛡️</span>
-                  <span>Manage NGOs</span>
-                </button>
-                <button className="admin-action-card" onClick={() => { fetchCampaigns(); setActiveTab('campaigns'); }}>
-                  <span style={{ fontSize: '1.6rem' }}>📋</span>
-                  <span>View All Campaigns</span>
-                </button>
-              </div>
+            </div>
+            <div className="db-tiles">
+              <button type="button" className="db-tile" onClick={() => setActiveTab('approvals')}>
+                <div className="db-tile-icon"><span className="material-symbols-outlined">hourglass_top</span></div>
+                <span>Review Approvals</span>
+                {pendingOrgsCount > 0 && <span className="db-tile-note">{pendingOrgsCount} pending</span>}
+              </button>
+              <button type="button" className="db-tile" onClick={() => setActiveTab('create')}>
+                <div className="db-tile-icon"><span className="material-symbols-outlined">rocket_launch</span></div>
+                <span>Deploy Campaign</span>
+              </button>
+              <button type="button" className="db-tile" onClick={() => setActiveTab('moderators')}>
+                <div className="db-tile-icon"><span className="material-symbols-outlined">corporate_fare</span></div>
+                <span>Manage NGOs</span>
+              </button>
+              <button type="button" className="db-tile" onClick={() => { fetchCampaigns(); setActiveTab('campaigns'); }}>
+                <div className="db-tile-icon"><span className="material-symbols-outlined">receipt_long</span></div>
+                <span>View All Campaigns</span>
+              </button>
             </div>
           </div>
         )}
@@ -406,7 +562,7 @@ export default function AdminView({ contract, walletAddress, role, campaigns, fe
           <div>
             <div className="section-header">
               <h2 className="section-title">
-                <span className="section-title-icon">📋</span> All Relief Campaigns
+                <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>receipt_long</span> All Relief Campaigns
               </h2>
               {campaigns.length > 0 && <span className="section-count">{campaigns.length} on ledger</span>}
               <button className="btn btn-ghost btn-sm" onClick={fetchCampaigns} disabled={fetchingCampaigns}>
@@ -414,10 +570,20 @@ export default function AdminView({ contract, walletAddress, role, campaigns, fe
               </button>
             </div>
             {campaigns.length === 0 ? (
-              <div className="empty-state">
-                <div className="empty-icon">📭</div>
-                <div className="empty-title">No campaigns yet</div>
-                <div className="empty-desc">Deploy the first campaign from the "Create Campaign" tab.</div>
+              <div className="db-empty-state">
+                <div className="db-empty-icon">
+                  <span className="material-symbols-outlined">inventory_2</span>
+                </div>
+                <div className="db-empty-title">Nothing here yet</div>
+                <div className="db-empty-desc">No campaigns have been deployed on the blockchain ledger yet.</div>
+                <button 
+                  type="button"
+                  className="btn btn-primary btn-sm" 
+                  onClick={() => setActiveTab('create')}
+                  style={{ marginTop: '12px' }}
+                >
+                  Deploy First Campaign
+                </button>
               </div>
             ) : (
               <div className="campaigns-list">
@@ -436,13 +602,13 @@ export default function AdminView({ contract, walletAddress, role, campaigns, fe
           <div className="card">
             <div className="section-header">
               <h2 className="section-title">
-                <span className="section-title-icon">🚀</span> Deploy Relief Campaign
+                <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>rocket_launch</span> Deploy Relief Campaign
               </h2>
               <span className="badge badge-admin">Admin</span>
             </div>
             <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginBottom: '18px' }}>
               Campaigns you deploy are linked to your admin wallet and permanently recorded on-chain.
-              Only Admin and registered Moderators can create campaigns.
+              Only Admin and registered Organizations can create campaigns.
             </p>
             <form className="create-form" onSubmit={handleCreateCampaign}>
               <input className="input" type="text"
@@ -459,8 +625,8 @@ export default function AdminView({ contract, walletAddress, role, campaigns, fe
               </div>
               <p className="form-hint">
                 {isLocalhost
-                  ? '⚡ Localhost Mode: MetaMask confirmation is optional for local development testing.'
-                  : '⚠️ Requires MetaMask confirmation + Sepolia gas fee. Records are immutable once confirmed.'}
+                  ? 'Localhost Mode: MetaMask confirmation is optional for local development testing.'
+                  : 'Requires MetaMask confirmation + Sepolia gas fee. Records are immutable once confirmed.'}
               </p>
             </form>
           </div>
@@ -472,7 +638,7 @@ export default function AdminView({ contract, walletAddress, role, campaigns, fe
             <div className="card">
               <div className="section-header">
                 <h2 className="section-title">
-                  <span className="section-title-icon">⏳</span> Organization Approvals
+                  <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>hourglass_top</span> Organization Approvals
                 </h2>
                 <button className="btn btn-ghost btn-sm" onClick={loadOrganizations} disabled={orgLoading}>
                   {orgLoading ? <div className="spinner spinner-light" /> : '↻ Refresh Data'}
@@ -487,9 +653,12 @@ export default function AdminView({ contract, walletAddress, role, campaigns, fe
                   <div className="spinner spinner-light" style={{ width: 24, height: 24 }} />
                 </div>
               ) : organizations.length === 0 ? (
-                <div className="empty-state">
-                  <div className="empty-icon">📂</div>
-                  <div className="empty-title">No organizations found</div>
+                <div className="db-empty-state">
+                  <div className="db-empty-icon">
+                    <span className="material-symbols-outlined">corporate_fare</span>
+                  </div>
+                  <div className="db-empty-title">Nothing here yet</div>
+                  <div className="db-empty-desc">No organizations are currently awaiting review or registered in the database.</div>
                 </div>
               ) : (
                 <div className="mod-list">
@@ -508,8 +677,9 @@ export default function AdminView({ contract, walletAddress, role, campaigns, fe
                             <div style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
                               {org.Org_Name || org.Username}
                               {org.Verification_Status === 'Approved' && (
-                                <span className="badge badge-active" style={{ fontSize: '0.68rem', padding: '2px 8px' }}>
-                                  🛡️ SEC Accredited
+                                <span className="badge badge-active" style={{ fontSize: '0.68rem', padding: '2px 8px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                  <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>verified</span>
+                                  SEC Accredited
                                 </span>
                               )}
                             </div>
@@ -522,7 +692,7 @@ export default function AdminView({ contract, walletAddress, role, campaigns, fe
                         <div>
                           {org.Verification_Status !== 'Approved' ? (
                             <button 
-                              className="btn btn-primary btn-sm glow pulse"
+                              className="btn btn-primary btn-sm"
                               onClick={() => handleApproveClick(org)}
                               style={{ padding: '8px 16px', display: 'flex', alignItems: 'center', gap: '6px' }}
                             >
@@ -538,8 +708,9 @@ export default function AdminView({ contract, walletAddress, role, campaigns, fe
                               >
                                 View Audit Record
                               </button>
-                              <span className="badge badge-active" style={{ fontSize: '0.75rem', padding: '6px 12px' }}>
-                                ✓ Verified Active
+                              <span className="badge badge-active" style={{ fontSize: '0.75rem', padding: '6px 12px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                                <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>check</span>
+                                Verified Active
                               </span>
                             </div>
                           )}
@@ -551,10 +722,10 @@ export default function AdminView({ contract, walletAddress, role, campaigns, fe
                         display: 'grid', 
                         gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', 
                         gap: '8px', 
-                        background: 'rgba(0, 0, 0, 0.25)', 
+                        background: 'var(--bg-subcard, var(--bg-hover))', 
                         padding: '12px', 
                         borderRadius: '8px',
-                        border: '1px solid rgba(255, 255, 255, 0.05)',
+                        border: '1px solid var(--border)',
                         fontSize: '0.78rem'
                       }}>
                         <div>
@@ -612,13 +783,13 @@ export default function AdminView({ contract, walletAddress, role, campaigns, fe
             <div className="card">
               <div className="section-header">
                 <h2 className="section-title">
-                  <span className="section-title-icon">🛡️</span> Manage On-Chain NGOs
+                  <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>verified_user</span> Manage On-Chain NGOs
                 </h2>
                 <span className="badge badge-admin">Admin Only</span>
               </div>
 
               <div className="on-chain-note">
-                <span>🔗</span>
+                <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>link</span>
                 <span>
                   Organization (NGO) roles are enforced <strong>on the smart contract</strong>.
                   Adding or removing an NGO is a blockchain transaction —
@@ -651,9 +822,10 @@ export default function AdminView({ contract, walletAddress, role, campaigns, fe
 
                 if (pendingOrgs.length === 0) {
                   return (
-                    <div style={{ padding: '16px', background: 'rgba(57, 255, 20, 0.05)', borderRadius: 'var(--radius-sm)', border: '1px dashed var(--success)', marginBottom: '16px' }}>
-                      <span style={{ fontSize: '0.85rem', color: 'var(--success)' }}>
-                        ✓ All Web2 approved NGOs are fully synced with the blockchain.
+                    <div style={{ padding: '16px', background: 'var(--bg-card-subtle, rgba(57, 255, 20, 0.05))', borderRadius: 'var(--radius-sm)', border: '1px dashed var(--border)', marginBottom: '16px' }}>
+                      <span style={{ fontSize: '0.85rem', color: 'var(--success)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>check_circle</span>
+                        All Web2 approved NGOs are fully synced with the blockchain.
                       </span>
                     </div>
                   );
@@ -672,11 +844,11 @@ export default function AdminView({ contract, walletAddress, role, campaigns, fe
                             </div>
                           </div>
                         </div>
-                        <button className="btn btn-primary btn-sm glow pulse"
+                        <button className="btn btn-primary btn-sm"
                           onClick={() => handleAddModerator(org.Wallet_Address)}
                           disabled={modTxPending || modCount >= MAX_ORGANIZATIONS}
-                          style={{ flexShrink: 0 }}>
-                          {modTxPending ? <><div className="spinner" /> Syncing…</> : '+ Add to Blockchain'}
+                          style={{ flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                          {modTxPending ? <><div className="spinner" /> Syncing…</> : <><span className="material-symbols-outlined" style={{ fontSize: '15px' }}>add</span> Add to Blockchain</>}
                         </button>
                       </div>
                     ))}
@@ -685,7 +857,9 @@ export default function AdminView({ contract, walletAddress, role, campaigns, fe
               })()}
 
               {modError && (
-                <p style={{ color: 'var(--danger)', fontSize: '0.82rem', marginTop: '8px' }}>⚠️ {modError}</p>
+                <p style={{ color: 'var(--danger)', fontSize: '0.82rem', marginTop: '8px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>warning</span> {modError}
+                </p>
               )}
               {modCount >= MAX_ORGANIZATIONS && (
                 <p style={{ color: 'var(--warning)', fontSize: '0.82rem', marginTop: '8px' }}>
@@ -711,11 +885,13 @@ export default function AdminView({ contract, walletAddress, role, campaigns, fe
                   <div className="empty-title">Querying blockchain events…</div>
                 </div>
               ) : moderators.length === 0 ? (
-                <div className="empty-state" style={{ padding: '32px', border: '1px dashed var(--border)' }}>
-                  <div className="empty-icon" style={{ fontSize: '1.6rem' }}>🛡️</div>
-                  <div className="empty-title">No NGOs registered on the blockchain</div>
-                  <div className="empty-desc">
-                    Add an NGO wallet above to grant on-chain campaign creation access.
+                <div className="db-empty-state">
+                  <div className="db-empty-icon">
+                    <span className="material-symbols-outlined">shield_person</span>
+                  </div>
+                  <div className="db-empty-title">Nothing here yet</div>
+                  <div className="db-empty-desc">
+                    No NGO wallets are currently registered on the Sepolia smart contract. Add an approved organization above to grant on-chain campaign creation.
                   </div>
                 </div>
               ) : (
@@ -754,6 +930,7 @@ export default function AdminView({ contract, walletAddress, role, campaigns, fe
               campaigns={campaigns}
               height="620px"
               theme={theme}
+              defaultLayer="tactical"
               onSelectCampaign={(c) => {
                 setActiveTab('campaigns');
               }}
@@ -782,7 +959,7 @@ export default function AdminView({ contract, walletAddress, role, campaigns, fe
         {approvalModal.show && approvalModal.org && (
           <div style={{
             position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
-            background: 'rgba(5, 7, 12, 0.8)', backdropFilter: 'blur(12px)',
+            background: 'rgba(0, 0, 0, 0.55)', backdropFilter: 'blur(8px)',
             display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999,
             padding: '20px'
           }} className="fade-in">
@@ -793,22 +970,22 @@ export default function AdminView({ contract, walletAddress, role, campaigns, fe
               maxHeight: '90vh',
               overflowY: 'auto',
               padding: '28px', 
-              background: 'var(--surface)', 
-              border: '1px solid rgba(56, 189, 248, 0.3)', 
-              boxShadow: '0 25px 50px rgba(0,0,0,0.6)', 
-              borderRadius: '18px' 
+              background: 'var(--bg-card)', 
+              border: '1px solid var(--border)', 
+              boxShadow: 'var(--shadow-lg, 0 20px 40px rgba(0,0,0,0.15))', 
+              borderRadius: 'var(--radius-lg, 16px)' 
             }}>
 
               <div className="fade-in">
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                  <h2 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1.25rem', color: 'var(--text)' }}>
-                    <span className="material-symbols-outlined" style={{ color: '#38bdf8' }}>verified_user</span>
+                  <h2 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '8px', fontSize: '1.25rem', color: 'var(--text-primary)' }}>
+                    <span className="material-symbols-outlined" style={{ color: 'var(--accent)' }}>verified_user</span>
                     SEC Institutional Verification Desk
                   </h2>
                   <span className="badge badge-info" style={{ fontSize: '0.7rem' }}>Anti-Bias Standard</span>
                 </div>
 
-                <div style={{ background: 'rgba(56, 189, 248, 0.06)', border: '1px solid rgba(56, 189, 248, 0.2)', padding: '14px', borderRadius: '10px', marginBottom: '18px' }}>
+                <div style={{ background: 'var(--bg-card-subtle, var(--bg-hover))', border: '1px solid var(--border)', padding: '14px', borderRadius: '10px', marginBottom: '18px' }}>
                   <div style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-primary)', marginBottom: '4px' }}>
                     {approvalModal.org.Org_Name || approvalModal.org.Username}
                   </div>
@@ -819,21 +996,21 @@ export default function AdminView({ contract, walletAddress, role, campaigns, fe
 
                 {/* Submitted Regulatory Credentials */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '18px', fontSize: '0.8rem' }}>
-                  <div style={{ background: 'rgba(255,255,255,0.02)', padding: '10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.06)' }}>
+                  <div style={{ background: 'var(--bg-card-subtle, var(--bg-hover))', padding: '10px', borderRadius: '8px', border: '1px solid var(--border)' }}>
                     <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '0.72rem' }}>SEC REGISTRATION NO:</span>
-                    <strong style={{ color: '#38bdf8', fontFamily: 'monospace', fontSize: '0.9rem' }}>
+                    <strong style={{ color: 'var(--accent)', fontFamily: 'monospace', fontSize: '0.9rem' }}>
                       {approvalModal.org.secRegistrationNo || 'SEC-CN2021-08492'}
                     </strong>
                   </div>
 
-                  <div style={{ background: 'rgba(255,255,255,0.02)', padding: '10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.06)' }}>
+                  <div style={{ background: 'var(--bg-card-subtle, var(--bg-hover))', padding: '10px', borderRadius: '8px', border: '1px solid var(--border)' }}>
                     <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '0.72rem' }}>DSWD ACCREDITATION:</span>
                     <strong style={{ color: 'var(--text-primary)', fontSize: '0.85rem' }}>
                       {approvalModal.org.dswdAccreditationNo || 'DSWD-SB-A-2024-0193'}
                     </strong>
                   </div>
 
-                  <div style={{ gridColumn: '1 / -1', background: 'rgba(255,255,255,0.02)', padding: '10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.06)' }}>
+                  <div style={{ gridColumn: '1 / -1', background: 'var(--bg-card-subtle, var(--bg-hover))', padding: '10px', borderRadius: '8px', border: '1px solid var(--border)' }}>
                     <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '0.72rem' }}>BOARD OF TRUSTEES / FOUNDERS:</span>
                     <span style={{ color: 'var(--text-secondary)' }}>
                       {approvalModal.org.boardMembers || 'Chairman: Richard Gordon | SecGen: Gwendolyn Pang'}
@@ -846,9 +1023,9 @@ export default function AdminView({ contract, walletAddress, role, campaigns, fe
                         type="button"
                         onClick={() => setViewingCertUrl({ url: approvalModal.org.secCertificateUrl, orgName: approvalModal.org.Org_Name, regNo: approvalModal.org.secRegistrationNo })}
                         style={{
-                          background: 'rgba(56, 189, 248, 0.12)',
-                          border: '1px solid rgba(56, 189, 248, 0.35)',
-                          color: '#38bdf8',
+                          background: 'var(--bg-card-subtle, var(--bg-hover))',
+                          border: '1px solid var(--border)',
+                          color: 'var(--accent)',
                           padding: '8px 16px',
                           borderRadius: '8px',
                           cursor: 'pointer',
@@ -873,7 +1050,7 @@ export default function AdminView({ contract, walletAddress, role, campaigns, fe
                     Anti-Bias Compliance Criteria Checklist
                   </div>
 
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', background: 'rgba(0,0,0,0.2)', padding: '12px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', background: 'var(--bg-card-subtle, var(--bg-hover))', padding: '12px', borderRadius: '10px', border: '1px solid var(--border)' }}>
                     <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.82rem', color: 'var(--text-primary)' }}>
                       <input 
                         type="checkbox" 
@@ -924,8 +1101,8 @@ export default function AdminView({ contract, walletAddress, role, campaigns, fe
                     style={{
                       width: '100%',
                       padding: '10px',
-                      background: 'rgba(0,0,0,0.3)',
-                      border: '1px solid rgba(255,255,255,0.1)',
+                      background: 'var(--bg-input, var(--bg-card))',
+                      border: '1px solid var(--border)',
                       borderRadius: '8px',
                       color: 'var(--text-primary)',
                       fontSize: '0.8rem',
@@ -951,11 +1128,12 @@ export default function AdminView({ contract, walletAddress, role, campaigns, fe
                     Reject Application
                   </button>
                   <button 
-                    className="btn btn-primary glow pulse" 
-                    style={{ flex: 2 }} 
+                    className="btn btn-primary" 
+                    style={{ flex: 2, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }} 
                     onClick={() => processOrganizationDecision('Approved')}
                   >
-                    ✓ Grant SEC Accreditation
+                    <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>check</span>
+                    Grant SEC Accreditation
                   </button>
                 </div>
               </div>
@@ -976,23 +1154,23 @@ export default function AdminView({ contract, walletAddress, role, campaigns, fe
         {txModal.show && (
           <div style={{
             position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
-            background: 'rgba(5, 7, 12, 0.75)', backdropFilter: 'blur(10px)',
+            background: 'rgba(0, 0, 0, 0.55)', backdropFilter: 'blur(8px)',
             display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999
           }} className="fade-in">
-            <div className="card bounce-in" style={{ width: '420px', padding: '24px', background: 'var(--surface)', border: '1px solid rgba(255,255,255,0.08)', boxShadow: '0 20px 40px rgba(0,0,0,0.4)', borderRadius: '16px' }}>
+            <div className="card bounce-in" style={{ width: '420px', padding: '24px', background: 'var(--bg-card)', border: '1px solid var(--border)', boxShadow: 'var(--shadow-lg, 0 20px 40px rgba(0,0,0,0.15))', borderRadius: 'var(--radius-lg, 16px)' }}>
 
               {txModal.step === 0 && (
                 <div className="fade-in">
-                  <h2 style={{ marginTop: 0, marginBottom: '20px', display: 'flex', alignItems: 'center', fontSize: '1.2rem', color: 'var(--text)' }}>
+                  <h2 style={{ marginTop: 0, marginBottom: '20px', display: 'flex', alignItems: 'center', fontSize: '1.2rem', color: 'var(--text-primary)' }}>
                     <span className="material-symbols-outlined" style={{ marginRight: '8px', color: 'var(--danger)' }}>warning</span>
                     Revoke Organization
                   </h2>
                   <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '16px' }}>
                     Are you sure you want to completely revoke on-chain access for this organization?
                   </p>
-                  <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', padding: '12px', borderRadius: '8px', marginBottom: '16px' }}>
+                  <div style={{ background: 'var(--bg-card-subtle, var(--bg-hover))', border: '1px solid var(--border)', padding: '12px', borderRadius: '8px', marginBottom: '16px' }}>
                     <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Target Wallet:</span><br />
-                    <strong style={{ color: 'var(--text)', fontSize: '0.85rem' }}>{txModal.addr}</strong>
+                    <strong style={{ color: 'var(--text-primary)', fontSize: '0.85rem' }}>{txModal.addr}</strong>
                   </div>
                   <div style={{ display: 'flex', gap: '12px', marginTop: '24px' }}>
                     <button className="btn btn-outline" style={{ flex: 1 }} onClick={() => setTxModal({ show: false, step: 0, hash: '', type: '', addr: '' })}>Cancel</button>
@@ -1004,7 +1182,7 @@ export default function AdminView({ contract, walletAddress, role, campaigns, fe
               {txModal.step === 1 && (
                 <div className="fade-in" style={{ textAlign: 'center', padding: '40px 0' }}>
                   <div className="spinner" style={{ width: '40px', height: '40px', margin: '0 auto 20px', borderColor: 'var(--primary)', borderRightColor: 'transparent' }}></div>
-                  <h3 style={{ marginBottom: '8px', color: 'var(--text)' }}>Awaiting Signature</h3>
+                  <h3 style={{ marginBottom: '8px', color: 'var(--text-primary)' }}>Awaiting Signature</h3>
                   <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Please open MetaMask and securely sign the transaction to {txModal.type === 'ADD' ? 'add this organization' : 'revoke this organization'}.</p>
                 </div>
               )}
@@ -1012,9 +1190,9 @@ export default function AdminView({ contract, walletAddress, role, campaigns, fe
               {txModal.step === 2 && (
                 <div className="fade-in" style={{ textAlign: 'center', padding: '40px 0' }}>
                   <div className="spinner" style={{ width: '40px', height: '40px', margin: '0 auto 20px', borderColor: 'var(--secondary)', borderRightColor: 'transparent' }}></div>
-                  <h3 style={{ marginBottom: '8px', color: 'var(--text)' }}>Processing Transaction</h3>
+                  <h3 style={{ marginBottom: '8px', color: 'var(--text-primary)' }}>Processing Transaction</h3>
                   <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '20px' }}>Mining your administrative transaction on the Sepolia network.</p>
-                  <div style={{ padding: '10px', background: 'rgba(0,0,0,0.3)', borderRadius: '8px', fontSize: '0.75rem', wordBreak: 'break-all', border: '1px solid rgba(255,255,255,0.05)' }}>
+                  <div style={{ padding: '10px', background: 'var(--bg-card-subtle, var(--bg-hover))', borderRadius: '8px', fontSize: '0.75rem', wordBreak: 'break-all', border: '1px solid var(--border)' }}>
                     <span style={{ color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>Transaction Hash:</span>
                     {txModal.hash}
                   </div>
@@ -1026,20 +1204,20 @@ export default function AdminView({ contract, walletAddress, role, campaigns, fe
                   <div className="success-circle-container">
                     <span className="material-symbols-outlined check-icon-pop" style={{ fontSize: '2.5rem', color: 'var(--success)' }}>check</span>
                   </div>
-                  <h3 style={{ marginBottom: '8px', color: 'var(--text)' }}>{txModal.type === 'ADD' ? 'Organization Deployed!' : 'Access Revoked!'}</h3>
+                  <h3 style={{ marginBottom: '8px', color: 'var(--text-primary)' }}>{txModal.type === 'ADD' ? 'Organization Deployed!' : 'Access Revoked!'}</h3>
                   <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
                     {txModal.type === 'ADD'
                       ? "The organization's wallet has been successfully recorded to the immutable ledger."
                       : "Their on-chain role has been completely burned from the ledger."
                     }
                   </p>
-                  <div style={{ margin: '24px 0', padding: '16px', background: 'rgba(0,0,0,0.2)', borderRadius: '8px', textAlign: 'left', border: '1px solid rgba(0,255,100,0.1)' }}>
+                  <div style={{ margin: '24px 0', padding: '16px', background: 'var(--bg-card-subtle, var(--bg-hover))', borderRadius: '8px', textAlign: 'left', border: '1px solid var(--border)' }}>
                     <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '8px' }}>Verified Block Receipt</div>
                     <a href={`https://sepolia.etherscan.io/tx/${txModal.hash}`} target="_blank" rel="noreferrer" style={{ color: 'var(--success)', textDecoration: 'none', wordBreak: 'break-all', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
                       <span className="material-symbols-outlined" style={{ fontSize: '1rem' }}>open_in_new</span> {txModal.hash.slice(0, 20)}...
                     </a>
                   </div>
-                  <button className="btn btn-primary btn-full pulse" onClick={() => setTxModal({ show: false, step: 0, hash: '', type: '', addr: '' })}>Complete</button>
+                  <button className="btn btn-primary btn-full" onClick={() => setTxModal({ show: false, step: 0, hash: '', type: '', addr: '' })}>Complete</button>
                 </div>
               )}
             </div>

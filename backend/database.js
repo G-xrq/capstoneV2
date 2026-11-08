@@ -1,4 +1,5 @@
 const path = require('path');
+require('dotenv').config({ path: path.resolve(__dirname, '.env') });
 let sqlite3 = null;
 try {
   sqlite3 = require('sqlite3').verbose();
@@ -22,7 +23,11 @@ const dbConfig = {
   database: process.env.DB_NAME || 'blockchain_relief',
   waitForConnections: true,
   connectionLimit: 10,
+  maxIdle: 10,
+  idleTimeout: 60000,
   queueLimit: 0,
+  enableKeepAlive: true,
+  keepAliveInitialDelay: 10000,
   timezone: 'Z',
   ...(isCloud ? { ssl: { rejectUnauthorized: false } } : {})
 };
@@ -238,6 +243,8 @@ function initSqlite() {
         sqliteDb.run(`ALTER TABLE CAMPAIGN ADD COLUMN Bank_Account_Number TEXT`, () => {});
         sqliteDb.run(`ALTER TABLE CAMPAIGN ADD COLUMN Is_Active INTEGER DEFAULT 1`, () => {});
         sqliteDb.run(`ALTER TABLE CAMPAIGN ADD COLUMN Created_At DATETIME`, () => {});
+        sqliteDb.run(`ALTER TABLE CAMPAIGN ADD COLUMN Ai_Suggested_Allocations TEXT`, () => {});
+        sqliteDb.run(`ALTER TABLE CAMPAIGN ADD COLUMN Ai_Generated_Summary TEXT`, () => {});
 
         sqliteDb.run(`
           CREATE TABLE IF NOT EXISTS DONATION_TRANSACTION (
@@ -280,6 +287,12 @@ function initSqlite() {
         sqliteDb.run(`ALTER TABLE MANUAL_DONATION ADD COLUMN Confirmed_Amount REAL`, () => {});
         sqliteDb.run(`ALTER TABLE MANUAL_DONATION ADD COLUMN Rejection_Reason TEXT`, () => {});
         sqliteDb.run(`ALTER TABLE MANUAL_DONATION ADD COLUMN Verified_At DATETIME`, () => {});
+        sqliteDb.run(`ALTER TABLE MANUAL_DONATION ADD COLUMN Ai_Extracted_Amount REAL`, () => {});
+        sqliteDb.run(`ALTER TABLE MANUAL_DONATION ADD COLUMN Ai_Extracted_Ref_No TEXT`, () => {});
+        sqliteDb.run(`ALTER TABLE MANUAL_DONATION ADD COLUMN Ai_Extracted_Date TEXT`, () => {});
+        sqliteDb.run(`ALTER TABLE MANUAL_DONATION ADD COLUMN Ai_Confidence_Score REAL`, () => {});
+        sqliteDb.run(`ALTER TABLE MANUAL_DONATION ADD COLUMN Ai_Validation_Status TEXT`, () => {});
+        sqliteDb.run(`ALTER TABLE MANUAL_DONATION ADD COLUMN Ai_Audit_Notes TEXT`, () => {});
 
         sqliteDb.run(`
           CREATE TABLE IF NOT EXISTS NOTIFICATIONS (
@@ -344,6 +357,35 @@ async function initializeDatabase() {
     }
 
     mysqlPool = mysql.createPool(dbConfig);
+    // Helper to identify benign idle socket resets from TiDB Cloud serverless proxy
+    const isBenignDisconnect = (err) => {
+      if (!err) return false;
+      const msg = String(err.message || '').toLowerCase();
+      const code = String(err.code || '').toLowerCase();
+      return (
+        code === 'econnreset' ||
+        code === 'protocol_connection_lost' ||
+        code === 'econnrefused' ||
+        code === 'etimedout' ||
+        msg.includes('econnreset') ||
+        msg.includes('connection lost') ||
+        msg.includes('closed')
+      );
+    };
+
+    // Attach error listeners to prevent uncaughtException crash on idle TCP drop (ECONNRESET)
+    if (mysqlPool.pool) {
+      mysqlPool.pool.on('error', (err) => {
+        if (isBenignDisconnect(err)) return;
+        console.warn('⚠️ Handled MySQL pool idle error:', err.message);
+      });
+      mysqlPool.pool.on('connection', (conn) => {
+        conn.on('error', (err) => {
+          if (isBenignDisconnect(err)) return;
+          console.warn('⚠️ Handled MySQL connection socket error:', err.message);
+        });
+      });
+    }
     // Test connection with a quick ping
     await mysqlPool.query('SELECT 1');
     console.log('✅ Connected to MySQL Database.');
@@ -497,6 +539,8 @@ async function initializeDatabase() {
     try { await mysqlPool.query(`ALTER TABLE CAMPAIGN ADD COLUMN Bank_Qr_Url LONGTEXT`); } catch (_) {}
     try { await mysqlPool.query(`ALTER TABLE CAMPAIGN ADD COLUMN Is_Active TINYINT(1) DEFAULT 1`); } catch (_) {}
     try { await mysqlPool.query(`ALTER TABLE CAMPAIGN ADD COLUMN Created_At TIMESTAMP DEFAULT CURRENT_TIMESTAMP`); } catch (_) {}
+    try { await mysqlPool.query(`ALTER TABLE CAMPAIGN ADD COLUMN Ai_Suggested_Allocations LONGTEXT`); } catch (_) {}
+    try { await mysqlPool.query(`ALTER TABLE CAMPAIGN ADD COLUMN Ai_Generated_Summary LONGTEXT`); } catch (_) {}
 
     await mysqlPool.query(`
       CREATE TABLE IF NOT EXISTS DONATION_TRANSACTION (
@@ -537,6 +581,12 @@ async function initializeDatabase() {
     try { await mysqlPool.query(`ALTER TABLE MANUAL_DONATION ADD COLUMN Confirmed_Amount DECIMAL(36, 18)`); } catch (_) {}
     try { await mysqlPool.query(`ALTER TABLE MANUAL_DONATION ADD COLUMN Rejection_Reason TEXT`); } catch (_) {}
     try { await mysqlPool.query(`ALTER TABLE MANUAL_DONATION ADD COLUMN Verified_At TIMESTAMP NULL`); } catch (_) {}
+    try { await mysqlPool.query(`ALTER TABLE MANUAL_DONATION ADD COLUMN Ai_Extracted_Amount DECIMAL(36, 18)`); } catch (_) {}
+    try { await mysqlPool.query(`ALTER TABLE MANUAL_DONATION ADD COLUMN Ai_Extracted_Ref_No VARCHAR(255)`); } catch (_) {}
+    try { await mysqlPool.query(`ALTER TABLE MANUAL_DONATION ADD COLUMN Ai_Extracted_Date VARCHAR(100)`); } catch (_) {}
+    try { await mysqlPool.query(`ALTER TABLE MANUAL_DONATION ADD COLUMN Ai_Confidence_Score DECIMAL(5, 2)`); } catch (_) {}
+    try { await mysqlPool.query(`ALTER TABLE MANUAL_DONATION ADD COLUMN Ai_Validation_Status VARCHAR(100)`); } catch (_) {}
+    try { await mysqlPool.query(`ALTER TABLE MANUAL_DONATION ADD COLUMN Ai_Audit_Notes LONGTEXT`); } catch (_) {}
 
     await mysqlPool.query(`
       CREATE TABLE IF NOT EXISTS NOTIFICATIONS (
@@ -591,7 +641,15 @@ module.exports = {
     await initPromise;
 
     if (activeDriver === 'mysql') {
-      return mysqlPool.query(sql, params);
+      try {
+        return await mysqlPool.query(sql, params);
+      } catch (err) {
+        if (err && (err.code === 'ECONNRESET' || err.code === 'PROTOCOL_CONNECTION_LOST' || err.code === 'ETIMEDOUT')) {
+          console.warn(`⚠️ MySQL connection interrupted (${err.code}). Auto-retrying query once...`);
+          return await mysqlPool.query(sql, params);
+        }
+        throw err;
+      }
     }
 
     // SQLite mode

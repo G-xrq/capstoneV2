@@ -15,6 +15,7 @@
 // ── STEP 5: Paste your new contract address here after deployment ──
 // Old contract (no role management): 0x41feEEfE1829C53b069D70e4A6e851Fc8ecA493b
 export const contractAddress = "0xB8Effb4f0394946a01da9C5342fC2e70c1E99ddA";
+export const CONTRACT_ADDRESS = contractAddress;
 
 export const contractABI = [
     // ── Constructor ──────────────────────────────────────────────

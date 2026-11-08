@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { ethers } from 'ethers';
 import Tesseract from 'tesseract.js';
 import { isLocalhost, API_URL } from '../config';
-import CampaignCard, { shortAddr, formatCampaignTitle, getOrgDisplayName, getCampaignTags, getCampaignAuditDetails, getCampaignCategoryInfo, getCampaignCoverData } from '../components/CampaignCard';
+import CampaignCard, { shortAddr, formatCampaignTitle, formatEthAmt, progressPct, getOrgDisplayName, getCampaignTags, getCampaignAuditDetails, getCampaignCategoryInfo, getCampaignCoverData } from '../components/CampaignCard';
 import LocationMapPicker from '../components/LocationMapPicker';
 import { ROLES } from '../roleConfig';
 import SettingsPanel from '../components/SettingsPanel';
@@ -12,7 +12,9 @@ import SecCertificateModal, { normalizeSecDocUrl, isPdfDocument } from '../compo
 import GuidedTour from '../components/GuidedTour';
 import { useToast } from '../context/ToastContext';
 import { getRegions, getRegionForProvince } from '../data/philippineGeoData';
+import { CONTRACT_ADDRESS } from '../contractConfig';
 import './ReferenceDashboard.css';
+import './DashboardOverview.css';
 
 export const formatImageSrc = (rawSrc) => {
   if (!rawSrc) return '';
@@ -65,10 +67,44 @@ export default function OrganizationView({
   theme,
   setTheme,
   textSize,
-  setTextSize
+  setTextSize,
+  onActiveTabChange
 }) {
   const { showSuccess, showWarning, showError } = useToast();
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [showNgoGuide, setShowNgoGuide] = useState(() => {
+    try { return localStorage.getItem('bbdrts_dismiss_ngo_guide') !== 'true'; } catch (_) { return true; }
+  });
+
+  // Live Dashboard Section Broadcast to ReliefAI
+  const lastOrgTabRef = useRef(null);
+  useEffect(() => {
+    if (lastOrgTabRef.current === activeTab) return;
+    lastOrgTabRef.current = activeTab;
+    const orgTabLabels = {
+      'dashboard': 'NGO Operations Dashboard',
+      'sec-kyc': 'SEC & Accreditation KYC Verification',
+      'all-campaigns': 'Public Relief Campaigns Explorer',
+      'radar-heatmap': 'Disaster Relief Radar Heatmap',
+      'my-campaigns': 'My Deployed Relief Drives',
+      'create': 'Deploy New Relief Campaign (AI Budget)',
+      'ledger': 'Financial Ledger & Manual Donation Verification',
+      'settings': 'Organization Profile & Settings'
+    };
+    const sectionLabel = orgTabLabels[activeTab] || activeTab;
+    const metaPayload = {
+      tab: activeTab,
+      section: sectionLabel,
+      portal: 'NGO Operations Portal',
+      orgName: currentUser?.organization_name || currentUser?.Org_Name || 'Accredited NGO',
+      activeTab
+    };
+    if (typeof onActiveTabChange === 'function') {
+      onActiveTabChange(activeTab, metaPayload);
+    }
+  }, [activeTab, onActiveTabChange]);
+
+
 
   // Filter & Sort States for "All Campaigns" (Unified Toolbar matching DonorView)
   const [categoryFilterAll, setCategoryFilterAll] = useState('ALL');
@@ -680,6 +716,69 @@ export default function OrganizationView({
   const [bypassMetaMaskLocal, setBypassMetaMaskLocal] = useState(true);
   const [txModal, setTxModal] = useState({ show: false, step: 0, hash: '', type: '', error: '', isLocal: false });
 
+  // ── Module B: AI Smart Budget & Campaign Generator State ──
+  const [showAiBudgetModal, setShowAiBudgetModal] = useState(false);
+  const [aiDisasterType, setAiDisasterType] = useState('Typhoon');
+  const [aiSeverityRating, setAiSeverityRating] = useState('Signal 3');
+  const [aiBeneficiariesCount, setAiBeneficiariesCount] = useState(500);
+  const [aiRegion, setAiRegion] = useState('Eastern Visayas (Southern Leyte)');
+  const [aiBudgetLoading, setAiBudgetLoading] = useState(false);
+  const [aiBudgetResult, setAiBudgetResult] = useState(null);
+
+  const handleGenerateAiBudget = async () => {
+    setAiBudgetLoading(true);
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL || (
+        window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+          ? 'http://localhost:3001'
+          : 'https://bbdrts-backend-api.onrender.com'
+      );
+      const res = await fetch(`${apiUrl}/api/ai/generate-campaign-budget`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          disasterType: aiDisasterType,
+          severityRating: aiSeverityRating,
+          beneficiariesCount: aiBeneficiariesCount,
+          region: aiRegion
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to generate budget');
+      setAiBudgetResult(data);
+    } catch (err) {
+      console.warn('AI Budget Generation error, using local fallback:', err);
+      // Deterministic client fallback if offline
+      setAiBudgetResult({
+        totalBudgetPhp: Math.round(aiBeneficiariesCount * 1250 * 1.25),
+        totalBudgetEth: Number(((aiBeneficiariesCount * 1250 * 1.25) / 170000).toFixed(4)),
+        unitCostPerFamily: 1563,
+        unitDescription: '₱1,563 per family (NDRRMC Sphere Standard: 7-day food pack, clean water, shelter tarps, first-aid)',
+        primaryNeeds: ['Potable Drinking Water', 'Rice & Ready-to-Eat Food Packs', 'Tarpaulins & Roofing Materials', 'Emergency First-Aid Kits'],
+        allocations: { foodWater: 45, shelter: 25, medical: 20, logistics: 10 },
+        campaignTitle: `Emergency ${aiDisasterType} Relief Drive: ${aiRegion}`,
+        campaignDescription: `In response to the ${aiDisasterType} affecting ${aiRegion} (${aiSeverityRating}), this campaign mobilizes immediate humanitarian aid for ${Number(aiBeneficiariesCount).toLocaleString()} families. Funds are allocated according to NDRRMC standards: 45% Food & Water, 25% Emergency Shelter, 20% Medical Care, and 10% Logistics. All donations are permanently audited on the blockchain ledger.`,
+        beneficiariesImpact: `${Number(aiBeneficiariesCount).toLocaleString()} families across high-risk barangays in ${aiRegion}`,
+        generatedBy: 'NDRRMC_BENCHMARK_MATRIX'
+      });
+    } finally {
+      setAiBudgetLoading(false);
+    }
+  };
+
+  const handleApplyAiBudget = () => {
+    if (!aiBudgetResult) return;
+    setTitle(aiBudgetResult.campaignTitle || `Emergency ${aiDisasterType} Relief`);
+    setTargetAmount(String(aiBudgetResult.totalBudgetPhp || ''));
+    setCategory('DR');
+    setUrgency(aiSeverityRating.includes('4') || aiSeverityRating.includes('5') ? 'Critical' : 'High');
+    setDescription(aiBudgetResult.campaignDescription || '');
+    setBeneficiariesImpact(aiBudgetResult.beneficiariesImpact || '');
+    setLocationRegion(aiRegion);
+    setShowAiBudgetModal(false);
+    showSuccess?.('AI Smart Budget & NDRRMC Allocations applied to campaign!', 'AI Budget Applied');
+  };
+
   const handleGcashQrUpload = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -1128,6 +1227,7 @@ export default function OrganizationView({
   const [kycStepText, setKycStepText] = useState('');
   const [kycStatusData, setKycStatusData] = useState(null);
   const [viewingKycCert, setViewingKycCert] = useState(false);
+  const [showKycFormOverride, setShowKycFormOverride] = useState(false);
   const [showGuidedTour, setShowGuidedTour] = useState(false);
 
   const userTourKey = currentUser?.id
@@ -1313,13 +1413,13 @@ export default function OrganizationView({
 
     try {
       setKycSaving(true);
-      setKycStepText('🤖 Gemini Vision AI: Analyzing institutional seal & document authenticity...');
+      setKycStepText('Verifying Certificate of Incorporation and organization seal...');
 
       const token = localStorage.getItem('bbdrts_token');
       const apiUrl = API_URL;
 
       const stepTimer = setTimeout(() => {
-        setKycStepText('⚡ Cross-referencing SEC Registry Number against Anti-Fraud Rubric...');
+        setKycStepText('Validating SEC registration number against official records...');
       }, 1400);
 
       const res = await fetch(`${apiUrl}/api/organization/kyc`, {
@@ -1341,19 +1441,19 @@ export default function OrganizationView({
       const data = await res.json();
 
       if (res.ok && data.success) {
-        showSuccess(data.message || 'Verification Successful! Accredited by Gemini AI Vision.', 'AI Accredited ✅');
+        showSuccess(data.message || 'Verification Successful! Your organization is now accredited.', 'Verification Approved');
         if (currentUser) currentUser.verification_status = 'Approved';
         await fetchKycData();
       } else if (data.verification_status === 'Flagged') {
-        showError(data.error || 'Maximum verification attempts exceeded. Account flagged.', 'Account Flagged ⚠️');
+        showError(data.error || 'Maximum verification attempts exceeded. Account flagged for admin review.', 'Account Flagged');
         await fetchKycData();
       } else {
-        showWarning(data.message || data.error || 'Document could not be verified by AI rubric. Please check the document and resubmit.', 'Verification Notice');
+        showWarning(data.message || data.error || 'Document could not be verified. Please verify the SEC registration number and upload a legible certificate.', 'Verification Incomplete');
         await fetchKycData();
       }
     } catch (err) {
       console.error(err);
-      showWarning('Network error during AI verification: ' + err.message, 'Error');
+      showWarning('Network error during verification: ' + err.message, 'Connection Error');
     } finally {
       setKycSaving(false);
       setKycStepText('');
@@ -1894,18 +1994,20 @@ export default function OrganizationView({
           <div className="ref-sidebar-widget" id="tour-ngo-sepolia-node" style={{ marginTop: '20px' }}>
             <div className="ref-widget-header">
               <span className="ref-status-dot"></span>
-              <span className="ref-widget-title">Blockchain Network Status</span>
+              <span className="ref-widget-title">Network & Verification</span>
             </div>
             <div className="ref-widget-detail">
               <div className="ref-widget-row">
-                <span>Verification</span>
-                <span className="ref-widget-value green">
-                  {currentUser?.verification_status === 'Approved' ? 'Approved NGO' : 'Pending Verification'}
-                </span>
+                <span>NGO Status</span>
+                {currentUser?.verification_status === 'Approved' ? (
+                  <span className="ref-widget-badge approved">✓ Verified</span>
+                ) : (
+                  <span className="ref-widget-badge pending">Pending</span>
+                )}
               </div>
               <div className="ref-widget-row">
-                <span>System Status</span>
-                <span className="ref-widget-value">Secure &amp; Verified</span>
+                <span>Blockchain</span>
+                <span className="ref-widget-value" style={{ color: '#38bdf8' }}>Sepolia EVM</span>
               </div>
             </div>
           </div>
@@ -1916,7 +2018,7 @@ export default function OrganizationView({
 
           {/* Sleek Inline Testnet Banner
           <div className="ref-inline-testnet-banner">
-            <span>🔬</span>
+            <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>biotech</span>
             <span>
                 <strong>Sepolia Testnet Protocol Active</strong> — Verified Smart Contract Operations.{' '}
               <a href="https://sepoliafaucet.com/" target="_blank" rel="noreferrer" style={{ color: '#38bdf8', textDecoration: 'underline' }}>
@@ -1942,17 +2044,113 @@ export default function OrganizationView({
             const heroDivider = heroBannerActive ? 'rgba(255,255,255,0.1)' : 'var(--border)';
             return (
             <>
-              {/* Top Hero Banner — Sleek High-Impact Organization Identity */}
+              {/* HCI First-Time User Experience & Quick Start Guide for NGOs */}
+              {showNgoGuide && (
+                <div className="db-welcome-guide" id="tour-ngo-guide">
+                  <div className="db-guide-header">
+                    <div>
+                      <div className="db-guide-badge">
+                        <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>verified_user</span>
+                        <span>Relief Organization Onboarding</span>
+                      </div>
+                      <h2 className="db-guide-title">
+                        Welcome to BBDRTS, {orgDisplayName || 'Organization Team'}
+                      </h2>
+                      <p className="db-guide-subtitle">
+                        Deploy transparent disaster appeals, verify incoming GCash/Maya donor slips with AI assistance, and disburse relief funds with zero intermediary fees.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      className="db-guide-dismiss"
+                      onClick={() => {
+                        setShowNgoGuide(false);
+                        try { localStorage.setItem('bbdrts_dismiss_ngo_guide', 'true'); } catch (_) {}
+                      }}
+                      title="Dismiss this guide"
+                    >
+                      <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>check</span>
+                      <span>Hide guide</span>
+                    </button>
+                  </div>
+
+                  <div className="db-guide-steps">
+                    {/* Step 1 */}
+                    <div className="db-guide-step-card">
+                      <div className="db-guide-step-top">
+                        <span className="db-guide-step-num">Step 01</span>
+                        <span className="material-symbols-outlined db-guide-step-icon">badge</span>
+                      </div>
+                      <div>
+                        <h3 className="db-guide-step-heading">Complete SEC Verification</h3>
+                        <p className="db-guide-step-desc">
+                          {currentUser?.verification_status === 'Approved'
+                            ? 'Your institutional accreditation is active. You can deploy live on-chain relief appeals.'
+                            : 'Upload your SEC registration or local endorsement letter to unlock campaign deployment.'}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        className="db-guide-step-action"
+                        onClick={() => { fetchKycData(); setActiveTab('sec-kyc'); }}
+                      >
+                        <span>{currentUser?.verification_status === 'Approved' ? 'View Credentials' : 'Submit Documents'}</span>
+                        <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>arrow_forward</span>
+                      </button>
+                    </div>
+
+                    {/* Step 2 */}
+                    <div className="db-guide-step-card">
+                      <div className="db-guide-step-top">
+                        <span className="db-guide-step-num">Step 02</span>
+                        <span className="material-symbols-outlined db-guide-step-icon">add_circle</span>
+                      </div>
+                      <div>
+                        <h3 className="db-guide-step-heading">Launch a Relief Appeal</h3>
+                        <p className="db-guide-step-desc">
+                          Create an emergency response drive with itemized resource allocations and Philippine province mapping.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        className="db-guide-step-action"
+                        onClick={() => setActiveTab('create')}
+                      >
+                        <span>Create Appeal</span>
+                        <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>arrow_forward</span>
+                      </button>
+                    </div>
+
+                    {/* Step 3 */}
+                    <div className="db-guide-step-card">
+                      <div className="db-guide-step-top">
+                        <span className="db-guide-step-num">Step 03</span>
+                        <span className="material-symbols-outlined db-guide-step-icon">fact_check</span>
+                      </div>
+                      <div>
+                        <h3 className="db-guide-step-heading">Review Payment Slips</h3>
+                        <p className="db-guide-step-desc">
+                          Inspect uploaded donor e-wallet receipts with AI verification and notarize them onto the blockchain.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        className="db-guide-step-action"
+                        onClick={() => setActiveTab('ledger')}
+                      >
+                        <span>Donation Ledger</span>
+                        <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>arrow_forward</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Compact Organization Hero */}
               <div
-                className="ref-welcome-card"
+                className="db-hero"
                 id="tour-ngo-welcome"
                 style={{
-                  padding: '24px 28px',
-                  borderRadius: '16px',
-                  marginBottom: '22px',
-                  position: 'relative',
-                  overflow: 'hidden',
-                  borderBottom: 'none',
                   ...(currentUser?.banner_url && (currentUser.banner_url.startsWith('data:') || currentUser.banner_url.startsWith('http') || currentUser.banner_url.startsWith('/'))
                     ? { backgroundImage: `linear-gradient(rgba(10,12,18,0.75), rgba(10,12,18,0.92)), url(${currentUser.banner_url})`, backgroundSize: 'cover', backgroundPosition: 'center' }
                     : currentUser?.banner_url && currentUser.banner_url.startsWith('linear-gradient')
@@ -1960,198 +2158,107 @@ export default function OrganizationView({
                       : {})
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '20px', marginBottom: '18px' }}>
+                <div className="db-hero-row">
                   {/* Left: Avatar & Identity */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '16px', minWidth: '240px' }} id="tour-ngo-identity">
-                    <div
-                      style={{
-                        width: '64px',
-                        height: '64px',
-                        borderRadius: '50%',
-                        overflow: 'hidden',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        background: 'rgba(255,255,255,0.06)',
-                        border: '2px solid rgba(255,255,255,0.18)',
-                        boxShadow: '0 4px 16px rgba(0,0,0,0.4)',
-                        flexShrink: 0
-                      }}
-                    >
+                  <div className="db-identity" id="tour-ngo-identity">
+                    <div className="db-avatar" style={heroBannerActive ? { background: 'rgba(255,255,255,0.1)', borderColor: 'rgba(255,255,255,0.24)' } : undefined}>
                       {currentUser?.avatar_url && (currentUser.avatar_url.startsWith('data:') || currentUser.avatar_url.startsWith('http')) ? (
-                        <img src={currentUser.avatar_url} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        <img src={currentUser.avatar_url} alt="Profile" />
                       ) : currentUser?.avatar_url && currentUser.avatar_url.length < 30 ? (
-                        <span className="material-symbols-outlined" style={{ fontSize: '32px', color: 'var(--accent, #22c55e)' }}>{currentUser.avatar_url}</span>
+                        <span className="material-symbols-outlined" style={{ fontSize: '25px', color: 'var(--accent)' }}>{currentUser.avatar_url}</span>
                       ) : (
-                        <span style={{ fontSize: '1.4rem', fontWeight: 800, color: '#fff' }}>{orgInitials}</span>
+                        orgInitials
                       )}
                     </div>
 
-                    <div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-                        <h1 style={{ margin: 0, fontSize: '1.55rem', fontWeight: 850, color: heroText, letterSpacing: '-0.01em' }}>
-                          {orgDisplayName || 'Organization Dashboard'}
-                        </h1>
-                        <span
-                          style={{
-                            background: currentUser?.verification_status === 'Approved' ? 'rgba(34, 197, 94, 0.15)' : 'rgba(245, 158, 11, 0.15)',
-                            color: currentUser?.verification_status === 'Approved' ? '#22c55e' : '#f59e0b',
-                            border: `1px solid ${currentUser?.verification_status === 'Approved' ? 'rgba(34, 197, 94, 0.35)' : 'rgba(245, 158, 11, 0.35)'}`,
-                            fontSize: '0.72rem',
-                            fontWeight: 700,
-                            padding: '3px 10px',
-                            borderRadius: '9999px',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '4px'
-                          }}
-                        >
+                    <div style={{ minWidth: 0 }}>
+                      <h1 className="db-title" style={{ color: heroText }}>
+                        {orgDisplayName || 'Organization Dashboard'}
+                      </h1>
+                      <div className="db-meta" style={{ color: heroSub }}>
+                        <span className={`db-chip ${currentUser?.verification_status === 'Approved' ? 'db-chip--ok' : 'db-chip--warn'}`}>
                           <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>
                             {currentUser?.verification_status === 'Approved' ? 'verified' : 'hourglass_top'}
                           </span>
-                          <span>{currentUser?.verification_status === 'Approved' ? 'SEC ACCREDITED' : 'ACCREDITATION PENDING'}</span>
+                          <span>{currentUser?.verification_status === 'Approved' ? 'SEC accredited' : 'Accreditation pending'}</span>
                         </span>
-                      </div>
-
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px', fontSize: '0.84rem', color: heroSub, flexWrap: 'wrap' }}>
-                        <span style={{ color: '#22c55e', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
-                          <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>verified</span>
-                          <span>{currentUser?.verification_status === 'Approved' ? 'Verified Organization' : 'Pending Verification'}</span>
-                        </span>
-                        <span style={{ color: heroDot }}>•</span>
                         <span>
-                          Wallet Address:{' '}
-                          <code
-                            style={{
-                              color: 'var(--accent, #22c55e)',
-                              background: 'rgba(34, 197, 94, 0.1)',
-                              padding: '2px 8px',
-                              borderRadius: '6px',
-                              fontSize: '0.82rem',
-                              fontFamily: 'var(--font-mono)'
-                            }}
-                          >
-                            {shortAddr(walletAddress)}
-                          </code>
+                          Wallet&nbsp;<code className="db-code">{shortAddr(walletAddress)}</code>
                         </span>
                       </div>
                     </div>
                   </div>
 
-                  {/* Right: Mobilized Aid Summary Callout */}
-                  <div
-                    id="tour-ngo-impact"
-                    style={{
-                      textAlign: 'right',
-                      background: 'rgba(0, 0, 0, 0.35)',
-                      backdropFilter: 'blur(6px)',
-                      padding: '12px 20px',
-                      borderRadius: '12px',
-                      border: '1px solid rgba(255, 255, 255, 0.08)'
-                    }}
-                  >
-                    <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                      Total Aid Mobilized
+                  {/* Right: Mobilized Aid Summary */}
+                  <div className="db-impact" id="tour-ngo-impact">
+                    <div className="db-impact-label" style={heroBannerActive ? { color: 'rgba(255,255,255,0.6)' } : undefined}>
+                      Total aid mobilized
                     </div>
-                    <div style={{ fontSize: '1.65rem', fontWeight: 850, color: heroText, letterSpacing: '-0.02em', margin: '2px 0' }}>
-                      ₱{(totalRaisedByMe * 170000).toLocaleString('en-US', { maximumFractionDigits: 0 })}{' '}
-                      <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>PHP</span>
+                    <div className="db-impact-value" style={{ color: heroText }}>
+                      ₱{(totalRaisedByMe * 170000).toLocaleString('en-US', { maximumFractionDigits: 0 })}
+                      <span className="db-impact-unit">PHP</span>
                     </div>
-                    <div style={{ fontSize: '0.82rem', color: 'var(--accent, #22c55e)', fontWeight: 700 }}>
-                      {totalRaisedByMe.toFixed(4)} ETH · {myCampaigns.length} Operations
+                    <div className="db-impact-sub">
+                      {totalRaisedByMe.toFixed(4)} ETH · {myCampaigns.length} operation{myCampaigns.length !== 1 ? 's' : ''}
                     </div>
                   </div>
                 </div>
 
-                {/* Bottom Row: Clean Action Buttons matching Image 1 */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap', paddingTop: '14px', borderTop: `1px solid ${heroDivider}` }} id="tour-ngo-actions">
+                {/* Action Row */}
+                <div className="db-actions" id="tour-ngo-actions" style={{ borderTopColor: heroDivider }}>
                   <button
                     type="button"
+                    className="db-btn db-btn--primary"
                     onClick={() => setActiveTab('create')}
-                    style={{
-                      background: 'var(--accent, #22c55e)',
-                      color: '#000000',
-                      border: 'none',
-                      borderRadius: '9999px',
-                      padding: '8px 20px',
-                      fontSize: '0.85rem',
-                      fontWeight: 700,
-                      cursor: 'pointer',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      boxShadow: '0 4px 12px rgba(34, 197, 94, 0.35)',
-                      transition: 'all 0.18s ease'
-                    }}
                   >
-                    <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>rocket_launch</span>
+                    <span className="material-symbols-outlined">rocket_launch</span>
                     <span>Deploy Campaign</span>
                   </button>
 
                   <button
                     type="button"
+                    className="db-btn"
+                    style={heroBannerActive ? { background: heroBtnBg, borderColor: heroBtnBd, color: heroText } : undefined}
                     onClick={() => setActiveTab('ledger')}
-                    style={{
-                      background: heroBtnBg,
-                      color: heroText,
-                      border: `1px solid ${heroBtnBd}`,
-                      borderRadius: '9999px',
-                      padding: '8px 18px',
-                      fontSize: '0.85rem',
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      transition: 'all 0.18s ease'
-                    }}
                   >
-                    <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#0284c7' }}>receipt_long</span>
+                    <span className="material-symbols-outlined">receipt_long</span>
                     <span>Donation Ledger</span>
                   </button>
 
                   <button
                     type="button"
+                    className="db-btn"
+                    style={heroBannerActive ? { background: heroBtnBg, borderColor: heroBtnBd, color: heroText } : undefined}
                     onClick={() => setActiveTab('radar-heatmap')}
-                    style={{
-                      background: heroBtnBg,
-                      color: heroText,
-                      border: `1px solid ${heroBtnBd}`,
-                      borderRadius: '9999px',
-                      padding: '8px 18px',
-                      fontSize: '0.85rem',
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      transition: 'all 0.18s ease'
-                    }}
                   >
-                    <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#38bdf8' }}>radar</span>
+                    <span className="material-symbols-outlined">radar</span>
                     <span>Relief Radar</span>
                   </button>
+
+                  {!showNgoGuide && (
+                    <button
+                      type="button"
+                      className="db-btn"
+                      style={heroBannerActive ? { background: heroBtnBg, borderColor: heroBtnBd, color: heroText } : undefined}
+                      onClick={() => {
+                        setShowNgoGuide(true);
+                        try { localStorage.removeItem('bbdrts_dismiss_ngo_guide'); } catch (_) {}
+                      }}
+                      title="Reopen Quick Start Guide"
+                    >
+                      <span className="material-symbols-outlined">help_outline</span>
+                      <span>Quick Guide</span>
+                    </button>
+                  )}
 
                   <a
                     href="https://sepolia.etherscan.io"
                     target="_blank"
                     rel="noreferrer"
-                    style={{
-                      background: heroBtnBg,
-                      color: heroText,
-                      border: `1px solid ${heroBtnBd}`,
-                      borderRadius: '9999px',
-                      padding: '8px 18px',
-                      fontSize: '0.85rem',
-                      fontWeight: 600,
-                      textDecoration: 'none',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      marginLeft: 'auto'
-                    }}
+                    className="db-btn"
+                    style={heroBannerActive ? { background: heroBtnBg, borderColor: heroBtnBd, color: heroText, marginLeft: 'auto' } : { marginLeft: 'auto' }}
                   >
-                    <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#a855f7' }}>analytics</span>
+                    <span className="material-symbols-outlined">analytics</span>
                     <span>Public Ledger ↗</span>
                   </a>
                 </div>
@@ -2159,35 +2266,22 @@ export default function OrganizationView({
 
               {/* Action Required: SEC Accreditation Banner (when pending) */}
               {(currentUser?.verification_status !== 'Approved' && kycStatusData?.Verification_Status !== 'Approved') && (
-                <div style={{
-                  background: 'linear-gradient(135deg, rgba(234, 179, 8, 0.12) 0%, rgba(14, 165, 233, 0.08) 100%)',
-                  border: '1px solid rgba(234, 179, 8, 0.35)',
-                  borderRadius: '14px',
-                  padding: '16px 20px',
-                  marginBottom: '20px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  flexWrap: 'wrap',
-                  gap: '14px'
-                }}>
+                <div className="db-banner">
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: 'rgba(234, 179, 8, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#facc15', flexShrink: 0 }}>
-                      <span className="material-symbols-outlined" style={{ fontSize: '24px' }}>verified_user</span>
+                    <div className="db-banner-icon">
+                      <span className="material-symbols-outlined" style={{ fontSize: '22px' }}>verified_user</span>
                     </div>
                     <div>
-                      <div style={{ fontWeight: 800, color: '#fef08a', fontSize: '0.95rem' }}>
-                        Institutional SEC Non-Profit Accreditation Pending
-                      </div>
-                      <div style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', marginTop: '2px' }}>
-                        Submit your SEC Registration Number, Board of Trustees, and Certificate to unlock on-chain campaign deployment.
+                      <div className="db-banner-title">SEC non-profit accreditation pending</div>
+                      <div className="db-banner-desc">
+                        Submit your SEC registration number, board of trustees, and certificate to unlock on-chain campaign deployment.
                       </div>
                     </div>
                   </div>
                   <button
-                    className="btn btn-primary btn-sm glow pulse"
+                    type="button"
+                    className="db-btn db-btn--primary"
                     onClick={() => { fetchKycData(); setActiveTab('sec-kyc'); }}
-                    style={{ padding: '8px 16px', display: 'flex', alignItems: 'center', gap: '6px' }}
                   >
                     <span>Complete SEC Verification</span>
                     <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>arrow_forward</span>
@@ -2195,187 +2289,73 @@ export default function OrganizationView({
                 </div>
               )}
 
-              {/* 4-Metric Stat Cards Grid — Premium Redesign */}
-              <div className="ref-metrics-grid" id="tour-ngo-metrics" style={{ marginBottom: '28px', gap: '16px' }}>
-
-                {/* 1. Total Raised */}
-                <div className="ref-metric-card" style={{
-                  padding: '20px 22px',
-                  textAlign: 'left',
-                  borderLeft: '3px solid #38bdf8',
-                  background: 'linear-gradient(135deg, rgba(2, 132, 199, 0.06) 0%, var(--bg-card, #212121) 60%)',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '10px'
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <span style={{ fontSize: '0.74rem', fontWeight: 700, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.6px' }}>Total Raised</span>
-                    <div style={{
-                      width: '34px', height: '34px', borderRadius: '10px',
-                      background: 'rgba(2, 132, 199, 0.15)', border: '1px solid rgba(56, 189, 248, 0.25)',
-                      color: '#38bdf8', display: 'flex', alignItems: 'center', justifyContent: 'center'
-                    }}>
-                      <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>account_balance_wallet</span>
-                    </div>
+              {/* ── 2. Clean 4-Card Metric Grid ── */}
+              <div className="dbo-metrics-row" id="tour-ngo-metrics">
+                <div className="dbo-metric-card">
+                  <div className="dbo-metric-head">
+                    <span className="dbo-metric-title">Total Aid Mobilized</span>
+                    <span className="material-symbols-outlined dbo-metric-icon">payments</span>
                   </div>
-                  <div>
-                    <div style={{ fontSize: '1.9rem', fontWeight: 850, color: 'var(--text-primary)', letterSpacing: '-0.03em', lineHeight: 1 }}>
-                      {totalRaisedByMe.toFixed(4)}
-                      <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-secondary)', marginLeft: '5px' }}>ETH</span>
-                    </div>
-                    <div style={{ fontSize: '0.78rem', color: '#38bdf8', fontWeight: 600, marginTop: '4px' }}>
-                      ≈ ₱{(totalRaisedByMe * 170000).toLocaleString('en-US', { maximumFractionDigits: 0 })} PHP
-                    </div>
+                  <div className="dbo-metric-number accent">
+                    ₱{(totalRaisedByMe * 170000).toLocaleString('en-US', { maximumFractionDigits: 0 })}
                   </div>
-                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted, #64748b)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>verified_user</span>
-                    <span>Blockchain-audited total</span>
-                  </div>
+                  <p className="dbo-metric-caption">
+                    <span>{totalRaisedByMe.toFixed(4)} ETH · On-chain verified</span>
+                  </p>
                 </div>
 
-                {/* 2. My Deployed Campaigns */}
-                <div className="ref-metric-card" style={{
-                  padding: '20px 22px',
-                  textAlign: 'left',
-                  borderLeft: '3px solid #22c55e',
-                  background: 'linear-gradient(135deg, rgba(34, 197, 94, 0.06) 0%, var(--bg-card, #212121) 60%)',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '10px'
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <span style={{ fontSize: '0.74rem', fontWeight: 700, color: '#22c55e', textTransform: 'uppercase', letterSpacing: '0.6px' }}>Relief Operations</span>
-                    <div style={{
-                      width: '34px', height: '34px', borderRadius: '10px',
-                      background: 'rgba(34, 197, 94, 0.15)', border: '1px solid rgba(34, 197, 94, 0.25)',
-                      color: '#22c55e', display: 'flex', alignItems: 'center', justifyContent: 'center'
-                    }}>
-                      <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>rocket_launch</span>
-                    </div>
+                <div className="dbo-metric-card interactive" onClick={() => setActiveTab('my-campaigns')} title="Manage operations">
+                  <div className="dbo-metric-head">
+                    <span className="dbo-metric-title">Relief Operations</span>
+                    <span className="material-symbols-outlined dbo-metric-icon">rocket_launch</span>
                   </div>
-                  <div>
-                    <div style={{ fontSize: '1.9rem', fontWeight: 850, color: 'var(--text-primary)', letterSpacing: '-0.03em', lineHeight: 1 }}>
-                      {myCampaigns.length}
-                      <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-secondary)', marginLeft: '5px' }}>Campaigns</span>
-                    </div>
-                    <div style={{ fontSize: '0.78rem', color: '#22c55e', fontWeight: 600, marginTop: '4px' }}>
-                      {myCampaigns.filter(c => c.isActive).length} Active · {myCampaigns.filter(c => !c.isActive).length} Closed
-                    </div>
+                  <div className="dbo-metric-number">
+                    {myCampaigns.length}
                   </div>
-                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted, #64748b)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>location_on</span>
-                    <span>Deployed on Sepolia EVM</span>
-                  </div>
+                  <p className="dbo-metric-caption">
+                    <span>{myCampaigns.filter(c => c.isActive).length} active · {myCampaigns.filter(c => !c.isActive).length} concluded</span>
+                  </p>
                 </div>
 
-                {/* 3. Received Donations */}
-                <div
-                  className="ref-metric-card"
-                  onClick={() => setActiveTab('ledger')}
-                  title="View full donation ledger"
-                  style={{
-                    padding: '20px 22px',
-                    textAlign: 'left',
-                    borderLeft: '3px solid #a78bfa',
-                    background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.06) 0%, var(--bg-card, #212121) 60%)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '10px',
-                    cursor: 'pointer'
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <span style={{ fontSize: '0.74rem', fontWeight: 700, color: '#a78bfa', textTransform: 'uppercase', letterSpacing: '0.6px' }}>Donations Received</span>
-                    <div style={{
-                      width: '34px', height: '34px', borderRadius: '10px',
-                      background: 'rgba(139, 92, 246, 0.15)', border: '1px solid rgba(167, 139, 250, 0.25)',
-                      color: '#a78bfa', display: 'flex', alignItems: 'center', justifyContent: 'center'
-                    }}>
-                      <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>receipt_long</span>
-                    </div>
+                <div className="dbo-metric-card interactive" onClick={() => setActiveTab('ledger')} title="View donation ledger">
+                  <div className="dbo-metric-head">
+                    <span className="dbo-metric-title">Donations Received</span>
+                    <span className="material-symbols-outlined dbo-metric-icon">receipt_long</span>
                   </div>
-                  <div>
-                    <div style={{ fontSize: '1.9rem', fontWeight: 850, color: 'var(--text-primary)', letterSpacing: '-0.03em', lineHeight: 1 }}>
-                      {orgDonations ? orgDonations.length : 0}
-                      <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-secondary)', marginLeft: '5px' }}>Receipts</span>
-                    </div>
-                    <div style={{ fontSize: '0.78rem', color: '#a78bfa', fontWeight: 600, marginTop: '4px' }}>
-                      ≈ ₱{((orgDonations || []).reduce((s, d) => s + (d.phpAmount || Math.round((parseFloat(d.amount || 0)) * 170000)), 0)).toLocaleString('en-US', { maximumFractionDigits: 0 })} PHP total
-                    </div>
+                  <div className="dbo-metric-number">
+                    {orgDonations ? orgDonations.length : 0}
                   </div>
-                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted, #64748b)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>open_in_new</span>
-                    <span>Click to view full ledger</span>
-                  </div>
+                  <p className="dbo-metric-caption">
+                    <span>≈ ₱{((orgDonations || []).reduce((s, d) => s + (d.phpAmount || Math.round((parseFloat(d.amount || 0)) * 170000)), 0)).toLocaleString('en-US', { maximumFractionDigits: 0 })} PHP total</span>
+                  </p>
                 </div>
 
-                {/* 4. Verification Status */}
-                <div
-                  className="ref-metric-card"
-                  onClick={() => { fetchKycData(); setActiveTab('sec-kyc'); }}
-                  title="View SEC accreditation standing"
-                  style={{
-                    padding: '20px 22px',
-                    textAlign: 'left',
-                    borderLeft: `3px solid ${currentUser?.verification_status === 'Approved' ? '#22c55e' : '#f59e0b'}`,
-                    background: currentUser?.verification_status === 'Approved'
-                      ? 'linear-gradient(135deg, rgba(34, 197, 94, 0.06) 0%, var(--bg-card, #212121) 60%)'
-                      : 'linear-gradient(135deg, rgba(245, 158, 11, 0.06) 0%, var(--bg-card, #212121) 60%)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '10px',
-                    cursor: 'pointer'
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <span style={{
-                      fontSize: '0.74rem', fontWeight: 700,
-                      color: currentUser?.verification_status === 'Approved' ? '#22c55e' : '#f59e0b',
-                      textTransform: 'uppercase', letterSpacing: '0.6px'
-                    }}>SEC Accreditation</span>
-                    <div style={{
-                      width: '34px', height: '34px', borderRadius: '10px',
-                      background: currentUser?.verification_status === 'Approved' ? 'rgba(34, 197, 94, 0.15)' : 'rgba(245, 158, 11, 0.15)',
-                      border: `1px solid ${currentUser?.verification_status === 'Approved' ? 'rgba(34, 197, 94, 0.25)' : 'rgba(245, 158, 11, 0.25)'}`,
-                      color: currentUser?.verification_status === 'Approved' ? '#22c55e' : '#f59e0b',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center'
-                    }}>
-                      <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>
-                        {currentUser?.verification_status === 'Approved' ? 'verified' : 'hourglass_top'}
-                      </span>
-                    </div>
+                <div className="dbo-metric-card interactive" onClick={() => { fetchKycData(); setActiveTab('sec-kyc'); }} title="View SEC accreditation">
+                  <div className="dbo-metric-head">
+                    <span className="dbo-metric-title">SEC Accreditation</span>
+                    <span className="material-symbols-outlined dbo-metric-icon" style={currentUser?.verification_status === 'Approved' ? { color: '#16a34a' } : { color: '#f59e0b' }}>
+                      {currentUser?.verification_status === 'Approved' ? 'verified' : 'hourglass_top'}
+                    </span>
                   </div>
-                  <div>
-                    <div style={{
-                      fontSize: '1.25rem', fontWeight: 850,
-                      color: currentUser?.verification_status === 'Approved' ? '#22c55e' : '#f59e0b',
-                      letterSpacing: '-0.01em', lineHeight: 1
-                    }}>
-                      {currentUser?.verification_status === 'Approved' ? 'Approved NGO' : 'Pending Review'}
-                    </div>
-                    <div style={{
-                      fontSize: '0.78rem',
-                      color: currentUser?.verification_status === 'Approved' ? '#22c55e' : '#f59e0b',
-                      fontWeight: 600, marginTop: '4px', opacity: 0.8
-                    }}>
-                      {currentUser?.verification_status === 'Approved' ? 'SEC Non-Profit Accredited' : 'Awaiting admin approval'}
-                    </div>
+                  <div className="dbo-metric-number" style={{ fontSize: '1.2rem', color: currentUser?.verification_status === 'Approved' ? '#16a34a' : '#f59e0b' }}>
+                    {currentUser?.verification_status === 'Approved' ? 'Accredited' : 'Pending'}
                   </div>
-                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted, #64748b)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>open_in_new</span>
-                    <span>Click to manage KYC docs</span>
-                  </div>
+                  <p className="dbo-metric-caption">
+                    <span>{currentUser?.verification_status === 'Approved' ? 'Non-profit certified for escrow' : 'Awaiting admin verification'}</span>
+                  </p>
                 </div>
               </div>
 
-              {/* My Deployed Campaigns Preview Section */}
-              <div style={{ marginTop: '28px' }}>
-                <div className="section-header">
-                  <h2 className="section-title">
-                    <span className="material-symbols-outlined section-title-icon" style={{ marginRight: '8px' }}>account_balance</span> My Relief Operations
+              {/* ── 3. My Relief Operations Section ── */}
+              <div className="dbo-section-wrapper">
+                <div className="dbo-clean-section-header">
+                  <h2 className="dbo-clean-heading">
+                    <span className="material-symbols-outlined" style={{ fontSize: '20px', color: '#0284c7' }}>rocket_launch</span>
+                    <span>My Deployed Relief Operations</span>
                   </h2>
-                  <button className="btn btn-ghost btn-sm" onClick={() => setActiveTab('my-campaigns')}>
-                    View All {myCampaigns.length} Campaigns →
+                  <button type="button" className="dbo-clean-link" onClick={() => setActiveTab('my-campaigns')}>
+                    <span>Manage all {myCampaigns.length} campaigns</span>
+                    <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>arrow_forward</span>
                   </button>
                 </div>
 
@@ -2385,28 +2365,153 @@ export default function OrganizationView({
                     <div className="empty-title">Reading from blockchain…</div>
                   </div>
                 ) : myCampaigns.length === 0 ? (
-                  <div className="empty-state">
-                    <div className="empty-icon">🚀</div>
-                    <div className="empty-title">You haven't deployed any campaigns yet</div>
-                    <div className="empty-desc">Click "Deploy Campaign" to start your first relief operation.</div>
+                  <div className="db-empty-state">
+                    <div className="db-empty-icon"><span className="material-symbols-outlined">rocket_launch</span></div>
+                    <div className="db-empty-title">You haven't deployed any campaigns yet</div>
+                    <div className="db-empty-desc">Start your first relief operation to receive contributions via crypto, GCash, Maya, and bank rails.</div>
+                    <button
+                      type="button"
+                      className="dbo-card-btn primary"
+                      style={{ display: 'inline-flex', width: 'auto', padding: '8px 18px', marginTop: '10px' }}
+                      onClick={() => setActiveTab('create')}
+                    >
+                      <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>add</span>
+                      <span>Deploy First Campaign</span>
+                    </button>
                   </div>
                 ) : (
-                  <div className="campaigns-list">
-                    {myCampaigns.slice(0, 2).map((camp) => (
-                      <CampaignCard
-                        key={camp.id}
-                        camp={camp}
-                        contract={contract}
-                        role={ROLES.ORGANIZATION}
-                        walletAddress={walletAddress}
-                        currentUser={currentUser}
-                        onDonated={fetchCampaigns}
-                        onDeactivated={fetchCampaigns}
-                        onCampaignUpdated={fetchCampaigns}
-                      />
-                    ))}
+                  <div className="dbo-campaigns-grid">
+                    {myCampaigns.slice(0, 3).map((camp) => {
+                      const pct = progressPct(camp.currentAmount, camp.targetAmount);
+                      const cover = getCampaignCoverData(camp);
+                      const catInfo = getCampaignCategoryInfo(camp);
+                      const campPhpTarget = Math.round((parseFloat(camp.targetAmount) || 0) * 170000).toLocaleString('en-US');
+                      const campPhpCurrent = Math.round((parseFloat(camp.currentAmount) || 0) * 170000).toLocaleString('en-US');
+
+                      return (
+                        <div className="dbo-clean-card" key={camp.id}>
+                          <div
+                            className="dbo-clean-card-thumb"
+                            style={cover.imageUrl ? { backgroundImage: `url(${cover.imageUrl})` } : undefined}
+                          >
+                            <div className="dbo-clean-card-badges">
+                              <span className={`dbo-pill-mini ${camp.isActive ? '' : 'urgent'}`}>
+                                {camp.isActive ? 'Active' : 'Concluded'}
+                              </span>
+                              <span className="dbo-pill-mini">{catInfo.label}</span>
+                            </div>
+                          </div>
+
+                          <div className="dbo-clean-card-body">
+                            <h3 className="dbo-clean-card-title" title={camp.title}>
+                              {formatCampaignTitle(camp.title, camp.id)}
+                            </h3>
+
+                            <p className="dbo-clean-card-location">
+                              <span className="material-symbols-outlined" style={{ fontSize: '14px', color: '#ef4444' }}>location_on</span>
+                              <span>{cover.locationTag || 'Philippines'}</span>
+                            </p>
+
+                            <div className="dbo-clean-progress-block">
+                              <div className="dbo-clean-progress-bar">
+                                <div className="dbo-clean-progress-fill" style={{ width: `${Math.min(100, parseFloat(pct) || 0)}%` }} />
+                              </div>
+                              <div className="dbo-clean-progress-labels">
+                                <span><strong>₱{campPhpCurrent}</strong> of ₱{campPhpTarget}</span>
+                                <span style={{ color: '#16a34a', fontWeight: 700 }}>{pct}%</span>
+                              </div>
+                            </div>
+
+                            <div className="dbo-clean-card-actions">
+                              <button
+                                type="button"
+                                className="dbo-card-btn primary"
+                                onClick={() => setActiveTab('my-campaigns')}
+                              >
+                                <span>Manage</span>
+                                <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>tune</span>
+                              </button>
+                              <button
+                                type="button"
+                                className="dbo-card-btn secondary"
+                                onClick={() => setActiveTab('ledger')}
+                              >
+                                <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>receipt_long</span>
+                                <span>Ledger</span>
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
+              </div>
+
+              {/* ── 4. Recent Inbound Aid Activity ── */}
+              <div className="dbo-section-wrapper">
+                <div className="dbo-clean-section-header">
+                  <h2 className="dbo-clean-heading">
+                    <span className="material-symbols-outlined" style={{ fontSize: '20px', color: '#16a34a' }}>receipt_long</span>
+                    <span>Recent Inbound Aid</span>
+                  </h2>
+                  <button type="button" className="dbo-clean-link" onClick={() => setActiveTab('ledger')}>
+                    <span>View all {orgDonations ? orgDonations.length : 0} receipts</span>
+                    <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>arrow_forward</span>
+                  </button>
+                </div>
+
+                <div className="dbo-feed-card">
+                  {(!orgDonations || orgDonations.length === 0) ? (
+                    <div style={{ padding: '24px 20px', textAlign: 'center' }}>
+                      <div style={{ fontSize: '0.88rem', fontWeight: 600, color: 'var(--text-secondary)' }}>No inbound donations recorded yet.</div>
+                      <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: '4px 0 0' }}>
+                        When donors contribute to your relief missions, verified receipts will appear here in real time.
+                      </p>
+                    </div>
+                  ) : (
+                    <div>
+                      {orgDonations.slice(0, 4).map((d, dIdx) => {
+                        const rail = (d.paymentMethod || d.Payment_Method || 'ETH').toUpperCase();
+                        const railClass = rail.includes('GCASH') ? 'gcash' : rail.includes('MAYA') ? 'maya' : rail.includes('BANK') ? 'bank' : 'eth';
+                        const ethAmt = parseFloat(d.amount || d.Amount || 0);
+                        const phpVal = d.phpAmount || Math.round(ethAmt * 170000);
+                        const txHash = d.txHash || d.Tx_Hash;
+                        const donorName = d.donorName || d.donor_name || (d.donorAddress ? shortAddr(d.donorAddress) : 'Generous Contributor');
+                        const campTitle = d.campaignTitle || d.campaign_title || 'Relief Campaign';
+
+                        return (
+                          <div className="dbo-feed-row" key={dIdx}>
+                            <div className="dbo-feed-info">
+                              <span className={`dbo-feed-rail ${railClass}`}>
+                                {rail.includes('GCASH') ? 'GCASH' : rail.includes('MAYA') ? 'MAYA' : rail.includes('BANK') ? 'BANK' : 'ETH'}
+                              </span>
+                              <div className="dbo-feed-text">
+                                <div className="dbo-feed-title" title={campTitle}>{campTitle}</div>
+                                <div className="dbo-feed-meta">From: {donorName}</div>
+                              </div>
+                            </div>
+                            <div className="dbo-feed-right">
+                              <div className="dbo-feed-amt">+₱{phpVal.toLocaleString('en-US')}</div>
+                              {txHash && (
+                                <a
+                                  href={`https://sepolia.etherscan.io/tx/${txHash}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="dbo-feed-link"
+                                  title="View on Sepolia Etherscan"
+                                >
+                                  <span>{shortAddr(txHash)}</span>
+                                  <span className="material-symbols-outlined" style={{ fontSize: '11px' }}>open_in_new</span>
+                                </a>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
               </div>
             </>
             );
@@ -2634,7 +2739,7 @@ export default function OrganizationView({
                           className="filter-search-clear-btn-ref"
                           title="Clear search"
                         >
-                          ✕
+                          <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>close</span>
                         </button>
                       )}
                       <kbd className="filter-search-shortcut-badge" title="Press Ctrl+K or ⌘K to focus search">⌘ K</kbd>
@@ -2695,7 +2800,9 @@ export default function OrganizationView({
                         <div className="reference-active-chip">
                           <span className="material-symbols-outlined chip-icon" style={{ color: '#38bdf8' }}>public</span>
                           <span>{categoryFilterAll === 'DR' ? 'Disaster Relief' : 'Charitable Aid'}</span>
-                          <button type="button" onClick={() => setCategoryFilterAll('ALL')} title="Remove filter">✕</button>
+                          <button type="button" onClick={() => setCategoryFilterAll('ALL')} title="Remove filter">
+                            <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>close</span>
+                          </button>
                         </div>
                       )}
 
@@ -2703,7 +2810,9 @@ export default function OrganizationView({
                         <div className="reference-active-chip">
                           <span className="material-symbols-outlined chip-icon" style={{ color: '#f59e0b' }}>bolt</span>
                           <span>{urgencyFilterAll === 'HIGH' ? 'High Priority' : urgencyFilterAll === 'MEDIUM' ? 'Medium Priority' : 'Standard Priority'}</span>
-                          <button type="button" onClick={() => setUrgencyFilterAll('ALL')} title="Remove filter">✕</button>
+                          <button type="button" onClick={() => setUrgencyFilterAll('ALL')} title="Remove filter">
+                            <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>close</span>
+                          </button>
                         </div>
                       )}
 
@@ -2711,7 +2820,9 @@ export default function OrganizationView({
                         <div key={tag} className="reference-active-chip">
                           <span className="material-symbols-outlined chip-icon" style={{ color: '#a855f7' }}>sell</span>
                           <span>#{tag}</span>
-                          <button type="button" onClick={() => setSelectedTagsAll(prev => prev.filter(t => t !== tag))} title={`Remove tag #${tag}`}>✕</button>
+                          <button type="button" onClick={() => setSelectedTagsAll(prev => prev.filter(t => t !== tag))} title={`Remove tag #${tag}`}>
+                            <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>close</span>
+                          </button>
                         </div>
                       ))}
 
@@ -2719,7 +2830,9 @@ export default function OrganizationView({
                         <div className="reference-active-chip">
                           <span className="material-symbols-outlined chip-icon" style={{ color: '#94a3b8' }}>search</span>
                           <span>"{searchQueryAll.trim()}"</span>
-                          <button type="button" onClick={() => setSearchQueryAll('')} title="Clear search query">✕</button>
+                          <button type="button" onClick={() => setSearchQueryAll('')} title="Clear search query">
+                            <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>close</span>
+                          </button>
                         </div>
                       )}
                     </div>
@@ -2772,12 +2885,21 @@ export default function OrganizationView({
               </div>
 
               {filteredAllCampaigns.length === 0 ? (
-                <div className="empty-state">
-                  <div className="empty-icon">📭</div>
-                  <div className="empty-title">No campaigns match this category</div>
-                  <div className="empty-desc">
-                    Try selecting a different category from the dropdown above.
+                <div className="db-empty-state">
+                  <div className="db-empty-icon">
+                    <span className="material-symbols-outlined">search_off</span>
                   </div>
+                  <div className="db-empty-title">No campaigns match your filter</div>
+                  <div className="db-empty-desc">
+                    Try selecting a different category or clearing your search query.
+                  </div>
+                  <button
+                    type="button"
+                    className="db-btn"
+                    onClick={() => { setCategoryFilterAll('ALL'); setSearchQueryAll(''); }}
+                  >
+                    <span>Reset Filters</span>
+                  </button>
                 </div>
               ) : (
                 <>
@@ -3060,7 +3182,7 @@ export default function OrganizationView({
                           className="filter-search-clear-btn-ref"
                           title="Clear search"
                         >
-                          ✕
+                          <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>close</span>
                         </button>
                       )}
                       <kbd className="filter-search-shortcut-badge" title="Press Ctrl+K or ⌘K to focus search">⌘ K</kbd>
@@ -3121,7 +3243,9 @@ export default function OrganizationView({
                         <div className="reference-active-chip">
                           <span className="material-symbols-outlined chip-icon" style={{ color: '#38bdf8' }}>public</span>
                           <span>{categoryFilterMy === 'DR' ? 'Disaster Relief' : 'Charitable Aid'}</span>
-                          <button type="button" onClick={() => setCategoryFilterMy('ALL')} title="Remove filter">✕</button>
+                          <button type="button" onClick={() => setCategoryFilterMy('ALL')} title="Remove filter">
+                            <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>close</span>
+                          </button>
                         </div>
                       )}
 
@@ -3129,7 +3253,9 @@ export default function OrganizationView({
                         <div className="reference-active-chip">
                           <span className="material-symbols-outlined chip-icon" style={{ color: '#f59e0b' }}>bolt</span>
                           <span>{urgencyFilterMy === 'HIGH' ? 'High Priority' : urgencyFilterMy === 'MEDIUM' ? 'Medium Priority' : 'Standard Priority'}</span>
-                          <button type="button" onClick={() => setUrgencyFilterMy('ALL')} title="Remove filter">✕</button>
+                          <button type="button" onClick={() => setUrgencyFilterMy('ALL')} title="Remove filter">
+                            <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>close</span>
+                          </button>
                         </div>
                       )}
 
@@ -3137,7 +3263,9 @@ export default function OrganizationView({
                         <div key={tag} className="reference-active-chip">
                           <span className="material-symbols-outlined chip-icon" style={{ color: '#a855f7' }}>sell</span>
                           <span>#{tag}</span>
-                          <button type="button" onClick={() => setSelectedTagsMy(prev => prev.filter(t => t !== tag))} title={`Remove tag #${tag}`}>✕</button>
+                          <button type="button" onClick={() => setSelectedTagsMy(prev => prev.filter(t => t !== tag))} title={`Remove tag #${tag}`}>
+                            <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>close</span>
+                          </button>
                         </div>
                       ))}
 
@@ -3145,7 +3273,9 @@ export default function OrganizationView({
                         <div className="reference-active-chip">
                           <span className="material-symbols-outlined chip-icon" style={{ color: '#94a3b8' }}>search</span>
                           <span>"{searchQueryMy.trim()}"</span>
-                          <button type="button" onClick={() => setSearchQueryMy('')} title="Clear search query">✕</button>
+                          <button type="button" onClick={() => setSearchQueryMy('')} title="Clear search query">
+                            <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>close</span>
+                          </button>
                         </div>
                       )}
                     </div>
@@ -3198,20 +3328,39 @@ export default function OrganizationView({
               </div>
 
               {myCampaigns.length === 0 ? (
-                <div className="empty-state">
-                  <div className="empty-icon">🚀</div>
-                  <div className="empty-title">You haven't created any campaigns yet</div>
-                  <div className="empty-desc">
-                    Switch to the "Deploy Campaign" tab to publish your first relief operation onto the blockchain.
+                <div className="db-empty-state">
+                  <div className="db-empty-icon">
+                    <span className="material-symbols-outlined">campaign</span>
                   </div>
+                  <div className="db-empty-title">You haven't created any campaigns yet</div>
+                  <div className="db-empty-desc">
+                    Publish your first relief operation onto the blockchain to start receiving contributions.
+                  </div>
+                  <button
+                    type="button"
+                    className="db-btn db-btn--primary"
+                    onClick={() => setActiveTab('create')}
+                  >
+                    <span className="material-symbols-outlined">add</span>
+                    <span>Create First Campaign</span>
+                  </button>
                 </div>
               ) : filteredMyCampaigns.length === 0 ? (
-                <div className="empty-state">
-                  <div className="empty-icon">📭</div>
-                  <div className="empty-title">No campaigns match this category</div>
-                  <div className="empty-desc">
-                    Try selecting a different category from the dropdown above.
+                <div className="db-empty-state">
+                  <div className="db-empty-icon">
+                    <span className="material-symbols-outlined">filter_alt_off</span>
                   </div>
+                  <div className="db-empty-title">No campaigns match your search</div>
+                  <div className="db-empty-desc">
+                    Try adjusting your category, urgency, or keyword filter.
+                  </div>
+                  <button
+                    type="button"
+                    className="db-btn"
+                    onClick={() => { setCategoryFilterMy('ALL'); setUrgencyFilterMy('ALL'); setSearchQueryMy(''); }}
+                  >
+                    <span>Reset Filters</span>
+                  </button>
                 </div>
               ) : (
                 <>
@@ -3304,6 +3453,71 @@ export default function OrganizationView({
 
 
                   <form className="create-form" onSubmit={handleCreateCampaign} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                    {/* AI Smart Budget & Allocation Generator Action Card (Module B) */}
+                    <div style={{
+                      background: 'linear-gradient(135deg, rgba(34, 197, 94, 0.08) 0%, rgba(34, 197, 94, 0.02) 100%)',
+                      border: '1px solid var(--border-strong, rgba(255, 255, 255, 0.16))',
+                      borderRadius: '16px',
+                      padding: '16px 20px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      flexWrap: 'wrap',
+                      gap: '14px',
+                      boxShadow: '0 4px 20px rgba(0, 0, 0, 0.25)'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                        <div style={{
+                          width: '42px',
+                          height: '42px',
+                          borderRadius: '12px',
+                          background: 'var(--accent-dim, rgba(34, 197, 94, 0.12))',
+                          border: '1px solid var(--border-focus, rgba(34, 197, 94, 0.4))',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          color: 'var(--accent, #22c55e)',
+                          boxShadow: '0 2px 10px var(--accent-glow, rgba(34, 197, 94, 0.2))',
+                          flexShrink: 0
+                        }}>
+                          <span className="material-symbols-outlined" style={{ fontSize: '22px' }}>smart_toy</span>
+                        </div>
+                        <div>
+                          <div style={{ fontWeight: 800, fontSize: '0.98rem', color: 'var(--text-primary, #ffffff)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span>AI Smart Budget & Allocation Generator</span>
+                            <span style={{ fontSize: '0.65rem', background: 'var(--accent-dim, rgba(34, 197, 94, 0.15))', color: 'var(--accent, #22c55e)', padding: '2px 8px', borderRadius: '6px', border: '1px solid rgba(34, 197, 94, 0.3)', fontWeight: 700 }}>
+                              Sphere / NDRRMC
+                            </span>
+                          </div>
+                          <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary, #a3a3a3)', marginTop: '2px' }}>
+                            Automatically compute defensible fundraising goals, disaster narrative, and standard humanitarian resource allocations.
+                          </div>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setShowAiBudgetModal(true)}
+                        className="btn btn-primary"
+                        style={{
+                          padding: '9px 18px',
+                          fontSize: '0.84rem',
+                          fontWeight: 700,
+                          borderRadius: '10px',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          background: 'var(--accent, #22c55e)',
+                          border: 'none',
+                          color: '#052e16',
+                          cursor: 'pointer',
+                          boxShadow: '0 2px 10px var(--accent-glow, rgba(34, 197, 94, 0.25))'
+                        }}
+                      >
+                        <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>magic_button</span>
+                        <span>Auto-Generate Smart Allocations</span>
+                      </button>
+                    </div>
+
                     {/* Section 1: Campaign Identity & Mission Details (Merged Step 1 & Step 3 per instructor guidance) */}
                     <div className="deploy-section-card">
                       <div className="deploy-section-header">
@@ -3323,7 +3537,7 @@ export default function OrganizationView({
                             </label>
                             {autoDetectedTagsRef.current.length > 0 && (
                               <span style={{ fontSize: '0.72rem', color: 'var(--accent, #22c55e)', fontWeight: 600 }}>
-                                ✨ {autoDetectedTagsRef.current.length} tags auto-selected based on relief context
+                                {autoDetectedTagsRef.current.length} tags auto-selected based on relief context
                               </span>
                             )}
                           </div>
@@ -3354,8 +3568,8 @@ export default function OrganizationView({
                             }}
                             disabled={creating}
                           >
-                            <option value="DR">🌊 Disaster Relief (DR)</option>
-                            <option value="CD">🤝 Charitable Aid (CD)</option>
+                            <option value="DR">Disaster Relief (DR)</option>
+                            <option value="CD">Charitable Aid (CD)</option>
                           </select>
                         </div>
 
@@ -3393,8 +3607,9 @@ export default function OrganizationView({
                               Target Relief Delivery Date
                             </label>
                             {targetDate && (
-                              <span style={{ fontSize: '0.68rem', color: 'var(--accent, #22c55e)', fontWeight: 600 }}>
-                                ✓ Date set
+                              <span style={{ fontSize: '0.68rem', color: 'var(--accent, #22c55e)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                                <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>check</span>
+                                Date set
                               </span>
                             )}
                           </div>
@@ -3445,7 +3660,7 @@ export default function OrganizationView({
                                     }}
                                     title="Clear date"
                                   >
-                                    ✕
+                                    <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>close</span>
                                   </span>
                                 ) : (
                                   <span className="material-symbols-outlined" style={{ fontSize: '1.1rem', color: 'var(--text-muted)' }}>
@@ -3592,9 +3807,9 @@ export default function OrganizationView({
                           </div>
                           <select className="input deploy-field-input" value={urgency} onChange={(e) => setUrgency(e.target.value)} disabled={creating}>
                             <option value="">-- Select or Auto-filled by Delivery Date --</option>
-                            <option value="HIGH (EMERGENCY AID)">🔴 Emergency High Aid (≤ 5 Days)</option>
-                            <option value="MEDIUM (URGENT REHABILITATION)">🟡 Urgent Medium Rehabilitation (6–14 Days)</option>
-                            <option value="STABLE (CHARITABLE AID)">🟢 Standard Aid Operation (&gt; 14 Days)</option>
+                            <option value="HIGH (EMERGENCY AID)">High Emergency Aid (≤ 5 Days)</option>
+                            <option value="MEDIUM (URGENT REHABILITATION)">Urgent Rehabilitation (6–14 Days)</option>
+                            <option value="STABLE (CHARITABLE AID)">Standard Aid Operation (&gt; 14 Days)</option>
                           </select>
                         </div>
 
@@ -3633,7 +3848,7 @@ export default function OrganizationView({
                                   className={`deploy-tag-chip ${isSelected ? 'active' : ''}`}
                                   title={isAuto ? 'Auto-detected from campaign title keyword. Click to toggle.' : `Click to toggle ${tag}`}
                                 >
-                                  <span>{isSelected ? '✓' : '+'}</span>
+                                  <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>{isSelected ? 'check' : 'add'}</span>
                                   <span>{tag}</span>
                                   {isAuto && (
                                     <span style={{ fontSize: '9px', opacity: 0.85, marginLeft: '3px', background: 'rgba(34, 197, 94, 0.25)', border: '1px solid rgba(34, 197, 94, 0.4)', padding: '1px 4px', borderRadius: '3px' }}>
@@ -3738,7 +3953,8 @@ export default function OrganizationView({
                                 style={{ fontSize: '0.72rem', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.3)', padding: '2px 8px', borderRadius: '6px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
                                 title="Clear all address fields"
                               >
-                                🧹 Clear
+                                <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>clear_all</span>
+                                <span>Clear</span>
                               </button>
                             )}
                           </div>
@@ -3948,8 +4164,9 @@ export default function OrganizationView({
                             gap: '10px'
                           }}>
                             <div style={{ flex: 1, minWidth: '180px' }}>
-                              <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                                📍 Confirmed Deployment Address:
+                              <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                <span className="material-symbols-outlined" style={{ fontSize: '14px', color: 'var(--accent)' }}>location_on</span>
+                                <span>Confirmed Deployment Address:</span>
                               </div>
                               <div style={{ fontSize: '0.84rem', fontWeight: 700, color: locationRegion ? 'var(--text-primary)' : 'var(--text-muted)', marginTop: '2px', wordBreak: 'break-word' }}>
                                 {locationRegion || 'Fill inputs above or select a point on the map →'}
@@ -4119,7 +4336,7 @@ export default function OrganizationView({
                                   background: (gcashNumber || gcashQrUrl || gcashName) ? (activePaymentChannelTab === 'gcash' ? '#ffffff' : '#22c55e') : 'rgba(255,255,255,0.3)'
                                 }} />
                                 <span>GCash</span>
-                                {(gcashNumber || gcashQrUrl || gcashName) && <span style={{ fontSize: '0.72rem', opacity: 0.9 }}>✓</span>}
+                                {(gcashNumber || gcashQrUrl || gcashName) && <span className="material-symbols-outlined" style={{ fontSize: '13px', opacity: 0.9 }}>check</span>}
                               </button>
 
                               <button
@@ -4148,7 +4365,7 @@ export default function OrganizationView({
                                   background: (mayaNumber || mayaQrUrl || mayaName) ? (activePaymentChannelTab === 'maya' ? '#ffffff' : '#22c55e') : 'rgba(255,255,255,0.3)'
                                 }} />
                                 <span>Maya</span>
-                                {(mayaNumber || mayaQrUrl || mayaName) && <span style={{ fontSize: '0.72rem', opacity: 0.9 }}>✓</span>}
+                                {(mayaNumber || mayaQrUrl || mayaName) && <span className="material-symbols-outlined" style={{ fontSize: '13px', opacity: 0.9 }}>check</span>}
                               </button>
 
                               <button
@@ -4177,7 +4394,7 @@ export default function OrganizationView({
                                   background: (bankAccountNumber || bankQrUrl) ? (activePaymentChannelTab === 'bank' ? '#ffffff' : '#22c55e') : 'rgba(255,255,255,0.3)'
                                 }} />
                                 <span>Direct Bank Deposit</span>
-                                {(bankAccountNumber || bankQrUrl) && <span style={{ fontSize: '0.72rem', opacity: 0.9 }}>✓</span>}
+                                {(bankAccountNumber || bankQrUrl) && <span className="material-symbols-outlined" style={{ fontSize: '13px', opacity: 0.9 }}>check</span>}
                               </button>
                             </div>
 
@@ -4525,7 +4742,7 @@ export default function OrganizationView({
                                     <input
                                       className="input deploy-field-input"
                                       type="text"
-                                      placeholder="e.g., ReliefLink Foundation Inc."
+                                      placeholder="e.g., Philippine Red Cross or BBDRTS Relief Partner"
                                       value={bankAccountName}
                                       onChange={(e) => setBankAccountName(e.target.value)}
                                       disabled={creating}
@@ -4642,7 +4859,10 @@ export default function OrganizationView({
                         {creating ? (
                           <><div className="spinner" /> Deploying Campaign…</>
                         ) : (
-                          '🚀 Confirm & Deploy Campaign'
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                            <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>rocket_launch</span>
+                            <span>Confirm & Deploy Campaign</span>
+                          </span>
                         )}
                       </button>
 
@@ -4826,11 +5046,11 @@ export default function OrganizationView({
               {pendingDonations.length > 0 && (
                 <div style={{
                   marginBottom: '28px',
-                  background: 'linear-gradient(135deg, rgba(56, 189, 248, 0.05) 0%, rgba(15, 23, 42, 0.9) 100%)',
-                  border: '1px solid rgba(56, 189, 248, 0.3)',
+                  background: 'var(--bg-card)',
+                  border: '1px solid var(--border)',
                   padding: '22px 26px',
                   borderRadius: '16px',
-                  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.35)'
+                  boxShadow: 'var(--shadow-card)'
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '18px', flexWrap: 'wrap', gap: '12px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
@@ -4848,10 +5068,10 @@ export default function OrganizationView({
                         <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>pending_actions</span>
                       </div>
                       <div>
-                        <h3 style={{ margin: 0, fontSize: '1.12rem', color: '#f8fafc', fontWeight: 800, letterSpacing: '-0.01em' }}>
+                        <h3 style={{ margin: 0, fontSize: '1.12rem', color: 'var(--text-primary)', fontWeight: 800, letterSpacing: '-0.01em' }}>
                           Pending E-Wallet &amp; Bank Slip Verifications ({pendingDonations.length})
                         </h3>
-                        <p style={{ margin: '2px 0 0 0', fontSize: '0.78rem', color: '#94a3b8' }}>
+                        <p style={{ margin: '2px 0 0 0', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
                           AI Receipt Audit Engine automatically verifies reference patterns and amounts to protect NGOs from fraud.
                         </p>
                       </div>
@@ -4862,7 +5082,7 @@ export default function OrganizationView({
                         type="button"
                         onClick={async () => {
                           const allIds = pendingDonations.map(d => d.Manual_ID);
-                          if (!window.confirm(`⚡ Fast-Approve ALL ${allIds.length} pending donation slips with AI Verification?`)) return;
+                          if (!window.confirm(`Fast-Approve ALL ${allIds.length} pending donation slips with AI Verification?`)) return;
                           try {
                             const res = await fetch(`${API_BASE_URL}/manual-donations/batch-verify`, {
                               method: 'POST',
@@ -4871,7 +5091,7 @@ export default function OrganizationView({
                             });
                             const data = await res.json();
                             if (res.ok && data.success) {
-                              alert(`⚡ Successfully batch-verified ${data.verifiedCount} donation slip(s)!`);
+                              alert(`Successfully batch-verified ${data.verifiedCount} donation slip(s)!`);
                               fetchPendingDonations();
                               fetchOrgDashboardData();
                             } else {
@@ -4882,23 +5102,23 @@ export default function OrganizationView({
                           }
                         }}
                         style={{
-                          background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                          background: '#16a34a',
                           color: '#fff',
                           border: 'none',
                           padding: '8px 16px',
                           borderRadius: '8px',
-                          fontWeight: 800,
+                          fontWeight: 700,
                           fontSize: '0.8rem',
                           display: 'inline-flex',
                           alignItems: 'center',
                           gap: '6px',
                           cursor: 'pointer',
-                          boxShadow: '0 4px 14px rgba(16, 185, 129, 0.3)'
+                          boxShadow: '0 2px 8px rgba(22, 163, 74, 0.25)'
                         }}
                         title="Batch approve all pending slips with AI OCR Verification"
                       >
                         <span className="material-symbols-outlined" style={{ fontSize: '17px' }}>bolt</span>
-                        <span>⚡ 1-Click Approve All AI-Verified Slips</span>
+                        <span>1-Click Approve All AI-Verified Slips</span>
                       </button>
 
                       <span className="ref-status-live-chip" style={{ background: 'rgba(245, 158, 11, 0.15)', color: '#f59e0b', border: '1px solid rgba(245, 158, 11, 0.3)', padding: '5px 12px', borderRadius: '8px', fontSize: '0.72rem', fontWeight: 800, letterSpacing: '0.5px' }}>
@@ -4938,21 +5158,21 @@ export default function OrganizationView({
                               <tr
                                 key={d.Manual_ID}
                                 style={{
-                                  background: 'rgba(30, 41, 59, 0.7)',
-                                  border: '1px solid rgba(255, 255, 255, 0.08)',
-                                  boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+                                  background: 'var(--bg-subcard, var(--bg-card))',
+                                  border: '1px solid var(--border)',
+                                  boxShadow: 'var(--shadow-sm)',
                                   transition: 'all 0.2s ease'
                                 }}
                               >
                                 {/* 1. Donor Name / Badge */}
                                 <td style={{ padding: '14px 16px', borderRadius: '10px 0 0 10px', verticalAlign: 'middle' }}>
                                   {d.Donor_Name && d.Donor_Name !== 'Anonymous Donor' ? (
-                                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', background: 'rgba(56, 189, 248, 0.1)', border: '1px solid rgba(56, 189, 248, 0.25)', padding: '5px 12px', borderRadius: '8px', color: '#f8fafc', fontWeight: 700, fontSize: '0.82rem' }}>
+                                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', background: 'rgba(56, 189, 248, 0.1)', border: '1px solid rgba(56, 189, 248, 0.25)', padding: '5px 12px', borderRadius: '8px', color: 'var(--text-primary)', fontWeight: 700, fontSize: '0.82rem' }}>
                                       <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#38bdf8' }}>account_circle</span>
                                       <span>{d.Donor_Name}</span>
                                     </div>
                                   ) : (
-                                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', background: 'rgba(255, 255, 255, 0.06)', border: '1px solid rgba(255, 255, 255, 0.12)', padding: '5px 12px', borderRadius: '8px', color: '#94a3b8', fontWeight: 600, fontSize: '0.81rem' }}>
+                                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', background: 'var(--bg-input, rgba(255, 255, 255, 0.06))', border: '1px solid var(--border)', padding: '5px 12px', borderRadius: '8px', color: 'var(--text-muted)', fontWeight: 600, fontSize: '0.81rem' }}>
                                       <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>visibility_off</span>
                                       <span>Anonymous Donor</span>
                                     </div>
@@ -4961,7 +5181,7 @@ export default function OrganizationView({
 
                                 {/* 2. Relief Campaign */}
                                 <td style={{ padding: '14px 16px', verticalAlign: 'middle' }}>
-                                  <div style={{ fontWeight: 700, color: '#f1f5f9', fontSize: '0.86rem', lineHeight: 1.4, paddingRight: '8px' }}>
+                                  <div style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '0.86rem', lineHeight: 1.4, paddingRight: '8px' }}>
                                     {d.Campaign_Title}
                                   </div>
                                 </td>
@@ -4977,7 +5197,7 @@ export default function OrganizationView({
                                     fontSize: '0.74rem',
                                     fontWeight: 700,
                                     background: isGcash ? 'rgba(56, 189, 248, 0.15)' : isMaya ? 'rgba(34, 197, 94, 0.15)' : 'rgba(168, 85, 247, 0.15)',
-                                    color: isGcash ? '#38bdf8' : isMaya ? '#4ade80' : '#c084fc',
+                                    color: isGcash ? '#0284c7' : isMaya ? '#16a34a' : '#9333ea',
                                     border: `1px solid ${isGcash ? 'rgba(56, 189, 248, 0.35)' : isMaya ? 'rgba(34, 197, 94, 0.35)' : 'rgba(168, 85, 247, 0.35)'}`
                                   }}>
                                     <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>
@@ -4990,10 +5210,10 @@ export default function OrganizationView({
                                 {/* 4. Amount ETH + PHP */}
                                 <td style={{ padding: '14px 16px', verticalAlign: 'middle' }}>
                                   <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                                    <span style={{ color: '#22c55e', fontWeight: 850, fontSize: '0.94rem', letterSpacing: '-0.01em' }}>
+                                    <span style={{ color: '#16a34a', fontWeight: 850, fontSize: '0.94rem', letterSpacing: '-0.01em' }}>
                                       {parseFloat(d.Amount).toFixed(4)} <span style={{ fontSize: '0.76rem' }}>ETH</span>
                                     </span>
-                                    <span style={{ fontSize: '0.72rem', color: '#94a3b8', fontWeight: 600 }}>
+                                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600 }}>
                                       ≈ ₱{(parseFloat(d.Amount) * 170000).toLocaleString('en-US')} PHP
                                     </span>
                                   </div>
@@ -5028,13 +5248,13 @@ export default function OrganizationView({
                                                 fontSize: '0.71rem',
                                                 fontWeight: 800,
                                                 background: 'rgba(34, 197, 94, 0.12)',
-                                                color: '#4ade80',
+                                                color: '#16a34a',
                                                 border: '1px solid rgba(34, 197, 94, 0.3)'
                                               }}
                                               title={ai.summary || 'Receipt verified by Gemini AI Vision & Tesseract OCR'}
                                             >
                                               <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>verified</span>
-                                              <span>🤖 AI Verified ({score}%)</span>
+                                              <span>AI Verified ({score}%)</span>
                                             </span>
                                           );
                                         } else if (isInvalidImg) {
@@ -5055,7 +5275,7 @@ export default function OrganizationView({
                                               title={ai.summary || 'Not a valid payment receipt screenshot'}
                                             >
                                               <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>gpp_bad</span>
-                                              <span>⚠️ Not a Receipt ({score}%)</span>
+                                              <span>Not a Receipt ({score}%)</span>
                                             </span>
                                           );
                                         } else if (isDup) {
@@ -5070,13 +5290,13 @@ export default function OrganizationView({
                                                 fontSize: '0.71rem',
                                                 fontWeight: 800,
                                                 background: 'rgba(245, 158, 11, 0.18)',
-                                                color: '#fbbf24',
+                                                color: '#d97706',
                                                 border: '1px solid rgba(245, 158, 11, 0.4)'
                                               }}
                                               title={flags.join('\n')}
                                             >
                                               <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>warning</span>
-                                              <span>🚨 Duplicate Ref ({score}%)</span>
+                                              <span>Duplicate Ref ({score}%)</span>
                                             </span>
                                           );
                                         } else {
@@ -5091,13 +5311,13 @@ export default function OrganizationView({
                                                 fontSize: '0.71rem',
                                                 fontWeight: 800,
                                                 background: 'rgba(245, 158, 11, 0.12)',
-                                                color: '#f59e0b',
+                                                color: '#d97706',
                                                 border: '1px solid rgba(245, 158, 11, 0.3)'
                                               }}
                                               title={ai.summary || 'Requires manual NGO verification'}
                                             >
                                               <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>help_outline</span>
-                                              <span>⚠️ Manual Audit ({score}%)</span>
+                                              <span>Manual Audit ({score}%)</span>
                                             </span>
                                           );
                                         }
@@ -5231,9 +5451,10 @@ export default function OrganizationView({
                       <button
                         type="button"
                         onClick={() => setSearchQueryLedger('')}
-                        style={{ position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '0.82rem', padding: 0 }}
+                        style={{ position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: 0 }}
+                        title="Clear search"
                       >
-                        ✕
+                        <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>close</span>
                       </button>
                     )}
                   </div>
@@ -5257,8 +5478,8 @@ export default function OrganizationView({
                     }}
                   >
                     <option value="ALL">All Categories ({orgDonations ? orgDonations.length : 0})</option>
-                    <option value="DR">🌊 Disaster Relief (DR)</option>
-                    <option value="CD">🤝 Charitable Aid (CD)</option>
+                    <option value="DR">Disaster Relief (DR)</option>
+                    <option value="CD">Charitable Aid (CD)</option>
                   </select>
                 </div>
 
@@ -5280,10 +5501,10 @@ export default function OrganizationView({
                     }}
                   >
                     <option value="ALL">All Rails ({orgDonations ? orgDonations.length : 0})</option>
-                    <option value="ETH">⚡ Crypto (Sepolia ETH)</option>
-                    <option value="GCASH">📱 GCash E-Wallet</option>
-                    <option value="MAYA">💳 Maya E-Wallet</option>
-                    <option value="BANK">🏦 Bank Transfer</option>
+                    <option value="ETH">Crypto (Sepolia ETH)</option>
+                    <option value="GCASH">GCash E-Wallet</option>
+                    <option value="MAYA">Maya E-Wallet</option>
+                    <option value="BANK">Bank Transfer</option>
                   </select>
                 </div>
 
@@ -5329,10 +5550,10 @@ export default function OrganizationView({
                       cursor: 'pointer'
                     }}
                   >
-                    <option value="NEWEST">✨ Newest First</option>
-                    <option value="AMOUNT_HIGH">💎 Highest Amount</option>
-                    <option value="AMOUNT_LOW">📉 Lowest Amount</option>
-                    <option value="OLDEST">⏳ Oldest First</option>
+                    <option value="NEWEST">Newest First</option>
+                    <option value="AMOUNT_HIGH">Highest Amount</option>
+                    <option value="AMOUNT_LOW">Lowest Amount</option>
+                    <option value="OLDEST">Oldest First</option>
                   </select>
                 </div>
 
@@ -5368,20 +5589,31 @@ export default function OrganizationView({
                   <div className="empty-title">Synchronizing on-chain ledger entries…</div>
                 </div>
               ) : !orgDonations || orgDonations.length === 0 ? (
-                <div className="empty-state">
-                  <div className="empty-icon">📜</div>
-                  <div className="empty-title">No transactions recorded yet</div>
-                  <div className="empty-desc">
+                <div className="db-empty-state">
+                  <div className="db-empty-icon">
+                    <span className="material-symbols-outlined">receipt_long</span>
+                  </div>
+                  <div className="db-empty-title">No transactions recorded yet</div>
+                  <div className="db-empty-desc">
                     When donors contribute to your relief campaigns, immutable cryptographic receipts will appear here in real time.
                   </div>
                 </div>
               ) : filteredLedger.length === 0 ? (
-                <div className="empty-state">
-                  <div className="empty-icon">📭</div>
-                  <div className="empty-title">No transactions match these filter criteria</div>
-                  <div className="empty-desc">
+                <div className="db-empty-state">
+                  <div className="db-empty-icon">
+                    <span className="material-symbols-outlined">search_off</span>
+                  </div>
+                  <div className="db-empty-title">No transactions match these filter criteria</div>
+                  <div className="db-empty-desc">
                     Try adjusting the search keyword, category, or payment rail filter above.
                   </div>
+                  <button
+                    type="button"
+                    className="db-btn"
+                    onClick={() => { setSearchQueryLedger(''); setLedgerFilter('ALL'); setLedgerRailFilter('ALL'); setLedgerCampaignFilter('ALL'); }}
+                  >
+                    <span>Reset Filters</span>
+                  </button>
                 </div>
               ) : ledgerViewMode === 'cards' ? (
                 /* ── CARDS VIEW ── */
@@ -5500,10 +5732,11 @@ export default function OrganizationView({
                                   navigator.clipboard.writeText(d.txHash);
                                   showSuccess('Transaction hash copied to clipboard!', 'Hash Copied');
                                 }}
-                                style={{ padding: '4px 8px', fontSize: '0.72rem' }}
+                                style={{ padding: '4px 8px', fontSize: '0.72rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
                                 title="Copy Transaction Hash"
                               >
-                                📋 Copy
+                                <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>content_copy</span>
+                                <span>Copy</span>
                               </button>
 
                               {d.txHash && !d.txHash.startsWith('MOCK') && (
@@ -5568,10 +5801,10 @@ export default function OrganizationView({
                                       navigator.clipboard.writeText(d.txHash);
                                       showSuccess('Transaction hash copied!', 'Copied');
                                     }}
-                                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 0 }}
+                                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 0, display: 'inline-flex', alignItems: 'center' }}
                                     title="Copy Hash"
                                   >
-                                    📋
+                                    <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>content_copy</span>
                                   </button>
                                 </div>
                               </td>
@@ -5682,374 +5915,525 @@ export default function OrganizationView({
             </div>
           )}
 
-          {/* ── 5.5. SEC ACCREDITATION & INSTITUTIONAL KYC CENTER (POST-SIGNUP) ── */}
-          {activeTab === 'sec-kyc' && (
-            <div style={{ marginTop: '8px' }}>
-              <div className="section-header" id="tour-ngo-sec-header">
-                <div>
-                  <h2 className="section-title" style={{ fontSize: '1.4rem' }}>
-                    <span className="material-symbols-outlined section-title-icon" style={{ marginRight: '8px', color: '#38bdf8' }}>verified_user</span>
-                    Institutional SEC Non-Profit Accreditation Center
-                  </h2>
-                  <p style={{ fontSize: '0.82rem', color: '#94a3b8', marginTop: '4px' }}>
-                    Philippine Non-Stock Corporation & DSWD Disaster Relief Operations KYC Compliance Portal
-                  </p>
-                </div>
+          {/* ── 5.5. NGO LEGAL VERIFICATION & SEC ACCREDITATION ── */}
+          {activeTab === 'sec-kyc' && (() => {
+            const isKycApproved = currentUser?.verification_status === 'Approved' || kycStatusData?.Verification_Status === 'Approved';
+            const isKycRejected = kycStatusData?.Verification_Status === 'Rejected';
+            const hasSubmittedDocs = Boolean((secRegNo && secRegNo.trim()) || secCertUrl);
 
-                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                  <button className="btn btn-ghost btn-sm" onClick={fetchKycData} disabled={kycLoading}>
-                    {kycLoading ? <div className="spinner spinner-light" /> : '↻ Refresh Status'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleAutofillDemoSec}
-                    style={{
-                      background: 'rgba(56, 189, 248, 0.12)',
-                      border: '1px solid rgba(56, 189, 248, 0.35)',
-                      color: '#38bdf8',
-                      fontSize: '0.78rem',
-                      fontWeight: 700,
-                      padding: '6px 14px',
-                      borderRadius: '8px',
-                      cursor: 'pointer',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '6px'
-                    }}
-                  >
-                    <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>bolt</span>
-                    ⚡ Demo SEC Credentials
-                  </button>
-                </div>
-              </div>
-
-              {/* 4-Step Milestone Status Tracker */}
-              <div style={{
-                background: 'rgba(15, 23, 42, 0.6)',
-                border: '1px solid rgba(255, 255, 255, 0.08)',
-                borderRadius: '16px',
-                padding: '20px',
-                marginBottom: '24px'
-              }}>
-                <div style={{ fontSize: '0.75rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '16px' }}>
-                  Accreditation Verification Milestones
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
-                  {/* Step 1 */}
-                  <div style={{ background: 'rgba(34, 197, 94, 0.08)', border: '1px solid rgba(34, 197, 94, 0.25)', padding: '12px', borderRadius: '10px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#22c55e', fontSize: '0.78rem', fontWeight: 700 }}>
-                      <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>check_circle</span>
-                      1. Account Created
-                    </div>
-                    <div style={{ fontSize: '0.7rem', color: '#94a3b8', marginTop: '4px' }}>Official NGO Email Verified</div>
-                  </div>
-
-                  {/* Step 2 */}
-                  <div style={{
-                    background: (secRegNo || secCertUrl) ? 'rgba(34, 197, 94, 0.08)' : 'rgba(234, 179, 8, 0.08)',
-                    border: (secRegNo || secCertUrl) ? '1px solid rgba(34, 197, 94, 0.25)' : '1px solid rgba(234, 179, 8, 0.25)',
-                    padding: '12px',
-                    borderRadius: '10px'
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: (secRegNo || secCertUrl) ? '#22c55e' : '#facc15', fontSize: '0.78rem', fontWeight: 700 }}>
-                      <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>
-                        {(secRegNo || secCertUrl) ? 'check_circle' : 'pending'}
-                      </span>
-                      2. SEC Documents
-                    </div>
-                    <div style={{ fontSize: '0.7rem', color: '#94a3b8', marginTop: '4px' }}>
-                      {(secRegNo || secCertUrl) ? 'Certificate Attached' : 'Awaiting Submission'}
-                    </div>
-                  </div>
-
-                  {/* Step 3 */}
-                  <div style={{
-                    background: (kycStatusData?.Verification_Status === 'Approved') ? 'rgba(34, 197, 94, 0.08)' : (kycStatusData?.Verification_Status === 'Rejected' ? 'rgba(239, 68, 68, 0.08)' : 'rgba(56, 189, 248, 0.08)'),
-                    border: (kycStatusData?.Verification_Status === 'Approved') ? '1px solid rgba(34, 197, 94, 0.25)' : (kycStatusData?.Verification_Status === 'Rejected' ? '1px solid rgba(239, 68, 68, 0.25)' : '1px solid rgba(56, 189, 248, 0.25)'),
-                    padding: '12px',
-                    borderRadius: '10px'
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: (kycStatusData?.Verification_Status === 'Approved') ? '#22c55e' : (kycStatusData?.Verification_Status === 'Rejected' ? '#ef4444' : '#38bdf8'), fontSize: '0.78rem', fontWeight: 700 }}>
-                      <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>
-                        {(kycStatusData?.Verification_Status === 'Approved') ? 'check_circle' : (kycStatusData?.Verification_Status === 'Rejected' ? 'cancel' : 'psychology')}
-                      </span>
-                      3. AI Vision Audit
-                    </div>
-                    <div style={{ fontSize: '0.7rem', color: '#94a3b8', marginTop: '4px' }}>
-                      {(kycStatusData?.Verification_Status === 'Approved') ? 'Gemini AI Verified' : (kycStatusData?.Verification_Status === 'Rejected' ? 'Rubric Check Failed' : 'Autonomous AI Inspection')}
-                    </div>
-                  </div>
-
-                  {/* Step 4 */}
-                  <div style={{
-                    background: (kycStatusData?.Verification_Status === 'Approved') ? 'rgba(34, 197, 94, 0.08)' : 'rgba(255, 255, 255, 0.03)',
-                    border: (kycStatusData?.Verification_Status === 'Approved') ? '1px solid rgba(34, 197, 94, 0.25)' : '1px solid rgba(255, 255, 255, 0.08)',
-                    padding: '12px',
-                    borderRadius: '10px'
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: (kycStatusData?.Verification_Status === 'Approved') ? '#22c55e' : '#64748b', fontSize: '0.78rem', fontWeight: 700 }}>
-                      <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>
-                        {(kycStatusData?.Verification_Status === 'Approved') ? 'lock_open' : 'lock'}
-                      </span>
-                      4. Campaign Deploy
-                    </div>
-                    <div style={{ fontSize: '0.7rem', color: '#94a3b8', marginTop: '4px' }}>
-                      {(kycStatusData?.Verification_Status === 'Approved') ? 'Blockchain Authorized' : 'Unlocked on Approval'}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Verified Certificate Shield (If Approved) */}
-              {kycStatusData?.Verification_Status === 'Approved' ? (
-                <div style={{
-                  background: 'linear-gradient(135deg, rgba(34, 197, 94, 0.12) 0%, rgba(56, 189, 248, 0.08) 100%)',
-                  border: '1.5px solid rgba(34, 197, 94, 0.4)',
-                  borderRadius: '16px',
-                  padding: '28px',
-                  marginBottom: '30px',
-                  textAlign: 'center',
-                  boxShadow: '0 20px 40px rgba(0,0,0,0.3)'
-                }}>
-                  <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '60px', height: '60px', borderRadius: '50%', background: 'rgba(34, 197, 94, 0.2)', color: '#22c55e', marginBottom: '14px' }}>
-                    <span className="material-symbols-outlined" style={{ fontSize: '36px' }}>verified</span>
-                  </div>
-                  <h3 style={{ margin: 0, fontSize: '1.3rem', color: '#22c55e', fontWeight: 800 }}>
-                    Official SEC Accredited Non-Profit Corporation
-                  </h3>
-                  <p style={{ color: '#cbd5e1', fontSize: '0.85rem', maxWidth: '600px', margin: '8px auto 16px auto' }}>
-                    This organization is formally verified under Philippine Securities and Exchange Commission (SEC) eSPARC guidelines as a Non-Stock, Non-Profit Humanitarian Institution.
-                  </p>
-
-                  <div style={{ display: 'inline-flex', gap: '16px', flexWrap: 'wrap', justifyContent: 'center', background: 'rgba(0,0,0,0.3)', padding: '12px 24px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.08)', fontSize: '0.82rem' }}>
-                    <div><span style={{ color: '#94a3b8' }}>SEC Reg No:</span> <strong style={{ color: '#38bdf8', fontFamily: 'monospace' }}>{secRegNo || kycStatusData?.secRegistrationNo || 'SEC-CN2021-08492'}</strong></div>
-                    <div><span style={{ color: '#94a3b8' }}>DSWD Permit:</span> <strong style={{ color: '#ffffff' }}>{dswdNo || kycStatusData?.dswdAccreditationNo || 'DSWD-SB-A-2024-0193'}</strong></div>
-                    <div><span style={{ color: '#94a3b8' }}>Auditor:</span> <strong style={{ color: '#38bdf8' }}>{kycStatusData?.verifiedBy || 'AI_GEMINI_VISION'}</strong></div>
-                    <div><span style={{ color: '#94a3b8' }}>Verified Date:</span> <strong style={{ color: '#22c55e' }}>{kycStatusData?.verifiedAt ? new Date(kycStatusData.verifiedAt).toLocaleDateString() : 'Active'}</strong></div>
-                  </div>
-
-                  {secCertUrl && (
-                    <div style={{ marginTop: '18px' }}>
-                      <button
-                        type="button"
-                        className="btn btn-outline btn-sm"
-                        onClick={() => setViewingKycCert(true)}
-                        style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-                      >
-                        <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>visibility</span>
-                        Inspect Official SEC Certificate Document
-                      </button>
-                    </div>
-                  )}
-                </div>
-              ) : null}
-
-              {/* Rejection Notice Banner (If Rejected) */}
-              {kycStatusData?.Verification_Status === 'Rejected' && (
-                <div style={{
-                  background: 'rgba(239, 68, 68, 0.08)',
-                  border: '1.5px solid rgba(239, 68, 68, 0.35)',
-                  borderRadius: '14px',
-                  padding: '18px 24px',
-                  marginBottom: '24px',
-                  display: 'flex',
-                  alignItems: 'flex-start',
-                  gap: '14px'
-                }}>
-                  <span className="material-symbols-outlined" style={{ color: '#ef4444', fontSize: '28px', marginTop: '2px' }}>error</span>
+            return (
+              <div className="sec-v2-wrap">
+                {/* ── Section Header ── */}
+                <div className="section-header" id="tour-ngo-sec-header" style={{ marginBottom: 0 }}>
                   <div>
-                    <div style={{ color: '#ef4444', fontWeight: 800, fontSize: '0.95rem' }}>
-                      AI Verification Notice: Correction Required
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                      <span style={{
+                        fontSize: '0.68rem',
+                        fontWeight: 800,
+                        textTransform: 'uppercase',
+                        letterSpacing: '0.06em',
+                        padding: '2px 8px',
+                        borderRadius: '4px',
+                        background: 'var(--bg-subcard)',
+                        border: '1px solid var(--border)',
+                        color: 'var(--text-muted)'
+                      }}>
+                        NGO Legal Compliance
+                      </span>
+                      {isKycApproved ? (
+                        <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#16a34a', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                          <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>verified</span>
+                          Verified Relief NGO
+                        </span>
+                      ) : (
+                        <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#f59e0b', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                          <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>pending</span>
+                          Verification Required
+                        </span>
+                      )}
                     </div>
-                    <p style={{ color: '#cbd5e1', fontSize: '0.82rem', margin: '4px 0 0 0', lineHeight: 1.5 }}>
-                      {kycStatusData?.auditNotes || 'Your submitted document did not pass the autonomous anti-bias compliance check. Please verify your registration number and upload a legible certificate.'}
+                    <h2 className="section-title" style={{ fontSize: '1.35rem', margin: 0 }}>
+                      <span className="material-symbols-outlined section-title-icon" style={{ marginRight: '8px', color: '#0284c7' }}>verified_user</span>
+                      Organization Legal Verification
+                    </h2>
+                    <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                      Submit official Philippine non-profit registration (SEC Non-Stock / DSWD) to verify your NGO identity and unlock relief campaign creation.
+                    </p>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-sm"
+                      onClick={fetchKycData}
+                      disabled={kycLoading}
+                      title="Reload verification status from server"
+                    >
+                      {kycLoading ? <div className="spinner spinner-light" /> : '↻ Refresh Status'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleAutofillDemoSec}
+                      title="Populate authentic Philippine Red Cross sample credentials for thesis defense"
+                      style={{
+                        background: 'rgba(56, 189, 248, 0.10)',
+                        border: '1px solid rgba(56, 189, 248, 0.35)',
+                        color: '#38bdf8',
+                        fontSize: '0.78rem',
+                        fontWeight: 700,
+                        padding: '6px 14px',
+                        borderRadius: '8px',
+                        cursor: 'pointer',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        transition: 'all 0.15s ease'
+                      }}
+                    >
+                      <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>bolt</span>
+                      ⚡ Demo SEC Credentials
+                    </button>
+                  </div>
+                </div>
+
+                {/* ── Why Verification Is Required (3 Plain Pillars) ── */}
+                <div className="sec-why-grid">
+                  <div className="sec-why-card">
+                    <div className="sec-why-head">
+                      <div className="sec-why-icon-badge green">
+                        <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>shield</span>
+                      </div>
+                      <div className="sec-why-title">Donor Protection</div>
+                    </div>
+                    <p className="sec-why-text">
+                      Disaster relief often attracts fake charities. Verifying official SEC non-stock registration ensures donors that all relief drives are legally legitimate.
+                    </p>
+                  </div>
+
+                  <div className="sec-why-card">
+                    <div className="sec-why-head">
+                      <div className="sec-why-icon-badge sky">
+                        <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>lock</span>
+                      </div>
+                      <div className="sec-why-title">Escrow Accountability</div>
+                    </div>
+                    <p className="sec-why-text">
+                      Relief funds are held in Solidity smart contracts. Legal verification binds the NGO's on-chain wallet to verified trustees before aid disbursements occur.
+                    </p>
+                  </div>
+
+                  <div className="sec-why-card">
+                    <div className="sec-why-head">
+                      <div className="sec-why-icon-badge amber">
+                        <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>campaign</span>
+                      </div>
+                      <div className="sec-why-title">Unlock Campaign Creation</div>
+                    </div>
+                    <p className="sec-why-text">
+                      Unverified accounts are restricted to monitoring radar missions. Approval immediately unlocks campaign creation and awards the Verified NGO badge.
                     </p>
                   </div>
                 </div>
-              )}
 
-              {/* Form Section: Submit / Update Institutional Documents */}
-              <div className="card" style={{ padding: '28px', background: 'var(--surface)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>
-                  <h3 style={{ margin: 0, fontSize: '1.1rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span className="material-symbols-outlined" style={{ color: '#38bdf8' }}>badge</span>
-                    Institutional Credentials & Governance Submission
-                  </h3>
-                  <span className="badge badge-info" style={{ fontSize: '0.7rem' }}>SEC Non-Stock Rubric</span>
+                {/* ── 4-Step Connected Progress Workflow ── */}
+                <div className="sec-stepper-card">
+                  <div className="sec-stepper-header">
+                    <div className="sec-stepper-kicker">Verification Workflow</div>
+                    <div className="sec-stepper-status-pill" style={{
+                      background: isKycApproved ? 'rgba(34, 197, 94, 0.12)' : (isKycRejected ? 'rgba(239, 68, 68, 0.12)' : hasSubmittedDocs ? 'rgba(56, 189, 248, 0.12)' : 'var(--bg-subcard)'),
+                      color: isKycApproved ? '#16a34a' : (isKycRejected ? '#ef4444' : hasSubmittedDocs ? '#0284c7' : 'var(--text-muted)'),
+                      border: `1px solid ${isKycApproved ? 'rgba(34, 197, 94, 0.3)' : (isKycRejected ? 'rgba(239, 68, 68, 0.3)' : hasSubmittedDocs ? 'rgba(56, 189, 248, 0.3)' : 'var(--border)')}`
+                    }}>
+                      <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>
+                        {isKycApproved ? 'check_circle' : isKycRejected ? 'error' : hasSubmittedDocs ? 'hourglass_top' : 'radio_button_unchecked'}
+                      </span>
+                      <span>{isKycApproved ? 'Accreditation Approved' : isKycRejected ? 'Action Required' : hasSubmittedDocs ? 'Under Verification' : 'Pending Submission'}</span>
+                    </div>
+                  </div>
+
+                  <div className="sec-stepper-flow">
+                    {/* Step 1 */}
+                    <div className="sec-step-item is-done">
+                      <div className="sec-step-top">
+                        <div className="sec-step-circle">
+                          <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>check</span>
+                        </div>
+                      </div>
+                      <div className="sec-step-info">
+                        <div className="sec-step-name">1. Account Registered</div>
+                        <div className="sec-step-desc">NGO Email &amp; Profile Created</div>
+                      </div>
+                    </div>
+
+                    {/* Step 2 */}
+                    <div className={`sec-step-item ${(hasSubmittedDocs || isKycApproved) ? 'is-done' : 'is-current'}`}>
+                      <div className="sec-step-top">
+                        <div className="sec-step-circle">
+                          {(hasSubmittedDocs || isKycApproved) ? (
+                            <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>check</span>
+                          ) : '2'}
+                        </div>
+                      </div>
+                      <div className="sec-step-info">
+                        <div className="sec-step-name">2. Submit Registration</div>
+                        <div className="sec-step-desc">
+                          {(hasSubmittedDocs || isKycApproved) ? 'SEC Certificate Attached' : 'Awaiting Submission'}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Step 3 */}
+                    <div className={`sec-step-item ${isKycApproved ? 'is-done' : (isKycRejected ? 'is-warning' : (hasSubmittedDocs ? 'is-current' : ''))}`}>
+                      <div className="sec-step-top">
+                        <div className="sec-step-circle">
+                          {isKycApproved ? (
+                            <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>check</span>
+                          ) : isKycRejected ? (
+                            <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>priority_high</span>
+                          ) : '3'}
+                        </div>
+                      </div>
+                      <div className="sec-step-info">
+                        <div className="sec-step-name">3. Document Check</div>
+                        <div className="sec-step-desc">
+                          {isKycApproved ? 'SEC Seal &amp; Reg Validated' : (isKycRejected ? 'Needs Correction' : (hasSubmittedDocs ? 'Validation In Progress' : 'Pending Step 2'))}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Step 4 */}
+                    <div className={`sec-step-item ${isKycApproved ? 'is-done' : ''}`}>
+                      <div className="sec-step-top">
+                        <div className="sec-step-circle">
+                          {isKycApproved ? (
+                            <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>lock_open</span>
+                          ) : (
+                            <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>lock</span>
+                          )}
+                        </div>
+                      </div>
+                      <div className="sec-step-info">
+                        <div className="sec-step-name">4. Campaign Access</div>
+                        <div className="sec-step-desc">
+                          {isKycApproved ? 'Campaign Creation Unlocked' : 'Unlocked on Approval'}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
-                <p style={{ fontSize: '0.84rem', color: '#94a3b8', marginBottom: '22px', lineHeight: '1.5' }}>
-                  In compliance with Republic Act 11232 and Philippine Disaster Response Guidelines, NGOs must submit their legitimate Securities and Exchange Commission (SEC) Non-Stock Registration Number and Certificate of Incorporation to prevent fraudulent campaigns.
-                </p>
-
-                <form onSubmit={handleSaveKyc}>
-                  <div className="form-grid-2col" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '16px' }}>
-                    <div>
-                      <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: '#e2e8f0', marginBottom: '6px' }}>
-                        SEC REGISTRATION NUMBER <span style={{ color: '#ef4444' }}>*</span>
-                      </label>
-                      <input
-                        type="text"
-                        className="input"
-                        placeholder="e.g., SEC-CN2021-08492"
-                        value={secRegNo}
-                        onChange={e => setSecRegNo(e.target.value)}
-                        style={{ fontFamily: 'monospace', fontWeight: 700 }}
-                        required
-                      />
-                      <span style={{ fontSize: '0.7rem', color: '#64748b', marginTop: '2px', display: 'block' }}>
-                        Issued by Philippine Securities and Exchange Commission (SEC eSPARC)
-                      </span>
+                {/* ── Approved Certificate Banner (If Approved) ── */}
+                {isKycApproved && (
+                  <div className="sec-approved-hero">
+                    <div className="sec-approved-header">
+                      <div className="sec-approved-shield">
+                        <span className="material-symbols-outlined" style={{ fontSize: '28px' }}>verified</span>
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <h3 className="sec-approved-title">
+                          Officially Accredited Non-Profit Organization
+                        </h3>
+                        <p className="sec-approved-sub">
+                          This organization is verified under Philippine Securities and Exchange Commission (SEC) guidelines. Campaign deployment is unlocked.
+                        </p>
+                      </div>
                     </div>
 
-                    <div>
-                      <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: '#e2e8f0', marginBottom: '6px' }}>
-                        DSWD / LGU ACCREDITATION PERMIT (OPTIONAL)
-                      </label>
-                      <input
-                        type="text"
-                        className="input"
-                        placeholder="e.g., DSWD-SB-A-2024-0193"
-                        value={dswdNo}
-                        onChange={e => setDswdNo(e.target.value)}
-                        style={{ fontFamily: 'monospace' }}
-                      />
-                      <span style={{ fontSize: '0.7rem', color: '#64748b', marginTop: '2px', display: 'block' }}>
-                        Public Solicitation Authorization Number
-                      </span>
+                    <div className="sec-approved-grid">
+                      <div>
+                        <div className="sec-approved-metric-label">SEC Registration No</div>
+                        <div className="sec-approved-metric-val" style={{ color: '#0284c7' }}>
+                          {secRegNo || kycStatusData?.secRegistrationNo || 'SEC-CN2021-08492'}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="sec-approved-metric-label">DSWD / LGU Permit</div>
+                        <div className="sec-approved-metric-val">
+                          {dswdNo || kycStatusData?.dswdAccreditationNo || 'DSWD-SB-A-2024-0193'}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="sec-approved-metric-label">Verification Date</div>
+                        <div className="sec-approved-metric-val" style={{ color: '#16a34a' }}>
+                          {kycStatusData?.verifiedAt ? new Date(kycStatusData.verifiedAt).toLocaleDateString() : 'Active'}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="sec-approved-metric-label">Campaign Access</div>
+                        <div className="sec-approved-metric-val" style={{ color: '#16a34a' }}>
+                          ✓ Unlocked
+                        </div>
+                      </div>
                     </div>
-                  </div>
 
-                  <div style={{ marginBottom: '18px' }}>
-                    <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 600, color: '#e2e8f0', marginBottom: '6px' }}>
-                      BOARD OF TRUSTEES / FOUNDERS / INCORPORATORS <span style={{ color: '#ef4444' }}>*</span>
-                    </label>
-                    <input
-                      type="text"
-                      className="input"
-                      placeholder="e.g., Chairman: Richard Gordon | SecGen: Gwendolyn Pang | Trustee: Dr. Benjamin Go"
-                      value={boardMembersText}
-                      onChange={e => setBoardMembersText(e.target.value)}
-                      required
-                    />
-                    <span style={{ fontSize: '0.7rem', color: '#64748b', marginTop: '2px', display: 'block' }}>
-                      List key officers to confirm authorized identity and eliminate human bias during review.
-                    </span>
-                  </div>
+                    <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+                      <button
+                        type="button"
+                        className="btn btn-primary"
+                        onClick={() => setActiveTab('create')}
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '9px 18px' }}
+                      >
+                        <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>add_circle</span>
+                        Deploy Relief Campaign →
+                      </button>
 
-                  {/* Certificate Image Upload Box */}
-                  <div style={{ background: 'rgba(255, 255, 255, 0.02)', padding: '16px', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.08)', marginBottom: '24px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                      <label style={{ fontSize: '0.82rem', fontWeight: 700, color: '#e2e8f0' }}>
-                        OFFICIAL SEC CERTIFICATE OF INCORPORATION (IMAGE / PDF) <span style={{ color: '#ef4444' }}>*</span>
-                      </label>
                       {secCertUrl && (
                         <button
                           type="button"
-                          onClick={() => setSecCertUrl('')}
-                          style={{ background: 'none', border: 'none', color: '#ef4444', fontSize: '0.75rem', cursor: 'pointer', fontWeight: 600 }}
+                          className="btn btn-outline"
+                          onClick={() => setViewingKycCert(true)}
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '9px 16px' }}
                         >
-                          Remove Document
+                          <span className="material-symbols-outlined" style={{ fontSize: '17px' }}>visibility</span>
+                          Inspect Official SEC Certificate
                         </button>
                       )}
+
+                      <button
+                        type="button"
+                        className="btn btn-ghost"
+                        onClick={() => setShowKycFormOverride(!showKycFormOverride)}
+                        style={{ fontSize: '0.80rem', marginLeft: 'auto' }}
+                      >
+                        {showKycFormOverride ? 'Hide Document Form ▲' : 'Update Registration Details ✎'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* ── Rejection Notice Banner (If Rejected) ── */}
+                {isKycRejected && (
+                  <div style={{
+                    background: 'rgba(239, 68, 68, 0.08)',
+                    border: '1.5px solid rgba(239, 68, 68, 0.35)',
+                    borderRadius: '12px',
+                    padding: '16px 20px',
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    gap: '12px'
+                  }}>
+                    <span className="material-symbols-outlined" style={{ color: '#ef4444', fontSize: '26px', marginTop: '2px' }}>error</span>
+                    <div>
+                      <div style={{ color: '#ef4444', fontWeight: 800, fontSize: '0.92rem' }}>
+                        Verification Incomplete: Correction Required
+                      </div>
+                      <p style={{ color: 'var(--text-secondary)', fontSize: '0.82rem', margin: '4px 0 0 0', lineHeight: 1.5 }}>
+                        {kycStatusData?.auditNotes || 'Your submitted registration details or certificate could not be validated. Please confirm your SEC registration number and upload a clear, legible certificate document.'}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* ── Verification Form (Visible when not approved, or when updating) ── */}
+                {(!isKycApproved || showKycFormOverride) && (
+                  <div className="sec-form-card">
+                    <div className="sec-form-head">
+                      <h3 className="sec-form-title">
+                        <span className="material-symbols-outlined" style={{ color: '#0284c7' }}>badge</span>
+                        Submit Organization Documents
+                      </h3>
+                      <span style={{
+                        fontSize: '0.70rem',
+                        fontWeight: 700,
+                        color: 'var(--text-muted)',
+                        background: 'var(--bg-subcard)',
+                        border: '1px solid var(--border)',
+                        padding: '3px 8px',
+                        borderRadius: '6px'
+                      }}>
+                        Philippine RA 11232 (Non-Stock Corp)
+                      </span>
                     </div>
 
-                    {secCertUrl ? (
-                      <div style={{ borderRadius: '10px', overflow: 'hidden', border: '1.5px solid rgba(56, 189, 248, 0.4)', background: 'rgba(0,0,0,0.3)', padding: '12px', textAlign: 'center' }}>
-                        {isPdfDocument(secCertUrl) ? (
-                          <div
-                            onClick={() => setViewingKycCert(true)}
-                            style={{ padding: '24px 16px', background: 'rgba(56, 189, 248, 0.08)', borderRadius: '8px', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}
-                          >
-                            <span className="material-symbols-outlined" style={{ fontSize: '42px', color: '#ef4444' }}>picture_as_pdf</span>
-                            <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#ffffff' }}>Official SEC Certificate (PDF Document)</span>
-                            <span style={{ fontSize: '0.74rem', color: '#38bdf8' }}>Click to Inspect Full Document</span>
-                          </div>
-                        ) : (
-                          <img
-                            src={normalizeSecDocUrl(secCertUrl)}
-                            alt="SEC Certificate Preview"
-                            style={{ maxHeight: '160px', maxWidth: '100%', objectFit: 'contain', borderRadius: '8px', cursor: 'pointer' }}
-                            onClick={() => setViewingKycCert(true)}
-                            onError={(e) => {
-                              e.currentTarget.style.display = 'none';
-                              const fallbackEl = document.getElementById('sec-thumb-fallback');
-                              if (fallbackEl) fallbackEl.style.display = 'flex';
-                            }}
+                    <p className="sec-form-desc">
+                      Enter your official Securities and Exchange Commission (SEC) registration details and attach your Certificate of Incorporation.
+                    </p>
+
+                    <form onSubmit={handleSaveKyc}>
+                      <div className="sec-form-row-2">
+                        <div className="sec-field">
+                          <label>
+                            SEC REGISTRATION NUMBER <span style={{ color: '#ef4444' }}>*</span>
+                          </label>
+                          <input
+                            type="text"
+                            className="input"
+                            placeholder="e.g., SEC-CN2021-08492"
+                            value={secRegNo}
+                            onChange={e => setSecRegNo(e.target.value)}
+                            style={{ fontFamily: 'monospace', fontWeight: 700 }}
+                            required
                           />
-                        )}
-                        <div id="sec-thumb-fallback" style={{ display: 'none', flexDirection: 'column', alignItems: 'center', padding: '16px', background: 'rgba(217, 119, 6, 0.1)', borderRadius: '8px', cursor: 'pointer' }} onClick={() => setViewingKycCert(true)}>
-                          <span className="material-symbols-outlined" style={{ fontSize: '36px', color: '#f59e0b' }}>verified</span>
-                          <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#f59e0b', marginTop: '4px' }}>SEC Certificate Document Attached</span>
-                          <span style={{ fontSize: '0.72rem', color: '#94a3b8' }}>Click to Inspect Official Certificate</span>
+                          <span className="sec-field-hint">
+                            Registration number found on your official SEC Certificate of Incorporation.
+                          </span>
                         </div>
-                        <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', alignItems: 'center', marginTop: '8px' }}>
-                          <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#38bdf8' }}>verified</span>
-                          <span style={{ fontSize: '0.78rem', color: '#38bdf8', fontWeight: 700 }}>
-                            SEC Certificate Attached • Click Image to Inspect Full Size
+
+                        <div className="sec-field">
+                          <label>
+                            DSWD / LGU PERMIT NUMBER (OPTIONAL)
+                          </label>
+                          <input
+                            type="text"
+                            className="input"
+                            placeholder="e.g., DSWD-SB-A-2024-0193"
+                            value={dswdNo}
+                            onChange={e => setDswdNo(e.target.value)}
+                            style={{ fontFamily: 'monospace' }}
+                          />
+                          <span className="sec-field-hint">
+                            DSWD public solicitation authorization or LGU disaster endorsement, if issued.
                           </span>
                         </div>
                       </div>
-                    ) : (
-                      <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '28px 16px', border: '1.5px dashed rgba(56, 189, 248, 0.35)', borderRadius: '12px', cursor: 'pointer', background: 'rgba(56, 189, 248, 0.03)', transition: '0.2s' }}>
-                        <span className="material-symbols-outlined" style={{ fontSize: '32px', color: '#38bdf8', marginBottom: '6px' }}>
-                          upload_file
-                        </span>
-                        <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#ffffff' }}>
-                          Upload SEC Certificate Document (PNG, JPG, PDF)
-                        </span>
-                        <span style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '2px' }}>
-                          Max 5MB • Valid Certificate of Incorporation or Articles
-                        </span>
+
+                      <div className="sec-field">
+                        <label>
+                          BOARD OF TRUSTEES / AUTHORIZED OFFICERS <span style={{ color: '#ef4444' }}>*</span>
+                        </label>
                         <input
-                          type="file"
-                          accept="image/*,application/pdf"
-                          onChange={handleKycCertUpload}
-                          style={{ display: 'none' }}
+                          type="text"
+                          className="input"
+                          placeholder="e.g., Richard Gordon (Chairman) | Gwendolyn Pang (SecGen) | Dr. Benjamin Go (Trustee)"
+                          value={boardMembersText}
+                          onChange={e => setBoardMembersText(e.target.value)}
+                          required
                         />
-                      </label>
-                    )}
+                        <span className="sec-field-hint">
+                          Names and official roles of authorized officers responsible for relief campaigns and aid operations.
+                        </span>
+                      </div>
+
+                      {/* Certificate Upload Zone */}
+                      <div className="sec-upload-box">
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                          <label style={{ fontSize: '0.80rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                            OFFICIAL SEC CERTIFICATE OF INCORPORATION <span style={{ color: '#ef4444' }}>*</span>
+                          </label>
+                          {secCertUrl && (
+                            <button
+                              type="button"
+                              onClick={() => setSecCertUrl('')}
+                              style={{ background: 'none', border: 'none', color: '#ef4444', fontSize: '0.74rem', cursor: 'pointer', fontWeight: 600 }}
+                            >
+                              Remove Document
+                            </button>
+                          )}
+                        </div>
+
+                        {secCertUrl ? (
+                          <div className="sec-doc-attached">
+                            <div className="sec-doc-info">
+                              <div className="sec-doc-icon">
+                                <span className="material-symbols-outlined" style={{ fontSize: '24px' }}>
+                                  {isPdfDocument(secCertUrl) ? 'picture_as_pdf' : 'description'}
+                                </span>
+                              </div>
+                              <div>
+                                <div className="sec-doc-filename">Official SEC Certificate Attached</div>
+                                <div className="sec-doc-meta">
+                                  {isPdfDocument(secCertUrl) ? 'PDF Document' : 'Official Certificate Document'} • Verified Seal
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="sec-doc-actions">
+                              <button
+                                type="button"
+                                className="btn btn-outline btn-sm"
+                                onClick={() => setViewingKycCert(true)}
+                                style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '0.76rem' }}
+                              >
+                                <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>visibility</span>
+                                Inspect Full Size
+                              </button>
+                              <label
+                                className="btn btn-ghost btn-sm"
+                                style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '0.76rem', cursor: 'pointer', margin: 0 }}
+                              >
+                                <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>sync</span>
+                                Replace
+                                <input
+                                  type="file"
+                                  accept="image/*,application/pdf"
+                                  onChange={handleKycCertUpload}
+                                  style={{ display: 'none' }}
+                                />
+                              </label>
+                            </div>
+                          </div>
+                        ) : (
+                          <label className="sec-dropzone">
+                            <span className="material-symbols-outlined" style={{ fontSize: '32px', color: '#0284c7', marginBottom: '6px' }}>
+                              upload_file
+                            </span>
+                            <span style={{ fontSize: '0.86rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                              Upload SEC Certificate of Incorporation
+                            </span>
+                            <span style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', marginTop: '3px' }}>
+                              PNG, JPG, or PDF (Max 10MB) • Duly signed Philippine non-profit certificate
+                            </span>
+                            <input
+                              type="file"
+                              accept="image/*,application/pdf"
+                              onChange={handleKycCertUpload}
+                              style={{ display: 'none' }}
+                            />
+                          </label>
+                        )}
+                      </div>
+
+                      {/* Real-time verification scanning state */}
+                      {kycSaving && kycStepText && (
+                        <div style={{
+                          background: 'rgba(56, 189, 248, 0.08)',
+                          border: '1px solid rgba(56, 189, 248, 0.3)',
+                          borderRadius: '10px',
+                          padding: '12px 16px',
+                          marginBottom: '18px',
+                          fontSize: '0.82rem',
+                          color: '#0284c7',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '10px'
+                        }}>
+                          <div className="spinner spinner-light" style={{ width: '16px', height: '16px' }} />
+                          <span style={{ fontWeight: 600 }}>{kycStepText}</span>
+                        </div>
+                      )}
+
+                      {/* Submit Action Bar */}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '14px', paddingTop: '8px', borderTop: '1px solid var(--border)' }}>
+                        <button
+                          type="submit"
+                          className="btn btn-primary"
+                          disabled={kycSaving || (!secRegNo.trim() && !secCertUrl)}
+                          style={{ padding: '10px 24px', fontSize: '0.90rem', display: 'inline-flex', alignItems: 'center', gap: '8px' }}
+                        >
+                          {kycSaving ? (
+                            <>
+                              <div className="spinner" />
+                              <span>Verifying Documents...</span>
+                            </>
+                          ) : (
+                            <>
+                              <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>verified</span>
+                              <span>Submit Documents for Verification</span>
+                            </>
+                          )}
+                        </button>
+
+                        <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#16a34a' }}>shield</span>
+                          <span>Secure verification • Prevents fake relief drives • SEC RA 11232 compliant</span>
+                        </div>
+                      </div>
+                    </form>
                   </div>
-
-                  {/* Real-Time AI Scanning Progress Banner */}
-                  {kycSaving && kycStepText && (
-                    <div style={{
-                      background: 'rgba(56, 189, 248, 0.1)',
-                      border: '1px solid rgba(56, 189, 248, 0.3)',
-                      borderRadius: '10px',
-                      padding: '12px 16px',
-                      marginBottom: '16px',
-                      fontSize: '0.82rem',
-                      color: '#38bdf8',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '10px'
-                    }}>
-                      <div className="spinner spinner-light" style={{ width: '16px', height: '16px' }} />
-                      <span style={{ fontWeight: 600 }}>{kycStepText}</span>
-                    </div>
-                  )}
-
-                  {/* Submission Action Bar */}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
-                    <button
-                      type="submit"
-                      className="btn btn-primary glow pulse"
-                      disabled={kycSaving || (!secRegNo.trim() && !secCertUrl)}
-                      style={{ padding: '12px 28px', fontSize: '0.95rem' }}
-                    >
-                      {kycSaving ? <><div className="spinner" /> AI Vision Verifying…</> : '🤖 Submit for Autonomous AI Verification'}
-                    </button>
-
-                    <div style={{ fontSize: '0.76rem', color: '#94a3b8' }}>
-                      🛡️ Real-time Gemini AI Vision analysis • Zero human gatekeeping or bias.
-                    </div>
-                  </div>
-                </form>
+                )}
               </div>
-            </div>
-          )}
+            );
+          })()}
 
           {/* ── SEC Certificate Viewer Modal ── */}
           <SecCertificateModal
@@ -6079,6 +6463,7 @@ export default function OrganizationView({
                 campaigns={campaigns}
                 height="620px"
                 theme={theme}
+                defaultLayer="tactical"
                 onSelectCampaign={(c) => {
                   setActiveTab('all-campaigns');
                   setSearchQueryAll(c.title || '');
@@ -6108,6 +6493,288 @@ export default function OrganizationView({
 
         </section>
       </div>
+
+      {/* ── AI Smart Budget & Allocation Generator Modal (Module B) ── */}
+      {showAiBudgetModal && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
+          background: 'rgba(5, 7, 12, 0.8)', backdropFilter: 'blur(12px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999,
+          padding: '16px'
+        }} className="fade-in">
+          <div className="card bounce-in" style={{
+            width: '640px', maxWidth: '100%', maxHeight: '90vh', overflowY: 'auto',
+            padding: '24px', background: 'var(--bg-card, #1c1c1c)', border: '1px solid var(--border-strong, rgba(255, 255, 255, 0.16))',
+            boxShadow: '0 24px 60px rgba(0,0,0,0.8)', borderRadius: '20px'
+          }}>
+            {/* Modal Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border, rgba(255,255,255,0.08))', paddingBottom: '16px', marginBottom: '20px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'var(--accent-dim, rgba(34, 197, 94, 0.12))', border: '1px solid var(--border-focus, rgba(34, 197, 94, 0.4))', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent, #22c55e)' }}>
+                  <span className="material-symbols-outlined" style={{ fontSize: '22px' }}>smart_toy</span>
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-primary, #fff)' }}>AI Smart Budget & Allocation Generator</h3>
+                  <div style={{ fontSize: '0.74rem', color: 'var(--text-secondary, #94a3b8)' }}>Powered by NDRRMC Guidelines & UN Sphere Project Standards</div>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAiBudgetModal(false)}
+                style={{ background: 'transparent', border: 'none', color: 'var(--text-muted, #94a3b8)', cursor: 'pointer', fontSize: '1.2rem' }}
+              >
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+
+            {/* Input Parameters Grid */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '14px', marginBottom: '20px' }}>
+              <div>
+                <label className="deploy-input-label">Disaster / Calamity Type</label>
+                <select
+                  className="input deploy-field-input"
+                  value={aiDisasterType}
+                  onChange={(e) => setAiDisasterType(e.target.value)}
+                >
+                  <option value="Typhoon">Typhoon (Bagyo / Cyclone)</option>
+                  <option value="Earthquake">Earthquake (Lindol)</option>
+                  <option value="Flood">Flash Flood (Baha)</option>
+                  <option value="Landslide">Landslide (Pagguho)</option>
+                  <option value="Volcano">Volcanic Eruption (Bulkang Pagsabog)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="deploy-input-label">Severity Rating / Warning Signal</label>
+                <select
+                  className="input deploy-field-input"
+                  value={aiSeverityRating}
+                  onChange={(e) => setAiSeverityRating(e.target.value)}
+                >
+                  <option value="Signal 1">Signal 1 / Intensity IV (Low Impact)</option>
+                  <option value="Signal 2">Signal 2 / Intensity V (Moderate Impact)</option>
+                  <option value="Signal 3">Signal 3 / Intensity VI (High Impact)</option>
+                  <option value="Signal 4">Signal 4 / Intensity VII (Critical Impact)</option>
+                  <option value="Signal 5">Signal 5 / Intensity VIII (Catastrophic / Super Calamity)</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="deploy-input-label">Target Beneficiaries (Families)</label>
+                <input
+                  type="number"
+                  min="10"
+                  step="50"
+                  className="input deploy-field-input"
+                  value={aiBeneficiariesCount}
+                  onChange={(e) => setAiBeneficiariesCount(e.target.value)}
+                  placeholder="e.g. 500"
+                />
+              </div>
+
+              <div>
+                <label className="deploy-input-label">Geographical Region / Calamity Zone</label>
+                <input
+                  type="text"
+                  className="input deploy-field-input"
+                  value={aiRegion}
+                  onChange={(e) => setAiRegion(e.target.value)}
+                  placeholder="e.g. Eastern Visayas (Southern Leyte)"
+                />
+              </div>
+            </div>
+
+            {/* Action Button */}
+            <button
+              type="button"
+              onClick={handleGenerateAiBudget}
+              disabled={aiBudgetLoading || !aiBeneficiariesCount}
+              className="btn btn-primary btn-full"
+              style={{
+                padding: '12px',
+                fontSize: '0.9rem',
+                fontWeight: 700,
+                borderRadius: '12px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                background: 'var(--accent, #22c55e)',
+                color: '#052e16',
+                border: 'none',
+                boxShadow: '0 2px 12px var(--accent-glow, rgba(34, 197, 94, 0.3))',
+                cursor: 'pointer'
+              }}
+            >
+              {aiBudgetLoading ? (
+                <>
+                  <span className="material-symbols-outlined spin" style={{ fontSize: '20px' }}>progress_activity</span>
+                  <span>Computing Sphere Standards & NDRRMC Metrics...</span>
+                </>
+              ) : (
+                <>
+                  <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>calculate</span>
+                  <span>Calculate Standard Humanitarian Allocations</span>
+                </>
+              )}
+            </button>
+
+            {/* Generated Results Preview */}
+            {aiBudgetResult && (
+              <div style={{ marginTop: '22px', borderTop: '1px solid var(--border, rgba(255,255,255,0.08))', paddingTop: '18px' }} className="fade-in">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                  <span style={{ fontSize: '0.78rem', fontWeight: 800, color: 'var(--accent, #22c55e)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                    Calculated Humanitarian Target
+                  </span>
+                  <span style={{ fontSize: '0.68rem', background: 'var(--accent-dim, rgba(34, 197, 94, 0.15))', color: 'var(--accent, #22c55e)', padding: '2px 8px', borderRadius: '6px', border: '1px solid rgba(34, 197, 94, 0.3)', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                    <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>check</span>
+                    {aiBudgetResult.generatedBy === 'AI_GEMINI_1.5_FLASH' ? 'Gemini 1.5 Flash Verified' : 'NDRRMC Sphere Matrix'}
+                  </span>
+                </div>
+
+                {/* Financial KPI Cards */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '10px', marginBottom: '16px' }}>
+                  <div style={{ background: 'var(--bg-input, rgba(255,255,255,0.04))', padding: '12px', borderRadius: '12px', border: '1px solid var(--border, rgba(255,255,255,0.08))' }}>
+                    <div style={{ fontSize: '0.68rem', color: 'var(--text-muted, #94a3b8)' }}>RECOMMENDED BUDGET</div>
+                    <div style={{ fontSize: '1.2rem', fontWeight: 900, color: 'var(--accent, #22c55e)', marginTop: '2px' }}>
+                      ₱{Number(aiBudgetResult.totalBudgetPhp).toLocaleString()}
+                    </div>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary, #a3a3a3)', marginTop: '2px' }}>
+                      ≈ {aiBudgetResult.totalBudgetEth} ETH
+                    </div>
+                  </div>
+
+                  <div style={{ background: 'var(--bg-input, rgba(255,255,255,0.04))', padding: '12px', borderRadius: '12px', border: '1px solid var(--border, rgba(255,255,255,0.08))' }}>
+                    <div style={{ fontSize: '0.68rem', color: 'var(--text-muted, #94a3b8)' }}>UNIT COST PER FAMILY</div>
+                    <div style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-primary, #ffffff)', marginTop: '2px' }}>
+                      ₱{Number(aiBudgetResult.unitCostPerFamily).toLocaleString()}
+                    </div>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted, #94a3b8)', marginTop: '2px' }}>
+                      7-day survival standard
+                    </div>
+                  </div>
+
+                  <div style={{ background: 'var(--bg-input, rgba(255,255,255,0.04))', padding: '12px', borderRadius: '12px', border: '1px solid var(--border, rgba(255,255,255,0.08))' }}>
+                    <div style={{ fontSize: '0.68rem', color: 'var(--text-muted, #94a3b8)' }}>TOTAL INDIVIDUALS</div>
+                    <div style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--warning, #f59e0b)', marginTop: '2px' }}>
+                      {(Number(aiBeneficiariesCount) * 5).toLocaleString()}
+                    </div>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted, #94a3b8)', marginTop: '2px' }}>
+                      {Number(aiBeneficiariesCount).toLocaleString()} families
+                    </div>
+                  </div>
+                </div>
+
+                {/* Allocations Breakdown Progress Bars */}
+                {aiBudgetResult.allocations && (
+                  <div style={{ marginBottom: '16px', background: 'var(--bg-input, rgba(0,0,0,0.25))', padding: '12px', borderRadius: '12px', border: '1px solid var(--border, rgba(255,255,255,0.05))' }}>
+                    <div style={{ fontSize: '0.74rem', fontWeight: 700, color: 'var(--text-secondary, #cbd5e1)', marginBottom: '8px' }}>
+                      Humanitarian Resource Allocation Breakdown
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px', fontSize: '0.74rem' }}>
+                      <div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-muted, #94a3b8)', marginBottom: '2px' }}>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                            <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>water_drop</span>
+                            <span>Food & Potable Water</span>
+                          </span>
+                          <strong style={{ color: 'var(--accent, #22c55e)' }}>{aiBudgetResult.allocations.foodWater}%</strong>
+                        </div>
+                        <div style={{ height: '6px', background: 'rgba(255,255,255,0.1)', borderRadius: '3px', overflow: 'hidden' }}>
+                          <div style={{ width: `${aiBudgetResult.allocations.foodWater}%`, height: '100%', background: 'var(--accent, #22c55e)' }} />
+                        </div>
+                      </div>
+
+                      <div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-muted)', marginBottom: '2px' }}>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                            <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>home</span>
+                            <span>Emergency Shelter</span>
+                          </span>
+                          <strong style={{ color: '#f97316' }}>{aiBudgetResult.allocations.shelter}%</strong>
+                        </div>
+                        <div style={{ height: '6px', background: 'rgba(255,255,255,0.1)', borderRadius: '3px', overflow: 'hidden' }}>
+                          <div style={{ width: `${aiBudgetResult.allocations.shelter}%`, height: '100%', background: '#f97316' }} />
+                        </div>
+                      </div>
+
+                      <div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-muted)', marginBottom: '2px' }}>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                            <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>medical_services</span>
+                            <span>Medical & First-Aid</span>
+                          </span>
+                          <strong style={{ color: '#22c55e' }}>{aiBudgetResult.allocations.medical}%</strong>
+                        </div>
+                        <div style={{ height: '6px', background: 'rgba(255,255,255,0.1)', borderRadius: '3px', overflow: 'hidden' }}>
+                          <div style={{ width: `${aiBudgetResult.allocations.medical}%`, height: '100%', background: '#22c55e' }} />
+                        </div>
+                      </div>
+
+                      <div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-muted)', marginBottom: '2px' }}>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                            <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>local_shipping</span>
+                            <span>First-Mile Logistics</span>
+                          </span>
+                          <strong style={{ color: '#a855f7' }}>{aiBudgetResult.allocations.logistics}%</strong>
+                        </div>
+                        <div style={{ height: '6px', background: 'rgba(255,255,255,0.1)', borderRadius: '3px', overflow: 'hidden' }}>
+                          <div style={{ width: `${aiBudgetResult.allocations.logistics}%`, height: '100%', background: '#a855f7' }} />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Generated Mission Narrative */}
+                <div style={{ marginBottom: '18px', background: 'rgba(255,255,255,0.03)', padding: '12px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.06)' }}>
+                  <div style={{ fontSize: '0.74rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 700 }}>Generated Campaign Title:</div>
+                  <div style={{ fontSize: '0.88rem', fontWeight: 800, color: '#ffffff', margin: '3px 0 8px 0' }}>{aiBudgetResult.campaignTitle}</div>
+                  <div style={{ fontSize: '0.74rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 700 }}>Objective Mission Narrative:</div>
+                  <div style={{ fontSize: '0.78rem', color: '#cbd5e1', lineHeight: '1.5', marginTop: '3px' }}>{aiBudgetResult.campaignDescription}</div>
+                </div>
+
+                {/* Apply Button */}
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <button
+                    type="button"
+                    onClick={handleApplyAiBudget}
+                    className="btn btn-primary"
+                    style={{
+                      flex: 1,
+                      padding: '12px',
+                      fontSize: '0.88rem',
+                      fontWeight: 800,
+                      borderRadius: '12px',
+                      background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)',
+                      border: 'none',
+                      color: '#fff',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '8px'
+                    }}
+                  >
+                    <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>check_circle</span>
+                    <span>Apply Smart Allocations to Campaign Form</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setShowAiBudgetModal(false)}
+                    className="btn btn-outline"
+                    style={{ padding: '12px 20px', borderRadius: '12px', cursor: 'pointer' }}
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* ── Web3 Deployment Modal ── */}
       {txModal.show && (
@@ -6267,7 +6934,7 @@ export default function OrganizationView({
                       Official Audit Voucher
                     </h3>
                     <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>
-                      ReliefLink PH Humanitarian Protocol · Blockchain Audited
+                      BBDRTS Humanitarian Protocol · Blockchain Audited
                     </div>
                   </div>
                 </div>
@@ -6277,8 +6944,9 @@ export default function OrganizationView({
                   onClick={() => setSelectedVoucherTx(null)}
                   className="btn btn-ghost btn-sm"
                   style={{ color: 'var(--text-muted)' }}
+                  title="Close Voucher"
                 >
-                  ✕
+                  <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>close</span>
                 </button>
               </div>
 
@@ -6402,8 +7070,9 @@ export default function OrganizationView({
                         showSuccess('Hash copied to clipboard!', 'Copied');
                       }}
                       title="Copy Hash"
+                      style={{ display: 'inline-flex', alignItems: 'center' }}
                     >
-                      📋
+                      <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>content_copy</span>
                     </button>
                   </div>
                 </div>
@@ -6542,9 +7211,10 @@ export default function OrganizationView({
                 onClick={() => !verifyingSubmitting && setVerifyingDonation(null)}
                 disabled={verifyingSubmitting}
                 className="btn btn-ghost btn-sm"
-                style={{ fontSize: '1.2rem', padding: '4px 8px', color: 'var(--text-muted)' }}
+                style={{ padding: '4px 8px', color: 'var(--text-muted)' }}
+                title="Close"
               >
-                ✕
+                <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>close</span>
               </button>
             </div>
 
@@ -7193,12 +7863,12 @@ function ProofPreviewModal({ proofPreviewModalImg, setProofPreviewModalImg }) {
         }}
       >
         {/* Header */}
-        <div style={{ padding: '16px 24px', borderBottom: '1px solid rgba(255, 255, 255, 0.08)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(15, 23, 42, 0.6)' }}>
+        <div style={{ padding: '16px 24px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'var(--bg-card)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <span className="material-symbols-outlined" style={{ color: '#38bdf8', fontSize: '22px' }}>analytics</span>
+            <span className="material-symbols-outlined" style={{ color: '#0284c7', fontSize: '22px' }}>analytics</span>
             <div>
-              <div style={{ fontWeight: 800, fontSize: '1.02rem', color: '#f8fafc', letterSpacing: '-0.01em' }}>Uploaded Payment Slip & AI Security Audit</div>
-              <div style={{ fontSize: '0.73rem', color: '#94a3b8' }}>Real-time OCR pixel extraction & cross-verification breakdown</div>
+              <div style={{ fontWeight: 800, fontSize: '1.02rem', color: 'var(--text-primary)', letterSpacing: '-0.01em' }}>Uploaded Payment Slip &amp; AI Security Audit</div>
+              <div style={{ fontSize: '0.73rem', color: 'var(--text-muted)' }}>Real-time OCR pixel extraction &amp; cross-verification breakdown</div>
             </div>
           </div>
 
@@ -7213,39 +7883,41 @@ function ProofPreviewModal({ proofPreviewModalImg, setProofPreviewModalImg }) {
                 fontSize: '0.78rem',
                 fontWeight: 800,
                 background: isDup ? 'rgba(239, 68, 68, 0.18)' : (isVerified ? 'rgba(34, 197, 94, 0.15)' : 'rgba(245, 158, 11, 0.18)'),
-                color: isDup ? '#ef4444' : (isVerified ? '#4ade80' : '#fbbf24'),
+                color: isDup ? '#ef4444' : (isVerified ? '#16a34a' : '#d97706'),
                 border: `1px solid ${isDup ? 'rgba(239, 68, 68, 0.4)' : (isVerified ? 'rgba(34, 197, 94, 0.35)' : 'rgba(245, 158, 11, 0.4)')}`
               }}
             >
               <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>{isDup ? 'warning' : (isVerified ? 'verified' : 'help_outline')}</span>
-              <span>{isDup ? `🚨 Duplicate Ref (${score}%)` : (isVerified ? `🤖 ${score}% AI Verified` : (isScanning ? `⏳ Scanning OCR...` : `⚠️ Manual Audit (${score}%)`))}</span>
+              <span>{isDup ? `Duplicate Ref (${score}%)` : (isVerified ? `${score}% AI Verified` : (isScanning ? `Scanning OCR...` : `Manual Audit (${score}%)`))}</span>
             </span>
-            <button type="button" onClick={() => setProofPreviewModalImg(null)} className="btn btn-ghost btn-sm" style={{ color: '#94a3b8' }}>✕</button>
+            <button type="button" onClick={() => setProofPreviewModalImg(null)} className="btn btn-ghost btn-sm" style={{ color: 'var(--text-muted)' }} title="Close">
+              <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>close</span>
+            </button>
           </div>
         </div>
 
         {/* Body Content - Dual Pane */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.15fr', gap: '0', flex: 1, overflow: 'hidden' }}>
           {/* Left Pane: Image Viewer */}
-          <div style={{ padding: '20px', background: '#030712', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', borderRight: '1px solid rgba(255, 255, 255, 0.08)' }}>
-            <div style={{ width: '100%', maxHeight: '62vh', overflow: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '12px', border: '1px solid rgba(255, 255, 255, 0.06)', background: '#000', padding: '10px' }}>
+          <div style={{ padding: '20px', background: 'var(--bg-subcard, var(--bg-hover))', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', borderRight: '1px solid var(--border)' }}>
+            <div style={{ width: '100%', maxHeight: '62vh', overflow: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '12px', border: '1px solid var(--border)', background: 'var(--bg-card)', padding: '10px' }}>
               <img src={formatImageSrc(imgSrc)} alt="Uploaded Payment Slip" style={{ maxWidth: '100%', maxHeight: '58vh', objectFit: 'contain', borderRadius: '8px' }} />
             </div>
-            <div style={{ marginTop: '12px', fontSize: '0.72rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <div style={{ marginTop: '12px', fontSize: '0.72rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '6px' }}>
               <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>center_focus_strong</span>
               <span>Original screenshot provided by donor</span>
             </div>
           </div>
 
           {/* Right Pane: AI Audit Reasons & Verification Breakdown */}
-          <div style={{ padding: '20px 24px', overflowY: 'auto', background: '#0f172a', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div style={{ padding: '20px 24px', overflowY: 'auto', background: 'var(--bg-card)', display: 'flex', flexDirection: 'column', gap: '16px' }}>
             
             {/* Title Section */}
             <div>
-              <div style={{ fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', color: isDup ? '#ef4444' : (isVerified ? '#38bdf8' : '#fbbf24'), marginBottom: '4px' }}>
-                {isDup ? '🚨 Fraud Warning Triggered' : (isVerified ? 'AI Audit Verification Reasons' : '⚠️ Manual Audit Required')}
+              <div style={{ fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', color: isDup ? '#ef4444' : (isVerified ? '#0284c7' : '#d97706'), marginBottom: '4px' }}>
+                {isDup ? 'High Risk Warning Triggered' : (isVerified ? 'AI Audit Verification Reasons' : 'Manual Audit Required')}
               </div>
-              <div style={{ fontSize: '0.76rem', color: '#94a3b8' }}>
+              <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>
                 Why did the AI score this receipt at <strong>{score}%</strong> confidence?
               </div>
             </div>
@@ -7254,39 +7926,39 @@ function ProofPreviewModal({ proofPreviewModalImg, setProofPreviewModalImg }) {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
               
               {/* Checkmark 1: Genuine Slip & Rail Structure */}
-              <div style={{ display: 'flex', gap: '12px', padding: '10px 14px', borderRadius: '10px', background: (isInvalidImg || isRailMismatch) ? 'rgba(239, 68, 68, 0.15)' : 'rgba(34, 197, 94, 0.08)', border: `1px solid ${(isInvalidImg || isRailMismatch) ? 'rgba(239, 68, 68, 0.4)' : 'rgba(34, 197, 94, 0.25)'}` }}>
-                <span className="material-symbols-outlined" style={{ color: (isInvalidImg || isRailMismatch) ? '#ef4444' : '#4ade80', fontSize: '18px', marginTop: '2px' }}>{(isInvalidImg || isRailMismatch) ? 'gpp_bad' : 'check_circle'}</span>
+              <div style={{ display: 'flex', gap: '12px', padding: '10px 14px', borderRadius: '10px', background: (isInvalidImg || isRailMismatch) ? 'rgba(239, 68, 68, 0.12)' : 'rgba(34, 197, 94, 0.08)', border: `1px solid ${(isInvalidImg || isRailMismatch) ? 'rgba(239, 68, 68, 0.35)' : 'rgba(34, 197, 94, 0.25)'}` }}>
+                <span className="material-symbols-outlined" style={{ color: (isInvalidImg || isRailMismatch) ? '#ef4444' : '#16a34a', fontSize: '18px', marginTop: '2px' }}>{(isInvalidImg || isRailMismatch) ? 'gpp_bad' : 'check_circle'}</span>
                 <div>
-                  <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#f8fafc' }}>
-                    {isRailMismatch ? `🚨 Payment Rail Mismatch (${declaredRail} vs Image Slip)` : `Official ${declaredRail} Receipt Layout Detected`}
+                  <div style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                    {isRailMismatch ? `Payment Rail Mismatch (${declaredRail} vs Image Slip)` : `Official ${declaredRail} Receipt Layout Detected`}
                   </div>
-                  <div style={{ fontSize: '0.72rem', color: isRailMismatch ? '#fca5a5' : '#94a3b8', marginTop: '2px' }}>
+                  <div style={{ fontSize: '0.72rem', color: isRailMismatch ? '#ef4444' : 'var(--text-muted)', marginTop: '2px' }}>
                     {isRailMismatch ? `Donor selected ${declaredRail}, but uploaded a receipt from a different payment provider!` : 'OCR engine recognized header elements and transaction receipt layout.'}
                   </div>
                 </div>
               </div>
 
               {/* Checkmark 2: Reference Number Match */}
-              <div style={{ display: 'flex', gap: '12px', padding: '10px 14px', borderRadius: '10px', background: isDup ? 'rgba(239, 68, 68, 0.15)' : (isRefValid ? 'rgba(34, 197, 94, 0.08)' : 'rgba(245, 158, 11, 0.15)'), border: `1px solid ${isDup ? 'rgba(239, 68, 68, 0.4)' : (isRefValid ? 'rgba(34, 197, 94, 0.25)' : 'rgba(245, 158, 11, 0.4)')}` }}>
-                <span className="material-symbols-outlined" style={{ color: isDup ? '#ef4444' : (isRefValid ? '#4ade80' : '#fbbf24'), fontSize: '18px', marginTop: '2px' }}>{isDup ? 'gpp_bad' : (isRefValid ? 'check_circle' : 'help_outline')}</span>
+              <div style={{ display: 'flex', gap: '12px', padding: '10px 14px', borderRadius: '10px', background: isDup ? 'rgba(239, 68, 68, 0.12)' : (isRefValid ? 'rgba(34, 197, 94, 0.08)' : 'rgba(245, 158, 11, 0.12)'), border: `1px solid ${isDup ? 'rgba(239, 68, 68, 0.35)' : (isRefValid ? 'rgba(34, 197, 94, 0.25)' : 'rgba(245, 158, 11, 0.35)')}` }}>
+                <span className="material-symbols-outlined" style={{ color: isDup ? '#ef4444' : (isRefValid ? '#16a34a' : '#d97706'), fontSize: '18px', marginTop: '2px' }}>{isDup ? 'gpp_bad' : (isRefValid ? 'check_circle' : 'help_outline')}</span>
                 <div>
-                  <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#f8fafc' }}>
-                    {isDup ? `🚨 Duplicate Reference (${refNo})` : (isRefValid ? `Reference Number Match (${refNo})` : (isScanning ? 'Scanning Reference Number...' : 'Reference Number Unextracted'))}
+                  <div style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                    {isDup ? `Duplicate Reference (${refNo})` : (isRefValid ? `Reference Number Match (${refNo})` : (isScanning ? 'Scanning Reference Number...' : 'Reference Number Unextracted'))}
                   </div>
-                  <div style={{ fontSize: '0.72rem', color: isDup ? '#fca5a5' : (isRefValid ? '#94a3b8' : '#fcd34d'), marginTop: '2px' }}>
+                  <div style={{ fontSize: '0.72rem', color: isDup ? '#ef4444' : (isRefValid ? 'var(--text-muted)' : '#d97706'), marginTop: '2px' }}>
                     {isDup ? 'WARNING: Reference number matches a previously recorded transaction.' : (isRefValid ? 'Extracted reference number matches donor submission.' : 'Parsing receipt image pixels for 13-digit reference number...')}
                   </div>
                 </div>
               </div>
 
               {/* Checkmark 3: Payment Amount Reconciled */}
-              <div style={{ display: 'flex', gap: '12px', padding: '10px 14px', borderRadius: '10px', background: isAmtMismatch ? 'rgba(239, 68, 68, 0.15)' : (extractedAmtPhp > 0 ? 'rgba(34, 197, 94, 0.08)' : 'rgba(245, 158, 11, 0.15)'), border: `1px solid ${isAmtMismatch ? 'rgba(239, 68, 68, 0.4)' : (extractedAmtPhp > 0 ? 'rgba(34, 197, 94, 0.25)' : 'rgba(245, 158, 11, 0.4)')}` }}>
-                <span className="material-symbols-outlined" style={{ color: isAmtMismatch ? '#ef4444' : (extractedAmtPhp > 0 ? '#4ade80' : '#fbbf24'), fontSize: '18px', marginTop: '2px' }}>{isAmtMismatch ? 'gpp_bad' : (extractedAmtPhp > 0 ? 'check_circle' : 'help_outline')}</span>
+              <div style={{ display: 'flex', gap: '12px', padding: '10px 14px', borderRadius: '10px', background: isAmtMismatch ? 'rgba(239, 68, 68, 0.12)' : (extractedAmtPhp > 0 ? 'rgba(34, 197, 94, 0.08)' : 'rgba(245, 158, 11, 0.12)'), border: `1px solid ${isAmtMismatch ? 'rgba(239, 68, 68, 0.35)' : (extractedAmtPhp > 0 ? 'rgba(34, 197, 94, 0.25)' : 'rgba(245, 158, 11, 0.35)')}` }}>
+                <span className="material-symbols-outlined" style={{ color: isAmtMismatch ? '#ef4444' : (extractedAmtPhp > 0 ? '#16a34a' : '#d97706'), fontSize: '18px', marginTop: '2px' }}>{isAmtMismatch ? 'gpp_bad' : (extractedAmtPhp > 0 ? 'check_circle' : 'help_outline')}</span>
                 <div>
-                  <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#f8fafc' }}>
-                    {isAmtMismatch ? `🚨 Amount Mismatch (Receipt: ₱${extractedAmtPhp.toLocaleString()} vs Declared: ₱${declaredAmtPhp.toLocaleString()})` : (extractedAmtPhp > 0 ? `Amount Reconciled (₱${extractedAmtPhp.toLocaleString()} PHP)` : `Declared Amount: ₱${declaredAmtPhp.toLocaleString()} PHP`)}
+                  <div style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                    {isAmtMismatch ? `Amount Mismatch (Receipt: ₱${extractedAmtPhp.toLocaleString()} vs Declared: ₱${declaredAmtPhp.toLocaleString()})` : (extractedAmtPhp > 0 ? `Amount Reconciled (₱${extractedAmtPhp.toLocaleString()} PHP)` : `Declared Amount: ₱${declaredAmtPhp.toLocaleString()} PHP`)}
                   </div>
-                  <div style={{ fontSize: '0.72rem', color: isAmtMismatch ? '#fca5a5' : '#94a3b8', marginTop: '2px' }}>
+                  <div style={{ fontSize: '0.72rem', color: isAmtMismatch ? '#ef4444' : 'var(--text-muted)', marginTop: '2px' }}>
                     {isAmtMismatch ? `Extracted receipt amount (₱${extractedAmtPhp.toLocaleString()}) differs from declared donation value (₱${declaredAmtPhp.toLocaleString()})!` : 'Receipt amount matches declared donation value.'}
                   </div>
                 </div>
@@ -7294,25 +7966,25 @@ function ProofPreviewModal({ proofPreviewModalImg, setProofPreviewModalImg }) {
 
               {/* Checkmark 4: Anti-Fraud Clearance / Duplicate Check */}
               {isDup ? (
-                <div style={{ display: 'flex', gap: '12px', padding: '10px 14px', borderRadius: '10px', background: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.4)' }}>
+                <div style={{ display: 'flex', gap: '12px', padding: '10px 14px', borderRadius: '10px', background: 'rgba(239, 68, 68, 0.12)', border: '1px solid rgba(239, 68, 68, 0.35)' }}>
                   <span className="material-symbols-outlined" style={{ color: '#ef4444', fontSize: '18px', marginTop: '2px' }}>gpp_bad</span>
                   <div>
-                    <div style={{ fontSize: '0.82rem', fontWeight: 800, color: '#f8fafc' }}>
-                      🚨 Duplicate Reference Number Flagged ({refNo})
+                    <div style={{ fontSize: '0.82rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                      Duplicate Reference Number Flagged ({refNo})
                     </div>
-                    <div style={{ fontSize: '0.72rem', color: '#fca5a5', marginTop: '2px' }}>
+                    <div style={{ fontSize: '0.72rem', color: '#ef4444', marginTop: '2px' }}>
                       FRAUD WARNING: Reference #{refNo} has ALREADY been submitted and recorded in a previous donation transaction! Duplicate slip reuse detected.
                     </div>
                   </div>
                 </div>
               ) : (
                 <div style={{ display: 'flex', gap: '12px', padding: '10px 14px', borderRadius: '10px', background: 'rgba(34, 197, 94, 0.08)', border: '1px solid rgba(34, 197, 94, 0.25)' }}>
-                  <span className="material-symbols-outlined" style={{ color: '#4ade80', fontSize: '18px', marginTop: '2px' }}>shield</span>
+                  <span className="material-symbols-outlined" style={{ color: '#16a34a', fontSize: '18px', marginTop: '2px' }}>shield</span>
                   <div>
-                    <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#f8fafc' }}>
+                    <div style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-primary)' }}>
                       Zero Anti-Fraud Duplicate Flagged
                     </div>
-                    <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '2px' }}>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '2px' }}>
                       No previous transaction on the database or blockchain ledger has used this reference number.
                     </div>
                   </div>

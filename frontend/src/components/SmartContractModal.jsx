@@ -13,7 +13,7 @@ export default function SmartContractModal({ isOpen, onClose, theme }) {
       navigator.clipboard.writeText(contractAddress);
     }
     setCopied(true);
-    showSuccess('Smart contract address copied to clipboard! 📋');
+    showSuccess('Smart contract address copied to clipboard!');
     setTimeout(() => setCopied(false), 2200);
   };
 

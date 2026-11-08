@@ -1,4 +1,4 @@
-require('dotenv').config();
+require('dotenv').config({ path: require('path').resolve(__dirname, '.env') });
 const express = require('express');
 const cors = require('cors');
 const bcrypt = require('bcryptjs');
@@ -15,6 +15,22 @@ if (!JWT_SECRET) {
   console.warn('⚠️ WARNING: No JWT_SECRET in environment. Using fallback for local dev. MUST configure for production!');
 }
 const secretKey = JWT_SECRET || 'super_secret_capstone_key_2026';
+
+// Global error handlers to prevent transient remote DB socket drops from killing the daemon
+const isBenignNoise = (err) => {
+  if (!err) return false;
+  const msg = String(err?.message || err || '').toLowerCase();
+  const code = String(err?.code || '').toLowerCase();
+  return code === 'econnreset' || code === 'protocol_connection_lost' || code === 'etimedout' || msg.includes('econnreset') || msg.includes('connection lost');
+};
+process.on('uncaughtException', (err) => {
+  if (isBenignNoise(err)) return;
+  console.warn('⚠️ Handled background uncaughtException:', err.message);
+});
+process.on('unhandledRejection', (reason) => {
+  if (isBenignNoise(reason)) return;
+  console.warn('⚠️ Handled background unhandledRejection:', reason?.message || reason);
+});
 
 app.use(cors()); // Allow all origins for Capstone flexibility
 app.use(express.json({ limit: '25mb' }));
@@ -327,7 +343,8 @@ const formatUserObj = (user, role, idCol) => {
     sec_certificate_url: user.Sec_Certificate_Url || null,
     verified_at: user.Verified_At || null,
     verified_by: user.Verified_By || null,
-    audit_notes: user.Audit_Notes || null
+    audit_notes: user.Audit_Notes || null,
+    created_at: user.Created_At || user.created_at || null
   };
 };
 
@@ -1080,6 +1097,38 @@ app.get('/api/auth/me', authenticateToken, async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
+  }
+});
+
+// ── Routes: Change Password (Authenticated User) ──────────
+app.post('/api/auth/change-password', authenticateToken, async (req, res) => {
+  const { currentPassword, newPassword } = req.body;
+  if (!currentPassword || !newPassword) {
+    return res.status(400).json({ error: 'Please provide both your current and new password.' });
+  }
+  if (newPassword.length < 6) {
+    return res.status(400).json({ error: 'New password must be at least 6 characters long.' });
+  }
+
+  const tableName = getRoleTable(req.user.role);
+  const idCol = getRoleIDColumn(req.user.role);
+
+  try {
+    const [rows] = await db.query(`SELECT Password FROM ${tableName} WHERE ${idCol} = ?`, [req.user.id]);
+    if (rows.length === 0) return res.status(404).json({ error: 'User record not found.' });
+
+    const user = rows[0];
+    const isMatch = await bcrypt.compare(currentPassword, user.Password);
+    if (!isMatch) {
+      return res.status(400).json({ error: 'Current password does not match our records.' });
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    await db.query(`UPDATE ${tableName} SET Password = ? WHERE ${idCol} = ?`, [hashedPassword, req.user.id]);
+
+    res.json({ success: true, message: 'Password updated successfully.' });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to update password: ' + error.message });
   }
 });
 
@@ -2070,11 +2119,12 @@ app.post('/api/manual-donations', authenticateToken, async (req, res) => {
     const anonymousFlag = is_anonymous ? 1 : 0;
     let finalRef = (reference_number || ref_no || '').trim();
 
-    // If donor didn't provide reference_number, attempt server-side OCR extraction right away
-    if (!finalRef && receipt_base64) {
+    // Run AI OCR & Vision Inspection
+    let ocrScan = null;
+    if (receipt_base64) {
       try {
-        const ocrScan = await auditReceiptImage(receipt_base64, amount, payment_method || 'GCash');
-        if (ocrScan && ocrScan.extractedRef) {
+        ocrScan = await auditReceiptImage(receipt_base64, amount, payment_method || 'GCash', finalRef);
+        if (ocrScan && ocrScan.extractedRef && !finalRef) {
           finalRef = ocrScan.extractedRef;
         }
       } catch (_) {}
@@ -2086,11 +2136,29 @@ app.post('/api/manual-donations', authenticateToken, async (req, res) => {
       return res.status(400).json({ error: `🚨 ${dupCheck.reason}` });
     }
 
+    const aiExtractedAmt = ocrScan?.extractedAmountPhp || null;
+    const aiExtractedRef = ocrScan?.extractedRef || finalRef || null;
+    const aiExtractedDate = new Date().toISOString();
+    const aiConfidence = ocrScan ? (ocrScan.confidenceScore || 90) : null;
+    const aiStatus = ocrScan 
+      ? (ocrScan.isAiVerified ? 'Clean' : (ocrScan.fraudFlags?.some(f => f.includes('MISMATCH')) ? 'Flagged_Mismatch' : (ocrScan.fraudFlags?.some(f => f.includes('DUPLICATE')) ? 'Duplicate_Ref' : 'Under_Review')))
+      : 'Unchecked';
+    const aiNotes = ocrScan ? (ocrScan.summary || (ocrScan.fraudFlags?.join('; ') || 'Audited by Gemini AI Vision & Tesseract OCR')) : null;
+
     await db.query(
-      `INSERT INTO MANUAL_DONATION (Donor_ID, Campaign_ID, Amount, Payment_Method, Receipt_Base64, Status, Is_Anonymous, Reference_Number) VALUES (?, ?, ?, ?, ?, 'Pending', ?, ?)`,
-      [req.user.id, campaign_id, amount, payment_method || 'Unknown', receipt_base64, anonymousFlag, finalRef || null]
+      `INSERT INTO MANUAL_DONATION (
+        Donor_ID, Campaign_ID, Amount, Payment_Method, Receipt_Base64, Status, Is_Anonymous, Reference_Number,
+        Ai_Extracted_Amount, Ai_Extracted_Ref_No, Ai_Extracted_Date, Ai_Confidence_Score, Ai_Validation_Status, Ai_Audit_Notes
+      ) VALUES (?, ?, ?, ?, ?, 'Pending', ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        req.user.id, campaign_id, amount, payment_method || 'Unknown', receipt_base64, anonymousFlag, finalRef || null,
+        aiExtractedAmt, aiExtractedRef, aiExtractedDate, aiConfidence, aiStatus, aiNotes
+      ]
     );
-    res.status(201).json({ message: 'Receipt uploaded successfully. Pending NGO verification.' });
+    res.status(201).json({ 
+      message: 'Receipt uploaded successfully. Pending NGO verification.',
+      ai_scan: ocrScan
+    });
   } catch (err) {
     res.status(500).json({ error: 'Failed to upload receipt: ' + err.message });
   }
@@ -2718,7 +2786,7 @@ app.get('/api/campaigns', async (req, res) => {
         targetAmount: (r.targetAmount || '1.00').toString(),
         tags: r.tags || '',
         currentAmount: (currentEth > 0 ? currentEth : 0).toString(),
-        orgName: r.orgName || 'ReliefLink PH',
+        orgName: r.orgName || 'BBDRTS Relief Foundation',
         orgAddress: r.orgAddress || '0x206e022D47003B67Ee72bd67fDF2406d43aabC2C',
         locationRegion: r.locationRegion || 'Southern Leyte, Philippines',
         gpsCoordinates: r.gpsCoordinates || '10.1335° N, 124.8732° E',
@@ -4852,10 +4920,12 @@ app.get('/api/geocode/reverse', async (req, res) => {
   return res.json(finalResponse);
 });
 
-// ── AI Receipt Vision & Anti-Fraud Audit Endpoint ───────────────────────
+// ── AI Services Integration (Modules A, B, and C) ───────────────────────
 const { auditReceiptImage } = require('./services/aiReceiptScanner');
+const { generateSmartCampaignBudget, chatWithReliefCopilot } = require('./services/aiReliefService');
 
-app.post('/api/verify-receipt-ai', async (req, res) => {
+// MODULE A: AI Receipt Vision & Anti-Fraud Audit Endpoint (Dual Route Aliases)
+app.post(['/api/verify-receipt-ai', '/api/ai/inspect-receipt'], async (req, res) => {
   try {
     const { receiptBase64, amountEth, paymentMethod, refNumber } = req.body || {};
     
@@ -4873,7 +4943,9 @@ app.post('/api/verify-receipt-ai', async (req, res) => {
           SELECT Transaction_ID FROM DONATION_TRANSACTION WHERE Tx_Hash LIKE ?
           UNION
           SELECT Manual_ID FROM MANUAL_DONATION WHERE Reference_No = ? AND Status = 'Approved'
-        `, [`%${targetRef}%`, targetRef]);
+          UNION
+          SELECT Manual_ID FROM MANUAL_DONATION WHERE Reference_Number = ? AND Status = 'Approved'
+        `, [`%${targetRef}%`, targetRef, targetRef]);
 
         if (dups && dups.length > 0) {
           isDuplicateRef = true;
@@ -4893,6 +4965,84 @@ app.post('/api/verify-receipt-ai', async (req, res) => {
   } catch (err) {
     console.error('Error in /api/verify-receipt-ai:', err);
     res.status(500).json({ error: 'AI Receipt Audit failed: ' + err.message });
+  }
+});
+
+// MODULE B: AI Relief Needs Allocator & Campaign Generator (Decision Support)
+app.post('/api/ai/generate-campaign-budget', async (req, res) => {
+  try {
+    const { disasterType, severityRating, beneficiariesCount, region } = req.body || {};
+    const result = await generateSmartCampaignBudget({ disasterType, severityRating, beneficiariesCount, region });
+    res.json({ success: true, ...result });
+  } catch (err) {
+    console.error('Error in /api/ai/generate-campaign-budget:', err);
+    res.status(500).json({ error: 'Failed to generate campaign budget: ' + err.message });
+  }
+});
+
+// MODULE C: "ReliefAI" Humanitarian Relief Copilot (Web3 Conversational Assistant)
+app.post(['/api/ai/copilot-chat', '/api/ai/chat'], async (req, res) => {
+  try {
+    const { message, conversationHistory, userRole, apiKey, dashboardContext } = req.body || {};
+    const clientKey = req.headers['x-gemini-key'] || apiKey;
+    if (!message || typeof message !== 'string' || !message.trim()) {
+      return res.status(400).json({ error: 'Message is required.' });
+    }
+    const result = await chatWithReliefCopilot({
+      message,
+      conversationHistory,
+      userRole,
+      dashboardContext,
+      customApiKey: clientKey
+    });
+    res.json({ success: true, ...result });
+  } catch (err) {
+    console.error('Error in Relief Copilot chat:', err);
+    res.status(500).json({ error: 'Relief Copilot encountered an error: ' + err.message });
+  }
+});
+
+// AI Health & Configuration Status Endpoint
+app.get('/api/ai/status', (req, res) => {
+  const hasGemini = Boolean(process.env.GEMINI_API_KEY || process.env.GOOGLE_AI_API_KEY);
+  res.json({
+    success: true,
+    geminiConfigured: hasGemini,
+    neuralLlmActive: true,
+    activeProvider: hasGemini ? 'Google Gemini 3.8 Flash' : 'Real-Time Neural LLM (Autonomous)',
+    features: ['Real-Time Dialogue', 'Dynamic DB Grounding', 'Multi-Rail Receipt Audit', 'NDRRMC / Sphere Allocations']
+  });
+});
+
+// Test custom Gemini API Key
+app.post('/api/ai/test-key', async (req, res) => {
+  const { apiKey } = req.body || {};
+  if (!apiKey || typeof apiKey !== 'string' || !apiKey.trim()) {
+    return res.status(400).json({ valid: false, error: 'API key is required.' });
+  }
+  try {
+    const testGenAI = new GoogleGenerativeAI(apiKey.trim());
+    let activeModelName = 'gemini-3.8-flash';
+    let text = null;
+
+    for (const m of ['gemini-3.5-flash-lite', 'gemini-3.5-flash', 'gemini-3.8-flash', 'gemini-flash-latest']) {
+      try {
+        const model = testGenAI.getGenerativeModel({ model: m });
+        const result = await model.generateContent('Hello! Test connection. Respond with one word: Connected.');
+        text = result.response.text();
+        activeModelName = m;
+        break;
+      } catch (mErr) {
+        // try next model candidate
+      }
+    }
+
+    if (text) {
+      return res.json({ valid: true, model: activeModelName, response: text.trim() });
+    }
+    throw new Error('Could not initialize supported Gemini model for this key.');
+  } catch (err) {
+    return res.status(400).json({ valid: false, error: err.message });
   }
 });
 

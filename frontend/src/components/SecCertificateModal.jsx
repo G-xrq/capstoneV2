@@ -120,11 +120,11 @@ export default function SecCertificateModal({
         style={{
           maxWidth: '780px',
           width: '100%',
-          background: '#0f172a',
+          background: 'var(--bg-card, #ffffff)',
           padding: '24px',
-          borderRadius: '16px',
-          border: '1px solid rgba(56, 189, 248, 0.4)',
-          boxShadow: '0 30px 60px rgba(0,0,0,0.85)',
+          borderRadius: 'var(--radius-lg, 16px)',
+          border: '1px solid var(--border)',
+          boxShadow: 'var(--shadow-lg, 0 30px 60px rgba(0,0,0,0.25))',
           display: 'flex',
           flexDirection: 'column',
           maxHeight: '90vh'
@@ -132,9 +132,9 @@ export default function SecCertificateModal({
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '12px' }}>
-          <h3 style={{ margin: 0, fontSize: '1.05rem', color: '#38bdf8', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 700 }}>
-            <span className="material-symbols-outlined" style={{ fontSize: '20px', color: '#38bdf8' }}>verified</span>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', borderBottom: '1px solid var(--border)', paddingBottom: '12px' }}>
+          <h3 style={{ margin: 0, fontSize: '1.05rem', color: 'var(--accent, #16a34a)', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 700 }}>
+            <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>verified</span>
             {title}
           </h3>
           <button
@@ -143,22 +143,25 @@ export default function SecCertificateModal({
             style={{
               background: 'none',
               border: 'none',
-              color: '#94a3b8',
-              fontSize: '1.4rem',
+              color: 'var(--text-muted, #94a3b8)',
+              fontSize: '1.2rem',
               cursor: 'pointer',
               lineHeight: 1,
-              padding: '4px'
+              padding: '4px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
             }}
             aria-label="Close"
           >
-            ✕
+            <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>close</span>
           </button>
         </div>
 
         {/* Document Content Area */}
         <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
           {isPdf ? (
-            <div style={{ width: '100%', height: '62vh', borderRadius: '8px', overflow: 'hidden', background: '#ffffff', border: '1px solid rgba(255,255,255,0.1)' }}>
+            <div style={{ width: '100%', height: '62vh', borderRadius: '8px', overflow: 'hidden', background: '#ffffff', border: '1px solid var(--border)' }}>
               <iframe
                 src={cleanUrl}
                 title="Official SEC Certificate PDF Document"
@@ -166,7 +169,7 @@ export default function SecCertificateModal({
               />
             </div>
           ) : !imgFailed ? (
-            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', background: 'rgba(0,0,0,0.25)', borderRadius: '10px', padding: '14px', border: '1px solid rgba(255,255,255,0.06)' }}>
+            <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', background: 'var(--bg-subcard, var(--bg-hover))', borderRadius: '10px', padding: '14px', border: '1px solid var(--border)' }}>
               <img
                 src={cleanUrl}
                 alt="SEC Certificate"
@@ -239,7 +242,7 @@ export default function SecCertificateModal({
         </div>
 
         {/* Footer Actions */}
-        <div style={{ marginTop: '18px', display: 'flex', justifyContent: 'center', gap: '12px', flexWrap: 'wrap', borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '14px' }}>
+        <div style={{ marginTop: '18px', display: 'flex', justifyContent: 'center', gap: '12px', flexWrap: 'wrap', borderTop: '1px solid var(--border)', paddingTop: '14px' }}>
           {cleanUrl && !imgFailed && (
             <button
               type="button"

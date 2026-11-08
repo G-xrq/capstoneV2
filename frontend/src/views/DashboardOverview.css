@@ -1,0 +1,566 @@
+/* ============================================================
+   BBDRTS DASHBOARD OVERVIEW — MINIMALIST & REFINED DESIGN SYSTEM
+   Linear / Vercel Aesthetic: Clean, Spacious, Calm, Executive
+   Strict Light Mode & Dark Mode Compatibility
+   ============================================================ */
+
+/* ── 1. Clean Profile & Impact Header ── */
+.dbo-clean-hero {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 22px 26px;
+  margin-bottom: 20px;
+  box-shadow: var(--shadow-card);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  flex-wrap: wrap;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.dbo-clean-hero-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-width: 0;
+}
+
+.dbo-clean-avatar {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-inset);
+  border: 1.5px solid var(--border-strong, var(--border));
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  flex-shrink: 0;
+}
+
+.dbo-clean-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.dbo-clean-user-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.dbo-clean-name-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.dbo-clean-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+  margin: 0;
+  line-height: 1.2;
+}
+
+.dbo-clean-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  border: 1px solid rgba(22, 163, 74, 0.3);
+  background: rgba(22, 163, 74, 0.08);
+  color: #16a34a;
+}
+
+.dbo-clean-subtext {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.dbo-clean-wallet-pill {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: color 0.15s ease;
+}
+
+.dbo-clean-wallet-pill:hover {
+  color: var(--text-primary);
+}
+
+.dbo-clean-hero-right {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-shrink: 0;
+}
+
+.dbo-clean-stat-box {
+  text-align: right;
+}
+
+.dbo-clean-stat-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.dbo-clean-stat-value {
+  font-size: 1.45rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  margin-top: 2px;
+}
+
+.dbo-clean-stat-sub {
+  font-size: 0.74rem;
+  color: #16a34a;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-top: 2px;
+}
+
+.dbo-clean-stat-sub:hover {
+  text-decoration: underline;
+}
+
+/* ── 2. Clean 4-Card Metric Grid ── */
+.dbo-metrics-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  margin-bottom: 24px;
+}
+
+.dbo-metric-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  box-shadow: var(--shadow-card);
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+
+.dbo-metric-card.interactive {
+  cursor: pointer;
+}
+
+.dbo-metric-card.interactive:hover {
+  border-color: var(--border-strong, #d4d4d8);
+  transform: translateY(-1px);
+}
+
+.dbo-metric-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.dbo-metric-title {
+  font-size: 0.74rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.dbo-metric-icon {
+  font-size: 16px;
+  color: var(--text-muted);
+}
+
+.dbo-metric-number {
+  font-size: 1.5rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: var(--text-primary);
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+
+.dbo-metric-number.accent {
+  color: #16a34a;
+}
+
+.dbo-metric-caption {
+  font-size: 0.74rem;
+  color: var(--text-secondary);
+  line-height: 1.35;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* ── 3. Clean Content Sections (Quiet & Purposeful) ── */
+.dbo-section-wrapper {
+  margin-bottom: 28px;
+}
+
+.dbo-clean-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+  padding-bottom: 6px;
+}
+
+.dbo-clean-heading {
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  color: var(--text-primary);
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dbo-clean-link {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #16a34a;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: opacity 0.15s ease;
+}
+
+.dbo-clean-link:hover {
+  opacity: 0.8;
+  text-decoration: underline;
+}
+
+/* ── 4. Elegant Campaign Cards ── */
+.dbo-campaigns-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 16px;
+}
+
+.dbo-clean-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: var(--shadow-card);
+  display: flex;
+  flex-direction: column;
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+
+.dbo-clean-card:hover {
+  border-color: var(--border-strong, #d4d4d8);
+  transform: translateY(-2px);
+}
+
+.dbo-clean-card-thumb {
+  height: 130px;
+  width: 100%;
+  background-size: cover;
+  background-position: center;
+  background-color: var(--bg-inset);
+  position: relative;
+  border-bottom: 1px solid var(--border);
+}
+
+.dbo-clean-card-badges {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.dbo-pill-mini {
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(4px);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.dbo-pill-mini.urgent {
+  background: rgba(220, 38, 38, 0.85);
+  color: #ffffff;
+  border-color: rgba(220, 38, 38, 0.3);
+}
+
+.dbo-clean-card-body {
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex: 1;
+}
+
+.dbo-clean-card-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.dbo-clean-card-location {
+  font-size: 0.76rem;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0;
+}
+
+.dbo-clean-progress-block {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: auto;
+}
+
+.dbo-clean-progress-bar {
+  width: 100%;
+  height: 6px;
+  background: var(--border);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.dbo-clean-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #16a34a, #22c55e);
+  border-radius: 3px;
+}
+
+.dbo-clean-progress-labels {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.74rem;
+  color: var(--text-secondary);
+}
+
+.dbo-clean-card-actions {
+  display: flex;
+  gap: 8px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border-subtle, var(--border));
+}
+
+.dbo-card-btn {
+  flex: 1;
+  padding: 7px 12px;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  transition: all 0.15s ease;
+  border: 1px solid var(--border);
+}
+
+.dbo-card-btn.primary {
+  background: #16a34a;
+  border-color: #16a34a;
+  color: #ffffff;
+}
+
+.dbo-card-btn.primary:hover {
+  background: #15803d;
+}
+
+.dbo-card-btn.secondary {
+  background: var(--bg-inset);
+  color: var(--text-primary);
+}
+
+.dbo-card-btn.secondary:hover {
+  border-color: var(--border-strong, #a1a1aa);
+}
+
+/* ── 5. Clean Activity Table / Feed ── */
+.dbo-feed-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: var(--shadow-card);
+}
+
+.dbo-feed-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--border);
+  gap: 16px;
+  font-size: 0.82rem;
+  transition: background 0.12s ease;
+}
+
+.dbo-feed-row:last-child {
+  border-bottom: none;
+}
+
+.dbo-feed-row:hover {
+  background: var(--bg-inset);
+}
+
+.dbo-feed-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.dbo-feed-rail {
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  font-family: var(--font-mono, monospace);
+  flex-shrink: 0;
+  border: 1px solid var(--border);
+  background: var(--bg-inset);
+  color: var(--text-secondary);
+}
+
+.dbo-feed-rail.eth {
+  color: #6366f1;
+  border-color: rgba(99, 102, 241, 0.3);
+  background: rgba(99, 102, 241, 0.08);
+}
+
+.dbo-feed-rail.gcash {
+  color: #0284c7;
+  border-color: rgba(2, 132, 199, 0.3);
+  background: rgba(2, 132, 199, 0.08);
+}
+
+.dbo-feed-rail.maya {
+  color: #16a34a;
+  border-color: rgba(22, 163, 74, 0.3);
+  background: rgba(22, 163, 74, 0.08);
+}
+
+.dbo-feed-text {
+  min-width: 0;
+}
+
+.dbo-feed-title {
+  font-weight: 600;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dbo-feed-meta {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  margin-top: 1px;
+}
+
+.dbo-feed-right {
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.dbo-feed-amt {
+  font-weight: 700;
+  font-family: var(--font-mono, monospace);
+  color: #16a34a;
+  font-size: 0.88rem;
+}
+
+.dbo-feed-link {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  text-decoration: none;
+}
+
+.dbo-feed-link:hover {
+  color: #0284c7;
+  text-decoration: underline;
+}
+
+/* Responsive Breakpoints */
+@media (max-width: 900px) {
+  .dbo-metrics-row {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .dbo-clean-hero {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .dbo-clean-hero-right {
+    width: 100%;
+    justify-content: space-between;
+    padding-top: 14px;
+    border-top: 1px solid var(--border);
+  }
+  .dbo-clean-stat-box {
+    text-align: left;
+  }
+}
+
+@media (max-width: 540px) {
+  .dbo-metrics-row {
+    grid-template-columns: 1fr;
+  }
+  .dbo-campaigns-grid {
+    grid-template-columns: 1fr;
+  }
+}

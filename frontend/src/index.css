@@ -1,204 +1,229 @@
 /* ============================================================
-   BDRS Design System — Layered Dark & Inverted Light Themes
+   BBDRTS — Vercel-Inspired Minimalist Design System
+   Blockchain-Based Donation & Relief Transparency System (BBDRTS)
+   Human-Computer Interaction (HCI) Focused Token Architecture
    ============================================================ */
 
-/* --- Default & Dark Theme: Layered Mix of #111, #1a1a1a, #222, #333, Black & White --- */
+/* --- Default & Light Theme: Clean White, Crisp Neutral Borders, Minimalist SaaS Polish --- */
 :root,
-[data-theme="dark"],
-[data-theme="default"],
-[data-theme="theme-111"],
-[data-theme="theme-222"],
-[data-theme="theme-333"] {
-  --font-sans: 'Inter', system-ui, sans-serif;
-  --font-mono: ui-monospace, 'Cascadia Code', Consolas, monospace;
-
-  /* Layered Dark Surfaces */
-  --bg-base:        #111111; /* Deep Canvas Background */
-  --bg-surface:     #1a1a1a; /* Header & Top Navigation */
-  --bg-card:        #222222; /* Primary Cards & Sidebar */
-  --bg-card-hover:  #2a2a2a; /* Card Hover Lift */
-  --bg-subcard:     #282828; /* Sub-containers & Modules */
-  --bg-input:       #181818; /* Inset Fields & Inputs */
-  --bg-inset:       #333333; /* Inset Boxes & Detail Panels */
-
-  /* Borders */
-  --border:         rgba(255, 255, 255, 0.08);
-  --border-subtle:  rgba(255, 255, 255, 0.04);
-  --border-strong:  rgba(255, 255, 255, 0.16);
-  --border-focus:   rgba(34, 197, 94, 0.6);
-
-  /* Accents */
-  --accent:         #22c55e;
-  --accent-dim:     rgba(34, 197, 94, 0.12);
-  --accent-glow:    rgba(34, 197, 94, 0.25);
-
-  --accent-blue:    #0284c7;
-  --accent-purple:  #9333ea;
-  --accent-orange:  #f59e0b;
-  --accent-green:   #22c55e;
-
-  --danger:         #ef4444;
-  --warning:        #f59e0b;
-  --info:           #0284c7;
-
-  /* Typography */
-  --text-primary:   #ffffff;
-  --text-secondary: #a3a3a3;
-  --text-muted:     #737373;
-
-  /* High Contrast Capsule Pill Badges (White on Dark) */
-  --pill-bg:        #ffffff;
-  --pill-text:      #111111;
-
-  /* Surface Aliases */
-  --surface:        #222222;
-  --surface-header: #1a1a1a;
-  --surface-nav:    #161616;
-  --surface-sidebar:#222222;
-  --surface-input:  #181818;
-
-  /* Misc */
-  --radius-sm:      6px;
-  --radius-md:      12px;
-  --radius-lg:      16px;
-  --radius-pill:    9999px;
-  --transition:     0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  --shadow-card:    0 4px 20px rgba(0, 0, 0, 0.45);
-  --shadow-glow:    0 0 16px rgba(34, 197, 94, 0.2);
-}
-
-/* --- Light Theme: Crisp High-Contrast Inverted Palette --- */
 [data-theme="light"] {
-  /* Inverted Light Surfaces */
-  --bg-base:        #f4f5f8; /* Crisp light grey canvas */
-  --bg-surface:     #ffffff; /* Top Header & Nav */
-  --bg-card:        #ffffff; /* Primary Cards & Sidebar */
-  --bg-card-hover:  #e8ecf2; /* Solid darker hover shade for light mode */
-  --bg-subcard:     #edf0f4; /* Sub-containers & Modules */
-  --bg-input:       #ffffff; /* Inset Fields & Inputs */
-  --bg-inset:       #e2e8f0; /* Inset Boxes & Detail Panels */
+  --font-sans: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', Roboto, system-ui, sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', 'Geist Mono', Menlo, Consolas, monospace;
 
-  /* Borders */
-  --border:         rgba(0, 0, 0, 0.1);
-  --border-subtle:  rgba(0, 0, 0, 0.05);
-  --border-strong:  rgba(0, 0, 0, 0.2);
-  --border-focus:   rgba(22, 163, 74, 0.8);
+  /* Vercel Light Canvas & Layered Surfaces */
+  --bg-base:        #ffffff; /* Pure Clean Canvas */
+  --bg-surface:     #ffffff; /* Sticky Header & Nav */
+  --bg-card:        #ffffff; /* Cards, Sidebars, Modals */
+  --bg-card-hover:  #fafafa; /* Subtle Hover Feedback */
+  --bg-hover:       #f5f5f5; /* Interactive Item Hover (Nav, Buttons) */
+  --bg-subcard:     #fafafa; /* Sub-containers, Inset Sections */
+  --bg-input:       #ffffff; /* Form Inputs */
+  --bg-inset:       #f5f5f5; /* Subtle Tags, Code, Shimmers */
+  --header-bg:      rgba(255, 255, 255, 0.88); /* Translucent Header */
 
-  /* Accents */
-  --accent:         #16a34a;
-  --accent-dim:     rgba(22, 163, 74, 0.12);
-  --accent-glow:    rgba(22, 163, 74, 0.25);
+  /* Hairline Borders */
+  --border:         #eaeaea; /* Standard 1px Hairline */
+  --border-subtle:  #f3f3f3; /* Extra Soft Dividers */
+  --border-strong:  #d4d4d8; /* Hover & Selected State */
+  --border-focus:   #000000; /* High-Visibility Accessibility Focus Ring */
 
-  --accent-blue:    #0284c7;
-  --accent-purple:  #9333ea;
-  --accent-orange:  #d97706;
-  --accent-green:   #16a34a;
+  /* Monochromatic Primary & Intentional Semantic Accents */
+  --accent:         #000000; /* Pure Black Primary CTA */
+  --accent-dim:     rgba(0, 0, 0, 0.05);
+  --accent-glow:    rgba(0, 0, 0, 0.08);
 
-  --danger:         #dc2626;
-  --warning:        #d97706;
-  --info:           #0284c7;
+  --accent-blue:    #0070f3; /* Vercel Electric Blue for links & highlights */
+  --accent-purple:  #7928ca;
+  --accent-orange:  #f5a623;
+  --accent-green:   #10b981; /* Emerald Verified & Active Status */
 
-  /* Typography */
-  --text-primary:   #0f172a;
-  --text-secondary: #334155;
-  --text-muted:     #64748b;
+  --danger:         #e00000;
+  --warning:        #f5a623;
+  --info:           #0070f3;
 
-  /* High Contrast Capsule Pill Badges (Dark on Light) */
-  --pill-bg:        #0f172a;
+  /* High-Contrast Typography */
+  --text-primary:   #000000; /* Headings & High-Contrast Titles */
+  --text-secondary: #444444; /* Body Text & Explanations */
+  --text-muted:     #666666; /* Subtitles, Metadata & Secondary Captions */
+
+  /* Contrast Capsule Pill Badges (Dark on Light) */
+  --pill-bg:        #000000;
   --pill-text:      #ffffff;
 
   /* Surface Aliases */
   --surface:        #ffffff;
-  --surface-header: #ffffff;
-  --surface-nav:    #f8fafc;
+  --surface-header: rgba(255, 255, 255, 0.88);
+  --surface-nav:    #fafafa;
   --surface-sidebar:#ffffff;
   --surface-input:  #ffffff;
 
-  --shadow-card:    0 4px 20px rgba(0, 0, 0, 0.06);
-  --shadow-glow:    0 0 16px rgba(22, 163, 74, 0.15);
+  /* Minimalist Shadows */
+  --radius-sm:      6px;
+  --radius-md:      8px;
+  --radius-lg:      12px;
+  --radius-pill:    9999px;
+  --transition:     0.15s cubic-bezier(0.16, 1, 0.3, 1);
+  --shadow-sm:      0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-card:    0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px -1px rgba(0, 0, 0, 0.04);
+  --shadow-dropdown:0 8px 30px rgba(0, 0, 0, 0.08);
+  --shadow-glow:    0 0 0 1px rgba(0, 0, 0, 0.06);
 }
 
-/* --- Theme 3: Cyber Navy (Original System Glass & Neon Mint) --- */
-[data-theme="cyber"],
-[data-theme="navy"] {
-  --bg-base:        #0a0b0f; /* Deep Cyber Navy */
-  --bg-surface:     #111217; /* Slate Glass Header */
-  --bg-card:        #16181f; /* Navy Cards */
-  --bg-card-hover:  #1c1e28;
-  --bg-subcard:     #181a24;
-  --bg-input:       #0e0f14;
-  --bg-inset:       #181a24;
+/* --- Dark Theme: Deep Charcoal / Near-Black Comfortable Contrast --- */
+[data-theme="dark"] {
+  /* Vercel Dark Surfaces */
+  --bg-base:        #000000; /* Deep Obsidian Base */
+  --bg-surface:     #0a0a0a; /* Sticky Header & Nav */
+  --bg-card:        #0a0a0a; /* Cards, Sidebars, Modals */
+  --bg-card-hover:  #141414; /* Card Hover */
+  --bg-hover:       #171717; /* Interactive Item Hover (Nav, Buttons) */
+  --bg-subcard:     #111111; /* Inset Sub-modules */
+  --bg-input:       #000000; /* Inset Fields */
+  --bg-inset:       #171717; /* Badges & Code Blocks */
+  --header-bg:      rgba(0, 0, 0, 0.85); /* Translucent Header */
 
-  --border:         rgba(255, 255, 255, 0.07);
-  --border-subtle:  rgba(255, 255, 255, 0.04);
-  --border-strong:  rgba(255, 255, 255, 0.16);
-  --border-focus:   rgba(0, 255, 163, 0.5);
+  /* Hairline Borders */
+  --border:         #262626; /* Dark Hairline Border */
+  --border-subtle:  #1a1a1a;
+  --border-strong:  #404040;
+  --border-focus:   #ffffff;
 
-  --accent:         #00ffa3;
-  --accent-dim:     rgba(0, 255, 163, 0.12);
-  --accent-glow:    rgba(0, 255, 163, 0.25);
+  /* Monochromatic White Primary */
+  --accent:         #ffffff; /* Solid White CTA */
+  --accent-dim:     rgba(255, 255, 255, 0.1);
+  --accent-glow:    rgba(255, 255, 255, 0.16);
 
-  --accent-blue:    #38bdf8;
-  --accent-purple:  #a78bfa;
-  --accent-orange:  #f5a623;
-  --accent-green:   #00ffa3;
+  --accent-blue:    #0070f3;
+  --accent-purple:  #a855f7;
+  --accent-orange:  #f59e0b;
+  --accent-green:   #10b981;
 
-  --danger:         #ff4e6a;
-  --warning:        #f5a623;
+  --danger:         #f87171;
+  --warning:        #fbbf24;
   --info:           #38bdf8;
 
-  --text-primary:   #ffffff;
-  --text-secondary: #cbd5e1;
-  --text-muted:     #94a3b8;
+  /* Typography */
+  --text-primary:   #ededed;
+  --text-secondary: #a1a1a1;
+  --text-muted:     #737373;
 
-  --pill-bg:        #00ffa3;
-  --pill-text:      #0a0b0f;
+  /* Contrast Capsule Pill Badges (White on Dark) */
+  --pill-bg:        #ffffff;
+  --pill-text:      #000000;
 
-  --surface:        #16181f;
-  --surface-header: #111217;
-  --surface-nav:    #0e0f14;
-  --surface-sidebar:#181a24;
-  --surface-input:  #0e0f14;
+  /* Surface Aliases */
+  --surface:        #0a0a0a;
+  --surface-header: rgba(10, 10, 10, 0.88);
+  --surface-nav:    #0a0a0a;
+  --surface-sidebar:#0a0a0a;
+  --surface-input:  #000000;
 
-  --shadow-card:    0 4px 24px rgba(0, 0, 0, 0.5);
-  --shadow-glow:    0 0 20px rgba(0, 255, 163, 0.2);
+  --shadow-sm:      0 1px 2px rgba(0, 0, 0, 0.5);
+  --shadow-card:    0 0 0 1px #262626;
+  --shadow-dropdown:0 12px 36px rgba(0, 0, 0, 0.75);
+  --shadow-glow:    0 0 0 1px rgba(255, 255, 255, 0.15);
 }
 
-/* --- Global Reset & High-Performance 0.2s Color Transition --- */
+/* --- Global Box-Sizing & Reset --- */
 *, *::before, *::after {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
-  transition-property: background-color, border-color, color, fill, stroke, box-shadow;
-  transition-duration: 0.2s;
-  transition-timing-function: ease;
 }
 
-html { scroll-behavior: smooth; }
+/* --- High-Performance Synchronized Theme Transition (Vercel-Standard View Transitions) --- */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 200ms;
+  animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+::view-transition-old(root) {
+  z-index: 1;
+}
+::view-transition-new(root) {
+  z-index: 2;
+}
+
+html.theme-transitioning,
+html.theme-transitioning body,
+html.theme-transitioning .app,
+html.theme-transitioning header,
+html.theme-transitioning nav,
+html.theme-transitioning aside,
+html.theme-transitioning main,
+html.theme-transitioning footer,
+html.theme-transitioning section,
+html.theme-transitioning div[class*="-card"],
+html.theme-transitioning div[class*="-panel"],
+html.theme-transitioning div[class*="-modal"],
+html.theme-transitioning div[class*="-sidebar"],
+html.theme-transitioning div[class*="-header"],
+html.theme-transitioning div[class*="-toolbar"],
+html.theme-transitioning button,
+html.theme-transitioning input,
+html.theme-transitioning select,
+html.theme-transitioning textarea {
+  transition:
+    background-color 220ms cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 220ms cubic-bezier(0.16, 1, 0.3, 1),
+    color 220ms cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 220ms cubic-bezier(0.16, 1, 0.3, 1) !important;
+  transition-delay: 0ms !important;
+}
+
+/* Prevent image, canvas, or map-tile distortions during theme transition */
+html.theme-transitioning img,
+html.theme-transitioning video,
+html.theme-transitioning canvas,
+html.theme-transitioning .leaflet-tile,
+html.theme-transitioning .leaflet-container img {
+  transition: none !important;
+}
+
+html {
+  scroll-behavior: smooth;
+  background-color: var(--bg-base);
+  color: var(--text-primary);
+}
 
 body {
   font-family: var(--font-sans);
   background-color: var(--bg-base);
   color: var(--text-primary);
   line-height: 1.6;
+  letter-spacing: -0.011em;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  transition: background-color 280ms cubic-bezier(0.4, 0, 0.2, 1), color 280ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 #root {
   min-height: 100svh;
   display: flex;
   flex-direction: column;
+  background-color: var(--bg-base);
+  transition: background-color 280ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* --- Typography --- */
-h1, h2, h3, h4 { line-height: 1.25; color: var(--text-primary); }
+/* --- Typographic Scale & Tight Headings --- */
+h1, h2, h3, h4 {
+  color: var(--text-primary);
+  letter-spacing: -0.025em;
+  font-weight: 600;
+  line-height: 1.25;
+}
 
-/* --- Scrollbar --- */
-::-webkit-scrollbar { width: 6px; height: 6px; }
+p {
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+
+/* --- Minimalist Scrollbar --- */
+::-webkit-scrollbar { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border); border-radius: var(--radius-pill); }
-::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.15); }
+::-webkit-scrollbar-thumb:hover { background: var(--border-strong); }
 
 /* ============================================================
    Layout Utilities
@@ -211,27 +236,25 @@ h1, h2, h3, h4 { line-height: 1.25; color: var(--text-primary); }
 }
 
 /* ============================================================
-   Cards
+   Cards — Vercel 1px Hairline Precision
    ============================================================ */
 .card {
   background: var(--bg-card);
   border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  padding: 28px;
+  border-radius: var(--radius-md);
+  padding: 24px;
+  position: relative;
   box-shadow: var(--shadow-card);
-  transition: border-color var(--transition), box-shadow var(--transition), background var(--transition);
+  transition: border-color var(--transition), box-shadow var(--transition), background-color var(--transition);
 }
+
 .card:hover {
-  border-color: rgba(255,255,255,0.12);
-  background: var(--bg-card-hover);
-}
-.card.glow:hover {
-  box-shadow: var(--shadow-card), var(--shadow-glow);
-  border-color: rgba(0,255,163,0.2);
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-dropdown);
 }
 
 /* ============================================================
-   Buttons
+   Buttons — Monochromatic Vercel Standard
    ============================================================ */
 .btn {
   display: inline-flex;
@@ -239,76 +262,124 @@ h1, h2, h3, h4 { line-height: 1.25; color: var(--text-primary); }
   justify-content: center;
   gap: 8px;
   font-family: var(--font-sans);
-  font-weight: 600;
   font-size: 0.875rem;
-  letter-spacing: 0.3px;
-  border: none;
+  font-weight: 500;
+  padding: 9px 16px;
   border-radius: var(--radius-md);
+  border: 1px solid transparent;
   cursor: pointer;
-  transition: background var(--transition), box-shadow var(--transition), opacity var(--transition), transform var(--transition);
-  white-space: nowrap;
-  padding: 11px 22px;
   text-decoration: none;
+  white-space: nowrap;
+  user-select: none;
+  transition: all var(--transition);
+  outline: none;
 }
-.btn:active:not(:disabled) { transform: scale(0.97); }
-.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+.btn:focus-visible {
+  box-shadow: 0 0 0 2px var(--bg-base), 0 0 0 4px var(--border-focus);
+}
+
+.btn:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+}
 
 .btn-primary {
   background: var(--accent);
-  color: #000;
+  color: var(--bg-base);
+  border-color: var(--accent);
+  font-weight: 550;
 }
-.btn-primary:hover:not(:disabled) { box-shadow: 0 0 18px var(--accent-glow); }
 
-.btn-outline {
-  background: transparent;
-  color: var(--accent);
-  border: 1px solid var(--accent);
+.btn-primary:hover:not(:disabled) {
+  opacity: 0.88;
 }
-.btn-outline:hover:not(:disabled) {
-  background: var(--accent-dim);
-  box-shadow: 0 0 12px var(--accent-glow);
+
+.btn-outline,
+.btn-secondary {
+  background: var(--bg-card);
+  color: var(--text-primary);
+  border-color: var(--border);
+}
+
+.btn-outline:hover:not(:disabled),
+.btn-secondary:hover:not(:disabled) {
+  background: var(--bg-card-hover);
+  border-color: var(--border-strong);
 }
 
 .btn-ghost {
-  background: rgba(255,255,255,0.05);
+  background: transparent;
   color: var(--text-secondary);
-  border: 1px solid var(--border);
+  border-color: transparent;
 }
+
 .btn-ghost:hover:not(:disabled) {
-  background: rgba(255,255,255,0.08);
+  background: var(--bg-card-hover);
   color: var(--text-primary);
 }
 
 .btn-danger {
   background: var(--danger);
-  color: #fff;
+  color: #ffffff;
+  border-color: var(--danger);
 }
 
-.btn-sm { padding: 7px 14px; font-size: 0.8rem; border-radius: var(--radius-sm); }
-.btn-lg { padding: 15px 36px; font-size: 1rem; border-radius: var(--radius-md); }
-.btn-full { width: 100%; }
+.btn-danger:hover:not(:disabled) {
+  opacity: 0.9;
+}
+
+.btn-sm {
+  padding: 6px 12px;
+  font-size: 0.8125rem;
+  border-radius: var(--radius-sm);
+}
+
+.btn-lg {
+  padding: 12px 24px;
+  font-size: 1rem;
+  border-radius: var(--radius-md);
+}
+
+.btn-full {
+  width: 100%;
+}
 
 /* ============================================================
-   Inputs
+   Inputs — Clear Focus States, High Accessibility
    ============================================================ */
 .input {
   width: 100%;
   font-family: var(--font-sans);
-  font-size: 0.925rem;
+  font-size: 0.875rem;
+  padding: 9px 12px;
   background: var(--bg-input);
   color: var(--text-primary);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  padding: 11px 14px;
-  transition: border-color var(--transition), box-shadow var(--transition);
   outline: none;
+  transition: border-color var(--transition), box-shadow var(--transition);
 }
-.input::placeholder { color: var(--text-muted); }
+
+.input::placeholder {
+  color: var(--text-muted);
+}
+
 .input:focus {
   border-color: var(--border-focus);
-  box-shadow: 0 0 0 3px rgba(0,255,163,0.08);
+  box-shadow: 0 0 0 1px var(--border-focus);
 }
-.input:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: var(--bg-inset);
+}
 
 /* ============================================================
    Badges
@@ -827,143 +898,361 @@ body.radar-fullscreen-active .dashboard-enter-reveal {
   z-index: auto !important;
 }
 
-/* ── Theme-Aware Auth Transition Modal ── */
+/* ── Premium Vercel-Standard Auth Transition Overlay ── */
 .auth-transition-backdrop {
   position: fixed;
   inset: 0;
   width: 100vw;
   height: 100vh;
-  background: rgba(5, 7, 12, 0.85);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(24px) saturate(190%);
+  -webkit-backdrop-filter: blur(24px) saturate(190%);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 999999;
-  animation: authModalFadeIn 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: authFadeIn 180ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  transition: opacity 200ms ease;
+}
+
+[data-theme="dark"] .auth-transition-backdrop {
+  background: rgba(0, 0, 0, 0.86);
 }
 
 .auth-transition-backdrop.closing {
-  animation: authModalFadeOut 0.32s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  animation: authFadeOut 200ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
   pointer-events: none;
 }
 
-.auth-transition-backdrop.closing .auth-transition-card {
-  animation: authCardScaleDown 0.32s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+@keyframes authFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
-@keyframes authModalFadeOut {
+@keyframes authFadeOut {
   from {
     opacity: 1;
-    backdrop-filter: blur(24px);
   }
   to {
     opacity: 0;
-    backdrop-filter: blur(0px);
   }
 }
 
-@keyframes authCardScaleDown {
+.auth-transition-card {
+  position: relative;
+  background: var(--bg-card, #ffffff);
+  border: 1px solid var(--border, #e5e7eb);
+  box-shadow: 0 24px 60px -12px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(0, 0, 0, 0.04);
+  border-radius: 16px;
+  width: 90%;
+  max-width: 420px;
+  overflow: hidden;
+  animation: authCardEnter 220ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+[data-theme="dark"] .auth-transition-card {
+  background: #0d0d0d;
+  border-color: #262626;
+  box-shadow: 0 30px 70px -15px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+
+.auth-transition-backdrop.closing .auth-transition-card {
+  animation: authCardExit 200ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+@keyframes authCardEnter {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes authCardExit {
   from {
     opacity: 1;
     transform: scale(1) translateY(0);
   }
   to {
     opacity: 0;
-    transform: scale(0.93) translateY(10px);
+    transform: scale(0.97) translateY(6px);
   }
 }
 
-[data-theme="light"] .auth-transition-backdrop {
-  background: rgba(240, 244, 250, 0.88);
-}
-
-.auth-transition-card {
+/* Hairline Top Progress Bar */
+.auth-transition-progress-bar {
+  width: 100%;
+  height: 3px;
+  background: var(--border, #eaeaea);
   position: relative;
-  background: #181818;
-  border: 1.5px solid rgba(255, 255, 255, 0.12);
-  box-shadow: 0 30px 70px rgba(0, 0, 0, 0.8), 0 0 50px rgba(34, 197, 94, 0.15);
-  border-radius: 24px;
-  padding: 36px 36px 28px 36px;
-  max-width: 470px;
-  width: 92%;
-  text-align: center;
-  animation: authCardScaleUp 0.38s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   overflow: hidden;
 }
 
-[data-theme="light"] .auth-transition-card {
-  background: #ffffff;
-  border-color: rgba(0, 0, 0, 0.1);
-  box-shadow: 0 30px 70px rgba(0, 0, 0, 0.12), 0 0 40px rgba(22, 163, 74, 0.15);
+[data-theme="dark"] .auth-transition-progress-bar {
+  background: #222222;
 }
 
-[data-theme="cyber"] .auth-transition-card {
-  background: #111420;
-  border-color: rgba(0, 255, 163, 0.25);
-  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.85), 0 0 60px rgba(0, 255, 163, 0.2);
+.auth-transition-progress-indicator {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  background: linear-gradient(90deg, var(--accent, #0070f3), #00dfd8);
+  border-radius: 2px;
+  transition: width 240ms ease;
+}
+
+.auth-transition-progress-indicator.running {
+  width: 60%;
+  animation: authProgressShimmer 1.1s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+.auth-transition-progress-indicator.done {
+  width: 100%;
+}
+
+@keyframes authProgressShimmer {
+  0% {
+    left: -35%;
+    width: 35%;
+  }
+  50% {
+    left: 30%;
+    width: 45%;
+  }
+  100% {
+    left: 100%;
+    width: 35%;
+  }
+}
+
+.auth-transition-inner {
+  padding: 24px 24px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* Top Row: System Identity & Status Pill */
+.auth-transition-top-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border, #f0f0f0);
+}
+
+[data-theme="dark"] .auth-transition-top-row {
+  border-bottom-color: #1f1f1f;
+}
+
+.auth-transition-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.auth-transition-logo-badge {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-subcard, #f4f4f5);
+}
+
+[data-theme="dark"] .auth-transition-logo-badge {
+  background: #1a1a1a;
+}
+
+.auth-transition-logo-img {
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
+}
+
+.auth-transition-logo-fallback {
+  font-size: 14px;
+  color: var(--accent, #0070f3);
+}
+
+.auth-transition-sysname {
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--text-primary, #000000);
+}
+
+[data-theme="dark"] .auth-transition-sysname {
+  color: #ffffff;
+}
+
+.auth-transition-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  background: rgba(0, 112, 243, 0.08);
+  color: var(--accent, #0070f3);
+  border: 1px solid rgba(0, 112, 243, 0.2);
+}
+
+.auth-transition-status-pill.logout {
+  background: rgba(239, 68, 68, 0.08);
+  color: #ef4444;
+  border-color: rgba(239, 68, 68, 0.2);
+}
+
+.auth-transition-pulse-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: authPulseDot 1.4s infinite ease-in-out;
+}
+
+@keyframes authPulseDot {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.4;
+    transform: scale(0.85);
+  }
+}
+
+/* Main Content Area */
+.auth-transition-main-content {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.auth-transition-avatar-box {
+  position: relative;
+  width: 48px;
+  height: 48px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.auth-transition-icon-circle {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-subcard, #f4f4f5);
+  border: 1px solid var(--border, #e5e7eb);
+  color: var(--text-primary, #000000);
+}
+
+[data-theme="dark"] .auth-transition-icon-circle {
+  background: #181818;
+  border-color: #2a2a2a;
+  color: #ffffff;
+}
+
+.auth-transition-icon-circle.logout {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.06);
+  border-color: rgba(239, 68, 68, 0.2);
+}
+
+.auth-transition-icon-circle .material-symbols-outlined {
+  font-size: 22px;
+}
+
+.auth-transition-user-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1.5px solid var(--border, #eaeaea);
+}
+
+.auth-transition-spinner-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  border-top-color: var(--accent, #0070f3);
+  animation: vercelSpin 0.8s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+.auth-transition-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
 }
 
 .auth-transition-title {
-  margin: 0 0 6px 0;
-  font-size: 1.25rem;
-  color: var(--text-primary);
-  font-weight: 800;
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  color: var(--text-primary, #000000);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+[data-theme="dark"] .auth-transition-title {
+  color: #ffffff;
 }
 
 .auth-transition-subtitle {
-  margin: 0 0 16px 0;
-  font-size: 0.82rem;
-  color: var(--text-secondary);
-}
-
-.auth-transition-checklist {
-  background: rgba(0, 0, 0, 0.4);
-  border: 1px solid var(--border);
-  border-radius: 16px;
-  padding: 16px 18px;
-  margin-bottom: 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  text-align: left;
-}
-
-[data-theme="light"] .auth-transition-checklist {
-  background: #f8fafc;
-  border-color: #e2e8f0;
-}
-
-[data-theme="cyber"] .auth-transition-checklist {
-  background: rgba(0, 0, 0, 0.5);
-  border-color: rgba(0, 255, 163, 0.15);
-}
-
-.auth-transition-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+  margin: 0;
   font-size: 0.8rem;
-  font-weight: 500;
+  line-height: 1.35;
+  color: var(--text-muted, #666666);
 }
 
-.auth-transition-footer-hash {
-  margin-top: 14px;
-  font-family: var(--font-mono);
-  font-size: 0.7rem;
-  color: var(--text-muted);
+[data-theme="dark"] .auth-transition-subtitle {
+  color: #999999;
+}
+
+/* Bottom Cryptographic Assurance */
+.auth-transition-footer {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 6px 12px;
-  background: rgba(0, 0, 0, 0.2);
-  border-radius: 8px;
-  border: 1px solid var(--border-subtle);
+  padding-top: 12px;
+  border-top: 1px solid var(--border, #f0f0f0);
 }
 
-[data-theme="light"] .auth-transition-footer-hash {
-  background: #f1f5f9;
-  border-color: #e2e8f0;
+[data-theme="dark"] .auth-transition-footer {
+  border-top-color: #1f1f1f;
+}
+
+.auth-transition-assurance {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.72rem;
+  color: var(--text-muted, #71717a);
+  letter-spacing: 0.01em;
+}
+
+[data-theme="dark"] .auth-transition-assurance {
+  color: #71717a;
 }
 
 /* ── Global Leaflet & SVG Path Focus Outline Reset ── */

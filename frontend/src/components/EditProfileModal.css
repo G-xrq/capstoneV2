@@ -1,6 +1,6 @@
 /* ============================================================
    BBDRTS Enterprise Profile & Identity Studio
-   2-Column Master-Detail Layout • Professional Dark/Light/Cyber
+   2-Column Master-Detail Layout • Professional Light & Dark
    ============================================================ */
 
 .bbdrts-edit-profile-backdrop {
@@ -48,12 +48,6 @@
   background: #ffffff;
   border-color: rgba(0, 0, 0, 0.12);
   box-shadow: 0 25px 50px rgba(0, 0, 0, 0.12);
-}
-
-[data-theme="cyber"] .bbdrts-profile-studio-modal {
-  background: #060b17;
-  border-color: rgba(0, 255, 163, 0.3);
-  box-shadow: 0 25px 70px rgba(0, 0, 0, 0.9), 0 0 35px rgba(0, 255, 163, 0.2);
 }
 
 @keyframes studioCardScale {
@@ -726,12 +720,6 @@
   background: #ffffff;
   border: 1px solid #cbd5e1;
   color: #f59e0b;
-}
-
-.bbdrts-theme-preview-box.cyber {
-  background: #050b14;
-  border: 1px solid #00f0ff;
-  color: #00f0ff;
 }
 
 .bbdrts-theme-choice-info {
@@ -2110,7 +2098,7 @@
   font-size: 15px;
 }
 
-/* Centered Zoom Bar: [Zoom Out] ───🔘─── [Zoom In] 100% */
+/* Centered Zoom Bar: [Zoom Out] ─── Slider ─── [Zoom In] 100% */
 .bbdrts-cropper-zoom-bar {
   display: flex;
   align-items: center;
@@ -2533,10 +2521,6 @@
   background-image: linear-gradient(135deg, #10b981 0%, #0284c7 100%);
 }
 
-[data-theme="cyber"] .bbdrts-ngo-banner-bg {
-  background-image: linear-gradient(135deg, #060b17 0%, #0e7490 50%, #00ffa3 100%);
-}
-
 .bbdrts-ngo-banner-cover:hover .bbdrts-ngo-banner-bg {
   transform: scale(1.03);
 }
@@ -2563,14 +2547,6 @@
 
 [data-theme="light"] .bbdrts-ngo-banner-cover:hover .bbdrts-ngo-banner-shroud {
   background: rgba(0, 0, 0, 0.38);
-}
-
-[data-theme="cyber"] .bbdrts-ngo-banner-shroud {
-  background: rgba(6, 11, 23, 0.25);
-}
-
-[data-theme="cyber"] .bbdrts-ngo-banner-cover:hover .bbdrts-ngo-banner-shroud {
-  background: rgba(6, 11, 23, 0.65);
 }
 
 /* ── Center Hover Action Badge (Silky 60fps Scale & Fade) ── */
@@ -2634,19 +2610,6 @@
   box-shadow: 0 12px 36px rgba(0, 0, 0, 0.22), 0 0 20px rgba(22, 163, 74, 0.35);
 }
 
-[data-theme="cyber"] .bbdrts-banner-hover-pill {
-  background: #060b17;
-  color: #ffffff;
-  border-color: rgba(0, 255, 163, 0.4);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8), 0 0 20px rgba(0, 255, 163, 0.3);
-}
-
-[data-theme="cyber"] .bbdrts-ngo-banner-cover:hover .bbdrts-banner-hover-pill {
-  background: #0a1124;
-  border-color: var(--accent, #00ffa3);
-  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.9), 0 0 25px rgba(0, 255, 163, 0.5);
-}
-
 /* Corner Action Buttons on Hover (Adjust & Reset) */
 .bbdrts-banner-corner-actions {
   position: absolute;
@@ -2701,18 +2664,6 @@
   background: var(--accent, #16a34a);
   border-color: var(--accent, #16a34a);
   color: #ffffff;
-}
-
-[data-theme="cyber"] .bbdrts-banner-corner-btn {
-  background: #060b17;
-  color: #ffffff;
-  border-color: rgba(0, 255, 163, 0.3);
-}
-
-[data-theme="cyber"] .bbdrts-banner-corner-btn:hover {
-  background: var(--accent, #00ffa3);
-  border-color: var(--accent, #00ffa3);
-  color: #060b17;
 }
 
 .bbdrts-banner-corner-btn.danger {
@@ -2773,12 +2724,6 @@
   background: #ffffff;
   border-color: #ffffff;
   box-shadow: 0 10px 28px rgba(0, 0, 0, 0.14);
-}
-
-[data-theme="cyber"] .bbdrts-ngo-avatar-circle {
-  background: #060b17;
-  border-color: #060b17;
-  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.7), 0 0 18px rgba(0, 255, 163, 0.25);
 }
 
 /* Inner Container with 100% Boundary Clipping (Fixes Un-Darkened Rim) */
@@ -2886,10 +2831,6 @@
   border-color: #ffffff;
 }
 
-[data-theme="cyber"] .bbdrts-avatar-action-badge {
-  border-color: #060b17;
-}
-
 /* ── Organization Name & Meta Directly Beside Avatar ── */
 .bbdrts-ngo-meta-section {
   display: flex;
@@ -2938,11 +2879,6 @@
 .bbdrts-verified-badge-icon:hover {
   transform: scale(1.2);
   filter: drop-shadow(0 0 8px var(--accent-glow, rgba(34, 197, 94, 0.6)));
-}
-
-[data-theme="cyber"] .bbdrts-verified-badge-icon {
-  color: var(--accent, #00ffa3);
-  filter: drop-shadow(0 0 6px rgba(0, 255, 163, 0.6));
 }
 
 .bbdrts-ngo-subtext {

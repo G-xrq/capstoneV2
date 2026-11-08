@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { ethers } from 'ethers';
 import { connectWallet, hydrateContract, getReadOnlyContract } from './web3Connection';
 import { ROLES, ROLE_META } from './roleConfig';
@@ -12,6 +12,7 @@ import Header from './components/Header';
 import Footer from './components/Footer';
 import NgoProfileModal from './components/NgoProfileModal';
 import ErrorBoundary from './components/ErrorBoundary';
+import ReliefAiChat from './components/ReliefAiChat';
 import './App.css';
 import { isLocalhost, API_URL } from './config';
 
@@ -23,6 +24,7 @@ export default function App() {
   // dbUser = { id, name, email, role, wallet_address }
   const [authLoading, setAuthLoading] = useState(true);
   const [showAuth, setShowAuth] = useState(false); // Default to Landing Page!
+  const [authMode, setAuthMode] = useState('login'); // 'login' | 'register'
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   /* ── Wallet State (Web3) ────────────────────────────── */
@@ -33,28 +35,64 @@ export default function App() {
   const [campaigns, setCampaigns] = useState([]);
   const [fetchingCampaigns, setFetchingCampaigns] = useState(false);
 
-  /* ── Theme Management (Dark #111/#222/#333, Inverted Light, Cyber Navy) ── */
+  /* ── Theme Management (Strictly 2 Themes: White / Light Mode [Default] & Dark Mode) ── */
   const [theme, setThemeState] = useState(() => {
     const saved = localStorage.getItem('bbdrts_theme');
-    if (saved === 'light' || saved === 'dark' || saved === 'cyber') return saved;
-    return 'dark';
+    if (saved === 'dark' || saved === 'light') return saved;
+    return 'light'; // White / Light Mode by default
   });
 
-  const setTheme = (newTheme) => {
-    const val = (newTheme === 'light' || newTheme === 'cyber') ? newTheme : 'dark';
-    setThemeState(val);
-    localStorage.setItem('bbdrts_theme', val);
-    document.documentElement.setAttribute('data-theme', val);
-  };
+  const themeTransitionTimerRef = useRef(null);
 
-  const toggleTheme = () => {
-    const next = theme === 'dark' ? 'light' : theme === 'light' ? 'cyber' : 'dark';
-    setTheme(next);
-  };
+  const applyThemeWithTransition = useCallback((targetTheme) => {
+    const val = targetTheme === 'dark' ? 'dark' : 'light';
+    const root = document.documentElement;
+
+    const commitTheme = () => {
+      root.setAttribute('data-theme', val);
+      localStorage.setItem('bbdrts_theme', val);
+      setThemeState(val);
+    };
+
+    if (typeof document !== 'undefined' && document.startViewTransition && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      document.startViewTransition(() => {
+        commitTheme();
+      });
+    } else {
+      root.classList.add('theme-transitioning');
+      if (themeTransitionTimerRef.current) {
+        clearTimeout(themeTransitionTimerRef.current);
+      }
+      commitTheme();
+      themeTransitionTimerRef.current = setTimeout(() => {
+        root.classList.remove('theme-transitioning');
+        themeTransitionTimerRef.current = null;
+      }, 260);
+    }
+  }, []);
+
+  const setTheme = useCallback((newTheme) => {
+    applyThemeWithTransition(newTheme);
+  }, [applyThemeWithTransition]);
+
+  const toggleTheme = useCallback(() => {
+    const current = document.documentElement.getAttribute('data-theme') || theme;
+    const next = current === 'dark' ? 'light' : 'dark';
+    applyThemeWithTransition(next);
+  }, [theme, applyThemeWithTransition]);
 
   useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme);
-  }, [theme]);
+    // Initial mount check: ensure DOM matches saved state without animation
+    const currentAttr = document.documentElement.getAttribute('data-theme');
+    if (currentAttr !== theme) {
+      document.documentElement.setAttribute('data-theme', theme);
+    }
+    return () => {
+      if (themeTransitionTimerRef.current) {
+        clearTimeout(themeTransitionTimerRef.current);
+      }
+    };
+  }, []);
 
   /* ── Text Size / Typography Preference (compact, normal, large, extra-large) ── */
   const [textSize, setTextSizeState] = useState(() => {
@@ -180,16 +218,15 @@ export default function App() {
     }
   };
 
-  /* ── Smooth Auth Transition (Live Network & Web3 Handshake Synchronization) ── */
+  /* ── Smooth Auth Transition (Minimalist Vercel-Standard Handoff) ── */
   const [authTransition, setAuthTransition] = useState({
     active: false,
     closing: false,
     type: 'login', // 'login' | 'logout'
-    stage: 1,      // 1, 2, 3, 4
     title: '',
+    subtitle: '',
     role: '',
-    user: null,
-    latencyMs: 42
+    user: null
   });
 
   /* ── 3. Actions ─────────────────────────────────────── */
@@ -210,32 +247,32 @@ export default function App() {
 
   const handleLoginSuccess = async (user, token) => {
     const assignedRole = user.role || 'donor';
-    const startPing = performance.now();
+
+    let friendlyName = user.display_name || user.name || '';
+    if (!friendlyName || friendlyName.includes('@')) {
+      const handle = user.email ? user.email.split('@')[0] : 'User';
+      friendlyName = handle.replace(/[._]/g, ' ').split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+    }
+    const firstName = friendlyName.split(' ')[0] || '';
 
     setAuthTransition({
       active: true,
       closing: false,
       type: 'login',
-      stage: 1,
-      title: `Welcome, ${user.name || user.email}!`,
+      title: firstName ? `Welcome back, ${firstName}` : 'Signing you in...',
+      subtitle: assignedRole === 'organization'
+        ? 'Synchronizing disaster relief operations...'
+        : assignedRole === 'admin'
+          ? 'Loading governance & audit console...'
+          : 'Preparing your humanitarian contributions...',
       role: assignedRole,
-      user,
-      latencyMs: Math.round(Math.random() * 20 + 30)
+      user
     });
 
     try {
       const authToken = token || localStorage.getItem('bbdrts_token');
 
-      // ── Stage 1: Real Session & Token Validation ──
-      await Promise.all([
-        fetch(`${API_URL}/api/auth/me`, {
-          headers: authToken ? { 'Authorization': `Bearer ${authToken}` } : {}
-        }).catch(() => null),
-        new Promise(r => setTimeout(r, 260)) // Smooth visual pacing
-      ]);
-
-      // ── Stage 2: Live Role Profile & Governance Permissions Sync ──
-      setAuthTransition(prev => ({ ...prev, stage: 2 }));
+      // Concurrently synchronize session profile, role permissions, and campaigns
       const roleFetches = [];
       if (assignedRole === 'organization') {
         if (authToken) {
@@ -250,13 +287,6 @@ export default function App() {
         if (authToken) roleFetches.push(fetch(`${API_URL}/api/donations/my`, { headers: { 'Authorization': `Bearer ${authToken}` } }).catch(() => null));
       }
 
-      await Promise.all([
-        ...roleFetches,
-        new Promise(r => setTimeout(r, 320))
-      ]);
-
-      // ── Stage 3: Sepolia EVM Contract & Campaign Hydration ──
-      setAuthTransition(prev => ({ ...prev, stage: 3 }));
       let contract = activeContract || contractRef.current;
       if (!contract && window.ethereum && user.wallet_address) {
         try {
@@ -267,18 +297,13 @@ export default function App() {
       }
 
       await Promise.all([
+        fetch(`${API_URL}/api/auth/me`, { headers: authToken ? { 'Authorization': `Bearer ${authToken}` } : {} }).catch(() => null),
+        ...roleFetches,
         fetchCampaigns(contract).catch(() => null),
-        new Promise(r => setTimeout(r, 360))
+        new Promise(r => setTimeout(r, 450)) // Smooth visual transition settling
       ]);
 
-      // Measure true roundtrip latency
-      const elapsedPing = Math.round(performance.now() - startPing);
-      setAuthTransition(prev => ({ ...prev, stage: 4, latencyMs: Math.max(28, Math.min(elapsedPing, 95)) }));
-      
-      // ── Stage 4: Access Granted & Seamless Handoff ──
-      await new Promise(r => setTimeout(r, 260));
-
-      // Trigger smooth exit transition
+      // Smooth completion & handoff
       setAuthTransition(prev => ({ ...prev, closing: true }));
       setDbUser(user);
       const userIsAnon = Boolean(
@@ -297,16 +322,15 @@ export default function App() {
           active: false,
           closing: false,
           type: 'login',
-          stage: 1,
           title: '',
+          subtitle: '',
           role: '',
-          user: null,
-          latencyMs: 38
+          user: null
         });
-      }, 320);
+      }, 200);
 
     } catch (err) {
-      console.warn('Network sync notice during auth transition:', err);
+      console.warn('Notice during auth sign-in handoff:', err);
       setDbUser(user);
       setShowAuth(false);
       setAuthTransition(prev => ({ ...prev, active: false }));
@@ -319,18 +343,13 @@ export default function App() {
       active: true,
       closing: false,
       type: 'logout',
-      stage: 1,
-      title: 'Disconnecting Session...',
+      title: 'Signing out...',
+      subtitle: 'Safely closing your session & clearing cryptographic tokens...',
       role: '',
-      user: null,
-      latencyMs: 32
+      user: null
     });
 
-    // Step 1: Disconnecting Web3
-    await new Promise(r => setTimeout(r, 260));
-    setAuthTransition(prev => ({ ...prev, stage: 2 }));
-
-    // Step 2: Purging Local Storage & Keys
+    // Clear local authentication tokens and Web3 contracts immediately
     localStorage.removeItem('bbdrts_token');
     localStorage.removeItem('token');
     localStorage.removeItem('bbdrts_user');
@@ -338,15 +357,13 @@ export default function App() {
     contractRef.current = null;
     setActiveContract(null);
     setWalletAddress('');
-    
-    // Step 3: Refreshing Public Campaigns
-    setAuthTransition(prev => ({ ...prev, stage: 3 }));
+
+    // Concurrently refresh public drives for the visitor view
     await Promise.all([
       fetchCampaigns(null).catch(() => null),
-      new Promise(r => setTimeout(r, 320))
+      new Promise(r => setTimeout(r, 400)) // Graceful transition timing
     ]);
 
-    // Smooth exit
     setAuthTransition(prev => ({ ...prev, closing: true }));
     setDbUser(null);
     setShowAuth(true);
@@ -356,13 +373,12 @@ export default function App() {
         active: false,
         closing: false,
         type: 'logout',
-        stage: 1,
         title: '',
+        subtitle: '',
         role: '',
-        user: null,
-        latencyMs: 32
+        user: null
       });
-    }, 320);
+    }, 200);
   };
 
   /* ── 4. Fetch campaigns ──────────────────────────────── */
@@ -495,6 +511,24 @@ export default function App() {
   const roleMeta = ROLE_META[uiRole];
 
   const [selectedNgoForProfile, setSelectedNgoForProfile] = useState(null);
+  const [activeTabInfo, setActiveTabInfo] = useState({
+    tab: 'dashboard',
+    section: 'Dashboard Overview',
+    meta: null
+  });
+
+  const handleActiveTabChange = useCallback((tab, meta = null) => {
+    const nextTab = tab || 'dashboard';
+    const nextSection = meta?.section || (typeof tab === 'string' ? tab : 'Dashboard Overview');
+    setActiveTabInfo(prev => {
+      if (prev.tab === nextTab && prev.section === nextSection) return prev;
+      return {
+        tab: nextTab,
+        section: nextSection,
+        meta
+      };
+    });
+  }, []);
 
   const sharedProps = {
     contract: activeContract,
@@ -511,7 +545,8 @@ export default function App() {
     setTheme,
     textSize,
     setTextSize,
-    onOpenNgoProfile: (id) => setSelectedNgoForProfile(id || 3)
+    onOpenNgoProfile: (id) => setSelectedNgoForProfile(id || 3),
+    onActiveTabChange: handleActiveTabChange
   };
 
   return (
@@ -525,6 +560,8 @@ export default function App() {
         handleLogout={handleLogout}
         showAuth={showAuth}
         setShowAuth={setShowAuth}
+        authMode={authMode}
+        setAuthMode={setAuthMode}
         setShowSettingsModal={setShowSettingsModal}
         theme={theme}
         toggleTheme={toggleTheme}
@@ -535,7 +572,18 @@ export default function App() {
         {/* ── Unauthenticated Views: Default Landing Page vs Auth Portal ── */}
         {!dbUser && !showAuth && (
           <LandingView
-            onConnect={() => setShowAuth(true)}
+            onConnect={() => {
+              setAuthMode('login');
+              setShowAuth(true);
+            }}
+            onSignIn={() => {
+              setAuthMode('login');
+              setShowAuth(true);
+            }}
+            onSignUp={() => {
+              setAuthMode('register');
+              setShowAuth(true);
+            }}
             hasMetaMask={hasMetaMask}
             contract={activeContract}
             onOpenNgoProfile={(id) => setSelectedNgoForProfile(id || 3)}
@@ -550,6 +598,7 @@ export default function App() {
             hasMetaMask={hasMetaMask}
             onBack={() => setShowAuth(false)}
             theme={theme}
+            initialMode={authMode}
           />
         )}
 
@@ -571,17 +620,36 @@ export default function App() {
                     {isLocalhost ? 'bolt' : 'warning'}
                   </span>
                   <div className="metamask-alert-content">
-                    <strong>{isLocalhost ? 'Localhost Mode: MetaMask Requirement Removed' : 'MetaMask Required for Financial Actions'}</strong>
+                    <strong>
+                      {isLocalhost
+                        ? 'Localhost Mode: MetaMask Requirement Removed'
+                        : (!hasMetaMask ? 'MetaMask Required' : 'MetaMask Required for Financial Actions')}
+                    </strong>
                     <span>
                       {isLocalhost
                         ? `You are signed in as ${dbUser.email}. On localhost, you can deploy relief campaigns directly without connecting MetaMask.`
-                        : `You are signed securely into your account (${dbUser.email}), but to deploy campaigns or make donations, you must connect your Web3 wallet.`}
+                        : !hasMetaMask
+                          ? 'Please install the MetaMask browser extension to connect your Web3 wallet.'
+                          : `You are signed securely into your account (${dbUser.email}), but to deploy campaigns or make donations, you must connect your Web3 wallet.`}
                     </span>
                   </div>
-                  <button className={`btn btn-sm metamask-connect-btn ${isLocalhost ? 'btn-outline' : 'btn-primary'}`} onClick={handleConnectWallet}>
-                    <span className="material-symbols-outlined icon-sm">link</span>
-                    {isLocalhost ? 'Connect Wallet (Optional)' : 'Connect MetaMask'}
-                  </button>
+                  {!isLocalhost && !hasMetaMask ? (
+                    <a
+                      href="https://metamask.io/download/"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="btn btn-sm btn-primary metamask-connect-btn"
+                      style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                    >
+                      <span className="material-symbols-outlined icon-sm">download</span>
+                      <span>Download MetaMask ↗</span>
+                    </a>
+                  ) : (
+                    <button className={`btn btn-sm metamask-connect-btn ${isLocalhost ? 'btn-outline' : 'btn-primary'}`} onClick={handleConnectWallet}>
+                      <span className="material-symbols-outlined icon-sm">link</span>
+                      {isLocalhost ? 'Connect Wallet (Optional)' : 'Connect MetaMask'}
+                    </button>
+                  )}
                 </div>
               </div>
             )}
@@ -596,12 +664,13 @@ export default function App() {
       {/* ── Account Settings Modal Overlay ── */}
       {showSettingsModal && (
         <div className="modal-overlay" onClick={() => setShowSettingsModal(false)} style={{ zIndex: 10000 }}>
-          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '720px', width: '90%', maxHeight: '90vh', overflowY: 'auto', background: theme === 'light' ? '#ffffff' : '#131622', border: theme === 'light' ? '1px solid rgba(0,0,0,0.12)' : '1px solid #242a3c', borderRadius: '16px', padding: '24px', position: 'relative' }}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '860px', width: '92%', maxHeight: '90vh', overflowY: 'auto', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '16px', padding: '24px', position: 'relative' }}>
             <button
               onClick={() => setShowSettingsModal(false)}
-              style={{ position: 'absolute', top: '16px', right: '16px', background: 'transparent', border: 'none', color: '#94a3b8', fontSize: '24px', cursor: 'pointer', zIndex: 10 }}
+              style={{ position: 'absolute', top: '16px', right: '16px', background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', zIndex: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '4px', borderRadius: '8px' }}
+              title="Close Settings (Esc)"
             >
-              ×
+              <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>close</span>
             </button>
             <SettingsPanel
               contract={activeContract}
@@ -620,237 +689,95 @@ export default function App() {
         </div>
       )}
 
-      {/* ── Ultra-Smooth Multi-Stage Holographic Web3 Transition Overlay (Login & Logout) ── */}
+      {/* ── Reworked Premium Vercel-Standard Auth Transition Overlay ── */}
       {authTransition.active && (
-        <div className={`auth-transition-backdrop ${authTransition.closing ? 'closing' : ''}`} data-theme={theme}>
-          {/* Ambient Glow Orb */}
-          <div style={{
-            position: 'absolute',
-            width: '420px',
-            height: '420px',
-            borderRadius: '50%',
-            filter: 'blur(90px)',
-            opacity: theme === 'light' ? 0.35 : 0.65,
-            animation: 'ambientGlowPulse 2.5s infinite ease-in-out',
-            background: authTransition.type === 'logout'
-              ? 'radial-gradient(circle, rgba(239, 68, 68, 0.5) 0%, rgba(249, 115, 22, 0) 70%)'
-              : authTransition.role === 'admin'
-                ? 'radial-gradient(circle, rgba(168, 85, 247, 0.5) 0%, rgba(56, 189, 248, 0) 70%)'
-                : authTransition.role === 'organization'
-                  ? 'radial-gradient(circle, rgba(56, 189, 248, 0.5) 0%, rgba(34, 197, 94, 0) 70%)'
-                  : 'radial-gradient(circle, rgba(34, 197, 94, 0.5) 0%, rgba(56, 189, 248, 0) 70%)'
-          }} />
-
+        <div
+          className={`auth-transition-backdrop ${authTransition.closing ? 'closing' : ''}`}
+          data-theme={theme}
+          role="status"
+          aria-live="polite"
+        >
           <div className="auth-transition-card">
+            {/* Top Hairline Animated Progress Bar */}
+            <div className="auth-transition-progress-bar">
+              <div className={`auth-transition-progress-indicator ${authTransition.closing ? 'done' : 'running'}`} />
+            </div>
 
-            {/* Dual Orbital Rings with Center Avatar */}
-            <div style={{ position: 'relative', width: '96px', height: '96px', margin: '0 auto 20px auto', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              {/* Outer Counter-Clockwise Ring */}
-              <div style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                width: '100%',
-                height: '100%',
-                borderRadius: '50%',
-                border: '2px solid transparent',
-                borderTopColor: authTransition.type === 'logout' ? '#ef4444' : authTransition.role === 'admin' ? '#c084fc' : theme === 'light' ? '#0284c7' : '#38bdf8',
-                borderBottomColor: authTransition.type === 'logout' ? '#f97316' : theme === 'light' ? '#16a34a' : '#22c55e',
-                animation: 'spinCounterClockwise 3.5s linear infinite'
-              }} />
+            <div className="auth-transition-inner">
+              {/* Top Row: System Identity & Status Badge */}
+              <div className="auth-transition-top-row">
+                <div className="auth-transition-brand">
+                  <div className="auth-transition-logo-badge">
+                    <img
+                      src="/logo.png"
+                      alt="BBDRTS"
+                      className="auth-transition-logo-img"
+                      onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                    />
+                    <span className="material-symbols-outlined auth-transition-logo-fallback">shield</span>
+                  </div>
+                  <span className="auth-transition-sysname">BBDRTS</span>
+                </div>
 
-              {/* Inner Clockwise Dashed Ring */}
-              <div style={{
-                position: 'absolute',
-                top: '7px',
-                left: '7px',
-                width: '82px',
-                height: '82px',
-                borderRadius: '50%',
-                border: theme === 'light' ? '1.5px dashed rgba(0, 0, 0, 0.25)' : '1.5px dashed rgba(255, 255, 255, 0.3)',
-                animation: 'spinClockwise 4.5s linear infinite'
-              }} />
-
-              {/* Center Role Icon */}
-              <div style={{
-                width: '62px',
-                height: '62px',
-                borderRadius: '18px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                background: authTransition.type === 'logout'
-                  ? 'rgba(239, 68, 68, 0.18)'
-                  : authTransition.role === 'admin'
-                    ? 'rgba(168, 85, 247, 0.18)'
-                    : authTransition.role === 'organization'
-                      ? 'rgba(56, 189, 248, 0.18)'
-                      : 'rgba(34, 197, 94, 0.18)',
-                color: authTransition.type === 'logout'
-                  ? '#ef4444'
-                  : authTransition.role === 'admin'
-                    ? '#a855f7'
-                    : authTransition.role === 'organization'
-                      ? '#0284c7'
-                      : '#16a34a',
-                boxShadow: theme === 'light' ? '0 4px 15px rgba(0,0,0,0.08)' : '0 0 25px rgba(0,0,0,0.5)',
-                border: theme === 'light' ? '1px solid rgba(0,0,0,0.08)' : '1px solid rgba(255, 255, 255, 0.15)'
-              }}>
-                <span className="material-symbols-outlined" style={{ fontSize: '32px' }}>
-                  {authTransition.type === 'logout'
-                    ? 'logout'
-                    : authTransition.role === 'admin'
-                      ? 'shield_person'
+                <div className={`auth-transition-status-pill ${authTransition.type}`}>
+                  <span className="auth-transition-pulse-dot" />
+                  <span>
+                    {authTransition.type === 'logout'
+                      ? 'Closing Session'
                       : authTransition.role === 'organization'
-                        ? 'corporate_fare'
-                        : 'volunteer_activism'}
-                </span>
+                        ? 'NGO Portal'
+                        : authTransition.role === 'admin'
+                          ? 'Governance'
+                          : 'Donor Hub'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Main Visual & Info */}
+              <div className="auth-transition-main-content">
+                <div className="auth-transition-avatar-box">
+                  {authTransition.type === 'logout' ? (
+                    <div className="auth-transition-icon-circle logout">
+                      <span className="material-symbols-outlined">logout</span>
+                    </div>
+                  ) : authTransition.user?.avatar_url ? (
+                    <img src={authTransition.user.avatar_url} alt="Profile" className="auth-transition-user-avatar" />
+                  ) : (
+                    <div className="auth-transition-icon-circle login">
+                      <span className="material-symbols-outlined">
+                        {authTransition.role === 'organization'
+                          ? 'corporate_fare'
+                          : authTransition.role === 'admin'
+                            ? 'admin_panel_settings'
+                            : 'volunteer_activism'}
+                      </span>
+                    </div>
+                  )}
+                  <div className="auth-transition-spinner-ring" />
+                </div>
+
+                <div className="auth-transition-copy">
+                  <h3 className="auth-transition-title">
+                    {authTransition.title || (authTransition.type === 'logout' ? 'Signing you out...' : 'Signing you in...')}
+                  </h3>
+                  <p className="auth-transition-subtitle">
+                    {authTransition.subtitle || (authTransition.type === 'logout' ? 'Safely closing your session...' : 'Preparing your workspace...')}
+                  </p>
+                </div>
+              </div>
+
+              {/* Bottom Cryptographic Assurance Footer */}
+              <div className="auth-transition-footer">
+                <div className="auth-transition-assurance">
+                  <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>lock</span>
+                  <span>
+                    {authTransition.type === 'logout'
+                      ? 'Securely wiping local session keys'
+                      : 'Sepolia EVM Cryptographic Verification'}
+                  </span>
+                </div>
               </div>
             </div>
-
-            {/* Title */}
-            <h3 className="auth-transition-title">
-              {authTransition.title}
-            </h3>
-
-            {/* Status Pill with Live Percentage */}
-            <div style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '4px 12px',
-              borderRadius: '999px',
-              fontSize: '0.7rem',
-              fontWeight: 800,
-              letterSpacing: '0.6px',
-              textTransform: 'uppercase',
-              marginBottom: '18px',
-              background: authTransition.type === 'logout'
-                ? 'rgba(239, 68, 68, 0.15)'
-                : 'rgba(56, 189, 248, 0.15)',
-              color: authTransition.type === 'logout' ? '#ef4444' : theme === 'light' ? '#0284c7' : '#38bdf8',
-              border: `1px solid ${authTransition.type === 'logout' ? 'rgba(239, 68, 68, 0.3)' : 'rgba(56, 189, 248, 0.3)'}`
-            }}>
-              <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>
-                {authTransition.type === 'logout' ? 'lock_reset' : 'sensors'}
-              </span>
-              <span>
-                {authTransition.type === 'logout'
-                  ? `STAGE ${authTransition.stage}/3: DISCONNECTING (${Math.min(authTransition.stage * 35, 100)}%)`
-                  : `STAGE ${Math.min(authTransition.stage, 3)}/3: LIVE NETWORK HANDSHAKE (${Math.min(authTransition.stage * 28, 100)}%)`}
-              </span>
-            </div>
-
-            {/* Interactive Live Handshake Checklist */}
-            <div className="auth-transition-checklist">
-              {authTransition.type === 'login' ? (
-                <>
-                  {/* Step 1 */}
-                  <div className="auth-transition-item">
-                    <span style={{ color: authTransition.stage >= 1 ? 'var(--text-primary)' : 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#0284c7' }}>key</span>
-                      Validating Session Security Token
-                    </span>
-                    {authTransition.stage >= 2 ? (
-                      <span className="material-symbols-outlined" style={{ fontSize: '18px', color: 'var(--accent)', animation: 'stageCheckPop 0.25s ease-out' }}>check_circle</span>
-                    ) : (
-                      <div className="spinner spinner-light" style={{ width: '14px', height: '14px' }} />
-                    )}
-                  </div>
-
-                  {/* Step 2 */}
-                  <div className="auth-transition-item">
-                    <span style={{ color: authTransition.stage >= 2 ? 'var(--text-primary)' : 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#a855f7' }}>verified_user</span>
-                      Syncing Role Governance [{authTransition.role.toUpperCase()}]
-                    </span>
-                    {authTransition.stage >= 3 ? (
-                      <span className="material-symbols-outlined" style={{ fontSize: '18px', color: 'var(--accent)', animation: 'stageCheckPop 0.25s ease-out' }}>check_circle</span>
-                    ) : authTransition.stage === 2 ? (
-                      <div className="spinner spinner-light" style={{ width: '14px', height: '14px' }} />
-                    ) : (
-                      <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>⋯</span>
-                    )}
-                  </div>
-
-                  {/* Step 3 */}
-                  <div className="auth-transition-item">
-                    <span style={{ color: authTransition.stage >= 3 ? 'var(--text-primary)' : 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span className="material-symbols-outlined" style={{ fontSize: '16px', color: 'var(--accent)' }}>account_tree</span>
-                      Hydrating Sepolia EVM Node & Live Campaigns
-                    </span>
-                    {authTransition.stage >= 4 ? (
-                      <span className="material-symbols-outlined" style={{ fontSize: '18px', color: 'var(--accent)', animation: 'stageCheckPop 0.25s ease-out' }}>check_circle</span>
-                    ) : authTransition.stage === 3 ? (
-                      <div className="spinner spinner-light" style={{ width: '14px', height: '14px' }} />
-                    ) : (
-                      <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>⋯</span>
-                    )}
-                  </div>
-                </>
-              ) : (
-                <>
-                  {/* Logout Step 1 */}
-                  <div className="auth-transition-item">
-                    <span style={{ color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#ef4444' }}>lock</span>
-                      Terminating Active Web3 Session
-                    </span>
-                    {authTransition.stage >= 2 ? (
-                      <span className="material-symbols-outlined" style={{ fontSize: '18px', color: 'var(--accent)', animation: 'stageCheckPop 0.25s ease-out' }}>check_circle</span>
-                    ) : (
-                      <div className="spinner spinner-light" style={{ width: '14px', height: '14px' }} />
-                    )}
-                  </div>
-
-                  {/* Logout Step 2 */}
-                  <div className="auth-transition-item">
-                    <span style={{ color: authTransition.stage >= 2 ? 'var(--text-primary)' : 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#f97316' }}>delete_sweep</span>
-                      Purging Local Auth Tokens & Cache
-                    </span>
-                    {authTransition.stage >= 3 ? (
-                      <span className="material-symbols-outlined" style={{ fontSize: '18px', color: 'var(--accent)', animation: 'stageCheckPop 0.25s ease-out' }}>check_circle</span>
-                    ) : authTransition.stage === 2 ? (
-                      <div className="spinner spinner-light" style={{ width: '14px', height: '14px' }} />
-                    ) : (
-                      <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>⋯</span>
-                    )}
-                  </div>
-                </>
-              )}
-            </div>
-
-            {/* Animated Dynamic Progress Bar */}
-            <div style={{
-              width: '100%',
-              height: '5px',
-              background: theme === 'light' ? 'rgba(0, 0, 0, 0.08)' : 'rgba(255, 255, 255, 0.08)',
-              borderRadius: '999px',
-              overflow: 'hidden'
-            }}>
-              <div style={{
-                height: '100%',
-                width: authTransition.type === 'logout'
-                  ? `${Math.min(authTransition.stage * 35, 100)}%`
-                  : `${Math.min(authTransition.stage * 28, 100)}%`,
-                background: authTransition.type === 'logout'
-                  ? 'linear-gradient(90deg, #ef4444, #f97316)'
-                  : authTransition.role === 'admin'
-                    ? 'linear-gradient(90deg, #a855f7, #38bdf8)'
-                    : 'linear-gradient(90deg, #38bdf8, var(--accent))',
-                borderRadius: '999px',
-                transition: 'width 0.4s cubic-bezier(0.22, 1, 0.36, 1)'
-              }} />
-            </div>
-
-            {/* Real-Time Cryptographic Hash & Network Ticker */}
-            <div className="auth-transition-footer-hash">
-              <span>LATENCY: {authTransition.latencyMs}ms</span>
-              <span>SEPOLIA EVM 11155111</span>
-              <span style={{ color: 'var(--accent)', fontWeight: 700 }}>• SYNCED</span>
-            </div>
-
           </div>
         </div>
       )}
@@ -864,8 +791,31 @@ export default function App() {
         />
       )}
 
+      {/* ── "ReliefAI" Humanitarian Relief Copilot Floating Assistant (Module C) with Live Dashboard Intelligence ── */}
+      <ReliefAiChat
+        currentUser={dbUser}
+        walletAddress={walletAddress}
+        userRole={dbUser?.role || 'donor'}
+        campaigns={campaigns}
+        activeView={
+          !dbUser 
+            ? (showAuth ? 'Authentication Portal' : 'Public Landing Page') 
+            : (uiRole === ROLES.ADMIN ? 'Admin Governance Console' : uiRole === ROLES.ORGANIZATION ? 'NGO Operations Portal' : 'Donor Portal')
+        }
+        activeSubpage={
+          showSettingsModal
+            ? 'Account Profile & Security Settings Modal'
+            : selectedNgoForProfile
+              ? 'Verified Institutional NGO Profile Modal'
+              : !dbUser
+                ? (showAuth ? 'Authentication Portal' : 'Public Landing Page')
+                : (activeTabInfo?.section || activeTabInfo?.tab || 'Dashboard Overview')
+        }
+        activeTabMeta={activeTabInfo?.meta}
+      />
+
       {/* ── Modern Institutional 4-Column Mega Footer ── */}
-      <Footer onNavigate={() => { }} />
+      <Footer onNavigate={() => { }} theme={theme} toggleTheme={toggleTheme} />
 
     </div>
   );

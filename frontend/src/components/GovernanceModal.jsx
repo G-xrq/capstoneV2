@@ -33,11 +33,11 @@ export default function GovernanceModal({ isOpen, onClose, initialTab = 'governa
           width: '780px',
           maxWidth: '94vw',
           maxHeight: '90vh',
-          background: 'var(--bg-card, #16181e)',
-          border: '1px solid var(--border, rgba(255, 255, 255, 0.12))',
-          borderRadius: '20px',
-          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.85)',
-          color: 'var(--text-primary, #ffffff)',
+          background: 'var(--bg-card, #ffffff)',
+          border: '1px solid var(--border)',
+          borderRadius: 'var(--radius-lg, 16px)',
+          boxShadow: 'var(--shadow-lg, 0 25px 50px -12px rgba(0, 0, 0, 0.25))',
+          color: 'var(--text-primary)',
           display: 'flex',
           flexDirection: 'column',
           overflow: 'hidden'
@@ -46,11 +46,11 @@ export default function GovernanceModal({ isOpen, onClose, initialTab = 'governa
         {/* Header */}
         <div style={{
           padding: '20px 24px',
-          borderBottom: '1px solid var(--border, rgba(255, 255, 255, 0.08))',
+          borderBottom: '1px solid var(--border)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          background: 'rgba(255, 255, 255, 0.02)'
+          background: 'var(--bg-card-subtle, var(--bg-hover))'
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <div style={{
@@ -61,15 +61,15 @@ export default function GovernanceModal({ isOpen, onClose, initialTab = 'governa
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              color: '#22c55e'
+              color: 'var(--accent, #16a34a)'
             }}>
               <span className="material-symbols-outlined" style={{ fontSize: '22px' }}>policy</span>
             </div>
             <div>
-              <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800 }}>
+              <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-primary)' }}>
                 Institutional Governance & Security Framework
               </h3>
-              <div style={{ fontSize: '0.78rem', color: 'var(--text-muted, #94a3b8)' }}>
+              <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
                 BBDRTS Protocol • Compliance, Accreditation & Calamity Reserve Standards
               </div>
             </div>
@@ -79,10 +79,10 @@ export default function GovernanceModal({ isOpen, onClose, initialTab = 'governa
             type="button"
             onClick={onClose}
             style={{
-              background: 'rgba(255, 255, 255, 0.06)',
-              border: 'none',
+              background: 'var(--bg-card-subtle, var(--bg-hover))',
+              border: '1px solid var(--border)',
               borderRadius: '8px',
-              color: 'var(--text-secondary, #cbd5e1)',
+              color: 'var(--text-muted)',
               cursor: 'pointer',
               padding: '6px 10px',
               display: 'flex',
@@ -96,9 +96,9 @@ export default function GovernanceModal({ isOpen, onClose, initialTab = 'governa
         {/* Tab Navigation */}
         <div style={{
           display: 'flex',
-          borderBottom: '1px solid var(--border, rgba(255, 255, 255, 0.08))',
+          borderBottom: '1px solid var(--border)',
           padding: '0 24px',
-          background: 'rgba(0, 0, 0, 0.2)',
+          background: 'var(--bg-card-subtle, var(--bg-hover))',
           overflowX: 'auto',
           gap: '4px'
         }}>
@@ -109,8 +109,8 @@ export default function GovernanceModal({ isOpen, onClose, initialTab = 'governa
               padding: '12px 14px',
               background: 'none',
               border: 'none',
-              borderBottom: activeTab === 'governance' ? '2px solid #22c55e' : '2px solid transparent',
-              color: activeTab === 'governance' ? '#22c55e' : 'var(--text-muted, #94a3b8)',
+              borderBottom: activeTab === 'governance' ? '2px solid var(--accent, #16a34a)' : '2px solid transparent',
+              color: activeTab === 'governance' ? 'var(--accent, #16a34a)' : 'var(--text-muted)',
               fontWeight: 700,
               fontSize: '0.82rem',
               cursor: 'pointer',
@@ -131,8 +131,8 @@ export default function GovernanceModal({ isOpen, onClose, initialTab = 'governa
               padding: '12px 14px',
               background: 'none',
               border: 'none',
-              borderBottom: activeTab === 'accreditation' ? '2px solid #22c55e' : '2px solid transparent',
-              color: activeTab === 'accreditation' ? '#22c55e' : 'var(--text-muted, #94a3b8)',
+              borderBottom: activeTab === 'accreditation' ? '2px solid var(--accent, #16a34a)' : '2px solid transparent',
+              color: activeTab === 'accreditation' ? 'var(--accent, #16a34a)' : 'var(--text-muted)',
               fontWeight: 700,
               fontSize: '0.82rem',
               cursor: 'pointer',
@@ -153,8 +153,8 @@ export default function GovernanceModal({ isOpen, onClose, initialTab = 'governa
               padding: '12px 14px',
               background: 'none',
               border: 'none',
-              borderBottom: activeTab === 'allocation' ? '2px solid #22c55e' : '2px solid transparent',
-              color: activeTab === 'allocation' ? '#22c55e' : 'var(--text-muted, #94a3b8)',
+              borderBottom: activeTab === 'allocation' ? '2px solid var(--accent, #16a34a)' : '2px solid transparent',
+              color: activeTab === 'allocation' ? 'var(--accent, #16a34a)' : 'var(--text-muted)',
               fontWeight: 700,
               fontSize: '0.82rem',
               cursor: 'pointer',
@@ -175,8 +175,8 @@ export default function GovernanceModal({ isOpen, onClose, initialTab = 'governa
               padding: '12px 14px',
               background: 'none',
               border: 'none',
-              borderBottom: activeTab === 'security' ? '2px solid #22c55e' : '2px solid transparent',
-              color: activeTab === 'security' ? '#22c55e' : 'var(--text-muted, #94a3b8)',
+              borderBottom: activeTab === 'security' ? '2px solid var(--accent, #16a34a)' : '2px solid transparent',
+              color: activeTab === 'security' ? 'var(--accent, #16a34a)' : 'var(--text-muted)',
               fontWeight: 700,
               fontSize: '0.82rem',
               cursor: 'pointer',
@@ -197,8 +197,8 @@ export default function GovernanceModal({ isOpen, onClose, initialTab = 'governa
               padding: '12px 14px',
               background: 'none',
               border: 'none',
-              borderBottom: activeTab === 'academic' ? '2px solid #22c55e' : '2px solid transparent',
-              color: activeTab === 'academic' ? '#22c55e' : 'var(--text-muted, #94a3b8)',
+              borderBottom: activeTab === 'academic' ? '2px solid var(--accent, #16a34a)' : '2px solid transparent',
+              color: activeTab === 'academic' ? 'var(--accent, #16a34a)' : 'var(--text-muted)',
               fontWeight: 700,
               fontSize: '0.82rem',
               cursor: 'pointer',
@@ -222,25 +222,25 @@ export default function GovernanceModal({ isOpen, onClose, initialTab = 'governa
           gap: '16px',
           lineHeight: '1.6',
           fontSize: '0.86rem',
-          color: 'var(--text-secondary, #cbd5e1)'
+          color: 'var(--text-secondary)'
         }}>
           {activeTab === 'governance' && (
             <div>
-              <h4 style={{ color: '#ffffff', fontSize: '1rem', marginBottom: '8px' }}>
+              <h4 style={{ color: 'var(--text-primary)', fontSize: '1rem', marginBottom: '8px' }}>
                 Charter of Humanitarian Governance
               </h4>
               <p>
                 The Blockchain-Based Donation & Relief Transparency System (BBDRTS) operates under a zero-intermediary charter. All smart contracts and multi-rail payment channels directly escrow and release funds to accredited disaster-relief non-governmental organizations (NGOs) upon cryptographic milestone validation.
               </p>
-              <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', padding: '14px', marginTop: '12px' }}>
-                <h5 style={{ color: '#22c55e', margin: '0 0 6px 0', fontSize: '0.88rem' }}>1. Monetary Contributions Exclusivity</h5>
+              <div style={{ background: 'var(--bg-card-subtle, var(--bg-hover))', border: '1px solid var(--border)', borderRadius: '12px', padding: '14px', marginTop: '12px' }}>
+                <h5 style={{ color: 'var(--accent, #16a34a)', margin: '0 0 6px 0', fontSize: '0.88rem' }}>1. Monetary Contributions Exclusivity</h5>
                 <p style={{ margin: 0, fontSize: '0.82rem' }}>
                   The BBDRTS protocol exclusively handles <strong>monetary relief donations</strong> (Philippine Peso via GCash, Maya, cards, bank transfer, and Ethereum cryptocurrency). The platform does not coordinate or accept physical in-kind goods collections (such as second-hand clothes or perishable groceries).
                 </p>
               </div>
 
-              <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', padding: '14px', marginTop: '10px' }}>
-                <h5 style={{ color: '#38bdf8', margin: '0 0 6px 0', fontSize: '0.88rem' }}>2. Role-Based Access Hierarchy & Anti-Sybil Controls</h5>
+              <div style={{ background: 'var(--bg-card-subtle, var(--bg-hover))', border: '1px solid var(--border)', borderRadius: '12px', padding: '14px', marginTop: '10px' }}>
+                <h5 style={{ color: '#0ea5e9', margin: '0 0 6px 0', fontSize: '0.88rem' }}>2. Role-Based Access Hierarchy & Anti-Sybil Controls</h5>
                 <p style={{ margin: 0, fontSize: '0.82rem' }}>
                   The platform enforces strict cryptographic role separation: <strong>Donors</strong> (pure contribution & tax receipt issuance), <strong>Accredited NGOs</strong> (appeal creation & field disbursement execution), and <strong>Auditor Admin</strong> (on-chain KYC accreditation and emergency pause authority).
                 </p>
@@ -250,7 +250,7 @@ export default function GovernanceModal({ isOpen, onClose, initialTab = 'governa
 
           {activeTab === 'accreditation' && (
             <div>
-              <h4 style={{ color: '#ffffff', fontSize: '1rem', marginBottom: '8px' }}>
+              <h4 style={{ color: 'var(--text-primary)', fontSize: '1rem', marginBottom: '8px' }}>
                 NGO Accreditation & Vetting Protocol
               </h4>
               <p>
@@ -267,15 +267,15 @@ export default function GovernanceModal({ isOpen, onClose, initialTab = 'governa
 
           {activeTab === 'allocation' && (
             <div>
-              <h4 style={{ color: '#ffffff', fontSize: '1rem', marginBottom: '8px' }}>
+              <h4 style={{ color: 'var(--text-primary)', fontSize: '1rem', marginBottom: '8px' }}>
                 Proof of Fund Allocation, Surplus & Deficit Policies
               </h4>
               <p>
                 Every campaign deployed on BBDRTS requires a transparent, itemized fund allocation breakdown before going live. This answers critical operational questions regarding funding variations:
               </p>
 
-              <div style={{ background: 'rgba(34, 197, 94, 0.08)', border: '1px solid rgba(34, 197, 94, 0.3)', borderRadius: '12px', padding: '14px', marginBottom: '12px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#22c55e', fontWeight: 800, fontSize: '0.88rem', marginBottom: '4px' }}>
+              <div style={{ background: 'var(--bg-card-subtle, var(--bg-hover))', border: '1px solid var(--border)', borderRadius: '12px', padding: '14px', marginBottom: '12px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--accent, #16a34a)', fontWeight: 800, fontSize: '0.88rem', marginBottom: '4px' }}>
                   <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>savings</span>
                   <span>Surplus Reserve Rollover Policy</span>
                 </div>
@@ -284,8 +284,8 @@ export default function GovernanceModal({ isOpen, onClose, initialTab = 'governa
                 </p>
               </div>
 
-              <div style={{ background: 'rgba(56, 189, 248, 0.08)', border: '1px solid rgba(56, 189, 248, 0.3)', borderRadius: '12px', padding: '14px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#38bdf8', fontWeight: 800, fontSize: '0.88rem', marginBottom: '4px' }}>
+              <div style={{ background: 'var(--bg-card-subtle, var(--bg-hover))', border: '1px solid var(--border)', borderRadius: '12px', padding: '14px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#0ea5e9', fontWeight: 800, fontSize: '0.88rem', marginBottom: '4px' }}>
                   <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>priority_high</span>
                   <span>Partial Target Priority Disbursement Rule</span>
                 </div>
@@ -298,21 +298,21 @@ export default function GovernanceModal({ isOpen, onClose, initialTab = 'governa
 
           {activeTab === 'security' && (
             <div>
-              <h4 style={{ color: '#ffffff', fontSize: '1rem', marginBottom: '8px' }}>
+              <h4 style={{ color: 'var(--text-primary)', fontSize: '1rem', marginBottom: '8px' }}>
                 Security Policy & Smart Contract Audit
               </h4>
               <p>
                 BBDRTS is powered by OpenZeppelin-secured Solidity smart contracts running on the Ethereum Sepolia EVM. The platform architecture incorporates:
               </p>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '10px' }}>
-                <div style={{ padding: '10px 14px', background: 'rgba(255,255,255,0.03)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.06)' }}>
+                <div style={{ padding: '10px 14px', background: 'var(--bg-card-subtle, var(--bg-hover))', borderRadius: '8px', border: '1px solid var(--border)' }}>
                   <strong>Non-Custodial Escrow:</strong> Platform administrators have zero access to pool funds; funds move strictly between verified donors and accredited NGO multi-sig wallets.
                 </div>
-                <div style={{ padding: '10px 14px', background: 'rgba(255,255,255,0.03)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.06)' }}>
+                <div style={{ padding: '10px 14px', background: 'var(--bg-card-subtle, var(--bg-hover))', borderRadius: '8px', border: '1px solid var(--border)' }}>
                   <strong>Multi-Rail Cross-Ledger Hashing:</strong> Every GCash, Maya, and Card transaction receives a SHA-256 cryptographic hash anchored to the immutable ledger.
                 </div>
-                <div style={{ padding: '10px 14px', background: 'rgba(255,255,255,0.03)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.06)' }}>
-                  <strong>Active Smart Contract Address:</strong> <code style={{ color: '#22c55e', fontSize: '0.78rem' }}>{contractAddress}</code>
+                <div style={{ padding: '10px 14px', background: 'var(--bg-card-subtle, var(--bg-hover))', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                  <strong>Active Smart Contract Address:</strong> <code style={{ color: 'var(--accent, #16a34a)', fontSize: '0.78rem' }}>{contractAddress}</code>
                 </div>
               </div>
             </div>
@@ -320,14 +320,14 @@ export default function GovernanceModal({ isOpen, onClose, initialTab = 'governa
 
           {activeTab === 'academic' && (
             <div>
-              <h4 style={{ color: '#ffffff', fontSize: '1rem', marginBottom: '8px' }}>
+              <h4 style={{ color: 'var(--text-primary)', fontSize: '1rem', marginBottom: '8px' }}>
                 Institutional & Academic Attribution
               </h4>
-              <div style={{ background: 'rgba(234, 179, 8, 0.08)', border: '1px solid rgba(234, 179, 8, 0.3)', borderRadius: '12px', padding: '16px', marginBottom: '12px' }}>
-                <div style={{ color: '#eab308', fontWeight: 800, fontSize: '0.95rem', marginBottom: '4px' }}>
+              <div style={{ background: 'var(--bg-card-subtle, var(--bg-hover))', border: '1px solid var(--border)', borderRadius: '12px', padding: '16px', marginBottom: '12px' }}>
+                <div style={{ color: '#d97706', fontWeight: 800, fontSize: '0.95rem', marginBottom: '4px' }}>
                   College of Computer Studies • Saint Joseph College (SJC)
                 </div>
-                <div style={{ fontSize: '0.82rem', color: 'var(--text-muted, #94a3b8)', marginBottom: '8px' }}>
+                <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginBottom: '8px' }}>
                   Maasin City, Southern Leyte, Philippines
                 </div>
                 <p style={{ margin: 0, fontSize: '0.82rem' }}>
@@ -344,10 +344,10 @@ export default function GovernanceModal({ isOpen, onClose, initialTab = 'governa
         {/* Footer Close */}
         <div style={{
           padding: '14px 24px',
-          borderTop: '1px solid var(--border, rgba(255, 255, 255, 0.08))',
+          borderTop: '1px solid var(--border)',
           display: 'flex',
           justifyContent: 'flex-end',
-          background: 'rgba(0, 0, 0, 0.2)'
+          background: 'var(--bg-card-subtle, var(--bg-hover))'
         }}>
           <button
             type="button"

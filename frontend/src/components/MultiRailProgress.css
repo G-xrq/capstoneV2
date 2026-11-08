@@ -335,12 +335,6 @@
   box-shadow: 0 16px 36px rgba(0, 0, 0, 0.12), 0 0 16px rgba(22, 163, 74, 0.15);
 }
 
-[data-theme="cyber"] .multi-rail-dropdown-popup {
-  background: rgba(10, 15, 26, 0.98);
-  border: 1px solid #00ffa3;
-  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.85), 0 0 24px rgba(0, 255, 163, 0.25);
-}
-
 @keyframes dropdownPopupSlide {
   from {
     opacity: 0;
@@ -371,12 +365,6 @@
   background: var(--bg-surface, #ffffff);
   border-left-color: var(--accent, #16a34a);
   border-top-color: var(--accent, #16a34a);
-}
-
-[data-theme="cyber"] .multi-rail-dropdown-popup::before {
-  background: rgba(10, 15, 26, 0.98);
-  border-left-color: #00ffa3;
-  border-top-color: #00ffa3;
 }
 
 .dropdown-popup-header {

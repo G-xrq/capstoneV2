@@ -170,7 +170,8 @@ export default function LocationMapPicker({
   searchTrigger = 0,
   theme = 'dark',
   markerShape = 'redPin',
-  defaultLayer = 'street'
+  defaultLayer = 'street',
+  allowLayerSwitch = false
 }) {
   const mapRef = useRef(null);
   const containerRef = useRef(null);
@@ -179,6 +180,18 @@ export default function LocationMapPicker({
   const [activeMapLayer, setActiveMapLayer] = useState(defaultLayer);
   const [geocoding, setGeocoding] = useState(false);
   const [searchInput, setSearchInput] = useState(address || '');
+
+  const activeTheme = theme === 'light' || theme === 'dark'
+    ? theme
+    : (typeof document !== 'undefined' ? document.documentElement.getAttribute('data-theme') || 'dark' : 'dark');
+
+  const handleCenterPin = () => {
+    if (!mapRef.current || !markerRef.current) return;
+    const currentLatLng = markerRef.current.getLatLng();
+    if (currentLatLng) {
+      mapRef.current.setView(currentLatLng, 14, { animate: true });
+    }
+  };
 
   useEffect(() => {
     if (address) setSearchInput(address);
@@ -200,7 +213,7 @@ export default function LocationMapPicker({
     if (markerShape === 'redPin' || markerShape === 'pin') {
       return createRedLocationPinIcon();
     }
-    const accentColor = theme === 'cyber' ? '#00ffa3' : (theme === 'light' ? '#16a34a' : '#22c55e');
+    const accentColor = activeTheme === 'light' ? '#16a34a' : '#22c55e';
     return createThemedMarkerIcon(accentColor);
   };
 
@@ -792,7 +805,7 @@ export default function LocationMapPicker({
         />
 
         {/* Floating Basemap Selector: Terrain (default), Satellite, Street */}
-        {!readOnly && (
+        {(!readOnly || allowLayerSwitch) && (
           <div
             className="radar-floating-basemap-control"
             style={{
@@ -830,23 +843,39 @@ export default function LocationMapPicker({
               <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>map</span>
               <span>Street</span>
             </button>
-            <button
-              type="button"
-              className="floating-basemap-btn"
-              onClick={handleLocateMe}
-              title="Use My Current Location"
-              style={{ gap: '4px' }}
-            >
-              <span className="material-symbols-outlined" style={{ fontSize: '14px', color: 'var(--accent, #22c55e)' }}>my_location</span>
-              <span>My GPS</span>
-            </button>
+            {readOnly ? (
+              <button
+                type="button"
+                className="floating-basemap-btn"
+                onClick={handleCenterPin}
+                title="Center View on Relief Location"
+                style={{ gap: '4px' }}
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: '14px', color: 'var(--accent, #22c55e)' }}>center_focus_strong</span>
+                <span>Center</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="floating-basemap-btn"
+                onClick={handleLocateMe}
+                title="Use My Current Location"
+                style={{ gap: '4px' }}
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: '14px', color: 'var(--accent, #22c55e)' }}>my_location</span>
+                <span>My GPS</span>
+              </button>
+            )}
           </div>
         </div>
         )}
       </div>
       {!readOnly && !hideTip && (
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '8px', fontSize: '0.75rem', color: 'var(--text-muted, #94a3b8)' }}>
-          <span>💡 <strong>Tip:</strong> Click anywhere on the map or drag the pin to set exact location.</span>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+            <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>lightbulb</span>
+            <strong>Tip:</strong> Click anywhere on the map or drag the pin to set exact location.
+          </span>
           <span style={{ color: 'var(--accent, #22c55e)', fontWeight: 700, background: 'var(--accent-dim, rgba(34,197,94,0.12))', padding: '2px 8px', borderRadius: '6px', border: '1px solid var(--accent-glow, rgba(34,197,94,0.25))' }}>
             GPS: {gps || 'Not selected'}
           </span>

@@ -176,7 +176,7 @@ const PH_LOCATIONS = {
   'zamboanga city': { name: 'Zamboanga City', region: 'Zamboanga Peninsula (Region IX)', lat: 6.9214, lng: 122.0790 }
 };
 
-// ── Disaster Severity Alert Scale (6-Tier Priority System) ──
+// ── Disaster Severity Alert Scale (GDACS / FEMA International 6-Tier System) ──
 const DOPPLER_TIERS = {
   1: {
     level: 1,
@@ -185,9 +185,9 @@ const DOPPLER_TIERS = {
     rangeTag: '1 Cause',
     min: 1,
     max: 1,
-    color: '#0284c7', // Sky Blue
-    glowColor: 'rgba(2, 132, 199, 0.45)',
-    badgeBg: '#38bdf8',
+    color: '#0070f3', // Vercel Electric Blue
+    glowColor: 'rgba(0, 112, 243, 0.35)',
+    badgeBg: '#0070f3',
     badgeText: '#ffffff',
     pulseSpeed: '3.2s',
     cloudRadius: 9000,
@@ -201,10 +201,10 @@ const DOPPLER_TIERS = {
     rangeTag: '2–3 Causes',
     min: 2,
     max: 3,
-    color: '#facc15', // Warm Yellow
-    glowColor: 'rgba(250, 204, 21, 0.45)',
-    badgeBg: '#facc15',
-    badgeText: '#000000',
+    color: '#f5a623', // Vercel Amber / Warning Gold
+    glowColor: 'rgba(245, 166, 35, 0.35)',
+    badgeBg: '#f5a623',
+    badgeText: '#ffffff',
     pulseSpeed: '2.6s',
     cloudRadius: 12000,
     coreRadius: 4800,
@@ -217,10 +217,10 @@ const DOPPLER_TIERS = {
     rangeTag: '4–6 Causes',
     min: 4,
     max: 6,
-    color: '#fb923c', // Vibrant Orange
-    glowColor: 'rgba(251, 146, 60, 0.5)',
-    badgeBg: '#fb923c',
-    badgeText: '#000000',
+    color: '#ea580c', // Vibrant Orange
+    glowColor: 'rgba(234, 88, 12, 0.40)',
+    badgeBg: '#ea580c',
+    badgeText: '#ffffff',
     pulseSpeed: '2.0s',
     cloudRadius: 15000,
     coreRadius: 6200,
@@ -233,9 +233,9 @@ const DOPPLER_TIERS = {
     rangeTag: '7–11 Causes',
     min: 7,
     max: 11,
-    color: '#ef4444', // Crimson Red
-    glowColor: 'rgba(239, 68, 68, 0.55)',
-    badgeBg: '#ef4444',
+    color: '#e00000', // Vercel Danger Red
+    glowColor: 'rgba(224, 0, 0, 0.45)',
+    badgeBg: '#e00000',
     badgeText: '#ffffff',
     pulseSpeed: '1.6s',
     cloudRadius: 19000,
@@ -249,9 +249,9 @@ const DOPPLER_TIERS = {
     rangeTag: '12–19 Causes',
     min: 12,
     max: 19,
-    color: '#8b5cf6', // Electric Purple / Violet
-    glowColor: 'rgba(139, 92, 246, 0.65)',
-    badgeBg: '#8b5cf6',
+    color: '#dc2626', // Code Red / Vivid Red
+    glowColor: 'rgba(220, 38, 38, 0.50)',
+    badgeBg: '#dc2626',
     badgeText: '#ffffff',
     pulseSpeed: '1.2s',
     cloudRadius: 23000,
@@ -265,11 +265,11 @@ const DOPPLER_TIERS = {
     rangeTag: '20+ Causes',
     min: 20,
     max: Infinity,
-    color: '#09090b', // Obsidian Black
-    glowColor: 'rgba(9, 9, 11, 0.9)',
-    badgeBg: '#09090b',
+    color: '#881337', // Deep Maroon / Code Rose
+    glowColor: 'rgba(136, 19, 55, 0.60)',
+    badgeBg: '#881337',
     badgeText: '#ffffff',
-    borderColor: 'rgba(255, 255, 255, 0.65)',
+    borderColor: 'rgba(255, 255, 255, 0.85)',
     pulseSpeed: '0.9s',
     cloudRadius: 28000,
     coreRadius: 11500,
@@ -408,13 +408,90 @@ export const getProvinceMatchForCampaign = (campaign) => {
 // ── Resolve Campaign Disaster Category, Semantic Color & Theme Metadata ───────
 export const getCampaignCategoryMeta = (camp) => {
   const cat = String(camp?.category || '').toUpperCase();
-  const text = `${camp?.title || ''} ${camp?.description || ''}`.toLowerCase();
+  const title = String(camp?.title || '').toLowerCase();
+  const desc = String(camp?.description || '').toLowerCase();
+  const text = `${title} ${desc}`.toLowerCase();
 
-  // 1. Flood Relief (Electric Ocean Teal)
-  if (cat === 'FLOOD' || /flood|baha|inundat|overflow|water level/i.test(text)) {
+  // 1. Volcano Eruption & Ashfall
+  if (cat === 'VOLCANO' || /volcano|bulkan|ashfall|eruption|kanlaon|taal|mayon/i.test(text)) {
+    return {
+      key: 'VOLCANO',
+      label: 'Volcano Response',
+      shortLabel: 'VOLCANO',
+      icon: 'volcano',
+      color: '#dc2626',             // Magma Red
+      glowColor: 'rgba(220, 38, 38, 0.5)',
+      badgeBg: 'rgba(220, 38, 38, 0.16)',
+      badgeText: '#f87171',
+      pillBorder: 'rgba(220, 38, 38, 0.45)'
+    };
+  }
+
+  // 2. Landslide & Mudslide (Critical in Southern Leyte, e.g. St. Bernard, Guinsaugon)
+  if (cat === 'LANDSLIDE' || /landslide|mudslide|guinsaugon|rockfall|debris flow|soil erosion|erosyon/i.test(text)) {
+    return {
+      key: 'LANDSLIDE',
+      label: 'Landslide Relief',
+      shortLabel: 'LANDSLIDE',
+      icon: 'landslide',
+      color: '#b45309',             // Warm Terracotta Amber
+      glowColor: 'rgba(180, 83, 9, 0.5)',
+      badgeBg: 'rgba(180, 83, 9, 0.16)',
+      badgeText: '#fbbf24',
+      pillBorder: 'rgba(180, 83, 9, 0.45)'
+    };
+  }
+
+  // 3. Earthquake & Seismic Tremor
+  if (cat === 'EARTHQUAKE' || /earthquake|lindol|tremor|seismic|aftershock|tectonic|ground rupture/i.test(text)) {
+    return {
+      key: 'EARTHQUAKE',
+      label: 'Earthquake Relief',
+      shortLabel: 'EARTHQUAKE',
+      icon: 'earthquake',
+      color: '#ea580c',             // Tectonic Orange
+      glowColor: 'rgba(234, 88, 12, 0.5)',
+      badgeBg: 'rgba(234, 88, 12, 0.16)',
+      badgeText: '#fb923c',
+      pillBorder: 'rgba(234, 88, 12, 0.45)'
+    };
+  }
+
+  // 4. Fire Disaster / Residential Blaze
+  if (cat === 'FIRE' || /fire|sunog|blaze|conflagration|residential fire|fire victim/i.test(text)) {
+    return {
+      key: 'FIRE',
+      label: 'Fire Disaster Aid',
+      shortLabel: 'FIRE AID',
+      icon: 'local_fire_department',
+      color: '#f97316',             // Flame Orange
+      glowColor: 'rgba(249, 115, 22, 0.5)',
+      badgeBg: 'rgba(249, 115, 22, 0.16)',
+      badgeText: '#fdba74',
+      pillBorder: 'rgba(249, 115, 22, 0.45)'
+    };
+  }
+
+  // 5. Typhoon / Storm / Cyclone
+  if (cat === 'TYPHOON' || /typhoon|bagyo|cyclone|super typhoon|storm|odette|haiyan|kristine|tropical storm|gale|habagat/i.test(text)) {
+    return {
+      key: 'TYPHOON',
+      label: 'Typhoon Relief',
+      shortLabel: 'TYPHOON',
+      icon: 'cyclone',
+      color: '#0070f3',             // Vercel Electric Blue (--accent-blue)
+      glowColor: 'rgba(0, 112, 243, 0.45)',
+      badgeBg: 'rgba(0, 112, 243, 0.14)',
+      badgeText: '#38bdf8',
+      pillBorder: 'rgba(0, 112, 243, 0.40)'
+    };
+  }
+
+  // 6. Flood & Flash Flood
+  if (cat === 'FLOOD' || /flood|flash flood|baha|inundat|overflow|submerged|water level|river swell/i.test(text)) {
     return {
       key: 'FLOOD',
-      label: 'Flood Relief',
+      label: 'Flood Response',
       shortLabel: 'FLOOD',
       icon: 'flood',
       color: '#06b6d4',             // Ocean Teal / Cyan
@@ -424,41 +501,29 @@ export const getCampaignCategoryMeta = (camp) => {
       pillBorder: 'rgba(6, 182, 212, 0.45)'
     };
   }
-  // 2. Typhoon / Cyclone (Atmospheric Storm Blue)
-  if (cat === 'TYPHOON' || /typhoon|bagyo|storm|odette|salin|cyclone|tropical/i.test(text)) {
+
+  // 7. Clean Drinking Water (Specifically Potable / Drinking water)
+  if (cat === 'WATER' || /drinking water|potable water|mineral water|clean water|water filtration|water gallon|water station|water supply|water purification|tubig/i.test(text)) {
     return {
-      key: 'TYPHOON',
-      label: 'Typhoon Relief',
-      shortLabel: 'TYPHOON',
-      icon: 'cyclone',
-      color: '#0284c7',             // Atmospheric Storm Blue (--accent-blue)
-      glowColor: 'rgba(2, 132, 199, 0.5)',
-      badgeBg: 'rgba(2, 132, 199, 0.16)',
-      badgeText: '#38bdf8',
+      key: 'WATER',
+      label: 'Clean Water Supply',
+      shortLabel: 'WATER AID',
+      icon: 'water_drop',
+      color: '#38bdf8',             // Crystal Sky Blue
+      glowColor: 'rgba(56, 189, 248, 0.5)',
+      badgeBg: 'rgba(56, 189, 248, 0.16)',
+      badgeText: '#7dd3fc',
       pillBorder: 'rgba(56, 189, 248, 0.45)'
     };
   }
-  // 3. Medical Aid (Crimson Red)
-  if (cat === 'MEDICAL' || /medical|hygiene|medicine|doctor|clinic|sanitation|hospital/i.test(text)) {
-    return {
-      key: 'MEDICAL',
-      label: 'Medical Aid',
-      shortLabel: 'MEDICAL',
-      icon: 'medical_services',
-      color: '#ef4444',             // Crimson Red (--danger)
-      glowColor: 'rgba(239, 68, 68, 0.5)',
-      badgeBg: 'rgba(239, 68, 68, 0.16)',
-      badgeText: '#f87171',
-      pillBorder: 'rgba(239, 68, 68, 0.45)'
-    };
-  }
-  // 4. Food & Water Aid (Amber Gold)
-  if (cat === 'FOOD_WATER' || cat === 'FOOD' || /food|water|meal|rice|nutrition|ration|hunger/i.test(text)) {
+
+  // 8. Food Packs & Feeding Programs (Meals, Rice, Rations, Groceries)
+  if (cat === 'FOOD_WATER' || cat === 'FOOD' || /food|rice|bigas|meal|grocery|ration|nutrition|canned|hunger|feeding|hot meal|food pack|ayuda/i.test(text)) {
     return {
       key: 'FOOD',
-      label: 'Food & Water Aid',
+      label: 'Food & Rations',
       shortLabel: 'FOOD AID',
-      icon: 'water_drop',
+      icon: 'restaurant',           // Clear dining/meal icon instead of confusing water droplet
       color: '#f59e0b',             // Warm Amber Gold (--accent-orange)
       glowColor: 'rgba(245, 158, 11, 0.5)',
       badgeBg: 'rgba(245, 158, 11, 0.16)',
@@ -466,8 +531,9 @@ export const getCampaignCategoryMeta = (camp) => {
       pillBorder: 'rgba(245, 158, 11, 0.45)'
     };
   }
-  // 5. Shelter / Reconstruction (Emerald Green)
-  if (cat === 'SHELTER' || /shelter|reconstruct|rebuild|roof|lumber|housing|evacuat/i.test(text)) {
+
+  // 9. Shelter & House Reconstruction (Roofing, Tents, Lumber)
+  if (cat === 'SHELTER' || /shelter|roof|roofing|yero|corrugated|tarpaulin|tent|rebuild|reconstruction|housing|evacuat|lumber|plywood|homeless/i.test(text)) {
     return {
       key: 'SHELTER',
       label: 'Shelter Recovery',
@@ -480,12 +546,73 @@ export const getCampaignCategoryMeta = (camp) => {
       pillBorder: 'rgba(16, 185, 129, 0.45)'
     };
   }
-  // 6. Default / General Emergency: Theme Accent (#22c55e)
+
+  // 10. Medical Aid & First Aid Supplies
+  if (cat === 'MEDICAL' || /medical|medicine|gamot|doctor|nurse|clinic|hospital|first aid|hygiene|sanitation|surgical|health|vaccin|pharmacy/i.test(text)) {
+    return {
+      key: 'MEDICAL',
+      label: 'Medical Mission',
+      shortLabel: 'MEDICAL',
+      icon: 'medical_services',
+      color: '#ef4444',             // Crimson Red (--danger)
+      glowColor: 'rgba(239, 68, 68, 0.5)',
+      badgeBg: 'rgba(239, 68, 68, 0.16)',
+      badgeText: '#f87171',
+      pillBorder: 'rgba(239, 68, 68, 0.45)'
+    };
+  }
+
+  // 11. Search & Rescue / Evacuation Dispatch
+  if (cat === 'RESCUE' || /search and rescue|rescue|airlift|rubber boat|ambulance|emergency transport|first responder|responder/i.test(text)) {
+    return {
+      key: 'RESCUE',
+      label: 'Search & Rescue',
+      shortLabel: 'RESCUE',
+      icon: 'emergency',
+      color: '#e11d48',             // Rose Red
+      glowColor: 'rgba(225, 29, 72, 0.5)',
+      badgeBg: 'rgba(225, 29, 72, 0.16)',
+      badgeText: '#fb7185',
+      pillBorder: 'rgba(225, 29, 72, 0.45)'
+    };
+  }
+
+  // 12. Children & Education Support (Schools, Student kits)
+  if (cat === 'EDUCATION' || /school|student|children|child|bata|education|classroom|learning|books|school supply/i.test(text)) {
+    return {
+      key: 'EDUCATION',
+      label: 'Education Support',
+      shortLabel: 'EDUCATION',
+      icon: 'school',
+      color: '#8b5cf6',             // Violet Purple
+      glowColor: 'rgba(139, 92, 246, 0.5)',
+      badgeBg: 'rgba(139, 92, 246, 0.16)',
+      badgeText: '#a78bfa',
+      pillBorder: 'rgba(139, 92, 246, 0.45)'
+    };
+  }
+
+  // 13. Livelihood & Cash Assistance (Fisherfolk, Farmers, Small business)
+  if (cat === 'LIVELIHOOD' || /livelihood|cash assistance|pangkabuhayan|financial aid|banca|fishing boat|farmer|crops|seeds|fisherman/i.test(text)) {
+    return {
+      key: 'LIVELIHOOD',
+      label: 'Livelihood Aid',
+      shortLabel: 'LIVELIHOOD',
+      icon: 'payments',
+      color: '#14b8a6',             // Teal
+      glowColor: 'rgba(20, 184, 166, 0.5)',
+      badgeBg: 'rgba(20, 184, 166, 0.16)',
+      badgeText: '#2dd4bf',
+      pillBorder: 'rgba(20, 184, 166, 0.45)'
+    };
+  }
+
+  // 14. Default / General Emergency: Theme Accent (#22c55e)
   return {
     key: 'EMERGENCY',
     label: 'Emergency Relief',
     shortLabel: 'RELIEF',
-    icon: 'emergency',
+    icon: 'crisis_alert',
     color: '#22c55e',               // Theme Green Accent (--accent)
     glowColor: 'rgba(34, 197, 94, 0.5)',
     badgeBg: 'rgba(34, 197, 94, 0.16)',
@@ -606,30 +733,28 @@ export function generateSimulatedMissions(seed = 1, realCampaigns = []) {
     const realProvCamps = getProvinceCampaigns(provName, realCampaigns);
     const realCount = realProvCamps.length;
 
-    // Random roll for desired mission count ranging across all 6 Doppler tiers (1 to 30)
+    // Focus simulated disaster missions on a realistic regional crisis corridor (e.g. 6-10 affected provinces)
+    // instead of cluttering every corner of all 82 provinces.
     const roll = rand();
     let targetCount = 0;
-    if (roll < 0.10) {
-      // ~10% of provinces left clear to create natural geographical contrast
+    if (roll < 0.88) {
+      // ~88% of provinces remain clear for clean, realistic geospatial focus
       targetCount = 0;
-    } else if (roll < 0.28) {
+    } else if (roll < 0.94) {
       // Tier 1: 1 cause (Emerging)
       targetCount = 1;
-    } else if (roll < 0.50) {
+    } else if (roll < 0.97) {
       // Tier 2: 2-3 causes (Moderate)
       targetCount = 2 + Math.floor(rand() * 2);
-    } else if (roll < 0.70) {
+    } else if (roll < 0.985) {
       // Tier 3: 4-6 causes (High)
       targetCount = 4 + Math.floor(rand() * 3);
-    } else if (roll < 0.85) {
+    } else if (roll < 0.995) {
       // Tier 4: 7-11 causes (Severe)
       targetCount = 7 + Math.floor(rand() * 5);
-    } else if (roll < 0.94) {
-      // Tier 5: 12-19 causes (Critical)
-      targetCount = 12 + Math.floor(rand() * 8);
     } else {
-      // Tier 6: 20-30 causes (Catastrophic Epicenter)
-      targetCount = 20 + Math.floor(rand() * 11);
+      // Tier 5/6: 12-20 causes (Epicenter)
+      targetCount = 12 + Math.floor(rand() * 9);
     }
 
     // Number of simulated missions needed on top of any existing real campaigns
@@ -688,10 +813,11 @@ const resolveBasemapLayers = (themeMode, activeLayer) => {
     };
   }
   if (activeLayer === 'terrain') {
+    // High-contrast Physical Elevation & Topography (Lush shaded relief, rich greenery, highway shields)
     return {
       base: 'https://mt1.google.com/vt/lyrs=p&x={x}&y={y}&z={z}',
       labels: null,
-      maxZoom: 18
+      maxZoom: 20
     };
   }
   if (activeLayer === 'osm') {
@@ -702,7 +828,7 @@ const resolveBasemapLayers = (themeMode, activeLayer) => {
     };
   }
 
-  // Tactical Basemap adapts seamlessly to Dark vs Light theme
+  // Tactical Basemap: ArcGIS Canvas Dark / Light (100% Free, Zero Watermarks, No API Key Required)
   if (themeMode === 'light') {
     return {
       base: 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/{z}/{y}/{x}',
@@ -719,6 +845,95 @@ const resolveBasemapLayers = (themeMode, activeLayer) => {
     subdomains: ''
   };
 };
+
+// ── Dynamic Viewport-Proximity Cluster Aggregator ──
+// Prevents screen overcrowding by collapsing nearby provincial nodes into regional hubs at national scale.
+// As the user zooms in, hubs automatically split into individual provinces, and then municipal relief stations.
+function aggregateClustersByScreenDistance(clusterList, currentZoom, map) {
+  if (!map || !clusterList || clusterList.length === 0) return [];
+  // At zoom >= 8.5, provincial nodes have plenty of screen room
+  if (currentZoom >= 8.5) return clusterList;
+
+  // Collision threshold in screen pixels:
+  // At national scale (zoom <= 6.8), 56px threshold groups adjacent provinces into clean regional hubs
+  // At intermediate zoom (7 - 8.4), 36px threshold
+  const thresholdPx = currentZoom <= 6.8 ? 56 : 36;
+
+  const results = [];
+  const processed = new Set();
+
+  for (let i = 0; i < clusterList.length; i++) {
+    if (processed.has(i)) continue;
+    const primary = clusterList[i];
+    processed.add(i);
+
+    let ptPrimary;
+    try {
+      ptPrimary = map.latLngToContainerPoint([primary.lat, primary.lng]);
+    } catch (_) {
+      ptPrimary = { x: 0, y: 0 };
+    }
+
+    const mergedCampaigns = [...primary.campaigns];
+    let totalRaised = primary.totalRaised;
+    let totalTarget = primary.totalTarget;
+    const members = [{ name: primary.name, count: primary.campaigns.length, tier: primary.tier, lat: primary.lat, lng: primary.lng }];
+    let sumLat = primary.lat * primary.campaigns.length;
+    let sumLng = primary.lng * primary.campaigns.length;
+    let totalWeight = primary.campaigns.length;
+
+    for (let j = i + 1; j < clusterList.length; j++) {
+      if (processed.has(j)) continue;
+      const candidate = clusterList[j];
+
+      let ptCandidate;
+      try {
+        ptCandidate = map.latLngToContainerPoint([candidate.lat, candidate.lng]);
+      } catch (_) {
+        ptCandidate = { x: 0, y: 0 };
+      }
+
+      const distPx = Math.hypot(ptPrimary.x - ptCandidate.x, ptPrimary.y - ptCandidate.y);
+      if (distPx < thresholdPx) {
+        processed.add(j);
+        mergedCampaigns.push(...candidate.campaigns);
+        totalRaised += candidate.totalRaised;
+        totalTarget += candidate.totalTarget;
+        members.push({ name: candidate.name, count: candidate.campaigns.length, tier: candidate.tier, lat: candidate.lat, lng: candidate.lng });
+        sumLat += candidate.lat * candidate.campaigns.length;
+        sumLng += candidate.lng * candidate.campaigns.length;
+        totalWeight += candidate.campaigns.length;
+      }
+    }
+
+    if (members.length === 1) {
+      results.push(primary);
+    } else {
+      const avgLat = totalWeight > 0 ? sumLat / totalWeight : primary.lat;
+      const avgLng = totalWeight > 0 ? sumLng / totalWeight : primary.lng;
+      const combinedCount = mergedCampaigns.length;
+      const combinedTier = getTier(combinedCount);
+      const mainRegion = (primary.regionName || '').split('(')[0].trim() || 'Regional Cluster';
+
+      results.push({
+        id: `agg-${primary.id}-${members.length}`,
+        name: `${mainRegion} (${members.length} Provinces)`,
+        regionName: `${members.length} Aggregated Sectors: ${members.map(m => m.name.split(',')[0].trim()).join(', ')}`,
+        lat: avgLat,
+        lng: avgLng,
+        campaigns: mergedCampaigns,
+        totalRaised,
+        totalTarget,
+        tier: combinedTier,
+        isMacroHub: true,
+        memberProvinces: members,
+        zoomTarget: Math.min(8.5, currentZoom + 2.0)
+      });
+    }
+  }
+
+  return results;
+}
 
 function DisasterRadarHeatmapInner({
   campaigns = [],
@@ -741,18 +956,26 @@ function DisasterRadarHeatmapInner({
   const geoJsonLayerRef = useRef(null);
   const spotlightLayerRef = useRef(null);
   const spotlightRendererRef = useRef(null);
+  const provinceRendererRef = useRef(null);
+  const clusterMarkersByProvinceRef = useRef(new Map());
+  const provinceLayersByNameRef = useRef(new Map());
 
   const [currentTheme, setCurrentTheme] = useState(() => {
     return propTheme || document.documentElement.getAttribute('data-theme') || 'dark';
   });
 
   const [activeLayer, setActiveLayer] = useState(defaultLayer); // 'provinces' | 'satellite' | 'terrain' | 'tactical' | 'osm'
+  const [radarDisplayMode, setRadarDisplayMode] = useState('choropleth'); // 'choropleth' (pure choropleth + Command HUD) | 'nodes' (tactical node badges)
+  const [isCommandHudCollapsed, setIsCommandHudCollapsed] = useState(false);
+  const [hudSearchQuery, setHudSearchQuery] = useState('');
+  const [hoveredCorridorName, setHoveredCorridorName] = useState(null);
+  const [currentZoomLevel, setCurrentZoomLevel] = useState(6);
   const [selectedCluster, setSelectedCluster] = useState(null);
   const [focusedProvince, setFocusedProvince] = useState(null);
   const focusedProvinceRef = useRef(null);
   const isProvinceClickRef = useRef(false);
   const lastFocusCenterRef = useRef([11.2, 123.8]);
-  const [simulateDensity, setSimulateDensity] = useState(true);
+  const [simulateDensity, setSimulateDensity] = useState(false);
   const [simSeed, setSimSeed] = useState(1);
 
   // Active campaigns combining real on-chain campaigns with simulated density missions
@@ -785,14 +1008,13 @@ function DisasterRadarHeatmapInner({
     }
   };
   const [isDossierOpen, setIsDossierOpen] = useState(false);
-  const [legendCollapsed, setLegendCollapsed] = useState(false);
+  const [isLegendExpanded, setIsLegendExpanded] = useState(false);
   const [filterRegion, setFilterRegion] = useState('ALL');
   const [focusedTier, setFocusedTier] = useState(null);
-  const [radarSweepActive, setRadarSweepActive] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [currentTime, setCurrentTime] = useState('');
 
-  // Synchronize Theme Changes (Dark, Light, Cyber)
+  // Synchronize Theme Changes (Dark, Light)
   useEffect(() => {
     if (propTheme) {
       setCurrentTheme(propTheme);
@@ -940,11 +1162,32 @@ function DisasterRadarHeatmapInner({
 
   const totalTrackedCampaigns = (activeCampaigns || []).length;
 
+  // Sorted active crisis corridors for Command HUD (Ranked by highest GDACS emergency level and campaign count)
+  const sortedCorridors = useMemo(() => {
+    return [...clusters].sort((a, b) => {
+      if (b.tier.level !== a.tier.level) return b.tier.level - a.tier.level;
+      return b.campaigns.length - a.campaigns.length;
+    });
+  }, [clusters]);
+
+  const filteredCorridors = useMemo(() => {
+    if (!hudSearchQuery.trim()) return sortedCorridors;
+    const q = hudSearchQuery.toLowerCase().trim();
+    return sortedCorridors.filter(c =>
+      c.name.toLowerCase().includes(q) ||
+      c.regionName.toLowerCase().includes(q) ||
+      c.tier.label.toLowerCase().includes(q)
+    );
+  }, [sortedCorridors, hudSearchQuery]);
+
   // Initialize Map
   useEffect(() => {
     if (!containerRef.current) return;
 
     if (!mapRef.current) {
+      const provRenderer = L.svg({ padding: 2.5 });
+      provinceRendererRef.current = provRenderer;
+
       const map = L.map(containerRef.current, {
         center: [11.2, 123.8],
         zoom: 6,
@@ -952,6 +1195,7 @@ function DisasterRadarHeatmapInner({
         maxZoom: 17,
         zoomControl: false,
         attributionControl: false,
+        renderer: provRenderer,
         maxBounds: [
           [3.0, 114.0],
           [22.5, 132.0]
@@ -1028,15 +1272,13 @@ function DisasterRadarHeatmapInner({
         isMapMovingRef.current = true;
       });
 
-      // Automatic vector synchronization on motion end (guarantees zero coordinate drift)
-      map.on('moveend zoomend', () => {
-        isMapMovingRef.current = false;
+      // Real-time progressive opacity fade while zooming
+      const syncProvinceZoomStyles = () => {
         const currentFocused = focusedProvinceRef.current;
         const currentZ = map.getZoom();
         const activeL = activeLayerRef.current;
         const camps = campaignsRef.current;
 
-        // Dynamic zoom classes on container for deep-zoom beacon scaling
         if (containerRef.current) {
           containerRef.current.classList.toggle('is-deep-zoom', currentZ >= 11 && currentZ < 13);
           containerRef.current.classList.toggle('is-ultra-zoom', currentZ >= 13);
@@ -1044,20 +1286,32 @@ function DisasterRadarHeatmapInner({
 
         if (geoJsonLayerRef.current) {
           geoJsonLayerRef.current.eachLayer((layer) => {
-            if (typeof layer.redraw === 'function') {
-              layer.redraw();
-            }
             const feature = layer.feature;
             if (feature) {
               const pName = feature.properties?.name || '';
               const isThisFocused = Boolean(currentFocused && (pName.toLowerCase() === currentFocused.toLowerCase()));
-              layer.setStyle(getProvinceStyle(feature, currentFocused, activeL, camps, currentZ));
+              const style = getProvinceStyle(feature, currentFocused, activeL, camps, currentZ);
+              layer.setStyle(style);
+              if (layer._path && typeof style.fillOpacity === 'number') {
+                layer._path.setAttribute('fill-opacity', String(style.fillOpacity));
+                layer._path.style.fillOpacity = String(style.fillOpacity);
+              }
               if (isThisFocused) {
                 layer.bringToFront();
               }
             }
           });
         }
+      };
+
+      map.on('zoom', syncProvinceZoomStyles);
+
+      // Automatic vector synchronization on motion end (guarantees zero coordinate drift)
+      map.on('moveend zoomend', () => {
+        isMapMovingRef.current = false;
+        const currentZ = map.getZoom();
+        setCurrentZoomLevel(currentZ);
+        syncProvinceZoomStyles();
       });
 
       if (containerRef.current) {
@@ -1082,6 +1336,7 @@ function DisasterRadarHeatmapInner({
         spotlightLayerRef.current = null;
       }
       spotlightRendererRef.current = null;
+      provinceRendererRef.current = null;
       if (mapRef.current) {
         mapRef.current.remove();
         mapRef.current = null;
@@ -1131,7 +1386,60 @@ function DisasterRadarHeatmapInner({
     }
   }, [activeLayer, currentTheme]);
 
-  // Helper function to calculate style for any province without rebuilding layers
+  // ── Canonical Sector Tooltip HTML Generator (Unified Inspection Card) ──
+  // Shared identically between Province Vector Polygons and Tactical Cluster Node Pins to eliminate redundancy
+  function createSectorTooltipHtml({
+    pName = 'Province',
+    regionName = '',
+    count = 0,
+    tier = null,
+    totalEth = 0,
+    isHub = false,
+    memberProvinces = []
+  }) {
+    const safeTier = tier || getTier(count);
+    const causesLabel = count === 1 ? 'Cause' : 'Causes';
+    const rainText = safeTier.rainDesc || safeTier.label;
+    const ethFormatted = (typeof totalEth === 'number' ? totalEth : parseFloat(totalEth) || 0).toFixed(2);
+
+    return `
+      <div class="province-tooltip-card ${isHub ? 'is-macro-hub' : ''}">
+        <div class="prov-tooltip-header">
+          <div class="prov-tooltip-title-col">
+            <span class="prov-tooltip-title">${pName}</span>
+            ${regionName ? `<span class="prov-tooltip-region">${regionName}</span>` : ''}
+          </div>
+        </div>
+        <div class="prov-tooltip-badge" style="--badge-tier: ${safeTier.color}; background: ${safeTier.color}1f; color: ${safeTier.color}; border: 1px solid ${safeTier.color}55;">
+          <span class="prov-badge-pulse-dot" style="background: ${safeTier.color};"></span>
+          <span>${rainText}</span>
+        </div>
+        <div class="prov-tooltip-stats-grid">
+          <div class="prov-stat-cardlet">
+            <span class="prov-stat-k">Relief Operations</span>
+            <span class="prov-stat-v text-accent"><strong>${count}</strong> Active ${causesLabel}</span>
+          </div>
+          <div class="prov-stat-cardlet">
+            <span class="prov-stat-k">Funds Mobilized</span>
+            <span class="prov-stat-v"><strong>${ethFormatted} ETH</strong></span>
+          </div>
+        </div>
+        ${isHub && memberProvinces && memberProvinces.length > 0 ? `
+          <div class="macro-breakdown-list">
+            ${memberProvinces.map(m => `
+              <div class="macro-breakdown-row">
+                <span class="macro-dot" style="background-color: ${m.tier?.color || '#3b82f6'};"></span>
+                <span class="macro-name">${m.name.split(',')[0]}</span>
+                <strong class="macro-val">${m.count} cause${m.count > 1 ? 's' : ''}</strong>
+              </div>
+            `).join('')}
+          </div>
+        ` : ''}
+      </div>
+    `;
+  }
+
+  // Helper function to calculate style for any province tuned specifically per basemap
   function getProvinceStyle(feature, currentFocused, currentLayer, currentCampaigns, zoomLevel) {
     const pName = feature.properties?.name || '';
     const provCamps = getProvinceCampaigns(pName, currentCampaigns);
@@ -1139,86 +1447,154 @@ function DisasterRadarHeatmapInner({
     const isPlainWhite = currentLayer === 'provinces';
     const hasFocus = Boolean(currentFocused);
     const isThisFocused = Boolean(hasFocus && (currentFocused.toLowerCase() === pName.toLowerCase()));
+    const isHovered = Boolean(hoveredCorridorName && (hoveredCorridorName.toLowerCase() === pName.toLowerCase()));
 
     const z = typeof zoomLevel === 'number' ? zoomLevel : (mapRef.current ? mapRef.current.getZoom() : 6);
     const isZoomedOut = z <= 6.5;
+    const isLightMode = currentTheme === 'light';
 
-    // ── IF A PROVINCE IS FOCUSED AND THIS IS NOT THE ONE: GRAYED OUT & DIMMED ──
+    // ── DYNAMIC PROVINCE COLOR OPACITY LOGIC (ACROSS ALL MAP STYLES) ──
+    // 1. Zoomed out (z <= 6): ~80% opacity (0.80) to make campaign distribution vivid and visible across the country
+    // 2. Zooming in (z = 6 to 10): gradually and smoothly decreases from 80% (0.80) down to a minimum floor of 25% (0.25)
+    //    z=6 -> 0.80, z=7 -> 0.663, z=8 -> 0.525, z=9 -> 0.388, z>=10 -> 0.25
+    // 3. Zoomed in deeply (z >= 10): clamped at 25% minimum opacity so colors never fade out completely
+    // 4. Selected / Clicked: reduces that specific province's opacity strictly to 10% (0.10), overriding normal zoom opacity!
+    const dynamicZoomOpacity = z <= 6
+      ? 0.80
+      : (z >= 10 ? 0.25 : Number((0.80 - ((z - 6) / 4) * (0.80 - 0.25)).toFixed(3)));
+
+    // ── IF A PROVINCE IS FOCUSED AND THIS IS NOT THE ONE: ELEGANTLY DIMMED & MUTED ──
     if (hasFocus && !isThisFocused) {
+      if (count > 0) {
+        const tier = getTier(count);
+        return {
+          noClip: true,
+          fillColor: tier.color,
+          fillOpacity: Math.min(dynamicZoomOpacity, 0.25),
+          color: isPlainWhite ? (isLightMode ? 'rgba(0, 0, 0, 0.15)' : 'rgba(255, 255, 255, 0.15)') : 'rgba(255, 255, 255, 0.20)',
+          weight: 0.8,
+          opacity: 0.60
+        };
+      }
       return {
-        fillColor: isPlainWhite ? '#cbd5e1' : '#090d16',
-        fillOpacity: isPlainWhite ? 0.30 : 0.28,
-        color: isPlainWhite ? '#94a3b8' : 'rgba(100, 116, 139, 0.25)',
-        weight: 0.6,
+        noClip: true,
+        fillColor: isPlainWhite ? (isLightMode ? '#f5f5f5' : '#141414') : '#000000',
+        fillOpacity: 0.04,
+        color: isPlainWhite ? (isLightMode ? 'rgba(0, 0, 0, 0.08)' : 'rgba(255, 255, 255, 0.08)') : 'rgba(255, 255, 255, 0.06)',
+        weight: 0.5,
         opacity: 0.30
       };
     }
 
-    // ── 1. PLAIN WHITE (PROVINCES) VIEW ──
-    if (isPlainWhite) {
-      if (count > 0) {
-        const tier = getTier(count);
+    // ── 1. ACTIVE DISASTER RELIEF PROVINCE (HIGH-CONTRAST TUNED PER BASEMAP) ──
+    if (count > 0) {
+      const tier = getTier(count);
+      // Selected province's 10% opacity strictly overrides the normal zoom-based opacity
+      const effectiveOpacity = isThisFocused
+        ? 0.10
+        : (isHovered ? Math.min(0.92, dynamicZoomOpacity + 0.08) : dynamicZoomOpacity);
+
+      // SATELLITE: Translucent glassy tint & brilliant white boundary to reveal photographic textures underneath
+      if (currentLayer === 'satellite') {
         return {
+          noClip: true,
           fillColor: tier.color,
-          fillOpacity: 1.0,
-          color: isThisFocused ? (tier.level === 6 ? '#ffffff' : '#000000') : (tier.level === 6 ? '#ffffff' : '#000000'),
-          weight: isThisFocused ? 4.5 : (isZoomedOut ? 1.2 : 1.8),
-          opacity: 1.0
+          fillOpacity: effectiveOpacity,
+          color: 'rgba(255, 255, 255, 0.95)',
+          weight: isThisFocused ? (z >= 9 ? 1.6 : 1.8) : (isHovered ? 2.0 : (isZoomedOut ? 0.8 : 1.2)),
+          opacity: 0.95
         };
       }
 
-      // Unaffected province: 100% Solid White with clean border (Black when focused)
+      // PLAIN VECTOR: Clean, saturated choropleth against off-white canvas
+      if (isPlainWhite) {
+        return {
+          noClip: true,
+          fillColor: tier.color,
+          fillOpacity: effectiveOpacity,
+          color: isLightMode ? '#000000' : '#ffffff',
+          weight: isThisFocused ? (z >= 9 ? 1.6 : 1.8) : (isHovered ? 2.0 : (isZoomedOut ? 0.8 : 1.2)),
+          opacity: 0.95
+        };
+      }
+
+      // TERRAIN: Vivid saturation standing distinctly above topographic hillshading
+      if (currentLayer === 'terrain') {
+        return {
+          noClip: true,
+          fillColor: tier.color,
+          fillOpacity: effectiveOpacity,
+          color: isLightMode ? '#000000' : '#ffffff',
+          weight: isThisFocused ? (z >= 9 ? 1.6 : 1.8) : (isHovered ? 2.0 : (isZoomedOut ? 0.8 : 1.2)),
+          opacity: 0.95
+        };
+      }
+
+      // TACTICAL (ARCGIS CANVAS DARK / LIGHT): Luminous neon radar glow in Dark, crisp executive wash in Light
+      if (currentLayer === 'tactical') {
+        return {
+          noClip: true,
+          fillColor: tier.color,
+          fillOpacity: effectiveOpacity,
+          color: isThisFocused ? (isLightMode ? '#000000' : '#ffffff') : (isHovered ? '#ffffff' : (isLightMode ? '#000000' : tier.color)),
+          weight: isThisFocused ? (z >= 9 ? 1.6 : 1.8) : (isHovered ? 2.0 : (isZoomedOut ? 0.8 : 1.2)),
+          opacity: 0.95
+        };
+      }
+
+      // STREET (OSM): Rich translucent overlay
       return {
-        fillColor: '#ffffff',
-        fillOpacity: 1.0,
-        color: isThisFocused ? '#000000' : '#64748b',
-        weight: isThisFocused ? 4.5 : (isZoomedOut ? 0.75 : 1.0),
+        noClip: true,
+        fillColor: tier.color,
+        fillOpacity: effectiveOpacity,
+        color: isLightMode ? '#000000' : '#ffffff',
+        weight: isThisFocused ? (z >= 9 ? 1.6 : 1.8) : (isHovered ? 2.0 : (isZoomedOut ? 0.8 : 1.2)),
         opacity: 0.95
       };
     }
 
-    // ── 2. SATELLITE VIEW (CLEAN DYNAMIC BORDERS) ──
+    // ── 2. UNAFFECTED PROVINCE (CLEAN NEUTRAL BOUNDARIES TUNED PER BASEMAP) ──
     if (currentLayer === 'satellite') {
-      if (count > 0) {
-        const tier = getTier(count);
-        return {
-          fillColor: tier.color,
-          fillOpacity: isThisFocused ? 0.12 : (tier.level === 6 ? 0.38 : 0.22),
-          color: isThisFocused ? '#ffffff' : (tier.level === 6 ? '#ffffff' : tier.color),
-          weight: isThisFocused ? 4.0 : (isZoomedOut ? 1.0 : 1.8),
-          opacity: 1.0
-        };
-      }
-
-      // Unaffected province in Satellite View:
       return {
-        fillColor: isThisFocused ? 'rgba(56, 189, 248, 0.12)' : 'transparent',
-        fillOpacity: isThisFocused ? 0.12 : 0,
-        color: isThisFocused ? '#ffffff' : (isZoomedOut ? 'rgba(255, 255, 255, 0.55)' : 'rgba(255, 255, 255, 0.80)'),
-        weight: isThisFocused ? 4.0 : (isZoomedOut ? 0.65 : 1.3),
-        opacity: 1.0
+        noClip: true,
+        fillColor: isThisFocused ? 'rgba(255, 255, 255, 0.10)' : 'transparent',
+        fillOpacity: isThisFocused ? 0.10 : 0,
+        color: isThisFocused ? 'rgba(255, 255, 255, 0.90)' : 'rgba(255, 255, 255, 0.22)',
+        weight: isThisFocused ? 1.4 : 0.6,
+        opacity: 0.75
       };
     }
 
-    // ── 3. NON-PLAIN-WHITE VIEWS (Terrain, OSM, Tactical) ──
-    if (count > 0) {
-      const tier = getTier(count);
+    if (isPlainWhite) {
       return {
-        fillColor: tier.color,
-        fillOpacity: isThisFocused ? 0.12 : (tier.level === 6 ? 0.35 : 0.20),
-        color: isThisFocused ? '#ffffff' : (tier.level === 6 ? '#000000' : tier.color),
-        weight: isThisFocused ? 4.0 : (isZoomedOut ? 1.2 : 1.8),
-        opacity: 1.0
+        noClip: true,
+        fillColor: isThisFocused ? (isLightMode ? 'rgba(0, 112, 243, 0.10)' : 'rgba(0, 112, 243, 0.10)') : (isLightMode ? '#f5f5f5' : '#141414'),
+        fillOpacity: isThisFocused ? 0.10 : Math.max(0.15, 0.35 * (dynamicZoomOpacity / 0.80)),
+        color: isThisFocused ? (isLightMode ? '#000000' : '#ffffff') : (isLightMode ? 'rgba(0, 0, 0, 0.08)' : 'rgba(255, 255, 255, 0.08)'),
+        weight: isThisFocused ? 1.4 : 0.6,
+        opacity: 0.90
       };
     }
 
-    // Unaffected province on Terrain/Tactical/OSM
+    if (currentLayer === 'tactical') {
+      return {
+        noClip: true,
+        fillColor: isThisFocused ? (isLightMode ? 'rgba(0, 112, 243, 0.10)' : 'rgba(0, 112, 243, 0.10)') : 'transparent',
+        fillOpacity: isThisFocused ? 0.10 : 0,
+        color: isThisFocused ? (isLightMode ? '#000000' : '#ffffff') : (isLightMode ? 'rgba(0, 0, 0, 0.10)' : 'rgba(255, 255, 255, 0.10)'),
+        weight: isThisFocused ? 1.4 : 0.6,
+        opacity: 0.75
+      };
+    }
+
+    // Terrain & Street unaffected
     return {
-      fillColor: isThisFocused ? 'rgba(56, 189, 248, 0.12)' : 'transparent',
-      fillOpacity: isThisFocused ? 0.12 : 0,
-      color: isThisFocused ? '#ffffff' : 'rgba(255, 255, 255, 0.55)',
-      weight: isThisFocused ? 4.0 : (isZoomedOut ? 0.65 : 1.2),
-      opacity: 1.0
+      noClip: true,
+      fillColor: isThisFocused ? (isLightMode ? 'rgba(0, 112, 243, 0.10)' : 'rgba(0, 112, 243, 0.10)') : 'transparent',
+      fillOpacity: isThisFocused ? 0.10 : 0,
+      color: isThisFocused ? (isLightMode ? '#000000' : '#ffffff') : (isLightMode ? 'rgba(0, 0, 0, 0.10)' : 'rgba(255, 255, 255, 0.10)'),
+      weight: isThisFocused ? 1.4 : 0.6,
+      opacity: 0.75
     };
   }
 
@@ -1228,51 +1604,47 @@ function DisasterRadarHeatmapInner({
     const geoGroup = provinceGeoGroupRef.current;
     geoGroup.clearLayers();
 
+    const provRenderer = provinceRendererRef.current || L.svg({ padding: 2.5 });
+
     const geoJsonLayer = L.geoJSON(PH_PROVINCES_GEOJSON, {
-      style: (feature) => getProvinceStyle(feature, focusedProvinceRef.current, activeLayer, activeCampaigns, mapRef.current ? mapRef.current.getZoom() : 6),
+      renderer: provRenderer,
+      noClip: true,
+      style: (feature) => ({
+        noClip: true,
+        ...getProvinceStyle(feature, focusedProvinceRef.current, activeLayer, activeCampaigns, mapRef.current ? mapRef.current.getZoom() : 6)
+      }),
       onEachFeature: (feature, layer) => {
         const pName = feature.properties?.name || 'Province';
+        const pKey = pName.toLowerCase().trim();
+        provinceLayersByNameRef.current.set(pKey, layer);
+
         const provCamps = getProvinceCampaigns(pName, activeCampaigns);
         const count = provCamps.length;
         const tier = count > 0 ? getTier(count) : null;
         const totalEth = provCamps.reduce((acc, c) => acc + (parseFloat(c.currentAmount || c.raised_eth || 0) || 0), 0);
         const totalTargetEth = provCamps.reduce((acc, c) => acc + (parseFloat(c.targetAmount || c.target_eth || 0) || 0), 0);
+        const provCentroid = PROVINCE_CENTROIDS[pKey];
+        const regionName = provCentroid?.region || feature.properties?.region || '';
 
         // Only bind tooltips for provinces with active campaigns to prevent mousemove lag
         if (count > 0) {
-          const tooltipHtml = `
-            <div class="province-tooltip-card">
-              <div class="prov-tooltip-header">
-                <span class="material-symbols-outlined prov-tooltip-pin-icon">location_on</span>
-                <span class="prov-tooltip-title">${pName}</span>
-              </div>
-              <div class="prov-tooltip-badge" style="--badge-tier: ${tier.color}; background: ${tier.color}1f; color: ${tier.color}; border: 1px solid ${tier.color}55;">
-                <span class="prov-badge-pulse-dot" style="background: ${tier.color};"></span>
-                <span>${tier.rainDesc}</span>
-              </div>
-              <div class="prov-tooltip-stats-grid">
-                <div class="prov-stat-cardlet">
-                  <span class="prov-stat-k">Relief Operations</span>
-                  <span class="prov-stat-v text-accent"><strong>${count}</strong> Active ${count === 1 ? 'Cause' : 'Causes'}</span>
-                </div>
-                <div class="prov-stat-cardlet">
-                  <span class="prov-stat-k">Funds Mobilized</span>
-                  <span class="prov-stat-v"><strong>${totalEth.toFixed(2)} ETH</strong></span>
-                </div>
-              </div>
-              <div class="prov-tooltip-action-cue">
-                <span>Focus & Reveal Mission Pins</span>
-                <span class="material-symbols-outlined" style="font-size: 13px;">arrow_forward</span>
-              </div>
-            </div>
-          `;
-
-          layer.bindTooltip(tooltipHtml, {
-            sticky: false,
-            direction: 'top',
-            opacity: 0.96,
-            className: 'province-leaflet-tooltip'
+          const tooltipHtml = createSectorTooltipHtml({
+            pName,
+            regionName,
+            count,
+            tier,
+            totalEth
           });
+
+          const tooltip = L.tooltip({
+            sticky: true,
+            direction: 'top',
+            offset: [0, -14],
+            opacity: 0.98,
+            className: 'province-leaflet-tooltip'
+          }).setContent(tooltipHtml);
+
+          layer.bindTooltip(tooltip);
         }
 
         layer.on({
@@ -1285,7 +1657,7 @@ function DisasterRadarHeatmapInner({
           mouseover: (e) => {
             if (isMapMovingRef.current) return;
             const currentFocused = focusedProvinceRef.current;
-            const isThisFocused = Boolean(currentFocused && (currentFocused.toLowerCase() === pName.toLowerCase()));
+            const isThisFocused = Boolean(currentFocused && (currentFocused.toLowerCase() === pKey));
 
             // If this province is already focused, suppress its tooltip entirely —
             // the mission pins are already visible; the "Click to focus" tooltip is misleading.
@@ -1307,12 +1679,17 @@ function DisasterRadarHeatmapInner({
           },
           mouseout: (e) => {
             if (isMapMovingRef.current) return; // Prevent mid-animation style recalculations that displace vector paths
+
             const currentFocused = focusedProvinceRef.current;
-            const isThisFocused = Boolean(currentFocused && (currentFocused.toLowerCase() === pName.toLowerCase()));
+            const isThisFocused = Boolean(currentFocused && (currentFocused.toLowerCase() === pKey));
             // NEVER reset the bold border of the currently focused province - it stays until next province!
             if (!isThisFocused) {
               const freshStyle = getProvinceStyle(feature, currentFocused, activeLayer, activeCampaigns, mapRef.current ? mapRef.current.getZoom() : 6);
               e.target.setStyle(freshStyle);
+              if (e.target._path && typeof freshStyle.fillOpacity === 'number') {
+                e.target._path.setAttribute('fill-opacity', String(freshStyle.fillOpacity));
+                e.target._path.style.fillOpacity = String(freshStyle.fillOpacity);
+              }
             }
           },
           click: (e) => {
@@ -1397,12 +1774,16 @@ function DisasterRadarHeatmapInner({
 
       // Explicitly set the exact style directly on each layer
       layer.setStyle(provStyle);
+      if (layer._path && typeof provStyle.fillOpacity === 'number') {
+        layer._path.setAttribute('fill-opacity', String(provStyle.fillOpacity));
+        layer._path.style.fillOpacity = String(provStyle.fillOpacity);
+      }
 
       if (isThisFocused && !isMapMovingRef.current) {
         layer.bringToFront();
       }
     });
-  }, [focusedProvince, activeLayer, activeCampaigns]);
+  }, [focusedProvince, activeLayer, activeCampaigns, hoveredCorridorName]);
 
   // ── Native Vector Spotlight Dimmer (Punches 100% Crisp Hole in spotlightPane at zIndex 350) ──
   // Living strictly in spotlightPane (zIndex 350), it is BELOW markerPane (zIndex 600) and popupPane (zIndex 700)
@@ -1453,8 +1834,8 @@ function DisasterRadarHeatmapInner({
   useEffect(() => {
     if (!mapRef.current) return;
     const map = mapRef.current;
-    const targetOpacity = currentTheme === 'light' ? 0.40 : (currentTheme === 'cyber' ? 0.65 : 0.55);
-    const targetColor = currentTheme === 'light' ? '#0f172a' : '#020617';
+    const targetOpacity = currentTheme === 'light' ? 0.20 : 0.35;
+    const targetColor = '#000000';
 
     if (focusedProvince) {
       const holes = getProvinceHoles(focusedProvince);
@@ -1473,6 +1854,7 @@ function DisasterRadarHeatmapInner({
           const polygon = L.polygon(latlngs, {
             pane: 'spotlightPane',
             renderer: spotlightRendererRef.current,
+            noClip: true,
             fillColor: targetColor,
             fillOpacity: targetOpacity,
             stroke: false,
@@ -1532,119 +1914,160 @@ function DisasterRadarHeatmapInner({
     const markersGroup = markersGroupRef.current;
     heatGroup.clearLayers();
     markersGroup.clearLayers();
+    clusterMarkersByProvinceRef.current.clear();
 
-    // When a province is focused, hide wide cluster beacons so exact pins are clear
-    const clustersToRender = focusedProvince ? [] : visibleClusters;
+    // When a province is focused OR when in 'choropleth' mode, hide national cluster badges
+    if (focusedProvince || radarDisplayMode === 'choropleth' || radarDisplayMode === 'heat_only') return;
+
+    const map = mapRef.current;
+    const currentZ = map.getZoom();
+
+    // Dynamically aggregate clusters based on screen distance to guarantee ZERO overcrowding
+    const clustersToRender = aggregateClustersByScreenDistance(visibleClusters, currentZ, map);
 
     clustersToRender.forEach(cluster => {
       const { lat, lng, tier, campaigns: clusterCamps } = cluster;
       const count = clusterCamps.length;
+      const isHub = Boolean(cluster.isMacroHub);
+      const provName = cluster.name.split(',')[0].trim();
+      const provKey = provName.toLowerCase();
 
-      // ── 1. Regional Doppler Radar Precipitation Cloud (Shades that section of the Philippines) ──
-      // Outer precipitation dispersion blanket (compact localized halo)
-      const cloudDispersion = L.circle([lat, lng], {
-        radius: tier.cloudRadius,
-        color: tier.color,
-        fillColor: tier.color,
-        fillOpacity: currentTheme === 'light' ? 0.18 : 0.12,
-        weight: 1,
-        dashArray: '3, 6',
-        interactive: false
-      });
-
-      // Mid-density rain band
-      const cloudMid = L.circle([lat, lng], {
-        radius: tier.cloudRadius * 0.65,
-        color: tier.color,
-        fillColor: tier.color,
-        fillOpacity: currentTheme === 'light' ? 0.25 : 0.18,
-        weight: 1.2,
-        interactive: false
-      });
-
-      // Epicenter storm density core
-      const cloudCore = L.circle([lat, lng], {
-        radius: tier.coreRadius,
-        color: tier.color,
-        fillColor: tier.color,
-        fillOpacity: currentTheme === 'light' ? 0.38 : 0.28,
-        weight: 1.5,
-        interactive: false
-      });
-
-      if (activeLayer !== 'provinces') {
-        heatGroup.addLayer(cloudDispersion);
-        heatGroup.addLayer(cloudMid);
-        heatGroup.addLayer(cloudCore);
-      }
-
-      // Dynamic pulse speed based on cause count: more causes -> faster double-beep repeat rate
-      const dynamicSpeedSec = Math.max(1.0, 2.8 - Math.log2(Math.max(1, count)) * 0.5).toFixed(2);
-      const pulseSpeed = `${dynamicSpeedSec}s`;
-      // Millisecond delay between 1st beep and 2nd beep (300ms)
-      const followDelay = '0.30s';
-
-      // ── 2. Doppler Storm Beacon Icon ──
+      // ── Doppler Storm Beacon (Tactical Precision Node / Macro Hub) ──
+      // Institutional GDACS/Mapbox-style precision node with colored accent ring, tactile disc, and anchored pip
       const markerHtml = `
-        <div class="doppler-radar-beacon ${tier.badgeClass}" style="--tier-color: ${tier.color}; --pulse-speed: ${pulseSpeed}; --follow-delay: ${followDelay};">
-          <div class="beacon-ring ring-1"></div>
-          <div class="beacon-ring ring-2"></div>
-          <div class="beacon-core" style="background: ${tier.badgeBg}; color: ${tier.badgeText}; border-color: ${currentTheme === 'light' ? '#ffffff' : '#111111'};">
-            <span class="beacon-count">${count}</span>
+        <div class="tactical-radar-node ${isHub ? 'macro-hub' : ''} tier-${tier.level}" style="--tier-color: ${tier.color}; --tier-glow: ${tier.glowColor};">
+          <div class="node-halo-pulse"></div>
+          <div class="node-disc ${isHub ? 'macro-disc' : ''}">
+            <span class="node-count">${count}</span>
           </div>
+          <div class="node-anchor-pip"></div>
         </div>
       `;
 
       const customIcon = L.divIcon({
         html: markerHtml,
-        className: 'radar-beacon-div-icon',
-        iconSize: [36, 36],
-        iconAnchor: [18, 18]
+        className: 'tactical-radar-node-wrapper',
+        iconSize: isHub ? [36, 42] : [32, 38],
+        iconAnchor: isHub ? [18, 40] : [16, 36]
       });
 
       const marker = L.marker([lat, lng], { icon: customIcon, interactive: true });
 
-      marker.on('click', (e) => {
-        if (e && e.originalEvent) {
-          L.DomEvent.stopPropagation(e.originalEvent);
-        }
-        isProvinceClickRef.current = true;
-        setTimeout(() => {
-          isProvinceClickRef.current = false;
-        }, 150);
+      // Map this marker for single canonical tooltip synchronization
+      clusterMarkersByProvinceRef.current.set(provKey, marker);
+      if (isHub && cluster.memberProvinces) {
+        cluster.memberProvinces.forEach(m => {
+          const memKey = m.name.split(',')[0].trim().toLowerCase();
+          clusterMarkersByProvinceRef.current.set(memKey, marker);
+        });
+      }
 
-        setSelectedCluster(cluster);
-        const provName = cluster.name.split(',')[0].trim();
-        setFocusedProvince(provName);
-        focusedProvinceRef.current = provName;
-        lastFocusCenterRef.current = [lat, lng];
-        if (mapRef.current) {
-          const currentZoom = mapRef.current.getZoom();
-          const targetZoom = Math.max(currentZoom, 8);
-          smoothNavigateTo([lat, lng], targetZoom);
-        }
+      const tooltipHtml = createSectorTooltipHtml({
+        pName: cluster.name,
+        regionName: cluster.regionName,
+        count,
+        tier,
+        totalEth: cluster.totalRaised,
+        isHub,
+        memberProvinces: cluster.memberProvinces
       });
 
-      marker.bindTooltip(`
-        <div class="doppler-tooltip-card">
-          <div class="tooltip-loc-title" style="color: ${tier.color};">${cluster.name}</div>
-          <div class="tooltip-reg-sub">${cluster.regionName}</div>
-          <div class="tooltip-meta-grid">
-            <div><span class="k">Alert Level:</span> <strong style="color: ${tier.color};">${tier.label}</strong></div>
-            <div><span class="k">Relief Operations:</span> <strong>${count} Active Cause${count > 1 ? 's' : ''}</strong></div>
-            <div><span class="k">Raised:</span> <strong>${cluster.totalRaised.toFixed(2)} ETH</strong></div>
-          </div>
-        </div>
-      `, {
+      marker.bindTooltip(tooltipHtml, {
         direction: 'top',
-        offset: [0, -26],
+        offset: isHub ? [0, -40] : [0, -36],
         opacity: 0.98,
-        className: 'doppler-tooltip-wrapper'
+        className: 'province-leaflet-tooltip'
+      });
+
+      marker.on({
+        mouseover: () => {
+          if (isMapMovingRef.current) return;
+          // Highlight underlying province polygon
+          if (isHub && cluster.memberProvinces) {
+            cluster.memberProvinces.forEach(m => {
+              const memKey = m.name.split(',')[0].trim().toLowerCase();
+              const l = provinceLayersByNameRef.current.get(memKey);
+              if (l && (!focusedProvinceRef.current || focusedProvinceRef.current.toLowerCase() !== memKey)) {
+                l.setStyle({ weight: 2.0, color: '#ffffff', opacity: 1.0 });
+              }
+            });
+          } else {
+            const provLayer = provinceLayersByNameRef.current.get(provKey);
+            if (provLayer && (!focusedProvinceRef.current || focusedProvinceRef.current.toLowerCase() !== provKey)) {
+              const isSat = activeLayerRef.current === 'satellite';
+              const currentZ = mapRef.current ? mapRef.current.getZoom() : 6;
+              const isZoomedOut = currentZ <= 6.5;
+              provLayer.setStyle({
+                weight: isSat ? (isZoomedOut ? 1.4 : 2.2) : (isZoomedOut ? 1.6 : 2.2),
+                color: isSat ? '#ffffff' : '#000000',
+                opacity: 1.0
+              });
+            }
+          }
+        },
+        mouseout: () => {
+          if (isMapMovingRef.current) return;
+          // Reset underlying province polygon style
+          if (isHub && cluster.memberProvinces) {
+            cluster.memberProvinces.forEach(m => {
+              const memKey = m.name.split(',')[0].trim().toLowerCase();
+              const l = provinceLayersByNameRef.current.get(memKey);
+              if (l && (!focusedProvinceRef.current || focusedProvinceRef.current.toLowerCase() !== memKey)) {
+                const freshStyle = getProvinceStyle(l.feature, focusedProvinceRef.current, activeLayerRef.current, campaignsRef.current, mapRef.current ? mapRef.current.getZoom() : 6);
+                l.setStyle(freshStyle);
+                if (l._path && typeof freshStyle.fillOpacity === 'number') {
+                  l._path.setAttribute('fill-opacity', String(freshStyle.fillOpacity));
+                  l._path.style.fillOpacity = String(freshStyle.fillOpacity);
+                }
+              }
+            });
+          } else {
+            const provLayer = provinceLayersByNameRef.current.get(provKey);
+            if (provLayer && (!focusedProvinceRef.current || focusedProvinceRef.current.toLowerCase() !== provKey)) {
+              const freshStyle = getProvinceStyle(provLayer.feature, focusedProvinceRef.current, activeLayerRef.current, campaignsRef.current, mapRef.current ? mapRef.current.getZoom() : 6);
+              provLayer.setStyle(freshStyle);
+              if (provLayer._path && typeof freshStyle.fillOpacity === 'number') {
+                provLayer._path.setAttribute('fill-opacity', String(freshStyle.fillOpacity));
+                provLayer._path.style.fillOpacity = String(freshStyle.fillOpacity);
+              }
+            }
+          }
+        },
+        click: (e) => {
+          if (e && e.originalEvent) {
+            L.DomEvent.stopPropagation(e.originalEvent);
+          }
+          if (marker.getTooltip()) marker.closeTooltip();
+
+          isProvinceClickRef.current = true;
+          setTimeout(() => {
+            isProvinceClickRef.current = false;
+          }, 150);
+
+          if (cluster.isMacroHub) {
+            // Clicking a regional macro hub smoothly zooms in to unpack the member provinces
+            if (mapRef.current) {
+              smoothNavigateTo([lat, lng], cluster.zoomTarget || 8.5);
+            }
+            return;
+          }
+
+          setSelectedCluster(cluster);
+          const provName = cluster.name.split(',')[0].trim();
+          setFocusedProvince(provName);
+          focusedProvinceRef.current = provName;
+          lastFocusCenterRef.current = [lat, lng];
+          if (mapRef.current) {
+            const currentZoom = mapRef.current.getZoom();
+            const targetZoom = Math.max(currentZoom, 8.5);
+            smoothNavigateTo([lat, lng], targetZoom);
+          }
+        }
       });
 
       markersGroup.addLayer(marker);
     });
-  }, [visibleClusters, currentTheme]);
+  }, [visibleClusters, currentTheme, currentZoomLevel, radarDisplayMode]);
 
   // Toggle Cluster Beacon Visibility on Focus Change without destroying layers
   useEffect(() => {
@@ -1718,9 +2141,6 @@ function DisasterRadarHeatmapInner({
 
       // 4-direction fan-out: each pin radiates its chip in a different direction
       // so nearby pins NEVER stack their chips on the same side (no vertical collision).
-      const POS_CYCLE = ['tag-pos-top', 'tag-pos-right', 'tag-pos-top-high', 'tag-pos-left'];
-      const tagPosClass = POS_CYCLE[idx % POS_CYCLE.length];
-
       const rawTitle = camp.title || 'Relief Mission';
       // Smart display title: strip generic noise words, keep specific identifiers legible
       const stripped = rawTitle.replace(/(operation|project)/gi, '').trim();
@@ -1728,59 +2148,80 @@ function DisasterRadarHeatmapInner({
 
       const pinHtml = `
         <div class="exact-campaign-tactical-pin" style="--pin-color: ${catMeta.color}; --glow-color: ${catMeta.glowColor}; animation-delay: ${idx * 90}ms;">
-          <!-- Visual Beacon Head, Stem, and Reticle (Scales dynamically on zoom in) -->
+          <!-- Visual Beacon Head, Stem, and Reticle -->
           <div class="pin-visual-beacon">
-            <!-- Visible Sonar Pulse Waves -->
             <div class="pin-pulse-wave wave-1"></div>
             <div class="pin-pulse-wave wave-2"></div>
-
-            <!-- Compact Tactical Reticle -->
             <div class="pin-target-reticle" style="border-color: ${catMeta.color};"></div>
 
-            <!-- Ground Marker Head & Anchor Stem -->
-            <div class="pin-head-disc" style="background: ${catMeta.color}; border-color: #ffffff; color: #ffffff;">
+            <!-- Ground Marker Head & Anchor Stem with Category-Accurate Icon -->
+            <div class="pin-head-disc" style="background: ${catMeta.color}; border-color: #ffffff; color: #ffffff;" title="${rawTitle}">
               <span class="material-symbols-outlined pin-symbol" style="color: inherit;">${catMeta.icon}</span>
             </div>
             <div class="pin-beacon-stem" style="background: linear-gradient(to bottom, ${catMeta.color}, rgba(255,255,255,0.7));"></div>
             <div class="pin-anchor-dot" style="background: ${catMeta.color};"></div>
           </div>
           
-          <!-- Mission HUD Card (shown via JS class, never via CSS :hover alone) -->
-          <div class="pin-tactical-hud-card ${tagPosClass}">
-            <!-- Hover Super-HUD Dossier Card -->
+          <!-- Mission HUD Card (Clean Vercel Tactical Dossier) -->
+          <div class="pin-tactical-hud-card">
             <div class="hud-expanded-view">
+              <!-- Top Category Color Accent Stripe -->
+              <div class="hud-card-accent-strip" style="background: linear-gradient(90deg, ${catMeta.color}, #10b981);"></div>
+
+              <!-- Header: Category Pill & Active Pulse -->
               <div class="hud-exp-header">
-                <span class="hud-exp-cat" style="color: ${catMeta.color}; background: ${catMeta.color}1f; border: 1px solid ${catMeta.color}45;">
-                  <span class="material-symbols-outlined" style="font-size: 11px;">${catMeta.icon}</span>
-                  ${catMeta.label}
+                <span class="hud-exp-cat" style="color: ${catMeta.color}; background: ${catMeta.color}18; border: 1px solid ${catMeta.color}38;">
+                  <span class="material-symbols-outlined" style="font-size: 12px;">${catMeta.icon}</span>
+                  <span>${catMeta.shortLabel}</span>
                 </span>
-                <span class="hud-exp-badge">ACTIVE</span>
-              </div>
-              <div class="hud-exp-title">${rawTitle}</div>
-              <div class="hud-exp-location">
-                <span class="material-symbols-outlined" style="font-size: 11px; color: ${catMeta.color};">location_on</span>
-                <span>${subLocation ? `${subLocation}, ${focusedProvince}` : (camp.locationRegion || focusedProvince)}</span>
-              </div>
-              <div class="hud-exp-prog-track">
-                <div class="hud-exp-prog-fill" style="width: ${pct}%; background: linear-gradient(90deg, ${catMeta.color}, var(--accent, #22c55e));"></div>
-              </div>
-              <div class="hud-exp-stats">
-                <span class="hud-exp-raised" style="color: var(--accent, #22c55e);">${raised.toFixed(2)} ETH (${pct}%)</span>
-                <span class="hud-exp-goal">Goal: ${target.toFixed(2)} ETH</span>
+                <span class="hud-exp-badge">
+                  <span class="hud-status-pulse-dot"></span>
+                  <span>ACTIVE</span>
+                </span>
               </div>
 
-              <!-- Action Button to Redirect to Campaign -->
+              <!-- Campaign Title -->
+              <div class="hud-exp-title" title="${rawTitle}">${rawTitle}</div>
+
+              <!-- Location & Verified Trust Pill -->
+              <div class="hud-exp-meta-row">
+                <span class="hud-exp-location" title="${subLocation ? `${subLocation}, ${focusedProvince}` : (camp.locationRegion || focusedProvince)}">
+                  <span class="material-symbols-outlined" style="font-size: 12px; color: ${catMeta.color};">location_on</span>
+                  <span>${subLocation ? `${subLocation}, ${focusedProvince}` : (camp.locationRegion || focusedProvince)}</span>
+                </span>
+                <span class="hud-trust-pill">
+                  <span class="material-symbols-outlined" style="font-size: 11px; color: #10b981;">verified</span>
+                  <span>Verified NGO</span>
+                </span>
+              </div>
+
+              <!-- Funding Progress & Stats Block -->
+              <div class="hud-exp-funding-box">
+                <div class="hud-exp-stats">
+                  <div class="hud-raised-group">
+                    <span class="hud-exp-raised">${raised.toFixed(2)} ETH</span>
+                    <span class="hud-exp-pct-tag" style="color: ${catMeta.color}; background: ${catMeta.color}18; border: 1px solid ${catMeta.color}35;">${pct}%</span>
+                  </div>
+                  <span class="hud-exp-goal">Goal: ${target.toFixed(2)} ETH</span>
+                </div>
+                <div class="hud-exp-prog-track">
+                  <div class="hud-exp-prog-fill" style="width: ${pct}%; background: linear-gradient(90deg, ${catMeta.color}, #10b981);"></div>
+                </div>
+              </div>
+
+              <!-- Action Button to View Campaign -->
               <div class="hud-exp-btn-wrap">
                 <button type="button" class="hud-campaign-redirect-btn" data-campaign-id="${camp.id || ''}" data-campaign-title="${encodeURIComponent(rawTitle)}">
-                  <span class="material-symbols-outlined" style="font-size: 13px;">volunteer_activism</span>
-                  <span>View Campaign</span>
-                  <span class="material-symbols-outlined" style="font-size: 12px;">arrow_forward</span>
+                  <span class="material-symbols-outlined" style="font-size: 13px;">explore</span>
+                  <span>View Campaign Details</span>
+                  <span class="material-symbols-outlined hud-btn-arrow" style="font-size: 13px;">arrow_forward</span>
                 </button>
               </div>
 
+              <!-- Footer Pin Cue -->
               <div class="hud-exp-footer">
-                <span class="pin-status-icon">📌</span>
-                <span>Click to pin open · click again to close</span>
+                <span class="material-symbols-outlined" style="font-size: 10px;">push_pin</span>
+                <span>Click beacon to pin · Click map to close</span>
               </div>
             </div>
           </div>
@@ -1796,11 +2237,43 @@ function DisasterRadarHeatmapInner({
 
       const pinMarker = L.marker([lat, lng], { icon: customPinIcon, interactive: true });
 
+      // Adaptive Bounds & Flip Logic: Ensures card NEVER gets cut off by the top border
+      const updateCardBounds = () => {
+        if (!mapRef.current) return;
+        const el = pinMarker.getElement();
+        const inner = el?.querySelector('.exact-campaign-tactical-pin');
+        if (!inner) return;
+
+        const pt = mapRef.current.latLngToContainerPoint([lat, lng]);
+        const size = mapRef.current.getSize();
+
+        // If beacon is within 225px of the top edge of map container, FLIP DOWN
+        if (pt.y < 225) {
+          inner.classList.add('card-flip-down');
+        } else {
+          inner.classList.remove('card-flip-down');
+        }
+
+        // Horizontal boundary checks: card width is ~254px (127px each side)
+        if (pt.x < 140) {
+          inner.classList.add('card-align-left');
+          inner.classList.remove('card-align-right');
+        } else if (pt.x > size.x - 140) {
+          inner.classList.add('card-align-right');
+          inner.classList.remove('card-align-left');
+        } else {
+          inner.classList.remove('card-align-left', 'card-align-right');
+        }
+      };
+
+      pinMarker._updateCardBounds = updateCardBounds;
+
       // Hover: strictly triggered ONLY when entering the mini circle icon itself or the open card
       pinMarker.on('mouseover', (e) => {
         if (e && e.originalEvent && !e.originalEvent.target.closest('.pin-head-disc, .hud-expanded-view')) {
           return;
         }
+        updateCardBounds();
         pinMarker.setZIndexOffset(100000);
         const el = pinMarker.getElement();
         if (el) el.classList.add('is-marker-hovered');
@@ -1842,6 +2315,7 @@ function DisasterRadarHeatmapInner({
         const inner = el?.querySelector('.exact-campaign-tactical-pin');
         if (!inner) return;
 
+        updateCardBounds();
         const isCurrentlyPinned = inner.classList.contains('is-card-pinned');
 
         // Unpin every other pin first and reset their z-index offsets
@@ -1876,6 +2350,24 @@ function DisasterRadarHeatmapInner({
 
       pinsGroup.addLayer(pinMarker);
     });
+
+    // Re-check positioning of any pinned card when the map moves or zooms
+    const handleMoveForPinnedCards = () => {
+      pinsGroup.eachLayer(m => {
+        if (typeof m._updateCardBounds === 'function') {
+          const el = m.getElement();
+          if (el && el.querySelector('.exact-campaign-tactical-pin.is-card-pinned')) {
+            m._updateCardBounds();
+          }
+        }
+      });
+    };
+    const map = mapRef.current;
+    map.on('move', handleMoveForPinnedCards);
+
+    return () => {
+      map.off('move', handleMoveForPinnedCards);
+    };
   }, [focusedProvince, activeCampaigns, activeLayer, currentTheme]);
 
   // Campaign Redirect Button Click Handler (delegated from map container)
@@ -2030,140 +2522,46 @@ function DisasterRadarHeatmapInner({
       )}
       <div className={`bbdrts-radar-command ${isFullscreen ? 'radar-command-fullscreen' : ''} ${className}`}>
 
-        {/* ── Topbar (Executive Branding, Telemetry, & Radar Master Actions) ── */}
-        <div className="radar-cmd-topbar">
-          <div className="radar-cmd-branding">
-            <div className="radar-icon-frame">
-              <span className="material-symbols-outlined radar-spin-symbol">radar</span>
-            </div>
-            <div>
-              <div className="radar-title-row">
-                <span className="radar-main-title">Philippine Disaster Relief Radar Heatmap</span>
-                <span className="radar-status-badge">
-                  <span className="radar-status-dot"></span>
-                  LIVE ARCHIPELAGO RADAR
-                </span>
-              </div>
-              <div className="radar-sub-desc">
-                Geospatial Relief Operations & Hotspot Density · Real-Time Disaster Concentration Across Philippine Provinces
-              </div>
-            </div>
-          </div>
-
-          <div className="radar-telemetry-cluster">
-            <div className="radar-telemetry-item">
-              <span className="telemetry-k">Philippine Time (PST / UTC+8)</span>
-              <span className="telemetry-v telemetry-time">{currentTime || '01:00:00'}</span>
-            </div>
-            <div className="radar-telemetry-item">
-              <span className="telemetry-k">Active Causes</span>
-              <div className="telemetry-badge-metric">
-                <span className="telemetry-metric-dot"></span>
-                <span className="telemetry-v text-accent">{totalTrackedCampaigns}</span>
-              </div>
-            </div>
-
-            {/* Density Simulation (1-30 Beacons) Toggle & Re-Roll Control */}
-            <div className="radar-sim-deck-controls">
-              <button
-                type="button"
-                className={`radar-sim-switch ${simulateDensity ? 'is-active' : ''}`}
-                onClick={() => setSimulateDensity(!simulateDensity)}
-                title={simulateDensity ? 'Switch to real campaigns only' : 'Simulate archipelago campaign density (1 to 30)'}
-              >
-                <span className="material-symbols-outlined sim-switch-icon">hub</span>
-                <span className="sim-switch-label">DENSITY SIM (1–30)</span>
-                <span className={`sim-switch-pill ${simulateDensity ? 'on' : 'off'}`}>
-                  <span className="sim-pill-dot"></span>
-                  {simulateDensity ? 'SIMULATED' : 'REAL ONLY'}
-                </span>
-              </button>
-
-              {simulateDensity && (
-                <button
-                  type="button"
-                  className="radar-reroll-btn"
-                  onClick={() => setSimSeed(prev => prev + 1)}
-                  title="Re-roll randomized province campaign counts"
-                >
-                  <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>casino</span>
-                  <span>Re-roll</span>
-                </button>
-              )}
-            </div>
-
-            {/* Tactical Doppler Sweep Master Switch */}
-            <button
-              type="button"
-              className={`radar-sweep-switch ${radarSweepActive ? 'is-active' : ''}`}
-              onClick={() => setRadarSweepActive(!radarSweepActive)}
-              title={radarSweepActive ? 'Deactivate Doppler Radar Sweep' : 'Activate Doppler Radar Sweep'}
-            >
-              <span className="material-symbols-outlined sweep-switch-icon">sensors</span>
-              <span className="sweep-switch-label">RADAR SWEEP</span>
-              <span className={`sweep-switch-pill ${radarSweepActive ? 'on' : 'off'}`}>
-                <span className="sweep-pill-dot"></span>
-                {radarSweepActive ? 'LIVE' : 'OFF'}
+        {/* ── Vercel / Linear Unified Command Bar (Single Sleek 48px Header) ── */}
+        <div className="radar-unified-command-bar">
+          <div className="radar-bar-left">
+            <div className="radar-brand-badge">
+              <span className="material-symbols-outlined radar-spin-icon">radar</span>
+              <span className="radar-brand-title">Relief Radar</span>
+              <span className="radar-live-pill">
+                <span className="live-dot-ping"></span>
+                <span>LIVE</span>
               </span>
-            </button>
+            </div>
 
-            {allowFullscreen && (
-              <div className="radar-fullscreen-btn-wrap">
-                <button
-                  type="button"
-                  className={`radar-btn-fullscreen ${isFullscreen ? 'is-active' : ''}`}
-                  onClick={toggleFullscreen}
-                  title={isFullscreen ? 'Exit Fullscreen (Esc)' : 'Fullscreen Map'}
-                >
-                  <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>
-                    {isFullscreen ? 'fullscreen_exit' : 'fullscreen'}
-                  </span>
-                </button>
-                {isFullscreen && (
-                  <button
-                    type="button"
-                    className="radar-btn-exit-fullscreen"
-                    onClick={toggleFullscreen}
-                    title="Exit Fullscreen (Esc)"
-                  >
-                    <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>close</span>
-                    <span>Exit</span>
-                  </button>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
+            <div className="radar-bar-divider" />
 
-        {/* ── Unified Command Deck: Sector Quick-Jumps & Active Hotspots (Single Sleek Bar) ── */}
-        <div className="radar-cmd-deck">
-          <div className="deck-group sector-group">
-            <span className="deck-label">Sector:</span>
-            <div className="deck-pill-group">
+            {/* Regional Sector Segmented Control */}
+            <div className="radar-region-segmented-control">
               <button
                 type="button"
-                className={`deck-btn-pill ${filterRegion === 'ALL' ? 'active' : ''}`}
+                className={`region-segment-btn ${filterRegion === 'ALL' ? 'active' : ''}`}
                 onClick={() => handleJumpRegion('ALL')}
               >
-                All Philippines ({clusters.length})
+                All ({clusters.length})
               </button>
               <button
                 type="button"
-                className={`deck-btn-pill ${filterRegion === 'LUZON' ? 'active' : ''}`}
+                className={`region-segment-btn ${filterRegion === 'LUZON' ? 'active' : ''}`}
                 onClick={() => handleJumpRegion('LUZON')}
               >
                 Luzon
               </button>
               <button
                 type="button"
-                className={`deck-btn-pill ${filterRegion === 'VISAYAS' ? 'active' : ''}`}
+                className={`region-segment-btn ${filterRegion === 'VISAYAS' ? 'active' : ''}`}
                 onClick={() => handleJumpRegion('VISAYAS')}
               >
                 Visayas
               </button>
               <button
                 type="button"
-                className={`deck-btn-pill ${filterRegion === 'MINDANAO' ? 'active' : ''}`}
+                className={`region-segment-btn ${filterRegion === 'MINDANAO' ? 'active' : ''}`}
                 onClick={() => handleJumpRegion('MINDANAO')}
               >
                 Mindanao
@@ -2171,232 +2569,426 @@ function DisasterRadarHeatmapInner({
             </div>
           </div>
 
-          {/* Hotspots temporarily disabled/commented out for the meantime */}
-          {/*
-        <div className="deck-divider" />
+          <div className="radar-bar-right">
+            {/* Active Telemetry Pill */}
+            <div className="radar-telemetry-pill" title="Total active relief operations tracked">
+              <span className="telemetry-pill-dot"></span>
+              <span className="telemetry-pill-val">{totalTrackedCampaigns}</span>
+              <span className="telemetry-pill-label">Causes</span>
+            </div>
 
-        <div className="deck-group hotspots-group">
-          <span className="deck-label">Hotspots:</span>
-          <div className="deck-chips-scroll">
-            {clusters.map((c) => {
-              const isChipActive = (selectedCluster?.id === c.id || focusedProvince?.toLowerCase() === c.name.toLowerCase());
-              return (
-                <button
-                  key={c.id}
-                  type="button"
-                  className={`quick-hotspot-chip ${c.tier.badgeClass} ${isChipActive ? 'active' : ''}`}
-                  onClick={() => handleFlyToCluster(c)}
-                  style={{ '--chip-accent': c.tier.color }}
-                >
-                  <span className="chip-beacon-dot" style={{ background: c.tier.color }}></span>
-                  <span className="chip-name">{c.name}</span>
-                  <span className="chip-badge">{c.campaigns.length} Cause{c.campaigns.length > 1 ? 's' : ''}</span>
-                  <span
-                    className="chip-tier-tag"
-                    style={{
-                      color: c.tier.color,
-                      borderColor: `${c.tier.color}44`,
-                      backgroundColor: `${c.tier.color}18`
-                    }}
-                  >
-                    {c.tier.label}
-                  </span>
-                </button>
-              );
-            })}
+            <div className="radar-telemetry-pill time-pill" title="Philippine Standard Time (UTC+8)">
+              <span className="telemetry-pill-time">{currentTime || '08:00 PST'}</span>
+            </div>
+
+            {/* Mode Switch: Choropleth vs Tactical Nodes */}
+            <div className="radar-mode-segmented-dock">
+              <button
+                type="button"
+                className={`mode-dock-btn ${radarDisplayMode === 'choropleth' || radarDisplayMode === 'heat_only' ? 'active' : ''}`}
+                onClick={() => setRadarDisplayMode('choropleth')}
+                title="Pure Choropleth (Clean, Zero Pins)"
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>map</span>
+                <span>Choropleth</span>
+              </button>
+              <button
+                type="button"
+                className={`mode-dock-btn ${radarDisplayMode === 'nodes' ? 'active' : ''}`}
+                onClick={() => setRadarDisplayMode('nodes')}
+                title="Tactical Cluster Nodes"
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>scatter_plot</span>
+                <span>Pins</span>
+              </button>
+            </div>
+
+            {/* Density Sim Toggle */}
+            <button
+              type="button"
+              className={`radar-tool-icon-btn ${simulateDensity ? 'active' : ''}`}
+              onClick={() => setSimulateDensity(!simulateDensity)}
+              title={simulateDensity ? 'Simulated Missions Active (Click to switch to Real Only)' : 'Simulate Archipelago Density (1–30)'}
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>hub</span>
+              {simulateDensity && <span className="tool-active-dot"></span>}
+            </button>
+
+            {simulateDensity && (
+              <button
+                type="button"
+                className="radar-tool-icon-btn"
+                onClick={() => setSimSeed(prev => prev + 1)}
+                title="Re-roll randomized campaign distribution"
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>casino</span>
+              </button>
+            )}
+
+            {/* Fullscreen Button */}
+            {allowFullscreen && (
+              <button
+                type="button"
+                className={`radar-tool-icon-btn ${isFullscreen ? 'active' : ''}`}
+                onClick={toggleFullscreen}
+                title={isFullscreen ? 'Exit Fullscreen' : 'Fullscreen Map'}
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>
+                  {isFullscreen ? 'fullscreen_exit' : 'fullscreen'}
+                </span>
+              </button>
+            )}
           </div>
-        </div>
-        */}
         </div>
 
         {/* ── Viewport ── */}
-        <div className={`radar-map-viewport ${activeLayer === 'provinces' ? 'is-plain-white-mode' : ''} ${focusedProvince ? 'has-focused-province' : ''}`} style={{ height: isFullscreen ? 'calc(100vh - 120px)' : height }}>
+        <div className={`radar-map-viewport ${activeLayer === 'provinces' ? 'is-plain-white-mode' : ''} ${focusedProvince ? 'has-focused-province' : ''}`} style={{ height: isFullscreen ? 'calc(100vh - 48px)' : height }}>
 
-          {/* Tactical Sector Focus Control Strip */}
-          {focusedProvince && (
-            <div className="radar-focus-control-strip">
-              <div className="focus-indicator">
-                <span className="focus-radar-pulse"></span>
-                <span className="focus-label">Sector Focus:</span>
-                <strong className="focus-province-name">{focusedProvince}</strong>
-                <span className="focus-missions-badge">
-                  <span className="focus-missions-dot"></span>
-                  {getProvinceCampaigns(focusedProvince, activeCampaigns).length} Active Mission{getProvinceCampaigns(focusedProvince, activeCampaigns).length === 1 ? '' : 's'}
-                </span>
-              </div>
-              <div className="focus-actions">
-                {getProvinceCampaigns(focusedProvince, activeCampaigns).length > 0 && (
+          {/* ── FLOATING COMMAND HUD PANEL (LINEAR / APPLE GLASSMORPHISM) ── */}
+          {/* Organizes all active crisis corridors, mission counts, and quick-jumps without cluttering the map */}
+          {(radarDisplayMode === 'choropleth' || radarDisplayMode === 'heat_only') && (
+            isCommandHudCollapsed ? (
+              <div className="radar-command-hud-collapsed-wrap" onMouseDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}>
+                {focusedProvince ? (
+                  <div className="hud-collapsed-focus-pill">
+                    <span className="focused-beacon-dot"></span>
+                    <span className="hud-focus-pill-name">{focusedProvince}</span>
+                    <span className="hud-focus-pill-count">
+                      {getProvinceCampaigns(focusedProvince, activeCampaigns).length} Causes
+                    </span>
+                    {getProvinceCampaigns(focusedProvince, activeCampaigns).length > 0 && (
+                      <button
+                        type="button"
+                        className="hud-focus-pill-action"
+                        onClick={() => {
+                          if (!selectedCluster && activeDossierCluster) {
+                            setSelectedCluster(activeDossierCluster);
+                          }
+                          setIsDossierOpen(prev => !prev);
+                        }}
+                        title="View Dossier"
+                      >
+                        <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>description</span>
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      className="hud-focus-pill-close"
+                      onClick={handleResetFocus}
+                      title="Reset Sector Focus"
+                    >
+                      <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>close</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="hud-collapsed-expand-btn"
+                      onClick={() => setIsCommandHudCollapsed(false)}
+                      title="Expand HUD"
+                    >
+                      <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>chevron_right</span>
+                    </button>
+                  </div>
+                ) : (
                   <button
                     type="button"
-                    className={`focus-dossier-btn ${isDossierOpen ? 'active' : ''}`}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (!selectedCluster && activeDossierCluster) {
-                        setSelectedCluster(activeDossierCluster);
-                      }
-                      setIsDossierOpen(prev => !prev);
-                    }}
+                    className="radar-command-hud-toggle-pill"
+                    onClick={() => setIsCommandHudCollapsed(false)}
+                    title="Expand Operations Corridor HUD"
                   >
-                    <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>
-                      {isDossierOpen ? 'visibility_off' : 'description'}
-                    </span>
-                    <span>{isDossierOpen ? 'Hide Dossier' : `View Dossier (${getProvinceCampaigns(focusedProvince, activeCampaigns).length})`}</span>
+                    <span className="material-symbols-outlined hud-pill-icon">shield_with_heart</span>
+                    <span className="hud-pill-label">Active Corridors</span>
+                    <span className="hud-pill-count">{sortedCorridors.length}</span>
+                    <span className="material-symbols-outlined hud-pill-arrow">chevron_right</span>
                   </button>
                 )}
-                <button
-                  type="button"
-                  className="focus-reset-btn"
-                  onClick={handleResetFocus}
-                  title="Deactivate Sector Focus"
-                >
-                  <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>close</span>
-                  <span>Reset Focus</span>
-                </button>
               </div>
-            </div>
+            ) : (
+              <div
+                className="radar-command-hud"
+                onMouseDown={(e) => e.stopPropagation()}
+                onClick={(e) => e.stopPropagation()}
+                onDoubleClick={(e) => e.stopPropagation()}
+              >
+                {/* HUD Header */}
+                <div className="command-hud-header">
+                  <div className="hud-header-left">
+                    <span className="hud-radar-pulse"></span>
+                    <div>
+                      <div className="hud-title">ACTIVE CRISIS CORRIDORS</div>
+                      <div className="hud-subtitle">
+                        {sortedCorridors.length > 0
+                          ? `${sortedCorridors.length} Operations ${sortedCorridors.length === 1 ? 'Sector' : 'Sectors'} Monitored`
+                          : 'Archipelago Normal Monitoring'}
+                      </div>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className="hud-collapse-btn"
+                    onClick={() => setIsCommandHudCollapsed(true)}
+                    title="Minimize HUD"
+                  >
+                    <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>close_fullscreen</span>
+                  </button>
+                </div>
+
+                {/* In-Focus Sector Pinning Banner */}
+                {focusedProvince && (
+                  <div className="hud-focused-sector-card">
+                    <div className="focused-card-top">
+                      <div className="focused-card-label">
+                        <span className="focused-beacon-dot"></span>
+                        <span>SECTOR IN FOCUS</span>
+                      </div>
+                      <button
+                        type="button"
+                        className="focused-card-close"
+                        onClick={handleResetFocus}
+                        title="Exit Sector Focus"
+                      >
+                        <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>close</span>
+                      </button>
+                    </div>
+                    <div className="focused-card-body">
+                      <span className="focused-card-name">{focusedProvince}</span>
+                      <span className="focused-card-badge">
+                        {getProvinceCampaigns(focusedProvince, activeCampaigns).length} {getProvinceCampaigns(focusedProvince, activeCampaigns).length === 1 ? 'Mission' : 'Missions'}
+                      </span>
+                    </div>
+                    <div className="focused-card-actions">
+                      {getProvinceCampaigns(focusedProvince, activeCampaigns).length > 0 && (
+                        <button
+                          type="button"
+                          className={`focused-dossier-action-btn ${isDossierOpen ? 'active' : ''}`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (!selectedCluster && activeDossierCluster) {
+                              setSelectedCluster(activeDossierCluster);
+                            }
+                            setIsDossierOpen(prev => !prev);
+                          }}
+                        >
+                          <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>
+                            {isDossierOpen ? 'visibility_off' : 'description'}
+                          </span>
+                          <span>{isDossierOpen ? 'Hide Dossier' : 'Open Dossier'}</span>
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        className="focused-reset-action-btn"
+                        onClick={handleResetFocus}
+                      >
+                        <span>Reset Focus</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Quick Search inside HUD */}
+                {sortedCorridors.length > 2 && (
+                  <div className="command-hud-search-bar">
+                    <span className="material-symbols-outlined hud-search-icon">search</span>
+                    <input
+                      type="text"
+                      placeholder="Search active corridor..."
+                      value={hudSearchQuery}
+                      onChange={(e) => setHudSearchQuery(e.target.value)}
+                      className="hud-search-input"
+                    />
+                    {hudSearchQuery && (
+                      <button type="button" className="hud-search-clear" onClick={() => setHudSearchQuery('')}>
+                        <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>close</span>
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {/* Corridors Scroll List */}
+                <div className="command-hud-body">
+                  {filteredCorridors.length === 0 ? (
+                    <div className="command-hud-empty">
+                      <span className="material-symbols-outlined" style={{ fontSize: '18px', opacity: 0.5 }}>travel_explore</span>
+                      <span>No matching active corridors</span>
+                    </div>
+                  ) : (
+                    filteredCorridors.map(c => {
+                      const isFocused = focusedProvince?.toLowerCase() === c.name.toLowerCase();
+                      const progressPct = c.totalTarget > 0 ? Math.min(100, Math.round((c.totalRaised / c.totalTarget) * 100)) : 0;
+                      return (
+                        <div
+                          key={c.id}
+                          className={`command-hud-sector-item ${isFocused ? 'is-focused' : ''}`}
+                          onClick={() => handleFlyToCluster(c)}
+                          onMouseEnter={() => setHoveredCorridorName(c.name)}
+                          onMouseLeave={() => setHoveredCorridorName(null)}
+                          style={{ '--sector-color': c.tier.color }}
+                          title={`Click to navigate to ${c.name} & unpack relief stations`}
+                        >
+                          <div className="sector-header-row">
+                            <div className="sector-name-col">
+                              <span className="sector-status-dot" style={{ backgroundColor: c.tier.color, boxShadow: `0 0 8px ${c.tier.color}` }}></span>
+                              <span className="sector-name">{c.name}</span>
+                            </div>
+                            <span
+                              className="sector-tier-badge"
+                              style={{
+                                color: c.tier.color,
+                                borderColor: `${c.tier.color}44`,
+                                backgroundColor: `${c.tier.color}18`
+                              }}
+                            >
+                              L{c.tier.level} · {c.tier.label.split(' ')[0]}
+                            </span>
+                          </div>
+
+                          <div className="sector-metrics-row">
+                            <span className="sector-missions-count">
+                              <strong>{c.campaigns.length}</strong> {c.campaigns.length === 1 ? 'Mission' : 'Missions'}
+                            </span>
+                            <span className="sector-raised-eth">
+                              {c.totalRaised.toFixed(2)} ETH
+                              {c.totalTarget > 0 ? ` / ${c.totalTarget.toFixed(1)} ETH` : ''}
+                            </span>
+                          </div>
+
+                          <div className="sector-progress-track">
+                            <div
+                              className="sector-progress-fill"
+                              style={{
+                                width: `${progressPct > 0 ? progressPct : 12}%`,
+                                backgroundColor: c.tier.color
+                              }}
+                            />
+                          </div>
+
+                          <div className="sector-action-hint">
+                            <span>{isFocused ? 'In Tactical Focus' : 'Inspect Sector'}</span>
+                            <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>
+                              {isFocused ? 'my_location' : 'north_east'}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+
+                {/* HUD Footer status */}
+                <div className="command-hud-footer">
+                  <span className="hud-footer-hint">Click corridor to jump & reveal tactical pins</span>
+                </div>
+              </div>
+            )
           )}
 
           {/* Leaflet Map Stage */}
           <div ref={containerRef} className={`radar-leaflet-stage ${activeLayer === 'provinces' ? 'is-plain-white-mode' : ''} ${activeLayer === 'satellite' ? 'is-satellite-mode' : ''}`} />
 
-          {/* Authentic Circular Doppler Radar Scanner Beam */}
-          {radarSweepActive && (
-            <div className="doppler-sweep-container">
-              <div className="doppler-sweep-scanner"></div>
-            </div>
-          )}
-
-          {/* ── Google Maps-Style Floating Basemap Layer Switcher (Bottom Right beside Zoom Controls) ── */}
-          <div className="radar-floating-basemap-control">
-            <div className="floating-basemap-pill-group">
-              <button
-                type="button"
-                className={`floating-basemap-btn ${activeLayer === 'provinces' ? 'active' : ''}`}
-                onClick={() => setActiveLayer('provinces')}
-                title="Plain Terrain with Provincial Heat Borders"
-              >
-                <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>grid_view</span>
-                <span>Plain</span>
-              </button>
-              <button
-                type="button"
-                className={`floating-basemap-btn ${activeLayer === 'satellite' ? 'active' : ''}`}
-                onClick={() => setActiveLayer('satellite')}
-                title="High-Resolution Satellite Photography"
-              >
-                <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>satellite_alt</span>
-                <span>Satellite</span>
-              </button>
-              <button
-                type="button"
-                className={`floating-basemap-btn ${activeLayer === 'terrain' ? 'active' : ''}`}
-                onClick={() => setActiveLayer('terrain')}
-                title="Physical Elevation Topography"
-              >
-                <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>terrain</span>
-                <span>Terrain</span>
-              </button>
-              <button
-                type="button"
-                className={`floating-basemap-btn ${activeLayer === 'tactical' ? 'active' : ''}`}
-                onClick={() => setActiveLayer('tactical')}
-                title="Tactical Command Canvas"
-              >
-                <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>contrast</span>
-                <span>Tactical</span>
-              </button>
-              <button
-                type="button"
-                className={`floating-basemap-btn ${activeLayer === 'osm' ? 'active' : ''}`}
-                onClick={() => setActiveLayer('osm')}
-                title="Standard Street Map"
-              >
-                <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>map</span>
-                <span>Street</span>
-              </button>
-            </div>
+          {/* ── Segmented Basemap Dock (Floating Bottom-Right Beside Zoom Controls) ── */}
+          <div className="radar-floating-basemap-dock" onMouseDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}>
+            <button
+              type="button"
+              className={`basemap-dock-btn ${activeLayer === 'tactical' ? 'active' : ''}`}
+              onClick={() => setActiveLayer('tactical')}
+              title="Tactical Dark Canvas (Minimalist)"
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>contrast</span>
+              <span>Tactical</span>
+            </button>
+            <button
+              type="button"
+              className={`basemap-dock-btn ${activeLayer === 'satellite' ? 'active' : ''}`}
+              onClick={() => setActiveLayer('satellite')}
+              title="High-Resolution Satellite Photography"
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>satellite_alt</span>
+              <span>Satellite</span>
+            </button>
+            <button
+              type="button"
+              className={`basemap-dock-btn ${activeLayer === 'provinces' ? 'active' : ''}`}
+              onClick={() => setActiveLayer('provinces')}
+              title="Plain Vector Cartography"
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>grid_view</span>
+              <span>Plain</span>
+            </button>
+            <button
+              type="button"
+              className={`basemap-dock-btn ${activeLayer === 'terrain' ? 'active' : ''}`}
+              onClick={() => setActiveLayer('terrain')}
+              title="Physical Elevation & Topography (Terrain)"
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>terrain</span>
+              <span>Terrain</span>
+            </button>
+            <button
+              type="button"
+              className={`basemap-dock-btn ${activeLayer === 'osm' ? 'active' : ''}`}
+              onClick={() => setActiveLayer('osm')}
+              title="Standard Street Map"
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>map</span>
+              <span>Street</span>
+            </button>
           </div>
 
-          {/* ── Meteorological Doppler Precipitation Legend (Strict Storm News Scale) ── */}
-          <div className={`doppler-storm-legend-card ${legendCollapsed ? 'collapsed' : ''}`}>
-            <div className="storm-legend-header">
-              <div className="storm-legend-title">
-                <span className="material-symbols-outlined" style={{ fontSize: '16px', color: 'var(--accent)' }}>crisis_alert</span>
-                <span>Disaster Severity Legend</span>
+          {/* ── Sleek Micro-Scale Severity Dock (Floating Bottom-Left) ── */}
+          <div className="radar-micro-legend-dock" onMouseDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}>
+            <button
+              type="button"
+              className={`micro-legend-pill ${isLegendExpanded ? 'is-expanded' : ''} ${focusedTier !== null ? 'has-filter' : ''}`}
+              onClick={() => setIsLegendExpanded(prev => !prev)}
+              title={isLegendExpanded ? 'Collapse Legend' : 'Expand Severity Scale'}
+            >
+              <span className="micro-legend-dot"></span>
+              <span className="micro-legend-label">SEVERITY</span>
+              <div className="micro-legend-bar">
+                <span className="m-step tier-1" style={{ backgroundColor: '#0070f3' }}></span>
+                <span className="m-step tier-2" style={{ backgroundColor: '#f5a623' }}></span>
+                <span className="m-step tier-3" style={{ backgroundColor: '#ea580c' }}></span>
+                <span className="m-step tier-4" style={{ backgroundColor: '#e00000' }}></span>
+                <span className="m-step tier-5" style={{ backgroundColor: '#dc2626' }}></span>
+                <span className="m-step tier-6" style={{ backgroundColor: '#881337' }}></span>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                {focusedTier !== null && !legendCollapsed && (
-                  <button type="button" className="legend-clear-btn" onClick={() => setFocusedTier(null)}>
-                    Clear ✕
-                  </button>
-                )}
-                <button
-                  type="button"
-                  className="legend-collapse-toggle"
-                  onClick={() => setLegendCollapsed(!legendCollapsed)}
-                  title={legendCollapsed ? 'Expand Legend' : 'Collapse Legend'}
-                >
-                  <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>
-                    {legendCollapsed ? 'expand_less' : 'expand_more'}
-                  </span>
-                </button>
-              </div>
-            </div>
+              <span className="micro-legend-tag">{focusedTier !== null ? `L${focusedTier}` : 'L1–L6'}</span>
+              <span className="material-symbols-outlined micro-legend-arrow">
+                {isLegendExpanded ? 'expand_more' : 'expand_less'}
+              </span>
+            </button>
 
-            {!legendCollapsed && (
-              <>
-                {/* Continuous Doppler Gradient Meter (7 Tiers from Calm White to Code Black) */}
-                <div className="storm-gradient-bar">
-                  <div className="bar-step tier-0" title="0 Causes: Clear"></div>
-                  <div className="bar-step tier-1" title="1 Cause: Sky Blue (Light)"></div>
-                  <div className="bar-step tier-2" title="2–3 Causes: Yellow (Moderate)"></div>
-                  <div className="bar-step tier-3" title="4–6 Causes: Orange (Heavy)"></div>
-                  <div className="bar-step tier-4" title="7–11 Causes: Red (Severe)"></div>
-                  <div className="bar-step tier-5" title="12–19 Causes: Violet (Crisis)"></div>
-                  <div className="bar-step tier-6" title="20+ Causes: Black (Catastrophic)"></div>
+            {/* Expanded Popover */}
+            {isLegendExpanded && (
+              <div className="micro-legend-popover">
+                <div className="popover-header">
+                  <span className="popover-title">CRISIS SEVERITY SCALE</span>
+                  {focusedTier !== null && (
+                    <button type="button" className="popover-clear-btn" onClick={() => setFocusedTier(null)}>
+                      Reset Filter
+                    </button>
+                  )}
                 </div>
-
-                {/* Interactive Tier Rows */}
-                <div className="storm-tiers-list">
-                  <div className="storm-tier-item clear-tier">
-                    <span className="tier-bullet" style={{ background: '#ffffff', border: '1px solid #94a3b8' }}></span>
-                    <span className="tier-causes-tag">0</span>
-                    <span className="tier-desc-name" style={{ color: currentTheme === 'light' ? '#334155' : '#e2e8f0' }}>
-                      Clear Terrain
-                    </span>
-                  </div>
-
-                  {[1, 2, 3, 4, 5, 6].map((lvl) => {
+                <div className="popover-tiers-list">
+                  {[1, 2, 3, 4, 5, 6].map(lvl => {
                     const t = DOPPLER_TIERS[lvl];
                     const isFocused = focusedTier === lvl;
-                    const matches = clusters.filter(c => c.tier.level === lvl).length;
-                    const tagText = t.rangeTag.replace(' Causes', '').replace(' Cause', '');
-
+                    const count = clusters.filter(c => c.tier.level === lvl).length;
                     return (
                       <div
                         key={lvl}
-                        className={`storm-tier-item ${isFocused ? 'focused' : ''} ${t.badgeClass || ''}`}
+                        className={`popover-tier-row ${isFocused ? 'is-active' : ''}`}
                         onClick={() => setFocusedTier(focusedTier === lvl ? null : lvl)}
                       >
-                        <span
-                          className="tier-bullet"
-                          style={{
-                            background: t.color,
-                            border: t.borderColor || `1px solid ${t.color}`,
-                            boxShadow: lvl === 6 ? '0 0 4px rgba(0,0,0,0.8)' : 'none'
-                          }}
-                        ></span>
-                        <span className="tier-causes-tag">{tagText}</span>
-                        <span className="tier-desc-name" style={{ color: currentTheme === 'light' ? '#0f172a' : '#f8fafc' }}>
-                          {t.label}
-                        </span>
-                        {matches > 0 && <span className="tier-match-count">({matches})</span>}
+                        <span className="popover-tier-dot" style={{ backgroundColor: t.color }}></span>
+                        <span className="popover-tier-lvl">L{lvl}</span>
+                        <span className="popover-tier-label">{t.label}</span>
+                        <span className="popover-tier-count">{count > 0 ? `${count} zones` : '0'}</span>
                       </div>
                     );
                   })}
-
                 </div>
-              </>
+              </div>
             )}
           </div>
 

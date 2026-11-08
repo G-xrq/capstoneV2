@@ -74,8 +74,12 @@ function OtpPinBoxes({ value = '', onChange, autoFocus = true }) {
   );
 }
 
-export default function AuthView({ onLoginSuccess, onBack, theme }) {
-  const [isRegistering, setIsRegistering] = useState(false);
+export default function AuthView({ onLoginSuccess, onBack, theme, initialMode = 'login' }) {
+  const [isRegistering, setIsRegistering] = useState(initialMode === 'register');
+
+  useEffect(() => {
+    setIsRegistering(initialMode === 'register');
+  }, [initialMode]);
   const [hasInteracted, setHasInteracted] = useState(false);
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -355,8 +359,8 @@ export default function AuthView({ onLoginSuccess, onBack, theme }) {
     };
   }, [forgotNewPassword]);
 
-  // Realistic loading delay simulation helper (700ms - 900ms)
-  const simulateDelay = (ms = 800) => new Promise(resolve => setTimeout(resolve, ms));
+  // Fast, responsive settling helper (0-100ms max to prevent UI flicker)
+  const simulateDelay = (ms = 100) => new Promise(resolve => setTimeout(resolve, Math.min(ms, 100)));
 
   // ── Form Submission Handler (Login vs Registration with Email Verification) ──
   const handleSubmit = async (e) => {
@@ -875,11 +879,11 @@ export default function AuthView({ onLoginSuccess, onBack, theme }) {
                   {loading && !isRegistering ? (
                     <>
                       <span className="spinner-before"></span>
-                      <span>Authenticating...</span>
+                      <span>Signing in...</span>
                     </>
                   ) : (
                     <>
-                      <span>Log In</span>
+                      <span>Sign In</span>
                       <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>arrow_forward</span>
                     </>
                   )}
@@ -1148,7 +1152,7 @@ export default function AuthView({ onLoginSuccess, onBack, theme }) {
                   {loading && isRegistering ? (
                     <>
                       <span className="spinner-before"></span>
-                      <span>Dispatching Verification Code...</span>
+                      <span>Sending verification code...</span>
                     </>
                   ) : (
                     <>
@@ -1293,8 +1297,9 @@ export default function AuthView({ onLoginSuccess, onBack, theme }) {
                 type="button"
                 className="forgot-close-btn"
                 onClick={() => setOtpLoginOpen(false)}
+                title="Close"
               >
-                ✕
+                <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>close</span>
               </button>
             </div>
 
@@ -1419,7 +1424,7 @@ export default function AuthView({ onLoginSuccess, onBack, theme }) {
                     {otpLoginLoading ? (
                       <>
                         <span className="spinner-before"></span>
-                        <span>Verifying & Signing In...</span>
+                        <span>Signing in...</span>
                       </>
                     ) : (
                       <>
@@ -1456,8 +1461,9 @@ export default function AuthView({ onLoginSuccess, onBack, theme }) {
                 type="button"
                 className="forgot-close-btn"
                 onClick={() => setRegVerifyOpen(false)}
+                title="Close"
               >
-                ✕
+                <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>close</span>
               </button>
             </div>
 
@@ -1508,7 +1514,7 @@ export default function AuthView({ onLoginSuccess, onBack, theme }) {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
                   {/* 1. Official Email Code Box */}
-                  <div style={{ background: 'rgba(255, 255, 255, 0.03)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '12px', padding: '14px' }}>
+                  <div style={{ background: 'var(--bg-subcard, var(--bg-card))', border: '1px solid var(--border)', borderRadius: '12px', padding: '14px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                         <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#22c55e' }}>mail</span>
@@ -1517,14 +1523,14 @@ export default function AuthView({ onLoginSuccess, onBack, theme }) {
                         </span>
                       </div>
                       <span style={{ fontSize: '0.72rem', color: regVerifyEmailOtp.length === 6 ? '#22c55e' : 'var(--text-muted)', fontWeight: 600 }}>
-                        {regVerifyEmailOtp.length === 6 ? '✓ 6 Digits Entered' : `Sent to: ${email}`}
+                        {regVerifyEmailOtp.length === 6 ? '6 Digits Entered' : `Sent to: ${email}`}
                       </span>
                     </div>
                     <OtpPinBoxes value={regVerifyEmailOtp} onChange={setRegVerifyEmailOtp} autoFocus={true} />
                   </div>
 
                   {/* 2. Authorized Mobile SMS Code Box */}
-                  <div style={{ background: 'rgba(255, 255, 255, 0.03)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '12px', padding: '14px' }}>
+                  <div style={{ background: 'var(--bg-subcard, var(--bg-card))', border: '1px solid var(--border)', borderRadius: '12px', padding: '14px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                         <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#38bdf8' }}>smartphone</span>
@@ -1533,7 +1539,7 @@ export default function AuthView({ onLoginSuccess, onBack, theme }) {
                         </span>
                       </div>
                       <span style={{ fontSize: '0.72rem', color: regVerifySmsOtp.length === 6 ? '#22c55e' : 'var(--text-muted)', fontWeight: 600 }}>
-                        {regVerifySmsOtp.length === 6 ? '✓ 6 Digits Entered' : `Sent to: ${mobileNumber || 'Registered Mobile'}`}
+                        {regVerifySmsOtp.length === 6 ? '6 Digits Entered' : `Sent to: ${mobileNumber || 'Registered Mobile'}`}
                       </span>
                     </div>
                     <OtpPinBoxes value={regVerifySmsOtp} onChange={setRegVerifySmsOtp} />
@@ -1626,8 +1632,8 @@ export default function AuthView({ onLoginSuccess, onBack, theme }) {
                 <span className="material-symbols-outlined" style={{ fontSize: '16px', color: role === 'organization' ? '#38bdf8' : '#22c55e' }}>verified</span>
                 <span>
                   {role === 'organization'
-                    ? '🛡️ Verifying your official institutional email ensures verified NGO corporate accreditation under Philippine SEC regulations, legal accountability, and secure disaster relief disbursements.'
-                    : '🛡️ Verifying your email ensures genuine donor identity, instant receipt generation, and transparent ledger access.'}
+                    ? 'Verifying your official institutional email ensures verified NGO corporate accreditation under Philippine SEC regulations, legal accountability, and secure disaster relief disbursements.'
+                    : 'Verifying your email ensures genuine donor identity, instant receipt generation, and transparent ledger access.'}
                 </span>
               </div>
 
@@ -1653,7 +1659,7 @@ export default function AuthView({ onLoginSuccess, onBack, theme }) {
                   {regVerifyLoading ? (
                     <>
                       <span className="spinner-before"></span>
-                      <span>Verifying Credentials...</span>
+                      <span>Verifying code...</span>
                     </>
                   ) : (
                     <>
@@ -1697,7 +1703,7 @@ export default function AuthView({ onLoginSuccess, onBack, theme }) {
                 className="forgot-close-btn"
                 onClick={() => setForgotOpen(false)}
               >
-                ✕
+                <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>close</span>
               </button>
             </div>
 
@@ -1755,7 +1761,7 @@ export default function AuthView({ onLoginSuccess, onBack, theme }) {
                     {forgotLoading ? (
                       <>
                         <span className="spinner-before"></span>
-                        <span>Dispatching Code...</span>
+                        <span>Sending code...</span>
                       </>
                     ) : (
                       <>
@@ -1869,7 +1875,7 @@ export default function AuthView({ onLoginSuccess, onBack, theme }) {
                     {forgotLoading ? (
                       <>
                         <span className="spinner-before"></span>
-                        <span>Verifying & Updating...</span>
+                        <span>Updating password...</span>
                       </>
                     ) : (
                       <>
@@ -1925,8 +1931,9 @@ export default function AuthView({ onLoginSuccess, onBack, theme }) {
               className="sim-sms-close-btn"
               onClick={() => setSimulatedSmsToast(null)}
               title="Dismiss SMS notification"
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
             >
-              ✕
+              <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>close</span>
             </button>
           </div>
 
@@ -2002,8 +2009,9 @@ export default function AuthView({ onLoginSuccess, onBack, theme }) {
                 type="button"
                 className="sim-sms-close-btn"
                 onClick={() => setShowSimulatedPhoneModal(false)}
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
               >
-                ✕
+                <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>close</span>
               </button>
             </div>
 

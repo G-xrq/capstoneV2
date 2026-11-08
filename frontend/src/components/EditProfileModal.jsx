@@ -688,7 +688,7 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
     setSaveState('saving');
     setDisplayNameError('');
 
-    const token = localStorage.getItem('bbdrts_token');
+    const token = localStorage.getItem('bbdrts_token') || localStorage.getItem('token');
     try {
       const constructedLocation = [
         barangayName ? `Brgy. ${barangayName}` : '',
@@ -1584,6 +1584,27 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
                       </div>
 
                       <div className="bbdrts-theme-selection-grid">
+                        {/* Light Mode (Default) */}
+                        <div
+                          className={`bbdrts-theme-choice-card ${theme === 'light' ? 'active' : ''}`}
+                          onClick={() => {
+                            if (setTheme) setTheme('light');
+                            document.documentElement.setAttribute('data-theme', 'light');
+                            localStorage.setItem('bbdrts_theme', 'light');
+                          }}
+                        >
+                          <div className="bbdrts-theme-preview-box light">
+                            <span className="material-symbols-outlined">light_mode</span>
+                          </div>
+                          <div className="bbdrts-theme-choice-info">
+                            <div className="bbdrts-theme-choice-title">
+                              <strong>Light Mode (Default)</strong>
+                              {theme === 'light' && <span className="bbdrts-theme-active-tag">Active</span>}
+                            </div>
+                            <span>Clean, spacious white canvas with soft borders and readable typography.</span>
+                          </div>
+                        </div>
+
                         {/* Dark Mode */}
                         <div
                           className={`bbdrts-theme-choice-card ${theme === 'dark' ? 'active' : ''}`}
@@ -1598,52 +1619,10 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
                           </div>
                           <div className="bbdrts-theme-choice-info">
                             <div className="bbdrts-theme-choice-title">
-                              <strong>Obsidian Dark</strong>
+                              <strong>Dark Mode</strong>
                               {theme === 'dark' && <span className="bbdrts-theme-active-tag">Active</span>}
                             </div>
-                            <span>Deep high-contrast charcoal canvas with neon emerald relief accents.</span>
-                          </div>
-                        </div>
-
-                        {/* Light Mode */}
-                        <div
-                          className={`bbdrts-theme-choice-card ${theme === 'light' ? 'active' : ''}`}
-                          onClick={() => {
-                            if (setTheme) setTheme('light');
-                            document.documentElement.setAttribute('data-theme', 'light');
-                            localStorage.setItem('bbdrts_theme', 'light');
-                          }}
-                        >
-                          <div className="bbdrts-theme-preview-box light">
-                            <span className="material-symbols-outlined">light_mode</span>
-                          </div>
-                          <div className="bbdrts-theme-choice-info">
-                            <div className="bbdrts-theme-choice-title">
-                              <strong>Crisp Light</strong>
-                              {theme === 'light' && <span className="bbdrts-theme-active-tag">Active</span>}
-                            </div>
-                            <span>Clean executive daytime canvas with soft borders and readable slate typography.</span>
-                          </div>
-                        </div>
-
-                        {/* Cyber Neon */}
-                        <div
-                          className={`bbdrts-theme-choice-card ${theme === 'cyber' ? 'active' : ''}`}
-                          onClick={() => {
-                            if (setTheme) setTheme('cyber');
-                            document.documentElement.setAttribute('data-theme', 'cyber');
-                            localStorage.setItem('bbdrts_theme', 'cyber');
-                          }}
-                        >
-                          <div className="bbdrts-theme-preview-box cyber">
-                            <span className="material-symbols-outlined">terminal</span>
-                          </div>
-                          <div className="bbdrts-theme-choice-info">
-                            <div className="bbdrts-theme-choice-title">
-                              <strong>Cyber Terminal</strong>
-                              {theme === 'cyber' && <span className="bbdrts-theme-active-tag">Active</span>}
-                            </div>
-                            <span>High-tech Web3 command center with navy-cyan glow styling.</span>
+                            <span>Deep charcoal and obsidian background with comfortable contrast.</span>
                           </div>
                         </div>
                       </div>
@@ -2488,7 +2467,7 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
                   {saveState === 'success' && (
                     <>
                       <span className="material-symbols-outlined bbdrts-success-pop-icon" style={{ fontSize: '18px' }}>check_circle</span>
-                      <span>Changes Saved ✓</span>
+                      <span>Changes Saved</span>
                     </>
                   )}
                   {saveState === 'idle' && (
@@ -2606,7 +2585,7 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
                 </button>
               </div>
 
-              {/* Centered Zoom Bar: [Zoom Out] ───🔘─── [Zoom In] 100% */}
+              {/* Centered Zoom Bar: [Zoom Out] ─── Slider ─── [Zoom In] 100% */}
               <div className="bbdrts-cropper-zoom-bar">
                 <button
                   type="button"

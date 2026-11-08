@@ -1166,7 +1166,7 @@ export function DonorTierModal({
   };
 
   const handleCopyProof = () => {
-    const certText = `🎖️ Verified Certificate of Appreciation\n` +
+    const certText = `Verified Certificate of Appreciation\n` +
       `Donor: ${donorName}\n` +
       `Badge: ${activeTier ? activeTier.name : 'Community Contributor'}\n` +
       `Total Donated: ₱${Math.round(totalPhp).toLocaleString('en-US')} (${effectiveEth.toFixed(4)} ETH)\n` +

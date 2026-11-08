@@ -1,0 +1,157 @@
+====================================================================================================
+  BBDRTS — MASTER MANUSCRIPT REVISION GUIDE & DELEGATION BLUEPRINT
+  System Title : Blockchain-Based Donation and Relief Transparency System (BBDRTS)
+  Target File  : Capstone 1 / Revised (RRL).docx
+  Output File  : Capstone 1 / Revision.txt
+  Prepared By  : Gester C. Macaldo (Team Leader & Lead System Architect)
+  Assigned To  : Leslie Faye Baltazar, Reva Grace Faith A. Saga, Edrian Jade Ambalong,
+                 Niño Carl Vincent Cas, Meldwin A. Bato, Rainelyn C. Villaranda
+  Date         : September 22, 2026
+====================================================================================================
+
+----------------------------------------------------------------------------------------------------
+1. EXECUTIVE SUMMARY & REVISION CONTEXT
+----------------------------------------------------------------------------------------------------
+This document provides an exhaustive, section-by-section master list of all CHANGES, ADDITIONS, 
+REMOVALS, and ADJUSTMENTS required to finalize our Capstone 1 manuscript (`Revised (RRL).docx`).
+
+Our manuscript previously described an outdated, "crypto-only" donation prototype. However, our 
+actual production codebase is a fully implemented, enterprise-grade HYBRID PLATFORM featuring:
+  1. Dual-Rail Payments (MetaMask Sepolia ETH + GCash, Maya, Bank Transfer).
+  2. AI Receipt Fraud Inspection (Google Gemini 1.5 Flash Vision + Tesseract.js OCR).
+  3. Gasless Blockchain Relayer Notarization (Sepolia Testnet + Keccak-256 fallback seals).
+  4. Institutional NGO SEC Verification (Gemini AI document reader with Republic Seal inspection).
+  5. Disaster Radar Heatmap (Leaflet GIS mapping across all 17 Philippine regions).
+  6. Distributed Database & Multi-Hop Email Pipeline (TiDB Cloud MySQL + Resend/Nodemailer).
+  7. Usability & UI Constraints ("Select up to 4 tags" to prevent a cluttered interface).
+
+All team members must follow their assigned sections below to ensure our manuscript is 100% defense-ready!
+
+
+====================================================================================================
+2. DETAILED SECTION-BY-SECTION REVISION INSTRUCTIONS
+====================================================================================================
+
+----------------------------------------------------------------------------------------------------
+SECTION A: CHAPTER 1 — INTRODUCTION & BACKGROUND
+Assigned Members: Leslie Faye Baltazar & Reva Grace Faith A. Saga
+----------------------------------------------------------------------------------------------------
+
+1. PARAGRAPH 26 (Third-Party Payment Gateways):
+   - ACTION: MODIFY / ADJUST
+   - Original Text: "Furthermore, processing these donations through standard third-party payment gateways incurs substantial transaction fees and centralized deductions..."
+   - Revision Instruction: Keep the mention of traditional gateway fees, but ADD an explanation of our system's Dual-Rail model. Explain that while Web3 native ETH transfers eliminate transaction fees entirely, local Philippine e-wallets (GCash, Maya, Bank Transfer) are supported for accessibility, verified via AI OCR receipt auditing, and notarized on-chain via our Gasless Sepolia Relayer.
+
+2. PARAGRAPH 46 (General Objective):
+   - ACTION: REPLACE / CHANGE
+   - Original Text: "The main objective of the project is to design and develop a transparent, web-based donation tracking system that eliminates third-party processing fees by leveraging blockchain technology."
+   - Revision Instruction: Replace with: "The main objective of the project is to design and develop a transparent, web-based hybrid donation and relief tracking system that combines direct blockchain transactions with AI-assisted multi-channel payment verification to eliminate opacity and transaction processing friction."
+
+3. PARAGRAPHS 49-55 (Specific Objectives):
+   - ACTION: ADD / EXPAND
+   - Revision Instruction: Retain the 4 baseline specific objectives (User roles/UI, Smart contract distribution, Immutable Sepolia ledger, Web3 wallet integration), AND ADD THE FOLLOWING 4 NEW SPECIFIC OBJECTIVES:
+     * Specific Objective 5: Integrate an AI-driven OCR and vision engine (Tesseract.js and Gemini 1.5 Flash) for real-time payment receipt auditing, reference extraction, and rail mismatch detection.
+     * Specific Objective 6: Develop a gasless blockchain relayer service that automatically notarizes manual fiat contributions (GCash/Maya/Bank) onto the Sepolia testnet with Keccak-256 fallback seals.
+     * Specific Objective 7: Implement an AI-assisted SEC Certificate verification workflow to automatically audit and authenticate NGO legal identity documents prior to campaign approval.
+     * Specific Objective 8: Integrate a Disaster Radar Heatmap and interactive OpenStreetMap GPS picker to visually pinpoint relief operation centers, impacted barangays, and resource allocation geotags.
+
+4. PARAGRAPH 61 (System Capability #1):
+   - ACTION: MODIFY & ADD
+   - Original Text: "Enables direct wallet-to-wallet transactions..."
+   - Revision Instruction: Update Capability #1 to state that the system supports BOTH Web3 ETH wallet transfers and Philippine e-wallets (GCash/Maya/Bank Transfer).
+   - ADD THE FOLLOWING 4 NEW SYSTEM CAPABILITIES:
+     * Real-Time AI Vision Receipt Auditing & Rail Mismatch Detection.
+     * Institutional NGO SEC Verification with Republic Seal Inspection.
+     * Disaster Radar Calamity Heatmap & Regional Geotagging.
+     * Profanity & Content Moderation Engine with 14-Day Update Cooldown.
+
+5. PARAGRAPH 86 (Scope & Limitation — CRITICAL CONTRADICTION):
+   - ACTION: REMOVE CONTRADICTION & REWRITE
+   - Original Text: "...the system is strictly limited only to monetary donations... Transactions are restricted exclusively to blockchain-based transfers using Web3-enabled wallets..."
+   - Revision Instruction: REMOVE the statement that transactions are restricted exclusively to Web3 wallets. Replace with: "The system processes monetary donations through a hybrid framework supporting both Web3 native cryptocurrency (MetaMask ETH) and Philippine fiat payment rails (GCash, Maya, Bank Transfer). Off-chain e-wallet transactions are verified using AI OCR receipt auditing and notarized on-chain via a gasless blockchain relayer." RETAIN the explicit scope that the system is strictly limited to monetary/financial relief aid, not in-kind physical goods.
+
+6. PARAGRAPHS 107-122 (Limitations of the Study):
+   - ACTION: ADD NEW TECHNICAL LIMITATIONS
+   - Revision Instruction: Keep the existing 6 limitations (Internet Dependency, Sepolia Testnet, Network Congestion, Gas Fee Fluctuation, Third-Party Blockchain Services, Irreversible Transactions), AND ADD THE FOLLOWING 3 TECHNICAL LIMITATIONS:
+     * Limitation 7 (OCR Extraction Quality): Image extraction accuracy depends on receipt resolution and lighting clarity.
+     * Limitation 8 (Relayer Gas Wallet Balance): On-chain notarization of fiat receipts relies on the backend relayer wallet ETH balance on Sepolia, with automatic fallback to Keccak-256 cryptographic seals.
+     * Limitation 9 (Third-Party AI API Latency): Gemini Vision verification speed depends on network connectivity to Google AI servers.
+
+
+----------------------------------------------------------------------------------------------------
+SECTION B: CHAPTER 2 — THEORETICAL & CONCEPTUAL FRAMEWORK
+Assigned Members: Edrian Jade Ambalong, Rainelyn C. Villaranda, Niño Carl Vincent Cas, Meldwin A. Bato
+----------------------------------------------------------------------------------------------------
+
+1. PARAGRAPHS 141 & 162 (Theoretical Framework):
+   - ACTION: UPDATE COUNT & ADD 2 NEW THEORIES (Edrian & Rainelyn)
+   - Revision Instruction: Change theory count from "three established theories" to "nine established theories". Retain all 7 baseline theories (Transparency Theory, Distributed Trust Model, Smart Contract Theory, Principal-Agent Theory, Information Asymmetry Theory, Stakeholder Theory, Decentralized Network Theory), AND ADD:
+     * Theory 8 (Computer Vision & Optical Character Recognition (OCR) Theory): Explains visual pattern extraction for financial receipt auditing and SEC certificate verification to eliminate human admin bias.
+     * Theory 9 (Hybrid Web2/Web3 Infrastructure Model): Justifies bridging Web2 e-wallets (GCash/Maya) into Web3 public ledgers via gasless relayers.
+
+2. PARAGRAPHS 168-174 (IPO Model):
+   - ACTION: REWRITE TEXT & REDRAW DIAGRAM (Niño & Meldwin)
+   - Revision Instruction: Update the IPO Model description and diagram:
+     * INPUT: Add uploaded receipt screenshots (PNG/JPG base64), SEC Incorporation Certificates, GPS coordinates, e-wallet payment credentials (GCash/Maya QR).
+     * PROCESS: Add Tesseract OCR text extraction, Gemini 1.5 Flash Vision audit, payment rail mismatch detection, database duplicate reference check, gasless Sepolia relayer broadcasting, and profanity filtering.
+     * OUTPUT: Add OCR auto-filled fields, payment rail mismatch warning banners, SEC Verified NGO profile badges, Disaster Radar heatmap markers, and gasless on-chain TxHashes / Keccak-256 seals.
+
+3. PARAGRAPHS 180-190 (DFD & ERD Schema):
+   - ACTION: UPDATE DIAGRAMS & ADD UI CONSTRAINTS (Niño & Meldwin)
+   - Revision Instruction: Update DFD Level 0 to explicitly show Process 3.1 (AI Receipt & SEC Verification) and Process 3.2 (Gasless Relayer Broadcasting). Update ERD schema description to include `MANUAL_DONATION` table fields (`Reference_Number`, `Receipt_Base64`, `Payment_Method`, `Verification_Status`, `Ai_Confidence_Score`). Add a paragraph justifying the "Select up to 4 tags" constraint to prevent a cluttered interface on the UI.
+
+
+----------------------------------------------------------------------------------------------------
+SECTION C: CHAPTER 3 — METHODOLOGY & REVIEW OF RELATED LITERATURE (RRL)
+Assigned Members: Edrian Jade Ambalong, Rainelyn C. Villaranda, Gester C. Macaldo (Leader)
+----------------------------------------------------------------------------------------------------
+
+1. PARAGRAPHS 220-232 (Agile Methodology & Software Evaluation):
+   - ACTION: UPDATE SYSTEM DEVELOPMENT & TESTING PHASES (Gester Macaldo)
+   - Revision Instruction: Update System Development, Testing & Evaluation phases to detail:
+     * Integration of `@google/generative-ai` and `tesseract.js` for receipt auditing.
+     * Configuration of `ethers.js` v6 relayer with Keccak-256 fallback notarization.
+     * Dual-driver MySQL/SQLite database auto-migration (`database.js`).
+     * ISO 9126 software quality evaluation criteria (Functionality, Reliability, Usability, Efficiency, Maintainability, Portability).
+
+2. PARAGRAPHS 253 & 256 (Local Studies & The Gap):
+   - ACTION: UPDATE LOCAL STUDIES & THE GAP (Edrian & Rainelyn)
+   - Revision Instruction: Mention that while GCash/Maya provide fast e-wallet transactions, they lack public ledger transparency once deposited. Explain how BBDRTS bridges local e-wallets into public blockchain ledgers using AI OCR auditing and gasless relayer notarization.
+
+3. PARAGRAPH 263 (RRL Subsections to ADD):
+   - ACTION: ADD 4 NEW RRL SUBSECTIONS (Edrian & Rainelyn)
+   - Revision Instruction: Add literature reviews for:
+     * RRL Subsection 1: AI & Computer Vision in Financial Receipt & SEC Verification.
+     * RRL Subsection 2: Gasless Relayers & Hybrid Payment Architectures in Developing Nations.
+     * RRL Subsection 3: GIS & Disaster Response Heatmap Mapping in the Philippines.
+     * RRL Subsection 4: Survey Data Justification (Concise summary of survey results proving the existence of lost physical receipts and opaque ledgers in local relief drives).
+
+
+====================================================================================================
+3. MEMBER RESPONSIBILITY MATRIX
+====================================================================================================
+
++-------------------------------------+------------------------------------------------------------+
+| TEAM MEMBER                         | ASSIGNED REVISION DUTIES                                   |
++-------------------------------------+------------------------------------------------------------+
+| Leslie Faye Baltazar &              | • Chapter 1 Scope & Limitations (Hybrid Web2/Web3)         |
+| Reva Grace Faith A. Saga            | • General & Specific Objectives (4 New Objectives)         |
+|                                     | • System Capabilities & Technical Limitations              |
++-------------------------------------+------------------------------------------------------------+
+| Edrian Jade Ambalong &              | • Chapter 2 Theoretical Framework (2 New Theories)         |
+| Rainelyn C. Villaranda              | • Chapter 3 RRL Subsections (AI, Relayer, GIS, Survey)     |
+|                                     | • Local Studies & The Gap Revisions                        |
++-------------------------------------+------------------------------------------------------------+
+| Niño Carl Vincent Cas &             | • Chapter 2 IPO Model Text & Diagram Redraw                |
+| Meldwin A. Bato                     | • DFD Level 0 (Processes 3.1 & 3.2 for AI/Relayer)         |
+|                                     | • ERD Database Schema (`MANUAL_DONATION` Table)            |
+|                                     | • UI Design Constraints ("Select up to 4 tags")            |
++-------------------------------------+------------------------------------------------------------+
+| Gester C. Macaldo                   | • Chapter 3 Agile Methodology & ISO 9126 Metrics           |
+| (Team Leader & Lead Architect)      | • Backend/Relayer Codebase Documentation                   |
+|                                     | • Final Manuscript Compilation & Defense Leadership        |
++-------------------------------------+------------------------------------------------------------+
+
+====================================================================================================
+END OF REVISION GUIDE — STORED IN Capstone 1 / Revision.txt
+====================================================================================================

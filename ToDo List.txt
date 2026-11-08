@@ -1,0 +1,264 @@
+SECTION A: PRELIMINARY PAGES & CHAPTER I
+1. Title Page, Approval Sheet, & Acknowledgement
+text
+[REVA & LESLIE]
+NOTE: Kamo himo sa preliminary front matter parehas sa CENRMO page 1-4 ug 13.
+1. Approval Sheet: Sunda ang format sa CENRMO page 2. I-type ang atong title "Blockchain-Based Donation and Relief Transparency System", atong names, si Mrs. Haidee T. Galdo as Adviser, si Mrs. Riza Lynn O. Siega as Chairman, ug sila Mr. Marnuld Climaco ug Mr. Leonardo Hoyla as Committee Members.
+2. Acknowledgement: Sunda ang format sa CENRMO page 13. Pasalamat sa Ginoo, sa atong adviser Mrs. Haidee Galdo, sa panel, sa CCS faculty, sa atong tagsa-tagsa ka ginikanan, ug sa atong teamwork sa grupo.
+
+2. Table of Contents, Lists of Figures/Tables/Notations
+text
+[MELDWIN & CAS]
+NOTE: Kamo compile sa preliminary index tables parehas sa CENRMO pp. 3-9.
+1. Table of Contents: Ilista tanang Chapters (I to III + Prototype, Evaluation, Recommendations, Appendices).
+2. List of Figures: Ilista tanang Diagrams ug Storyboard screenshots (Figure 1.1 hangtod Figure 22.1).
+3. List of Notations: Himoa ang table parehas sa CENRMO page 8-9. I-define ang mga acronyms: BBDRTS, ETH, dApp, Web3, OCR, GIS, LGU, SEC, DSWD, ISO 9126, RDBMS, TiDB, JWT, Keccak-256, API, UI, UX.
+
+3. Executive Summary
+text
+[REVA & LESLIE]
+NOTE: Isulat ang Executive Summary (1.5 to 2 pages parehas sa CENRMO pp. 10-12).
+- Paragraph 1: I-explain ang problema sa traditional relief drives (opaque spreadsheet records, delayed liquidation, tampering, lost receipts).
+- Paragraph 2: I-introduce ang BBDRTS ug ang atong Dual-Rail payment model (Web3 Sepolia ETH + local GCash/Maya/Bank transfers nga gi-scan sa Gemini AI OCR ug gi-notarize sa Sepolia blockchain gamit ang gasless relayer).
+- Paragraph 3: Hisgoti ang Agile methodology ug ang atong 90-respondent survey nga nagpamatuod nga grabe ang demand sa transparent system.
+- Paragraph 4: I-highlight ang final impact sa NGOs, donors, beneficiaries, ug student organizations.
+
+4. Chapter I: Introduction & Payment Gateways
+text
+[REVA & LESLIE]
+NOTE: Ayaw ninjo e delete ag first duha ka sentences bahin sa spreadsheet tampering kay sakto nana. Ag e revise ra ninjo is ag last sentence about payment gateways to introduce our Dual-Rail system: Explain ninjo nga zero processing fees na ang Web3 Sepolia ETH nya ang local GCash/Maya/Bank transfers kay gi scan gihapon via Gemini AI Vision OCR ug gi notarize sa Sepolia blockchain gamit ang atong gasless relayer.
+
+5. General & Specific Objectives
+text
+[REVA & LESLIE]
+NOTE: Replace the current General Objective. Ayaw lng jud e claim nga “eliminates all processing fees” kay makasab’an tas panel (since local e-wallets still apply standard gateway rules). Rewrite this statement to define the system as a "transparent, web-based hybrid donation and relief tracking system that combines direct blockchain transfers with AI-assisted multi-channel payment verification."
+text
+[EJ & RAINY]
+NOTE: Keep sub-points gikan (a) through (d) under Objective 1, as well as Objectives 2 and 3. For this is igo ra ninjo e expand ang Objective 1 by adding sub-points (e) through (h) para ma apil ang atong gihimo sa system:
+(e) Incorporating AI-powered receipt OCR and fraud inspection (Tesseract.js & Gemini 1.5 Flash) to automatically extract, validate, and flag suspicious donation receipts;
+(f) Implementing a gasless Sepolia relayer to enable fee-free blockchain transaction notarization for donors and organizations without requiring them to hold ETH for gas;
+(g) Applying AI-assisted NGO SEC verification to validate the legitimacy and registration status of partner organizations prior to campaign approval; and
+(h) Deploying a disaster radar heatmap to visualize and geotag active relief campaigns and affected areas in real time.
+Basta e follow ninjo ang exact (a) to (h) bullet format!
+
+6. System Capabilities & Project Beneficiaries
+text
+[EJ & RAINY]
+NOTE: Bag’oha ag Capability #1 para mo reflect nga Dual-Rail na ang system (Web3 ETH ug local GCash/Maya/Bank Transfer). E keep lng ag Capabilities #2, #3, ug #4 (Public Ledger, Smart Contracts, Real-Time Dashboard). Nya dugangi ug 4 ka bag’ong capabilities (#5 to #8):
+(#5) Real-time AI receipt audit & OCR
+(#6) NGO SEC AI document verification
+(#7) Disaster Radar Heatmap & GPS geotagging
+(#8) Content moderation engine with 14-day update cooldown.
+text
+[MELDWIN & CAS]
+NOTE: Sa Beneficiaries section:
+1. Sa Donors / General Public: E delete ang claim nga "absolute transparency and peace of mind" kay gisahon ta sa panel ani HAHAHAH. Alisdi ra na into something like "enhanced transaction auditability and verifiable data presentation".
+2. Sa Ultimate Beneficiaries: Ayaw e claim nga na eliminate ang tanang payment fees (kay ang GCash/Maya naa gihapoy standard user cash-in fees). Focus sa Web3 zero-fee transfers ug fast AI receipt verification.
+3. Sa Researchers: Dugangi ang atong technical skills nga na learn. Ayaw lang Web3 crypto, apila ang Gemini 1.5 Flash AI, Tesseract OCR, Gasless Relayer, Leaflet GIS Heatmaps, ug TiDB Cloud MySQL!
+
+7. Scope & Limitations (In-Scope, Out-of-Scope, Technical Limitations)
+text
+[LESLIE & RAINY]
+NOTE: E-format ang Scope parehas sa CENRMO pp. 21-24 nga naay distinct headers:
+1. "Project In-Scope": Ilista ang 8 ka functional modules: (1) Dual-Rail Donation Module, (2) Smart Contract Escrow & Direct Transfer Module, (3) AI Receipt OCR & Fraud Detection Module, (4) NGO SEC AI Verification Module, (5) Disaster Radar & Leaflet GIS Module, (6) Gasless Sepolia Relayer Module, (7) Campaign & Content Moderation Module, (8) Real-Time Transparency & Reporting Module.
+2. "Project Out-of-Scope": Ilista ang exclusions parehas sa CENRMO: Native mobile app (Android/iOS), physical goods/in-kind logistics tracking, offline transactions, automated bank debit APIs, direct LGU cash disbursement.
+3. E-delete ang sentence sa 3rd paragraph nga "Transactions are restricted exclusively to blockchain-based transfers using Web3-enabled wallets...". Alisdi na nga Dual-Rail framework supporting Web3 ETH ug local GCash/Maya/Bank transfers. Keep lng ninyo nga strictly monetary donations ra ag gi-handle!
+text
+[AKO NALNG ANI]
+NOTE: Retain ninjo ag 6 ka baseline limitations (Internet Dependency, Sepolia Testnet, Network Congestion, Gas Fee Fluctuation, Third-Party Blockchain Services, Irreversible Transactions). Nya dugangi lamn ug 3 ka bag’ong technical limitations:
+(7) OCR Image Extraction Quality: Accuracy of receipt data depends on photo resolution, lighting, and layout format.
+(8) Gasless Relayer Wallet Balance Dependency: On-chain fiat notarization relies on the server's sponsored relayer wallet ETH balance on Sepolia, with automatic fallback to Keccak-256 cryptographic seals if gas is depleted.
+(9) Google Gemini AI API Latency: Verification speed of NGO SEC documents and receipts depends on network response times to Google Generative AI cloud servers.
+SECTION B: THEORETICAL & CONCEPTUAL FRAMEWORK (CHAPTER I/II)
+
+8. Theoretical Framework (Expansion from 7 to 9 Theories)
+text
+[EJ & RAINY]
+NOTE: Update ang introductory sentence: Ilisi gikan "anchored on three established theories" ngadto sa "anchored on nine established theories and architectural models."
+I-keep ang 7 ka baseline theories (Transparency Theory, Distributed Trust Model, Smart Contract Theory, Principal-Agent Theory, Information Asymmetry Theory, Stakeholder Theory, Decentralized Network Theory). Nya idugang kining duha ka bag'ong theories:
+- Theory 8: Computer Vision & Optical Character Recognition (OCR) Theory (Mori et al., 1999; Smith, 2007) — nag-explain sa automated pattern recognition aron ma-extract ang text gikan sa resibo ug SEC certificates nga walay human tampering.
+- Theory 9: Hybrid Web2/Web3 Architectural Model (Tapscott & Tapscott, 2016) — nag-justify sa pag-bridge sa accessible Web2 fiat payment channels ngadto sa immutable Web3 public ledgers gamit ang gasless relayers.
+
+9. Conceptual Framework (IPO Model & Diagram 1.1)
+text
+[MELDWIN & CAS]
+NOTE: I-revise ang IPO Model text ug i-redraw ang Figure 1.1 Conceptual Framework diagram parehas sa CENRMO page 28:
+- INPUT: User credentials & Web3 wallet addresses, Campaign details & financial goals, Dual-rail donations (MetaMask ETH or GCash/Maya/Bank payment screenshots), NGO SEC registration certificates, OpenStreetMap GPS geotags.
+- PROCESS: Smart contract fund routing, Tesseract OCR text extraction, Gemini 1.5 Flash Vision receipt/SEC audit, Database duplicate reference check, Gasless Sepolia relayer transaction broadcasting, Leaflet GIS coordinate plotting, 14-day update cooldown enforcement.
+- OUTPUT: Immutable Sepolia on-chain transaction records (TxHashes), Keccak-256 notarized fallback seals, Verified NGO badges, Real-time Disaster Radar Heatmap, Auto-filled receipt verification modals, Downloadable financial audit reports.
+SECTION C: CHAPTER II — TECHNICAL BACKGROUND (NEW DEDICATED SECTION)
+text
+[EJ & RAINY]
+NOTE: Kining tibuok Chapter II Technical Background WALA PA JUD SA ATONG DOCS! Sunda ang exact structure sa CENRMO pp. 30-37 (8 ka subsections):
+1. Introduction: Overview sa tech background sa BBDRTS.
+2. System Overview: Giunsa pag-integrate ang Web2 React frontend, Node/Express backend, TiDB Cloud MySQL, ug Web3 Sepolia smart contracts.
+3. System Components:
+   - 3.1 Backend: Node.js, Express.js, ethers.js v6, @google/generative-ai, tesseract.js.
+   - 3.2 Frontend: React.js, Vite, Vanilla CSS3 tokens, Lucide/Material icons.
+   - 3.3 Database Management: TiDB Cloud Serverless MySQL (with SQLite dual-driver fallback in database.js).
+4. Development Tools & Technologies: VS Code, Git/GitHub, Vite, Postman, MetaMask, Hardhat/Remix.
+5. System Architecture: Multi-Tier Architecture (Presentation Layer -> Application/Relayer Layer -> Data/Blockchain Layer).
+6. Security & Privacy: Password Hashing (bcrypt), Role-Based Access Control (Donor, NGO, Admin), JWT Authentication, Gemini AI Receipt Rail Mismatch Checking, 14-Day Cooldown on Campaign Edits, Activity Logging.
+7. Testing & Quality Assurance: Unit testing, Sepolia testnet execution, ISO 9126 software quality evaluation.
+8. Deployment & Maintenance: Vercel frontend hosting, Cloud Node.js backend execution, TiDB Cloud database cluster.
+SECTION D: CHAPTER II — REVIEW OF RELATED LITERATURE (RRL EXPANSION)
+
+10. Local Studies, The Gap, & 4 New RRL Subsections
+text
+[EJ & RAINY]
+NOTE: 
+1. Sa Local Studies: I-expand ang discussion bahin sa GCash, Maya, ug bank transfers. I-cite si Ramos (2022) o PIDS report nga bisan paspas ang e-wallets sa Pilipinas, mawala ang transparency sa public pag-sulod sa kwarta sa personal account sa organization.
+2. Sa The Gap: Klaroha nga ang gap dili kay walay payment system, kundi ang kawalay automated bridge tali sa local e-wallets ug tamper-proof public ledgers.
+3. Idugang kining 4 ka bag'ong RRL subsections:
+   - Subsection 1: AI & Computer Vision in Financial Document Auditing (Gemini Vision & OCR literature).
+   - Subsection 2: Gasless Blockchain Relayers and Account Abstraction in Developing Economies.
+   - Subsection 3: Geographic Information Systems (GIS) and Heatmap Mapping in Humanitarian Relief Operations.
+   - Subsection 4: Empirical Studies on Opaque Ledgers and Tampering in Philippine Student/NGO Relief Campaigns.
+SECTION E: CHAPTER III — METHODOLOGY & EVALUATION
+
+11. Research Design, 90-Respondent Survey, & Data Analysis
+text
+[REVA & LESLIE]
+NOTE: Kopyaha ang methodological rigor sa CENRMO pp. 43-46 ug i-adapt sa atong system:
+1. Research Design: Descriptive research design gamit ang structured survey questionnaire.
+2. Respondents of the Study: 90 respondents gamit ang purposive sampling:
+   - 30 Donors / Students who contributed to donation drives
+   - 30 Officers / Representatives of Independent NGOs and Student Organizations (CCS)
+   - 30 Beneficiaries / Community volunteers in calamity-affected areas
+3. Research Instrument: 4-part survey questionnaire (Part 1: Profile, Part 2: Experience with traditional manual/e-wallet donation drives, Part 3: Problems encountered like lack of liquidation, lost receipts, and suspicion of fund misuse, Part 4: Perceived benefits of the proposed BBDRTS).
+4. Data Gathering & Analysis: Permission from CCS, online/in-person survey distribution, descriptive statistical analysis (frequency counts, percentages, and weighted means).
+5. Ethical Considerations: Voluntary participation, confidentiality, Republic Act 10173 (Data Privacy Act of 2012).
+
+12. Agile Software Development Methodology & ISO 9126 Metrics
+text
+[AKO NALNG ANI]
+NOTE: Ako bahala mo-expand sa Agile Development Phases ug ISO 9126 Software Quality evaluation:
+- I-document nako ang 6 ka Agile iterations: Requirements Gathering, Architectural Planning, Frontend/Backend Sprint, Smart Contract & Relayer Coding, Sepolia Testnet Debugging, Stakeholder Acceptance.
+- I-detail nako ang ISO 9126 evaluation metrics: Functionality, Reliability, Usability, Efficiency, Maintainability, Portability — i-explain kung kinsay mo-evaluate (IT Experts, NGO Officers, Donors) gamit ang 5-point Likert scale.
+SECTION F: CHAPTER III — REQUIREMENT ANALYSIS & DOCUMENTATION (NEW SECTIONS)
+
+13. Requirement Analysis (WHO, WHAT, WHERE, WHEN, HOW)
+text
+[LESLIE & RAINY]
+NOTE: Sunda ang format sa CENRMO pp. 51-53:
+- WHO: Donors, Partner NGOs, Student Organizations (CCS), System Administrators.
+- WHAT: Web3 ETH wallet transfer, GCash/Maya/Bank fiat transfer with receipt screenshot upload, Gemini AI OCR receipt extraction, NGO SEC document verification, Gasless relayer notarization, Relief campaign creation, Disaster radar geotagging, Financial liquidation reporting.
+- WHERE: Web application (accessible via desktop and mobile browser), Ethereum Sepolia Testnet, TiDB Cloud MySQL.
+- WHEN: 24/7 online donation submission, instant real-time AI receipt scanning, immediate relayer on-chain broadcasting.
+- HOW: Donors select either Web3 or Fiat rail; for fiat, Gemini Vision extracts reference numbers and checks for duplicates; verified transactions are hashed and broadcasted to Sepolia via the gasless relayer.
+
+14. Requirement Documentation (Functional & Non-Functional Requirements)
+text
+[MELDWIN & CAS]
+NOTE: Sunda ang format sa CENRMO pp. 54-58. I-number ug i-bullet ang requirements:
+1. Functional Requirements:
+   - 1.1 User Account & Role-Based Access Control (Donor, NGO, Admin)
+   - 1.2 Dual-Rail Donation Processing (Web3 MetaMask ETH + Fiat GCash/Maya/Bank)
+   - 1.3 AI Receipt OCR & Fraud Inspection (Tesseract.js + Gemini 1.5 Flash Vision)
+   - 1.4 NGO Registration & SEC AI Document Verification
+   - 1.5 Relief Campaign Lifecycle Management & 14-Day Cooldown
+   - 1.6 Gasless Sepolia Relayer Transaction Notarization
+   - 1.7 Disaster Radar Calamity Heatmap & Regional Filtering
+   - 1.8 Real-Time Public Transparency Feed & Reporting
+2. Non-Functional Requirements:
+   - Anchored on ISO 9126: Functionality, Reliability, Usability, Efficiency, Maintainability, Portability.
+SECTION G: CHAPTER III — SYSTEM MODELING & DFD/ERD DIAGRAMS
+
+15. DFD Level 0, Level 1 DFDs, Level 2 DFD, and ERD Database Schema
+text
+[AKO NALNG ANI]
+NOTE: Ako mo-update sa tanang DFDs ug ERD schema para mo-reflect sa atong actual codebase:
+1. Context Diagram (Figure 19.1): Donor, NGO, Administrator, Sepolia Blockchain, Google Gemini AI.
+2. Diagram 0 (Level 0 DFD - Figure 20.1): 
+   - Process 1.0: Manage Accounts & NGO Verification
+   - Process 2.0: Manage Relief Campaigns & Disaster Radar
+   - Process 3.0: Process Dual-Rail Donations & AI Verification
+     * Sub-Process 3.1: AI Receipt OCR & Rail Mismatch Checking
+     * Sub-Process 3.2: Gasless Relayer Blockchain Broadcasting
+   - Process 4.0: Generate Transparency Reports & On-Chain Audit
+3. Level 1 DFDs: Himoan ug tagsa-tagsa ka Level 1 diagram ang Process 1.0, 2.0, 3.0, ug 4.0 (parehas sa CENRMO pp. 96-100).
+4. Level 2 DFD (Figure 21.1): I-zoom in ang Process 3.1 (AI Receipt OCR Pipeline: Image Upload -> Tesseract Extraction -> Gemini Vision Validation -> Duplicate Reference Check -> Approval/Flagging).
+5. ERD (Figure 22.1): I-update ang ERD schema para apil ang `MANUAL_DONATION` table fields (`Reference_Number`, `Receipt_Base64`, `Payment_Method`, `Verification_Status`, `Ai_Confidence_Score`, `Ai_Extracted_Amount`), ug ang `ADMINISTRATOR`, `ORGANIZATION`, `CAMPAIGN`, `DONOR`, `DONATION_TRANSACTION`, `NOTIFICATIONS` tables.
+SECTION H: CHAPTER III — STORYBOARD (15 INTERFACES, DESKTOP + MOBILE)
+text
+[MELDWIN & CAS]
+NOTE: Kining Storyboard section ang kinadak-ang kulang! Sa CENRMO (pp. 59-93), naay 17 ka interfaces nga naay Desktop ug Mobile screenshots, Description, Actors, ug Steps!
+Himuon nato ni para sa atong 15 ka working interfaces sa frontend:
+1. Homepage / Landing Page (Figure 2.1 Desktop, 2.2 Mobile)
+2. Login & Registration Interface (Figure 3.1 Desktop, 3.2 Mobile)
+3. Donor Dashboard & Overview (Figure 4.1 Desktop, 4.2 Mobile)
+4. Relief Campaigns Catalog & Search (Figure 5.1 Desktop, 5.2 Mobile)
+5. Web3 Crypto Donation Modal & MetaMask Sign (Figure 6.1 Desktop, 6.2 Mobile)
+6. Fiat Donation Form & AI Receipt Scanner (Figure 7.1 Desktop, 7.2 Mobile)
+7. Donor Contribution History & Blockchain Certificate Modal (Figure 8.1 Desktop, 8.2 Mobile)
+8. Organization Dashboard & Campaign Deployment Form (Figure 9.1 Desktop, 9.2 Mobile)
+9. NGO SEC Accreditation & Document Upload (Figure 10.1 Desktop, 10.2 Mobile)
+10. Inbound Manual Donations Verification & AI Fraud Review (Figure 11.1 Desktop, 11.2 Mobile)
+11. Disaster Radar Heatmap & Regional Filter (Figure 12.1 Desktop, 12.2 Mobile)
+12. Admin Dashboard & Verification Queue (Figure 13.1 Desktop, 13.2 Mobile)
+13. User Management & Access Control (Figure 14.1 Desktop, 14.2 Mobile)
+14. System Activity Logs & Relayer Notarization Monitor (Figure 15.1 Desktop, 15.2 Mobile)
+15. Relief AI Assistant Chatbot Drawer (Figure 16.1 Desktop, 16.2 Mobile)
+Format sa matag interface:
+- Description: Unsa ang screen ug unsay purpose.
+- Actors: Donor / NGO Staff / Admin.
+- Steps: Step 1 to Step N (unsaon pag-gamit sa user).
+- Desktop Screenshot (kuhaon gikan sa atong running React app).
+- Mobile Screenshot (i-inspect element sa browser -> mobile view).
+SECTION I: POST-DEVELOPMENT CHAPTERS & APPENDICES
+
+16. Prototype Description & Table 1.0 Key Feature Summary
+text
+[LESLIE & RAINY]
+NOTE: Sunda ang CENRMO pp. 103-107. Isulat ang Description of the Prototype:
+- I-explain ang Donor-side web interface, Organization-side management portal, ug Admin governance dashboard.
+- Himoa ang "Table 1.0 Key Feature Summary" nga naay columns: Feature, Description, Benefit:
+  * Dual-Rail Donation Processing
+  * Gemini 1.5 Flash Vision Receipt Auditing
+  * Gasless Sepolia Relayer Notarization
+  * Institutional NGO SEC AI Verification
+  * Disaster Radar Heatmap & Geotagging
+  * Content Moderation & 14-Day Update Cooldown
+  * Real-Time Transparency Dashboard & TxHash Inspector
+
+17. Results & Discussion (Post-Implementation & ISO 9126 Evaluation)
+text
+[AKO NALNG ANI]
+NOTE: Ako mo-draft sa post-implementation results (parehas sa CENRMO pp. 108-109):
+- 1. Enhanced Efficiency in Donation Processing (sub-second AI receipt OCR verification vs. manual days of auditing).
+- 2. Elimination of Unauthorized Ledger Tampering (immutable on-chain records vs. editable Excel sheets).
+- 3. Successful Deployment of Disaster Radar Heatmap (spatial visualization across all 17 regions).
+- 4. Increased Transparency and Public Trust (verifiable Sepolia TxHashes for every contribution).
+- 5. ISO 9126 Evaluation Summary Table (ratings from IT experts, NGOs, and student leaders).
+
+18. Recommendations for Future Enhancements
+text
+[REVA & LESLIE]
+NOTE: Sunda ang CENRMO pp. 110-112. Isulat kining 9 ka specific recommendations para sa future development:
+1. Cross-Chain Blockchain Interoperability (Polygon, Arbitrum L2, Base).
+2. Native Mobile Application Development (React Native / Flutter for offline push alerts).
+3. Direct E-Wallet API Webhooks (Direct merchant integration with GCash & Maya for instant callback verification).
+4. Decentralized Identity (DID) for Beneficiaries.
+5. Multi-Signature Escrow Wallets for High-Value Disaster Relief Funds.
+6. Offline USSD / SMS Donation Gateway for remote calamity areas without internet.
+7. Official Government Agency Integration (direct real-time API verification with SEC, DSWD, and NDRRMC).
+8. AI-Driven Predictive Resource Allocation.
+9. Continuous Smart Contract Auditing and Bug Bounty Programs.
+
+19. Definition of Terms (Alphabetical Glossary)
+text
+[MELDWIN & CAS]
+NOTE: Himoa ang Definition of Terms table parehas sa CENRMO page 113:
+- Alphabetical order: Blockchain, Gasless Relayer, Smart Contract, Ethereum Sepolia Testnet, Dual-Rail System, Optical Character Recognition (OCR), Google Gemini 1.5 Flash, Keccak-256 Cryptographic Hash, Leaflet GIS, TiDB Cloud Serverless, Immutable Ledger, ISO 9126, Non-Governmental Organization (NGO), Transaction Hash (TxHash).
+
+20. Appendices (A through G)
+text
+[REVA & LESLIE]
+NOTE: Kamo compile sa Appendices A hangtod G parehas sa CENRMO pp. 114-120:
+- Appendix A: Interview & Survey Questionnaire (ang 4-part survey nga gigamit sa 90 respondents).
+- Appendix B: Sample of Traditional Manual Spreadsheet & Lost Receipt Evidence.
+- Appendix C: Sample NGO SEC Certificate of Incorporation & DSWD Permit.
+- Appendix D: Sample Smart Contract Solidity Code & Sepolia Etherscan Transaction Receipt.
+- Appendix E: Endorsement and Formal Commitment Letter (gikan sa College of Computer Studies / student council).
+- Appendix F: Approval Letter to Conduct Study.
+- Appendix G: Participant Consent and Ethics Clearance Form.

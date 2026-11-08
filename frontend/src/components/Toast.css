@@ -2,17 +2,29 @@
 
 .toast-container {
   position: fixed !important;
-  bottom: 24px !important;
+  top: 84px !important; /* Cleanly docked below top navbar (eliminates bottom-right collision with ReliefAI) */
   right: 24px !important;
-  z-index: 2147483647 !important; /* Maximum 32-bit signed integer z-index to overlay all modals & backdrops */
+  bottom: auto !important;
+  z-index: 2147483647 !important; /* Maximum z-index to overlay modals & backdrops */
   display: flex !important;
   flex-direction: column !important;
-  justify-content: flex-end !important;
+  justify-content: flex-start !important;
   gap: 12px !important;
   max-width: 420px !important;
   width: calc(100vw - 48px) !important;
   pointer-events: none !important;
 }
+
+@media (max-width: 640px) {
+  .toast-container {
+    top: 72px !important;
+    right: 16px !important;
+    left: 16px !important;
+    width: calc(100vw - 32px) !important;
+    max-width: 100% !important;
+  }
+}
+
 
 .toast-card {
   pointer-events: auto !important;
@@ -38,13 +50,6 @@
   background: rgba(255, 255, 255, 0.98);
   border-color: rgba(0, 0, 0, 0.15);
   box-shadow: 0 25px 60px rgba(0, 0, 0, 0.22), 0 0 0 1px rgba(0, 0, 0, 0.08);
-}
-
-[data-theme="cyber"] .toast-card,
-.toast-container[data-theme="cyber"] .toast-card {
-  background: rgba(22, 24, 31, 0.96);
-  border-color: rgba(0, 255, 163, 0.35);
-  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.85), 0 0 25px rgba(0, 255, 163, 0.2);
 }
 
 .toast-card:hover {

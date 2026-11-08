@@ -9,9 +9,16 @@
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const Tesseract = require('tesseract.js');
 
-// Initialize Gemini AI if API Key exists
-const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_AI_API_KEY;
-const genAI = apiKey ? new GoogleGenerativeAI(apiKey) : null;
+// Helper to dynamically get Gemini AI when GEMINI_API_KEY is configured
+function getGenAI() {
+  const apiKey = (process.env.GEMINI_API_KEY || process.env.GOOGLE_AI_API_KEY || '').trim();
+  if (!apiKey) return null;
+  try {
+    return new GoogleGenerativeAI(apiKey);
+  } catch (_) {
+    return null;
+  }
+}
 
 /**
  * Normalize common OCR character misreadings in numeric context.
@@ -232,9 +239,16 @@ async function auditReceiptImage(base64Data, declaredAmountEth = 0, paymentRail 
     }
 
     // ── 2. Gemini 1.5 Flash Vision AI Inspection ─────────────────────────
+    const genAI = getGenAI();
     if (genAI) {
       try {
-        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+        let model;
+        for (const m of ['gemini-3.8-flash', 'gemini-3.5-flash', 'gemini-flash-latest', 'gemini-1.5-flash']) {
+          try {
+            model = genAI.getGenerativeModel({ model: m });
+            break;
+          } catch (_) {}
+        }
         const prompt = `You are an expert OCR & anti-fraud security engine auditing Philippine payment receipts (${paymentRail}, GCash, PayMaya, Bank Transfer, QR Ph).
 Inspect this image carefully.
 Extract:

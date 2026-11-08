@@ -334,6 +334,8 @@ body.tour-traveling .driver-popover,
 }
 
 /* ── Light Mode Theme: Forest Green #16a34a & Clean White #ffffff ── */
+[data-theme="light"] .bbdrts-tour-popover,
+[data-theme="light"] .bbdrts-welcome-modal,
 .bbdrts-tour-popover.theme-light,
 .bbdrts-welcome-modal.theme-light {
   --tour-accent: #16a34a;
@@ -354,6 +356,18 @@ body.tour-traveling .driver-popover,
   --tour-btn-shadow-hover: 0 6px 18px rgba(22, 163, 74, 0.45);
 }
 
+[data-theme="light"] #bbdrts-tour-header-guard {
+  background: rgba(255, 255, 255, 0.85);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="light"] #bbdrts-tour-blur-surround {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+[data-theme="light"] .bbdrts-tour-popover .driver-popover-close-btn,
+[data-theme="light"] .bbdrts-welcome-modal .bbdrts-welcome-close,
 .bbdrts-tour-popover.theme-light .driver-popover-close-btn,
 .bbdrts-welcome-modal.theme-light .bbdrts-welcome-close {
   background: rgba(0, 0, 0, 0.05);
@@ -361,6 +375,8 @@ body.tour-traveling .driver-popover,
   color: #64748b;
 }
 
+[data-theme="light"] .bbdrts-tour-popover .driver-popover-close-btn:hover,
+[data-theme="light"] .bbdrts-welcome-modal .bbdrts-welcome-close:hover,
 .bbdrts-tour-popover.theme-light .driver-popover-close-btn:hover,
 .bbdrts-welcome-modal.theme-light .bbdrts-welcome-close:hover {
   background: rgba(239, 68, 68, 0.12);
@@ -396,29 +412,6 @@ body.tour-traveling .driver-popover,
 .bbdrts-welcome-modal.theme-light .bbdrts-btn-skip:hover {
   background: rgba(0, 0, 0, 0.05);
   color: #0f172a;
-}
-
-/* ── Cyber Theme: Neon Mint #00ffa3 & Deep Navy #12141c ── */
-.bbdrts-tour-popover.theme-cyber,
-.bbdrts-tour-popover.theme-navy,
-.bbdrts-welcome-modal.theme-cyber,
-.bbdrts-welcome-modal.theme-navy {
-  --tour-accent: #00ffa3;
-  --tour-glow: rgba(0, 255, 163, 0.6);
-  --tour-card-bg: #12141c;
-  --tour-card-border: rgba(0, 255, 163, 0.45);
-  --tour-card-shadow: 0 0 30px rgba(0, 255, 163, 0.25), 0 24px 50px rgba(0, 0, 0, 0.8);
-  --tour-badge-bg: rgba(0, 255, 163, 0.12);
-  --tour-badge-border: rgba(0, 255, 163, 0.35);
-  --tour-text-primary: #ffffff;
-  --tour-text-secondary: #e2e8f0;
-  --tour-text-muted: #94a3b8;
-  --tour-divider: rgba(0, 255, 163, 0.15);
-  --tour-btn-prev-bg: rgba(255, 255, 255, 0.08);
-  --tour-btn-prev-border: rgba(255, 255, 255, 0.15);
-  --tour-btn-next-bg: linear-gradient(135deg, #059669 0%, #00ffa3 100%);
-  --tour-btn-shadow: 0 4px 14px rgba(0, 255, 163, 0.35);
-  --tour-btn-shadow-hover: 0 6px 20px rgba(0, 255, 163, 0.55);
 }
 
 /* ═════════════════════════════════════════════════════════════════════

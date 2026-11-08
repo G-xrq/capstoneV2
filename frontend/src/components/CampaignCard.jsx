@@ -9,6 +9,7 @@ import DonorBadge, { DonorTierModal, globalDonorRegistry } from './DonorBadge';
 import EditCampaignModal from './EditCampaignModal';
 import { API_URL } from '../config';
 import './MultiRailProgress.css';
+import './CampaignDetailsModal.css';
 
 const SEPOLIA_EXPLORER = 'https://sepolia.etherscan.io/tx/';
 
@@ -410,6 +411,7 @@ export default function CampaignCard(props) {
   const { showWarning, showSuccess, showInfo } = useToast();
   const camp = props.camp || props.campaign || {};
   const { contract, role, walletAddress, onDonated, onDeactivated, onCampaignUpdated, onOpenNgoProfile } = props;
+  const activeTheme = props.theme || (typeof document !== 'undefined' ? document.documentElement.getAttribute('data-theme') || 'light' : 'light');
   const [amount, setAmount] = useState('');
   const [deactivating, setDeactivating] = useState(false);
   const [ledgerOpen, setLedgerOpen] = useState(false);
@@ -441,7 +443,7 @@ export default function CampaignCard(props) {
         document.body.removeChild(ta);
       }
       setCopiedHashKey(text);
-      showSuccess?.(`${label} copied to clipboard! 📋`, 'Copied');
+      showSuccess?.(`${label} copied to clipboard!`, 'Copied');
       setTimeout(() => setCopiedHashKey(''), 2200);
     } catch (_) {
       showWarning?.('Unable to copy to clipboard', 'Copy Failed');
@@ -724,6 +726,8 @@ export default function CampaignCard(props) {
   const [customMsg, setCustomMsg] = useState('');
   const [isAnonymous, setIsAnonymous] = useState(false);
   const [receiptBase64, setReceiptBase64] = useState('');
+  const [aiScanLoading, setAiScanLoading] = useState(false);
+  const [aiScanResult, setAiScanResult] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
   const [deactivateModal, setDeactivateModal] = useState({ show: false, step: 0, hash: '', error: '' });
   const [editModalOpen, setEditModalOpen] = useState(false);
@@ -790,7 +794,7 @@ export default function CampaignCard(props) {
       localStorage.setItem(key, String(next));
     }
     if (next) {
-      showSuccess(`Now tracking Campaign #${campId} for milestone & ledger updates! 👁️`);
+      showSuccess(`Now tracking Campaign #${campId} for milestone & ledger updates!`);
     } else {
       showInfo(`Removed Campaign #${campId} from your tracked operations`);
     }
@@ -808,7 +812,7 @@ export default function CampaignCard(props) {
           text: `Support this verified blockchain disaster relief campaign: ${campaignTitle}`,
           url: shareUrl
         });
-        showSuccess('Campaign link shared successfully! 🚀');
+        showSuccess('Campaign link shared successfully!');
         return;
       } catch (err) {
         if (err.name === 'AbortError') return;
@@ -827,7 +831,7 @@ export default function CampaignCard(props) {
         document.body.removeChild(textArea);
       }
       setIsCopied(true);
-      showSuccess('Verified campaign link copied to clipboard! 📋');
+      showSuccess('Verified campaign link copied to clipboard!');
       setTimeout(() => setIsCopied(false), 2400);
     } catch (_) {
       showWarning('Unable to copy link to clipboard');
@@ -1272,6 +1276,9 @@ export default function CampaignCard(props) {
   const currentTotal = Math.max(0.000001, displayCurrentEth);
   const pct = progressPct(displayCurrentEth, camp.targetAmount);
   const totalBarPct = Math.min(100, Math.max(0, (displayCurrentEth / targetGoal) * 100));
+  // True once lifetime funding reaches the goal (cap bar/percent cleanly at "Goal reached")
+  const goalReached = parseFloat(camp.targetAmount || 0) > 0 && (displayCurrentEth / targetGoal) >= 1;
+  const totalRaisedPhp = Math.round(((breakdown?.gcash?.php || 0) + (breakdown?.maya?.php || 0) + (breakdown?.bank?.php || 0) + (breakdown?.eth?.php || 0)));
 
   // Compute segment widths on the bar proportional to target goal
   const rawSumPct = targetGoal > 0 ? (totalRailRaised / targetGoal) * 100 : 0;
@@ -1783,6 +1790,16 @@ export default function CampaignCard(props) {
 
     const b64 = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svg)));
     setReceiptBase64(b64);
+    setAiScanResult({
+      isAiVerified: true,
+      confidenceScore: 98,
+      extractedRef: demoRef,
+      extractedAmountPhp: demoAmount,
+      detectedPaymentRail: isMaya ? 'Maya' : 'GCash',
+      fraudFlags: [],
+      auditedBy: 'GEMINI_AI_VISION_PREVIEW',
+      summary: `Verified authentic ${brandName} confirmation receipt. Reference #${demoRef}.`
+    });
 
     showSuccess?.(`Demo ${brandName} receipt, ₱${demoAmount} amount, and Ref #${demoRef} loaded! Ready to confirm.`, 'Demo Ready');
   };
@@ -1799,6 +1816,39 @@ export default function CampaignCard(props) {
       const b64 = reader.result;
       setReceiptBase64(b64);
       setRailMismatchWarning(null);
+      setAiScanLoading(true);
+
+      // Call Backend Gemini AI Receipt Vision Endpoint
+      try {
+        const verifyRes = await fetch(`${API_URL}/api/verify-receipt-ai`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            receiptBase64: b64,
+            amountEth: amount ? (parseFloat(amount) / 170000) : 0,
+            paymentMethod: gatewayMethod || 'GCash',
+            refNumber: refNumber || null
+          })
+        });
+        if (verifyRes.ok) {
+          const verifyData = await verifyRes.json();
+          setAiScanResult(verifyData);
+          if (verifyData.extractedRef && !refNumber) {
+            setRefNumber(verifyData.extractedRef);
+            setGatewayRefNo(verifyData.extractedRef);
+          }
+          if (verifyData.extractedAmountPhp && (!amount || parseFloat(amount) <= 0)) {
+            setAmount(String(verifyData.extractedAmountPhp));
+          }
+          if (verifyData.fraudFlags?.some(f => f.includes('RAIL_MISMATCH'))) {
+            setRailMismatchWarning(verifyData.fraudFlags.find(f => f.includes('RAIL_MISMATCH')));
+          }
+        }
+      } catch (aiErr) {
+        console.warn('AI Receipt Verification error:', aiErr);
+      } finally {
+        setAiScanLoading(false);
+      }
 
       // ── Real Pixel OCR with Tesseract.js & Server AI Vision Fallback ───────
       try {
@@ -1876,7 +1926,7 @@ export default function CampaignCard(props) {
         const currentSelectedRail = (gatewayMethod || '').trim().toLowerCase();
         if (detectedRail && currentSelectedRail) {
           if (detectedRail.toLowerCase() !== currentSelectedRail) {
-            setRailMismatchWarning(`🚨 Payment Rail Mismatch: You selected ${gatewayMethod}, but uploaded a ${detectedRail} receipt screenshot! Please upload a valid ${gatewayMethod} slip.`);
+            setRailMismatchWarning(`Payment Rail Mismatch: You selected ${gatewayMethod}, but uploaded a ${detectedRail} receipt screenshot! Please upload a valid ${gatewayMethod} slip.`);
           }
         }
 
@@ -1894,13 +1944,13 @@ export default function CampaignCard(props) {
 
         // ── Informative User Toast ──────────────────────────────────────────────
         if (extractedRef && extractedAmt) {
-          showSuccess?.(`✨ AI Vision Extracted Ref #${extractedRef} & Amount ₱${extractedAmt.toLocaleString()} PHP!`, 'Auto-Filled Details');
+          showSuccess?.(`AI Vision Extracted Ref #${extractedRef} & Amount ₱${extractedAmt.toLocaleString()} PHP!`, 'Auto-Filled Details');
         } else if (extractedRef) {
-          showSuccess?.(`✨ AI Vision Extracted Ref #${extractedRef}! Amount not clearly detected, please enter manually.`, 'Reference Auto-Filled');
+          showSuccess?.(`AI Vision Extracted Ref #${extractedRef}! Amount not clearly detected, please enter manually.`, 'Reference Auto-Filled');
         } else if (extractedAmt) {
-          showSuccess?.(`✨ AI Vision Extracted Amount ₱${extractedAmt.toLocaleString()} PHP! Reference number not clearly detected, please enter manually.`, 'Amount Auto-Filled');
+          showSuccess?.(`AI Vision Extracted Amount ₱${extractedAmt.toLocaleString()} PHP! Reference number not clearly detected, please enter manually.`, 'Amount Auto-Filled');
         } else {
-          showSuccess?.("📸 Receipt image attached! AI could not detect reference number or amount with 100% confidence. Please enter details manually.", "Receipt Attached");
+          showSuccess?.("Receipt image attached! AI could not detect reference number or amount with 100% confidence. Please enter details manually.", "Receipt Attached");
         }
 
       } catch (tessErr) {
@@ -2305,7 +2355,7 @@ export default function CampaignCard(props) {
           <div className="campaign-header-top">
             <div className={`campaign-category-pill ${catInfo.colorClass}`}>
               <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>{catInfo.icon}</span>
-              <span>{catInfo.prefix}-00{camp.id} • {catInfo.label}</span>
+              <span>{catInfo.label}</span>
             </div>
 
             {isTargetFromUrl && (
@@ -2369,7 +2419,7 @@ export default function CampaignCard(props) {
             {/* Header: Goal & Total Percent (Clickable trigger for dropdown) */}
             <div className="multi-rail-header">
               <span className="multi-rail-goal-text">
-                <strong>₱{((breakdown.gcash.php || 0) + (breakdown.maya.php || 0) + (breakdown.bank.php || 0) + (breakdown.eth.php || 0)).toLocaleString('en-US', { maximumFractionDigits: 0 })}</strong> of ₱{(parseFloat(camp.targetAmount || 0) * 170000).toLocaleString('en-US', { maximumFractionDigits: 0 })} goal
+                <strong>₱{totalRaisedPhp.toLocaleString('en-US', { maximumFractionDigits: 0 })}</strong> raised of ₱{(parseFloat(camp.targetAmount || 0) * 170000).toLocaleString('en-US', { maximumFractionDigits: 0 })} goal
               </span>
 
               <div className="multi-rail-header-right">
@@ -2383,7 +2433,7 @@ export default function CampaignCard(props) {
                   title="Click to toggle payment rail breakdown"
                 >
                   <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>insights</span>
-                  {pct}% funded
+                  {goalReached ? 'Goal reached' : `${pct}% funded`}
                 </button>
 
                 {/* Dropdown Popup anchored cleanly below % funded button */}
@@ -2561,9 +2611,8 @@ export default function CampaignCard(props) {
             </div>
           </div>
 
-          {/* Amounts: Uniform 3-Box Grid (Raised, Target Goal, Tracking ID) */}
+          {/* Amounts: Non-redundant meta grid (id/backers/bar shown above; values here are unique) */}
           {(() => {
-            const totalPhp = (breakdown.gcash.php || 0) + (breakdown.maya.php || 0) + (breakdown.bank.php || 0) + (breakdown.eth.php || 0);
             const targetPhp = parseFloat(camp.targetAmount || 0) * 170000;
             const ethAmt = breakdown.eth.amount ? formatEthAmt(breakdown.eth.amount) : '0';
             return (
@@ -2574,20 +2623,20 @@ export default function CampaignCard(props) {
                   onClick={() => setShowRailTelemetry(prev => !prev)}
                   title={`Click to view funding sources (${ethAmt} ETH on-chain)`}
                 >
-                  <span className="amount-label">Raised</span>
+                  <span className="amount-label">Donors</span>
                   <span className="amount-value accent">
-                    ₱{totalPhp.toLocaleString('en-US', { maximumFractionDigits: 0 })}
+                    {breakdown.totalBackers || 0}
                   </span>
                 </div>
                 <div
                   className="amount-block"
                   style={{ cursor: 'pointer' }}
                   onClick={() => setShowRailTelemetry(prev => !prev)}
-                  title="Click to view funding sources"
+                  title={`On-chain total: ${ethAmt} ETH of ₱${targetPhp.toLocaleString('en-US', { maximumFractionDigits: 0 })} goal`}
                 >
-                  <span className="amount-label">Target Goal</span>
+                  <span className="amount-label">On-chain</span>
                   <span className="amount-value">
-                    ₱{targetPhp.toLocaleString('en-US', { maximumFractionDigits: 0 })}
+                    {ethAmt}<span style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-secondary)', marginLeft: '3px' }}>ETH</span>
                   </span>
                 </div>
                 <div className="amount-block">
@@ -2654,7 +2703,7 @@ export default function CampaignCard(props) {
                   className="btn btn-outline btn-sm btn-full"
                   onClick={() => setDetailsOpen(true)}
                 >
-                  <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>info</span>
+                  <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>map</span>
                   <span>Details & Map</span>
                 </button>
                 <button className="btn btn-ghost btn-sm btn-full" onClick={toggleLedger} title="Open public blockchain ledger modal">
@@ -2683,7 +2732,7 @@ export default function CampaignCard(props) {
                   onClick={() => setDetailsOpen(true)}
                   title="View relief details, GPS audit & map"
                 >
-                  <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>info</span>
+                  <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>map</span>
                   <span>Details & Map</span>
                 </button>
 
@@ -2733,7 +2782,7 @@ export default function CampaignCard(props) {
                   className="btn btn-outline btn-sm btn-full"
                   onClick={() => setDetailsOpen(true)}
                 >
-                  <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>info</span>
+                  <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>map</span>
                   <span>Details & Map</span>
                 </button>
 
@@ -2763,9 +2812,10 @@ export default function CampaignCard(props) {
                     <button
                       type="button"
                       onClick={() => setAmount('')}
-                      style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: '0.72rem', cursor: 'pointer', padding: 0 }}
+                      style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: '0.72rem', cursor: 'pointer', padding: 0, display: 'inline-flex', alignItems: 'center', gap: '3px' }}
                     >
-                      Clear ✕
+                      <span>Clear</span>
+                      <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>close</span>
                     </button>
                   ) : null}
                 </div>
@@ -2831,7 +2881,7 @@ export default function CampaignCard(props) {
                   className="btn btn-outline btn-sm btn-full"
                   onClick={() => setDetailsOpen(true)}
                 >
-                  <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>info</span>
+                  <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>map</span>
                   <span>Details & Map</span>
                 </button>
 
@@ -3088,7 +3138,7 @@ export default function CampaignCard(props) {
                           onClick={() => setLedgerSearch('')}
                           title="Clear search query"
                         >
-                          ✕
+                          <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>close</span>
                         </button>
                       )}
                     </div>
@@ -3153,7 +3203,7 @@ export default function CampaignCard(props) {
                               }}
                               title="Clear date filter"
                             >
-                              ✕
+                              <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>close</span>
                             </span>
                           ) : (
                             <span className="ledger-date-btn-arrow">{datePickerOpen ? '▴' : '▾'}</span>
@@ -3700,7 +3750,7 @@ export default function CampaignCard(props) {
                       style={{ background: 'var(--bg-input, rgba(255,255,255,0.05))', border: '1px solid var(--border, rgba(255,255,255,0.1))', color: 'var(--text-muted, #94a3b8)', width: '32px', height: '32px', borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                       title="Close dialog"
                     >
-                      ✕
+                      <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>close</span>
                     </button>
                   </div>
 
@@ -3728,13 +3778,26 @@ export default function CampaignCard(props) {
                     {/* Option 1: Web3 MetaMask */}
                     <button
                       onClick={() => {
-                        if (!contract) return showWarning("MetaMask is not actively connected. Please connect your wallet first.", "Wallet Not Connected");
+                        if (!contract) {
+                          if (typeof window !== 'undefined' && !window.ethereum) {
+                            return showWarning(
+                              "Please install the MetaMask browser extension to connect your Web3 wallet.",
+                              "MetaMask Required",
+                              8000,
+                              {
+                                label: "Download MetaMask ↗",
+                                onClick: () => window.open('https://metamask.io/download/', '_blank', 'noopener,noreferrer')
+                              }
+                            );
+                          }
+                          return showWarning("MetaMask is not actively connected. Please connect your wallet first.", "Wallet Not Connected");
+                        }
                         setDonateStep(1);
                       }}
                       className="payment-option-btn"
                     >
                       <div className="payment-option-icon-box" style={{ background: 'rgba(245, 158, 11, 0.12)', border: '1px solid rgba(245, 158, 11, 0.3)' }}>
-                        🦊
+                        <span className="material-symbols-outlined" style={{ fontSize: '20px', color: '#f59e0b' }}>account_balance_wallet</span>
                       </div>
                       <div className="payment-option-meta">
                         <div className="payment-option-title-row">
@@ -4052,7 +4115,10 @@ export default function CampaignCard(props) {
                   <div style={{ margin: '18px 0', padding: '16px', background: 'var(--bg-card, rgba(255,255,255,0.02))', borderRadius: '12px', textAlign: 'left', border: '1px solid rgba(34, 197, 94, 0.25)' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', borderBottom: '1px solid var(--border, rgba(255,255,255,0.08))', paddingBottom: '8px' }}>
                       <span style={{ fontSize: '0.72rem', color: 'var(--text-muted, #94a3b8)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Verified On-Chain Receipt</span>
-                      <span style={{ fontSize: '0.72rem', color: '#22c55e', fontWeight: 700 }}>✓ CONFIRMED</span>
+                      <span style={{ fontSize: '0.72rem', color: '#22c55e', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                        <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>check</span>
+                        CONFIRMED
+                      </span>
                     </div>
 
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
@@ -4194,7 +4260,7 @@ export default function CampaignCard(props) {
                       style={{ background: 'var(--bg-input, rgba(255,255,255,0.05))', border: '1px solid var(--border, rgba(255,255,255,0.1))', color: 'var(--text-muted, #94a3b8)', width: '32px', height: '32px', borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                       title="Back to Payment Selector"
                     >
-                      ✕
+                      <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>close</span>
                     </button>
                   </div>
 
@@ -4381,7 +4447,7 @@ export default function CampaignCard(props) {
                             <strong>Bank:</strong> {camp.bankName || camp.bank_name || 'BDO Unibank'}
                           </div>
                           <div style={{ color: 'var(--text-secondary, #cbd5e1)', fontSize: '0.74rem', marginBottom: '6px' }}>
-                            <strong>Account Name:</strong> {camp.bankAccountName || camp.bank_account_name || camp.orgName || 'ReliefLink Foundation Inc.'}
+                            <strong>Account Name:</strong> {camp.bankAccountName || camp.bank_account_name || camp.orgName || 'BBDRTS Relief Foundation Inc.'}
                           </div>
                           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(0,0,0,0.25)', padding: '6px 8px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.06)' }}>
                             <span style={{ fontFamily: 'monospace', color: '#38bdf8', fontWeight: 700, fontSize: '0.84rem' }}>
@@ -4688,7 +4754,7 @@ export default function CampaignCard(props) {
                         title="Autofill realistic demo receipt screenshot, ₱500 amount, and verified reference number"
                       >
                         <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>bolt</span>
-                        ⚡ Demo Autofill (₱500 + Ref + Receipt)
+                        Demo Autofill (₱500 + Ref + Receipt)
                       </button>
 
                       <button
@@ -4696,7 +4762,7 @@ export default function CampaignCard(props) {
                         style={{ background: 'var(--bg-input, rgba(255,255,255,0.05))', border: '1px solid var(--border, rgba(255,255,255,0.1))', color: 'var(--text-muted, #94a3b8)', width: '32px', height: '32px', borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                         title="Back to Payment Selector"
                       >
-                        ✕
+                        <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>close</span>
                       </button>
                     </div>
                   </div>
@@ -4926,7 +4992,8 @@ export default function CampaignCard(props) {
                               </div>
 
                               {receiptBase64 ? (
-                                <div style={{ position: 'relative', borderRadius: '12px', overflow: 'hidden', border: `1.5px solid ${railColor}`, background: 'rgba(0,0,0,0.3)', padding: '8px', textAlign: 'center' }}>
+                                <>
+                                  <div style={{ position: 'relative', borderRadius: '12px', overflow: 'hidden', border: `1.5px solid ${railColor}`, background: 'var(--bg-subcard, var(--bg-hover))', padding: '8px', textAlign: 'center' }}>
                                   <img
                                     src={receiptBase64}
                                     alt="Payment Proof"
@@ -4937,7 +5004,85 @@ export default function CampaignCard(props) {
                                     Verified Payment Receipt Attached
                                   </div>
                                 </div>
-                              ) : (
+
+                                {/* AI Receipt Vision Inspection Card (Module A) */}
+                                {aiScanLoading && (
+                                  <div style={{
+                                    marginTop: '8px',
+                                    padding: '10px 14px',
+                                    borderRadius: '10px',
+                                    background: 'rgba(2, 132, 199, 0.12)',
+                                    border: '1px solid rgba(56, 189, 248, 0.3)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '10px',
+                                    color: '#38bdf8',
+                                    fontSize: '0.78rem',
+                                    fontWeight: 600
+                                  }}>
+                                    <span className="material-symbols-outlined spin" style={{ fontSize: '18px' }}>progress_activity</span>
+                                    <span>Gemini AI Vision scanning payment slip & validating reference...</span>
+                                  </div>
+                                )}
+
+                                {aiScanResult && !aiScanLoading && (
+                                  <div style={{
+                                    marginTop: '8px',
+                                    padding: '10px 14px',
+                                    borderRadius: '12px',
+                                    background: aiScanResult.isAiVerified !== false ? 'rgba(34, 197, 94, 0.08)' : 'rgba(239, 68, 68, 0.12)',
+                                    border: `1.5px solid ${aiScanResult.isAiVerified !== false ? 'rgba(34, 197, 94, 0.35)' : 'rgba(239, 68, 68, 0.45)'}`,
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    gap: '8px'
+                                  }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                        <span className="material-symbols-outlined" style={{
+                                          fontSize: '17px',
+                                          color: aiScanResult.isAiVerified !== false ? '#4ade80' : '#ef4444'
+                                        }}>
+                                          {aiScanResult.isAiVerified !== false ? 'verified' : 'warning'}
+                                        </span>
+                                        <span style={{
+                                          fontWeight: 800,
+                                          fontSize: '0.78rem',
+                                          color: aiScanResult.isAiVerified !== false ? '#4ade80' : '#f87171'
+                                        }}>
+                                          {aiScanResult.isAiVerified !== false ? `AI Verified (${aiScanResult.confidenceScore || 98}% Match)` : `AI Verification Alert (${aiScanResult.confidenceScore || 35}%)`}
+                                        </span>
+                                      </div>
+                                      <span style={{ fontSize: '0.65rem', background: 'rgba(255,255,255,0.06)', padding: '2px 6px', borderRadius: '4px', color: '#94a3b8' }}>
+                                        Gemini 1.5 Flash + Tesseract
+                                      </span>
+                                    </div>
+
+                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '6px', fontSize: '0.74rem' }}>
+                                      {aiScanResult.extractedRef && (
+                                        <div style={{ background: 'var(--bg-subcard, var(--bg-hover))', border: '1px solid var(--border)', padding: '5px 8px', borderRadius: '6px' }}>
+                                          <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '0.64rem' }}>EXTRACTED REF:</span>
+                                          <span style={{ color: '#38bdf8', fontWeight: 700 }}>#{aiScanResult.extractedRef}</span>
+                                        </div>
+                                      )}
+                                      {aiScanResult.extractedAmountPhp && (
+                                        <div style={{ background: 'var(--bg-subcard, var(--bg-hover))', border: '1px solid var(--border)', padding: '5px 8px', borderRadius: '6px' }}>
+                                          <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '0.64rem' }}>EXTRACTED AMOUNT:</span>
+                                          <span style={{ color: '#4ade80', fontWeight: 700 }}>₱{Number(aiScanResult.extractedAmountPhp).toLocaleString()} PHP</span>
+                                        </div>
+                                      )}
+                                    </div>
+
+                                    {aiScanResult.fraudFlags && aiScanResult.fraudFlags.length > 0 && (
+                                      <div style={{ fontSize: '0.7rem', color: '#fca5a5', marginTop: '2px', lineHeight: '1.4' }}>
+                                        {aiScanResult.fraudFlags.map((flag, fIdx) => (
+                                          <div key={fIdx}>• {flag}</div>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                              </>
+                            ) : (
                                 <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '16px', border: `1.5px dashed ${railBorder}`, borderRadius: '12px', cursor: 'pointer', background: railBgLight, transition: '0.2s' }}>
                                   <span className="material-symbols-outlined" style={{ fontSize: '26px', color: railColor, marginBottom: '4px' }}>
                                     add_photo_alternate
@@ -5286,178 +5431,71 @@ export default function CampaignCard(props) {
 
         return createPortal(
           <div
+            className="bbdrts-details-backdrop"
             onClick={() => setDetailsOpen(false)}
-            style={{
-              position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
-              background: 'rgba(5, 7, 12, 0.85)', backdropFilter: 'blur(14px)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999,
-              padding: '16px'
-            }}
-            className="fade-in"
           >
-
             <div
-              className="card bounce-in"
+              className="bbdrts-details-modal"
               onClick={(e) => e.stopPropagation()}
-              style={{
-                width: '740px',
-                maxWidth: '94vw',
-                maxHeight: '90vh',
-                overflowY: 'auto',
-                overflowX: 'hidden',
-                padding: 0,
-                background: 'var(--bg-card, #16181e)',
-                border: '1px solid var(--border, rgba(255, 255, 255, 0.1))',
-                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.85), 0 0 24px rgba(34, 197, 94, 0.1)',
-                borderRadius: '20px',
-                color: 'var(--text-primary, #ffffff)',
-                display: 'flex',
-                flexDirection: 'column'
-              }}
             >
-
-              {/* ── Top Campaign Cover Photo Hero Banner ── */}
-              <div style={{
-                position: 'relative',
-                width: '100%',
-                height: '225px',
-                overflow: 'hidden',
-                background: '#0d1117',
-                flexShrink: 0
-              }}>
+              {/* ── Top Cover Photo Hero Banner ── */}
+              <div className="bbdrts-details-hero">
                 <img
                   src={coverData.imageUrl}
                   alt={camp.title}
-                  style={{
-                    width: '100%',
-                    height: '100%',
-                    objectFit: 'cover',
-                    display: 'block'
-                  }}
+                  className="bbdrts-details-hero-img"
                   onError={(e) => {
                     e.target.onerror = null;
                     e.target.src = 'https://images.unsplash.com/photo-1532629345422-7515f3d16bb6?auto=format&fit=crop&w=600&q=80';
                   }}
                 />
-                {/* Smooth cinematic gradient overlay transitioning to the dark modal body */}
-                <div style={{
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  width: '100%',
-                  height: '100%',
-                  background: 'linear-gradient(180deg, rgba(5,7,12,0.45) 0%, rgba(5,7,12,0.15) 25%, rgba(22,24,30,0.8) 70%, rgba(22,24,30,1) 100%)'
-                }} />
+                <div className="bbdrts-details-hero-scrim" />
 
-                {/* Top Banner Badges (Category + Urgency + Active) */}
-                <div style={{
-                  position: 'absolute',
-                  top: '16px',
-                  left: '20px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  flexWrap: 'wrap',
-                  zIndex: 2
-                }}>
-                  <span className={`campaign-category-pill ${catInfo.colorClass}`} style={{ fontSize: '0.72rem', padding: '4px 10px', backdropFilter: 'blur(8px)', background: 'rgba(0,0,0,0.5)' }}>
+                {/* Top Badges */}
+                <div className="bbdrts-details-hero-badges">
+                  <span className={`bbdrts-details-pill ${catInfo.prefix === 'DR' ? 'cat-dr' : 'cat-cd'}`}>
                     <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>{catInfo.icon}</span>
                     <span>{catInfo.prefix}-00{camp.id} • {catInfo.label}</span>
                   </span>
-                  <span className="badge" style={{ fontSize: '0.7rem', background: 'rgba(0, 0, 0, 0.5)', color: '#f59e0b', borderColor: 'rgba(245, 158, 11, 0.4)', padding: '4px 9px', fontWeight: 600, backdropFilter: 'blur(8px)' }}>
+                  <span className="bbdrts-details-pill urgency">
                     {audit.urgency}
                   </span>
-                  <span className="badge" style={{ fontSize: '0.7rem', background: 'rgba(0, 0, 0, 0.5)', color: '#22c55e', borderColor: 'rgba(34, 197, 94, 0.4)', padding: '4px 9px', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px', backdropFilter: 'blur(8px)' }}>
-                    <span className="status-dot" style={{ width: '5px', height: '5px' }}></span>
+                  <span className="bbdrts-details-pill status-active">
+                    <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>verified</span>
                     <span>Active On-Chain</span>
                   </span>
                 </div>
 
-                {/* Floating Close Button */}
+                {/* Close Button */}
                 <button
+                  type="button"
+                  className="bbdrts-details-close-btn"
                   onClick={() => setDetailsOpen(false)}
-                  style={{
-                    position: 'absolute',
-                    top: '14px',
-                    right: '16px',
-                    background: 'rgba(0, 0, 0, 0.55)',
-                    backdropFilter: 'blur(10px)',
-                    border: '1px solid rgba(255, 255, 255, 0.2)',
-                    color: '#ffffff',
-                    width: '34px',
-                    height: '34px',
-                    borderRadius: '50%',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: '0.95rem',
-                    zIndex: 3,
-                    transition: 'all 0.15s ease'
-                  }}
-                  onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(239, 68, 68, 0.45)'; e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.7)'; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(0, 0, 0, 0.55)'; e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.2)'; }}
-                  title="Close audit modal"
+                  title="Close Campaign Details"
+                  aria-label="Close Campaign Details"
                 >
-                  ✕
+                  <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>close</span>
                 </button>
 
-                {/* Title & Organization Subtitle Positioned on Bottom Left Corner of Banner Image */}
-                <div style={{
-                  position: 'absolute',
-                  bottom: '14px',
-                  left: '20px',
-                  right: '20px',
-                  zIndex: 2
-                }}>
-                  <h2 style={{
-                    margin: 0,
-                    fontSize: '1.4rem',
-                    color: '#ffffff',
-                    fontWeight: 800,
-                    lineHeight: 1.25,
-                    textShadow: '0 2px 10px rgba(0, 0, 0, 0.85)'
-                  }}>
+                {/* Title & Organization Subtitle */}
+                <div className="bbdrts-details-hero-text">
+                  <h2 className="bbdrts-details-title">
                     {displayTitle}
                   </h2>
-                  <div style={{
-                    margin: '6px 0 0 0',
-                    fontSize: '0.82rem',
-                    color: 'rgba(255, 255, 255, 0.9)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    flexWrap: 'wrap',
-                    textShadow: '0 1px 4px rgba(0, 0, 0, 0.8)'
-                  }}>
+                  <div className="bbdrts-details-org-sub">
                     <span style={{ opacity: 0.85 }}>Managed by</span>
                     <button
                       type="button"
-                      className="campaign-modal-org-btn"
+                      className="bbdrts-details-org-btn"
                       onClick={() => {
                         setDetailsOpen(false);
                         if (onOpenNgoProfile) onOpenNgoProfile(camp.orgId || 3);
                       }}
-                      title="Click to view verified NGO institutional profile & all campaigns"
-                      style={{
-                        background: 'rgba(34, 197, 94, 0.18)',
-                        backdropFilter: 'blur(8px)',
-                        border: '1px solid rgba(34, 197, 94, 0.4)',
-                        borderRadius: '20px',
-                        padding: '2px 10px',
-                        color: '#ffffff',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '5px',
-                        cursor: 'pointer',
-                        fontSize: '0.78rem',
-                        fontWeight: 600,
-                        transition: 'all 0.15s ease'
-                      }}
+                      title="View verified NGO profile & missions"
                     >
                       <span className="material-symbols-outlined" style={{ fontSize: '14px', color: '#22c55e' }}>domain</span>
                       <span>{orgDisplayName}</span>
-                      <span className="material-symbols-outlined" style={{ fontSize: '14px', color: '#22c55e' }}>verified</span>
+                      <span className="material-symbols-outlined" style={{ fontSize: '13px', color: '#22c55e' }}>verified</span>
                       <span className="material-symbols-outlined" style={{ fontSize: '13px', opacity: 0.7 }}>chevron_right</span>
                     </button>
                     <span style={{ opacity: 0.6 }}>•</span>
@@ -5469,122 +5507,80 @@ export default function CampaignCard(props) {
               </div>
 
               {/* ── Modal Body Content ── */}
-              <div style={{ padding: '16px 24px 24px 24px' }}>
-                {/* Step 3: Campaign Tags Row */}
+              <div className="bbdrts-details-body">
+                {/* Campaign Tags */}
                 {campaignTags && campaignTags.length > 0 && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', marginBottom: '16px' }}>
+                  <div className="bbdrts-details-tags">
                     {campaignTags.map((tag, idx) => (
-                      <span
-                        key={idx}
-                        style={{
-                          fontSize: '0.74rem',
-                          fontWeight: 600,
-                          padding: '3px 10px',
-                          borderRadius: '12px',
-                          background: 'rgba(34, 197, 94, 0.08)',
-                          border: '1px solid rgba(34, 197, 94, 0.2)',
-                          color: '#86efac',
-                          letterSpacing: '0.2px'
-                        }}
-                      >
+                      <span key={idx} className="bbdrts-details-tag-chip">
                         #{tag.replace(/^#/, '')}
                       </span>
                     ))}
                   </div>
                 )}
 
-                {/* Metric Strip (Clean 4-column row: Target Goal, Settled to Date, Target Delivery, Community Backers) */}
-                <div style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))',
-                  gap: '12px',
-                  background: 'rgba(255, 255, 255, 0.02)',
-                  border: '1px solid var(--border, rgba(255, 255, 255, 0.06))',
-                  borderRadius: '12px',
-                  padding: '12px 16px',
-                  marginBottom: '20px'
-                }}>
-                  <div>
-                    <div style={{ fontSize: '0.67rem', textTransform: 'uppercase', color: 'var(--text-muted, #94a3b8)', fontWeight: 700, letterSpacing: '0.5px' }}>
-                      Target Goal
+                {/* Metric Strip (Target, Settled, Due Date, Backers) */}
+                <div className="bbdrts-details-metrics">
+                  <div className="bbdrts-details-metrics-row">
+                    <div className="bbdrts-details-metric-item">
+                      <span className="bbdrts-details-metric-label">Target Goal</span>
+                      <span className="bbdrts-details-metric-val">₱{targetPhp}</span>
                     </div>
-                    <div style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--text-primary, #ffffff)', marginTop: '2px' }}>
-                      ₱{targetPhp}
+
+                    <div className="bbdrts-details-metric-item">
+                      <span className="bbdrts-details-metric-label">Settled to Date</span>
+                      <span className="bbdrts-details-metric-val accent">
+                        ₱{currentPhp} <span style={{ fontSize: '0.74rem', fontWeight: 600 }}>({progressPercent}%)</span>
+                      </span>
+                    </div>
+
+                    <div className="bbdrts-details-metric-item">
+                      <span className="bbdrts-details-metric-label">Target Delivery</span>
+                      <span className="bbdrts-details-metric-val" style={{ fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <span className="material-symbols-outlined" style={{ fontSize: '15px', color: 'var(--text-muted)' }}>calendar_today</span>
+                        <span>{formattedDeliveryDate || audit.targetDate || 'Active'}</span>
+                      </span>
+                    </div>
+
+                    <div className="bbdrts-details-metric-item">
+                      <span className="bbdrts-details-metric-label">Community Backers</span>
+                      <span className="bbdrts-details-metric-val" style={{ fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                        <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#16a34a' }}>group</span>
+                        <span>{breakdown.totalBackers > 0 ? `${breakdown.totalBackers} ${breakdown.totalBackers === 1 ? 'Backer' : 'Backers'}` : '0 Backers'}</span>
+                      </span>
                     </div>
                   </div>
 
-                  <div>
-                    <div style={{ fontSize: '0.67rem', textTransform: 'uppercase', color: 'var(--text-muted, #94a3b8)', fontWeight: 700, letterSpacing: '0.5px' }}>
-                      Settled to Date
-                    </div>
-                    <div style={{ fontSize: '1rem', fontWeight: 800, color: '#22c55e', marginTop: '2px' }}>
-                      ₱{currentPhp} <span style={{ fontSize: '0.72rem', fontWeight: 600 }}>({progressPercent}%)</span>
-                    </div>
-                  </div>
-
-                  <div>
-                    <div style={{ fontSize: '0.67rem', textTransform: 'uppercase', color: 'var(--text-muted, #94a3b8)', fontWeight: 700, letterSpacing: '0.5px' }}>
-                      Target Delivery
-                    </div>
-                    <div style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--text-primary, #ffffff)', marginTop: '3px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <span className="material-symbols-outlined" style={{ fontSize: '14px', color: 'var(--text-muted)' }}>calendar_today</span>
-                      <span>{formattedDeliveryDate || audit.targetDate || 'Active'}</span>
-                    </div>
-                  </div>
-
-                  <div>
-                    <div style={{ fontSize: '0.67rem', textTransform: 'uppercase', color: 'var(--text-muted, #94a3b8)', fontWeight: 700, letterSpacing: '0.5px' }}>
-                      Community Backers
-                    </div>
-                    <div style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--text-primary, #ffffff)', marginTop: '3px', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                      <span className="material-symbols-outlined" style={{ fontSize: '15px', color: 'var(--accent, #22c55e)' }}>group</span>
-                      <span>{breakdown.totalBackers > 0 ? `${breakdown.totalBackers} ${breakdown.totalBackers === 1 ? 'Backer' : 'Backers'}` : '0 Backers'}</span>
-                    </div>
+                  {/* Visual Progress Bar */}
+                  <div className="bbdrts-details-progress-bar-wrap" title={`Funded: ${progressPercent}% of target`}>
+                    <div className="bbdrts-details-progress-fill" style={{ width: `${Math.min(100, Math.max(0, parseFloat(progressPercent) || 0))}%` }} />
                   </div>
                 </div>
 
-                {/* 2-Column Content Layout */}
-                <div style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-                  gap: '20px',
-                  marginBottom: '20px'
-                }}>
+                {/* 2-Column Responsive Layout */}
+                <div className="bbdrts-details-grid">
                   {/* Left Column: Mission Overview & Budget Allocations */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
-                    {/* Mission Purpose (Step 3) */}
-                    <div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
-                        <span className="material-symbols-outlined" style={{ fontSize: '16px', color: 'var(--accent, #22c55e)' }}>description</span>
-                        <span style={{ fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--text-muted, #94a3b8)' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    {/* Mission Purpose */}
+                    <div className="bbdrts-details-card">
+                      <div className="bbdrts-details-card-header">
+                        <h4 className="bbdrts-details-card-title">
+                          <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#16a34a' }}>description</span>
                           Mission & Humanitarian Scope
-                        </span>
+                        </h4>
                       </div>
-                      <p style={{ margin: 0, fontSize: '0.86rem', color: 'var(--text-secondary, #cbd5e1)', lineHeight: 1.6, whiteSpace: 'pre-line' }}>
+                      <p className="bbdrts-details-desc">
                         {audit.description}
                       </p>
 
-                      {/* Step 3: Official Verification Document / Press Release */}
+                      {/* Official Verification Document / Press Release */}
                       {audit.documentUrl && (
-                        <div style={{ marginTop: '12px' }}>
+                        <div style={{ marginTop: '4px' }}>
                           <a
                             href={audit.documentUrl.startsWith('http') ? audit.documentUrl : `https://${audit.documentUrl}`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            style={{
-                              fontSize: '0.78rem',
-                              color: 'var(--accent, #22c55e)',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '6px',
-                              fontWeight: 600,
-                              textDecoration: 'none',
-                              padding: '6px 12px',
-                              borderRadius: '8px',
-                              background: 'rgba(34, 197, 94, 0.08)',
-                              border: '1px solid rgba(34, 197, 94, 0.25)',
-                              transition: 'all 0.15s ease'
-                            }}
+                            className="bbdrts-details-doc-link"
                           >
                             <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>verified</span>
                             <span>Official Verification Document / Press Release</span>
@@ -5593,206 +5589,225 @@ export default function CampaignCard(props) {
                         </div>
                       )}
 
-                      {/* Step 3: Emergency Hotline & Response Desk */}
+                      {/* Emergency Response Desk */}
                       {audit.contact && (
-                        <div style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '8px',
-                          padding: '8px 12px',
-                          background: 'rgba(255, 255, 255, 0.03)',
-                          border: '1px solid var(--border, rgba(255, 255, 255, 0.08))',
-                          borderRadius: '8px',
-                          marginTop: '12px'
-                        }}>
-                          <span className="material-symbols-outlined" style={{ fontSize: '16px', color: 'var(--accent, #22c55e)' }}>support_agent</span>
-                          <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary, #cbd5e1)' }}>
-                            <span style={{ color: 'var(--text-muted, #94a3b8)', fontWeight: 600 }}>Emergency Contact: </span>
-                            <span style={{ color: 'var(--text-primary, #ffffff)', fontWeight: 700 }}>{audit.contact}</span>
+                        <div className="bbdrts-details-hotline-chip">
+                          <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#16a34a' }}>support_agent</span>
+                          <div>
+                            <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>Emergency Contact: </span>
+                            <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{audit.contact}</span>
                           </div>
                         </div>
                       )}
                     </div>
 
-                  {/* Allocations breakdown with Proof of Allocation & Policies */}
-                  {audit.allocations && Array.isArray(audit.allocations) && audit.allocations.length > 0 && (() => {
-                    const targetPhp = parseFloat(camp.targetAmount || 0) * 170000;
-                    return (
-                      <div style={{ marginTop: '10px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <span className="material-symbols-outlined" style={{ fontSize: '16px', color: 'var(--accent, #22c55e)' }}>pie_chart</span>
-                            <span style={{ fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--text-primary, #ffffff)' }}>
+                    {/* Proof of Fund Allocation */}
+                    {audit.allocations && Array.isArray(audit.allocations) && audit.allocations.length > 0 && (() => {
+                      const totalAllocTarget = parseFloat(camp.targetAmount || 0) * 170000;
+                      return (
+                        <div className="bbdrts-details-card">
+                          <div className="bbdrts-details-card-header">
+                            <h4 className="bbdrts-details-card-title">
+                              <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#16a34a' }}>pie_chart</span>
                               Proof of Fund Allocation
+                            </h4>
+                            <span className="bbdrts-details-card-badge">TRANSPARENCY AUDIT</span>
+                          </div>
+
+                          <div className="bbdrts-details-allocations">
+                            {audit.allocations.map((item, idx) => {
+                              const cleanLabel = (item.label || '').replace(/[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu, '').trim();
+                              const itemPhp = (totalAllocTarget * (item.pct / 100)).toLocaleString('en-US', { maximumFractionDigits: 0 });
+                              return (
+                                <div key={idx}>
+                                  <div className="bbdrts-details-alloc-row">
+                                    <span className="bbdrts-details-alloc-label">{cleanLabel}</span>
+                                    <span className="bbdrts-details-alloc-val">
+                                      <strong>₱{itemPhp}</strong> ({item.pct}%)
+                                    </span>
+                                  </div>
+                                  <div className="bbdrts-details-alloc-track">
+                                    <div className="bbdrts-details-alloc-fill" style={{ width: `${item.pct}%` }} />
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+
+                          {/* Operational Policy Disclosures */}
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '6px' }}>
+                            <div className="bbdrts-details-policy-box">
+                              <div className="bbdrts-details-policy-title">
+                                <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>savings</span>
+                                <span>Surplus Reserve Policy</span>
+                              </div>
+                              <p className="bbdrts-details-policy-desc">
+                                Contributions exceeding 100% of the target roll over into the <strong>Calamity Response Reserve Fund</strong> for emergency relief and unbudgeted operations.
+                              </p>
+                            </div>
+
+                            <div className="bbdrts-details-policy-box">
+                              <div className="bbdrts-details-policy-title" style={{ color: '#0ea5e9' }}>
+                                <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>priority_high</span>
+                                <span>Partial Funding Priority Rule</span>
+                              </div>
+                              <p className="bbdrts-details-policy-desc">
+                                If the timeline concludes before reaching full target, accumulated funds are immediately disbursed to <strong>immediate survival necessities (food rations, drinking water & medical aid)</strong> first.
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </div>
+
+                  {/* Right Column: Ground Deployment Audit & Interactive Map */}
+                  <div className="bbdrts-details-card">
+                    <div className="bbdrts-details-card-header">
+                      <h4 className="bbdrts-details-card-title">
+                        <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#ef4444' }}>location_on</span>
+                        Ground Deployment Audit
+                      </h4>
+                      <span className="bbdrts-details-card-badge">GPS VERIFIED</span>
+                    </div>
+
+                    {/* Interactive Leaflet Map View with Layer Controls */}
+                    <div className="bbdrts-details-map-frame">
+                      <LocationMapPicker
+                        address={audit.region}
+                        gps={audit.gps}
+                        readOnly={true}
+                        allowLayerSwitch={true}
+                        height="230px"
+                        hideTip={true}
+                        theme={activeTheme}
+                      />
+                    </div>
+
+                    {/* Map Quick Action Buttons (Google Maps + Copy GPS + Etherscan) */}
+                    <div className="bbdrts-details-map-actions">
+                      <a
+                        href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(audit.gps || audit.region)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="bbdrts-details-map-btn"
+                        title="Open location in Google Maps"
+                      >
+                        <span className="material-symbols-outlined" style={{ fontSize: '15px', color: '#ea4335' }}>open_in_new</span>
+                        <span>Google Maps</span>
+                      </a>
+
+                      {audit.gps && (
+                        <button
+                          type="button"
+                          className="bbdrts-details-map-btn"
+                          onClick={() => {
+                            if (navigator.clipboard) {
+                              navigator.clipboard.writeText(audit.gps);
+                              showSuccess(`Coordinates copied to clipboard: ${audit.gps}`, 'GPS Copied');
+                            }
+                          }}
+                          title="Copy GPS coordinates"
+                        >
+                          <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>content_copy</span>
+                          <span>Copy GPS</span>
+                        </button>
+                      )}
+
+                      {camp.contractAddress && (
+                        <a
+                          href={`https://sepolia.etherscan.io/address/${camp.contractAddress}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="bbdrts-details-map-btn"
+                          title="View Escrow on Sepolia Etherscan"
+                        >
+                          <span className="material-symbols-outlined" style={{ fontSize: '15px', color: '#16a34a' }}>receipt_long</span>
+                          <span>Etherscan</span>
+                        </a>
+                      )}
+                    </div>
+
+                    {/* Logistics Key-Value Rows */}
+                    <div className="bbdrts-details-logistics">
+                      {/* Target Location */}
+                      <div className="bbdrts-details-logistics-item">
+                        <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#ef4444', marginTop: '2px', flexShrink: 0 }}>pin_drop</span>
+                        <div className="bbdrts-details-logistics-text">
+                          {audit.region}
+                        </div>
+                      </div>
+
+                      {/* GPS Coordinates */}
+                      {audit.gps && (
+                        <div className="bbdrts-details-logistics-item">
+                          <span className="material-symbols-outlined" style={{ fontSize: '16px', color: 'var(--text-muted)', flexShrink: 0 }}>radar</span>
+                          <div>
+                            <span style={{ color: '#16a34a', fontWeight: 700, fontFamily: 'var(--font-mono, monospace)', fontSize: '0.8rem' }}>
+                              {audit.gps}
                             </span>
                           </div>
-                          <span style={{ fontSize: '0.68rem', background: 'rgba(34, 197, 94, 0.12)', color: '#22c55e', border: '1px solid rgba(34, 197, 94, 0.25)', padding: '2px 7px', borderRadius: '10px', fontWeight: 700 }}>
-                            TRANSPARENCY AUDIT
-                          </span>
                         </div>
+                      )}
 
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                          {audit.allocations.map((item, idx) => {
-                            const cleanLabel = (item.label || '').replace(/[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu, '').trim();
-                            const itemPhp = (targetPhp * (item.pct / 100)).toLocaleString('en-US', { maximumFractionDigits: 0 });
-                            return (
-                              <div key={idx}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px', fontSize: '0.78rem' }}>
-                                  <span style={{ color: 'var(--text-secondary, #cbd5e1)', fontWeight: 500 }}>{cleanLabel}</span>
-                                  <span style={{ color: 'var(--text-muted, #94a3b8)', fontSize: '0.75rem' }}>
-                                    <strong style={{ color: 'var(--accent, #22c55e)' }}>₱{itemPhp}</strong> ({item.pct}%)
-                                  </span>
-                                </div>
-                                <div style={{ height: '5px', background: 'rgba(255, 255, 255, 0.06)', borderRadius: '3px', overflow: 'hidden' }}>
-                                  <div style={{ width: `${item.pct}%`, height: '100%', background: 'linear-gradient(90deg, #16a34a, #22c55e)', borderRadius: '3px' }} />
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-
-                        {/* Operational Policy Disclosures in Modal */}
-                        <div style={{ marginTop: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                          <div style={{ background: 'rgba(34, 197, 94, 0.06)', border: '1px solid rgba(34, 197, 94, 0.25)', borderRadius: '8px', padding: '8px 10px' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', color: '#22c55e', marginBottom: '3px' }}>
-                              <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>savings</span>
-                              <span>Surplus Reserve Policy</span>
-                            </div>
-                            <p style={{ margin: 0, fontSize: '0.7rem', color: 'var(--text-secondary, #cbd5e1)', lineHeight: '1.4' }}>
-                              Contributions exceeding 100% of the target goal roll over into the <strong>Calamity Response Reserve Fund</strong> for future emergency operations and unbudgeted disaster relief.
-                            </p>
-                          </div>
-
-                          <div style={{ background: 'rgba(56, 189, 248, 0.06)', border: '1px solid rgba(56, 189, 248, 0.25)', borderRadius: '8px', padding: '8px 10px' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', color: '#38bdf8', marginBottom: '3px' }}>
-                              <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>priority_high</span>
-                              <span>Partial Funding Priority Rule</span>
-                            </div>
-                            <p style={{ margin: 0, fontSize: '0.7rem', color: 'var(--text-secondary, #cbd5e1)', lineHeight: '1.4' }}>
-                              If the deadline arrives before reaching the full target, accumulated funds are immediately disbursed to <strong>immediate survival necessities (food packs, clean water & medical aid)</strong> first.
-                            </p>
+                      {/* Beneficiaries / Impact */}
+                      {audit.beneficiaries && (
+                        <div className="bbdrts-details-logistics-item">
+                          <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#16a34a', marginTop: '2px', flexShrink: 0 }}>groups</span>
+                          <div style={{ color: 'var(--text-secondary)', lineHeight: 1.35 }}>
+                            <strong style={{ color: '#16a34a' }}>{audit.beneficiaries}</strong>
                           </div>
                         </div>
-                      </div>
-                    );
-                  })()}
-                </div>
+                      )}
 
-                {/* Right Column: Ground Deployment Audit & Map */}
-                <div style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '12px',
-                  background: 'rgba(255, 255, 255, 0.02)',
-                  border: '1px solid var(--border, rgba(255, 255, 255, 0.06))',
-                  borderRadius: '14px',
-                  padding: '14px'
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#ef4444' }}>location_on</span>
-                      <span style={{ fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--text-primary, #ffffff)' }}>
-                        Ground Deployment Audit
-                      </span>
-                    </div>
-                    <span style={{ fontSize: '0.68rem', background: 'rgba(34, 197, 94, 0.12)', color: '#22c55e', border: '1px solid rgba(34, 197, 94, 0.25)', padding: '2px 7px', borderRadius: '10px', fontWeight: 700 }}>
-                      GPS VERIFIED
-                    </span>
-                  </div>
-
-                  {/* Map View */}
-                  <div style={{
-                    width: '100%',
-                    height: '165px',
-                    borderRadius: '10px',
-                    overflow: 'hidden',
-                    border: '1px solid var(--border, rgba(255, 255, 255, 0.08))',
-                    background: 'var(--bg-input, #111111)'
-                  }}>
-                    <LocationMapPicker
-                      address={audit.region}
-                      gps={audit.gps}
-                      readOnly={true}
-                      height="165px"
-                      hideTip={true}
-                    />
-                  </div>
-
-                  {/* Clean Logistics Key-Value Rows */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '0.8rem' }}>
-                    {/* Target Location */}
-                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
-                      <span className="material-symbols-outlined" style={{ fontSize: '15px', color: '#ef4444', marginTop: '2px', flexShrink: 0 }}>pin_drop</span>
-                      <div style={{ color: 'var(--text-primary, #ffffff)', fontWeight: 600, lineHeight: 1.35 }}>
-                        {audit.region}
-                      </div>
-                    </div>
-
-                    {/* GPS Coordinates */}
-                    {audit.gps && (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span className="material-symbols-outlined" style={{ fontSize: '15px', color: 'var(--text-muted)', flexShrink: 0 }}>radar</span>
-                        <div>
-                          <span style={{ color: 'var(--accent, #22c55e)', fontWeight: 700, fontFamily: 'var(--font-mono, monospace)', fontSize: '0.78rem' }}>{audit.gps}</span>
+                      {/* Contact Response Desk */}
+                      {audit.contact && (
+                        <div className="bbdrts-details-logistics-item">
+                          <span className="material-symbols-outlined" style={{ fontSize: '16px', color: 'var(--text-muted)', flexShrink: 0 }}>call</span>
+                          <div style={{ color: 'var(--text-muted)', fontSize: '0.78rem' }}>
+                            Response Desk: <strong style={{ color: 'var(--text-primary)' }}>{audit.contact}</strong>
+                          </div>
                         </div>
-                      </div>
-                    )}
-
-                    {/* Impact / Beneficiaries */}
-                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
-                      <span className="material-symbols-outlined" style={{ fontSize: '15px', color: 'var(--accent, #22c55e)', marginTop: '2px', flexShrink: 0 }}>groups</span>
-                      <div style={{ color: 'var(--text-secondary, #cbd5e1)', lineHeight: 1.3 }}>
-                        <span style={{ color: '#22c55e', fontWeight: 700 }}>{audit.beneficiaries}</span>
-                      </div>
+                      )}
                     </div>
-
-                    {/* Contact / Response Desk */}
-                    {audit.contact && (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span className="material-symbols-outlined" style={{ fontSize: '15px', color: 'var(--text-muted)', flexShrink: 0 }}>call</span>
-                        <div style={{ color: 'var(--text-muted, #94a3b8)', fontSize: '0.76rem' }}>
-                          Response Desk: <span style={{ color: 'var(--text-secondary, #cbd5e1)', fontWeight: 600 }}>{audit.contact}</span>
-                        </div>
-                      </div>
-                    )}
                   </div>
                 </div>
               </div>
 
-              {/* Modal Actions */}
-              <div style={{ display: 'flex', gap: '12px', paddingTop: '12px', borderTop: '1px solid var(--border, rgba(255, 255, 255, 0.08))' }}>
+              {/* Modal Actions Footer */}
+              <div className="bbdrts-details-footer">
                 <button
-                  className="btn btn-outline"
-                  style={{ flex: 1, padding: '10px 16px', fontSize: '0.88rem' }}
+                  type="button"
+                  className="bbdrts-details-btn-close"
                   onClick={() => setDetailsOpen(false)}
                 >
-                  Close Audit
+                  <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>close</span>
+                  <span>Close Audit</span>
                 </button>
 
                 {isOwner ? (
                   <button
                     type="button"
-                    className="btn btn-primary glow"
-                    style={{ flex: 1.6, padding: '10px 16px', fontSize: '0.88rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                    className="bbdrts-details-btn-primary"
                     onClick={() => {
                       setDetailsOpen(false);
                       setEditModalOpen(true);
                     }}
                   >
                     <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>edit_note</span>
-                    Edit Campaign Details
+                    <span>Edit Campaign Details</span>
                   </button>
                 ) : canDonate ? (
                   <button
-                    className="btn btn-primary glow"
-                    style={{ flex: 1.6, padding: '10px 16px', fontSize: '0.88rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                    type="button"
+                    className="bbdrts-details-btn-primary"
                     onClick={() => {
                       const parsed = parseFloat(amount);
                       if (isNaN(parsed) || parsed <= 0) {
                         return showWarning('Please enter a valid donation amount greater than ₱0.', 'Enter Amount');
                       }
                       setDetailsOpen(false);
-                      setDonateStep(0); // Explicitly open multi-rail payment choices (MetaMask, GCash, Maya, Bank)
+                      setDonateStep(0);
                       setCustomMsg('');
                       setTxHash('');
                       setIsAnonymous(false);
@@ -5801,14 +5816,14 @@ export default function CampaignCard(props) {
                     }}
                   >
                     <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>volunteer_activism</span>
-                    Donate to Campaign
+                    <span>Donate to Campaign</span>
                   </button>
                 ) : null}
               </div>
             </div>
-          </div>
-        </div>
-        , document.body);
+          </div>,
+          document.body
+        );
       })()}
 
       {/* ── Edit Campaign Details & Operations Modal ── */}

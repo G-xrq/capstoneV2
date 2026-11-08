@@ -141,8 +141,8 @@ export default function LeaderboardModal({
       : `${item.campaignsCount || 0} relief campaigns and ${(item.donorCount || 0).toLocaleString()} verified supporters`;
 
     const shareText = isDonor
-      ? `🤝 ${name} has mobilized ${amountStr} across ${countStr} on BBDRTS Philippines! Track transparent emergency relief: ${window.location.origin}`
-      : `🤝 ${name} has deployed ${amountStr} for Philippine disaster relief across ${countStr} on BBDRTS! Inspect verified emergency response: ${window.location.origin}`;
+      ? `${name} has mobilized ${amountStr} across ${countStr} on BBDRTS Philippines! Track transparent emergency relief: ${window.location.origin}`
+      : `${name} has deployed ${amountStr} for Philippine disaster relief across ${countStr} on BBDRTS! Inspect verified emergency response: ${window.location.origin}`;
 
     if (navigator.share) {
       try {
@@ -155,7 +155,7 @@ export default function LeaderboardModal({
       } catch (_) {}
     }
 
-    handleCopy(shareText, item.id, '✓ Share message copied!');
+    handleCopy(shareText, item.id, 'Share message copied!');
   };
 
   // Filtered Donors (server-calculated timeframe & dynamic multi-criteria sorting)
@@ -349,9 +349,7 @@ export default function LeaderboardModal({
   const totalMilestones = (data.stats && data.stats.totalMilestonesVerified) || 48;
   const totalBeneficiaries = (data.stats && data.stats.totalBeneficiariesApprox) || 18450;
 
-  const activeTheme = (theme === 'light' || theme === 'cyber' || theme === 'dark')
-    ? theme
-    : (typeof document !== 'undefined' ? (document.documentElement.getAttribute('data-theme') || 'dark') : 'dark');
+  const activeTheme = theme === 'dark' ? 'dark' : 'light';
 
   return createPortal(
     <div 
@@ -377,7 +375,7 @@ export default function LeaderboardModal({
           onClick={onClose}
           title="Close (Esc)"
         >
-          ✕
+          <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>close</span>
         </button>
 
         {/* Modal Header */}
@@ -436,7 +434,7 @@ export default function LeaderboardModal({
                   onClick={() => setSearchQuery('')}
                   title="Clear search"
                 >
-                  ✕
+                  <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>close</span>
                 </button>
               )}
             </div>
@@ -669,8 +667,9 @@ export default function LeaderboardModal({
                           {activeTab === 'donors' ? (
                             item.hideBadge ? (
                               <div className="bbdrts-roster-tier-info">
-                                <div className="bbdrts-roster-tier-title" style={{ color: '#059669' }}>
-                                  ✓ Verified Donor
+                                <div className="bbdrts-roster-tier-title" style={{ color: '#059669', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                                  <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>verified</span>
+                                  Verified Donor
                                 </div>
                               </div>
                             ) : (
@@ -698,8 +697,9 @@ export default function LeaderboardModal({
                             )
                           ) : (
                             <div className="bbdrts-roster-tier-info">
-                              <div className="bbdrts-roster-tier-title" style={{ color: '#0284c7' }}>
-                                ✓ Verified Partner
+                              <div className="bbdrts-roster-tier-title" style={{ color: '#0284c7', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                                <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>verified</span>
+                                Verified Partner
                               </div>
                               <div className="bbdrts-roster-tier-sub">
                                 {item.secRegNo ? `SEC ${item.secRegNo}` : 'Verified Partner'}

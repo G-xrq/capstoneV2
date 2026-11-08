@@ -185,10 +185,6 @@
   background-image: linear-gradient(135deg, #10b981 0%, #0284c7 100%);
 }
 
-[data-theme="cyber"] .ngo-left-banner {
-  background-image: linear-gradient(135deg, #060b17 0%, #0e7490 50%, #00ffa3 100%);
-}
-
 .ngo-left-banner-overlay {
   position: absolute;
   inset: 0;

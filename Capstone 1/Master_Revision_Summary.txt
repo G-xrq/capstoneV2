@@ -1,0 +1,165 @@
+====================================================================================================
+           BBDRTS CAPSTONE MANUSCRIPT — MASTER REVISIONS CLEAR ACTION DIRECTIVE
+                 ALL ITEMS TO BE ADJUSTED, ADDED, AND REMOVED (CHAPTER BY CHAPTER)
+====================================================================================================
+System Title : Blockchain-Based Donation and Relief Transparency System (BBDRTS)
+Target File  : Capstone 1 / Revised (RRL).docx
+Output File  : Capstone 1 / Master_Revision_Summary.txt
+Prepared By  : Gester C. Macaldo (Team Leader & Lead System Architect)
+Date         : September 22, 2026
+====================================================================================================
+
+----------------------------------------------------------------------------------------------------
+                               PART 1: MASTER REVISION SUMMARY TABLE
+----------------------------------------------------------------------------------------------------
+
++------------------------+--------------------------------------------------------+----------------+
+| REVISION TYPE          | TOTAL ITEMS & SECTIONS INVOLVED                        | ASSIGNED TEAM  |
++------------------------+--------------------------------------------------------+----------------+
+| 🔴 ADJUST / MODIFY     | 7 Core Sections (Paragraphs 26, 46, 61, 141, 170,      | All Members    |
+|                        |  190, 253)                                             |                |
++------------------------+--------------------------------------------------------+----------------+
+| 🟢 ADD / EXPAND        | 17 New Elements (4 Objectives, 4 Capabilities,         | All Members    |
+|                        |  3 Limitations, 2 Theories, 4 RRL Subsections)         |                |
++------------------------+--------------------------------------------------------+----------------+
+| 🚨 REMOVE / DELETE     | 3 Contradictory Statements (Crypto-only restriction,   | Leslie & Reva  |
+|                        |  Web3-exclusive transfer, PayPal/Stripe-only gateway) |                |
++------------------------+--------------------------------------------------------+----------------+
+
+
+====================================================================================================
+                       PART 2: DETAILED ACTION BREAKDOWN BY CATEGORY
+====================================================================================================
+
+----------------------------------------------------------------------------------------------------
+🔴 CATEGORY A: EVERYTHING THAT NEEDS TO BE ADJUSTED / MODIFIED
+----------------------------------------------------------------------------------------------------
+
+1. [CHAPTER 1 — PARAGRAPH 26] Third-Party Payment Gateway Description
+   - ASSIGNED TO: Leslie Faye Baltazar & Reva Grace Faith A. Saga
+   - ADJUSTMENT: Modify the explanation of payment processing. Explain that while standard third-party payment gateways (PayPal/Stripe) charge high fees, BBDRTS implements a Dual-Rail architecture. Web3 crypto transfers bypass fee deductions entirely, while local e-wallets (GCash/Maya/Bank) are accepted for accessibility, audited via AI OCR, and notarized on-chain via a gasless relayer.
+
+2. [CHAPTER 1 — PARAGRAPH 46] General Objective Statement
+   - ASSIGNED TO: Leslie Faye Baltazar & Reva Grace Faith A. Saga
+   - ADJUSTMENT: Rewrite the General Objective to encompass the hybrid framework. Change from "a transparent web-based donation tracking system that eliminates third-party processing fees by leveraging blockchain technology" to "a transparent web-based hybrid donation and relief tracking system that combines direct blockchain transactions with AI-assisted multi-channel payment verification."
+
+3. [CHAPTER 1 — PARAGRAPH 61] System Capability #1
+   - ASSIGNED TO: Leslie Faye Baltazar & Reva Grace Faith A. Saga
+   - ADJUSTMENT: Modify Capability #1 to state that the platform supports both direct Web3 wallet transactions AND local Philippine fiat payment options (GCash, Maya, Bank Transfer) paired with AI OCR receipt verification.
+
+4. [CHAPTER 2 — PARAGRAPH 141] Total Count of Theoretical Models
+   - ASSIGNED TO: Edrian Jade Ambalong & Rainelyn C. Villaranda
+   - ADJUSTMENT: Change the introductory statement from "anchored on three established theories" to "anchored on nine established theories and architectural models."
+
+5. [CHAPTER 2 — PARAGRAPHS 168-174] Input-Process-Output (IPO) Model Text
+   - ASSIGNED TO: Niño Carl Vincent Cas & Meldwin A. Bato
+   - ADJUSTMENT: Adjust all three phases of the IPO model text:
+     * Input: Adjust to include uploaded receipt screenshots (base64), SEC certificates, GPS coordinates, and e-wallet QR configurations.
+     * Process: Adjust to include Tesseract OCR text extraction, Gemini 1.5 Flash Vision audit, rail mismatch detection, duplicate reference checking, and gasless Sepolia relayer broadcasting.
+     * Output: Adjust to include OCR auto-filled fields, payment rail mismatch banners, SEC Verified badges, Disaster Radar markers, and on-chain TxHashes / Keccak-256 seals.
+
+6. [CHAPTER 2 — PARAGRAPHS 180-190] Data Flow Diagram (DFD Level 0) & ERD Schema
+   - ASSIGNED TO: Niño Carl Vincent Cas & Meldwin A. Bato
+   - ADJUSTMENT: Adjust DFD Level 0 process sub-blocks to explicitly show Process 3.1 (AI Receipt & SEC Verification) and Process 3.2 (Gasless Relayer Broadcasting). Adjust ERD schema description to document the `MANUAL_DONATION` table fields (`Reference_Number`, `Receipt_Base64`, `Payment_Method`, `Verification_Status`, `Ai_Confidence_Score`).
+
+7. [CHAPTER 3 — PARAGRAPHS 253 & 256] Local Studies & Technological Gap
+   - ASSIGNED TO: Edrian Jade Ambalong & Rainelyn C. Villaranda
+   - ADJUSTMENT: Adjust the analysis of local e-wallets (GCash/Maya). Acknowledge that while GCash/Maya provide fast digital payments, they lack public ledger auditability once deposited. Explain how BBDRTS bridges local e-wallets into public blockchain ledgers via AI OCR receipt auditing and gasless relayer notarization.
+
+
+----------------------------------------------------------------------------------------------------
+🟢 CATEGORY B: EVERYTHING THAT NEEDS TO BE ADDED / EXPANDED
+----------------------------------------------------------------------------------------------------
+
+1. [CHAPTER 1 — PARAGRAPH 53] Add 4 New Specific Objectives
+   - ASSIGNED TO: Leslie Faye Baltazar & Reva Grace Faith A. Saga
+   - ADDITION 1: Integrate an AI-driven OCR and vision engine (Tesseract.js and Gemini 1.5 Flash) for real-time payment receipt auditing, reference extraction, and rail mismatch detection.
+   - ADDITION 2: Develop a gasless blockchain relayer service that automatically notarizes manual fiat contributions (GCash/Maya/Bank) onto the Sepolia testnet with Keccak-256 fallback seals.
+   - ADDITION 3: Implement an AI-assisted SEC Certificate verification workflow to automatically audit and authenticate NGO legal identity documents prior to campaign approval.
+   - ADDITION 4: Integrate a Disaster Radar Heatmap and interactive OpenStreetMap GPS picker to visually pinpoint relief operation centers, impacted barangays, and resource allocation geotags.
+
+2. [CHAPTER 1 — PARAGRAPH 61] Add 4 New System Capabilities
+   - ASSIGNED TO: Leslie Faye Baltazar & Reva Grace Faith A. Saga
+   - ADDITION 1: Real-Time AI Vision Receipt Auditing & Rail Mismatch Detection.
+   - ADDITION 2: Institutional NGO SEC Verification with Republic Seal Inspection.
+   - ADDITION 3: Disaster Radar Calamity Heatmap & Regional Geotagging.
+   - ADDITION 4: Profanity & Content Moderation Engine with 14-Day Update Cooldown.
+
+3. [CHAPTER 1 — PARAGRAPHS 107-122] Add 3 New Technical Limitations
+   - ASSIGNED TO: Leslie Faye Baltazar & Reva Grace Faith A. Saga
+   - ADDITION 1 (OCR Extraction Quality): Image extraction accuracy depends on receipt screenshot resolution and lighting clarity.
+   - ADDITION 2 (Relayer Gas Wallet Balance): On-chain notarization of fiat receipts relies on the backend relayer wallet ETH balance on Sepolia, with automatic fallback to Keccak-256 cryptographic seals.
+   - ADDITION 3 (Third-Party AI API Latency): Gemini Vision verification speed depends on network connectivity to Google AI servers.
+
+4. [CHAPTER 2 — PARAGRAPHS 141 & 162] Add 2 New Theoretical Frameworks
+   - ASSIGNED TO: Edrian Jade Ambalong & Rainelyn C. Villaranda
+   - ADDITION 1 (Computer Vision & Optical Character Recognition Theory): Explains visual pattern extraction for financial receipt auditing and SEC certificate verification to eliminate human admin bias.
+   - ADDITION 2 (Hybrid Web2/Web3 Infrastructure Model): Justifies bridging Web2 e-wallets (GCash/Maya) into Web3 public ledgers via gasless relayers.
+
+5. [CHAPTER 2 — PARAGRAPH 190] Add UI Usability Constraint Justification
+   - ASSIGNED TO: Niño Carl Vincent Cas & Meldwin A. Bato
+   - ADDITION: Add a dedicated paragraph explaining the technical rationale for the "Select up to 4 tags" constraint on relief campaign creation, justifying how limiting tags prevents visual clutter and optimizes database indexing.
+
+6. [CHAPTER 3 — PARAGRAPH 226] Add Technical Details to Agile Methodology & Software Evaluation
+   - ASSIGNED TO: Gester C. Macaldo (Team Leader)
+   - ADDITION: Add technical write-ups in System Development, Testing, and Evaluation phases detailing:
+     * `@google/generative-ai` and `tesseract.js` npm package integration.
+     * `ethers.js` v6 gasless relayer setup with Keccak-256 deterministic fallback.
+     * `database.js` dual-driver SQLite/MySQL auto-migration pipeline.
+     * ISO 9126 Software Quality evaluation metrics (Functionality, Reliability, Usability, Efficiency, Maintainability, Portability).
+
+7. [CHAPTER 3 — PARAGRAPH 263] Add 4 New Review of Related Literature (RRL) Subsections
+   - ASSIGNED TO: Edrian Jade Ambalong & Rainelyn C. Villaranda
+   - ADDITION 1: AI & Computer Vision in Financial Receipt & SEC Verification.
+   - ADDITION 2: Gasless Relayers & Hybrid Payment Architectures in Developing Nations.
+   - ADDITION 3: GIS & Disaster Response Heatmap Mapping in the Philippines.
+   - ADDITION 4: Survey Data Justification (Concise summary of survey results proving the existence of lost physical receipts and opaque ledgers in local relief drives).
+
+
+----------------------------------------------------------------------------------------------------
+🚨 CATEGORY C: EVERYTHING THAT NEEDS TO BE REMOVED / DELETED
+----------------------------------------------------------------------------------------------------
+
+1. [CHAPTER 1 — PARAGRAPH 86] Remove Web3-Only Restriction Statement
+   - ASSIGNED TO: Leslie Faye Baltazar & Reva Grace Faith A. Saga
+   - REMOVAL: DELETE the sentence stating: "Transactions are restricted exclusively to blockchain-based transfers using Web3-enabled wallets to maintain full transparency and prevent the oracle problem."
+   - REASON FOR REMOVAL: Directly contradicts our actual working system, which accepts GCash, Maya, and Bank Transfer receipts verified via AI OCR and notarized via our gasless relayer.
+
+2. [CHAPTER 1 — PARAGRAPH 26] Remove Outdated Third-Party Gateway Fee Assumptions
+   - ASSIGNED TO: Leslie Faye Baltazar & Reva Grace Faith A. Saga
+   - REMOVAL: DELETE the implication that traditional e-wallets cannot be transparently tracked.
+   - REASON FOR REMOVAL: Our platform makes e-wallets transparent by extracting reference numbers via AI OCR and recording their hashes on the Sepolia blockchain.
+
+3. [CHAPTER 1 — PARAGRAPH 61] Remove Single-Channel System Capability Descriptions
+   - ASSIGNED TO: Leslie Faye Baltazar & Reva Grace Faith A. Saga
+   - REMOVAL: DELETE references that describe the platform as exclusively a Web3 crypto application.
+   - REASON FOR REMOVAL: The system is a hybrid Web2/Web3 platform.
+
+
+====================================================================================================
+                     PART 3: SUMMARY OF ASSIGNED ROLES & RESPONSIBILITIES
+====================================================================================================
+
++-------------------------------------+------------------------------------------------------------+
+| TEAM MEMBER                         | ASSIGNED REVISION SCOPE                                    |
++-------------------------------------+------------------------------------------------------------+
+| Leslie Faye Baltazar &              | • Chapter 1 Adjustments (Payment Gateways & Objectives)    |
+| Reva Grace Faith A. Saga            | • Chapter 1 Additions (4 Objectives, 4 Capabilities, 3 Lim)|
+|                                     | • Chapter 1 Removals (Crypto-only restriction in Scope)    |
++-------------------------------------+------------------------------------------------------------+
+| Edrian Jade Ambalong &              | • Chapter 2 Additions (2 New Theories)                     |
+| Rainelyn C. Villaranda              | • Chapter 3 Adjustments (Local Studies & Gap)              |
+|                                     | • Chapter 3 Additions (4 New RRL Subsections)              |
++-------------------------------------+------------------------------------------------------------+
+| Niño Carl Vincent Cas &             | • Chapter 2 Adjustments (IPO Model & Diagram Redraw)       |
+| Meldwin A. Bato                     | • Chapter 2 Adjustments (DFD Level 0 & ERD Schema)         |
+|                                     | • Chapter 2 Additions (UI 4-tag Constraint Justification)  |
++-------------------------------------+------------------------------------------------------------+
+| Gester C. Macaldo                   | • Chapter 3 Additions (Agile Methodology & ISO 9126)       |
+| (Team Leader & Lead Architect)      | • Backend/Relayer Codebase Technical Documentation         |
+|                                     | • Master Manuscript Integration & Final Defense Review     |
++-------------------------------------+------------------------------------------------------------+
+
+====================================================================================================
+END OF FILE — STORED IN Capstone 1 / Master_Revision_Summary.txt
+====================================================================================================

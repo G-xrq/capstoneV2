@@ -1,23 +1,22 @@
 import React, { useState, useEffect } from 'react';
-import { createPortal } from 'react-dom';
 import './SettingsPanel.css';
 import { ROLES, ROLE_META } from '../roleConfig';
+import { contractAddress } from '../contractConfig';
 import { shortAddr } from './CampaignCard';
 import { useToast } from '../context/ToastContext';
-
 import EditProfileModal from './EditProfileModal';
 import DonorBadge from './DonorBadge';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
-export default function SettingsPanel({ 
-  contract, 
-  currentUser, 
-  walletAddress, 
-  handleConnectWallet, 
-  handleLogout, 
-  updateDbWallet, 
-  theme, 
+export default function SettingsPanel({
+  contract,
+  currentUser,
+  walletAddress,
+  handleConnectWallet,
+  handleLogout,
+  updateDbWallet,
+  theme,
   setTheme,
   textSize,
   setTextSize,
@@ -28,8 +27,97 @@ export default function SettingsPanel({
   onStartTour
 }) {
   const { showSuccess, showError } = useToast();
+  const [activeTab, setActiveTab] = useState('profile'); // 'profile' | 'wallet' | 'preferences' | 'security'
   const [manualWallet, setManualWallet] = useState('');
-  const [emailNotify, setEmailNotify] = useState(true);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+
+  // Web3 / Sepolia Network Detection
+  const [currentChainId, setCurrentChainId] = useState(null);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.ethereum) {
+      window.ethereum.request({ method: 'eth_chainId' }).then(chain => {
+        setCurrentChainId(chain);
+      }).catch(() => {});
+
+      const handleChainChanged = (chainId) => {
+        setCurrentChainId(chainId);
+      };
+      if (window.ethereum.on) {
+        window.ethereum.on('chainChanged', handleChainChanged);
+      }
+      return () => {
+        if (window.ethereum?.removeListener) {
+          window.ethereum.removeListener('chainChanged', handleChainChanged);
+        }
+      };
+    }
+  }, []);
+
+  const isSepolia = currentChainId === '0xaa36a7' || currentChainId === '11155111' || currentChainId === 11155111;
+
+  const handleSwitchToSepolia = async () => {
+    if (typeof window === 'undefined' || !window.ethereum) {
+      showError('MetaMask or Web3 wallet extension not detected in this browser.', 'Wallet Extension Missing');
+      return;
+    }
+    try {
+      await window.ethereum.request({
+        method: 'wallet_switchEthereumChain',
+        params: [{ chainId: '0xaa36a7' }]
+      });
+      setCurrentChainId('0xaa36a7');
+      showSuccess('Switched to Ethereum Sepolia Testnet.', 'Network Switched');
+    } catch (switchError) {
+      if (switchError.code === 4902) {
+        try {
+          await window.ethereum.request({
+            method: 'wallet_addEthereumChain',
+            params: [
+              {
+                chainId: '0xaa36a7',
+                chainName: 'Sepolia test network',
+                nativeCurrency: { name: 'Sepolia ETH', symbol: 'ETH', decimals: 18 },
+                rpcUrls: ['https://rpc.sepolia.org'],
+                blockExplorerUrls: ['https://sepolia.etherscan.io']
+              }
+            ]
+          });
+          setCurrentChainId('0xaa36a7');
+          showSuccess('Added and switched to Sepolia test network.', 'Network Added');
+        } catch (addError) {
+          showError(addError?.message || 'Failed to add Sepolia network.', 'Network Error');
+        }
+      } else {
+        showError(switchError?.message || 'Failed to switch network.', 'Network Switch Failed');
+      }
+    }
+  };
+
+  // Helper to format registration date
+  function formatMemberSince(dateVal) {
+    if (!dateVal) return '2026';
+    try {
+      const d = new Date(dateVal);
+      if (isNaN(d.getTime())) return '2026';
+      return d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+    } catch (_) {
+      return '2026';
+    }
+  }
+
+  // Preferences state
+  const [emailNotify, setEmailNotify] = useState(() => {
+    try { return localStorage.getItem('bbdrts_email_receipts') !== 'false'; } catch (_) { return true; }
+  });
+  const [calamityAlerts, setCalamityAlerts] = useState(() => {
+    try { return localStorage.getItem('bbdrts_calamity_alerts') !== 'false'; } catch (_) { return true; }
+  });
+  const [glassFx, setGlassFx] = useState(() => {
+    try { return localStorage.getItem('bbdrts_glass_fx') !== 'false'; } catch (_) { return true; }
+  });
+
+  // Anonymous default preference
   const getIsAnonymousFromUser = (user) => {
     if (!user) return false;
     if (user.is_anonymous !== undefined) return Boolean(user.is_anonymous);
@@ -69,22 +157,12 @@ export default function SettingsPanel({
 
   const [anonDefault, setAnonDefault] = useState(() => getIsAnonymousFromUser(currentUser));
   const [showBadge, setShowBadge] = useState(() => getShowBadgeFromUser(currentUser));
-  const [glassFx, setGlassFx] = useState(true);
-  const [calamityAlerts, setCalamityAlerts] = useState(true);
 
   useEffect(() => {
     const isAnon = getIsAnonymousFromUser(currentUser);
     setAnonDefault(isAnon);
     const badgeVis = getShowBadgeFromUser(currentUser);
     setShowBadge(badgeVis);
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('bbdrts_anon_default', String(isAnon));
-      localStorage.setItem('bbdrts_show_badge', String(badgeVis));
-      if (currentUser?.id || currentUser?.email) {
-        localStorage.setItem(`bbdrts_anon_default_${currentUser.id || currentUser.email}`, String(isAnon));
-        localStorage.setItem(`bbdrts_show_badge_${currentUser.id || currentUser.email}`, String(badgeVis));
-      }
-    }
   }, [currentUser?.id, currentUser?.is_anonymous, currentUser?.show_badge, currentUser?.hide_badge, currentUser?.preferences]);
 
   const handleToggleAnonymous = async () => {
@@ -99,27 +177,18 @@ export default function SettingsPanel({
 
     if (currentUser) {
       let currentPrefs = {};
-      if (currentUser.preferences) {
-        try {
-          currentPrefs = typeof currentUser.preferences === 'string' ? JSON.parse(currentUser.preferences) : currentUser.preferences;
-        } catch (_) {}
-      }
+      try {
+        currentPrefs = typeof currentUser.preferences === 'string'
+          ? JSON.parse(currentUser.preferences)
+          : (currentUser.preferences || {});
+      } catch (_) {}
+
       const updatedPrefs = { ...currentPrefs, is_anonymous: nextVal, anonymous: nextVal };
-      const updatedUser = {
-        ...currentUser,
-        is_anonymous: nextVal,
-        preferences: updatedPrefs
-      };
+      const updatedUser = { ...currentUser, is_anonymous: nextVal, preferences: updatedPrefs };
 
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('bbdrts_user', JSON.stringify(updatedUser));
-        window.dispatchEvent(new CustomEvent('bbdrts_profile_updated', { detail: updatedUser }));
-      }
-      if (typeof onProfileUpdated === 'function') {
-        onProfileUpdated(updatedUser);
-      }
+      if (onProfileUpdated) onProfileUpdated(updatedUser);
 
-      const token = typeof window !== 'undefined' ? (localStorage.getItem('bbdrts_token') || localStorage.getItem('token')) : null;
+      const token = localStorage.getItem('bbdrts_token') || localStorage.getItem('token');
       if (token) {
         try {
           await fetch(`${API_URL}/api/auth/profile`, {
@@ -128,28 +197,23 @@ export default function SettingsPanel({
               'Content-Type': 'application/json',
               'Authorization': `Bearer ${token}`
             },
-            body: JSON.stringify({
-              id: currentUser.id,
-              role: currentUser.role || 'donor',
-              is_anonymous: nextVal,
-              preferences: updatedPrefs
-            })
+            body: JSON.stringify({ preferences: updatedPrefs, is_anonymous: nextVal })
           });
         } catch (err) {
-          console.warn('Failed to sync anonymous mode to server:', err);
+          console.warn('Failed to sync anonymity preference:', err);
         }
       }
     }
 
     showSuccess(
       nextVal
-        ? 'Anonymous Mode enabled. Your name is now masked as "Anonymous" on the leaderboard.'
-        : 'Anonymous Mode disabled. Your public identity is now visible on the leaderboard.',
-      nextVal ? 'Privacy Shield Active' : 'Public Recognition Enabled'
+        ? 'Anonymous Donor Mode active. Your identity will be hidden on public donation walls.'
+        : 'Public Donor Profile active. Your name will appear on verified donation receipts.',
+      nextVal ? 'Anonymous Mode Enabled' : 'Public Profile Enabled'
     );
   };
 
-  const handleToggleShowBadge = async () => {
+  const handleToggleBadgeVisibility = async () => {
     const nextVal = !showBadge;
     setShowBadge(nextVal);
     if (typeof window !== 'undefined') {
@@ -161,28 +225,18 @@ export default function SettingsPanel({
 
     if (currentUser) {
       let currentPrefs = {};
-      if (currentUser.preferences) {
-        try {
-          currentPrefs = typeof currentUser.preferences === 'string' ? JSON.parse(currentUser.preferences) : currentUser.preferences;
-        } catch (_) {}
-      }
+      try {
+        currentPrefs = typeof currentUser.preferences === 'string'
+          ? JSON.parse(currentUser.preferences)
+          : (currentUser.preferences || {});
+      } catch (_) {}
+
       const updatedPrefs = { ...currentPrefs, show_badge: nextVal, hide_badge: !nextVal };
-      const updatedUser = {
-        ...currentUser,
-        show_badge: nextVal,
-        hide_badge: !nextVal,
-        preferences: updatedPrefs
-      };
+      const updatedUser = { ...currentUser, show_badge: nextVal, hide_badge: !nextVal, preferences: updatedPrefs };
 
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('bbdrts_user', JSON.stringify(updatedUser));
-        window.dispatchEvent(new CustomEvent('bbdrts_profile_updated', { detail: updatedUser }));
-      }
-      if (typeof onProfileUpdated === 'function') {
-        onProfileUpdated(updatedUser);
-      }
+      if (onProfileUpdated) onProfileUpdated(updatedUser);
 
-      const token = typeof window !== 'undefined' ? (localStorage.getItem('bbdrts_token') || localStorage.getItem('token')) : null;
+      const token = localStorage.getItem('bbdrts_token') || localStorage.getItem('token');
       if (token) {
         try {
           await fetch(`${API_URL}/api/auth/profile`, {
@@ -191,61 +245,63 @@ export default function SettingsPanel({
               'Content-Type': 'application/json',
               'Authorization': `Bearer ${token}`
             },
-            body: JSON.stringify({
-              id: currentUser.id,
-              role: currentUser.role || 'donor',
-              show_badge: nextVal,
-              preferences: updatedPrefs
-            })
+            body: JSON.stringify({ preferences: updatedPrefs, show_badge: nextVal })
           });
         } catch (err) {
-          console.warn('Failed to sync badge visibility to server:', err);
+          console.warn('Failed to sync badge visibility:', err);
         }
       }
     }
 
     showSuccess(
       nextVal
-        ? 'Merit Badge is now visible next to your name on public ledgers.'
-        : 'Merit Badge hidden. Your name remains visible on the leaderboard & public ledger without the tier medal.',
-      nextVal ? 'Honor Badge Visible' : 'Modest Recognition Enabled'
+        ? 'Recognition Badge is visible next to your name on public relief records.'
+        : 'Recognition Badge hidden. Your name remains visible without the badge medal.',
+      nextVal ? 'Badge Visible' : 'Badge Hidden'
     );
   };
 
-  // Text Size Scale Options
-  const TEXT_SIZE_OPTIONS = [
-    {
-      id: 'compact',
-      name: 'Compact',
-      scale: '90%',
-      baseSize: '14.5px',
-      icon: 'density_small',
-      desc: 'High data density for tables, transaction ledgers, & compact screens.'
-    },
-    {
-      id: 'normal',
-      name: 'Standard',
-      scale: '100%',
-      baseSize: '16px (Default)',
-      icon: 'density_medium',
-      desc: 'Balanced typography with optimal line heights for standard viewing.'
-    },
-    {
-      id: 'large',
-      name: 'Large',
-      scale: '110%',
-      baseSize: '17.5px',
-      icon: 'density_large',
-      desc: 'Enhanced font hierarchy for relaxed readability and eye comfort.'
-    },
-    {
-      id: 'extra-large',
-      name: 'Extra Large',
-      scale: '120%',
-      baseSize: '19px',
-      icon: 'zoom_in',
-      desc: 'High accessibility scale designed for maximum clarity and low strain.'
+  // Sync preference toggle to backend & storage
+  const handleTogglePreference = async (key, val, successMessage) => {
+    try {
+      localStorage.setItem(`bbdrts_${key}`, String(val));
+    } catch (_) {}
+
+    let currentPrefs = {};
+    try {
+      currentPrefs = typeof currentUser?.preferences === 'string'
+        ? JSON.parse(currentUser.preferences)
+        : (currentUser?.preferences || {});
+    } catch (_) {}
+
+    const updatedPrefs = { ...currentPrefs, [key]: val };
+    const updatedUser = { ...currentUser, preferences: updatedPrefs };
+    if (onProfileUpdated) onProfileUpdated(updatedUser);
+
+    const token = localStorage.getItem('bbdrts_token') || localStorage.getItem('token');
+    if (token) {
+      try {
+        await fetch(`${API_URL}/api/auth/profile`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({ preferences: updatedPrefs })
+        });
+      } catch (err) {
+        console.warn('Failed to sync preference:', err);
+      }
     }
+    showSuccess(successMessage);
+  };
+
+  // Typography Scale Options
+  const TEXT_SIZE_OPTIONS = [
+    { id: 'compact', name: 'Compact', scale: '90%', icon: 'density_small', desc: 'Higher density for large tables and records.' },
+    { id: 'normal', name: 'Standard', scale: '100%', icon: 'density_medium', desc: 'Balanced hierarchy for everyday usage.' },
+    { id: 'large', name: 'Large', scale: '110%', icon: 'density_large', desc: 'Enhanced size for relaxed reading comfort.' },
+    { id: 'extra-large', name: 'Extra Large', scale: '120%', icon: 'zoom_in', desc: 'Maximum accessibility and visibility.' }
   ];
 
   const activeTextSize = textSize || (typeof window !== 'undefined' ? localStorage.getItem('bbdrts_text_size') || 'normal' : 'normal');
@@ -258,28 +314,69 @@ export default function SettingsPanel({
       document.documentElement.setAttribute('data-text-size', sizeId);
     }
     const match = TEXT_SIZE_OPTIONS.find(o => o.id === sizeId);
-    showSuccess(`Interface typography scaled to ${match?.name || sizeId} (${match?.scale || '100%'}).`, 'Text Size Updated');
+    showSuccess(`Interface text size set to ${match?.name || sizeId} (${match?.scale || '100%'}).`, 'Text Size Updated');
   };
 
-  // Edit Profile Modal State
-  const [editModalOpen, setEditModalOpen] = useState(false);
-  const [profileName, setProfileName] = useState(currentUser?.display_name || currentUser?.name || currentUser?.email || 'Valued User');
-  const [profilePhone, setProfilePhone] = useState(currentUser?.phone || '+63 912 345 6789');
-  const [profileLocation, setProfileLocation] = useState(currentUser?.location || 'Southern Leyte, Philippines');
-  const [profileBio, setProfileBio] = useState(currentUser?.bio || 'Committed to transparent and verifiable blockchain disaster relief.');
+  // Password Change State & Handler
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [savingPassword, setSavingPassword] = useState(false);
 
-  useEffect(() => {
-    setProfileName(currentUser?.display_name || currentUser?.name || currentUser?.email || 'Valued User');
-    setProfilePhone(currentUser?.phone || '+63 912 345 6789');
-    setProfileLocation(currentUser?.location || 'Southern Leyte, Philippines');
-    setProfileBio(currentUser?.bio || 'Committed to transparent and verifiable blockchain disaster relief.');
-  }, [currentUser]);
+  const handleChangePassword = async (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+    if (!currentPassword) {
+      showError('Please enter your current password.', 'Validation Error');
+      return;
+    }
+    if (newPassword.length < 6) {
+      showError('New password must be at least 6 characters long.', 'Validation Error');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      showError('New passwords do not match.', 'Password Mismatch');
+      return;
+    }
+
+    setSavingPassword(true);
+    try {
+      const token = localStorage.getItem('bbdrts_token') || localStorage.getItem('token');
+      if (!token) {
+        showError('Session expired. Please log in again.', 'Unauthorized');
+        setSavingPassword(false);
+        return;
+      }
+
+      const res = await fetch(`${API_URL}/api/auth/change-password`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ currentPassword, newPassword })
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to change password.');
+
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      showSuccess('Your password has been securely updated.', 'Password Updated');
+    } catch (err) {
+      showError(err.message || 'Failed to update password.', 'Error');
+    } finally {
+      setSavingPassword(false);
+    }
+  };
 
   if (!currentUser) return null;
+
   const roleMeta = ROLE_META[currentUser.role] || ROLE_META[ROLES.PUBLIC];
   const isOrg = currentUser?.role === ROLES.ORGANIZATION || currentUser?.role === 'organization';
-  
-  let displayName = profileName;
+  const isAdmin = currentUser?.role === ROLES.ADMIN || currentUser?.role === 'admin';
+
+  let displayName = currentUser?.display_name || currentUser?.name || currentUser?.email || 'User';
   if (isOrg) {
     if (displayName.toLowerCase().includes('redcross') || displayName.toLowerCase().includes('red cross')) {
       displayName = 'Philippine Red Cross';
@@ -299,40 +396,36 @@ export default function SettingsPanel({
       }
     }
   }
-  
-  const userInitials = displayName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() || 'US';
-  const userId = currentUser?.system_id || (isOrg ? `BBDRTS-NGO-2026-${String(currentUser?.id || 1).padStart(4, '0')}` : `BBDRTS-DONOR-2026-${String(currentUser?.id || 1).padStart(4, '0')}`);
 
-  const handleSaveProfile = (e) => {
-    e.preventDefault();
-    showSuccess('Profile information updated successfully!', 'Profile Synchronized');
-    setEditModalOpen(false);
-  };
+  const userInitials = displayName ? displayName.split(' ').filter(Boolean).map(n => n[0]).join('').substring(0, 2).toUpperCase() : 'US';
+  const userId = currentUser.id || '1';
 
   return (
-    <div className="settings-glass-container fade-in">
-      
+    <div className="bbdrts-settings-root">
+
       {/* ── Header Bar ── */}
-      <div className="section-header" style={{ borderBottom: '1px solid var(--border, rgba(255,255,255,0.08))', paddingBottom: '1.25rem', marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
-        <div>
-          <h2 className="settings-section-header" style={{ fontSize: '1.4rem' }}>
-            <span className="material-symbols-outlined" style={{ color: '#22c55e' }}>shield</span> 
-            {roleMeta.label} Identity & Security Command Center
+      <div className="bbdrts-settings-header">
+        <div className="bbdrts-settings-title-wrap">
+          <h2 className="bbdrts-settings-title">
+            <span className="material-symbols-outlined" style={{ fontSize: '24px', color: '#16a34a' }}>manage_accounts</span>
+            Account & Settings
           </h2>
-          <p style={{ fontSize: '0.82rem', color: 'var(--text-muted, #94a3b8)', marginTop: '4px' }}>
-            Manage your cryptographic identity, Web3 MetaMask key bindings, and personal system preferences.
+          <p className="bbdrts-settings-sub">
+            Manage your personal profile, connected Ethereum wallet, and system preferences.
           </p>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <span className="badge" style={{ color: roleMeta.color, borderColor: roleMeta.color, background: `${roleMeta.color}15`, padding: '8px 16px', fontSize: '0.88rem', fontWeight: 700 }}>
-            <span className="material-symbols-outlined" style={{ verticalAlign: 'middle', marginRight: '6px', fontSize: '1.1rem' }}>{roleMeta.icon}</span> 
-            {roleMeta.label}
+        <div className="bbdrts-settings-header-actions">
+          <span className="bbdrts-settings-role-badge">
+            <span className="material-symbols-outlined" style={{ fontSize: '15px', color: roleMeta.color }}>{roleMeta.icon}</span>
+            <span>{isOrg ? 'Accredited NGO' : isAdmin ? 'Administrator' : 'Verified Relief Donor'}</span>
           </span>
-          <button 
-            className="btn btn-outline btn-sm"
+
+          <button
+            type="button"
+            className="bbdrts-settings-edit-btn"
             onClick={() => setEditModalOpen(true)}
-            style={{ borderRadius: '8px', padding: '6px 14px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+            title="Edit your display name, contact information, location, bio, and avatar"
           >
             <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>edit</span>
             <span>Edit Profile</span>
@@ -340,592 +433,965 @@ export default function SettingsPanel({
         </div>
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>
-        
-        {/* ── 1. HERO IDENTITY PASS CARD ── */}
-        <div className="profile-hero-card" style={{
-          background: 'var(--bg-surface, linear-gradient(135deg, rgba(15, 23, 42, 0.9) 0%, rgba(30, 41, 59, 0.7) 100%))',
-          border: '1px solid var(--border, rgba(255, 255, 255, 0.08))',
-          borderRadius: '16px',
-          padding: '24px',
-          boxShadow: 'var(--shadow-card, 0 15px 35px rgba(0,0,0,0.4))',
-          position: 'relative',
-          overflow: 'hidden'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '20px' }}>
-            
-            {/* Left: Avatar & Personal Info */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-              <div style={{
-                width: '68px', height: '68px', borderRadius: '50%',
-                background: 'linear-gradient(135deg, #16a34a 0%, #15803d 100%)',
-                color: '#fff', fontWeight: '800', fontSize: '1.6rem',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                boxShadow: '0 0 20px rgba(22, 163, 74, 0.35)',
-                border: '2px solid rgba(255,255,255,0.2)',
-                overflow: 'hidden'
-              }}>
+      {/* ── Segmented Navigation Tabs ── */}
+      <nav className="bbdrts-settings-tabs" aria-label="Settings categories">
+        <button
+          type="button"
+          className={`bbdrts-settings-tab-btn ${activeTab === 'profile' ? 'active' : ''}`}
+          onClick={() => setActiveTab('profile')}
+        >
+          <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>person</span>
+          <span>Profile & Identity</span>
+        </button>
+
+        <button
+          type="button"
+          className={`bbdrts-settings-tab-btn ${activeTab === 'wallet' ? 'active' : ''}`}
+          onClick={() => setActiveTab('wallet')}
+        >
+          <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>account_balance_wallet</span>
+          <span>Connected Wallet</span>
+        </button>
+
+        <button
+          type="button"
+          className={`bbdrts-settings-tab-btn ${activeTab === 'preferences' ? 'active' : ''}`}
+          onClick={() => setActiveTab('preferences')}
+        >
+          <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>tune</span>
+          <span>Preferences & Theme</span>
+        </button>
+
+        <button
+          type="button"
+          className={`bbdrts-settings-tab-btn ${activeTab === 'security' ? 'active' : ''}`}
+          onClick={() => setActiveTab('security')}
+        >
+          <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>shield</span>
+          <span>Security & System</span>
+        </button>
+      </nav>
+
+      {/* ══════════════════════════════════════════════════════════════════
+          TAB 1: PROFILE & IDENTITY
+          ══════════════════════════════════════════════════════════════════ */}
+      {activeTab === 'profile' && (
+        <div className="bbdrts-settings-pane">
+          
+          {/* Hero Identity Pass */}
+          <div className="bbdrts-profile-hero">
+            <div className="bbdrts-profile-hero-left">
+              <div className="bbdrts-profile-avatar-wrap">
                 {currentUser?.avatar_url && (currentUser.avatar_url.startsWith('data:') || currentUser.avatar_url.startsWith('http')) ? (
-                  <img src={currentUser.avatar_url} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  <img src={currentUser.avatar_url} alt="Profile Avatar" />
                 ) : currentUser?.avatar_url && currentUser.avatar_url.length < 30 ? (
-                  <span className="material-symbols-outlined" style={{ fontSize: '32px', color: '#fff' }}>{currentUser.avatar_url}</span>
+                  <span className="material-symbols-outlined" style={{ fontSize: '28px' }}>{currentUser.avatar_url}</span>
                 ) : (
                   userInitials
                 )}
               </div>
 
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-                  <h3 style={{ margin: 0, fontSize: '1.35rem', color: 'var(--text-primary, #fff)', fontWeight: 800 }}>{displayName}</h3>
-                  {!isOrg && (
-                    <DonorBadge
-                      size="md"
-                      walletAddress={walletAddress || currentUser?.wallet_address}
-                      donorId={currentUser?.id}
-                      amountEth={totalDonatedEth}
-                      amountPhp={totalDonatedPhp}
-                      showProgress={false}
-                      onClick={onOpenHonorsLadder}
-                    />
-                  )}
-                  <span style={{ background: 'rgba(34, 197, 94, 0.15)', color: '#22c55e', border: '1px solid rgba(34, 197, 94, 0.3)', padding: '2px 10px', borderRadius: '12px', fontSize: '0.72rem', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                    <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>verified</span>
-                    VERIFIED {isOrg ? 'NGO PROTOCOL ENTITY' : 'RELIEF DONOR'}
+              <div className="bbdrts-profile-hero-info">
+                <div className="bbdrts-profile-name-row">
+                  <h3 className="bbdrts-profile-hero-name">{displayName}</h3>
+                  <span className="bbdrts-profile-badge-pill">
+                    <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>verified</span>
+                    {isOrg ? 'Verified NGO' : isAdmin ? 'Verified Admin' : 'Verified Donor'}
                   </span>
                 </div>
-                <div style={{ fontSize: '0.85rem', color: 'var(--text-muted, #94a3b8)', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
-                  <span>✉️ {currentUser.email || `${displayName.toLowerCase().replace(/\s+/g, '')}@bbdrts.org`}</span>
-                  <span>📍 {profileLocation}</span>
-                </div>
-                <div style={{ fontSize: '0.78rem', color: '#22c55e', fontFamily: 'monospace', marginTop: '4px' }}>
-                  PROTOCOL ID: {userId} • EVM AUTHENTICATED
+
+                <div className="bbdrts-profile-hero-sub">
+                  <span>
+                    <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>mail</span>
+                    {currentUser.email || `${displayName.toLowerCase().replace(/\s+/g, '')}@bbdrts.org`}
+                  </span>
+                  <span>
+                    <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>location_on</span>
+                    {currentUser.location || <span className="bbdrts-field-not-set">Location not set</span>}
+                  </span>
+                  <span>
+                    <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>badge</span>
+                    ID #{userId}
+                  </span>
+                  <span>
+                    <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>calendar_today</span>
+                    Member since {formatMemberSince(currentUser?.created_at || currentUser?.Created_At)}
+                  </span>
                 </div>
               </div>
             </div>
 
-            {/* Right: Quick Diagnostics Grid */}
-            <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-              <div style={{ background: 'var(--bg-input, rgba(0,0,0,0.3))', padding: '10px 16px', borderRadius: '10px', border: '1px solid var(--border, rgba(255,255,255,0.05))', textAlign: 'center', minWidth: '120px' }}>
-                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted, #94a3b8)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Network</div>
-                <strong style={{ fontSize: '0.9rem', color: 'var(--text-primary, #fff)' }}>Sepolia EVM</strong>
+            <button
+              type="button"
+              className="bbdrts-btn-outline"
+              onClick={() => setEditModalOpen(true)}
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>edit</span>
+              <span>Edit Profile</span>
+            </button>
+          </div>
+
+          {/* Profile Information Card */}
+          <div className="bbdrts-settings-card">
+            <div className="bbdrts-settings-card-header">
+              <div className="bbdrts-settings-card-title-wrap">
+                <h4 className="bbdrts-settings-card-title">
+                  <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#16a34a' }}>id_card</span>
+                  Public Profile Information
+                </h4>
+                <p className="bbdrts-settings-card-desc">
+                  Information displayed on your verified relief contribution receipts and certificates.
+                </p>
               </div>
-              <div style={{ background: 'var(--bg-input, rgba(0,0,0,0.3))', padding: '10px 16px', borderRadius: '10px', border: '1px solid var(--border, rgba(255,255,255,0.05))', textAlign: 'center', minWidth: '120px' }}>
-                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted, #94a3b8)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Smart Contract</div>
-                <strong style={{ fontSize: '0.9rem', color: '#22c55e' }}>● 100% Online</strong>
+
+              <button
+                type="button"
+                className="bbdrts-btn-outline"
+                onClick={() => setEditModalOpen(true)}
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>edit</span>
+                <span>Edit Profile</span>
+              </button>
+            </div>
+
+            <div className="bbdrts-profile-fields-grid">
+              <div className="bbdrts-profile-field-item">
+                <span className="bbdrts-profile-field-label">Display Name</span>
+                <span className="bbdrts-profile-field-value">{displayName}</span>
               </div>
-              {!isOrg && (
-                <div 
-                  onClick={onOpenHonorsLadder}
-                  style={{ 
-                    background: 'var(--bg-input, rgba(0,0,0,0.3))', 
-                    padding: '10px 16px', 
-                    borderRadius: '10px', 
-                    border: '1px solid var(--border, rgba(255,255,255,0.05))', 
-                    textAlign: 'center', 
-                    minWidth: '120px',
-                    cursor: onOpenHonorsLadder ? 'pointer' : 'default'
-                  }}
-                  title="Click to view Philanthropic Recognition Circles"
+
+              <div className="bbdrts-profile-field-item">
+                <span className="bbdrts-profile-field-label">Account Role</span>
+                <span className="bbdrts-profile-field-value">{isOrg ? 'Accredited NGO Organization' : isAdmin ? 'System Administrator' : 'Humanitarian Relief Donor'}</span>
+              </div>
+
+              <div className="bbdrts-profile-field-item">
+                <span className="bbdrts-profile-field-label">Contact Number</span>
+                <span className="bbdrts-profile-field-value">
+                  {currentUser?.phone || <span className="bbdrts-field-not-set">Not provided</span>}
+                </span>
+              </div>
+
+              <div className="bbdrts-profile-field-item">
+                <span className="bbdrts-profile-field-label">Registered Location</span>
+                <span className="bbdrts-profile-field-value">
+                  {currentUser?.location || <span className="bbdrts-field-not-set">Not provided</span>}
+                </span>
+              </div>
+
+              <div className="bbdrts-profile-field-item" style={{ gridColumn: '1 / -1' }}>
+                <span className="bbdrts-profile-field-label">About / Bio</span>
+                <span className="bbdrts-profile-field-value">
+                  {currentUser?.bio || <span className="bbdrts-field-not-set">No bio provided yet. Click "Edit Profile" to add one.</span>}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Donor Philanthropic Standing Card (Donors Only) */}
+          {!isOrg && !isAdmin && (
+            <div className="bbdrts-settings-card">
+              <div className="bbdrts-settings-card-header">
+                <div className="bbdrts-settings-card-title-wrap">
+                  <h4 className="bbdrts-settings-card-title">
+                    <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#16a34a' }}>military_tech</span>
+                    Philanthropic Standing & Recognition
+                  </h4>
+                  <p className="bbdrts-settings-card-desc">
+                    Your cumulative humanitarian contributions recorded on the immutable ledger.
+                  </p>
+                </div>
+
+                {onOpenHonorsLadder && (
+                  <button
+                    type="button"
+                    className="bbdrts-btn-outline"
+                    onClick={onOpenHonorsLadder}
+                  >
+                    <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>leaderboard</span>
+                    <span>View Honors Ladder</span>
+                  </button>
+                )}
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap', padding: '14px', background: 'var(--bg-subcard, #fafafa)', border: '1px solid var(--border, #eaeaea)', borderRadius: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                  <DonorBadge
+                    size="lg"
+                    walletAddress={walletAddress || currentUser?.wallet_address}
+                    donorId={currentUser?.id}
+                    amountEth={totalDonatedEth}
+                    amountPhp={totalDonatedPhp}
+                    showProgress={false}
+                    onClick={onOpenHonorsLadder}
+                  />
+                  <div>
+                    <div style={{ fontSize: '0.92rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                      Verified Supporter
+                    </div>
+                    <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                      ₱{Number(totalDonatedPhp).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} contributed · {Number(totalDonatedEth).toFixed(4)} ETH
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ display: 'flex', gap: '12px' }}>
+                  <div style={{ textAlign: 'center', padding: '8px 14px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '6px' }}>
+                    <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Total Donated</div>
+                    <div style={{ fontSize: '0.9rem', fontWeight: 700, color: '#16a34a' }}>₱{Number(totalDonatedPhp).toLocaleString()}</div>
+                  </div>
+                  <div style={{ textAlign: 'center', padding: '8px 14px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '6px' }}>
+                    <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Sepolia On-Chain</div>
+                    <div style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-primary)' }}>{Number(totalDonatedEth).toFixed(4)} ETH</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* NGO Regulatory Accreditation & Payout Rails (NGOs Only) */}
+          {isOrg && (
+            <div className="bbdrts-settings-card">
+              <div className="bbdrts-settings-card-header">
+                <div className="bbdrts-settings-card-title-wrap">
+                  <h4 className="bbdrts-settings-card-title">
+                    <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#16a34a' }}>verified_user</span>
+                    Accreditation & Payout Receiving Rails
+                  </h4>
+                  <p className="bbdrts-settings-card-desc">
+                    Official regulatory registration and active payout channels for emergency relief disbursements.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  className="bbdrts-btn-outline"
+                  onClick={() => setEditModalOpen(true)}
+                  title="Update your payout numbers, QR codes, or accreditation numbers in Edit Profile"
                 >
-                  <div style={{ fontSize: '0.7rem', color: 'var(--text-muted, #94a3b8)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Recognition Standing</div>
-                  <strong style={{ fontSize: '0.9rem', color: '#10b981', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
-                    <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>volunteer_activism</span>
-                    <span>Recognition</span>
-                  </strong>
+                  <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>payments</span>
+                  <span>Manage Rails</span>
+                </button>
+              </div>
+
+              {/* Regulatory Accreditations Grid */}
+              <div className="bbdrts-profile-fields-grid" style={{ marginBottom: '16px' }}>
+                <div className="bbdrts-profile-field-item">
+                  <span className="bbdrts-profile-field-label">SEC Registration No.</span>
+                  <span className="bbdrts-profile-field-value">
+                    {currentUser?.sec_registration_no || currentUser?.Sec_Registration_No || (
+                      <span className="bbdrts-field-not-set">Pending Submission</span>
+                    )}
+                  </span>
+                </div>
+
+                <div className="bbdrts-profile-field-item">
+                  <span className="bbdrts-profile-field-label">DSWD Accreditation No.</span>
+                  <span className="bbdrts-profile-field-value">
+                    {currentUser?.dswd_accreditation_no || currentUser?.Dswd_Accreditation_No || (
+                      <span className="bbdrts-field-not-set">Pending Submission</span>
+                    )}
+                  </span>
+                </div>
+
+                <div className="bbdrts-profile-field-item">
+                  <span className="bbdrts-profile-field-label">Verification Standing</span>
+                  <span className="bbdrts-profile-field-value" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span className="material-symbols-outlined" style={{ fontSize: '15px', color: '#16a34a' }}>check_circle</span>
+                    <strong style={{ color: '#16a34a' }}>{currentUser?.verification_status || currentUser?.Verification_Status || 'Verified'}</strong>
+                  </span>
+                </div>
+
+                <div className="bbdrts-profile-field-item">
+                  <span className="bbdrts-profile-field-label">Emergency Hotline</span>
+                  <span className="bbdrts-profile-field-value">
+                    {currentUser?.emergency_hotline || currentUser?.Emergency_Hotline || (
+                      <span className="bbdrts-field-not-set">Not configured</span>
+                    )}
+                  </span>
+                </div>
+              </div>
+
+              {/* Active Payout Channels Chips */}
+              <div style={{ borderTop: '1px solid var(--border)', paddingTop: '14px' }}>
+                <div style={{ fontSize: '0.74rem', fontWeight: 700, color: 'var(--text-muted)', marginBottom: '10px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                  Receiving Channels
+                </div>
+                <div className="bbdrts-rails-grid">
+                  <div className={`bbdrts-rail-chip ${(currentUser?.gcash_number || currentUser?.Gcash_Number) ? 'active' : ''}`}>
+                    <span className="material-symbols-outlined" style={{ fontSize: '20px', color: '#007dfe' }}>qr_code_2</span>
+                    <div>
+                      <div className="bbdrts-rail-title">GCash Rail</div>
+                      <div className="bbdrts-rail-sub">
+                        {(currentUser?.gcash_number || currentUser?.Gcash_Number)
+                          ? `Active (${currentUser?.gcash_number || currentUser?.Gcash_Number})`
+                          : 'Not configured'}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className={`bbdrts-rail-chip ${(currentUser?.maya_number || currentUser?.Maya_Number) ? 'active' : ''}`}>
+                    <span className="material-symbols-outlined" style={{ fontSize: '20px', color: '#00c389' }}>account_balance_wallet</span>
+                    <div>
+                      <div className="bbdrts-rail-title">Maya Rail</div>
+                      <div className="bbdrts-rail-sub">
+                        {(currentUser?.maya_number || currentUser?.Maya_Number)
+                          ? `Active (${currentUser?.maya_number || currentUser?.Maya_Number})`
+                          : 'Not configured'}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className={`bbdrts-rail-chip ${(currentUser?.bank_account_number || currentUser?.Bank_Account_Number || currentUser?.bank_name || currentUser?.bank_details) ? 'active' : ''}`}>
+                    <span className="material-symbols-outlined" style={{ fontSize: '20px', color: '#8b5cf6' }}>account_balance</span>
+                    <div>
+                      <div className="bbdrts-rail-title">Bank Transfer</div>
+                      <div className="bbdrts-rail-sub">
+                        {(currentUser?.bank_name || currentUser?.Bank_Name)
+                          ? `${currentUser?.bank_name || currentUser?.Bank_Name}`
+                          : (currentUser?.bank_details ? 'Configured' : 'Not configured')}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className={`bbdrts-rail-chip ${(walletAddress || currentUser?.wallet_address) ? 'active' : ''}`}>
+                    <span className="material-symbols-outlined" style={{ fontSize: '20px', color: '#16a34a' }}>currency_exchange</span>
+                    <div>
+                      <div className="bbdrts-rail-title">Sepolia Escrow</div>
+                      <div className="bbdrts-rail-sub">
+                        {(walletAddress || currentUser?.wallet_address)
+                          ? shortAddr(walletAddress || currentUser?.wallet_address)
+                          : 'No wallet linked'}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════════════════════════════════
+          TAB 2: CONNECTED WALLET & WEB3
+          ══════════════════════════════════════════════════════════════════ */}
+      {activeTab === 'wallet' && (
+        <div className="bbdrts-settings-pane">
+
+          {/* Active Wallet Connection Card */}
+          <div className="bbdrts-settings-card">
+            <div className="bbdrts-settings-card-header">
+              <div className="bbdrts-settings-card-title-wrap">
+                <h4 className="bbdrts-settings-card-title">
+                  <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#16a34a' }}>account_balance_wallet</span>
+                  Ethereum Wallet Connection
+                </h4>
+                <p className="bbdrts-settings-card-desc">
+                  Your wallet address authorizes cryptographic transactions and issues verifiable receipts on Sepolia.
+                </p>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                {isSepolia ? (
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '0.74rem', fontWeight: 600, color: '#16a34a', padding: '4px 8px', borderRadius: '4px', background: 'rgba(22, 163, 74, 0.1)', border: '1px solid rgba(22, 163, 74, 0.25)' }}>
+                    <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>check_circle</span>
+                    Sepolia Active
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleSwitchToSepolia}
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '5px',
+                      fontSize: '0.74rem',
+                      fontWeight: 600,
+                      color: '#b45309',
+                      background: 'rgba(245, 158, 11, 0.12)',
+                      border: '1px solid rgba(245, 158, 11, 0.35)',
+                      padding: '4px 10px',
+                      borderRadius: '4px',
+                      cursor: 'pointer'
+                    }}
+                    title="Switch your wallet network to Ethereum Sepolia Testnet"
+                  >
+                    <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>swap_horiz</span>
+                    Switch to Sepolia
+                  </button>
+                )}
+                <span style={{ fontSize: '0.74rem', fontFamily: 'monospace', padding: '4px 8px', borderRadius: '4px', background: 'var(--bg-subcard)', border: '1px solid var(--border)' }}>
+                  Chain ID: 11155111
+                </span>
+              </div>
+            </div>
+
+            <div className={`bbdrts-wallet-box ${walletAddress ? 'connected' : 'disconnected'}`}>
+              <div className="bbdrts-wallet-box-left">
+                <div className={`bbdrts-wallet-icon-box ${walletAddress ? 'connected' : ''}`}>
+                  <span className="material-symbols-outlined" style={{ fontSize: '24px' }}>
+                    {walletAddress ? 'link' : 'link_off'}
+                  </span>
+                </div>
+
+                <div className="bbdrts-wallet-details">
+                  <div className="bbdrts-wallet-status-row">
+                    <span className={`bbdrts-wallet-status-dot ${walletAddress ? 'connected' : 'disconnected'}`} />
+                    <span style={{ color: walletAddress ? '#16a34a' : '#ef4444' }}>
+                      {walletAddress ? 'Wallet Connected & Active' : 'No Wallet Connected'}
+                    </span>
+                  </div>
+
+                  {walletAddress ? (
+                    <div className="bbdrts-wallet-addr-row">
+                      <span className="bbdrts-wallet-addr-mono">{shortAddr(walletAddress)}</span>
+                      <button
+                        type="button"
+                        className="bbdrts-wallet-micro-btn"
+                        onClick={() => {
+                          navigator.clipboard.writeText(walletAddress);
+                          showSuccess('Wallet address copied to clipboard.', 'Address Copied');
+                        }}
+                      >
+                        <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>content_copy</span>
+                        <span>Copy</span>
+                      </button>
+                      <a
+                        href={`https://sepolia.etherscan.io/address/${walletAddress}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="bbdrts-wallet-micro-btn"
+                      >
+                        <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>open_in_new</span>
+                        <span>Etherscan</span>
+                      </a>
+                    </div>
+                  ) : (
+                    <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                      Connect MetaMask to sign transactions or link your wallet address manually below.
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="bbdrts-wallet-actions">
+                {walletAddress ? (
+                  <>
+                    {!contract && (
+                      <button
+                        type="button"
+                        className="bbdrts-btn-outline"
+                        onClick={() => handleConnectWallet(true)}
+                      >
+                        <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>sync</span>
+                        <span>Sync Wallet</span>
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      className="bbdrts-btn-outline"
+                      style={{ color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.4)' }}
+                      onClick={async () => {
+                        if (window.confirm("Are you sure you want to disconnect this wallet?")) {
+                          if (updateDbWallet) {
+                            await updateDbWallet('');
+                          }
+                          showSuccess('Wallet disconnected successfully.', 'Wallet Disconnected');
+                        }
+                      }}
+                    >
+                      <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>link_off</span>
+                      <span>Disconnect</span>
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    type="button"
+                    className="bbdrts-btn-primary"
+                    onClick={() => handleConnectWallet(true)}
+                  >
+                    <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>account_balance_wallet</span>
+                    <span>Connect MetaMask</span>
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Network Mismatch Notice */}
+            {walletAddress && currentChainId && !isSepolia && (
+              <div style={{ margin: '0 20px 16px 20px', padding: '10px 14px', borderRadius: '6px', background: 'rgba(245, 158, 11, 0.08)', border: '1px solid rgba(245, 158, 11, 0.3)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.8rem', color: '#b45309' }}>
+                  <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>warning</span>
+                  <span>Wallet is connected to another network ({currentChainId}). Switch to Sepolia to transact.</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={handleSwitchToSepolia}
+                  style={{
+                    fontSize: '0.74rem',
+                    fontWeight: 600,
+                    padding: '5px 12px',
+                    background: '#b45309',
+                    color: '#ffffff',
+                    border: 'none',
+                    borderRadius: '5px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Switch to Sepolia (11155111)
+                </button>
+              </div>
+            )}
+
+            {/* Manual Wallet Address Binding Card */}
+            <div className="bbdrts-manual-binding-box">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                <strong style={{ fontSize: '0.86rem', color: 'var(--text-primary)' }}>
+                  Manual Wallet Address Binding
+                </strong>
+                <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                  If you are donating via external hardware wallet, mobile app, or paper key, enter your Ethereum address (0x...) to associate your public ledger receipts with this account.
+                </p>
+              </div>
+
+              <div className="bbdrts-input-btn-group">
+                <input
+                  type="text"
+                  className="bbdrts-settings-input"
+                  placeholder="0x71C... (42-character Ethereum address)"
+                  value={manualWallet}
+                  onChange={e => setManualWallet(e.target.value)}
+                />
+                <button
+                  type="button"
+                  className="bbdrts-btn-primary"
+                  onClick={async () => {
+                    if (manualWallet.startsWith('0x') && manualWallet.length >= 40) {
+                      if (updateDbWallet) {
+                        await updateDbWallet(manualWallet.trim());
+                        showSuccess('Wallet address linked successfully.', 'Wallet Bound');
+                        setManualWallet('');
+                      }
+                    } else {
+                      showError('Please enter a valid Ethereum address beginning with 0x.', 'Invalid Format');
+                    }
+                  }}
+                >
+                  Link Address
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Smart Contract Verification Card */}
+          <div className="bbdrts-settings-card">
+            <div className="bbdrts-settings-card-header">
+              <div className="bbdrts-settings-card-title-wrap">
+                <h4 className="bbdrts-settings-card-title">
+                  <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#16a34a' }}>verified</span>
+                  Sepolia Smart Contract Escrow
+                </h4>
+                <p className="bbdrts-settings-card-desc">
+                  All relief contributions are securely escrowed by our OpenZeppelin-verified smart contract.
+                </p>
+              </div>
+            </div>
+
+            <div className="bbdrts-diag-list">
+              <div className="bbdrts-diag-item">
+                <span className="bbdrts-diag-label">Active Contract Address:</span>
+                <a
+                  href={`https://sepolia.etherscan.io/address/${contractAddress}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ color: '#16a34a', fontFamily: 'monospace', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                >
+                  <span>{contractAddress}</span>
+                  <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>open_in_new</span>
+                </a>
+              </div>
+
+              <div className="bbdrts-diag-item">
+                <span className="bbdrts-diag-label">Network Protocol:</span>
+                <span className="bbdrts-diag-value status-ok">● Ethereum Sepolia (Chain ID 11155111)</span>
+              </div>
+
+              <div className="bbdrts-diag-item">
+                <span className="bbdrts-diag-label">Escrow Standard:</span>
+                <span className="bbdrts-diag-value">Milestone-Based Humanitarian Release</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════════════════════════════════
+          TAB 3: PREFERENCES & THEME
+          ══════════════════════════════════════════════════════════════════ */}
+      {activeTab === 'preferences' && (
+        <div className="bbdrts-settings-pane">
+
+          {/* Visual Appearance & Theme Selection */}
+          <div className="bbdrts-settings-card">
+            <div className="bbdrts-settings-card-header">
+              <div className="bbdrts-settings-card-title-wrap">
+                <h4 className="bbdrts-settings-card-title">
+                  <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#16a34a' }}>palette</span>
+                  Visual Appearance & Theme
+                </h4>
+                <p className="bbdrts-settings-card-desc">
+                  Choose your interface theme. Preferences are saved automatically.
+                </p>
+              </div>
+            </div>
+
+            <div className="bbdrts-theme-cards-grid">
+              {/* Option 1: Light Mode (Default) */}
+              <div
+                className={`bbdrts-theme-card-option ${theme === 'light' ? 'active' : ''}`}
+                onClick={() => {
+                  if (setTheme) setTheme('light');
+                  showSuccess('Light Mode enabled.', 'Theme Updated');
+                }}
+              >
+                <div className="bbdrts-theme-preview-icon">
+                  <span className="material-symbols-outlined">light_mode</span>
+                </div>
+                <div className="bbdrts-theme-option-text">
+                  <span className="bbdrts-theme-option-title">Light Mode (Default)</span>
+                  <span className="bbdrts-theme-option-desc">Clean white canvas with soft borders and high-contrast typography.</span>
+                </div>
+                {theme === 'light' && (
+                  <span className="material-symbols-outlined bbdrts-theme-active-icon">check_circle</span>
+                )}
+              </div>
+
+              {/* Option 2: Dark Mode */}
+              <div
+                className={`bbdrts-theme-card-option ${theme === 'dark' ? 'active' : ''}`}
+                onClick={() => {
+                  if (setTheme) setTheme('dark');
+                  showSuccess('Dark Mode enabled.', 'Theme Updated');
+                }}
+              >
+                <div className="bbdrts-theme-preview-icon">
+                  <span className="material-symbols-outlined">dark_mode</span>
+                </div>
+                <div className="bbdrts-theme-option-text">
+                  <span className="bbdrts-theme-option-title">Dark Mode</span>
+                  <span className="bbdrts-theme-option-desc">Deep charcoal and obsidian theme with comfortable contrast.</span>
+                </div>
+                {theme === 'dark' && (
+                  <span className="material-symbols-outlined bbdrts-theme-active-icon">check_circle</span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Typography Scaling Card */}
+          <div className="bbdrts-settings-card">
+            <div className="bbdrts-settings-card-header">
+              <div className="bbdrts-settings-card-title-wrap">
+                <h4 className="bbdrts-settings-card-title">
+                  <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#16a34a' }}>format_size</span>
+                  Interface Typography Sizing
+                </h4>
+                <p className="bbdrts-settings-card-desc">
+                  Scale text sizes across dashboards, campaign cards, tables, and dialogs.
+                </p>
+              </div>
+
+              <span style={{ fontSize: '0.74rem', fontWeight: 600, color: '#16a34a' }}>
+                Active: {TEXT_SIZE_OPTIONS.find(o => o.id === activeTextSize)?.name || 'Standard'}
+              </span>
+            </div>
+
+            <div className="bbdrts-type-scale-grid">
+              {TEXT_SIZE_OPTIONS.map((opt) => {
+                const isActive = activeTextSize === opt.id;
+                return (
+                  <div
+                    key={opt.id}
+                    className={`bbdrts-type-scale-card ${isActive ? 'active' : ''}`}
+                    onClick={() => handleSelectTextSize(opt.id)}
+                  >
+                    <div className="bbdrts-type-scale-info">
+                      <span className="bbdrts-type-scale-name">{opt.name}</span>
+                      <span className="bbdrts-type-scale-pct">{opt.scale} scale</span>
+                    </div>
+                    {isActive && (
+                      <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#16a34a' }}>check</span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Notifications & Privacy Preferences */}
+          <div className="bbdrts-settings-card">
+            <div className="bbdrts-settings-card-header">
+              <div className="bbdrts-settings-card-title-wrap">
+                <h4 className="bbdrts-settings-card-title">
+                  <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#16a34a' }}>notifications</span>
+                  Notifications & Privacy
+                </h4>
+                <p className="bbdrts-settings-card-desc">
+                  Manage communication alerts and public visibility options.
+                </p>
+              </div>
+            </div>
+
+            <div className="bbdrts-pref-list">
+              <div
+                className="bbdrts-pref-item"
+                onClick={() => {
+                  const nextVal = !emailNotify;
+                  setEmailNotify(nextVal);
+                  handleTogglePreference('email_receipts', nextVal, `Email contribution receipts ${nextVal ? 'enabled' : 'disabled'}.`);
+                }}
+              >
+                <div className="bbdrts-pref-info">
+                  <span className="bbdrts-pref-label">Email Contribution Receipts</span>
+                  <span className="bbdrts-pref-desc">Receive tax deduction slips and on-chain verification links via email.</span>
+                </div>
+                <div className={`bbdrts-toggle-track ${emailNotify ? 'active' : ''}`}>
+                  <div className="bbdrts-toggle-thumb" />
+                </div>
+              </div>
+
+              <div
+                className="bbdrts-pref-item"
+                onClick={() => {
+                  const nextVal = !calamityAlerts;
+                  setCalamityAlerts(nextVal);
+                  handleTogglePreference('calamity_alerts', nextVal, `Disaster response alerts ${nextVal ? 'enabled' : 'disabled'}.`);
+                }}
+              >
+                <div className="bbdrts-pref-info">
+                  <span className="bbdrts-pref-label">Urgent Disaster Calamity Alerts</span>
+                  <span className="bbdrts-pref-desc">Instant alerts when severe typhoons, earthquakes, or floods require emergency relief.</span>
+                </div>
+                <div className={`bbdrts-toggle-track ${calamityAlerts ? 'active' : ''}`}>
+                  <div className="bbdrts-toggle-thumb" />
+                </div>
+              </div>
+
+              {!isOrg && (
+                <>
+                  <div className="bbdrts-pref-item" onClick={handleToggleAnonymous}>
+                    <div className="bbdrts-pref-info">
+                      <span className="bbdrts-pref-label">Anonymous Donor Mode</span>
+                      <span className="bbdrts-pref-desc">Mask your real name on public campaign donor lists and leaderboards.</span>
+                    </div>
+                    <div className={`bbdrts-toggle-track ${anonDefault ? 'active' : ''}`}>
+                      <div className="bbdrts-toggle-thumb" />
+                    </div>
+                  </div>
+
+                  <div className="bbdrts-pref-item" onClick={handleToggleBadgeVisibility}>
+                    <div className="bbdrts-pref-info">
+                      <span className="bbdrts-pref-label">Philanthropic Recognition Badge</span>
+                      <span className="bbdrts-pref-desc">Display your humanitarian supporter insignia next to your contributions.</span>
+                    </div>
+                    <div className={`bbdrts-toggle-track ${showBadge ? 'active' : ''}`}>
+                      <div className="bbdrts-toggle-thumb" />
+                    </div>
+                  </div>
+                </>
+              )}
+
+              <div
+                className="bbdrts-pref-item"
+                onClick={() => {
+                  const nextVal = !glassFx;
+                  setGlassFx(nextVal);
+                  handleTogglePreference('glass_fx', nextVal, `Backdrop blur effects ${nextVal ? 'enabled' : 'disabled'}.`);
+                }}
+              >
+                <div className="bbdrts-pref-info">
+                  <span className="bbdrts-pref-label">Backdrop Blur Effects</span>
+                  <span className="bbdrts-pref-desc">Frosted glass transparency across navigation bars and modal overlays.</span>
+                </div>
+                <div className={`bbdrts-toggle-track ${glassFx ? 'active' : ''}`}>
+                  <div className="bbdrts-toggle-thumb" />
+                </div>
+              </div>
+
+              {onStartTour && (
+                <div
+                  className="bbdrts-pref-item"
+                  onClick={() => {
+                    try {
+                      localStorage.removeItem('bbdrts_tour_donor_done');
+                      localStorage.removeItem('bbdrts_tour_ngo_done');
+                      if (currentUser?.id) {
+                        localStorage.removeItem(`bbdrts_tour_donor_${currentUser.id}`);
+                        localStorage.removeItem(`bbdrts_tour_ngo_${currentUser.id}`);
+                      }
+                      localStorage.setItem('bbdrts_tour_force_launch', 'true');
+                      onStartTour();
+                      showSuccess('Interactive onboarding walkthrough restarted.', 'Tour Launched');
+                    } catch (_) {}
+                  }}
+                >
+                  <div className="bbdrts-pref-info">
+                    <span className="bbdrts-pref-label">Reset Interactive Walkthrough</span>
+                    <span className="bbdrts-pref-desc">Replay the guided feature tour for your dashboard.</span>
+                  </div>
+                  <span className="material-symbols-outlined" style={{ fontSize: '20px', color: 'var(--text-muted)' }}>
+                    play_circle
+                  </span>
                 </div>
               )}
             </div>
-
           </div>
+
         </div>
+      )}
 
-        {/* ── 2. WEB3 METAMASK WALLET MANAGEMENT SUITE ── */}
-        <div className="settings-section-glass">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
-            <h3 className="settings-section-header" style={{ margin: 0 }}>
-              <span className="material-symbols-outlined" style={{ color: '#f59e0b' }}>account_balance_wallet</span> 
-              Web3 MetaMask Cryptographic Key Suite
-            </h3>
-            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted, #94a3b8)', fontFamily: 'monospace', background: 'var(--bg-input, rgba(255,255,255,0.05))', padding: '4px 10px', borderRadius: '6px', border: '1px solid var(--border, rgba(255,255,255,0.1))' }}>
-              Chain ID: 11155111 (Sepolia Testnet)
-            </span>
-          </div>
+      {/* ══════════════════════════════════════════════════════════════════
+          TAB 4: SECURITY & SYSTEM STATUS
+          ══════════════════════════════════════════════════════════════════ */}
+      {activeTab === 'security' && (
+        <div className="bbdrts-settings-pane">
 
-          <p className="settings-section-desc">
-            Your MetaMask public address is registered on the blockchain to sign and authorize tamper-proof transactions.
-          </p>
-          
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
-            {walletAddress ? (
-              <div className={`wallet-conn-box ${contract ? 'connected' : 'mismatch'}`} style={{ padding: '16px 20px', borderRadius: '12px', flex: 1, minWidth: '280px' }}>
-                <span className="wallet-icon" style={{ fontSize: '2.8rem' }}>🦊</span>
-                <div style={{ flex: 1 }}>
-                  <div className={`wallet-status ${contract ? 'connected' : 'mismatch'}`} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                     <span className="spinner-dot" style={{ width: '8px', height: '8px', borderRadius: '50%', background: contract ? '#22c55e' : '#f59e0b' }} />
-                     {contract ? 'Secure Cryptographic Link Active' : 'Signature Pending MetaMask Sync'}
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '4px', flexWrap: 'wrap' }}>
-                    <strong className="wallet-address" style={{ fontSize: '1.15rem' }}>{shortAddr(walletAddress)}</strong>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        navigator.clipboard.writeText(walletAddress);
-                        showSuccess('Full wallet address copied to clipboard!', 'Address Copied');
-                      }}
-                      style={{ background: 'var(--bg-input, rgba(255,255,255,0.06))', border: '1px solid var(--border, rgba(255,255,255,0.1))', color: '#22c55e', padding: '3px 10px', borderRadius: '6px', fontSize: '0.75rem', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
-                    >
-                      <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>content_copy</span>
-                      Copy
-                    </button>
-                    <a
-                      href={`https://sepolia.etherscan.io/address/${walletAddress}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      style={{ background: 'rgba(34, 197, 94, 0.1)', border: '1px solid rgba(34, 197, 94, 0.3)', color: '#22c55e', padding: '3px 10px', borderRadius: '6px', fontSize: '0.75rem', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
-                    >
-                      <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>open_in_new</span>
-                      Etherscan
-                    </a>
-                  </div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted, #94a3b8)', fontFamily: 'monospace', marginTop: '4px', wordBreak: 'break-all' }}>
-                    {walletAddress}
-                  </div>
+          {/* Change Account Password Card */}
+          <div className="bbdrts-settings-card">
+            <div className="bbdrts-settings-card-header">
+              <div className="bbdrts-settings-card-title-wrap">
+                <h4 className="bbdrts-settings-card-title">
+                  <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#16a34a' }}>lock</span>
+                  Change Account Password
+                </h4>
+                <p className="bbdrts-settings-card-desc">
+                  Update your authentication credentials. Passwords are encrypted using bcrypt hashing with salted rounds.
+                </p>
+              </div>
+            </div>
+
+            <form onSubmit={handleChangePassword} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div className="bbdrts-password-form">
+                <div className="bbdrts-field-group">
+                  <label>Current Password</label>
+                  <input
+                    type="password"
+                    className="bbdrts-settings-input"
+                    placeholder="Enter current password"
+                    value={currentPassword}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
+                  />
+                </div>
+
+                <div className="bbdrts-field-group">
+                  <label>New Password</label>
+                  <input
+                    type="password"
+                    className="bbdrts-settings-input"
+                    placeholder="Min. 6 characters"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                  />
+                </div>
+
+                <div className="bbdrts-field-group">
+                  <label>Confirm New Password</label>
+                  <input
+                    type="password"
+                    className="bbdrts-settings-input"
+                    placeholder="Repeat new password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                  />
                 </div>
               </div>
-            ) : (
-              <div className="wallet-conn-box disconnected" style={{ padding: '16px 20px', borderRadius: '12px', flex: 1 }}>
-                <span className="wallet-icon" style={{ filter: 'grayscale(100%)', fontSize: '2.8rem' }}>🦊</span>
-                <div>
-                  <div className="wallet-status disconnected">● No Cryptographic Wallet Bound</div>
-                  <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>You must bind a MetaMask key to interact with smart contract campaigns.</div>
-                </div>
-              </div>
-            )}
-            
-            {walletAddress ? (
-              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-                {!contract && (
-                  <button className="btn btn-primary glow pulse" onClick={() => handleConnectWallet(true)} style={{ padding: '0.75rem 1.25rem' }}>
-                    <span className="material-symbols-outlined">sync</span> Sync Wallet
-                  </button>
-                )}
-                <button className="btn btn-outline" onClick={async () => {
-                  if(window.confirm("CRITICAL WARNING: Unbinding this wallet revokes your ability to broadcast smart contract transactions. Proceed?")) {
-                    if (updateDbWallet) {
-                      await updateDbWallet('');
-                      window.location.reload();
-                    }
-                  }
-                }} style={{ borderColor: 'rgba(239, 68, 68, 0.4)', color: '#ef4444', padding: '0.75rem 1.25rem' }}>
-                  <span className="material-symbols-outlined">link_off</span> Sever Link
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '4px' }}>
+                <button
+                  type="submit"
+                  className="bbdrts-settings-edit-btn"
+                  disabled={savingPassword || !currentPassword || !newPassword}
+                >
+                  {savingPassword ? (
+                    <>
+                      <span className="material-symbols-outlined bbdrts-spin" style={{ fontSize: '14px' }}>sync</span>
+                      <span>Updating...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>key</span>
+                      <span>Update Password</span>
+                    </>
+                  )}
                 </button>
               </div>
-            ) : (
-              <button className="btn btn-primary glow" onClick={() => handleConnectWallet(true)} style={{ padding: '0.85rem 1.75rem' }}>
-                <span className="material-symbols-outlined">link</span> Bind MetaMask Key
+            </form>
+          </div>
+
+          {/* System Health Overview */}
+          <div className="bbdrts-settings-card">
+            <div className="bbdrts-settings-card-header">
+              <div className="bbdrts-settings-card-title-wrap">
+                <h4 className="bbdrts-settings-card-title">
+                  <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#16a34a' }}>health_and_safety</span>
+                  Real-Time System & Protocol Health
+                </h4>
+                <p className="bbdrts-settings-card-desc">
+                  Status of blockchain nodes, smart contracts, and database synchronization.
+                </p>
+              </div>
+            </div>
+
+            <div className="bbdrts-diag-list">
+              <div className="bbdrts-diag-item">
+                <span className="bbdrts-diag-label">Sepolia EVM RPC Gateway:</span>
+                <span className="bbdrts-diag-value status-ok">● Connected & Operational</span>
+              </div>
+              <div className="bbdrts-diag-item">
+                <span className="bbdrts-diag-label">Smart Contract Escrow:</span>
+                <span className="bbdrts-diag-value status-ok">● Active (OpenZeppelin Secure)</span>
+              </div>
+              <div className="bbdrts-diag-item">
+                <span className="bbdrts-diag-label">Relief Ledger Database:</span>
+                <span className="bbdrts-diag-value status-ok">● Synchronized</span>
+              </div>
+              <div className="bbdrts-diag-item">
+                <span className="bbdrts-diag-label">Authentication Session:</span>
+                <span className="bbdrts-diag-value">JWT Secure Session (Active)</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Account Danger Zone / Sign Out */}
+          <div className="bbdrts-settings-card bbdrts-danger-card">
+            <div className="bbdrts-settings-card-header">
+              <div className="bbdrts-settings-card-title-wrap">
+                <h4 className="bbdrts-settings-card-title" style={{ color: '#ef4444' }}>
+                  <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#ef4444' }}>logout</span>
+                  Sign Out of Account
+                </h4>
+                <p className="bbdrts-settings-card-desc">
+                  Safely conclude your active session. You can sign back in at any time.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                className="bbdrts-danger-btn"
+                onClick={handleLogout}
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>logout</span>
+                <span>Sign Out</span>
               </button>
-            )}
-          </div>
-          
-          {/* Terminal Sandbox Override */}
-          <div className="terminal-sandbox" style={{ marginTop: '20px' }}>
-             <div style={{ color: '#22c55e', fontSize: '0.82rem', marginBottom: '6px', fontWeight: 700 }}>&gt; MANUAL OVERRIDE PROTOCOL (OFFLINE CAPSTONE SIMULATION)</div>
-             <p style={{ fontSize: '0.75rem', color: 'var(--text-muted, #94a3b8)', marginBottom: '10px' }}>
-               Inject a custom 0x hex string to force Web3 database binding during capstone defense simulations.
-             </p>
-             <div className="terminal-input-group">
-                <input type="text" className="terminal-input" placeholder="0x..." value={manualWallet} onChange={e => setManualWallet(e.target.value)} />
-                <button className="terminal-btn" onClick={async () => {
-                  if (manualWallet.startsWith('0x')) {
-                     if(updateDbWallet) { 
-                       await updateDbWallet(manualWallet.trim()); 
-                       showSuccess('Wallet address linked successfully.', 'Wallet Synchronized');
-                       window.location.reload(); 
-                     }
-                  } else {
-                     showError('Invalid Ethereum wallet address format. Address must begin with 0x.', 'Format Error');
-                  }
-                }}>Inject [Enter]</button>
-             </div>
-          </div>
-        </div>
-
-        {/* ── 3. PREFERENCES & SYSTEM DIAGNOSTICS GRID ── */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.25rem' }}>
-          
-          {/* Visual Appearance & Theme */}
-          <div className="settings-section-glass">
-            <h3 className="settings-section-header" style={{ fontSize: '1.1rem' }}>
-              <span className="material-symbols-outlined" style={{ color: '#22c55e' }}>palette</span> Visual Appearance & Theme
-            </h3>
-            <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '2px', marginBottom: '14px' }}>
-              Choose your preferred visual appearance from 3 tailored design palettes:
-            </p>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '10px' }}>
-              {/* Option 1: Layered Dark */}
-              <div
-                onClick={() => {
-                  if (setTheme) {
-                    setTheme('dark');
-                    showSuccess('Dark Mode enabled (#111 canvas, #222 cards, #333 insets)', 'Theme Updated');
-                  }
-                }}
-                style={{
-                  background: '#222222',
-                  border: theme === 'dark' ? '2px solid #22c55e' : '1px solid rgba(255,255,255,0.1)',
-                  borderRadius: '10px',
-                  padding: '12px 14px',
-                  cursor: 'pointer',
-                  boxShadow: theme === 'dark' ? '0 0 14px rgba(34, 197, 94, 0.3)' : 'none',
-                  transition: 'all 0.2s ease',
-                  position: 'relative'
-                }}
-              >
-                {theme === 'dark' && (
-                  <span className="material-symbols-outlined" style={{ position: 'absolute', top: '10px', right: '10px', fontSize: '18px', color: '#22c55e' }}>
-                    check_circle
-                  </span>
-                )}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                  <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#22c55e' }}>dark_mode</span>
-                  <div style={{ fontSize: '0.9rem', fontWeight: 800, color: '#ffffff' }}>Dark Contrast</div>
-                </div>
-                <div style={{ fontSize: '0.72rem', color: '#a3a3a3', lineHeight: 1.35 }}>
-                  Harmonious mix of #111 canvas, #222 cards, #333 insets & crisp text.
-                </div>
-              </div>
-
-              {/* Option 2: Inverted Light */}
-              <div
-                onClick={() => {
-                  if (setTheme) {
-                    setTheme('light');
-                    showSuccess('Light Mode enabled', 'Theme Updated');
-                  }
-                }}
-                style={{
-                  background: '#ffffff',
-                  border: theme === 'light' ? '2px solid #16a34a' : '1px solid rgba(0,0,0,0.12)',
-                  borderRadius: '10px',
-                  padding: '12px 14px',
-                  cursor: 'pointer',
-                  boxShadow: theme === 'light' ? '0 0 14px rgba(22, 163, 74, 0.3)' : 'none',
-                  transition: 'all 0.2s ease',
-                  position: 'relative'
-                }}
-              >
-                {theme === 'light' && (
-                  <span className="material-symbols-outlined" style={{ position: 'absolute', top: '10px', right: '10px', fontSize: '18px', color: '#16a34a' }}>
-                    check_circle
-                  </span>
-                )}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                  <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#16a34a' }}>light_mode</span>
-                  <div style={{ fontSize: '0.9rem', fontWeight: 800, color: '#111111' }}>Inverted Light</div>
-                </div>
-                <div style={{ fontSize: '0.72rem', color: '#52525b', lineHeight: 1.35 }}>
-                  Clean daytime canvas with white cards, soft borders & high-contrast text.
-                </div>
-              </div>
-
-              {/* Option 3: Cyber Navy */}
-              <div
-                onClick={() => {
-                  if (setTheme) {
-                    setTheme('cyber');
-                    showSuccess('Cyber Mode enabled', 'Theme Updated');
-                  }
-                }}
-                style={{
-                  background: '#16181f',
-                  border: theme === 'cyber' ? '2px solid #00ffa3' : '1px solid rgba(255,255,255,0.1)',
-                  borderRadius: '10px',
-                  padding: '12px 14px',
-                  cursor: 'pointer',
-                  boxShadow: theme === 'cyber' ? '0 0 14px rgba(0, 255, 163, 0.3)' : 'none',
-                  transition: 'all 0.2s ease',
-                  position: 'relative'
-                }}
-              >
-                {theme === 'cyber' && (
-                  <span className="material-symbols-outlined" style={{ position: 'absolute', top: '10px', right: '10px', fontSize: '18px', color: '#00ffa3' }}>
-                    check_circle
-                  </span>
-                )}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                  <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#00ffa3' }}>blur_on</span>
-                  <div style={{ fontSize: '0.9rem', fontWeight: 800, color: '#00ffa3' }}>Cyber Navy</div>
-                </div>
-                <div style={{ fontSize: '0.72rem', color: '#94a3b8', lineHeight: 1.35 }}>
-                  Deep navy #0a0b0f glassmorphism with neon mint & cyan glow.
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Interactive Preferences */}
-          <div className="settings-section-glass">
-            <h3 className="settings-section-header" style={{ fontSize: '1.1rem' }}>
-              <span className="material-symbols-outlined" style={{ color: '#22c55e' }}>tune</span> Donor & Security Preferences
-            </h3>
-            
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '12px' }}>
-              
-              <div 
-                onClick={() => {
-                  setEmailNotify(!emailNotify);
-                  showSuccess(`Email receipts ${!emailNotify ? 'enabled' : 'disabled'}.`);
-                }}
-                style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: 'var(--bg-input, rgba(0,0,0,0.2))', border: '1px solid var(--border, rgba(255,255,255,0.05))', borderRadius: '10px', cursor: 'pointer' }}
-              >
-                <div>
-                  <div style={{ fontSize: '0.86rem', fontWeight: 600, color: 'var(--text-primary, #fff)' }}>Email Audit Receipts</div>
-                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted, #94a3b8)' }}>Receive on-chain receipt PDFs</div>
-                </div>
-                <div style={{ width: '38px', height: '20px', borderRadius: '20px', background: emailNotify ? '#22c55e' : 'rgba(255,255,255,0.15)', position: 'relative', transition: '0.2s', flexShrink: 0 }}>
-                  <div style={{ width: '16px', height: '16px', borderRadius: '50%', background: '#fff', position: 'absolute', top: '2px', left: emailNotify ? '20px' : '2px', transition: '0.2s' }} />
-                </div>
-              </div>
-
-              <div 
-                onClick={handleToggleAnonymous}
-                style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: 'var(--bg-input, rgba(0,0,0,0.2))', border: '1px solid var(--border, rgba(255,255,255,0.05))', borderRadius: '10px', cursor: 'pointer' }}
-              >
-                <div>
-                  <div style={{ fontSize: '0.86rem', fontWeight: 600, color: 'var(--text-primary, #fff)' }}>Default Anonymous Mode</div>
-                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted, #94a3b8)' }}>Mask identity on leaderboard & pre-check anonymous donations</div>
-                </div>
-                <div style={{ width: '38px', height: '20px', borderRadius: '20px', background: anonDefault ? '#22c55e' : 'rgba(255,255,255,0.15)', position: 'relative', transition: '0.2s', flexShrink: 0 }}>
-                  <div style={{ width: '16px', height: '16px', borderRadius: '50%', background: '#fff', position: 'absolute', top: '2px', left: anonDefault ? '20px' : '2px', transition: '0.2s' }} />
-                </div>
-              </div>
-
-              <div 
-                onClick={handleToggleShowBadge}
-                style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: 'var(--bg-input, rgba(0,0,0,0.2))', border: '1px solid var(--border, rgba(255,255,255,0.05))', borderRadius: '10px', cursor: 'pointer' }}
-              >
-                <div>
-                  <div style={{ fontSize: '0.86rem', fontWeight: 600, color: 'var(--text-primary, #fff)' }}>Public Merit Badge Visibility</div>
-                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted, #94a3b8)' }}>Show tier badge on public ledgers & leaderboard (name stays visible)</div>
-                </div>
-                <div style={{ width: '38px', height: '20px', borderRadius: '20px', background: showBadge ? '#22c55e' : 'rgba(255,255,255,0.15)', position: 'relative', transition: '0.2s', flexShrink: 0 }}>
-                  <div style={{ width: '16px', height: '16px', borderRadius: '50%', background: '#fff', position: 'absolute', top: '2px', left: showBadge ? '20px' : '2px', transition: '0.2s' }} />
-                </div>
-              </div>
-
-              <div 
-                onClick={() => {
-                  setCalamityAlerts(!calamityAlerts);
-                  showSuccess(`Emergency Dispatches ${!calamityAlerts ? 'enabled' : 'disabled'}.`);
-                }}
-                style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: 'var(--bg-input, rgba(0,0,0,0.2))', border: '1px solid var(--border, rgba(255,255,255,0.05))', borderRadius: '10px', cursor: 'pointer' }}
-              >
-                <div>
-                  <div style={{ fontSize: '0.86rem', fontWeight: 600, color: 'var(--text-primary, #fff)' }}>Disaster Emergency Alerts</div>
-                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted, #94a3b8)' }}>Notify for urgent typhoon aid</div>
-                </div>
-                <div style={{ width: '38px', height: '20px', borderRadius: '20px', background: calamityAlerts ? '#22c55e' : 'rgba(255,255,255,0.15)', position: 'relative', transition: '0.2s', flexShrink: 0 }}>
-                  <div style={{ width: '16px', height: '16px', borderRadius: '50%', background: '#fff', position: 'absolute', top: '2px', left: calamityAlerts ? '20px' : '2px', transition: '0.2s' }} />
-                </div>
-              </div>
-
-              <div 
-                onClick={() => {
-                  setGlassFx(!glassFx);
-                  showSuccess(`High-Performance UI Glass ${!glassFx ? 'enabled' : 'disabled'}.`);
-                }}
-                style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: 'var(--bg-input, rgba(0,0,0,0.2))', border: '1px solid var(--border, rgba(255,255,255,0.05))', borderRadius: '10px', cursor: 'pointer' }}
-              >
-                <div>
-                  <div style={{ fontSize: '0.86rem', fontWeight: 600, color: 'var(--text-primary, #fff)' }}>UI Glassmorphism Shaders</div>
-                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted, #94a3b8)' }}>Enable backdrop blur effects</div>
-                </div>
-                <div style={{ width: '38px', height: '20px', borderRadius: '20px', background: glassFx ? '#22c55e' : 'rgba(255,255,255,0.15)', position: 'relative', transition: '0.2s', flexShrink: 0 }}>
-                  <div style={{ width: '16px', height: '16px', borderRadius: '50%', background: '#fff', position: 'absolute', top: '2px', left: glassFx ? '20px' : '2px', transition: '0.2s' }} />
-                </div>
-              </div>
-
-              <div 
-                onClick={() => {
-                  try {
-                    localStorage.removeItem('bbdrts_tour_donor_done');
-                    localStorage.removeItem('bbdrts_tour_ngo_done');
-                    if (currentUser?.id) {
-                      localStorage.removeItem(`bbdrts_tour_donor_${currentUser.id}`);
-                      localStorage.removeItem(`bbdrts_tour_ngo_${currentUser.id}`);
-                    }
-                    if (currentUser?.email) {
-                      localStorage.removeItem(`bbdrts_tour_donor_${currentUser.email}`);
-                      localStorage.removeItem(`bbdrts_tour_ngo_${currentUser.email}`);
-                    }
-                    localStorage.setItem('bbdrts_tour_force_launch', 'true');
-                    if (typeof onStartTour === 'function') {
-                      onStartTour();
-                      showSuccess('Platform tutorial launched!', 'Tutorial Activated');
-                    } else {
-                      showSuccess('Platform tutorial reset! Refreshing to start tour...');
-                      setTimeout(() => window.location.reload(), 500);
-                    }
-                  } catch (_) {}
-                }}
-                style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: 'var(--accent-dim, rgba(34, 197, 94, 0.08))', border: '1px solid var(--accent-glow, rgba(34, 197, 94, 0.25))', borderRadius: '10px', cursor: 'pointer', transition: '0.2s' }}
-                title="Reset and replay the interactive onboarding tour"
-              >
-                <div>
-                  <div style={{ fontSize: '0.86rem', fontWeight: 600, color: 'var(--accent, #22c55e)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>restart_alt</span>
-                    Replay Guided Platform Tour
-                  </div>
-                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted, #94a3b8)' }}>Restart the step-by-step spotlight tutorial</div>
-                </div>
-                <span className="material-symbols-outlined" style={{ fontSize: '18px', color: 'var(--accent, #22c55e)' }}>chevron_right</span>
-              </div>
-
-            </div>
-          </div>
-
-          {/* Blockchain & Protocol Health */}
-          <div className="settings-section-glass">
-            <h3 className="settings-section-header" style={{ fontSize: '1.1rem' }}>
-              <span className="material-symbols-outlined" style={{ color: '#22c55e' }}>health_and_safety</span> Blockchain Protocol Health
-            </h3>
-            
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '12px', fontSize: '0.82rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', background: 'var(--bg-input, rgba(0,0,0,0.2))', border: '1px solid var(--border, rgba(255,255,255,0.05))', borderRadius: '8px' }}>
-                <span style={{ color: 'var(--text-muted, #94a3b8)' }}>EVM RPC Gateway:</span>
-                <strong style={{ color: '#22c55e' }}>● Operational (Sepolia)</strong>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', background: 'var(--bg-input, rgba(0,0,0,0.2))', border: '1px solid var(--border, rgba(255,255,255,0.05))', borderRadius: '8px' }}>
-                <span style={{ color: 'var(--text-muted, #94a3b8)' }}>Smart Contract Address:</span>
-                <a 
-                  href="https://sepolia.etherscan.io/address/0xD87ce126F2a014fa27a7c06282E2E6931705E507" 
-                  target="_blank" 
-                  rel="noreferrer" 
-                  style={{ color: '#22c55e', fontFamily: 'monospace', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
-                >
-                  0xD87c...E507 ↗
-                </a>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', background: 'var(--bg-input, rgba(0,0,0,0.2))', border: '1px solid var(--border, rgba(255,255,255,0.05))', borderRadius: '8px' }}>
-                <span style={{ color: 'var(--text-muted, #94a3b8)' }}>Protocol ABI Version:</span>
-                <strong style={{ color: '#22c55e' }}>v2.4.1 (ERC-20/Native)</strong>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 12px', background: 'var(--bg-input, rgba(0,0,0,0.2))', border: '1px solid var(--border, rgba(255,255,255,0.05))', borderRadius: '8px' }}>
-                <span style={{ color: 'var(--text-muted, #94a3b8)' }}>Off-Chain Database:</span>
-                <strong style={{ color: '#22c55e' }}>● MySQL Synchronized</strong>
-              </div>
             </div>
           </div>
 
         </div>
+      )}
 
-        {/* ── 4. TYPOGRAPHY & TEXT SIZE SCALING ── */}
-        <div className="settings-section-glass">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '10px', marginBottom: '6px' }}>
-            <div>
-              <h3 className="settings-section-header" style={{ fontSize: '1.15rem', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span className="material-symbols-outlined" style={{ color: '#22c55e' }}>format_size</span> 
-                Typography & Interface Text Sizing
-              </h3>
-              <p style={{ fontSize: '0.8rem', color: 'var(--text-muted, #94a3b8)', marginTop: '4px', marginBottom: 0 }}>
-                Dynamically scale font sizes and density across all campaign cards, charts, data ledgers, and modals.
-              </p>
-            </div>
-            <span style={{ fontSize: '0.74rem', background: 'rgba(34, 197, 94, 0.15)', color: '#22c55e', border: '1px solid rgba(34, 197, 94, 0.3)', padding: '4px 10px', borderRadius: '12px', fontWeight: 800 }}>
-              Active Scale: {TEXT_SIZE_OPTIONS.find(o => o.id === activeTextSize)?.name || 'Standard'} ({TEXT_SIZE_OPTIONS.find(o => o.id === activeTextSize)?.scale || '100%'})
-            </span>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px', margin: '16px 0' }}>
-            {TEXT_SIZE_OPTIONS.map((opt) => {
-              const isActive = activeTextSize === opt.id;
-              return (
-                <div
-                  key={opt.id}
-                  onClick={() => handleSelectTextSize(opt.id)}
-                  style={{
-                    background: isActive 
-                      ? (theme === 'light' ? '#f0fdf4' : 'rgba(34, 197, 94, 0.12)') 
-                      : (theme === 'light' ? '#ffffff' : 'var(--bg-input, rgba(0, 0, 0, 0.25))'),
-                    border: isActive ? '2px solid #22c55e' : '1px solid var(--border, rgba(255, 255, 255, 0.08))',
-                    borderRadius: '12px',
-                    padding: '14px',
-                    cursor: 'pointer',
-                    boxShadow: isActive ? '0 0 16px rgba(34, 197, 94, 0.22)' : 'none',
-                    transition: 'all 0.2s ease',
-                    position: 'relative'
-                  }}
-                >
-                  {isActive && (
-                    <span className="material-symbols-outlined" style={{ position: 'absolute', top: '10px', right: '10px', fontSize: '18px', color: '#22c55e' }}>
-                      check_circle
-                    </span>
-                  )}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
-                    <span className="material-symbols-outlined" style={{ fontSize: '22px', color: isActive ? '#22c55e' : 'var(--text-muted, #94a3b8)' }}>
-                      {opt.icon}
-                    </span>
-                    <div>
-                      <div style={{ fontSize: '0.92rem', fontWeight: 800, color: 'var(--text-primary, #ffffff)' }}>
-                        {opt.name} <span style={{ fontSize: '0.74rem', color: '#22c55e', fontWeight: 700 }}>({opt.scale})</span>
-                      </div>
-                      <div style={{ fontSize: '0.7rem', color: 'var(--text-muted, #94a3b8)' }}>Base: {opt.baseSize}</div>
-                    </div>
-                  </div>
-                  <div style={{ fontSize: '0.74rem', color: 'var(--text-secondary, #cbd5e1)', lineHeight: 1.35 }}>
-                    {opt.desc}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Interactive Live Typography Sample */}
-          <div style={{ 
-            background: 'var(--bg-input, rgba(0, 0, 0, 0.25))', 
-            border: '1px dashed var(--border, rgba(255, 255, 255, 0.12))', 
-            borderRadius: '10px', 
-            padding: '12px 16px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            flexWrap: 'wrap',
-            gap: '10px'
-          }}>
-            <div>
-              <div style={{ fontSize: '0.68rem', textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--text-muted, #94a3b8)', fontWeight: 700 }}>
-                Live Typography Scaling Sample:
-              </div>
-              <div style={{ fontSize: '0.88rem', color: 'var(--text-primary, #ffffff)', fontWeight: 600, marginTop: '2px' }}>
-                "Real-time transparent cryptographic disaster relief settlements on Sepolia EVM."
-              </div>
-            </div>
-            <span className="badge" style={{ background: 'rgba(34, 197, 94, 0.15)', color: '#22c55e', borderColor: '#22c55e', fontSize: '0.72rem', padding: '4px 10px' }}>
-              Dynamic Scale: {TEXT_SIZE_OPTIONS.find(o => o.id === activeTextSize)?.scale || '100%'}
-            </span>
-          </div>
-        </div>
-
-        {/* ── 5. DANGER ZONE: SESSION TERMINATION ── */}
-        <div className="settings-section-glass settings-danger-zone">
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
-            <div>
-              <h3 className="settings-section-header" style={{color: '#ef4444', margin: 0, fontSize: '1.1rem'}}>Session Termination</h3>
-              <p className="settings-section-desc" style={{color: 'rgba(239, 68, 68, 0.8)', margin: '4px 0 0'}}>
-                Securely close active database session and clear local authorization keys.
-              </p>
-            </div>
-            <button className="settings-btn-danger" onClick={handleLogout} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '0.75rem 1.5rem' }}>
-              <span className="material-symbols-outlined" style={{fontSize: '18px'}}>logout</span>
-              Terminate Session
-            </button>
-          </div>
-        </div>
-
-      </div>
-
-      {/* ── 5. COMPREHENSIVE EDIT PROFILE MODAL ── */}
+      {/* ── Edit Profile Modal (Single Source of Truth) ── */}
       {editModalOpen && (
         <EditProfileModal
           currentUser={currentUser}

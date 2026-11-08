@@ -356,7 +356,7 @@ export default function LiveTrackerModal({ isOpen, onClose, theme }) {
               type: "button",
               className: "ltm-tool-btn",
               onClick: (e) => { e.stopPropagation(); fetchLiveStream(false); },
-              title: "Refresh stream",
+              title: "Refresh feed",
               "aria-label": "Refresh"
             },
               React.createElement("span", { className: "material-symbols-outlined" }, "refresh")
@@ -365,7 +365,7 @@ export default function LiveTrackerModal({ isOpen, onClose, theme }) {
               type: "button",
               className: "ltm-tool-btn ltm-close-btn",
               onClick: onClose,
-              title: "Close live stream",
+              title: "Close live tracker",
               "aria-label": "Close"
             },
               React.createElement("span", { className: "material-symbols-outlined" }, "close")
