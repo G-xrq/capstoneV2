@@ -31,7 +31,7 @@ body:has(.bbdrts-maint-modal-overlay) {
   overflow-x: hidden !important;
   overscroll-behavior: contain !important;
   -webkit-overflow-scrolling: touch;
-  animation: maintFadeIn 0.16s ease-out forwards;
+  opacity: 1 !important;
 }
 
 [data-theme="light"] .bbdrts-maint-modal-overlay {
@@ -39,11 +39,6 @@ body:has(.bbdrts-maint-modal-overlay) {
   background-image:
     radial-gradient(ellipse 80% 45% at 50% 0%, rgba(0, 0, 0, 0.03) 0%, transparent 65%),
     radial-gradient(rgba(0, 0, 0, 0.08) 1px, transparent 1px) !important;
-}
-
-@keyframes maintFadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
 }
 
 .bbdrts-maint-shell {
