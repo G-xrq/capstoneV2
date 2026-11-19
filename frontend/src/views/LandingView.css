@@ -555,7 +555,6 @@
   position: relative;
   width: 100%;
   max-width: 480px;
-  overflow-x: clip;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
@@ -614,7 +613,7 @@
 /* Masked Vercel Dot-Matrix Backdrop (Recessed in 3D Backplane) */
 .bdr-process-backdrop {
   position: absolute;
-  inset: -32px 0;
+  inset: -32px -40px;
   background-image: radial-gradient(rgba(255, 255, 255, 0.13) 1px, transparent 1px);
   background-size: 16px 16px;
   -webkit-mask-image: radial-gradient(ellipse 75% 75% at 50% 50%, #000 30%, transparent 88%);
@@ -634,7 +633,7 @@
 /* Monochrome Specular Hover Glare across the 3D Deck */
 .bdr-tilt-glare {
   position: absolute;
-  inset: 0;
+  inset: -18px;
   border-radius: 20px;
   background: radial-gradient(
     420px circle at var(--pointer-x) var(--pointer-y),
