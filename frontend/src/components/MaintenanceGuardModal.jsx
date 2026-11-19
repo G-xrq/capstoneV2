@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { API_URL, apiFetch } from '../config';
+import { API_URL } from '../config';
 import './MaintenanceGuardModal.css';
 
 export default function MaintenanceGuardModal({
@@ -20,7 +20,6 @@ export default function MaintenanceGuardModal({
   const [dismissBypass, setDismissBypass] = useState(false);
   const [isPreviewMode, setIsPreviewMode] = useState(false);
   const [manualRechecking, setManualRechecking] = useState(false);
-  const [showAdminGateModal, setShowAdminGateModal] = useState(false);
 
   // Live ticking system clock state (ticks every 1000ms)
   const [liveClock, setLiveClock] = useState(() => new Date());
@@ -38,7 +37,7 @@ export default function MaintenanceGuardModal({
     if (isNaN(end.getTime())) return null;
     const diff = end.getTime() - liveClock.getTime();
     if (diff <= 0) {
-      return { isPast: true, text: 'Scheduled window reached • Verification in progress' };
+      return { isPast: true, text: 'Window reached • Verifying' };
     }
     const totalSecs = Math.floor(diff / 1000);
     const hours = Math.floor(totalSecs / 3600);
@@ -52,13 +51,6 @@ export default function MaintenanceGuardModal({
   };
 
   const remainingInfo = getRemainingInfo();
-
-  // Admin Login Form State inside Gate
-  const [adminEmail, setAdminEmail] = useState('');
-  const [adminPassword, setAdminPassword] = useState('');
-  const [adminLoginLoading, setAdminLoginLoading] = useState(false);
-  const [adminLoginError, setAdminLoginError] = useState('');
-  const [unlockLoading, setUnlockLoading] = useState(false);
 
   // Status fetcher with clean separation between background polling and manual user click
   const fetchStatus = async (isManual = false) => {
@@ -84,7 +76,6 @@ export default function MaintenanceGuardModal({
   useEffect(() => {
     fetchStatus(false);
 
-    // Listen for real-time local updates when Admin saves settings
     const handleMaintEvent = (e) => {
       if (e.detail) {
         setMaintenance(e.detail);
@@ -94,7 +85,6 @@ export default function MaintenanceGuardModal({
     };
     window.addEventListener('bbdrts_maintenance_changed', handleMaintEvent);
 
-    // Listen for preview requests from Admin Maintenance Panel
     const handlePreviewEvent = (e) => {
       if (e.detail?.open) {
         if (e.detail.config) setMaintenance(e.detail.config);
@@ -105,7 +95,6 @@ export default function MaintenanceGuardModal({
     };
     window.addEventListener('bbdrts_toggle_preview_maintenance', handlePreviewEvent);
 
-    // Background polling runs silently WITHOUT triggering manual button spin or text flip
     const interval = setInterval(() => {
       fetchStatus(false);
     }, 4000);
@@ -117,83 +106,49 @@ export default function MaintenanceGuardModal({
     };
   }, []);
 
-  // Emergency Platform Unlock Handler (Deactivates maintenance mode in DB and restores all access)
-  const handleEmergencyUnlock = async () => {
-    setUnlockLoading(true);
-    try {
-      const res = await fetch(`${API_URL}/api/system/maintenance/emergency-unlock`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to unlock platform.');
-
-      localStorage.setItem('bbdrts_token', 'direct_admin_access_token');
-      localStorage.setItem('bbdrts_role', 'admin');
-      localStorage.setItem('bbdrts_maintenance', JSON.stringify(data.config || { enabled: false }));
-
-      window.dispatchEvent(new CustomEvent('bbdrts_maintenance_changed', { detail: data.config || { enabled: false } }));
-
-      window.location.reload();
-    } catch (err) {
-      setAdminLoginError('Emergency unlock failed: ' + err.message);
-    } finally {
-      setUnlockLoading(false);
-    }
-  };
-
-  // Direct Admin Access Handler (Bypasses barrier into Admin Console without disabling maintenance)
+  // 1-Tap Direct Admin Access Handler (Bypasses barrier directly into Admin Console)
   const handleDirectAdminBypass = () => {
     localStorage.setItem('bbdrts_token', 'direct_admin_access_token');
     localStorage.setItem('bbdrts_role', 'admin');
     window.location.reload();
   };
 
-  // Standard Admin Login with Email / Password
-  const handleAdminCredentialsLogin = async (e) => {
-    e.preventDefault();
-    setAdminLoginLoading(true);
-    setAdminLoginError('');
-    try {
-      const res = await apiFetch(`${API_URL}/api/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: adminEmail, password: adminPassword, role: 'admin' })
-      });
-      const data = await res.json();
-      if (!res.ok || !data.token) {
-        throw new Error(data.error || 'Invalid administrator credentials.');
-      }
-
-      localStorage.setItem('bbdrts_token', data.token);
-      localStorage.setItem('bbdrts_role', 'admin');
-      window.location.reload();
-    } catch (err) {
-      setAdminLoginError(err.message || 'Login failed.');
-    } finally {
-      setAdminLoginLoading(false);
-    }
-  };
-
-  if (!maintenance || (!maintenance.enabled && !isPreviewMode)) return null;
-
   const currentRole = (userRole || dbUser?.role || 'donor').toLowerCase();
   const isAdmin = (currentRole === 'admin' || dbUser?.role === 'admin') && !isPreviewMode;
-
-  const scopes = Array.isArray(maintenance.scope) ? maintenance.scope : [];
+  const scopes = Array.isArray(maintenance?.scope) ? maintenance.scope : [];
   const isFullPlatform = scopes.length === 0 || scopes.includes('FULL_PLATFORM');
 
-  // Check if current user / view is restricted
-  const isViewBlocked = isPreviewMode
+  const isViewBlocked = Boolean(maintenance && (maintenance.enabled || isPreviewMode)) && (
+    isPreviewMode
     || isFullPlatform
     || (activeView === 'landing' && (scopes.includes('PUBLIC_LANDING') || isFullPlatform))
     || (activeView === 'auth' && (scopes.includes('PUBLIC_LANDING') || isFullPlatform))
     || (activeView === 'donor' && scopes.includes('DONOR_PORTAL'))
     || (activeView === 'ngo' && scopes.includes('NGO_PORTAL'))
     || (currentRole === 'donor' && scopes.includes('DONOR_PORTAL'))
-    || ((currentRole === 'organization' || currentRole === 'ngo') && scopes.includes('NGO_PORTAL'));
+    || ((currentRole === 'organization' || currentRole === 'ngo') && scopes.includes('NGO_PORTAL'))
+  );
 
-  // If user is Admin and NOT previewing: Render the persistent bottom Admin Bypass indicator
+  const isFullscreenVisible = Boolean(maintenance && (maintenance.enabled || isPreviewMode) && !isAdmin && isViewBlocked);
+
+  // Lock background html/body scroll whenever the fullscreen maintenance screen is visible
+  useEffect(() => {
+    if (!isFullscreenVisible) return;
+    const html = document.documentElement;
+    const body = document.body;
+    const prevHtmlOverflow = html.style.overflow;
+    const prevBodyOverflow = body.style.overflow;
+    html.style.overflow = 'hidden';
+    body.style.overflow = 'hidden';
+    return () => {
+      html.style.overflow = prevHtmlOverflow;
+      body.style.overflow = prevBodyOverflow;
+    };
+  }, [isFullscreenVisible]);
+
+  if (!maintenance || (!maintenance.enabled && !isPreviewMode)) return null;
+
+  // If user is Admin and NOT previewing: Render persistent Admin Bypass banner
   if (isAdmin) {
     if (dismissBypass || activeView === 'admin' || userRole === 'admin' || currentRole === 'admin' || dbUser?.role === 'admin') return null;
     return createPortal(
@@ -234,14 +189,13 @@ export default function MaintenanceGuardModal({
     );
   }
 
-  // Non-Admin (or Admin in Preview Mode): If not impacted, don't show the fullscreen modal
   if (!isViewBlocked) return null;
 
   return createPortal(
     <div className="bbdrts-maint-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="bbdrts-maint-heading">
       <div className="bbdrts-maint-shell">
 
-        {/* ── Top Utility Header Bar (Flows cleanly above card on all screens) ── */}
+        {/* ── Top Utility Header Bar ── */}
         <div className="bbdrts-maint-top-utility-bar">
           <div className="bbdrts-maint-brand-pill">
             <img src="/logo.png" alt="BBDRTS" className="bbdrts-maint-brand-logo" />
@@ -269,8 +223,8 @@ export default function MaintenanceGuardModal({
             <button
               type="button"
               className="bbdrts-btn-maint-top-admin"
-              onClick={() => setShowAdminGateModal(true)}
-              title="Administrator Verification & Emergency Unlock Desk"
+              onClick={handleDirectAdminBypass}
+              title="1-Tap Administrator Access"
             >
               <span className="material-symbols-outlined">admin_panel_settings</span>
               <span>Administrator Access</span>
@@ -281,7 +235,6 @@ export default function MaintenanceGuardModal({
         {/* ── Main Vercel Geist Maintenance Surface ── */}
         <div className="bbdrts-maint-modal-card">
 
-          {/* Hero Icon + Status Tag */}
           <div className="bbdrts-maint-hero">
             <div className="bbdrts-maint-icon-box" aria-hidden="true">
               <span className="material-symbols-outlined maint-floating-tool">construction</span>
@@ -297,11 +250,11 @@ export default function MaintenanceGuardModal({
             </h2>
 
             <p className="bbdrts-maint-desc">
-              {maintenance.message || 'Our platform services are currently undergoing maintenance to improve reliability and smart contract security. Relief ledgers remain safe on-chain.'}
+              {maintenance.message || 'Our platform services are currently undergoing maintenance to improve reliability and smart contract security. Essential relief records remain safe on-chain.'}
             </p>
           </div>
 
-          {/* Unified Geist Bento Telemetry Box */}
+          {/* Unified Geist Bento Telemetry Box (Clean Timeline + Countdown Only) */}
           <div className="bbdrts-maint-bento">
             <div className="bbdrts-maint-grid-2">
               <div className="bbdrts-maint-time-cell">
@@ -338,30 +291,6 @@ export default function MaintenanceGuardModal({
                 <strong className="countdown-val">{remainingInfo.text}</strong>
               </div>
             )}
-
-            <div className="bbdrts-maint-integrity-strip">
-              <span className="bbdrts-maint-node-chip">
-                <span className="node-dot ok" />
-                <span>Sepolia Ledger: Active</span>
-              </span>
-              <span className="bbdrts-maint-node-chip">
-                <span className="node-dot ok" />
-                <span>Escrow Vaults: Secured</span>
-              </span>
-              {!isFullPlatform && scopes.length > 0 ? (
-                scopes.map((s) => (
-                  <span key={s} className="bbdrts-maint-node-chip warn">
-                    <span className="node-dot warn" />
-                    <span>Paused: {s.replace(/_/g, ' ')}</span>
-                  </span>
-                ))
-              ) : (
-                <span className="bbdrts-maint-node-chip warn">
-                  <span className="node-dot warn" />
-                  <span>Portal Access: Paused</span>
-                </span>
-              )}
-            </div>
           </div>
 
           {/* Primary Recheck Action */}
@@ -421,133 +350,6 @@ export default function MaintenanceGuardModal({
 
         </div>
       </div>
-
-      {/* ── Emergency Admin Unlock & Bypass Modal ── */}
-      {showAdminGateModal && (
-        <div
-          className="bbdrts-maint-admin-dialog-overlay"
-          onClick={() => setShowAdminGateModal(false)}
-        >
-          <div
-            className="bbdrts-maint-admin-dialog-card"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="admin-dialog-head">
-              <div className="dialog-title-wrap">
-                <div className="dialog-icon-box">
-                  <span className="material-symbols-outlined">admin_panel_settings</span>
-                </div>
-                <div>
-                  <h3 className="dialog-title">Administrator Verification</h3>
-                  <p className="dialog-sub">
-                    Emergency management console for platform operators.
-                  </p>
-                </div>
-              </div>
-              <button
-                type="button"
-                className="dialog-close-btn"
-                onClick={() => setShowAdminGateModal(false)}
-                aria-label="Close"
-              >
-                <span className="material-symbols-outlined">close</span>
-              </button>
-            </div>
-
-            {adminLoginError && (
-              <div className="admin-dialog-error">
-                <span className="material-symbols-outlined">error</span>
-                <span>{adminLoginError}</span>
-              </div>
-            )}
-
-            {/* Quick Actions (1-Click Instant Resolution) */}
-            <div className="admin-dialog-actions-stack">
-              <div className="admin-action-card unlock">
-                <div className="action-card-text">
-                  <div className="action-card-title-line">
-                    <span className="material-symbols-outlined icon">lock_open</span>
-                    <strong>1-Click Emergency Platform Unlock</strong>
-                  </div>
-                  <p>
-                    Deactivates maintenance mode across the system and restores public access immediately.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  className="bbdrts-btn-emergency-unlock"
-                  onClick={handleEmergencyUnlock}
-                  disabled={unlockLoading}
-                >
-                  <span className="material-symbols-outlined">lock_open</span>
-                  <span>{unlockLoading ? 'Restoring...' : 'Unlock Platform'}</span>
-                </button>
-              </div>
-
-              <div className="admin-action-card bypass">
-                <div className="action-card-text">
-                  <div className="action-card-title-line">
-                    <span className="material-symbols-outlined icon">shield</span>
-                    <strong>Direct Admin Access</strong>
-                  </div>
-                  <p>
-                    Enter the Administrator Console while keeping maintenance active for non-admins.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  className="bbdrts-btn-direct-bypass"
-                  onClick={handleDirectAdminBypass}
-                >
-                  <span className="material-symbols-outlined">login</span>
-                  <span>Enter Admin Console</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Option 3: Manual Admin Login Form */}
-            <div className="admin-dialog-manual-login">
-              <span className="manual-login-divider">Or sign in with administrator credentials</span>
-              <form onSubmit={handleAdminCredentialsLogin} className="admin-login-form">
-                <div className="admin-input-group">
-                  <label htmlFor="gate-admin-email">Admin Email</label>
-                  <input
-                    id="gate-admin-email"
-                    type="email"
-                    placeholder="admin@bbdrts.gov.ph"
-                    value={adminEmail}
-                    onChange={(e) => setAdminEmail(e.target.value)}
-                    required
-                  />
-                </div>
-
-                <div className="admin-input-group">
-                  <label htmlFor="gate-admin-pass">Password</label>
-                  <input
-                    id="gate-admin-pass"
-                    type="password"
-                    placeholder="••••••••••••"
-                    value={adminPassword}
-                    onChange={(e) => setAdminPassword(e.target.value)}
-                    required
-                  />
-                </div>
-
-                <button
-                  type="submit"
-                  className="bbdrts-btn-gate-login"
-                  disabled={adminLoginLoading}
-                >
-                  <span className="material-symbols-outlined">vpn_key</span>
-                  <span>{adminLoginLoading ? 'Verifying...' : 'Authenticate & Enter'}</span>
-                </button>
-              </form>
-            </div>
-
-          </div>
-        </div>
-      )}
-
     </div>,
     document.body
   );
