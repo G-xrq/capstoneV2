@@ -170,9 +170,9 @@ function initSqlite() {
         sqliteDb.run(`ALTER TABLE DONOR ADD COLUMN Avatar_Url TEXT`, () => {});
         sqliteDb.run(`ALTER TABLE DONOR ADD COLUMN Preferences_Json TEXT`, () => {});
         sqliteDb.run(`ALTER TABLE DONOR ADD COLUMN Name_Last_Changed_At DATETIME`, () => {});
-        sqliteDb.run(`ALTER TABLE DONOR ADD COLUMN Created_At DATETIME DEFAULT CURRENT_TIMESTAMP`, () => {});
-        sqliteDb.run(`ALTER TABLE ORGANIZATION ADD COLUMN Created_At DATETIME DEFAULT CURRENT_TIMESTAMP`, () => {});
-        sqliteDb.run(`ALTER TABLE ADMINISTRATOR ADD COLUMN Created_At DATETIME DEFAULT CURRENT_TIMESTAMP`, () => {});
+        sqliteDb.run(`ALTER TABLE DONOR ADD COLUMN Created_At DATETIME DEFAULT CURRENT_TIMESTAMP`, (err) => { if (err) sqliteDb.run(`ALTER TABLE DONOR ADD COLUMN Created_At TEXT`, () => {}); });
+        sqliteDb.run(`ALTER TABLE ORGANIZATION ADD COLUMN Created_At DATETIME DEFAULT CURRENT_TIMESTAMP`, (err) => { if (err) sqliteDb.run(`ALTER TABLE ORGANIZATION ADD COLUMN Created_At TEXT`, () => {}); });
+        sqliteDb.run(`ALTER TABLE ADMINISTRATOR ADD COLUMN Created_At DATETIME DEFAULT CURRENT_TIMESTAMP`, (err) => { if (err) sqliteDb.run(`ALTER TABLE ADMINISTRATOR ADD COLUMN Created_At TEXT`, () => {}); });
 
         sqliteDb.run(`ALTER TABLE DONOR ADD COLUMN Known_Devices_Json TEXT`, () => {});
         sqliteDb.run(`ALTER TABLE ORGANIZATION ADD COLUMN Known_Devices_Json TEXT`, () => {});

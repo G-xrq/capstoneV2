@@ -14,6 +14,7 @@ const { GoogleGenerativeAI } = require('@google/generative-ai');
 const db = require('./database');
 const blockchainRelayer = require('./services/blockchainRelayer');
 const { logActivity } = require('./services/activityLogger');
+const analyticsService = require('./services/analyticsService');
 
 const app = express();
 app.use(compression()); // Fast GZIP compression for all responses
@@ -9689,6 +9690,42 @@ app.delete('/api/admin/active-users/offline', authenticateToken, async (req, res
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: 'Failed to clear offline sessions: ' + err.message });
+  }
+});
+
+// ═════════════════════════════════════════════════════════════════════════════
+// ANALYTICS & INSTITUTIONAL REPORTING APIS (ADMIN + NGO SCOPED)
+// ═════════════════════════════════════════════════════════════════════════════
+app.get('/api/admin/analytics', authenticateToken, async (req, res) => {
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ error: 'Access denied. Administrator privileges required.' });
+  }
+  try {
+    const range = String(req.query.range || '30d');
+    const category = String(req.query.category || 'ALL');
+    const payload = await analyticsService.buildAdminAnalytics(db, { range, category });
+    res.json(payload);
+  } catch (err) {
+    console.error('Admin analytics error:', err);
+    res.status(500).json({ error: 'Failed to generate admin analytics: ' + err.message });
+  }
+});
+
+app.get('/api/organization/analytics', authenticateToken, async (req, res) => {
+  if (req.user.role !== 'organization') {
+    return res.status(403).json({ error: 'Access denied. Organization account required.' });
+  }
+  try {
+    const range = String(req.query.range || '30d');
+    const payload = await analyticsService.buildOrganizationAnalytics(db, {
+      userId: req.user.id,
+      userWallet: req.user.wallet_address || '',
+      range
+    });
+    res.json(payload);
+  } catch (err) {
+    console.error('Organization analytics error:', err);
+    res.status(500).json({ error: 'Failed to generate organization analytics: ' + err.message });
   }
 });
 

@@ -12,6 +12,7 @@ import SidebarToggleIcon from '../components/SidebarToggleIcon';
 import AdminBroadcastPanel from '../components/AdminBroadcastPanel';
 import AdminMaintenancePanel from '../components/AdminMaintenancePanel';
 import AdminActiveUsersPanel from '../components/AdminActiveUsersPanel';
+import AnalyticsReportsPanel from '../components/AnalyticsReportsPanel';
 import { useToast } from '../context/ToastContext';
 import GuidedTour from '../components/GuidedTour';
 import CampaignSkeletonCard from '../components/CampaignSkeletonCard';
@@ -308,6 +309,11 @@ export default function AdminView({
 }) {
   const { showSuccess, showError, showWarning, showInfo } = useToast();
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [monitoringSubTab, setMonitoringSubTab] = useState('active-users'); // 'active-users' | 'audit-logs'
+  const [financeSubTab, setFinanceSubTab] = useState('ledger'); // 'ledger' | 'disbursements'
+  const [campaignsSubTab, setCampaignsSubTab] = useState('campaigns'); // 'campaigns' | 'radar'
+  const [ngoSubTab, setNgoSubTab] = useState('approvals'); // 'approvals' | 'moderators'
+  const [systemSubTab, setSystemSubTab] = useState('broadcast'); // 'broadcast' | 'operations'
 
   // Always reset scroll to top on tab switch or dashboard mount
   useEffect(() => {
@@ -341,58 +347,50 @@ export default function AdminView({
     },
     {
       target: '.ref-sidebar-menu button:nth-of-type(2)',
-      title: 'Live Active Users & Guest Presence',
-      icon: 'sensors',
-      badge: 'Real-Time Monitor',
-      description: 'See who is using BBDRTS right now—distinguishing anonymous guest visitors from signed-in donors, NGOs, admins, and brand-new signups in real time.',
+      title: 'Platform Analytics & Institutional Reports',
+      icon: 'analytics',
+      badge: 'Charts & Exports',
+      description: 'Explore contribution trends, payment rail distribution, regional mobilization, and export formatted Excel (.xlsx), PDF, and CSV reports.',
       placement: 'right'
     },
     {
       target: '.ref-sidebar-menu button:nth-of-type(3)',
-      title: 'System Activity Logs & Audit Trail',
-      icon: 'history',
-      badge: 'Tamper-Evident Records',
-      description: 'Search and inspect chronological, immutable audit logs tracking role modifications, system logins, disbursements, and smart contract transactions.',
+      title: 'Live Monitoring & Audit Logs',
+      icon: 'sensors',
+      badge: 'Presence + Trail',
+      description: 'Monitor anonymous guests, signed-in users, and new accounts live alongside chronological tamper-evident system activity logs.',
       placement: 'right'
     },
     {
       target: '.ref-sidebar-menu button:nth-of-type(4)',
-      title: 'Multi-Rail Financial Ledger',
+      title: 'Multi-Rail Finance & Disbursements',
       icon: 'receipt_long',
-      badge: 'Global Ledger Audit',
-      description: 'Complete transparency ledger tracking on-chain cryptocurrency transfers alongside Philippine e-wallet payments (GCash & Maya) with instant receipt hashes.',
+      badge: 'Inflows & Proofs',
+      description: 'Audit incoming crypto and fiat contributions (GCash, Maya, Bank) alongside NGO disbursement manifests and beneficiary delivery proofs.',
       placement: 'right'
     },
     {
       target: '.ref-sidebar-menu button:nth-of-type(5)',
-      title: 'Disbursements & Proof of Relief',
-      icon: 'inventory_2',
-      badge: 'Milestone Unlock Audits',
-      description: 'Inspect geotagged distribution photos, supplier receipts, and verified beneficiary distribution logs before approving staged milestone escrow releases.',
+      title: 'Campaigns & Disaster Relief Radar',
+      icon: 'campaign',
+      badge: 'Operations + Map',
+      description: 'Inspect active humanitarian fundraising quotas or switch to the geospatial Relief Radar across all 17 Philippine regions.',
       placement: 'right'
     },
     {
-      target: '.ref-sidebar-menu button:nth-of-type(8)',
-      title: 'Organization KYC & Accreditation Desk',
-      icon: 'hourglass_top',
-      badge: 'SEC Accreditation',
-      description: 'Examine official SEC accreditation documents, BIR certificates, and government-issued officer IDs to verify legitimate Philippine non-profits.',
+      target: '.ref-sidebar-menu button:nth-of-type(6)',
+      title: 'NGO Governance & SEC KYC Desk',
+      icon: 'corporate_fare',
+      badge: 'Accreditation + EVM',
+      description: 'Verify Philippine SEC non-profit documents for pending charity applicants and manage accredited organizations authorized on Sepolia.',
       placement: 'right'
     },
     {
-      target: '.ref-sidebar-menu button:nth-of-type(10)',
-      title: 'Broadcast & Emergency Advisories',
-      icon: 'podcasts',
-      badge: 'Network Alerts',
-      description: 'Publish critical weather and typhoon alerts across the network to coordinate nationwide disaster response operations.',
-      placement: 'right'
-    },
-    {
-      target: '.ref-sidebar-menu button:nth-of-type(11)',
-      title: 'System Operations & EVM Circuit Breaker',
-      icon: 'settings_backup_restore',
-      badge: 'Infrastructure Control',
-      description: 'Control the emergency Sepolia EVM circuit breaker, trigger automated database snapshots, and configure maintenance mode.',
+      target: '.ref-sidebar-menu button:nth-of-type(7)',
+      title: 'System Alerts, Backups & Maintenance',
+      icon: 'tune',
+      badge: 'Platform Controls',
+      description: 'Broadcast emergency weather advisories, generate SQL/JSON database snapshots, and control granular maintenance mode safeguards.',
       placement: 'right'
     },
     {
@@ -495,24 +493,105 @@ export default function AdminView({
     }
   };
 
+  // Unified Navigation Helper for Streamlined Hubs & Backwards-Compatible Aliases
+  const navigateAdminTab = (rawTarget) => {
+    const target = String(rawTarget || 'dashboard').toLowerCase();
+    switch (target) {
+      case 'analytics':
+      case 'reports':
+        setActiveTab('analytics');
+        break;
+      case 'active-users':
+      case 'live-users':
+      case 'presence':
+      case 'users':
+      case 'monitoring':
+        setActiveTab('monitoring');
+        setMonitoringSubTab('active-users');
+        break;
+      case 'activity':
+      case 'audit-logs':
+        setActiveTab('monitoring');
+        setMonitoringSubTab('audit-logs');
+        break;
+      case 'ledger':
+      case 'financial-ledger':
+      case 'donations':
+      case 'receipts':
+      case 'finance':
+        setActiveTab('finance');
+        setFinanceSubTab('ledger');
+        break;
+      case 'disbursements':
+      case 'relief-proofs':
+        setActiveTab('finance');
+        setFinanceSubTab('disbursements');
+        break;
+      case 'campaigns':
+      case 'my-campaigns':
+      case 'all-campaigns':
+      case 'campaigns-hub':
+        setActiveTab('campaigns-hub');
+        setCampaignsSubTab('campaigns');
+        break;
+      case 'radar':
+      case 'radar-heatmap':
+        setActiveTab('campaigns-hub');
+        setCampaignsSubTab('radar');
+        break;
+      case 'kyc':
+      case 'sec-kyc':
+      case 'approvals':
+      case 'ngo-governance':
+        setActiveTab('ngo-governance');
+        setNgoSubTab('approvals');
+        break;
+      case 'moderators':
+      case 'ngos':
+        setActiveTab('ngo-governance');
+        setNgoSubTab('moderators');
+        break;
+      case 'broadcast':
+      case 'announcements':
+      case 'alerts':
+      case 'system-hub':
+        setActiveTab('system-hub');
+        setSystemSubTab('broadcast');
+        break;
+      case 'operations':
+      case 'system-maintenance':
+      case 'maintenance':
+      case 'backups':
+        setActiveTab('system-hub');
+        setSystemSubTab('operations');
+        break;
+      case 'settings':
+        setActiveTab('settings');
+        break;
+      default:
+        setActiveTab('dashboard');
+    }
+    setMobileSidebarOpen(false);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   // ── Live Broadcast to ReliefAI Assistant ─────────────────
   const lastAdminTabRef = useRef(null);
   useEffect(() => {
-    if (lastAdminTabRef.current === activeTab) return;
-    lastAdminTabRef.current = activeTab;
-    const adminTabLabels = {
-      'dashboard': 'Governance Overview',
-      'active-users': 'Live Active Users & Real-Time Presence',
-      'audit-logs': 'System Activity Logs & Governance Audit Trail',
-      'financial-ledger': 'Multi-Rail Financial Ledger',
-      'disbursements': 'Fund Disbursements & Procurement Audit',
-      'campaigns': 'All Campaigns & Relief Operations',
-      'radar-heatmap': 'Disaster Heatmap Operations',
-      'approvals': 'Organization Regulatory KYC',
-      'moderators': 'Accredited Partner Organizations',
-      'settings': 'Platform & Security Settings'
+    const compositeKey = `${activeTab}:${monitoringSubTab}:${financeSubTab}:${campaignsSubTab}:${ngoSubTab}:${systemSubTab}`;
+    if (lastAdminTabRef.current === compositeKey) return;
+    lastAdminTabRef.current = compositeKey;
+    const labelMap = {
+      dashboard: 'Governance Overview',
+      analytics: 'Platform Analytics & Institutional Reports',
+      monitoring: monitoringSubTab === 'audit-logs' ? 'System Activity Logs & Governance Audit Trail' : 'Live Active Users & Real-Time Presence',
+      finance: financeSubTab === 'disbursements' ? 'Fund Disbursements & Procurement Audit' : 'Multi-Rail Financial Ledger',
+      'campaigns-hub': campaignsSubTab === 'radar' ? 'Disaster Heatmap Operations' : 'All Campaigns & Relief Operations',
+      'ngo-governance': ngoSubTab === 'moderators' ? 'Accredited Partner Organizations' : 'Organization Regulatory KYC',
+      'system-hub': systemSubTab === 'operations' ? 'System Operations, Backups & Maintenance' : 'Broadcast Announcements & Alerts',
+      settings: 'Platform & Security Settings'
     };
-    const sectionLabel = adminTabLabels[activeTab] || activeTab;
+    const sectionLabel = labelMap[activeTab] || activeTab;
     const metaPayload = {
       tab: activeTab,
       section: sectionLabel,
@@ -522,50 +601,17 @@ export default function AdminView({
     if (typeof onActiveTabChange === 'function') {
       onActiveTabChange(activeTab, metaPayload);
     }
-  }, [activeTab, onActiveTabChange]);
+  }, [activeTab, monitoringSubTab, financeSubTab, campaignsSubTab, ngoSubTab, systemSubTab, onActiveTabChange]);
 
   // Global Header Navigation Listener
   useEffect(() => {
-    const handleRadarNav = () => { setActiveTab('radar-heatmap'); window.scrollTo({ top: 0, behavior: 'smooth' }); };
-    const handleCampaignsNav = () => { setActiveTab('campaigns'); window.scrollTo({ top: 0, behavior: 'smooth' }); };
-    const handleHomeNav = () => { setActiveTab('dashboard'); window.scrollTo({ top: 0, behavior: 'smooth' }); };
+    const handleRadarNav = () => navigateAdminTab('radar');
+    const handleCampaignsNav = () => navigateAdminTab('campaigns');
+    const handleHomeNav = () => navigateAdminTab('dashboard');
     const handleTabNav = (e) => {
       const targetTab = e?.detail?.tab;
       if (!targetTab) return;
-      const aliasMap = {
-        'ledger': 'financial-ledger',
-        'financial-ledger': 'financial-ledger',
-        'donations': 'financial-ledger',
-        'receipts': 'financial-ledger',
-        'campaigns': 'campaigns',
-        'my-campaigns': 'campaigns',
-        'all-campaigns': 'campaigns',
-        'disbursements': 'disbursements',
-        'relief-proofs': 'disbursements',
-        'kyc': 'approvals',
-        'sec-kyc': 'approvals',
-        'approvals': 'approvals',
-        'moderators': 'moderators',
-        'ngos': 'moderators',
-        'broadcast': 'announcements',
-        'announcements': 'announcements',
-        'alerts': 'announcements',
-        'operations': 'system-maintenance',
-        'system-maintenance': 'system-maintenance',
-        'radar': 'radar-heatmap',
-        'radar-heatmap': 'radar-heatmap',
-        'active-users': 'active-users',
-        'live-users': 'active-users',
-        'presence': 'active-users',
-        'users': 'active-users',
-        'activity': 'audit-logs',
-        'audit-logs': 'audit-logs',
-        'settings': 'settings',
-        'dashboard': 'dashboard'
-      };
-      const resolved = aliasMap[targetTab] || targetTab;
-      setActiveTab(resolved);
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      navigateAdminTab(targetTab);
     };
 
     window.addEventListener('bbdrts_navigate_radar', handleRadarNav);
@@ -692,7 +738,7 @@ export default function AdminView({
 
   // Re-fetch when category, role, or dateRange changes
   useEffect(() => {
-    if (activeTab === 'audit-logs' || activeTab === 'dashboard') {
+    if (activeTab === 'monitoring' || activeTab === 'dashboard') {
       loadAuditLogs(1);
     }
   }, [auditCategoryFilter, auditRoleFilter, auditDateRange]);
@@ -1494,12 +1540,22 @@ export default function AdminView({
 
             <button
               type="button"
-              className={`ref-nav-item ${activeTab === 'active-users' ? 'active' : ''}`}
-              onClick={() => { setActiveTab('active-users'); setMobileSidebarOpen(false); }}
-              title="Live Active Users — Guests, Donors, NGOs & New Signups Online Now"
+              className={`ref-nav-item ${activeTab === 'analytics' ? 'active' : ''}`}
+              onClick={() => { setActiveTab('analytics'); setMobileSidebarOpen(false); }}
+              title="Platform Analytics, Trends & Formatted Excel/PDF Reports"
             >
-              <span className="material-symbols-outlined" style={{ color: activeTab === 'active-users' ? '#10b981' : 'inherit' }}>sensors</span>
-              <span>Active Users</span>
+              <span className="material-symbols-outlined" style={{ color: activeTab === 'analytics' ? '#10b981' : 'inherit' }}>analytics</span>
+              <span>Analytics &amp; Reports</span>
+            </button>
+
+            <button
+              type="button"
+              className={`ref-nav-item ${activeTab === 'monitoring' ? 'active' : ''}`}
+              onClick={() => { setActiveTab('monitoring'); setMobileSidebarOpen(false); }}
+              title="Live Active Users & System Activity Audit Logs"
+            >
+              <span className="material-symbols-outlined" style={{ color: activeTab === 'monitoring' ? '#10b981' : 'inherit' }}>sensors</span>
+              <span>Monitoring</span>
               <span
                 className="ref-nav-count tab-count"
                 style={{
@@ -1508,6 +1564,7 @@ export default function AdminView({
                   border: (liveUsersSummary?.totalLive || 0) > 0 ? '1px solid rgba(16, 185, 129, 0.35)' : undefined,
                   fontWeight: 700
                 }}
+                title={`${liveUsersSummary?.totalLive || 0} live online · ${auditLogsTotal || auditLogsList.length} audit logs`}
               >
                 {liveUsersSummary?.totalLive || 0}
               </span>
@@ -1515,25 +1572,12 @@ export default function AdminView({
 
             <button
               type="button"
-              className={`ref-nav-item ${activeTab === 'audit-logs' ? 'active' : ''}`}
-              onClick={() => { setActiveTab('audit-logs'); setMobileSidebarOpen(false); }}
-              title="Dedicated System Activity Logs & Audit Trail"
-            >
-              <span className="material-symbols-outlined">history</span>
-              <span>System Activity Logs</span>
-              {(auditLogsTotal || auditLogsList.length) > 0 && (
-                <span className="ref-nav-count tab-count">{auditLogsTotal || auditLogsList.length}</span>
-              )}
-            </button>
-
-            <button
-              type="button"
-              className={`ref-nav-item ${activeTab === 'financial-ledger' ? 'active' : ''}`}
-              onClick={() => { setActiveTab('financial-ledger'); setMobileSidebarOpen(false); }}
-              title="Multi-Rail Global Financial Ledger"
+              className={`ref-nav-item ${activeTab === 'finance' ? 'active' : ''}`}
+              onClick={() => { setActiveTab('finance'); setMobileSidebarOpen(false); }}
+              title="Multi-Rail Financial Ledger & Relief Disbursements"
             >
               <span className="material-symbols-outlined">receipt_long</span>
-              <span>Financial Ledger</span>
+              <span>Finance &amp; Audit</span>
               {(ledgerData.onChain.length + ledgerData.manual.length) > 0 && (
                 <span className="ref-nav-count tab-count">
                   {ledgerData.onChain.length + ledgerData.manual.length}
@@ -1543,25 +1587,12 @@ export default function AdminView({
 
             <button
               type="button"
-              className={`ref-nav-item ${activeTab === 'disbursements' ? 'active' : ''}`}
-              onClick={() => { setActiveTab('disbursements'); setMobileSidebarOpen(false); }}
-              title="Fund Disbursements &amp; Procurement Audit"
-            >
-              <span className="material-symbols-outlined">inventory_2</span>
-              <span>Disbursements &amp; Proofs</span>
-              {disbursementsList?.length > 0 && (
-                <span className="ref-nav-count tab-count">{disbursementsList.length}</span>
-              )}
-            </button>
-
-            <button
-              type="button"
-              className={`ref-nav-item ${activeTab === 'campaigns' ? 'active' : ''}`}
-              onClick={() => { setActiveTab('campaigns'); setMobileSidebarOpen(false); }}
-              title="All Relief Campaigns & Operations"
+              className={`ref-nav-item ${activeTab === 'campaigns-hub' ? 'active' : ''}`}
+              onClick={() => { setActiveTab('campaigns-hub'); setMobileSidebarOpen(false); }}
+              title="All Relief Campaigns & Geospatial Disaster Radar"
             >
               <span className="material-symbols-outlined">campaign</span>
-              <span>All Campaigns</span>
+              <span>Campaigns &amp; Radar</span>
               {campaigns?.length > 0 && (
                 <span className="ref-nav-count tab-count">{campaigns.length}</span>
               )}
@@ -1569,70 +1600,36 @@ export default function AdminView({
 
             <button
               type="button"
-              className={`ref-nav-item ${activeTab === 'radar-heatmap' ? 'active' : ''}`}
-              onClick={() => { setActiveTab('radar-heatmap'); setMobileSidebarOpen(false); }}
-              title="Disaster Radar Heatmap Operations"
+              className={`ref-nav-item ${activeTab === 'ngo-governance' ? 'active' : ''}`}
+              onClick={() => { setActiveTab('ngo-governance'); setMobileSidebarOpen(false); }}
+              title="NGO SEC/KYC Approvals & Accredited On-Chain Registry"
             >
-              <span className="material-symbols-outlined" style={{ color: activeTab === 'radar-heatmap' ? 'var(--accent, #10b981)' : 'inherit' }}>
-                radar
-              </span>
-              <span>Relief Radar</span>
-            </button>
-
-            <button
-              type="button"
-              className={`ref-nav-item ${activeTab === 'approvals' ? 'active' : ''}`}
-              onClick={() => { setActiveTab('approvals'); setMobileSidebarOpen(false); }}
-              title="Organization Regulatory KYC & Accreditation Desk"
-            >
-              <span className="material-symbols-outlined">hourglass_top</span>
-              <span>KYC Approvals</span>
-              {pendingOrgsCount > 0 && (
+              <span className="material-symbols-outlined">corporate_fare</span>
+              <span>NGO Governance</span>
+              {pendingOrgsCount > 0 ? (
                 <span className="ref-nav-count tab-count" style={{ background: '#f59e0b', color: '#000', fontWeight: 800 }}>
                   {pendingOrgsCount}
                 </span>
-              )}
-            </button>
-
-            <button
-              type="button"
-              className={`ref-nav-item ${activeTab === 'moderators' ? 'active' : ''}`}
-              onClick={() => { setActiveTab('moderators'); setMobileSidebarOpen(false); }}
-              title="Accredited Partner Organizations & Smart Contract Registry"
-            >
-              <span className="material-symbols-outlined">corporate_fare</span>
-              <span>Accredited NGOs</span>
-              {(approvedOrgsCount || effectiveModCount) > 0 && (
+              ) : (approvedOrgsCount || effectiveModCount) > 0 && (
                 <span className="ref-nav-count tab-count">{approvedOrgsCount || effectiveModCount}</span>
               )}
             </button>
 
             <button
               type="button"
-              className={`ref-nav-item ${activeTab === 'announcements' ? 'active' : ''}`}
-              onClick={() => { setActiveTab('announcements'); setMobileSidebarOpen(false); }}
-              title="Broadcast Announcements & Emergency Disaster Alerts"
+              className={`ref-nav-item ${activeTab === 'system-hub' ? 'active' : ''}`}
+              onClick={() => { setActiveTab('system-hub'); setMobileSidebarOpen(false); }}
+              title="Broadcast Advisories, Backups & Maintenance Mode"
             >
-              <span className="material-symbols-outlined">podcasts</span>
-              <span>Broadcast &amp; Alerts</span>
-              {broadcastCount > 0 && (
-                <span className="ref-nav-count tab-count" style={{ background: '#ef4444', color: '#fff' }}>
-                  {broadcastCount}
-                </span>
-              )}
-            </button>
-
-            <button
-              type="button"
-              className={`ref-nav-item ${activeTab === 'system-maintenance' ? 'active' : ''}`}
-              onClick={() => { setActiveTab('system-maintenance'); setMobileSidebarOpen(false); }}
-              title="Database Snapshots & Maintenance Mode Configuration"
-            >
-              <span className="material-symbols-outlined">settings_backup_restore</span>
-              <span>System Operations</span>
-              {maintenanceActive && (
+              <span className="material-symbols-outlined">tune</span>
+              <span>System &amp; Alerts</span>
+              {maintenanceActive ? (
                 <span className="ref-nav-count tab-count" style={{ background: '#f59e0b', color: '#000', fontWeight: 800 }}>
                   ON
+                </span>
+              ) : broadcastCount > 0 && (
+                <span className="ref-nav-count tab-count" style={{ background: '#ef4444', color: '#fff' }}>
+                  {broadcastCount}
                 </span>
               )}
             </button>
@@ -1734,6 +1731,16 @@ export default function AdminView({
                 <div className="admin-page-header-actions">
                   <button
                     type="button"
+                    onClick={() => navigateAdminTab('analytics')}
+                    className="admin-header-btn secondary"
+                    title="View charts, trends & formatted Excel/PDF reports"
+                  >
+                    <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#10b981' }}>analytics</span>
+                    <span>Analytics &amp; Reports</span>
+                  </button>
+
+                  <button
+                    type="button"
                     onClick={() => setPauseModalOpen(true)}
                     className="admin-header-btn danger"
                     title="Halt or resume smart contract operations"
@@ -1771,7 +1778,7 @@ export default function AdminView({
                 </div>
 
                 <div
-                  onClick={() => setActiveTab('campaigns')}
+                  onClick={() => navigateAdminTab('campaigns')}
                   className="admin-metric-strip-item clickable"
                   title="View All Campaigns"
                 >
@@ -1788,7 +1795,7 @@ export default function AdminView({
                 </div>
 
                 <div
-                  onClick={() => setActiveTab('moderators')}
+                  onClick={() => navigateAdminTab('moderators')}
                   className="admin-metric-strip-item clickable"
                   title="View Accredited Organizations"
                 >
@@ -1805,7 +1812,7 @@ export default function AdminView({
                 </div>
 
                 <div
-                  onClick={() => setActiveTab('approvals')}
+                  onClick={() => navigateAdminTab('approvals')}
                   className="admin-metric-strip-item clickable"
                   style={{
                     background: pendingOrgsCount > 0 ? 'rgba(245, 158, 11, 0.04)' : undefined
@@ -1825,7 +1832,7 @@ export default function AdminView({
                 </div>
 
                 <div
-                  onClick={() => setActiveTab('active-users')}
+                  onClick={() => navigateAdminTab('active-users')}
                   className="admin-metric-strip-item clickable"
                   title="Inspect who is using BBDRTS right now"
                 >
@@ -1860,7 +1867,7 @@ export default function AdminView({
                     <button
                       type="button"
                       className="admin-header-btn secondary"
-                      onClick={() => setActiveTab('financial-ledger')}
+                      onClick={() => navigateAdminTab('financial-ledger')}
                       style={{ padding: '4px 10px', fontSize: '0.72rem' }}
                     >
                       <span>View All ({unifiedLedgerList.length})</span>
@@ -1933,7 +1940,7 @@ export default function AdminView({
                     <button
                       type="button"
                       className="admin-header-btn secondary"
-                      onClick={() => setActiveTab('approvals')}
+                      onClick={() => navigateAdminTab('approvals')}
                       style={{ padding: '4px 10px', fontSize: '0.72rem' }}
                     >
                       <span>Verification Desk</span>
@@ -1968,7 +1975,7 @@ export default function AdminView({
                               className="admin-header-btn secondary"
                               onClick={() => {
                                 setApprovalModal({ show: true, org });
-                                setActiveTab('approvals');
+                                navigateAdminTab('approvals');
                               }}
                               style={{ padding: '4px 10px', fontSize: '0.72rem', flexShrink: 0 }}
                             >
@@ -1997,7 +2004,7 @@ export default function AdminView({
                   <button
                     type="button"
                     className="admin-header-btn secondary"
-                    onClick={() => setActiveTab('audit-logs')}
+                    onClick={() => navigateAdminTab('audit-logs')}
                     style={{ padding: '4px 10px', fontSize: '0.72rem' }}
                   >
                     <span>Full Logs ({auditLogsTotal || auditLogsList.length})</span>
@@ -2046,18 +2053,47 @@ export default function AdminView({
           )}
 
           {/* ══════════════════════════════════════════════════════════════
-              TAB 1B: LIVE ACTIVE USERS & PRESENCE MONITOR
+              TAB 2: ANALYTICS & INSTITUTIONAL REPORTS
              ══════════════════════════════════════════════════════════════ */}
-          {activeTab === 'active-users' && (
-            <div className="fade-in">
-              <AdminActiveUsersPanel onPresenceSummaryChange={setLiveUsersSummary} />
-            </div>
+          {activeTab === 'analytics' && (
+            <AnalyticsReportsPanel mode="admin" onNavigateTab={navigateAdminTab} />
           )}
 
           {/* ══════════════════════════════════════════════════════════════
-              TAB 2: SYSTEM ACTIVITY LOGS & AUDIT TRAIL
+              TAB 3: MONITORING & ACTIVITY HUB (Active Users + Activity Logs)
              ══════════════════════════════════════════════════════════════ */}
-          {activeTab === 'audit-logs' && (
+          {activeTab === 'monitoring' && (
+            <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div className="admin-segmented-tabs" role="tablist" aria-label="Monitoring Sections">
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={monitoringSubTab === 'active-users'}
+                  className={`admin-segmented-tab-btn ${monitoringSubTab === 'active-users' ? 'active' : ''}`}
+                  onClick={() => setMonitoringSubTab('active-users')}
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#10b981' }}>sensors</span>
+                  <span>Live Active Users</span>
+                  <span className="count-badge">{liveUsersSummary?.totalLive || 0}</span>
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={monitoringSubTab === 'audit-logs'}
+                  className={`admin-segmented-tab-btn ${monitoringSubTab === 'audit-logs' ? 'active' : ''}`}
+                  onClick={() => setMonitoringSubTab('audit-logs')}
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#38bdf8' }}>history</span>
+                  <span>System Activity Logs</span>
+                  <span className="count-badge">{auditLogsTotal || auditLogsList.length}</span>
+                </button>
+              </div>
+
+              {monitoringSubTab === 'active-users' && (
+                <AdminActiveUsersPanel onPresenceSummaryChange={setLiveUsersSummary} />
+              )}
+
+              {monitoringSubTab === 'audit-logs' && (
             <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '16px', paddingBottom: '90px' }}>
 
               {/* Institutional Header Bar */}
@@ -3112,12 +3148,41 @@ export default function AdminView({
               )}
 
             </div>
+              )}
+            </div>
           )}
 
           {/* ══════════════════════════════════════════════════════════════
-              TAB 3: MULTI-RAIL FINANCIAL LEDGER
+              TAB 4: FINANCE & ESCROW HUB (Financial Ledger + Disbursements)
              ══════════════════════════════════════════════════════════════ */}
-          {activeTab === 'financial-ledger' && (
+          {activeTab === 'finance' && (
+            <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div className="admin-segmented-tabs" role="tablist" aria-label="Finance Sections">
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={financeSubTab === 'ledger'}
+                  className={`admin-segmented-tab-btn ${financeSubTab === 'ledger' ? 'active' : ''}`}
+                  onClick={() => setFinanceSubTab('ledger')}
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#38bdf8' }}>receipt_long</span>
+                  <span>Financial Ledger</span>
+                  <span className="count-badge">{ledgerData.onChain.length + ledgerData.manual.length}</span>
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={financeSubTab === 'disbursements'}
+                  className={`admin-segmented-tab-btn ${financeSubTab === 'disbursements' ? 'active' : ''}`}
+                  onClick={() => setFinanceSubTab('disbursements')}
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#10b981' }}>local_shipping</span>
+                  <span>Disbursements &amp; Proofs</span>
+                  <span className="count-badge">{disbursementsList?.length || 0}</span>
+                </button>
+              </div>
+
+              {financeSubTab === 'ledger' && (
             <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
               {/* Institutional Header Bar */}
@@ -3519,12 +3584,9 @@ export default function AdminView({
                 {renderPaginationBar(ledgerPage, ledgerPageSize, unifiedLedgerList.length, setLedgerPage, setLedgerPageSize, [15, 25, 50, 100])}
               </div>
             </div>
-          )}
+              )}
 
-          {/* ══════════════════════════════════════════════════════════════
-              TAB 4: FUND DISBURSEMENTS & PROCUREMENT AUDIT
-             ══════════════════════════════════════════════════════════════ */}
-          {activeTab === 'disbursements' && (
+              {financeSubTab === 'disbursements' && (
             <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
               {/* Institutional Header Bar */}
@@ -3741,12 +3803,40 @@ export default function AdminView({
                 {renderPaginationBar(disbPage, disbPageSize, filteredDisbursements.length, setDisbPage, setDisbPageSize, [10, 20, 50])}
               </div>
             </div>
+              )}
+            </div>
           )}
 
           {/* ══════════════════════════════════════════════════════════════
-              TAB 5: ALL RELIEF CAMPAIGNS & FINANCIAL AUDIT
+              TAB 5: CAMPAIGNS & DISASTER RADAR HUB
              ══════════════════════════════════════════════════════════════ */}
-          {activeTab === 'campaigns' && (
+          {activeTab === 'campaigns-hub' && (
+            <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div className="admin-segmented-tabs" role="tablist" aria-label="Campaigns and Radar Sections">
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={campaignsSubTab === 'campaigns'}
+                  className={`admin-segmented-tab-btn ${campaignsSubTab === 'campaigns' ? 'active' : ''}`}
+                  onClick={() => setCampaignsSubTab('campaigns')}
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#10b981' }}>campaign</span>
+                  <span>All Relief Campaigns</span>
+                  <span className="count-badge">{campaigns?.length || 0}</span>
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={campaignsSubTab === 'radar'}
+                  className={`admin-segmented-tab-btn ${campaignsSubTab === 'radar' ? 'active' : ''}`}
+                  onClick={() => setCampaignsSubTab('radar')}
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#38bdf8' }}>radar</span>
+                  <span>Disaster Relief Radar</span>
+                </button>
+              </div>
+
+              {campaignsSubTab === 'campaigns' && (
             <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
               {/* Institutional Header Bar */}
@@ -3987,7 +4077,7 @@ export default function AdminView({
                                   className="admin-header-btn secondary"
                                   onClick={() => {
                                     setLedgerSearchQuery(c.title || '');
-                                    setActiveTab('financial-ledger');
+                                    navigateAdminTab('financial-ledger');
                                   }}
                                   style={{ fontSize: '0.70rem', padding: '3px 8px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
                                   title="Inspect incoming donations for this campaign in Financial Ledger"
@@ -4008,12 +4098,9 @@ export default function AdminView({
                 {renderPaginationBar(campPage, campPageSize, filteredCampaigns.length, setCampPage, setCampPageSize, [12, 24, 48])}
               </div>
             </div>
-          )}
+              )}
 
-          {/* ══════════════════════════════════════════════════════════════
-              TAB 6: DISASTER RELIEF RADAR
-             ══════════════════════════════════════════════════════════════ */}
-          {activeTab === 'radar-heatmap' && (
+              {campaignsSubTab === 'radar' && (
             <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
               {/* Institutional Header Bar */}
@@ -4032,17 +4119,46 @@ export default function AdminView({
               <div className="vercel-admin-card" style={{ overflow: 'hidden', minHeight: '620px' }}>
                 <DisasterRadarHeatmap
                   campaigns={campaigns}
-                  onSelectCampaign={() => setActiveTab('campaigns')}
+                  onSelectCampaign={() => setCampaignsSubTab('campaigns')}
                   theme={theme}
                 />
               </div>
             </div>
+              )}
+            </div>
           )}
 
           {/* ══════════════════════════════════════════════════════════════
-              TAB 7: REGULATORY KYC APPROVALS
+              TAB 6: NGO GOVERNANCE HUB (KYC Approvals + Accredited Registry)
              ══════════════════════════════════════════════════════════════ */}
-          {activeTab === 'approvals' && (
+          {activeTab === 'ngo-governance' && (
+            <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div className="admin-segmented-tabs" role="tablist" aria-label="NGO Governance Sections">
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={ngoSubTab === 'approvals'}
+                  className={`admin-segmented-tab-btn ${ngoSubTab === 'approvals' ? 'active' : ''}`}
+                  onClick={() => setNgoSubTab('approvals')}
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#f59e0b' }}>hourglass_top</span>
+                  <span>KYC Approvals</span>
+                  <span className="count-badge">{pendingOrgsCount}</span>
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={ngoSubTab === 'moderators'}
+                  className={`admin-segmented-tab-btn ${ngoSubTab === 'moderators' ? 'active' : ''}`}
+                  onClick={() => setNgoSubTab('moderators')}
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#a855f7' }}>corporate_fare</span>
+                  <span>Accredited NGOs (EVM Registry)</span>
+                  <span className="count-badge">{approvedOrgsCount || effectiveModCount}</span>
+                </button>
+              </div>
+
+              {ngoSubTab === 'approvals' && (
             <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
               {/* Institutional Header Bar */}
@@ -4326,12 +4442,9 @@ export default function AdminView({
                 {renderPaginationBar(orgPage, orgPageSize, filteredOrganizations.length, setOrgPage, setOrgPageSize, [10, 25, 50])}
               </div>
             </div>
-          )}
+              )}
 
-          {/* ══════════════════════════════════════════════════════════════
-              TAB 8: ACCREDITED RELIEF ORGANIZATIONS & SMART CONTRACT REGISTRY
-             ══════════════════════════════════════════════════════════════ */}
-          {activeTab === 'moderators' && (
+              {ngoSubTab === 'moderators' && (
             <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
               {/* Institutional Header Bar */}
@@ -4549,23 +4662,47 @@ export default function AdminView({
                 {renderPaginationBar(modPage, modPageSize, dedupedAccreditedList.length, setModPage, setModPageSize, [10, 25, 50])}
               </div>
             </div>
-          )}
-
-          {/* ══════════════════════════════════════════════════════════════
-              TAB 9: BROADCAST ANNOUNCEMENTS & ALERTS
-             ══════════════════════════════════════════════════════════════ */}
-          {activeTab === 'announcements' && (
-            <div className="fade-in">
-              <AdminBroadcastPanel onActiveCountChange={setBroadcastCount} />
+              )}
             </div>
           )}
 
           {/* ══════════════════════════════════════════════════════════════
-              TAB 10: SYSTEM OPERATIONS & MAINTENANCE
+              TAB 7: SYSTEM & ALERTS HUB (Broadcasts + Backups/Maintenance)
              ══════════════════════════════════════════════════════════════ */}
-          {activeTab === 'system-maintenance' && (
-            <div className="fade-in">
-              <AdminMaintenancePanel onMaintenanceStateChange={setMaintenanceActive} />
+          {activeTab === 'system-hub' && (
+            <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div className="admin-segmented-tabs" role="tablist" aria-label="System and Alerts Sections">
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={systemSubTab === 'broadcast'}
+                  className={`admin-segmented-tab-btn ${systemSubTab === 'broadcast' ? 'active' : ''}`}
+                  onClick={() => setSystemSubTab('broadcast')}
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#ef4444' }}>podcasts</span>
+                  <span>Broadcast &amp; Alerts</span>
+                  <span className="count-badge">{broadcastCount}</span>
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={systemSubTab === 'operations'}
+                  className={`admin-segmented-tab-btn ${systemSubTab === 'operations' ? 'active' : ''}`}
+                  onClick={() => setSystemSubTab('operations')}
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#f59e0b' }}>settings_backup_restore</span>
+                  <span>Backups &amp; Maintenance</span>
+                  {maintenanceActive && <span className="count-badge" style={{ background: '#f59e0b', color: '#000' }}>ON</span>}
+                </button>
+              </div>
+
+              {systemSubTab === 'broadcast' && (
+                <AdminBroadcastPanel onActiveCountChange={setBroadcastCount} />
+              )}
+
+              {systemSubTab === 'operations' && (
+                <AdminMaintenancePanel onMaintenanceStateChange={setMaintenanceActive} />
+              )}
             </div>
           )}
 

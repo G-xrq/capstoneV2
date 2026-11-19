@@ -11,6 +11,7 @@ import DisasterRadarHeatmap from '../components/DisasterRadarHeatmap';
 import SecCertificateModal, { normalizeSecDocUrl, isPdfDocument } from '../components/SecCertificateModal';
 import GuidedTour from '../components/GuidedTour';
 import SidebarToggleIcon from '../components/SidebarToggleIcon';
+import AnalyticsReportsPanel from '../components/AnalyticsReportsPanel';
 import { useToast } from '../context/ToastContext';
 import { getRegions, getRegionForProvince } from '../data/philippineGeoData';
 import { CONTRACT_ADDRESS } from '../contractConfig';
@@ -100,6 +101,7 @@ export default function OrganizationView({
     lastOrgTabRef.current = activeTab;
     const orgTabLabels = {
       'dashboard': 'NGO Operations Dashboard',
+      'analytics': 'Organization Analytics & Reports',
       'sec-kyc': 'SEC & Accreditation KYC Verification',
       'all-campaigns': 'Public Relief Campaigns Explorer',
       'radar-heatmap': 'Disaster Relief Radar Heatmap',
@@ -255,14 +257,24 @@ export default function OrganizationView({
       setActiveTab('dashboard');
       window.scrollTo({ top: 0, behavior: 'smooth' });
     };
+    const handleTabNav = (e) => {
+      const targetTab = e?.detail?.tab;
+      if (!targetTab) return;
+      const resolved = targetTab === 'reports' ? 'analytics' : targetTab;
+      if (resolved === 'sec-kyc') fetchKycData();
+      setActiveTab(resolved);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
 
     window.addEventListener('bbdrts_navigate_radar', handleRadarNav);
     window.addEventListener('bbdrts_navigate_campaigns', handleCampaignsNav);
     window.addEventListener('bbdrts_navigate_home', handleHomeNav);
+    window.addEventListener('bbdrts_navigate_tab', handleTabNav);
     return () => {
       window.removeEventListener('bbdrts_navigate_radar', handleRadarNav);
       window.removeEventListener('bbdrts_navigate_campaigns', handleCampaignsNav);
       window.removeEventListener('bbdrts_navigate_home', handleHomeNav);
+      window.removeEventListener('bbdrts_navigate_tab', handleTabNav);
     };
   }, []);
 
@@ -2444,6 +2456,16 @@ export default function OrganizationView({
             </button>
 
             <button
+              id="tour-ngo-tab-analytics"
+              className={`ref-nav-item ${activeTab === 'analytics' ? 'active' : ''}`}
+              onClick={() => { setActiveTab('analytics'); setMobileSidebarOpen(false); }}
+              title="Fundraising Analytics, Trends & Excel/PDF Reports"
+            >
+              <span className="material-symbols-outlined" style={{ color: activeTab === 'analytics' ? '#10b981' : 'inherit' }}>analytics</span>
+              <span>Analytics &amp; Reports</span>
+            </button>
+
+            <button
               id="tour-ngo-tab-my-campaigns"
               className={`ref-nav-item ${activeTab === 'my-campaigns' ? 'active' : ''}`}
               onClick={() => { setActiveTab('my-campaigns'); setMobileSidebarOpen(false); }}
@@ -2651,6 +2673,16 @@ export default function OrganizationView({
                   >
                     <span className="material-symbols-outlined">rocket_launch</span>
                     <span>{wt.deployCampaign}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    className="db-btn"
+                    style={heroBannerActive ? { background: heroBtnBg, borderColor: heroBtnBd, color: heroText } : undefined}
+                    onClick={() => setActiveTab('analytics')}
+                  >
+                    <span className="material-symbols-outlined">analytics</span>
+                    <span>Analytics &amp; Reports</span>
                   </button>
 
                   <button
@@ -8583,6 +8615,16 @@ export default function OrganizationView({
                 setActiveTab('all-campaigns');
                 setSearchQueryAll(c.title || '');
               }}
+            />
+          </div>
+        )}
+
+        {/* ── 5.9. NGO ANALYTICS & REPORTS TAB ── */}
+        {activeTab === 'analytics' && (
+          <div style={{ marginTop: '8px' }}>
+            <AnalyticsReportsPanel
+              mode="organization"
+              onNavigateTab={(tab) => setActiveTab(tab)}
             />
           </div>
         )}
