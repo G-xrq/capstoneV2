@@ -1,4 +1,4 @@
-import { useState, useMemo, useId } from 'react';
+import { useState, useMemo, useEffect, useRef, useId } from 'react';
 
 export function formatPhpCompact(val) {
   const num = Number(val || 0);
@@ -8,20 +8,42 @@ export function formatPhpCompact(val) {
   return `₱${Math.round(num).toLocaleString('en-US')}`;
 }
 
+const WAVE_SAMPLES = 72;
+
+function prefersReducedMotion() {
+  if (typeof window === 'undefined' || !window.matchMedia) return false;
+  return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
+
+function easeInOutCubic(t) {
+  return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+}
+
+function easeOutQuint(t) {
+  return 1 - Math.pow(1 - t, 5);
+}
+
 /**
- * Fritsch-Carlson monotone cubic spline SVG path builder.
- * Strictly preserves monotonicity and never overshoots below the baseline.
+ * Resample any array of normalized heights [0..1] onto a fixed-size grid (WAVE_SAMPLES)
+ * using Fritsch-Carlson monotone cubic spline interpolation so ANY two datasets
+ * (e.g. 7D vs 30D vs 90D vs All) can continuously wave-morph point-for-point.
  */
-function buildMonotonePath(points, yKey, baselineY) {
-  const n = points.length;
-  if (n === 0) return '';
-  if (n === 1) return `M ${points[0].x.toFixed(1)} ${points[0][yKey].toFixed(1)}`;
-  if (n === 2) {
-    return `M ${points[0].x.toFixed(1)} ${points[0][yKey].toFixed(1)} L ${points[1].x.toFixed(1)} ${points[1][yKey].toFixed(1)}`;
+function sampleMonotoneSeries(rawValues, sampleCount = WAVE_SAMPLES) {
+  const n = rawValues.length;
+  if (n === 0) return new Array(sampleCount).fill(0);
+
+  if (n === 1) {
+    const peak = Math.max(0, Math.min(1, rawValues[0]));
+    return Array.from({ length: sampleCount }, (_, k) => {
+      const u = k / (sampleCount - 1);
+      const dist = (u - 0.5) / 0.14;
+      return peak * Math.exp(-0.5 * dist * dist);
+    });
   }
 
-  const xs = points.map((p) => p.x);
-  const ys = points.map((p) => p[yKey]);
+  const xs = rawValues.map((_, i) => i / (n - 1));
+  const ys = rawValues.map((v) => Math.max(0, Math.min(1, v)));
+
   const dxs = [];
   const ms = [];
   for (let i = 0; i < n - 1; i++) {
@@ -60,17 +82,54 @@ function buildMonotonePath(points, yKey, baselineY) {
     }
   }
 
-  const clampY = (y) => Math.min(baselineY, y);
-  let d = `M ${xs[0].toFixed(1)} ${ys[0].toFixed(1)}`;
-  for (let i = 0; i < n - 1; i++) {
-    const dx3 = dxs[i] / 3;
-    const cp1x = xs[i] + dx3;
-    const cp1y = clampY(ys[i] + tangents[i] * dx3);
-    const cp2x = xs[i + 1] - dx3;
-    const cp2y = clampY(ys[i + 1] - tangents[i + 1] * dx3);
-    d += ` C ${cp1x.toFixed(1)} ${cp1y.toFixed(1)}, ${cp2x.toFixed(1)} ${cp2y.toFixed(1)}, ${xs[i + 1].toFixed(1)} ${ys[i + 1].toFixed(1)}`;
+  const out = new Array(sampleCount);
+  let seg = 0;
+  for (let k = 0; k < sampleCount; k++) {
+    const u = k / (sampleCount - 1);
+    while (seg < n - 2 && u > xs[seg + 1]) seg += 1;
+    const h = dxs[seg] || 1;
+    const t = Math.max(0, Math.min(1, (u - xs[seg]) / h));
+    const t2 = t * t;
+    const t3 = t2 * t;
+    const h00 = 2 * t3 - 3 * t2 + 1;
+    const h10 = t3 - 2 * t2 + t;
+    const h01 = -2 * t3 + 3 * t2;
+    const h11 = t3 - t2;
+    const val = h00 * ys[seg] + h10 * h * tangents[seg] + h01 * ys[seg + 1] + h11 * h * tangents[seg + 1];
+    out[k] = Math.max(0, Math.min(1, val));
   }
+  return out;
+}
+
+function buildWavePath(samples, padLeft, padTop, plotW, plotH) {
+  const n = samples.length;
+  if (n === 0) return '';
+  const baselineY = padTop + plotH;
+  const pts = samples.map((v, k) => ({
+    x: padLeft + (k / (n - 1)) * plotW,
+    y: Math.min(baselineY, padTop + plotH - v * plotH)
+  }));
+
+  let d = `M ${pts[0].x.toFixed(1)} ${pts[0].y.toFixed(1)}`;
+  for (let i = 0; i < n - 1; i++) {
+    const curr = pts[i];
+    const next = pts[i + 1];
+    const midX = ((curr.x + next.x) * 0.5).toFixed(1);
+    const midY = ((curr.y + next.y) * 0.5).toFixed(1);
+    if (i === 0) {
+      d += ` L ${midX} ${midY}`;
+    } else {
+      d += ` Q ${curr.x.toFixed(1)} ${curr.y.toFixed(1)}, ${midX} ${midY}`;
+    }
+  }
+  const last = pts[n - 1];
+  d += ` L ${last.x.toFixed(1)} ${last.y.toFixed(1)}`;
   return d;
+}
+
+function buildWaveArea(linePath, padLeft, plotW, baselineY) {
+  if (!linePath) return '';
+  return `${linePath} L ${(padLeft + plotW).toFixed(1)} ${baselineY.toFixed(1)} L ${padLeft.toFixed(1)} ${baselineY.toFixed(1)} Z`;
 }
 
 export function VercelAreaLineChart({
@@ -79,7 +138,6 @@ export function VercelAreaLineChart({
   seriesMode = 'combined', // 'combined' | 'split' | 'disbursed' | 'volume'
   onSeriesModeChange,
   showModeSwitch = true,
-  animKey = '',
   title = '',
   emptyMessage = 'No contribution activity recorded in this window.'
 }) {
@@ -88,9 +146,6 @@ export function VercelAreaLineChart({
   const activeMode = onSeriesModeChange ? seriesMode : internalMode;
   const setMode = onSeriesModeChange || setInternalMode;
   const uid = useId().replace(/:/g, '');
-  const clipId = `vaReveal_${uid}`;
-  const dataSig = data.length > 0 ? `${data.length}_${data[0]?.date}_${data[data.length - 1]?.date}` : 'empty';
-  const revealKey = `${animKey}_${activeMode}_${dataSig}`;
 
   const w = 640;
   const h = height;
@@ -101,10 +156,18 @@ export function VercelAreaLineChart({
 
   const isCountAxis = activeMode === 'volume';
 
-  const { maxY, ticksY, points } = useMemo(() => {
+  // Target curves & exact interactive data points
+  const { targetMaxY, targetPrimary, targetSecondary, hasSecondary, points } = useMemo(() => {
     if (!Array.isArray(data) || data.length === 0) {
-      return { maxY: 1000, ticksY: [0, 500, 1000], points: [] };
+      return {
+        targetMaxY: isCountAxis ? 4 : 1000,
+        targetPrimary: new Array(WAVE_SAMPLES).fill(0),
+        targetSecondary: new Array(WAVE_SAMPLES).fill(0),
+        hasSecondary: false,
+        points: []
+      };
     }
+
     let rawMax = 0;
     data.forEach((d) => {
       if (activeMode === 'volume') {
@@ -117,10 +180,23 @@ export function VercelAreaLineChart({
         rawMax = Math.max(rawMax, Number(d.totalPhp || 0), Number(d.disbursedPhp || 0));
       }
     });
+
     const niceMax = isCountAxis
       ? Math.max(4, Math.ceil(rawMax * 1.2))
       : (rawMax > 0 ? Math.ceil(rawMax * 1.12) : 1000);
-    const ticks = [0, 0.33, 0.66, 1].map((p) => Math.round(niceMax * p));
+
+    const rawPrimary = data.map((d) => {
+      if (activeMode === 'volume') return Number(d.txCount || 0) / niceMax;
+      if (activeMode === 'disbursed') return Number(d.disbursedPhp || 0) / niceMax;
+      if (activeMode === 'split') return Number(d.fiatPhp || 0) / niceMax;
+      return Number(d.totalPhp || 0) / niceMax;
+    });
+
+    const hasAnyDisb = data.some((d) => Number(d.disbursedPhp || 0) > 0);
+    const showSec = activeMode === 'split' || (activeMode === 'combined' && hasAnyDisb);
+    const rawSecondary = showSec
+      ? data.map((d) => (activeMode === 'split' ? Number(d.cryptoPhp || 0) : Number(d.disbursedPhp || 0)) / niceMax)
+      : data.map(() => 0);
 
     const pts = data.map((d, i) => {
       const x = data.length === 1
@@ -134,8 +210,157 @@ export function VercelAreaLineChart({
       return { ...d, i, x, yTotal, yDisb, yFiat, yCrypto, yTx };
     });
 
-    return { maxY: niceMax, ticksY: ticks, points: pts };
+    return {
+      targetMaxY: niceMax,
+      targetPrimary: sampleMonotoneSeries(rawPrimary, WAVE_SAMPLES),
+      targetSecondary: sampleMonotoneSeries(rawSecondary, WAVE_SAMPLES),
+      hasSecondary: showSec,
+      points: pts
+    };
   }, [data, plotH, plotW, pad.left, pad.top, activeMode, isCountAxis]);
+
+  // Direct SVG DOM refs for locked 60-120fps continuous flowing wave animation with ZERO React re-render overhead
+  const primaryLineRef = useRef(null);
+  const primaryAreaRef = useRef(null);
+  const secondaryLineRef = useRef(null);
+  const secondaryAreaRef = useRef(null);
+  const secondaryGroupRef = useRef(null);
+  const tickTextRefs = useRef([]);
+
+  // Persistent fluid wave physics state
+  const waveStateRef = useRef({
+    fromPrimary: new Array(WAVE_SAMPLES).fill(0),
+    toPrimary: new Array(WAVE_SAMPLES).fill(0),
+    currPrimary: new Array(WAVE_SAMPLES).fill(0),
+    fromSecondary: new Array(WAVE_SAMPLES).fill(0),
+    toSecondary: new Array(WAVE_SAMPLES).fill(0),
+    currSecondary: new Array(WAVE_SAMPLES).fill(0),
+    fromMaxY: 1000,
+    toMaxY: 1000,
+    currMaxY: 1000,
+    fromSecOp: 0,
+    toSecOp: 0,
+    currSecOp: 0,
+    morphStartTs: 0,
+    morphDuration: 720,
+    isCountAxis: false,
+    initialized: false
+  });
+
+  // Update morph targets smoothly whenever filtered data or series mode changes (zero snap!)
+  useEffect(() => {
+    setHoverIdx(null);
+    const st = waveStateRef.current;
+    const now = performance.now();
+
+    if (!st.initialized) {
+      st.fromPrimary = new Array(WAVE_SAMPLES).fill(0);
+      st.currPrimary = new Array(WAVE_SAMPLES).fill(0);
+      st.fromSecondary = new Array(WAVE_SAMPLES).fill(0);
+      st.currSecondary = new Array(WAVE_SAMPLES).fill(0);
+      st.fromMaxY = targetMaxY;
+      st.currMaxY = targetMaxY;
+      st.fromSecOp = 0;
+      st.currSecOp = 0;
+      st.initialized = true;
+    } else {
+      st.fromPrimary = [...st.currPrimary];
+      st.fromSecondary = [...st.currSecondary];
+      st.fromMaxY = st.currMaxY;
+      st.fromSecOp = st.currSecOp;
+    }
+
+    st.toPrimary = [...targetPrimary];
+    st.toSecondary = [...targetSecondary];
+    st.toMaxY = targetMaxY;
+    st.toSecOp = hasSecondary ? 1 : 0;
+    st.isCountAxis = isCountAxis;
+    st.morphStartTs = now;
+    st.morphDuration = prefersReducedMotion() ? 1 : 720;
+  }, [targetPrimary, targetSecondary, targetMaxY, hasSecondary, isCountAxis]);
+
+  // Single continuous rAF loop: serene ambient liquid wave flow + silky staggered filter morph
+  useEffect(() => {
+    let rafId = null;
+    const reduced = prefersReducedMotion();
+    const staggerSpread = 0.26;
+    const displayPrimary = new Array(WAVE_SAMPLES);
+    const displaySecondary = new Array(WAVE_SAMPLES);
+
+    const drawFrame = (now) => {
+      const st = waveStateRef.current;
+      const elapsed = Math.max(0, now - st.morphStartTs);
+      const rawT = Math.min(1, elapsed / Math.max(1, st.morphDuration));
+      const globalEase = easeOutQuint(rawT);
+
+      // Continuous flowing wave phase (slow, calm 0.0018 rad/ms fluid current)
+      const flowPhase = now * 0.0018;
+      // Extra organic traveling ripple during filter transition that settles cleanly
+      const morphRippleEnv = reduced ? 0 : Math.sin(rawT * Math.PI) * (1 - rawT) * 0.028;
+
+      for (let k = 0; k < WAVE_SAMPLES; k++) {
+        const frac = k / (WAVE_SAMPLES - 1);
+        const delay = frac * staggerSpread;
+        const localT = reduced ? 1 : Math.max(0, Math.min(1, (rawT - delay) / (1 - staggerSpread)));
+        const eased = easeInOutCubic(localT);
+
+        const baseP = st.fromPrimary[k] + (st.toPrimary[k] - st.fromPrimary[k]) * eased;
+        const baseS = st.fromSecondary[k] + (st.toSecondary[k] - st.fromSecondary[k]) * eased;
+        st.currPrimary[k] = baseP;
+        st.currSecondary[k] = baseS;
+
+        // Gentle continuous ambient wave motion modulated smoothly by local wave height
+        // (keeps flat zero segments rock-steady at baseline while crests breathe fluidly)
+        const ambientWave = reduced
+          ? 0
+          : (Math.sin(frac * Math.PI * 3.2 - flowPhase) * 0.011 + Math.sin(frac * Math.PI * 5.6 - flowPhase * 1.45) * 0.004);
+        const morphWave = Math.sin(frac * Math.PI * 3.0 - rawT * Math.PI * 2.4) * morphRippleEnv;
+
+        const envP = baseP > 0.018 ? Math.min(1, baseP * 1.35) : 0;
+        const envS = baseS > 0.018 ? Math.min(1, baseS * 1.35) : 0;
+
+        displayPrimary[k] = Math.max(0, Math.min(1, baseP + (ambientWave + morphWave) * envP));
+        displaySecondary[k] = Math.max(0, Math.min(1, baseS + (ambientWave * 0.8 + morphWave) * envS));
+      }
+
+      st.currMaxY = st.fromMaxY + (st.toMaxY - st.fromMaxY) * globalEase;
+      st.currSecOp = st.fromSecOp + (st.toSecOp - st.fromSecOp) * globalEase;
+
+      const pLine = buildWavePath(displayPrimary, pad.left, pad.top, plotW, plotH);
+      if (primaryLineRef.current) primaryLineRef.current.setAttribute('d', pLine);
+      if (primaryAreaRef.current) primaryAreaRef.current.setAttribute('d', buildWaveArea(pLine, pad.left, plotW, baselineY));
+
+      if (secondaryGroupRef.current) {
+        secondaryGroupRef.current.style.opacity = st.currSecOp.toFixed(3);
+      }
+      if (st.currSecOp > 0.005) {
+        const sLine = buildWavePath(displaySecondary, pad.left, pad.top, plotW, plotH);
+        if (secondaryLineRef.current) secondaryLineRef.current.setAttribute('d', sLine);
+        if (secondaryAreaRef.current) secondaryAreaRef.current.setAttribute('d', buildWaveArea(sLine, pad.left, plotW, baselineY));
+      }
+
+      // Smoothly update Y-axis tick labels during morph
+      if (rawT < 1 || elapsed < 50) {
+        const fracs = [0, 0.33, 0.66, 1];
+        for (let i = 0; i < 4; i++) {
+          const el = tickTextRefs.current[i];
+          if (el) {
+            const val = Math.round(st.currMaxY * fracs[i]);
+            el.textContent = st.isCountAxis ? `${val} tx` : formatPhpCompact(val);
+          }
+        }
+      }
+
+      if (!reduced) {
+        rafId = requestAnimationFrame(drawFrame);
+      }
+    };
+
+    rafId = requestAnimationFrame(drawFrame);
+    return () => {
+      if (rafId) cancelAnimationFrame(rafId);
+    };
+  }, [pad.left, pad.top, plotW, plotH, baselineY]);
 
   const xLabelIndices = useMemo(() => {
     if (points.length <= 5) return points.map((_, i) => i);
@@ -153,24 +378,25 @@ export function VercelAreaLineChart({
     return idxs;
   }, [points]);
 
-  if (!data || data.length === 0) {
-    return (
-      <div className="va-empty-state" style={{ minHeight: `${height}px` }}>
-        <span>{emptyMessage}</span>
-      </div>
-    );
-  }
+  const initialPrimaryLine = useMemo(
+    () => buildWavePath(targetPrimary, pad.left, pad.top, plotW, plotH),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    []
+  );
+  const initialPrimaryArea = useMemo(
+    () => buildWaveArea(initialPrimaryLine, pad.left, plotW, baselineY),
+    [initialPrimaryLine, pad.left, plotW, baselineY]
+  );
 
-  const buildArea = (key) => {
-    if (points.length < 2) return '';
-    const line = buildMonotonePath(points, key, baselineY);
-    const firstX = points[0].x.toFixed(1);
-    const lastX = points[points.length - 1].x.toFixed(1);
-    return `${line} L ${lastX} ${baselineY.toFixed(1)} L ${firstX} ${baselineY.toFixed(1)} Z`;
-  };
+  const primaryColor = activeMode === 'disbursed' ? '#10b981' : 'var(--va-series-primary, #3291FF)';
+  const primaryGradId = activeMode === 'disbursed' ? `vaAreaEm_${uid}` : `vaAreaBl_${uid}`;
+  const secondaryColor = activeMode === 'split' ? 'var(--va-series-mono, #a1a1aa)' : '#10b981';
+  const secondaryGradId = activeMode === 'split' ? `vaAreaNu_${uid}` : `vaAreaEm_${uid}`;
+  const shimmerGradId = `vaWaveFlow_${uid}`;
 
   const activePt = hoverIdx !== null && points[hoverIdx] ? points[hoverIdx] : null;
-  const hasAnyDisb = points.some((p) => Number(p.disbursedPhp || 0) > 0);
+  const isEmpty = !data || data.length === 0;
+  const initialTicks = [0, 0.33, 0.66, 1].map((p) => Math.round(targetMaxY * p));
 
   return (
     <div className="va-chart-container">
@@ -184,7 +410,7 @@ export function VercelAreaLineChart({
                   <span className="va-legend-swatch va-swatch-blue" />
                   Inflow
                 </span>
-                {hasAnyDisb && (
+                {hasSecondary && (
                   <span className="va-legend-item">
                     <span className="va-legend-swatch va-swatch-emerald" />
                     Disbursed
@@ -249,33 +475,35 @@ export function VercelAreaLineChart({
       <div className="va-svg-stage" onMouseLeave={() => setHoverIdx(null)}>
         <svg viewBox={`0 0 ${w} ${h}`} className="va-line-svg" role="img" aria-label="Relief Funds Trend Chart">
           <defs>
-            <linearGradient id="vaAreaBlue" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="var(--va-series-primary, #3291FF)" stopOpacity="0.20" />
+            <linearGradient id={`vaAreaBl_${uid}`} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="var(--va-series-primary, #3291FF)" stopOpacity="0.22" />
               <stop offset="100%" stopColor="var(--va-series-primary, #3291FF)" stopOpacity="0.0" />
             </linearGradient>
-            <linearGradient id="vaAreaEmerald" x1="0" y1="0" x2="0" y2="1">
+            <linearGradient id={`vaAreaEm_${uid}`} x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor="#10b981" stopOpacity="0.20" />
               <stop offset="100%" stopColor="#10b981" stopOpacity="0.0" />
             </linearGradient>
-            <linearGradient id="vaAreaNeutral" x1="0" y1="0" x2="0" y2="1">
+            <linearGradient id={`vaAreaNu_${uid}`} x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor="var(--va-series-mono, #a1a1aa)" stopOpacity="0.14" />
               <stop offset="100%" stopColor="var(--va-series-mono, #a1a1aa)" stopOpacity="0.0" />
             </linearGradient>
-            <clipPath id={clipId}>
-              <rect
-                key={revealKey}
-                x={pad.left - 4}
-                y={0}
-                width={plotW + pad.right + 8}
-                height={h}
-                className="va-chart-reveal-rect"
-              />
-            </clipPath>
+            {/* Continuous subtle flowing light sheen traveling smoothly across the wave */}
+            <linearGradient id={shimmerGradId} x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stopColor={primaryColor} stopOpacity="0.92" />
+              <stop offset="44%" stopColor={primaryColor} stopOpacity="1" />
+              <stop offset="50%" stopColor="#ffffff" stopOpacity="0.72">
+                <animate attributeName="offset" values="-0.25;1.25" dur="4.8s" repeatCount="indefinite" />
+              </stop>
+              <stop offset="56%" stopColor={primaryColor} stopOpacity="1">
+                <animate attributeName="offset" values="-0.19;1.31" dur="4.8s" repeatCount="indefinite" />
+              </stop>
+              <stop offset="100%" stopColor={primaryColor} stopOpacity="0.92" />
+            </linearGradient>
           </defs>
 
-          {/* Horizontal Hairlines & Y Ticks */}
-          {ticksY.map((val, idx) => {
-            const yPos = pad.top + plotH - ((val / (maxY || 1)) * plotH);
+          {/* Horizontal Hairlines & Smoothly Scaling Y Ticks */}
+          {initialTicks.map((val, idx) => {
+            const yPos = pad.top + plotH - ((idx / 3) * plotH);
             return (
               <g key={idx}>
                 <line
@@ -285,7 +513,13 @@ export function VercelAreaLineChart({
                   y2={yPos}
                   className={`va-grid-line ${idx === 0 ? 'va-grid-baseline' : ''}`}
                 />
-                <text x={pad.left - 10} y={yPos + 3.5} textAnchor="end" className="va-axis-tick">
+                <text
+                  ref={(el) => { tickTextRefs.current[idx] = el; }}
+                  x={pad.left - 10}
+                  y={yPos + 3.5}
+                  textAnchor="end"
+                  className="va-axis-tick"
+                >
                   {isCountAxis ? `${val} tx` : formatPhpCompact(val)}
                 </text>
               </g>
@@ -303,85 +537,32 @@ export function VercelAreaLineChart({
             );
           })}
 
-          {/* Series Rendering (Smooth Sweep + Fade on 7D/30D/90D/All or Series Switch) */}
-          <g key={revealKey} clipPath={`url(#${clipId})`} className="va-series-animated">
-          {activeMode === 'combined' && (
-            <>
-              {points.length > 1 && <path d={buildArea('yTotal')} fill="url(#vaAreaBlue)" />}
+          {/* Persistent Continuous Wave Layer (NEVER remounted — smoothly liquid-morphs on every filter change!) */}
+          <g className="va-wave-layer" data-wave-engine="continuous">
+            <path ref={primaryAreaRef} d={initialPrimaryArea} fill={`url(#${primaryGradId})`} className="va-wave-area" />
+            <path
+              ref={primaryLineRef}
+              d={initialPrimaryLine}
+              fill="none"
+              stroke={`url(#${shimmerGradId})`}
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="va-wave-stroke"
+            />
+            <g ref={secondaryGroupRef} style={{ opacity: hasSecondary ? 1 : 0 }}>
+              <path ref={secondaryAreaRef} d="" fill={`url(#${secondaryGradId})`} />
               <path
-                d={buildMonotonePath(points, 'yTotal', baselineY)}
+                ref={secondaryLineRef}
+                d=""
                 fill="none"
-                stroke="var(--va-series-primary, #3291FF)"
-                strokeWidth="1.75"
+                stroke={secondaryColor}
+                strokeWidth="1.55"
+                strokeDasharray={activeMode === 'combined' ? '3 3' : undefined}
                 strokeLinecap="round"
                 strokeLinejoin="round"
               />
-              {hasAnyDisb && (
-                <>
-                  {points.length > 1 && <path d={buildArea('yDisb')} fill="url(#vaAreaEmerald)" />}
-                  <path
-                    d={buildMonotonePath(points, 'yDisb', baselineY)}
-                    fill="none"
-                    stroke="#10b981"
-                    strokeWidth="1.5"
-                    strokeDasharray="3 3"
-                    strokeLinecap="round"
-                  />
-                </>
-              )}
-            </>
-          )}
-
-          {activeMode === 'split' && (
-            <>
-              {points.length > 1 && <path d={buildArea('yFiat')} fill="url(#vaAreaBlue)" />}
-              <path
-                d={buildMonotonePath(points, 'yFiat', baselineY)}
-                fill="none"
-                stroke="var(--va-series-primary, #3291FF)"
-                strokeWidth="1.75"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-              {points.length > 1 && <path d={buildArea('yCrypto')} fill="url(#vaAreaNeutral)" />}
-              <path
-                d={buildMonotonePath(points, 'yCrypto', baselineY)}
-                fill="none"
-                stroke="var(--va-series-mono, #a1a1aa)"
-                strokeWidth="1.6"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </>
-          )}
-
-          {activeMode === 'disbursed' && (
-            <>
-              {points.length > 1 && <path d={buildArea('yDisb')} fill="url(#vaAreaEmerald)" />}
-              <path
-                d={buildMonotonePath(points, 'yDisb', baselineY)}
-                fill="none"
-                stroke="#10b981"
-                strokeWidth="1.85"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </>
-          )}
-
-          {activeMode === 'volume' && (
-            <>
-              {points.length > 1 && <path d={buildArea('yTx')} fill="url(#vaAreaBlue)" />}
-              <path
-                d={buildMonotonePath(points, 'yTx', baselineY)}
-                fill="none"
-                stroke="var(--va-series-primary, #3291FF)"
-                strokeWidth="1.75"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </>
-          )}
+            </g>
           </g>
 
           {/* Hover Crosshair & Active Ring */}
@@ -404,7 +585,7 @@ export function VercelAreaLineChart({
                 }
                 r="4"
                 fill="var(--va-surface, #0a0a0a)"
-                stroke={activeMode === 'disbursed' ? '#10b981' : 'var(--va-series-primary, #3291FF)'}
+                stroke={primaryColor}
                 strokeWidth="2"
               />
               {activeMode === 'split' && (
@@ -420,13 +601,14 @@ export function VercelAreaLineChart({
             </g>
           )}
 
-          {points.length === 1 && (
+          {/* Single-point peak indicator when only 1 day exists */}
+          {points.length === 1 && !activePt && (
             <circle
               cx={points[0].x}
               cy={activeMode === 'volume' ? points[0].yTx : activeMode === 'disbursed' ? points[0].yDisb : points[0].yTotal}
-              r="4.5"
+              r="4"
               fill="var(--va-surface, #0a0a0a)"
-              stroke="var(--va-series-primary, #3291FF)"
+              stroke={primaryColor}
               strokeWidth="2"
             />
           )}
@@ -450,6 +632,12 @@ export function VercelAreaLineChart({
             );
           })}
         </svg>
+
+        {isEmpty && (
+          <div className="va-wave-empty-overlay">
+            <span>{emptyMessage}</span>
+          </div>
+        )}
 
         {activePt && (
           <div
@@ -517,6 +705,9 @@ const GEIST_DONUT_COLORS = [
   '#71717a'
 ];
 
+// Stable canonical ring order so segments glide smoothly around the circumference without jumping
+const CANONICAL_RAIL_ORDER = ['Bank / Card', 'Sepolia ETH', 'GCash', 'Maya'];
+
 export function VercelDonutChart({
   items = [],
   centerLabel = 'Total',
@@ -526,52 +717,168 @@ export function VercelDonutChart({
 }) {
   const [hoveredKey, setHoveredKey] = useState(null);
 
-  const nonZero = items.filter((it) => Number(it.value || 0) > 0);
-  const totalVal = nonZero.reduce((s, it) => s + Number(it.value || 0), 0);
-
-  if (totalVal <= 0 || nonZero.length === 0) {
-    return (
-      <div className="va-empty-state" style={{ minHeight: '190px' }}>
-        <span>{emptyMessage}</span>
-      </div>
-    );
-  }
-
-  const size = stacked ? 142 : 156;
+  const size = stacked ? 144 : 158;
   const cx = size / 2;
   const cy = size / 2;
   const r = stacked ? 56 : 62;
+  const strokeW = 10;
   const circ = 2 * Math.PI * r;
-  const gapPx = nonZero.length > 1 ? 2.5 : 0;
 
-  let cumulative = 0;
-  const slices = items.map((item, idx) => {
-    const val = Number(item.value || 0);
-    const pct = totalVal > 0 ? val / totalVal : 0;
-    const rawLen = pct * circ;
-    const dashLen = rawLen > gapPx ? rawLen - gapPx : rawLen;
-    const dashOffset = -cumulative * circ;
-    cumulative += pct;
-    return {
-      ...item,
-      color: item.color || GEIST_DONUT_COLORS[idx % GEIST_DONUT_COLORS.length],
-      pctNum: Number((pct * 100).toFixed(1)),
-      dashLen,
-      dashOffset
-    };
+  // Compute sculpted floating rounded arc targets (all segments stay persistently mounted!)
+  const { canonicalSlices, totalVal, legendSlices } = useMemo(() => {
+    const rawTotal = items.reduce((s, it) => s + Math.max(0, Number(it.value || 0)), 0);
+
+    const orderedForRing = [...items].sort((a, b) => {
+      const ia = CANONICAL_RAIL_ORDER.indexOf(a.key);
+      const ib = CANONICAL_RAIL_ORDER.indexOf(b.key);
+      if (ia !== -1 && ib !== -1) return ia - ib;
+      if (ia !== -1) return -1;
+      if (ib !== -1) return 1;
+      return String(a.key).localeCompare(String(b.key));
+    });
+
+    const nonZeroCount = orderedForRing.filter((it) => Number(it.value || 0) > 0).length;
+    // Account for round end-cap radius (+strokeW total) plus crisp 4px visual breathing gap between arcs
+    const capAndGapFrac = nonZeroCount > 1 ? (strokeW + 4) / circ : 0;
+    const capHalfFrac = nonZeroCount > 1 ? (strokeW * 0.5 + 2) / circ : 0;
+
+    let cum = 0;
+    const ringMap = new Map();
+    const ringArr = orderedForRing.map((item, idx) => {
+      const val = Math.max(0, Number(item.value || 0));
+      const frac = rawTotal > 0 ? val / rawTotal : 0;
+      const startFrac = frac > 0 ? cum + capHalfFrac : cum;
+      const sweepFrac = frac > 0 ? Math.max(0.002, frac - capAndGapFrac) : 0;
+      cum += frac;
+      const entry = {
+        ...item,
+        color: item.color || GEIST_DONUT_COLORS[idx % GEIST_DONUT_COLORS.length],
+        pctNum: Number((frac * 100).toFixed(1)),
+        startFrac,
+        sweepFrac,
+        opacity: frac > 0 ? 1 : 0
+      };
+      ringMap.set(item.key, entry);
+      return entry;
+    });
+
+    const legendArr = items.map((item, idx) => {
+      const entry = ringMap.get(item.key);
+      return entry || {
+        ...item,
+        color: item.color || GEIST_DONUT_COLORS[idx % GEIST_DONUT_COLORS.length],
+        pctNum: 0,
+        startFrac: 0,
+        sweepFrac: 0,
+        opacity: 0
+      };
+    });
+
+    return { canonicalSlices: ringArr, totalVal: rawTotal, legendSlices: legendArr };
+  }, [items, circ, strokeW]);
+
+  // Kinetic rAF Donut Morph: fluidly glides every arc's size & position + subtle rotational spring + center counter roll
+  const currSlicesRef = useRef({});
+  const currTotalRef = useRef(0);
+  const rafRef = useRef(null);
+  const hasInitRef = useRef(false);
+
+  const [animDonut, setAnimDonut] = useState(() => {
+    const map = {};
+    canonicalSlices.forEach((s) => {
+      map[s.key] = { startFrac: s.startFrac, sweepFrac: s.sweepFrac, opacity: s.opacity };
+    });
+    return { slices: map, ringAngle: -90, displayTotal: totalVal };
   });
 
-  const activeSlice = hoveredKey ? slices.find((s) => s.key === hoveredKey) : null;
+  const targetSig = canonicalSlices.map((s) => `${s.key}:${s.value}`).join('|');
+
+  useEffect(() => {
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
+
+    if (prefersReducedMotion()) {
+      const snap = {};
+      canonicalSlices.forEach((s) => {
+        snap[s.key] = { startFrac: s.startFrac, sweepFrac: s.sweepFrac, opacity: s.opacity };
+      });
+      currSlicesRef.current = snap;
+      currTotalRef.current = totalVal;
+      setAnimDonut({ slices: snap, ringAngle: -90, displayTotal: totalVal });
+      hasInitRef.current = true;
+      return;
+    }
+
+    const fromSlices = {};
+    canonicalSlices.forEach((s) => {
+      if (hasInitRef.current && currSlicesRef.current[s.key]) {
+        fromSlices[s.key] = { ...currSlicesRef.current[s.key] };
+      } else {
+        fromSlices[s.key] = { startFrac: s.startFrac, sweepFrac: 0, opacity: 0 };
+      }
+    });
+    const fromTotal = hasInitRef.current ? currTotalRef.current : 0;
+    const isInitialLoad = !hasInitRef.current;
+    hasInitRef.current = true;
+
+    const duration = isInitialLoad ? 820 : 720;
+    const startTs = performance.now();
+
+    const step = (now) => {
+      const elapsed = now - startTs;
+      const rawT = Math.min(1, elapsed / duration);
+      const nextMap = {};
+
+      canonicalSlices.forEach((s, idx) => {
+        const delay = idx * 0.05;
+        const localT = Math.max(0, Math.min(1, (rawT - delay) / (1 - delay)));
+        const eased = easeOutQuint(localT);
+        const f = fromSlices[s.key] || { startFrac: 0, sweepFrac: 0, opacity: 0 };
+        nextMap[s.key] = {
+          startFrac: f.startFrac + (s.startFrac - f.startFrac) * eased,
+          sweepFrac: f.sweepFrac + (s.sweepFrac - f.sweepFrac) * eased,
+          opacity: f.opacity + (s.opacity - f.opacity) * Math.min(1, eased * 1.35)
+        };
+      });
+
+      // Signature subtle rotational glide that settles smoothly back to -90deg
+      const spinAmp = isInitialLoad ? 28 : 18;
+      const ringAngle = -90 + Math.sin(rawT * Math.PI) * spinAmp * (1 - rawT);
+      const displayTotal = Math.round(fromTotal + (totalVal - fromTotal) * easeOutQuint(rawT));
+
+      currSlicesRef.current = nextMap;
+      currTotalRef.current = displayTotal;
+      setAnimDonut({ slices: nextMap, ringAngle, displayTotal });
+
+      if (rawT < 1) {
+        rafRef.current = requestAnimationFrame(step);
+      } else {
+        rafRef.current = null;
+      }
+    };
+
+    rafRef.current = requestAnimationFrame(step);
+    return () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    };
+  }, [targetSig, totalVal, canonicalSlices]);
+
+  const activeSlice = hoveredKey ? legendSlices.find((s) => s.key === hoveredKey) : null;
+  const animatedCenterDisplay = `₱${Number(animDonut.displayTotal || 0).toLocaleString('en-US')}`;
 
   return (
     <div className={`va-donut-layout ${stacked ? 'is-stacked' : ''}`}>
       <div className="va-donut-ring" style={{ width: `${size}px`, height: `${size}px` }}>
         <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} role="img" aria-label={centerLabel}>
-          <circle cx={cx} cy={cy} r={r} fill="none" stroke="var(--va-border-subtle, #1a1a1a)" strokeWidth="10" />
-          <g transform={`rotate(-90 ${cx} ${cy})`}>
-            {slices.map((s) => {
-              if (s.value <= 0) return null;
+          <circle cx={cx} cy={cy} r={r} fill="none" stroke="var(--va-border-subtle, #1a1a1a)" strokeWidth={strokeW} />
+          <g data-donut-engine="kinetic" transform={`rotate(${animDonut.ringAngle.toFixed(2)} ${cx} ${cy})`}>
+            {canonicalSlices.map((s) => {
+              const st = animDonut.slices[s.key] || { startFrac: 0, sweepFrac: 0, opacity: 0 };
+              const dashLen = Math.max(0, st.sweepFrac * circ);
+              const dashOffset = -(st.startFrac * circ);
               const isHover = hoveredKey === s.key;
+              const finalOpacity = hoveredKey
+                ? (isHover ? st.opacity : st.opacity * 0.28)
+                : st.opacity;
               return (
                 <circle
                   key={s.key}
@@ -580,15 +887,16 @@ export function VercelDonutChart({
                   r={r}
                   fill="none"
                   stroke={s.color}
-                  strokeWidth={isHover ? 12.5 : 10}
-                  strokeDasharray={`${s.dashLen} ${circ}`}
-                  strokeDashoffset={s.dashOffset}
+                  strokeWidth={isHover ? 13 : strokeW}
+                  strokeLinecap={dashLen > 1 ? 'round' : 'butt'}
+                  strokeDasharray={`${dashLen.toFixed(2)} ${circ.toFixed(2)}`}
+                  strokeDashoffset={dashOffset.toFixed(2)}
                   style={{
-                    cursor: 'pointer',
-                    transition: 'stroke-dasharray 420ms cubic-bezier(0.16, 1, 0.3, 1), stroke-dashoffset 420ms cubic-bezier(0.16, 1, 0.3, 1), stroke-width 140ms ease, opacity 140ms ease',
-                    opacity: hoveredKey && !isHover ? 0.28 : 1
+                    cursor: st.sweepFrac > 0.001 ? 'pointer' : 'default',
+                    opacity: finalOpacity,
+                    transition: 'stroke-width 160ms cubic-bezier(0.16, 1, 0.3, 1), opacity 160ms ease'
                   }}
-                  onMouseEnter={() => setHoveredKey(s.key)}
+                  onMouseEnter={() => { if (s.value > 0) setHoveredKey(s.key); }}
                   onMouseLeave={() => setHoveredKey(null)}
                 />
               );
@@ -601,7 +909,9 @@ export function VercelDonutChart({
             {activeSlice ? activeSlice.label : centerLabel}
           </span>
           <strong className="va-donut-center-val">
-            {activeSlice ? `${activeSlice.pctNum}%` : centerValue}
+            {activeSlice
+              ? `${activeSlice.pctNum}%`
+              : (totalVal > 0 ? animatedCenterDisplay : centerValue)}
           </strong>
           {activeSlice && (
             <span className="va-donut-center-sub">
@@ -611,28 +921,34 @@ export function VercelDonutChart({
         </div>
       </div>
 
-      <div className="va-hairline-list">
-        {slices.map((s) => (
-          <div
-            key={s.key}
-            className={`va-donut-row ${hoveredKey === s.key ? 'is-active' : ''}`}
-            onMouseEnter={() => setHoveredKey(s.key)}
-            onMouseLeave={() => setHoveredKey(null)}
-          >
-            <div className="va-donut-row-left">
-              <span className="va-legend-swatch" style={{ background: s.color }} />
-              <div className="va-row-labels">
-                <span className="va-row-title">{s.label}</span>
-                {s.meta && <span className="va-row-sub">{s.meta}</span>}
+      {totalVal <= 0 && legendSlices.length === 0 ? (
+        <div className="va-empty-state" style={{ minHeight: '90px' }}>
+          <span>{emptyMessage}</span>
+        </div>
+      ) : (
+        <div className="va-hairline-list">
+          {legendSlices.map((s) => (
+            <div
+              key={s.key}
+              className={`va-donut-row ${hoveredKey === s.key ? 'is-active' : ''}`}
+              onMouseEnter={() => { if (s.value > 0) setHoveredKey(s.key); }}
+              onMouseLeave={() => setHoveredKey(null)}
+            >
+              <div className="va-donut-row-left">
+                <span className="va-legend-swatch" style={{ background: s.color }} />
+                <div className="va-row-labels">
+                  <span className="va-row-title">{s.label}</span>
+                  {s.meta && <span className="va-row-sub">{s.meta}</span>}
+                </div>
+              </div>
+              <div className="va-donut-row-right">
+                <strong className="va-num">{s.displayValue || formatPhpCompact(s.value)}</strong>
+                <span className="va-pct">{s.pctNum}%</span>
               </div>
             </div>
-            <div className="va-donut-row-right">
-              <strong className="va-num">{s.displayValue || formatPhpCompact(s.value)}</strong>
-              <span className="va-pct">{s.pctNum}%</span>
-            </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
