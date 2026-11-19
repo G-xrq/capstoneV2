@@ -558,12 +558,15 @@ export default function AdminView({
         setActiveTab('system-hub');
         setSystemSubTab('broadcast');
         break;
+      case 'backups':
       case 'operations':
+        setActiveTab('system-hub');
+        setSystemSubTab('backups');
+        break;
       case 'system-maintenance':
       case 'maintenance':
-      case 'backups':
         setActiveTab('system-hub');
-        setSystemSubTab('operations');
+        setSystemSubTab('maintenance');
         break;
       case 'settings':
         setActiveTab('settings');
@@ -2072,7 +2075,6 @@ export default function AdminView({
                   className={`admin-segmented-tab-btn ${monitoringSubTab === 'active-users' ? 'active' : ''}`}
                   onClick={() => setMonitoringSubTab('active-users')}
                 >
-                  <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#10b981' }}>sensors</span>
                   <span>Live Active Users</span>
                   <span className="count-badge">{liveUsersSummary?.totalLive || 0}</span>
                 </button>
@@ -2083,7 +2085,6 @@ export default function AdminView({
                   className={`admin-segmented-tab-btn ${monitoringSubTab === 'audit-logs' ? 'active' : ''}`}
                   onClick={() => setMonitoringSubTab('audit-logs')}
                 >
-                  <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#38bdf8' }}>history</span>
                   <span>System Activity Logs</span>
                   <span className="count-badge">{auditLogsTotal || auditLogsList.length}</span>
                 </button>
@@ -3165,7 +3166,6 @@ export default function AdminView({
                   className={`admin-segmented-tab-btn ${financeSubTab === 'ledger' ? 'active' : ''}`}
                   onClick={() => setFinanceSubTab('ledger')}
                 >
-                  <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#38bdf8' }}>receipt_long</span>
                   <span>Financial Ledger</span>
                   <span className="count-badge">{ledgerData.onChain.length + ledgerData.manual.length}</span>
                 </button>
@@ -3176,7 +3176,6 @@ export default function AdminView({
                   className={`admin-segmented-tab-btn ${financeSubTab === 'disbursements' ? 'active' : ''}`}
                   onClick={() => setFinanceSubTab('disbursements')}
                 >
-                  <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#10b981' }}>local_shipping</span>
                   <span>Disbursements &amp; Proofs</span>
                   <span className="count-badge">{disbursementsList?.length || 0}</span>
                 </button>
@@ -3820,7 +3819,6 @@ export default function AdminView({
                   className={`admin-segmented-tab-btn ${campaignsSubTab === 'campaigns' ? 'active' : ''}`}
                   onClick={() => setCampaignsSubTab('campaigns')}
                 >
-                  <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#10b981' }}>campaign</span>
                   <span>All Relief Campaigns</span>
                   <span className="count-badge">{campaigns?.length || 0}</span>
                 </button>
@@ -3831,7 +3829,6 @@ export default function AdminView({
                   className={`admin-segmented-tab-btn ${campaignsSubTab === 'radar' ? 'active' : ''}`}
                   onClick={() => setCampaignsSubTab('radar')}
                 >
-                  <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#38bdf8' }}>radar</span>
                   <span>Disaster Relief Radar</span>
                 </button>
               </div>
@@ -4141,7 +4138,6 @@ export default function AdminView({
                   className={`admin-segmented-tab-btn ${ngoSubTab === 'approvals' ? 'active' : ''}`}
                   onClick={() => setNgoSubTab('approvals')}
                 >
-                  <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#f59e0b' }}>hourglass_top</span>
                   <span>KYC Approvals</span>
                   <span className="count-badge">{pendingOrgsCount}</span>
                 </button>
@@ -4152,8 +4148,7 @@ export default function AdminView({
                   className={`admin-segmented-tab-btn ${ngoSubTab === 'moderators' ? 'active' : ''}`}
                   onClick={() => setNgoSubTab('moderators')}
                 >
-                  <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#a855f7' }}>corporate_fare</span>
-                  <span>Accredited NGOs (EVM Registry)</span>
+                  <span>Accredited NGOs</span>
                   <span className="count-badge">{approvedOrgsCount || effectiveModCount}</span>
                 </button>
               </div>
@@ -4679,20 +4674,27 @@ export default function AdminView({
                   className={`admin-segmented-tab-btn ${systemSubTab === 'broadcast' ? 'active' : ''}`}
                   onClick={() => setSystemSubTab('broadcast')}
                 >
-                  <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#ef4444' }}>podcasts</span>
-                  <span>Broadcast &amp; Alerts</span>
+                  <span>Broadcast Alerts</span>
                   <span className="count-badge">{broadcastCount}</span>
                 </button>
                 <button
                   type="button"
                   role="tab"
-                  aria-selected={systemSubTab === 'operations'}
-                  className={`admin-segmented-tab-btn ${systemSubTab === 'operations' ? 'active' : ''}`}
-                  onClick={() => setSystemSubTab('operations')}
+                  aria-selected={systemSubTab === 'backups'}
+                  className={`admin-segmented-tab-btn ${systemSubTab === 'backups' ? 'active' : ''}`}
+                  onClick={() => setSystemSubTab('backups')}
                 >
-                  <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#f59e0b' }}>settings_backup_restore</span>
-                  <span>Backups &amp; Maintenance</span>
-                  {maintenanceActive && <span className="count-badge" style={{ background: '#f59e0b', color: '#000' }}>ON</span>}
+                  <span>Database Backups</span>
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={systemSubTab === 'maintenance'}
+                  className={`admin-segmented-tab-btn ${systemSubTab === 'maintenance' ? 'active' : ''}`}
+                  onClick={() => setSystemSubTab('maintenance')}
+                >
+                  <span>Maintenance Mode</span>
+                  {maintenanceActive && <span className="count-badge" style={{ background: '#f5a623', color: '#000', borderColor: '#f5a623' }}>ON</span>}
                 </button>
               </div>
 
@@ -4700,8 +4702,12 @@ export default function AdminView({
                 <AdminBroadcastPanel onActiveCountChange={setBroadcastCount} />
               )}
 
-              {systemSubTab === 'operations' && (
-                <AdminMaintenancePanel onMaintenanceStateChange={setMaintenanceActive} />
+              {(systemSubTab === 'backups' || systemSubTab === 'operations') && (
+                <AdminMaintenancePanel forcedSection="backups" onMaintenanceStateChange={setMaintenanceActive} />
+              )}
+
+              {systemSubTab === 'maintenance' && (
+                <AdminMaintenancePanel forcedSection="maintenance" onMaintenanceStateChange={setMaintenanceActive} />
               )}
             </div>
           )}

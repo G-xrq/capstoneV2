@@ -1,7 +1,5 @@
 import { useState, useMemo } from 'react';
 
-const CHART_PALETTE = ['#10b981', '#38bdf8', '#a855f7', '#f59e0b', '#f43f5e', '#14b8a6', '#8b5cf6'];
-
 export function formatPhpCompact(val) {
   const num = Number(val || 0);
   if (Math.abs(num) >= 1_000_000) return `₱${(num / 1_000_000).toFixed(2)}M`;
@@ -10,20 +8,90 @@ export function formatPhpCompact(val) {
   return `₱${Math.round(num).toLocaleString('en-US')}`;
 }
 
+/**
+ * Fritsch-Carlson monotone cubic spline SVG path builder.
+ * Produces smooth Vercel-style curves that strictly preserve monotonicity
+ * and never overshoot below the baseline or above local peaks.
+ */
+function buildMonotonePath(points, yKey, baselineY) {
+  const n = points.length;
+  if (n === 0) return '';
+  if (n === 1) return `M ${points[0].x.toFixed(1)} ${points[0][yKey].toFixed(1)}`;
+  if (n === 2) {
+    return `M ${points[0].x.toFixed(1)} ${points[0][yKey].toFixed(1)} L ${points[1].x.toFixed(1)} ${points[1][yKey].toFixed(1)}`;
+  }
+
+  const xs = points.map((p) => p.x);
+  const ys = points.map((p) => p[yKey]);
+  const dxs = [];
+  const ms = [];
+  for (let i = 0; i < n - 1; i++) {
+    const dx = xs[i + 1] - xs[i] || 1;
+    dxs.push(dx);
+    ms.push((ys[i + 1] - ys[i]) / dx);
+  }
+
+  const tangents = new Array(n).fill(0);
+  tangents[0] = ms[0];
+  tangents[n - 1] = ms[n - 2];
+
+  for (let i = 1; i < n - 1; i++) {
+    if (ms[i - 1] * ms[i] <= 0) {
+      tangents[i] = 0;
+    } else {
+      const w1 = 2 * dxs[i] + dxs[i - 1];
+      const w2 = dxs[i] + 2 * dxs[i - 1];
+      tangents[i] = (w1 + w2) / (w1 / ms[i - 1] + w2 / ms[i]);
+    }
+  }
+
+  // Enforce monotonicity limits so curve never overshoots flat segments
+  for (let i = 0; i < n - 1; i++) {
+    if (Math.abs(ms[i]) < 1e-6) {
+      tangents[i] = 0;
+      tangents[i + 1] = 0;
+    } else {
+      const a = tangents[i] / ms[i];
+      const b = tangents[i + 1] / ms[i];
+      const h = Math.hypot(a, b);
+      if (h > 3) {
+        const s = 3 / h;
+        tangents[i] = s * a * ms[i];
+        tangents[i + 1] = s * b * ms[i];
+      }
+    }
+  }
+
+  const clampY = (y) => Math.min(baselineY, y);
+  let d = `M ${xs[0].toFixed(1)} ${ys[0].toFixed(1)}`;
+  for (let i = 0; i < n - 1; i++) {
+    const dx3 = dxs[i] / 3;
+    const cp1x = xs[i] + dx3;
+    const cp1y = clampY(ys[i] + tangents[i] * dx3);
+    const cp2x = xs[i + 1] - dx3;
+    const cp2y = clampY(ys[i + 1] - tangents[i + 1] * dx3);
+    d += ` C ${cp1x.toFixed(1)} ${cp1y.toFixed(1)}, ${cp2x.toFixed(1)} ${cp2y.toFixed(1)}, ${xs[i + 1].toFixed(1)} ${ys[i + 1].toFixed(1)}`;
+  }
+  return d;
+}
+
 export function VercelAreaLineChart({
   data = [],
-  height = 240,
+  height = 248,
   showCryptoSplit = false,
-  emptyMessage = 'No contribution trend recorded in this period.'
+  title = '',
+  subtitle = '',
+  emptyMessage = 'No contribution activity recorded in this window.'
 }) {
   const [hoverIdx, setHoverIdx] = useState(null);
   const [seriesMode, setSeriesMode] = useState('combined'); // 'combined' | 'split'
 
-  const w = 680;
+  const w = 780;
   const h = height;
-  const pad = { top: 18, right: 16, bottom: 32, left: 54 };
+  const pad = { top: 16, right: 16, bottom: 28, left: 56 };
   const plotW = w - pad.left - pad.right;
   const plotH = h - pad.top - pad.bottom;
+  const baselineY = pad.top + plotH;
 
   const { maxY, ticksY, points } = useMemo(() => {
     if (!Array.isArray(data) || data.length === 0) {
@@ -38,8 +106,8 @@ export function VercelAreaLineChart({
         seriesMode === 'split' ? Math.max(Number(d.fiatPhp || 0), Number(d.cryptoPhp || 0)) : 0
       );
     });
-    const niceMax = rawMax > 0 ? Math.ceil(rawMax * 1.15) : 1000;
-    const ticks = [0, 0.25, 0.5, 0.75, 1].map((p) => Math.round(niceMax * p));
+    const niceMax = rawMax > 0 ? Math.ceil(rawMax * 1.12) : 1000;
+    const ticks = [0, 0.33, 0.66, 1].map((p) => Math.round(niceMax * p));
 
     const pts = data.map((d, i) => {
       const x = data.length === 1
@@ -55,110 +123,114 @@ export function VercelAreaLineChart({
     return { maxY: niceMax, ticksY: ticks, points: pts };
   }, [data, plotH, plotW, pad.left, pad.top, seriesMode]);
 
+  const xLabelIndices = useMemo(() => {
+    if (points.length <= 5) return points.map((_, i) => i);
+    const step = Math.ceil((points.length - 1) / 4);
+    const idxs = [];
+    for (let i = 0; i < points.length; i += step) idxs.push(i);
+    const last = points.length - 1;
+    if (idxs[idxs.length - 1] !== last) {
+      if (last - idxs[idxs.length - 1] < Math.max(2, Math.floor(step * 0.65))) {
+        idxs[idxs.length - 1] = last;
+      } else {
+        idxs.push(last);
+      }
+    }
+    return idxs;
+  }, [points]);
+
   if (!data || data.length === 0) {
     return (
-      <div className="analytics-chart-empty" style={{ minHeight: `${height}px` }}>
-        <span className="material-symbols-outlined">show_chart</span>
+      <div className="va-empty-state" style={{ minHeight: `${height}px` }}>
         <span>{emptyMessage}</span>
       </div>
     );
   }
 
-  const buildPath = (key) => {
-    if (points.length === 0) return '';
-    return points.map((pt, idx) => `${idx === 0 ? 'M' : 'L'} ${pt.x.toFixed(1)} ${pt[key].toFixed(1)}`).join(' ');
-  };
-
-  const buildAreaPath = (key) => {
-    if (points.length === 0) return '';
-    const line = buildPath(key);
-    const baselineY = (pad.top + plotH).toFixed(1);
+  const buildArea = (key) => {
+    if (points.length < 2) return '';
+    const line = buildMonotonePath(points, key, baselineY);
     const firstX = points[0].x.toFixed(1);
     const lastX = points[points.length - 1].x.toFixed(1);
-    return `${line} L ${lastX} ${baselineY} L ${firstX} ${baselineY} Z`;
+    return `${line} L ${lastX} ${baselineY.toFixed(1)} L ${firstX} ${baselineY.toFixed(1)} Z`;
   };
 
-  const xLabelIndices = useMemo(() => {
-    if (points.length <= 6) return points.map((_, i) => i);
-    const step = Math.ceil((points.length - 1) / 5);
-    const idxs = [];
-    for (let i = 0; i < points.length; i += step) idxs.push(i);
-    if (idxs[idxs.length - 1] !== points.length - 1) idxs.push(points.length - 1);
-    return idxs;
-  }, [points]);
-
   const activePt = hoverIdx !== null && points[hoverIdx] ? points[hoverIdx] : null;
-  const hasAnyDisb = points.some((p) => p.disbursedPhp > 0);
+  const hasAnyDisb = points.some((p) => Number(p.disbursedPhp || 0) > 0);
 
   return (
-    <div className="analytics-chart-wrap">
-      {showCryptoSplit && (
-        <div className="analytics-series-controls">
-          <div className="analytics-legend-inline">
+    <div className="va-chart-container">
+      <div className="va-chart-toolbar">
+        <div className="va-chart-title-group">
+          {title && <h3 className="va-section-heading">{title}</h3>}
+          <div className="va-legend-row">
             {seriesMode === 'combined' ? (
               <>
-                <span className="legend-chip">
-                  <span className="legend-dot" style={{ background: '#10b981' }} />
+                <span className="va-legend-item">
+                  <span className="va-legend-swatch va-swatch-blue" />
                   Total Inflow
                 </span>
                 {hasAnyDisb && (
-                  <span className="legend-chip">
-                    <span className="legend-dot" style={{ background: '#38bdf8' }} />
+                  <span className="va-legend-item">
+                    <span className="va-legend-swatch va-swatch-emerald" />
                     Disbursed Aid
                   </span>
                 )}
               </>
             ) : (
               <>
-                <span className="legend-chip">
-                  <span className="legend-dot" style={{ background: '#38bdf8' }} />
-                  Fiat (GCash / Maya / Bank)
+                <span className="va-legend-item">
+                  <span className="va-legend-swatch va-swatch-blue" />
+                  Fiat Rails
                 </span>
-                <span className="legend-chip">
-                  <span className="legend-dot" style={{ background: '#a855f7' }} />
-                  On-Chain ETH
+                <span className="va-legend-item">
+                  <span className="va-legend-swatch va-swatch-neutral" />
+                  Sepolia ETH
                 </span>
               </>
             )}
           </div>
+          {subtitle && !title && <span className="va-muted-copy">{subtitle}</span>}
+        </div>
 
-          <div className="vercel-pill-group">
+        {showCryptoSplit && (
+          <div className="va-segmented-mini" role="group" aria-label="Chart series mode">
             <button
               type="button"
-              className={`vercel-pill-btn ${seriesMode === 'combined' ? 'active' : ''}`}
+              className={`va-seg-mini-btn ${seriesMode === 'combined' ? 'active' : ''}`}
               onClick={() => setSeriesMode('combined')}
             >
               Inflow vs Disbursed
             </button>
             <button
               type="button"
-              className={`vercel-pill-btn ${seriesMode === 'split' ? 'active' : ''}`}
+              className={`va-seg-mini-btn ${seriesMode === 'split' ? 'active' : ''}`}
               onClick={() => setSeriesMode('split')}
             >
               Fiat vs Crypto
             </button>
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
-      <div className="analytics-svg-stage" onMouseLeave={() => setHoverIdx(null)}>
-        <svg viewBox={`0 0 ${w} ${h}`} className="analytics-line-svg" role="img" aria-label="Relief Funds Trend Chart">
+      <div className="va-svg-stage" onMouseLeave={() => setHoverIdx(null)}>
+        <svg viewBox={`0 0 ${w} ${h}`} className="va-line-svg" role="img" aria-label="Relief Funds Trend Chart">
           <defs>
-            <linearGradient id="bbdrtsAreaEmerald" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#10b981" stopOpacity="0.28" />
-              <stop offset="100%" stopColor="#10b981" stopOpacity="0.01" />
+            <linearGradient id="vaAreaBlue" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="var(--va-series-primary, #3291FF)" stopOpacity="0.22" />
+              <stop offset="100%" stopColor="var(--va-series-primary, #3291FF)" stopOpacity="0.0" />
             </linearGradient>
-            <linearGradient id="bbdrtsAreaSky" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#38bdf8" stopOpacity="0.22" />
-              <stop offset="100%" stopColor="#38bdf8" stopOpacity="0.01" />
+            <linearGradient id="vaAreaEmerald" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#10b981" stopOpacity="0.16" />
+              <stop offset="100%" stopColor="#10b981" stopOpacity="0.0" />
             </linearGradient>
-            <linearGradient id="bbdrtsAreaPurple" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#a855f7" stopOpacity="0.22" />
-              <stop offset="100%" stopColor="#a855f7" stopOpacity="0.01" />
+            <linearGradient id="vaAreaNeutral" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="var(--va-series-mono, #a1a1aa)" stopOpacity="0.14" />
+              <stop offset="100%" stopColor="var(--va-series-mono, #a1a1aa)" stopOpacity="0.0" />
             </linearGradient>
           </defs>
 
-          {/* Y Gridlines & Labels */}
+          {/* Horizontal Hairlines & Y Ticks */}
           {ticksY.map((val, idx) => {
             const yPos = pad.top + plotH - ((val / (maxY || 1)) * plotH);
             return (
@@ -168,139 +240,187 @@ export function VercelAreaLineChart({
                   x2={w - pad.right}
                   y1={yPos}
                   y2={yPos}
-                  className="analytics-grid-line"
+                  className={`va-grid-line ${idx === 0 ? 'va-grid-baseline' : ''}`}
                 />
-                <text x={pad.left - 8} y={yPos + 3.5} textAnchor="end" className="analytics-axis-label">
+                <text x={pad.left - 10} y={yPos + 3.5} textAnchor="end" className="va-axis-tick">
                   {formatPhpCompact(val)}
                 </text>
               </g>
             );
           })}
 
-          {/* X Axis Labels */}
+          {/* X Axis Ticks */}
           {xLabelIndices.map((idx) => {
             const pt = points[idx];
             if (!pt) return null;
             return (
-              <text key={pt.date} x={pt.x} y={h - 8} textAnchor="middle" className="analytics-axis-label">
+              <text key={pt.date} x={pt.x} y={h - 6} textAnchor="middle" className="va-axis-tick">
                 {pt.label}
               </text>
             );
           })}
 
-          {/* Paths */}
+          {/* Smooth Monotone Spline Area + Stroke */}
           {seriesMode === 'combined' ? (
             <>
-              {points.length > 1 && <path d={buildAreaPath('yTotal')} fill="url(#bbdrtsAreaEmerald)" />}
-              <path d={buildPath('yTotal')} fill="none" stroke="#10b981" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+              {points.length > 1 && <path d={buildArea('yTotal')} fill="url(#vaAreaBlue)" />}
+              <path
+                d={buildMonotonePath(points, 'yTotal', baselineY)}
+                fill="none"
+                stroke="var(--va-series-primary, #3291FF)"
+                strokeWidth="1.75"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
               {hasAnyDisb && (
                 <>
-                  {points.length > 1 && <path d={buildAreaPath('yDisb')} fill="url(#bbdrtsAreaSky)" />}
-                  <path d={buildPath('yDisb')} fill="none" stroke="#38bdf8" strokeWidth="1.8" strokeDasharray="4 3" strokeLinecap="round" />
+                  {points.length > 1 && <path d={buildArea('yDisb')} fill="url(#vaAreaEmerald)" />}
+                  <path
+                    d={buildMonotonePath(points, 'yDisb', baselineY)}
+                    fill="none"
+                    stroke="#10b981"
+                    strokeWidth="1.5"
+                    strokeDasharray="3 3"
+                    strokeLinecap="round"
+                  />
                 </>
               )}
             </>
           ) : (
             <>
-              {points.length > 1 && <path d={buildAreaPath('yFiat')} fill="url(#bbdrtsAreaSky)" />}
-              <path d={buildPath('yFiat')} fill="none" stroke="#38bdf8" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" />
-              {points.length > 1 && <path d={buildAreaPath('yCrypto')} fill="url(#bbdrtsAreaPurple)" />}
-              <path d={buildPath('yCrypto')} fill="none" stroke="#a855f7" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round" />
+              {points.length > 1 && <path d={buildArea('yFiat')} fill="url(#vaAreaBlue)" />}
+              <path
+                d={buildMonotonePath(points, 'yFiat', baselineY)}
+                fill="none"
+                stroke="var(--va-series-primary, #3291FF)"
+                strokeWidth="1.75"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              {points.length > 1 && <path d={buildArea('yCrypto')} fill="url(#vaAreaNeutral)" />}
+              <path
+                d={buildMonotonePath(points, 'yCrypto', baselineY)}
+                fill="none"
+                stroke="var(--va-series-mono, #a1a1aa)"
+                strokeWidth="1.6"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
             </>
           )}
 
-          {/* Hover Vertical Crosshair + Active Nodes */}
+          {/* Hover Crosshair & Active Point Ring Only (Zero Static Noise) */}
           {activePt && (
-            <line
-              x1={activePt.x}
-              x2={activePt.x}
-              y1={pad.top}
-              y2={pad.top + plotH}
-              className="analytics-crosshair-line"
+            <g>
+              <line
+                x1={activePt.x}
+                x2={activePt.x}
+                y1={pad.top}
+                y2={baselineY}
+                className="va-crosshair"
+              />
+              <circle
+                cx={activePt.x}
+                cy={seriesMode === 'combined' ? activePt.yTotal : activePt.yFiat}
+                r="4"
+                fill="var(--va-surface, #0a0a0a)"
+                stroke="var(--va-series-primary, #3291FF)"
+                strokeWidth="2"
+              />
+              {seriesMode === 'combined' && hasAnyDisb && activePt.disbursedPhp > 0 && (
+                <circle
+                  cx={activePt.x}
+                  cy={activePt.yDisb}
+                  r="3.5"
+                  fill="var(--va-surface, #0a0a0a)"
+                  stroke="#10b981"
+                  strokeWidth="2"
+                />
+              )}
+              {seriesMode === 'split' && (
+                <circle
+                  cx={activePt.x}
+                  cy={activePt.yCrypto}
+                  r="3.5"
+                  fill="var(--va-surface, #0a0a0a)"
+                  stroke="var(--va-series-mono, #a1a1aa)"
+                  strokeWidth="2"
+                />
+              )}
+            </g>
+          )}
+
+          {/* Single-point marker when only 1 day exists */}
+          {points.length === 1 && (
+            <circle
+              cx={points[0].x}
+              cy={seriesMode === 'combined' ? points[0].yTotal : points[0].yFiat}
+              r="4.5"
+              fill="var(--va-surface, #0a0a0a)"
+              stroke="var(--va-series-primary, #3291FF)"
+              strokeWidth="2"
             />
           )}
 
+          {/* Invisible Interactive Columns */}
           {points.map((pt) => {
-            const isActive = hoverIdx === pt.i;
-            const showDot = points.length <= 16 || pt.totalPhp > 0 || isActive;
-            const yMain = seriesMode === 'combined' ? pt.yTotal : pt.yFiat;
-            const colMain = seriesMode === 'combined' ? '#10b981' : '#38bdf8';
+            const colW = points.length === 1 ? plotW : Math.max(14, plotW / points.length);
+            const colX = points.length === 1 ? pad.left : pt.x - colW / 2;
             return (
-              <g key={pt.date}>
-                {showDot && (
-                  <circle
-                    cx={pt.x}
-                    cy={yMain}
-                    r={isActive ? 5 : points.length === 1 ? 5 : 2.8}
-                    fill={colMain}
-                    stroke="var(--bg-card, #0a0a0a)"
-                    strokeWidth="1.8"
-                  />
-                )}
-                {seriesMode === 'split' && (pt.cryptoPhp > 0 || isActive) && (
-                  <circle
-                    cx={pt.x}
-                    cy={pt.yCrypto}
-                    r={isActive ? 4.5 : 2.6}
-                    fill="#a855f7"
-                    stroke="var(--bg-card, #0a0a0a)"
-                    strokeWidth="1.5"
-                  />
-                )}
-                <rect
-                  x={points.length === 1 ? pad.left : pt.x - Math.max(10, plotW / (points.length * 2))}
-                  y={pad.top}
-                  width={points.length === 1 ? plotW : Math.max(20, plotW / points.length)}
-                  height={plotH}
-                  fill="transparent"
-                  style={{ cursor: 'crosshair' }}
-                  onMouseEnter={() => setHoverIdx(pt.i)}
-                  onClick={() => setHoverIdx(pt.i)}
-                />
-              </g>
+              <rect
+                key={pt.date}
+                x={colX}
+                y={pad.top}
+                width={colW}
+                height={plotH}
+                fill="transparent"
+                style={{ cursor: 'crosshair' }}
+                onMouseEnter={() => setHoverIdx(pt.i)}
+                onClick={() => setHoverIdx(pt.i)}
+              />
             );
           })}
         </svg>
 
         {activePt && (
           <div
-            className="analytics-tooltip"
+            className="va-tooltip"
             style={{
               left: `${Math.min(82, Math.max(18, (activePt.x / w) * 100))}%`
             }}
           >
-            <div className="analytics-tooltip-date">{activePt.date}</div>
+            <div className="va-tooltip-date">{activePt.date}</div>
             {seriesMode === 'combined' ? (
               <>
-                <div className="analytics-tooltip-row">
-                  <span className="dot" style={{ background: '#10b981' }} />
-                  <span>Inflow:</span>
+                <div className="va-tooltip-row">
+                  <span className="va-legend-swatch va-swatch-blue" />
+                  <span>Inflow</span>
                   <strong>₱{Number(activePt.totalPhp || 0).toLocaleString('en-US')}</strong>
                 </div>
                 {activePt.disbursedPhp > 0 && (
-                  <div className="analytics-tooltip-row">
-                    <span className="dot" style={{ background: '#38bdf8' }} />
-                    <span>Disbursed:</span>
+                  <div className="va-tooltip-row">
+                    <span className="va-legend-swatch va-swatch-emerald" />
+                    <span>Disbursed</span>
                     <strong>₱{Number(activePt.disbursedPhp || 0).toLocaleString('en-US')}</strong>
                   </div>
                 )}
               </>
             ) : (
               <>
-                <div className="analytics-tooltip-row">
-                  <span className="dot" style={{ background: '#38bdf8' }} />
-                  <span>Fiat Rails:</span>
+                <div className="va-tooltip-row">
+                  <span className="va-legend-swatch va-swatch-blue" />
+                  <span>Fiat Rails</span>
                   <strong>₱{Number(activePt.fiatPhp || 0).toLocaleString('en-US')}</strong>
                 </div>
-                <div className="analytics-tooltip-row">
-                  <span className="dot" style={{ background: '#a855f7' }} />
-                  <span>Sepolia ETH:</span>
+                <div className="va-tooltip-row">
+                  <span className="va-legend-swatch va-swatch-neutral" />
+                  <span>Sepolia ETH</span>
                   <strong>₱{Number(activePt.cryptoPhp || 0).toLocaleString('en-US')}</strong>
                 </div>
               </>
             )}
-            <div className="analytics-tooltip-meta">
-              {activePt.txCount} verified gift{activePt.txCount === 1 ? '' : 's'} · {Number(activePt.ethAmount || 0).toFixed(4)} ETH
+            <div className="va-tooltip-foot">
+              {activePt.txCount} gift{activePt.txCount === 1 ? '' : 's'} · {Number(activePt.ethAmount || 0).toFixed(4)} ETH
             </div>
           </div>
         )}
@@ -309,9 +429,16 @@ export function VercelAreaLineChart({
   );
 }
 
+const GEIST_DONUT_COLORS = [
+  'var(--va-series-primary, #3291FF)',
+  'var(--va-series-mono, #ededed)',
+  '#10b981',
+  '#71717a'
+];
+
 export function VercelDonutChart({
   items = [],
-  centerLabel = 'Total Volume',
+  centerLabel = 'Total',
   centerValue = '₱0',
   emptyMessage = 'No channel breakdown available yet.'
 }) {
@@ -322,29 +449,30 @@ export function VercelDonutChart({
 
   if (totalVal <= 0 || nonZero.length === 0) {
     return (
-      <div className="analytics-chart-empty" style={{ minHeight: '210px' }}>
-        <span className="material-symbols-outlined">pie_chart</span>
+      <div className="va-empty-state" style={{ minHeight: '190px' }}>
         <span>{emptyMessage}</span>
       </div>
     );
   }
 
-  const size = 168;
+  const size = 156;
   const cx = size / 2;
   const cy = size / 2;
-  const r = 60;
+  const r = 62;
   const circ = 2 * Math.PI * r;
+  const gapPx = nonZero.length > 1 ? 2.5 : 0;
 
   let cumulative = 0;
   const slices = items.map((item, idx) => {
     const val = Number(item.value || 0);
     const pct = totalVal > 0 ? val / totalVal : 0;
-    const dashLen = pct * circ;
+    const rawLen = pct * circ;
+    const dashLen = rawLen > gapPx ? rawLen - gapPx : rawLen;
     const dashOffset = -cumulative * circ;
     cumulative += pct;
     return {
       ...item,
-      color: item.color || CHART_PALETTE[idx % CHART_PALETTE.length],
+      color: item.color || GEIST_DONUT_COLORS[idx % GEIST_DONUT_COLORS.length],
       pctNum: Number((pct * 100).toFixed(1)),
       dashLen,
       dashOffset
@@ -354,10 +482,10 @@ export function VercelDonutChart({
   const activeSlice = hoveredKey ? slices.find((s) => s.key === hoveredKey) : null;
 
   return (
-    <div className="analytics-donut-layout">
-      <div className="analytics-donut-ring-wrap">
-        <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="analytics-donut-svg" role="img" aria-label={centerLabel}>
-          <circle cx={cx} cy={cy} r={r} fill="none" stroke="var(--border, #262626)" strokeWidth="18" />
+    <div className="va-donut-layout">
+      <div className="va-donut-ring">
+        <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} role="img" aria-label={centerLabel}>
+          <circle cx={cx} cy={cy} r={r} fill="none" stroke="var(--va-border-subtle, #1a1a1a)" strokeWidth="11" />
           <g transform={`rotate(-90 ${cx} ${cy})`}>
             {slices.map((s) => {
               if (s.value <= 0) return null;
@@ -370,13 +498,13 @@ export function VercelDonutChart({
                   r={r}
                   fill="none"
                   stroke={s.color}
-                  strokeWidth={isHover ? 22 : 18}
+                  strokeWidth={isHover ? 13.5 : 11}
                   strokeDasharray={`${s.dashLen} ${circ}`}
                   strokeDashoffset={s.dashOffset}
                   style={{
                     cursor: 'pointer',
-                    transition: 'stroke-width 150ms ease, opacity 150ms ease',
-                    opacity: hoveredKey && !isHover ? 0.38 : 1
+                    transition: 'stroke-width 140ms ease, opacity 140ms ease',
+                    opacity: hoveredKey && !isHover ? 0.28 : 1
                   }}
                   onMouseEnter={() => setHoveredKey(s.key)}
                   onMouseLeave={() => setHoveredKey(null)}
@@ -386,39 +514,39 @@ export function VercelDonutChart({
           </g>
         </svg>
 
-        <div className="analytics-donut-center">
-          <span className="analytics-donut-center-label">
+        <div className="va-donut-center">
+          <span className="va-donut-center-label">
             {activeSlice ? activeSlice.label : centerLabel}
           </span>
-          <strong className="analytics-donut-center-val">
+          <strong className="va-donut-center-val">
             {activeSlice ? `${activeSlice.pctNum}%` : centerValue}
           </strong>
           {activeSlice && (
-            <span className="analytics-donut-center-sub">
-              ₱{Number(activeSlice.value || 0).toLocaleString('en-US')}
+            <span className="va-donut-center-sub">
+              {formatPhpCompact(activeSlice.value)}
             </span>
           )}
         </div>
       </div>
 
-      <div className="analytics-donut-legend">
+      <div className="va-hairline-list">
         {slices.map((s) => (
           <div
             key={s.key}
-            className={`analytics-donut-legend-row ${hoveredKey === s.key ? 'is-active' : ''}`}
+            className={`va-donut-row ${hoveredKey === s.key ? 'is-active' : ''}`}
             onMouseEnter={() => setHoveredKey(s.key)}
             onMouseLeave={() => setHoveredKey(null)}
           >
-            <div className="analytics-legend-left">
-              <span className="legend-dot" style={{ background: s.color }} />
-              <div className="analytics-legend-labels">
-                <span className="analytics-legend-name">{s.label}</span>
-                {s.meta && <span className="analytics-legend-meta">{s.meta}</span>}
+            <div className="va-donut-row-left">
+              <span className="va-legend-swatch" style={{ background: s.color }} />
+              <div className="va-row-labels">
+                <span className="va-row-title">{s.label}</span>
+                {s.meta && <span className="va-row-sub">{s.meta}</span>}
               </div>
             </div>
-            <div className="analytics-legend-right">
-              <strong className="analytics-legend-amt">{s.displayValue || formatPhpCompact(s.value)}</strong>
-              <span className="analytics-legend-pct">{s.pctNum}%</span>
+            <div className="va-donut-row-right">
+              <strong className="va-num">{s.displayValue || formatPhpCompact(s.value)}</strong>
+              <span className="va-pct">{s.pctNum}%</span>
             </div>
           </div>
         ))}
@@ -427,49 +555,51 @@ export function VercelDonutChart({
   );
 }
 
+/**
+ * Authentic Vercel Analytics "List Bar" component
+ * (Matches vercel.com/analytics Pages / Referrers / Countries style:
+ * subtle tinted horizontal fill behind clean tabular rows, zero rainbow clutter).
+ */
 export function VercelBarChart({
   items = [],
   maxItems = 7,
-  defaultColor = '#10b981',
-  emptyMessage = 'No categorical records yet.'
+  emptyMessage = 'No records in this period.'
 }) {
   const list = (items || []).slice(0, maxItems);
   const maxVal = Math.max(1, ...list.map((it) => Number(it.value || 0)));
 
   if (list.length === 0) {
     return (
-      <div className="analytics-chart-empty" style={{ minHeight: '180px' }}>
-        <span className="material-symbols-outlined">bar_chart</span>
+      <div className="va-empty-state" style={{ minHeight: '170px' }}>
         <span>{emptyMessage}</span>
       </div>
     );
   }
 
   return (
-    <div className="analytics-bar-list">
+    <div className="va-listbar-wrap">
       {list.map((item, idx) => {
         const val = Number(item.value || 0);
         const widthPct = item.forcePct !== undefined
           ? Math.max(0, Math.min(100, Number(item.forcePct || 0)))
-          : (val > 0 ? Math.max(4, Math.round((val / maxVal) * 100)) : 0);
-        const barColor = item.color || CHART_PALETTE[idx % CHART_PALETTE.length] || defaultColor;
+          : (val > 0 ? Math.max(2, Math.round((val / maxVal) * 100)) : 0);
+
         return (
-          <div key={item.key || item.label || idx} className="analytics-bar-item">
-            <div className="analytics-bar-head">
-              <div className="analytics-bar-label-wrap">
-                <span className="analytics-bar-label" title={item.label}>{item.label}</span>
-                {item.sub && <span className="analytics-bar-sub">{item.sub}</span>}
+          <div key={item.key || item.label || idx} className="va-listbar-row">
+            <div
+              className="va-listbar-fill"
+              style={{ width: `${widthPct}%` }}
+              aria-hidden="true"
+            />
+            <div className="va-listbar-content">
+              <div className="va-listbar-left">
+                <span className="va-row-title" title={item.label}>{item.label}</span>
+                {item.sub && <span className="va-row-sub">{item.sub}</span>}
               </div>
-              <div className="analytics-bar-values">
-                <strong>{item.displayValue || `₱${Math.round(val).toLocaleString('en-US')}`}</strong>
-                {item.badge && <span className="analytics-bar-badge">{item.badge}</span>}
+              <div className="va-listbar-right">
+                <strong className="va-num">{item.displayValue || `₱${Math.round(val).toLocaleString('en-US')}`}</strong>
+                {item.badge && <span className="va-pct">{item.badge}</span>}
               </div>
-            </div>
-            <div className="analytics-bar-track">
-              <div
-                className="analytics-bar-fill"
-                style={{ width: `${widthPct}%`, background: barColor }}
-              />
             </div>
           </div>
         );
@@ -486,38 +616,35 @@ export function VercelFunnelMeter({ funnel }) {
   const rejPct = (rejected / denom) * 100;
 
   return (
-    <div className="analytics-funnel-wrap">
-      <div className="analytics-funnel-bar">
-        {approved > 0 && <div className="funnel-seg seg-approved" style={{ width: `${appPct}%` }} title={`Approved: ${approved}`} />}
-        {pending > 0 && <div className="funnel-seg seg-pending" style={{ width: `${pendPct}%` }} title={`Pending: ${pending}`} />}
-        {rejected > 0 && <div className="funnel-seg seg-rejected" style={{ width: `${rejPct}%` }} title={`Rejected: ${rejected}`} />}
+    <div className="va-funnel">
+      <div className="va-funnel-top">
+        <span className="va-funnel-rate">
+          <strong>{approvalRatePct}%</strong> pass rate across {total} slip{total === 1 ? '' : 's'}
+        </span>
+        <span className="va-funnel-ai">
+          AI OCR {avgAiConfidence > 0 ? `${avgAiConfidence}%` : '—'}
+        </span>
       </div>
 
-      <div className="analytics-funnel-stats">
-        <div className="funnel-stat-item">
-          <span className="legend-dot" style={{ background: '#10b981' }} />
-          <span>Approved</span>
-          <strong>{approved}</strong>
-        </div>
-        <div className="funnel-stat-item">
-          <span className="legend-dot" style={{ background: '#f59e0b' }} />
-          <span>Pending</span>
-          <strong>{pending}</strong>
-        </div>
-        <div className="funnel-stat-item">
-          <span className="legend-dot" style={{ background: '#f43f5e' }} />
-          <span>Rejected</span>
-          <strong>{rejected}</strong>
-        </div>
-        <div className="funnel-stat-item" style={{ marginLeft: 'auto' }}>
-          <span className="material-symbols-outlined" style={{ fontSize: '14px', color: '#38bdf8' }}>smart_toy</span>
-          <span>Avg AI OCR</span>
-          <strong>{avgAiConfidence > 0 ? `${avgAiConfidence}%` : 'N/A'}</strong>
-        </div>
+      <div className="va-funnel-track">
+        {approved > 0 && <div className="va-funnel-seg seg-ok" style={{ width: `${appPct}%` }} title={`Approved: ${approved}`} />}
+        {pending > 0 && <div className="va-funnel-seg seg-warn" style={{ width: `${pendPct}%` }} title={`Pending: ${pending}`} />}
+        {rejected > 0 && <div className="va-funnel-seg seg-err" style={{ width: `${rejPct}%` }} title={`Rejected: ${rejected}`} />}
       </div>
 
-      <div className="analytics-funnel-footnote">
-        Verification Approval Rate: <strong>{approvalRatePct}%</strong> across {total} submitted manual payment slip{total === 1 ? '' : 's'}.
+      <div className="va-funnel-legend">
+        <span className="va-funnel-stat">
+          <span className="va-dot-sm ok" />
+          Approved <strong>{approved}</strong>
+        </span>
+        <span className="va-funnel-stat">
+          <span className="va-dot-sm warn" />
+          Pending <strong>{pending}</strong>
+        </span>
+        <span className="va-funnel-stat">
+          <span className="va-dot-sm err" />
+          Rejected <strong>{rejected}</strong>
+        </span>
       </div>
     </div>
   );

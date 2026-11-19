@@ -106,9 +106,11 @@ function formatFriendlyDateTime(val) {
   });
 }
 
-export default function AdminMaintenancePanel({ onMaintenanceStateChange }) {
+export default function AdminMaintenancePanel({ onMaintenanceStateChange, forcedSection = null }) {
   const { showSuccess, showError, showWarning } = useToast();
-  const [activeSection, setActiveSection] = useState('backups'); // 'backups' | 'maintenance'
+  const [internalSection, setInternalSection] = useState('backups'); // 'backups' | 'maintenance'
+  const activeSection = forcedSection || internalSection;
+  const setActiveSection = setInternalSection;
 
   // ── Database Backups State ──
   const [backups, setBackups] = useState([]);
@@ -402,7 +404,8 @@ export default function AdminMaintenancePanel({ onMaintenanceStateChange }) {
         </div>
       </div>
 
-      {/* Section Navigation Tabs (Segmented bar below header line) */}
+      {/* Section Navigation Tabs (hidden when embedded in unified Admin hub tabs) */}
+      {!forcedSection && (
       <div className="bbdrts-maint-tabs" style={{ marginBottom: '20px' }}>
         <button
           type="button"
@@ -424,6 +427,7 @@ export default function AdminMaintenancePanel({ onMaintenanceStateChange }) {
           {maintenance.enabled && <span className="status-dot-active" title="Maintenance Mode Active" />}
         </button>
       </div>
+      )}
 
       {/* ══════════════════════════════════════════════════════════════
           SECTION 1: DATABASE BACKUPS & RECOVERY
