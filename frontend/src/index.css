@@ -1216,8 +1216,8 @@ body.radar-fullscreen-active .bbdrts-radar-section {
   align-items: center;
   justify-content: center;
   background: rgba(0, 0, 0, 0.72);
-  backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
   padding: 16px;
   animation: authBackdropFade 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
@@ -1589,8 +1589,8 @@ path.leaflet-interactive:focus-visible,
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.75);
-  backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2175,8 +2175,8 @@ path.leaflet-interactive:focus-visible,
   width: 100vw;
   height: 100vh;
   background: rgba(0, 0, 0, 0.75);
-  backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
   display: flex;
   align-items: center;
   justify-content: center;

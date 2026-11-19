@@ -66,8 +66,8 @@
   width: 100vw !important;
   height: 100vh !important;
   background: rgba(5, 8, 15, 0.85) !important;
-  backdrop-filter: blur(12px) !important;
   -webkit-backdrop-filter: blur(12px) !important;
+  backdrop-filter: blur(12px) !important;
   z-index: 9999990 !important;
   cursor: pointer;
   animation: radarBackdropFadeIn 0.2s ease forwards;
@@ -819,8 +819,8 @@
   border-radius: var(--radius-sm, 8px);
   gap: 2px;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.45);
-  backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
 }
 
 .floating-basemap-btn {
@@ -932,8 +932,8 @@
   height: 24px;
   border-radius: 9999px;
   background: rgba(15, 17, 23, 0.94);
-  backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
   border: 1.5px solid var(--tier-color, #0070f3);
   box-shadow: 0 0 12px var(--tier-glow, rgba(0, 112, 243, 0.4)), inset 0 1px 0 rgba(255, 255, 255, 0.2);
   z-index: 2;
@@ -1161,8 +1161,8 @@
 .province-tooltip-card,
 .doppler-tooltip-card {
   background-color: var(--bg-card, #222222);
-  backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
   border: 1.5px solid var(--border-strong, rgba(255, 255, 255, 0.16));
   border-radius: 14px;
   padding: 12px 15px;
@@ -2113,8 +2113,8 @@
   border-radius: var(--radius-pill, 9999px);
   padding: 5px 12px 5px 16px;
   box-shadow: 0 12px 36px rgba(0, 0, 0, 0.65), 0 0 20px rgba(34, 197, 94, 0.2);
-  backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
   animation: focusStripSlideDown 0.35s cubic-bezier(0.16, 1, 0.3, 1);
   pointer-events: auto;
 }
@@ -2539,8 +2539,8 @@
   display: none;
   width: 292px;
   background: rgba(14, 16, 22, 0.96);
-  backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
+  backdrop-filter: blur(24px);
   border: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: 12px;
   padding: 13px 15px 13px;
@@ -3179,8 +3179,8 @@ path.leaflet-interactive:active,
   display: flex;
   flex-direction: column;
   background: var(--surface-header, var(--bg-surface));
-  backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg, 12px);
   box-shadow: var(--shadow-dropdown);
@@ -3215,8 +3215,8 @@ path.leaflet-interactive:active,
   padding: 0 15px;
   white-space: nowrap;
   background: var(--bg-card, rgba(17, 17, 17, 0.92));
-  backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
+  backdrop-filter: blur(24px);
   border: 1px solid var(--border, rgba(255, 255, 255, 0.12));
   border-radius: 9999px;
   color: var(--text-primary, #ffffff);
@@ -3554,8 +3554,8 @@ path.leaflet-interactive:active,
   min-height: 48px;
   padding: 0 14px;
   background: var(--surface-header, var(--bg-surface));
-  backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px);
   border-bottom: 1px solid var(--border);
   color: var(--text-primary);
   position: relative;
@@ -3942,8 +3942,8 @@ path.leaflet-interactive:active,
   height: 34px;
   padding: 0 10px 0 12px;
   background: var(--surface-header, var(--bg-surface));
-  backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-pill, 9999px);
   color: var(--text-primary);
@@ -3999,8 +3999,8 @@ path.leaflet-interactive:active,
   display: inline-flex;
   align-items: center;
   background: var(--bg-card, rgba(17, 17, 17, 0.92));
-  backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
+  backdrop-filter: blur(24px);
   border: 1px solid var(--border, rgba(255, 255, 255, 0.12));
   border-radius: 10px;
   padding: 3px;
@@ -4086,8 +4086,8 @@ path.leaflet-interactive:active,
   height: 34px;
   padding: 0 12px;
   background: var(--surface-header, var(--bg-surface));
-  backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px);
   border: 1px solid var(--border);
   border-radius: var(--radius-pill, 9999px);
   color: var(--text-primary);
@@ -4154,8 +4154,8 @@ path.leaflet-interactive:active,
   left: 0;
   width: 240px;
   background: var(--bg-card);
-  backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg, 12px);
   padding: 10px;
@@ -4355,8 +4355,8 @@ path.leaflet-interactive:active,
   /* Never touches or overlaps the basemap dock or zoom controls at the bottom */
   z-index: 600;
   background: var(--bg-card, rgba(17, 17, 17, 0.94));
-  backdrop-filter: blur(28px);
   -webkit-backdrop-filter: blur(28px);
+  backdrop-filter: blur(28px);
   border: 1px solid var(--border, rgba(255, 255, 255, 0.12));
   border-radius: 18px;
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.55), 0 0 0 1px rgba(255, 255, 255, 0.05);
@@ -4969,8 +4969,8 @@ path.leaflet-interactive:active,
   bottom: 6px;
   right: 6px;
   background: rgba(0, 0, 0, 0.78);
-  backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
   color: #ffffff;
   font-size: 10px;
   font-weight: 650;
@@ -5218,8 +5218,8 @@ path.leaflet-interactive:active,
   inset: 0 !important;
   z-index: 2147483645 !important; /* Top-most layer overlaying entire page, sticky navbar, and footer */
   background: rgba(0, 0, 0, 0.88) !important;
-  backdrop-filter: blur(20px) !important;
   -webkit-backdrop-filter: blur(20px) !important;
+  backdrop-filter: blur(20px) !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
@@ -5348,8 +5348,8 @@ path.leaflet-interactive:active,
   justify-content: center !important;
   cursor: pointer !important;
   box-shadow: 0 6px 22px rgba(0, 0, 0, 0.7) !important;
-  backdrop-filter: blur(14px) !important;
   -webkit-backdrop-filter: blur(14px) !important;
+  backdrop-filter: blur(14px) !important;
   transition: all 0.16s ease !important;
   z-index: 25 !important;
 }

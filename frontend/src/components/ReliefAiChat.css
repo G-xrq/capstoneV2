@@ -21,14 +21,15 @@
   cursor: pointer;
   transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
   font-family: var(--font-sans, inherit);
-  backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
   outline: none;
 }
 
 /* Automatically hide floating ReliefAI trigger capsule when any modal overlay or dialog is active */
 body:has(.bbdrts-modal-overlay) .bbdrts-copilot-trigger-btn,
 body:has(.modal-backdrop) .bbdrts-copilot-trigger-btn,
+body:has(.modal-backdrop-auth) .bbdrts-copilot-trigger-btn,
 body:has(.bbdrts-modal-backdrop) .bbdrts-copilot-trigger-btn,
 body:has([role="dialog"]) .bbdrts-copilot-trigger-btn,
 body.has-modal-open .bbdrts-copilot-trigger-btn {
@@ -137,8 +138,8 @@ body.has-modal-open .bbdrts-copilot-trigger-btn {
   border: 1px solid var(--border-strong, rgba(255, 255, 255, 0.14));
   border-radius: 20px;
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7), 0 0 1px 1px rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
+  backdrop-filter: blur(24px);
   overflow: hidden;
   animation: copilotSlideIn 0.22s cubic-bezier(0.16, 1, 0.3, 1);
   font-family: var(--font-sans, inherit);
@@ -939,8 +940,8 @@ body.has-modal-open .bbdrts-copilot-trigger-btn {
   bottom: 0;
   z-index: 1000;
   background: rgba(0, 0, 0, 0.78);
-  backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
   display: flex;
   align-items: flex-start;
   justify-content: center;

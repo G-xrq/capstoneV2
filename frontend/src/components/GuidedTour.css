@@ -85,8 +85,8 @@
   width: 100vw;
   height: 80px;
   background: rgba(10, 10, 10, 0.75);
-  backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
   z-index: 1000000015 !important;
@@ -115,8 +115,8 @@
   pointer-events: none;
   z-index: 999999998 !important;
   background: rgba(0, 0, 0, 0.45);
-  backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
   border: none !important;
   outline: none !important;
   box-shadow: none !important;
@@ -386,8 +386,8 @@ body.tour-traveling .driver-popover,
   width: 100vw;
   height: 100vh;
   background: rgba(0, 0, 0, 0.72);
-  backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
   z-index: 1000000030 !important;
   display: flex;
   align-items: center;

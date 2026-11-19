@@ -11,8 +11,8 @@
   width: 100vw;
   height: 100vh;
   background: rgba(0, 0, 0, 0.78);
-  backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -62,8 +62,8 @@
 
 .vercel-ngo-modal .material-symbols-outlined {
   font-family: 'Material Symbols Outlined' !important;
-  font-feature-settings: 'liga' !important;
   -webkit-font-feature-settings: 'liga' !important;
+  font-feature-settings: 'liga' !important;
 }
 
 [data-theme="light"] .vercel-ngo-modal {

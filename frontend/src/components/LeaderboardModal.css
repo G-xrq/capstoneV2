@@ -322,8 +322,8 @@
   width: 100vw;
   height: 100vh;
   background: var(--lb-backdrop-bg);
-  backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
   z-index: 1000000040 !important;
   display: flex;
   align-items: center;
@@ -600,8 +600,8 @@
 }
 
 .bbdrts-sort-select {
-  appearance: none;
   -webkit-appearance: none;
+  appearance: none;
   background: var(--lb-input-bg);
   border: 1px solid var(--lb-input-border);
   border-radius: 8px;

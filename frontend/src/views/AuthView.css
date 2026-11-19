@@ -221,8 +221,8 @@
   inset: 0;
   background-image: radial-gradient(rgba(255, 255, 255, 0.09) 1px, transparent 1px);
   background-size: 20px 20px;
-  mask-image: radial-gradient(ellipse 88% 82% at 50% 48%, #000 35%, transparent 100%);
   -webkit-mask-image: radial-gradient(ellipse 88% 82% at 50% 48%, #000 35%, transparent 100%);
+  mask-image: radial-gradient(ellipse 88% 82% at 50% 48%, #000 35%, transparent 100%);
   pointer-events: none;
   z-index: 0;
 }
@@ -746,8 +746,8 @@
   border-radius: 8px;
   padding: 10px 12px;
   box-shadow: 0 16px 36px -4px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
   pointer-events: none;
   user-select: none;
   animation: pwdDropdownIn 0.18s cubic-bezier(0.16, 1, 0.3, 1) forwards;
@@ -1300,12 +1300,12 @@
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.72);
-  backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
+  z-index: 999999;
   padding: 16px;
   animation: fadeInModal 0.18s ease-out;
 }
@@ -1856,8 +1856,8 @@
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.75);
-  backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2629,8 +2629,8 @@
   font-size: 0.78rem;
   font-weight: 500;
   cursor: pointer;
-  backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
   transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 
