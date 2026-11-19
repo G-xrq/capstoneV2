@@ -17,6 +17,7 @@ import ReliefAiChat from './components/ReliefAiChat';
 import GlobalBroadcastBanner from './components/GlobalBroadcastBanner';
 import MaintenanceGuardModal from './components/MaintenanceGuardModal';
 import PersonalizationOnboarding from './components/PersonalizationOnboarding';
+import { useLivePresence } from './hooks/useLivePresence';
 import './App.css';
 import { isLocalhost, API_URL } from './config';
 
@@ -44,6 +45,7 @@ export default function App() {
   const [authRole, setAuthRole] = useState('donor'); // 'donor' | 'organization'
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [presenceEventHint, setPresenceEventHint] = useState(null);
   const [showOnboardingModal, setShowOnboardingModal] = useState(() => {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
@@ -571,6 +573,7 @@ export default function App() {
       options?.isNewRegistration ||
       localStorage.getItem('bbdrts_needs_onboarding') === 'true'
     );
+    setPresenceEventHint(isNewSignup ? 'account_created' : 'login');
     hydrateUserWorkspacePrefs(user, { isNewRegistration: isNewSignup });
     const assignedRole = user?.role || 'donor';
     const startPing = performance.now();
@@ -722,6 +725,7 @@ export default function App() {
 
   const handleLogout = async () => {
     setShowSettingsModal(false);
+    setPresenceEventHint('logout');
 
     setAuthTransition({
       active: true,
@@ -970,6 +974,40 @@ export default function App() {
       };
     });
   }, []);
+
+  // ── Real-Time Active User / Guest Presence Tracking ──
+  const presenceView = showOnboardingModal
+    ? 'Workspace Setup'
+    : !dbUser
+      ? (showAuth ? 'Authentication Portal' : 'Public Landing Page')
+      : (uiRole === ROLES.ADMIN
+          ? 'Admin Governance Console'
+          : uiRole === ROLES.ORGANIZATION
+            ? 'NGO Operations Portal'
+            : 'Donor Portal');
+
+  const presenceSubpage = showOnboardingModal
+    ? 'Personalization Onboarding'
+    : showSettingsModal
+      ? 'Account Profile & Security Settings'
+      : selectedNgoForProfile
+        ? 'Verified NGO Profile'
+        : !dbUser
+          ? (showAuth
+              ? (authMode === 'register'
+                  ? `Creating Account (${authRole === 'organization' ? 'NGO' : 'Donor'})`
+                  : 'Portal Sign In')
+              : 'Public Overview & Campaigns')
+          : (activeTabInfo?.section || activeTabInfo?.tab || 'Dashboard Overview');
+
+  useLivePresence({
+    dbUser,
+    currentView: presenceView,
+    currentSubpage: presenceSubpage,
+    walletAddress,
+    eventHint: presenceEventHint,
+    onEventHintConsumed: useCallback(() => setPresenceEventHint(null), [])
+  });
 
   const sharedProps = {
     contract: activeContract,

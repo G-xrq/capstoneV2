@@ -11,6 +11,7 @@ import SecCertificateModal from '../components/SecCertificateModal';
 import SidebarToggleIcon from '../components/SidebarToggleIcon';
 import AdminBroadcastPanel from '../components/AdminBroadcastPanel';
 import AdminMaintenancePanel from '../components/AdminMaintenancePanel';
+import AdminActiveUsersPanel from '../components/AdminActiveUsersPanel';
 import { useToast } from '../context/ToastContext';
 import GuidedTour from '../components/GuidedTour';
 import CampaignSkeletonCard from '../components/CampaignSkeletonCard';
@@ -318,6 +319,14 @@ export default function AdminView({
   const [copiedText, setCopiedText] = useState(null);
   const [broadcastCount, setBroadcastCount] = useState(0);
   const [maintenanceActive, setMaintenanceActive] = useState(false);
+  const [liveUsersSummary, setLiveUsersSummary] = useState({
+    totalLive: 0,
+    onlineNow: 0,
+    idleNow: 0,
+    authenticatedLive: 0,
+    guestsLive: 0,
+    newAccountsLive: 0
+  });
   const [showGuidedTour, setShowGuidedTour] = useState(false);
   const handleCloseTour = () => setShowGuidedTour(false);
 
@@ -332,6 +341,14 @@ export default function AdminView({
     },
     {
       target: '.ref-sidebar-menu button:nth-of-type(2)',
+      title: 'Live Active Users & Guest Presence',
+      icon: 'sensors',
+      badge: 'Real-Time Monitor',
+      description: 'See who is using BBDRTS right now—distinguishing anonymous guest visitors from signed-in donors, NGOs, admins, and brand-new signups in real time.',
+      placement: 'right'
+    },
+    {
+      target: '.ref-sidebar-menu button:nth-of-type(3)',
       title: 'System Activity Logs & Audit Trail',
       icon: 'history',
       badge: 'Tamper-Evident Records',
@@ -339,7 +356,7 @@ export default function AdminView({
       placement: 'right'
     },
     {
-      target: '.ref-sidebar-menu button:nth-of-type(3)',
+      target: '.ref-sidebar-menu button:nth-of-type(4)',
       title: 'Multi-Rail Financial Ledger',
       icon: 'receipt_long',
       badge: 'Global Ledger Audit',
@@ -347,7 +364,7 @@ export default function AdminView({
       placement: 'right'
     },
     {
-      target: '.ref-sidebar-menu button:nth-of-type(4)',
+      target: '.ref-sidebar-menu button:nth-of-type(5)',
       title: 'Disbursements & Proof of Relief',
       icon: 'inventory_2',
       badge: 'Milestone Unlock Audits',
@@ -355,7 +372,7 @@ export default function AdminView({
       placement: 'right'
     },
     {
-      target: '.ref-sidebar-menu button:nth-of-type(7)',
+      target: '.ref-sidebar-menu button:nth-of-type(8)',
       title: 'Organization KYC & Accreditation Desk',
       icon: 'hourglass_top',
       badge: 'SEC Accreditation',
@@ -363,7 +380,7 @@ export default function AdminView({
       placement: 'right'
     },
     {
-      target: '.ref-sidebar-menu button:nth-of-type(9)',
+      target: '.ref-sidebar-menu button:nth-of-type(10)',
       title: 'Broadcast & Emergency Advisories',
       icon: 'podcasts',
       badge: 'Network Alerts',
@@ -371,7 +388,7 @@ export default function AdminView({
       placement: 'right'
     },
     {
-      target: '.ref-sidebar-menu button:nth-of-type(10)',
+      target: '.ref-sidebar-menu button:nth-of-type(11)',
       title: 'System Operations & EVM Circuit Breaker',
       icon: 'settings_backup_restore',
       badge: 'Infrastructure Control',
@@ -485,6 +502,7 @@ export default function AdminView({
     lastAdminTabRef.current = activeTab;
     const adminTabLabels = {
       'dashboard': 'Governance Overview',
+      'active-users': 'Live Active Users & Real-Time Presence',
       'audit-logs': 'System Activity Logs & Governance Audit Trail',
       'financial-ledger': 'Multi-Rail Financial Ledger',
       'disbursements': 'Fund Disbursements & Procurement Audit',
@@ -536,6 +554,10 @@ export default function AdminView({
         'system-maintenance': 'system-maintenance',
         'radar': 'radar-heatmap',
         'radar-heatmap': 'radar-heatmap',
+        'active-users': 'active-users',
+        'live-users': 'active-users',
+        'presence': 'active-users',
+        'users': 'active-users',
         'activity': 'audit-logs',
         'audit-logs': 'audit-logs',
         'settings': 'settings',
@@ -577,6 +599,34 @@ export default function AdminView({
     }
     return token;
   };
+
+  // ── Background Live Presence Summary Poll (keeps Sidebar & Overview KPI live) ──
+  useEffect(() => {
+    let active = true;
+    const pollPresence = async () => {
+      try {
+        let token = await getAdminToken();
+        let res = await fetch(`${API_URL}/api/admin/active-users?windowMinutes=60`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if ((res.status === 401 || res.status === 403) && token !== 'direct_admin_access_token') {
+          res = await fetch(`${API_URL}/api/admin/active-users?windowMinutes=60`, {
+            headers: { Authorization: 'Bearer direct_admin_access_token' }
+          });
+        }
+        if (res.ok && active) {
+          const data = await res.json();
+          if (data?.summary) setLiveUsersSummary(data.summary);
+        }
+      } catch (_) {}
+    };
+    pollPresence();
+    const timer = window.setInterval(pollPresence, 15000);
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+    };
+  }, []);
 
   // ── DATA STATE: SYSTEM ACTIVITY LOGS & AUDIT TRAIL ───────────
   const [auditLogsList, setAuditLogsList] = useState([]);
@@ -1444,6 +1494,27 @@ export default function AdminView({
 
             <button
               type="button"
+              className={`ref-nav-item ${activeTab === 'active-users' ? 'active' : ''}`}
+              onClick={() => { setActiveTab('active-users'); setMobileSidebarOpen(false); }}
+              title="Live Active Users — Guests, Donors, NGOs & New Signups Online Now"
+            >
+              <span className="material-symbols-outlined" style={{ color: activeTab === 'active-users' ? '#10b981' : 'inherit' }}>sensors</span>
+              <span>Active Users</span>
+              <span
+                className="ref-nav-count tab-count"
+                style={{
+                  background: (liveUsersSummary?.totalLive || 0) > 0 ? 'rgba(16, 185, 129, 0.16)' : undefined,
+                  color: (liveUsersSummary?.totalLive || 0) > 0 ? '#10b981' : undefined,
+                  border: (liveUsersSummary?.totalLive || 0) > 0 ? '1px solid rgba(16, 185, 129, 0.35)' : undefined,
+                  fontWeight: 700
+                }}
+              >
+                {liveUsersSummary?.totalLive || 0}
+              </span>
+            </button>
+
+            <button
+              type="button"
               className={`ref-nav-item ${activeTab === 'audit-logs' ? 'active' : ''}`}
               onClick={() => { setActiveTab('audit-logs'); setMobileSidebarOpen(false); }}
               title="Dedicated System Activity Logs & Audit Trail"
@@ -1685,7 +1756,7 @@ export default function AdminView({
               </div>
 
               {/* Unified Executive Metrics Strip (Vercel Style) */}
-              <div className="admin-metric-strip">
+              <div className="admin-metric-strip" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(175px, 1fr))" }}>
                 <div className="admin-metric-strip-item">
                   <div className="admin-metric-label">
                     <span>Total Aid Mobilized</span>
@@ -1750,6 +1821,23 @@ export default function AdminView({
                   </div>
                   <div className="admin-metric-sub">
                     {pendingOrgsCount > 0 ? `${pendingOrgsCount} entity awaiting SEC review` : 'All entities accredited'}
+                  </div>
+                </div>
+
+                <div
+                  onClick={() => setActiveTab('active-users')}
+                  className="admin-metric-strip-item clickable"
+                  title="Inspect who is using BBDRTS right now"
+                >
+                  <div className="admin-metric-label">
+                    <span>Active Users Now</span>
+                    <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#10b981' }}>sensors</span>
+                  </div>
+                  <div className="admin-metric-value" style={{ color: '#10b981' }}>
+                    {liveUsersSummary?.totalLive || 0}
+                  </div>
+                  <div className="admin-metric-sub">
+                    {liveUsersSummary?.authenticatedLive || 0} signed in · {liveUsersSummary?.guestsLive || 0} {(liveUsersSummary?.guestsLive || 0) === 1 ? 'guest' : 'guests'}
                   </div>
                 </div>
               </div>
@@ -1954,6 +2042,15 @@ export default function AdminView({
                 </div>
               </div>
 
+            </div>
+          )}
+
+          {/* ══════════════════════════════════════════════════════════════
+              TAB 1B: LIVE ACTIVE USERS & PRESENCE MONITOR
+             ══════════════════════════════════════════════════════════════ */}
+          {activeTab === 'active-users' && (
+            <div className="fade-in">
+              <AdminActiveUsersPanel onPresenceSummaryChange={setLiveUsersSummary} />
             </div>
           )}
 

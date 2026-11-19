@@ -491,6 +491,36 @@ function initSqlite() {
             )
           `);
 
+          sqliteDb.run(`
+            CREATE TABLE IF NOT EXISTS LIVE_PRESENCE (
+              Session_ID TEXT PRIMARY KEY,
+              Visitor_Code TEXT NOT NULL,
+              Is_Authenticated INTEGER DEFAULT 0,
+              User_ID INTEGER NULL,
+              User_Name TEXT NULL,
+              User_Email TEXT NULL,
+              User_Role TEXT DEFAULT 'guest',
+              Org_Name TEXT NULL,
+              Verification_Status TEXT NULL,
+              Wallet_Address TEXT NULL,
+              Is_New_Account INTEGER DEFAULT 0,
+              Account_Created_At TEXT NULL,
+              Was_Guest_Converted INTEGER DEFAULT 0,
+              Current_View TEXT DEFAULT 'Public Landing Page',
+              Current_Subpage TEXT DEFAULT 'Overview',
+              Current_Path TEXT DEFAULT '/',
+              Device_Type TEXT DEFAULT 'Desktop',
+              OS TEXT DEFAULT 'Unknown',
+              Browser TEXT DEFAULT 'Web Browser',
+              IP_Address TEXT NULL,
+              Status TEXT DEFAULT 'ONLINE',
+              First_Seen_Ms INTEGER NOT NULL,
+              Last_Seen_Ms INTEGER NOT NULL,
+              Disconnected_Ms INTEGER NULL,
+              Journey_Json TEXT NULL
+            )
+          `);
+
           console.log('✅ ERD Tables Synchronized with SQLite.');
           await seedDefaultAccounts('sqlite');
           resolve();
@@ -961,6 +991,39 @@ async function initializeDatabase() {
         Setting_Key VARCHAR(100) PRIMARY KEY,
         Setting_Value LONGTEXT,
         Updated_At TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    `);
+
+    await mysqlPool.query(`
+      CREATE TABLE IF NOT EXISTS LIVE_PRESENCE (
+        Session_ID VARCHAR(100) PRIMARY KEY,
+        Visitor_Code VARCHAR(40) NOT NULL,
+        Is_Authenticated BOOLEAN DEFAULT 0,
+        User_ID INT NULL,
+        User_Name VARCHAR(255) NULL,
+        User_Email VARCHAR(255) NULL,
+        User_Role VARCHAR(50) DEFAULT 'guest',
+        Org_Name VARCHAR(255) NULL,
+        Verification_Status VARCHAR(50) NULL,
+        Wallet_Address VARCHAR(120) NULL,
+        Is_New_Account BOOLEAN DEFAULT 0,
+        Account_Created_At VARCHAR(64) NULL,
+        Was_Guest_Converted BOOLEAN DEFAULT 0,
+        Current_View VARCHAR(160) DEFAULT 'Public Landing Page',
+        Current_Subpage VARCHAR(200) DEFAULT 'Overview',
+        Current_Path VARCHAR(255) DEFAULT '/',
+        Device_Type VARCHAR(50) DEFAULT 'Desktop',
+        OS VARCHAR(80) DEFAULT 'Unknown',
+        Browser VARCHAR(80) DEFAULT 'Web Browser',
+        IP_Address VARCHAR(120) NULL,
+        Status VARCHAR(20) DEFAULT 'ONLINE',
+        First_Seen_Ms BIGINT NOT NULL,
+        Last_Seen_Ms BIGINT NOT NULL,
+        Disconnected_Ms BIGINT NULL,
+        Journey_Json LONGTEXT NULL,
+        INDEX idx_presence_last_seen (Last_Seen_Ms),
+        INDEX idx_presence_role (User_Role),
+        INDEX idx_presence_status (Status)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     `);
 

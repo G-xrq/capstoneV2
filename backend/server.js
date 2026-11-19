@@ -9156,6 +9156,542 @@ app.post('/api/admin/maintenance', authenticateToken, async (req, res) => {
   }
 });
 
+// ═════════════════════════════════════════════════════════════════════════════
+// REAL-TIME ACTIVE USERS & LIVE PRESENCE MONITOR (GUEST + AUTHENTICATED)
+// ═════════════════════════════════════════════════════════════════════════════
+let livePresenceTableReady = false;
+let lastPresencePruneMs = 0;
+
+async function ensureLivePresenceTable() {
+  if (livePresenceTableReady) return;
+  try {
+    const driver = db.getActiveDriver ? db.getActiveDriver() : 'mysql';
+    if (driver === 'sqlite') {
+      await db.query(`
+        CREATE TABLE IF NOT EXISTS LIVE_PRESENCE (
+          Session_ID TEXT PRIMARY KEY,
+          Visitor_Code TEXT NOT NULL,
+          Is_Authenticated INTEGER DEFAULT 0,
+          User_ID INTEGER NULL,
+          User_Name TEXT NULL,
+          User_Email TEXT NULL,
+          User_Role TEXT DEFAULT 'guest',
+          Org_Name TEXT NULL,
+          Verification_Status TEXT NULL,
+          Wallet_Address TEXT NULL,
+          Is_New_Account INTEGER DEFAULT 0,
+          Account_Created_At TEXT NULL,
+          Was_Guest_Converted INTEGER DEFAULT 0,
+          Current_View TEXT DEFAULT 'Public Landing Page',
+          Current_Subpage TEXT DEFAULT 'Overview',
+          Current_Path TEXT DEFAULT '/',
+          Device_Type TEXT DEFAULT 'Desktop',
+          OS TEXT DEFAULT 'Unknown',
+          Browser TEXT DEFAULT 'Web Browser',
+          IP_Address TEXT NULL,
+          Status TEXT DEFAULT 'ONLINE',
+          First_Seen_Ms INTEGER NOT NULL,
+          Last_Seen_Ms INTEGER NOT NULL,
+          Disconnected_Ms INTEGER NULL,
+          Journey_Json TEXT NULL
+        )
+      `);
+    } else {
+      await db.query(`
+        CREATE TABLE IF NOT EXISTS LIVE_PRESENCE (
+          Session_ID VARCHAR(100) PRIMARY KEY,
+          Visitor_Code VARCHAR(40) NOT NULL,
+          Is_Authenticated BOOLEAN DEFAULT 0,
+          User_ID INT NULL,
+          User_Name VARCHAR(255) NULL,
+          User_Email VARCHAR(255) NULL,
+          User_Role VARCHAR(50) DEFAULT 'guest',
+          Org_Name VARCHAR(255) NULL,
+          Verification_Status VARCHAR(50) NULL,
+          Wallet_Address VARCHAR(120) NULL,
+          Is_New_Account BOOLEAN DEFAULT 0,
+          Account_Created_At VARCHAR(64) NULL,
+          Was_Guest_Converted BOOLEAN DEFAULT 0,
+          Current_View VARCHAR(160) DEFAULT 'Public Landing Page',
+          Current_Subpage VARCHAR(200) DEFAULT 'Overview',
+          Current_Path VARCHAR(255) DEFAULT '/',
+          Device_Type VARCHAR(50) DEFAULT 'Desktop',
+          OS VARCHAR(80) DEFAULT 'Unknown',
+          Browser VARCHAR(80) DEFAULT 'Web Browser',
+          IP_Address VARCHAR(120) NULL,
+          Status VARCHAR(20) DEFAULT 'ONLINE',
+          First_Seen_Ms BIGINT NOT NULL,
+          Last_Seen_Ms BIGINT NOT NULL,
+          Disconnected_Ms BIGINT NULL,
+          Journey_Json LONGTEXT NULL,
+          INDEX idx_presence_last_seen (Last_Seen_Ms),
+          INDEX idx_presence_role (User_Role),
+          INDEX idx_presence_status (Status)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+      `);
+    }
+    livePresenceTableReady = true;
+  } catch (err) {
+    console.warn('LIVE_PRESENCE table ensure warning:', err.message);
+  }
+}
+
+function makeVisitorCode(sessionId) {
+  const digest = crypto.createHash('sha256').update(String(sessionId)).digest('hex');
+  return `Guest #${digest.slice(0, 4).toUpperCase()}`;
+}
+
+function sanitizePresenceText(val, maxLen = 160, fallback = '') {
+  if (val === null || val === undefined) return fallback;
+  return String(val).replace(/[\r\n\t]+/g, ' ').trim().slice(0, maxLen) || fallback;
+}
+
+function cleanPresenceIp(rawIp) {
+  if (!rawIp) return 'Unknown';
+  return String(rawIp).replace(/\s*\(Localhost \/ Development\)/i, ' (Local)').trim().slice(0, 100);
+}
+
+async function resolveOptionalPresenceUser(req) {
+  try {
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+    if (!token || token === 'null' || token === 'undefined') return null;
+
+    if (token === 'direct_admin_access_token') {
+      try {
+        const [rows] = await db.query('SELECT * FROM ADMINISTRATOR WHERE Admin_ID = 1 LIMIT 1');
+        if (rows && rows.length > 0) {
+          const formatted = formatUserObj(rows[0], 'admin', 'Admin_ID');
+          return {
+            id: formatted.id,
+            name: formatted.name || 'System Administrator',
+            email: formatted.email || 'admin@bbdrts.gov.ph',
+            role: 'admin',
+            orgName: null,
+            verificationStatus: 'Verified',
+            walletAddress: formatted.wallet_address || null,
+            createdAt: rows[0].Created_At ? new Date(rows[0].Created_At).toISOString() : null
+          };
+        }
+      } catch (_) {}
+      return {
+        id: 1,
+        name: 'System Administrator',
+        email: 'admin@bbdrts.gov.ph',
+        role: 'admin',
+        orgName: null,
+        verificationStatus: 'Verified',
+        walletAddress: null,
+        createdAt: null
+      };
+    }
+
+    const decoded = await new Promise((resolve) => {
+      jwt.verify(token, secretKey, (err, payload) => {
+        if (err || !payload) return resolve(null);
+        resolve(payload);
+      });
+    });
+    if (!decoded || !decoded.id) return null;
+
+    const role = decoded.role || 'donor';
+    const tableName = getRoleTable(role);
+    const idCol = getRoleIDColumn(role);
+    const [rows] = await db.query(`SELECT * FROM ${tableName} WHERE ${idCol} = ? LIMIT 1`, [decoded.id]);
+    if (!rows || rows.length === 0) return null;
+
+    const row = rows[0];
+    const formatted = formatUserObj(row, role, idCol);
+    let createdAtIso = null;
+    if (row.Created_At) {
+      const parsed = new Date(row.Created_At);
+      if (!isNaN(parsed.getTime())) createdAtIso = parsed.toISOString();
+    }
+
+    return {
+      id: formatted.id,
+      name: formatted.display_name || formatted.name || formatted.email,
+      email: formatted.email,
+      role,
+      orgName: formatted.org_name || null,
+      verificationStatus: row.Verification_Status || null,
+      walletAddress: formatted.wallet_address || null,
+      createdAt: createdAtIso
+    };
+  } catch (_) {
+    return null;
+  }
+}
+
+function parseJourneySafe(raw) {
+  if (!raw) return [];
+  try {
+    const arr = typeof raw === 'string' ? JSON.parse(raw) : raw;
+    return Array.isArray(arr) ? arr : [];
+  } catch (_) {
+    return [];
+  }
+}
+
+function appendJourneyStep(journey, type, label, ts) {
+  const list = Array.isArray(journey) ? [...journey] : [];
+  const last = list[list.length - 1];
+  if (last && last.type === type && last.label === label) {
+    return list;
+  }
+  list.push({ ts, type, label });
+  return list.slice(-10);
+}
+
+// POST /api/presence/heartbeat — Live presence tracker for Guests & Authenticated Users
+app.post('/api/presence/heartbeat', async (req, res) => {
+  try {
+    await ensureLivePresenceTable();
+    const body = req.body || {};
+    const rawSessionId = sanitizePresenceText(body.sessionId, 96, '');
+    if (!rawSessionId || !/^[a-zA-Z0-9_-]{6,96}$/.test(rawSessionId)) {
+      return res.status(400).json({ error: 'Valid sessionId is required.' });
+    }
+
+    const now = Date.now();
+    const currentView = sanitizePresenceText(body.currentView, 150, 'Public Landing Page');
+    const currentSubpage = sanitizePresenceText(body.currentSubpage, 180, 'Overview');
+    const currentPath = sanitizePresenceText(body.currentPath, 240, '/');
+    const tabState = body.tabState === 'idle' ? 'IDLE' : 'ONLINE';
+    const eventType = sanitizePresenceText(body.eventType, 40, '');
+    const clientWallet = sanitizePresenceText(body.walletAddress, 100, '') || null;
+
+    const deviceInfo = detectClientDeviceInfo(req);
+    const cleanIp = cleanPresenceIp(deviceInfo.ip);
+    const authUser = await resolveOptionalPresenceUser(req);
+
+    const [existingRows] = await db.query('SELECT * FROM LIVE_PRESENCE WHERE Session_ID = ? LIMIT 1', [rawSessionId]);
+    const existing = existingRows && existingRows.length > 0 ? existingRows[0] : null;
+
+    const visitorCode = existing?.Visitor_Code || makeVisitorCode(rawSessionId);
+    const isAuthenticated = authUser ? 1 : 0;
+    const prevWasAuth = existing ? Boolean(existing.Is_Authenticated) : false;
+
+    const wasGuestConverted =
+      (existing && Boolean(existing.Was_Guest_Converted) && isAuthenticated) ||
+      (existing && !prevWasAuth && isAuthenticated)
+        ? 1
+        : 0;
+
+    let isNewAccount = 0;
+    if (authUser) {
+      const sameUser = existing && prevWasAuth && Number(existing.User_ID) === Number(authUser.id) && existing.User_Role === authUser.role;
+      const recentlyCreated = authUser.createdAt
+        ? (now - new Date(authUser.createdAt).getTime()) <= 24 * 60 * 60 * 1000
+        : false;
+      if (eventType === 'account_created' || recentlyCreated || (sameUser && Boolean(existing.Is_New_Account))) {
+        isNewAccount = 1;
+      }
+    }
+
+    let journey = existing ? parseJourneySafe(existing.Journey_Json) : [];
+    const viewSummary = currentSubpage && currentSubpage !== currentView
+      ? `${currentView} · ${currentSubpage}`
+      : currentView;
+
+    if (!existing) {
+      if (authUser) {
+        const roleLabel = authUser.role === 'organization' ? 'NGO' : authUser.role === 'admin' ? 'Admin' : 'Donor';
+        journey = appendJourneyStep(
+          journey,
+          eventType === 'account_created' ? 'signup' : 'login',
+          `${eventType === 'account_created' ? 'Created' : 'Active as'} ${roleLabel} (${authUser.orgName || authUser.name || authUser.email})`,
+          now
+        );
+      } else {
+        journey = appendJourneyStep(journey, 'visit', `Arrived on BBDRTS as ${visitorCode}`, now);
+      }
+      journey = appendJourneyStep(journey, 'nav', `Viewing ${viewSummary}`, now);
+    } else {
+      if (!prevWasAuth && authUser) {
+        const roleLabel = authUser.role === 'organization' ? 'NGO' : authUser.role === 'admin' ? 'Admin' : 'Donor';
+        const actionVerb = eventType === 'account_created' || isNewAccount ? 'Created account & signed in as' : 'Signed in as';
+        journey = appendJourneyStep(
+          journey,
+          eventType === 'account_created' || isNewAccount ? 'signup' : 'login',
+          `${actionVerb} ${roleLabel}: ${authUser.orgName || authUser.name || authUser.email}`,
+          now
+        );
+      } else if (prevWasAuth && !authUser) {
+        journey = appendJourneyStep(journey, 'logout', `Signed out · Returned to ${visitorCode}`, now);
+      } else if (
+        prevWasAuth &&
+        authUser &&
+        (Number(existing.User_ID) !== Number(authUser.id) || existing.User_Role !== authUser.role)
+      ) {
+        const roleLabel = authUser.role === 'organization' ? 'NGO' : authUser.role === 'admin' ? 'Admin' : 'Donor';
+        journey = appendJourneyStep(journey, 'login', `Switched account to ${roleLabel}: ${authUser.orgName || authUser.name || authUser.email}`, now);
+      }
+
+      if (existing.Current_View !== currentView || existing.Current_Subpage !== currentSubpage) {
+        journey = appendJourneyStep(journey, 'nav', `Viewing ${viewSummary}`, now);
+      }
+    }
+
+    const effectiveWallet = authUser?.walletAddress || clientWallet || null;
+    const journeyStr = JSON.stringify(journey);
+
+    if (existing) {
+      await db.query(
+        `UPDATE LIVE_PRESENCE SET
+          Is_Authenticated = ?,
+          User_ID = ?,
+          User_Name = ?,
+          User_Email = ?,
+          User_Role = ?,
+          Org_Name = ?,
+          Verification_Status = ?,
+          Wallet_Address = ?,
+          Is_New_Account = ?,
+          Account_Created_At = ?,
+          Was_Guest_Converted = ?,
+          Current_View = ?,
+          Current_Subpage = ?,
+          Current_Path = ?,
+          Device_Type = ?,
+          OS = ?,
+          Browser = ?,
+          IP_Address = ?,
+          Status = ?,
+          Last_Seen_Ms = ?,
+          Disconnected_Ms = NULL,
+          Journey_Json = ?
+        WHERE Session_ID = ?`,
+        [
+          isAuthenticated,
+          authUser ? authUser.id : null,
+          authUser ? authUser.name : null,
+          authUser ? authUser.email : null,
+          authUser ? authUser.role : 'guest',
+          authUser ? authUser.orgName : null,
+          authUser ? authUser.verificationStatus : null,
+          effectiveWallet,
+          isNewAccount,
+          authUser ? authUser.createdAt : null,
+          wasGuestConverted,
+          currentView,
+          currentSubpage,
+          currentPath,
+          deviceInfo.deviceType || 'Desktop',
+          deviceInfo.os || 'Unknown',
+          deviceInfo.browser || 'Web Browser',
+          cleanIp,
+          tabState,
+          now,
+          journeyStr,
+          rawSessionId
+        ]
+      );
+    } else {
+      await db.query(
+        `INSERT INTO LIVE_PRESENCE (
+          Session_ID, Visitor_Code, Is_Authenticated, User_ID, User_Name, User_Email,
+          User_Role, Org_Name, Verification_Status, Wallet_Address, Is_New_Account,
+          Account_Created_At, Was_Guest_Converted, Current_View, Current_Subpage,
+          Current_Path, Device_Type, OS, Browser, IP_Address, Status,
+          First_Seen_Ms, Last_Seen_Ms, Disconnected_Ms, Journey_Json
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?)`,
+        [
+          rawSessionId,
+          visitorCode,
+          isAuthenticated,
+          authUser ? authUser.id : null,
+          authUser ? authUser.name : null,
+          authUser ? authUser.email : null,
+          authUser ? authUser.role : 'guest',
+          authUser ? authUser.orgName : null,
+          authUser ? authUser.verificationStatus : null,
+          effectiveWallet,
+          isNewAccount,
+          authUser ? authUser.createdAt : null,
+          wasGuestConverted,
+          currentView,
+          currentSubpage,
+          currentPath,
+          deviceInfo.deviceType || 'Desktop',
+          deviceInfo.os || 'Unknown',
+          deviceInfo.browser || 'Web Browser',
+          cleanIp,
+          tabState,
+          now,
+          now,
+          journeyStr
+        ]
+      );
+    }
+
+    // Background prune stale sessions older than 24 hours every 5 minutes
+    if (now - lastPresencePruneMs > 5 * 60 * 1000) {
+      lastPresencePruneMs = now;
+      db.query('DELETE FROM LIVE_PRESENCE WHERE Last_Seen_Ms < ?', [now - 24 * 60 * 60 * 1000]).catch(() => {});
+    }
+
+    res.json({
+      ok: true,
+      sessionId: rawSessionId,
+      visitorCode,
+      isAuthenticated: Boolean(isAuthenticated),
+      role: authUser ? authUser.role : 'guest',
+      status: tabState
+    });
+  } catch (err) {
+    console.warn('Presence heartbeat warning:', err.message);
+    res.status(200).json({ ok: false });
+  }
+});
+
+// POST /api/presence/leave — Immediate disconnect beacon on tab close / navigation
+app.post('/api/presence/leave', express.text({ type: 'text/plain', limit: '32kb' }), async (req, res) => {
+  try {
+    await ensureLivePresenceTable();
+    let payload = req.body;
+    if (typeof payload === 'string') {
+      try { payload = JSON.parse(payload); } catch (_) { payload = {}; }
+    }
+    const rawSessionId = sanitizePresenceText(payload?.sessionId, 96, '');
+    if (!rawSessionId) return res.status(200).json({ ok: true });
+
+    const now = Date.now();
+    const [rows] = await db.query('SELECT Journey_Json FROM LIVE_PRESENCE WHERE Session_ID = ? LIMIT 1', [rawSessionId]);
+    if (rows && rows.length > 0) {
+      const journey = appendJourneyStep(parseJourneySafe(rows[0].Journey_Json), 'leave', 'Closed tab / left BBDRTS', now);
+      await db.query(
+        'UPDATE LIVE_PRESENCE SET Status = ?, Disconnected_Ms = ?, Journey_Json = ? WHERE Session_ID = ?',
+        ['OFFLINE', now, JSON.stringify(journey), rawSessionId]
+      );
+    }
+    res.status(200).json({ ok: true });
+  } catch (_) {
+    res.status(200).json({ ok: false });
+  }
+});
+
+// GET /api/admin/active-users — Admin Real-Time Active Users & Guest Presence Feed
+app.get('/api/admin/active-users', authenticateToken, async (req, res) => {
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ error: 'Access denied. Administrator privileges required.' });
+  }
+
+  try {
+    await ensureLivePresenceTable();
+    const now = Date.now();
+    const rawWin = Number(req.query.windowMinutes);
+    const windowMinutes = Number.isFinite(rawWin) ? Math.min(Math.max(rawWin, 5), 1440) : 60;
+    const cutoffMs = now - windowMinutes * 60 * 1000;
+
+    const [rows] = await db.query(
+      'SELECT * FROM LIVE_PRESENCE WHERE Last_Seen_Ms >= ? ORDER BY Last_Seen_Ms DESC LIMIT 250',
+      [cutoffMs]
+    );
+
+    const ONLINE_THRESHOLD_MS = 55 * 1000;
+    const IDLE_THRESHOLD_MS = 5 * 60 * 1000;
+
+    const sessions = (rows || []).map((r) => {
+      const lastSeenMs = Number(r.Last_Seen_Ms) || now;
+      const firstSeenMs = Number(r.First_Seen_Ms) || lastSeenMs;
+      const disconnectedMs = r.Disconnected_Ms ? Number(r.Disconnected_Ms) : null;
+      const ageMs = Math.max(0, now - lastSeenMs);
+
+      let liveStatus = 'OFFLINE';
+      if (disconnectedMs && disconnectedMs >= lastSeenMs) {
+        liveStatus = 'OFFLINE';
+      } else if (ageMs <= ONLINE_THRESHOLD_MS) {
+        liveStatus = r.Status === 'IDLE' ? 'IDLE' : 'ONLINE';
+      } else if (ageMs <= IDLE_THRESHOLD_MS) {
+        liveStatus = 'IDLE';
+      } else {
+        liveStatus = 'OFFLINE';
+      }
+
+      const isAuthenticated = Boolean(r.Is_Authenticated);
+      return {
+        sessionId: r.Session_ID,
+        visitorCode: r.Visitor_Code,
+        isAuthenticated,
+        userId: r.User_ID || null,
+        userName: r.User_Name || null,
+        userEmail: r.User_Email || null,
+        role: isAuthenticated ? (r.User_Role || 'donor') : 'guest',
+        orgName: r.Org_Name || null,
+        verificationStatus: r.Verification_Status || null,
+        walletAddress: r.Wallet_Address || null,
+        isNewAccount: Boolean(r.Is_New_Account),
+        accountCreatedAt: r.Account_Created_At || null,
+        wasGuestConverted: Boolean(r.Was_Guest_Converted),
+        currentView: r.Current_View || 'Public Landing Page',
+        currentSubpage: r.Current_Subpage || 'Overview',
+        currentPath: r.Current_Path || '/',
+        deviceType: r.Device_Type || 'Desktop',
+        os: r.OS || 'Unknown',
+        browser: r.Browser || 'Web Browser',
+        ipAddress: r.IP_Address || 'Unknown',
+        liveStatus,
+        firstSeenMs,
+        lastSeenMs,
+        disconnectedMs,
+        journey: parseJourneySafe(r.Journey_Json)
+      };
+    });
+
+    // Sort: ONLINE first, then IDLE, then OFFLINE; inside each group newest heartbeat first
+    const rank = { ONLINE: 0, IDLE: 1, OFFLINE: 2 };
+    sessions.sort((a, b) => {
+      if (rank[a.liveStatus] !== rank[b.liveStatus]) return rank[a.liveStatus] - rank[b.liveStatus];
+      return b.lastSeenMs - a.lastSeenMs;
+    });
+
+    const liveList = sessions.filter(s => s.liveStatus !== 'OFFLINE');
+    const summary = {
+      totalLive: liveList.length,
+      onlineNow: sessions.filter(s => s.liveStatus === 'ONLINE').length,
+      idleNow: sessions.filter(s => s.liveStatus === 'IDLE').length,
+      authenticatedLive: liveList.filter(s => s.isAuthenticated).length,
+      guestsLive: liveList.filter(s => !s.isAuthenticated).length,
+      donorsLive: liveList.filter(s => s.isAuthenticated && s.role === 'donor').length,
+      orgsLive: liveList.filter(s => s.isAuthenticated && s.role === 'organization').length,
+      adminsLive: liveList.filter(s => s.isAuthenticated && s.role === 'admin').length,
+      newAccountsLive: sessions.filter(s => s.isAuthenticated && s.isNewAccount).length,
+      convertedFromGuest: sessions.filter(s => s.isAuthenticated && s.wasGuestConverted).length,
+      recentOffline: sessions.filter(s => s.liveStatus === 'OFFLINE').length,
+      totalSessions: sessions.length
+    };
+
+    res.json({
+      serverTime: now,
+      windowMinutes,
+      summary,
+      sessions
+    });
+  } catch (err) {
+    console.error('Failed to fetch live active users:', err);
+    res.status(500).json({ error: 'Failed to load live active users: ' + err.message });
+  }
+});
+
+// DELETE /api/admin/active-users/offline — Clear recently disconnected sessions
+app.delete('/api/admin/active-users/offline', authenticateToken, async (req, res) => {
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ error: 'Access denied. Administrator privileges required.' });
+  }
+  try {
+    await ensureLivePresenceTable();
+    const staleCutoff = Date.now() - 5 * 60 * 1000;
+    await db.query(
+      'DELETE FROM LIVE_PRESENCE WHERE Disconnected_Ms IS NOT NULL OR Last_Seen_Ms < ?',
+      [staleCutoff]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to clear offline sessions: ' + err.message });
+  }
+});
+
 // Start Server
 if (process.env.NODE_ENV !== 'test') {
   app.listen(PORT, () => {

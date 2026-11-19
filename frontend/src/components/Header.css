@@ -1466,6 +1466,18 @@
     border-color: #27272a;
     color: #ffffff;
   }
+
+  /* Compact avatar chip on logged-in phones so all controls fit <= 360px cleanly */
+  .bbdrts-profile-chip {
+    height: 32px;
+    padding: 2px;
+    gap: 0;
+  }
+
+  .bbdrts-profile-chip .bbdrts-profile-chevron,
+  .bbdrts-profile-chip > .material-symbols-outlined {
+    display: none;
+  }
 }
 
 @media (max-width: 340px) {
