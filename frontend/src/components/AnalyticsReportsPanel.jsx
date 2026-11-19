@@ -22,14 +22,6 @@ const RANGE_OPTIONS = [
   { id: 'all', label: 'All' }
 ];
 
-const CATEGORY_OPTIONS = [
-  { value: 'ALL', label: 'All Causes' },
-  { value: 'DISASTER', label: 'Disaster Relief' },
-  { value: 'MEDICAL', label: 'Medical & Health' },
-  { value: 'EDUCATION', label: 'Education & Youth' },
-  { value: 'COMMUNITY', label: 'Community & Housing' }
-];
-
 const RAIL_COLORS = {
   'Bank / Card': 'var(--va-series-primary, #3291FF)',
   'Sepolia ETH': 'var(--va-series-mono, #ededed)',
@@ -42,7 +34,6 @@ export default function AnalyticsReportsPanel({ mode = 'admin', onNavigateTab })
   const { showSuccess, showError } = useToast();
 
   const [range, setRange] = useState('30d');
-  const [category, setCategory] = useState('ALL');
   const [analytics, setAnalytics] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -51,9 +42,11 @@ export default function AnalyticsReportsPanel({ mode = 'admin', onNavigateTab })
   // Interactive Hero KPI -> Chart Series binding
   const [chartSeries, setChartSeries] = useState('combined'); // 'combined' | 'volume' | 'disbursed' | 'split'
 
-  // Vercel Tabbed Breakdown Deck states
-  const [leftTab, setLeftTab] = useState(isAdmin ? 'causes' : 'goals');
-  const [rightTab, setRightTab] = useState(isAdmin ? 'ngos' : 'supporters');
+  // Combined Cohort Switcher Card: Admin ('donors' | 'ngos') · NGO ('supporters' | 'operations')
+  const [cohortTab, setCohortTab] = useState(isAdmin ? 'donors' : 'supporters');
+
+  // Unified Tabbed Breakdown Deck
+  const [breakdownTab, setBreakdownTab] = useState(isAdmin ? 'causes' : 'goals');
 
   // Matrix table filters
   const [campSearch, setCampSearch] = useState('');
@@ -61,8 +54,8 @@ export default function AnalyticsReportsPanel({ mode = 'admin', onNavigateTab })
   const exportMenuRef = useRef(null);
 
   useEffect(() => {
-    setLeftTab(isAdmin ? 'causes' : 'goals');
-    setRightTab(isAdmin ? 'ngos' : 'supporters');
+    setCohortTab(isAdmin ? 'donors' : 'supporters');
+    setBreakdownTab(isAdmin ? 'causes' : 'goals');
   }, [isAdmin]);
 
   useEffect(() => {
@@ -89,9 +82,6 @@ export default function AnalyticsReportsPanel({ mode = 'admin', onNavigateTab })
     try {
       const endpoint = isAdmin ? '/api/admin/analytics' : '/api/organization/analytics';
       const qs = new URLSearchParams({ range });
-      if (isAdmin && category && category !== 'ALL') {
-        qs.set('category', category);
-      }
       const res = await fetch(`${API_URL}${endpoint}?${qs.toString()}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -108,7 +98,7 @@ export default function AnalyticsReportsPanel({ mode = 'admin', onNavigateTab })
       setLoading(false);
       setRefreshing(false);
     }
-  }, [isAdmin, range, category, showError]);
+  }, [isAdmin, range, showError]);
 
   useEffect(() => {
     fetchAnalytics(false);
@@ -145,8 +135,8 @@ export default function AnalyticsReportsPanel({ mode = 'admin', onNavigateTab })
   const topOrganizations = analytics?.topOrganizations || [];
   const activityBreakdown = analytics?.activityBreakdown || [];
   const topContributors = analytics?.topContributors || [];
-  const insights = analytics?.insights || [];
   const allCampaigns = analytics?.campaignPerformance || [];
+
   const donorStats = analytics?.ecosystemStats?.donors || {
     registered: Number(kpis.registeredDonors ?? kpis.totalDonors ?? 0),
     verified: Number(kpis.verifiedDonors || 0),
@@ -201,7 +191,7 @@ export default function AnalyticsReportsPanel({ mode = 'admin', onNavigateTab })
           </h2>
           <p className="va-page-sub">
             {isAdmin
-              ? 'Contribution velocity, rail share, regional reach, and formatted exports.'
+              ? 'Contribution velocity, rail share, donor & NGO cohorts, and formatted exports.'
               : `Fundraising velocity, channel share, and exports for ${analytics?.meta?.orgName || 'your organization'}.`}
           </p>
         </div>
@@ -219,19 +209,6 @@ export default function AnalyticsReportsPanel({ mode = 'admin', onNavigateTab })
               </button>
             ))}
           </div>
-
-          {isAdmin && (
-            <select
-              className="va-select"
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              aria-label="Filter analytics by cause category"
-            >
-              {CATEGORY_OPTIONS.map((c) => (
-                <option key={c.value} value={c.value}>{c.label}</option>
-              ))}
-            </select>
-          )}
 
           <button
             type="button"
@@ -304,10 +281,9 @@ export default function AnalyticsReportsPanel({ mode = 'admin', onNavigateTab })
         </div>
       ) : (
         <>
-          {/* ── Row 1: Asymmetric Bento Hero (8-col Interactive KPI + Spline | 4-col Payment Channels) ── */}
+          {/* ── Row 1: Asymmetric 8/4 Bento Hero (Interactive KPI + Smooth Animated Spline | Payment Channels) ── */}
           <div className="va-bento-hero">
             <section className="va-panel va-hero-panel">
-              {/* Interactive Vercel Metric Tabs (clicking switches the chart below) */}
               <div className="va-kpi-grid analytics-kpi-strip" role="tablist" aria-label="Chart metric selector">
                 <button
                   type="button"
@@ -406,6 +382,7 @@ export default function AnalyticsReportsPanel({ mode = 'admin', onNavigateTab })
                   height={232}
                   seriesMode={chartSeries}
                   onSeriesModeChange={setChartSeries}
+                  animKey={range}
                   showModeSwitch
                   title={isAdmin ? 'Contribution & Disbursement Velocity' : 'Fundraising & Disbursement Velocity'}
                 />
@@ -438,72 +415,184 @@ export default function AnalyticsReportsPanel({ mode = 'admin', onNavigateTab })
             </section>
           </div>
 
-          {/* ── Row 2: Donor & NGO Ecosystem Cohorts (Registered vs Verified) ── */}
-          {isAdmin ? (
-            <section className="va-panel va-ecosystem-strip" aria-label="Donor and NGO cohorts">
-              {/* Platform Donors Cohort */}
-              <div className="va-eco-cell">
-                <div className="va-eco-head">
-                  <div>
-                    <h3 className="va-section-heading">Platform Donors</h3>
-                    <p className="va-panel-sub">Registered accounts vs verified contributors</p>
-                  </div>
-                  <span className="va-kpi-tag">{donorStats.verifiedRatePct}% verified</span>
+          {/* ── Row 2: Complementary Split — Combined Cohort Switcher Card (Left) | Tabbed Breakdown Deck (Right) ── */}
+          <div className="va-bento-mid">
+            {/* LEFT CARD: Unified Donor ↔ NGO Switcher (Admin) | Supporters ↔ Operations Switcher (NGO) */}
+            <section className="va-panel va-cohort-card" aria-label={isAdmin ? 'Donor and NGO cohorts' : 'Supporter cohorts and standing'}>
+              <div className="va-panel-head va-cohort-head">
+                <div>
+                  <h3 className="va-section-heading">
+                    {isAdmin
+                      ? (cohortTab === 'donors' ? 'Platform Donors' : 'Relief Organizations')
+                      : (cohortTab === 'supporters' ? 'Donor Cohorts' : 'Relief Standing')}
+                  </h3>
+                  <p className="va-panel-sub">
+                    {isAdmin
+                      ? (cohortTab === 'donors' ? 'Registered accounts vs verified contributors' : 'Registered applicants vs SEC-accredited NGOs')
+                      : (cohortTab === 'supporters' ? 'Verified vs registered backers funding your drives' : 'Accreditation standing and active relief output')}
+                  </p>
                 </div>
 
-                <div className="va-eco-headline">
-                  <strong className="va-eco-total">{donorStats.registered.toLocaleString('en-US')}</strong>
-                  <span className="va-eco-unit">registered donors</span>
-                </div>
-
-                <div className="va-eco-bar" aria-hidden="true">
-                  {donorStats.verified > 0 && (
-                    <div
-                      className="va-eco-seg seg-primary"
-                      style={{ width: `${Math.max(4, (donorStats.verified / Math.max(1, donorStats.registered)) * 100)}%` }}
-                    />
+                {/* Clean 1-Click Switcher Button */}
+                <div className="va-segmented-mini" role="tablist" aria-label="Switch cohort view">
+                  {isAdmin ? (
+                    <>
+                      <button
+                        type="button"
+                        role="tab"
+                        aria-selected={cohortTab === 'donors'}
+                        className={`va-seg-mini-btn ${cohortTab === 'donors' ? 'active' : ''}`}
+                        onClick={() => setCohortTab('donors')}
+                      >
+                        Donors
+                      </button>
+                      <button
+                        type="button"
+                        role="tab"
+                        aria-selected={cohortTab === 'ngos'}
+                        className={`va-seg-mini-btn ${cohortTab === 'ngos' ? 'active' : ''}`}
+                        onClick={() => setCohortTab('ngos')}
+                      >
+                        NGOs
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        role="tab"
+                        aria-selected={cohortTab === 'supporters'}
+                        className={`va-seg-mini-btn ${cohortTab === 'supporters' ? 'active' : ''}`}
+                        onClick={() => setCohortTab('supporters')}
+                      >
+                        Donors
+                      </button>
+                      <button
+                        type="button"
+                        role="tab"
+                        aria-selected={cohortTab === 'operations'}
+                        className={`va-seg-mini-btn ${cohortTab === 'operations' ? 'active' : ''}`}
+                        onClick={() => setCohortTab('operations')}
+                      >
+                        Operations
+                      </button>
+                    </>
                   )}
-                  {donorStats.registeredOnly > 0 && (
-                    <div
-                      className="va-eco-seg seg-neutral"
-                      style={{ width: `${Math.max(4, (donorStats.registeredOnly / Math.max(1, donorStats.registered)) * 100)}%` }}
-                    />
-                  )}
-                </div>
-
-                <div className="va-eco-metrics">
-                  <div className="va-eco-metric">
-                    <span className="va-eco-metric-label">
-                      <span className="va-dot-sm primary" />
-                      Verified Donors
-                    </span>
-                    <strong>{donorStats.verified.toLocaleString('en-US')}</strong>
-                    <span className="va-eco-metric-sub">Wallet, 2FA, or gift verified</span>
-                  </div>
-                  <div className="va-eco-metric">
-                    <span className="va-eco-metric-label">
-                      <span className="va-dot-sm muted" />
-                      Registered Only
-                    </span>
-                    <strong>{donorStats.registeredOnly.toLocaleString('en-US')}</strong>
-                    <span className="va-eco-metric-sub">Account created, unverified</span>
-                  </div>
-                </div>
-
-                <div className="va-eco-foot">
-                  <span>{donorStats.walletLinked} EVM wallets linked · {donorStats.contributing} active contributors · {donorStats.repeat} repeat</span>
                 </div>
               </div>
 
-              {/* Relief Organizations (NGOs) Cohort */}
-              <div className="va-eco-cell">
-                <div className="va-eco-head">
-                  <div>
-                    <h3 className="va-section-heading">Relief Organizations (NGOs)</h3>
-                    <p className="va-panel-sub">Registered applicants vs SEC-accredited partners</p>
+              {/* Admin -> Donors View */}
+              {isAdmin && cohortTab === 'donors' && (
+                <div className="va-cohort-body va-fade-switch" key="admin-donors">
+                  <div className="va-eco-headline-row">
+                    <div className="va-eco-headline">
+                      <strong className="va-eco-total">{donorStats.registered.toLocaleString('en-US')}</strong>
+                      <span className="va-eco-unit">registered donors</span>
+                    </div>
+                    <span className="va-kpi-tag">{donorStats.verifiedRatePct}% verified</span>
                   </div>
-                  <div className="va-eco-head-right">
+
+                  <div className="va-eco-bar" aria-hidden="true">
+                    {donorStats.verified > 0 && (
+                      <div
+                        className="va-eco-seg seg-primary"
+                        style={{ width: `${Math.max(4, (donorStats.verified / Math.max(1, donorStats.registered)) * 100)}%` }}
+                      />
+                    )}
+                    {donorStats.registeredOnly > 0 && (
+                      <div
+                        className="va-eco-seg seg-neutral"
+                        style={{ width: `${Math.max(4, (donorStats.registeredOnly / Math.max(1, donorStats.registered)) * 100)}%` }}
+                      />
+                    )}
+                  </div>
+
+                  <div className="va-eco-metrics">
+                    <div className="va-eco-metric">
+                      <span className="va-eco-metric-label">
+                        <span className="va-dot-sm primary" />
+                        Verified Donors
+                      </span>
+                      <strong>{donorStats.verified.toLocaleString('en-US')}</strong>
+                      <span className="va-eco-metric-sub">Wallet, 2FA, or gift verified</span>
+                    </div>
+                    <div className="va-eco-metric">
+                      <span className="va-eco-metric-label">
+                        <span className="va-dot-sm muted" />
+                        Registered Only
+                      </span>
+                      <strong>{donorStats.registeredOnly.toLocaleString('en-US')}</strong>
+                      <span className="va-eco-metric-sub">Account created, unverified</span>
+                    </div>
+                  </div>
+
+                  <div className="va-eco-foot">
+                    <span>{donorStats.walletLinked} EVM wallets linked · {donorStats.contributing} active · {donorStats.repeat} repeat</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Admin -> NGOs View */}
+              {isAdmin && cohortTab === 'ngos' && (
+                <div className="va-cohort-body va-fade-switch" key="admin-ngos">
+                  <div className="va-eco-headline-row">
+                    <div className="va-eco-headline">
+                      <strong className="va-eco-total">{ngoStats.registered.toLocaleString('en-US')}</strong>
+                      <span className="va-eco-unit">registered NGOs</span>
+                    </div>
                     <span className="va-kpi-tag">{ngoStats.verifiedRatePct}% verified</span>
+                  </div>
+
+                  <div className="va-eco-bar" aria-hidden="true">
+                    {ngoStats.verified > 0 && (
+                      <div
+                        className="va-eco-seg seg-ok"
+                        style={{ width: `${Math.max(4, (ngoStats.verified / Math.max(1, ngoStats.registered)) * 100)}%` }}
+                      />
+                    )}
+                    {ngoStats.pending > 0 && (
+                      <div
+                        className="va-eco-seg seg-warn"
+                        style={{ width: `${Math.max(4, (ngoStats.pending / Math.max(1, ngoStats.registered)) * 100)}%` }}
+                      />
+                    )}
+                    {ngoStats.rejected > 0 && (
+                      <div
+                        className="va-eco-seg seg-neutral"
+                        style={{ width: `${Math.max(4, (ngoStats.rejected / Math.max(1, ngoStats.registered)) * 100)}%` }}
+                      />
+                    )}
+                  </div>
+
+                  <div className="va-eco-metrics cols-3">
+                    <div className="va-eco-metric">
+                      <span className="va-eco-metric-label">
+                        <span className="va-dot-sm ok" />
+                        Verified NGOs
+                      </span>
+                      <strong>{ngoStats.verified.toLocaleString('en-US')}</strong>
+                      <span className="va-eco-metric-sub">SEC accredited</span>
+                    </div>
+                    <div className="va-eco-metric">
+                      <span className="va-eco-metric-label">
+                        <span className="va-dot-sm warn" />
+                        Pending KYC
+                      </span>
+                      <strong>{ngoStats.pending.toLocaleString('en-US')}</strong>
+                      <span className="va-eco-metric-sub">Under review</span>
+                    </div>
+                    <div className="va-eco-metric">
+                      <span className="va-eco-metric-label">
+                        <span className="va-dot-sm muted" />
+                        Rejected
+                      </span>
+                      <strong>{ngoStats.rejected.toLocaleString('en-US')}</strong>
+                      <span className="va-eco-metric-sub">Unverified</span>
+                    </div>
+                  </div>
+
+                  <div className="va-eco-foot va-eco-foot-split">
+                    <span>{ngoStats.evmEnrolled} approved NGOs on Sepolia EVM</span>
                     {onNavigateTab && (
                       <button type="button" className="va-card-action-link" onClick={() => onNavigateTab('approvals')}>
                         Review KYC
@@ -511,341 +600,164 @@ export default function AnalyticsReportsPanel({ mode = 'admin', onNavigateTab })
                     )}
                   </div>
                 </div>
+              )}
 
-                <div className="va-eco-headline">
-                  <strong className="va-eco-total">{ngoStats.registered.toLocaleString('en-US')}</strong>
-                  <span className="va-eco-unit">registered NGOs</span>
-                </div>
-
-                <div className="va-eco-bar" aria-hidden="true">
-                  {ngoStats.verified > 0 && (
-                    <div
-                      className="va-eco-seg seg-ok"
-                      style={{ width: `${Math.max(4, (ngoStats.verified / Math.max(1, ngoStats.registered)) * 100)}%` }}
-                    />
-                  )}
-                  {ngoStats.pending > 0 && (
-                    <div
-                      className="va-eco-seg seg-warn"
-                      style={{ width: `${Math.max(4, (ngoStats.pending / Math.max(1, ngoStats.registered)) * 100)}%` }}
-                    />
-                  )}
-                  {ngoStats.rejected > 0 && (
-                    <div
-                      className="va-eco-seg seg-neutral"
-                      style={{ width: `${Math.max(4, (ngoStats.rejected / Math.max(1, ngoStats.registered)) * 100)}%` }}
-                    />
-                  )}
-                </div>
-
-                <div className="va-eco-metrics cols-3">
-                  <div className="va-eco-metric">
-                    <span className="va-eco-metric-label">
-                      <span className="va-dot-sm ok" />
-                      Verified NGOs
-                    </span>
-                    <strong>{ngoStats.verified.toLocaleString('en-US')}</strong>
-                    <span className="va-eco-metric-sub">SEC accredited</span>
+              {/* NGO -> Supporters View */}
+              {!isAdmin && cohortTab === 'supporters' && (
+                <div className="va-cohort-body va-fade-switch" key="ngo-supporters">
+                  <div className="va-eco-headline-row">
+                    <div className="va-eco-headline">
+                      <strong className="va-eco-total">{supporterStats.totalBackers.toLocaleString('en-US')}</strong>
+                      <span className="va-eco-unit">unique supporters</span>
+                    </div>
+                    <span className="va-kpi-tag">{supporterStats.verifiedRatePct}% verified</span>
                   </div>
-                  <div className="va-eco-metric">
-                    <span className="va-eco-metric-label">
-                      <span className="va-dot-sm warn" />
-                      Pending KYC
-                    </span>
-                    <strong>{ngoStats.pending.toLocaleString('en-US')}</strong>
-                    <span className="va-eco-metric-sub">Under review</span>
-                  </div>
-                  <div className="va-eco-metric">
-                    <span className="va-eco-metric-label">
-                      <span className="va-dot-sm muted" />
-                      Rejected
-                    </span>
-                    <strong>{ngoStats.rejected.toLocaleString('en-US')}</strong>
-                    <span className="va-eco-metric-sub">Unverified</span>
-                  </div>
-                </div>
 
-                <div className="va-eco-foot">
-                  <span>{ngoStats.evmEnrolled} approved NGOs enrolled on Sepolia EVM registry</span>
+                  <div className="va-eco-bar" aria-hidden="true">
+                    {supporterStats.verifiedBackers > 0 && (
+                      <div
+                        className="va-eco-seg seg-primary"
+                        style={{ width: `${Math.max(4, (supporterStats.verifiedBackers / Math.max(1, supporterStats.totalBackers)) * 100)}%` }}
+                      />
+                    )}
+                    {supporterStats.registeredOnlyBackers > 0 && (
+                      <div
+                        className="va-eco-seg seg-neutral"
+                        style={{ width: `${Math.max(4, (supporterStats.registeredOnlyBackers / Math.max(1, supporterStats.totalBackers)) * 100)}%` }}
+                      />
+                    )}
+                    {supporterStats.anonymousGifts > 0 && (
+                      <div
+                        className="va-eco-seg seg-warn"
+                        style={{ width: `${Math.max(4, (supporterStats.anonymousGifts / Math.max(1, supporterStats.totalBackers)) * 100)}%` }}
+                      />
+                    )}
+                  </div>
+
+                  <div className="va-eco-metrics cols-3">
+                    <div className="va-eco-metric">
+                      <span className="va-eco-metric-label">
+                        <span className="va-dot-sm primary" />
+                        Verified Donors
+                      </span>
+                      <strong>{supporterStats.verifiedBackers.toLocaleString('en-US')}</strong>
+                      <span className="va-eco-metric-sub">Wallet / repeat</span>
+                    </div>
+                    <div className="va-eco-metric">
+                      <span className="va-eco-metric-label">
+                        <span className="va-dot-sm muted" />
+                        Registered
+                      </span>
+                      <strong>{supporterStats.registeredBackers.toLocaleString('en-US')}</strong>
+                      <span className="va-eco-metric-sub">Identified accounts</span>
+                    </div>
+                    <div className="va-eco-metric">
+                      <span className="va-eco-metric-label">
+                        <span className="va-dot-sm warn" />
+                        Anonymous
+                      </span>
+                      <strong>{supporterStats.anonymousGifts.toLocaleString('en-US')}</strong>
+                      <span className="va-eco-metric-sub">{kpis.anonymousSharePct || 0}% of tx</span>
+                    </div>
+                  </div>
+
+                  <div className="va-eco-foot">
+                    <span>{supporterStats.repeatBackers} repeat contributor{supporterStats.repeatBackers === 1 ? '' : 's'} across your operations</span>
+                  </div>
                 </div>
-              </div>
+              )}
+
+              {/* NGO -> Operations View */}
+              {!isAdmin && cohortTab === 'operations' && (
+                <div className="va-cohort-body va-fade-switch" key="ngo-ops">
+                  <div className="va-eco-headline-row">
+                    <div className="va-eco-headline">
+                      <strong className="va-eco-total">{kpis.totalCampaigns || 0}</strong>
+                      <span className="va-eco-unit">relief operations</span>
+                    </div>
+                    <span className={`va-delta-pill ${String(analytics?.meta?.verificationStatus).toLowerCase() === 'approved' ? 'pos' : 'neutral'}`}>
+                      {analytics?.meta?.verificationStatus || 'Pending'}
+                    </span>
+                  </div>
+
+                  <div className="va-eco-metrics cols-3">
+                    <div className="va-eco-metric">
+                      <span className="va-eco-metric-label">
+                        <span className="va-dot-sm ok" />
+                        Active Drives
+                      </span>
+                      <strong>{kpis.activeCampaigns || 0}</strong>
+                      <span className="va-eco-metric-sub">Live fundraising</span>
+                    </div>
+                    <div className="va-eco-metric">
+                      <span className="va-eco-metric-label">
+                        <span className="va-dot-sm muted" />
+                        Concluded
+                      </span>
+                      <strong>{kpis.concludedCampaigns || 0}</strong>
+                      <span className="va-eco-metric-sub">Completed quotas</span>
+                    </div>
+                    <div className="va-eco-metric">
+                      <span className="va-eco-metric-label">
+                        <span className="va-dot-sm primary" />
+                        Beneficiaries
+                      </span>
+                      <strong>{Number(kpis.totalBeneficiaries || 0).toLocaleString('en-US')}</strong>
+                      <span className="va-eco-metric-sub">Documented reach</span>
+                    </div>
+                  </div>
+
+                  <div className="va-eco-foot va-eco-foot-split">
+                    <span>{kpis.pendingSlipsCount || 0} pending slips · {kpis.approvalRatePct || 0}% pass rate</span>
+                    {onNavigateTab && (
+                      <button type="button" className="va-card-action-link" onClick={() => onNavigateTab('ledger')}>
+                        Open Ledger
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
             </section>
-          ) : (
-            <section className="va-panel va-ecosystem-strip" aria-label="Supporter cohorts and operations">
-              {/* NGO Supporter Cohorts */}
-              <div className="va-eco-cell">
-                <div className="va-eco-head">
-                  <div>
-                    <h3 className="va-section-heading">Donor &amp; Supporter Cohorts</h3>
-                    <p className="va-panel-sub">Verified supporters vs registered backers funding your drives</p>
-                  </div>
-                  <span className="va-kpi-tag">{supporterStats.verifiedRatePct}% verified</span>
-                </div>
 
-                <div className="va-eco-headline">
-                  <strong className="va-eco-total">{supporterStats.totalBackers.toLocaleString('en-US')}</strong>
-                  <span className="va-eco-unit">unique supporters</span>
-                </div>
-
-                <div className="va-eco-bar" aria-hidden="true">
-                  {supporterStats.verifiedBackers > 0 && (
-                    <div
-                      className="va-eco-seg seg-primary"
-                      style={{ width: `${Math.max(4, (supporterStats.verifiedBackers / Math.max(1, supporterStats.totalBackers)) * 100)}%` }}
-                    />
-                  )}
-                  {supporterStats.registeredOnlyBackers > 0 && (
-                    <div
-                      className="va-eco-seg seg-neutral"
-                      style={{ width: `${Math.max(4, (supporterStats.registeredOnlyBackers / Math.max(1, supporterStats.totalBackers)) * 100)}%` }}
-                    />
-                  )}
-                  {supporterStats.anonymousGifts > 0 && (
-                    <div
-                      className="va-eco-seg seg-warn"
-                      style={{ width: `${Math.max(4, (supporterStats.anonymousGifts / Math.max(1, supporterStats.totalBackers)) * 100)}%` }}
-                    />
-                  )}
-                </div>
-
-                <div className="va-eco-metrics cols-3">
-                  <div className="va-eco-metric">
-                    <span className="va-eco-metric-label">
-                      <span className="va-dot-sm primary" />
-                      Verified Donors
-                    </span>
-                    <strong>{supporterStats.verifiedBackers.toLocaleString('en-US')}</strong>
-                    <span className="va-eco-metric-sub">Wallet / repeat verified</span>
-                  </div>
-                  <div className="va-eco-metric">
-                    <span className="va-eco-metric-label">
-                      <span className="va-dot-sm muted" />
-                      Registered Donors
-                    </span>
-                    <strong>{supporterStats.registeredBackers.toLocaleString('en-US')}</strong>
-                    <span className="va-eco-metric-sub">Identified accounts</span>
-                  </div>
-                  <div className="va-eco-metric">
-                    <span className="va-eco-metric-label">
-                      <span className="va-dot-sm warn" />
-                      Anonymous Gifts
-                    </span>
-                    <strong>{supporterStats.anonymousGifts.toLocaleString('en-US')}</strong>
-                    <span className="va-eco-metric-sub">{kpis.anonymousSharePct || 0}% of tx</span>
-                  </div>
-                </div>
-
-                <div className="va-eco-foot">
-                  <span>{supporterStats.repeatBackers} repeat contributor{supporterStats.repeatBackers === 1 ? '' : 's'} across your operations</span>
-                </div>
-              </div>
-
-              {/* NGO Operational Standing */}
-              <div className="va-eco-cell">
-                <div className="va-eco-head">
-                  <div>
-                    <h3 className="va-section-heading">Accreditation &amp; Relief Standing</h3>
-                    <p className="va-panel-sub">Your organization verification status and field output</p>
-                  </div>
-                  <span className={`va-delta-pill ${String(analytics?.meta?.verificationStatus).toLowerCase() === 'approved' ? 'pos' : 'neutral'}`}>
-                    {analytics?.meta?.verificationStatus || 'Pending'}
-                  </span>
-                </div>
-
-                <div className="va-eco-headline">
-                  <strong className="va-eco-total">{kpis.totalCampaigns || 0}</strong>
-                  <span className="va-eco-unit">relief operations</span>
-                </div>
-
-                <div className="va-eco-metrics cols-3">
-                  <div className="va-eco-metric">
-                    <span className="va-eco-metric-label">
-                      <span className="va-dot-sm ok" />
-                      Active Drives
-                    </span>
-                    <strong>{kpis.activeCampaigns || 0}</strong>
-                    <span className="va-eco-metric-sub">Live fundraising</span>
-                  </div>
-                  <div className="va-eco-metric">
-                    <span className="va-eco-metric-label">
-                      <span className="va-dot-sm muted" />
-                      Concluded
-                    </span>
-                    <strong>{kpis.concludedCampaigns || 0}</strong>
-                    <span className="va-eco-metric-sub">Completed quotas</span>
-                  </div>
-                  <div className="va-eco-metric">
-                    <span className="va-eco-metric-label">
-                      <span className="va-dot-sm primary" />
-                      Beneficiaries
-                    </span>
-                    <strong>{Number(kpis.totalBeneficiaries || 0).toLocaleString('en-US')}</strong>
-                    <span className="va-eco-metric-sub">Documented reach</span>
-                  </div>
-                </div>
-
-                <div className="va-eco-foot">
-                  <span>{kpis.pendingSlipsCount || 0} pending payment slip{(kpis.pendingSlipsCount || 0) === 1 ? '' : 's'} · {kpis.approvalRatePct || 0}% slip verification rate</span>
-                </div>
-              </div>
-            </section>
-          )}
-
-          {/* ── Compact Hairline Insights Strip ── */}
-          {insights.length > 0 && (
-            <section className="va-panel va-highlights-strip" aria-label="Key highlights">
-              {insights.slice(0, 4).map((ins, i) => (
-                <div key={i} className="va-highlight-cell">
-                  <div className="va-highlight-title-row">
-                    {ins.tone === 'amber' && <span className="va-dot-sm warn" />}
-                    <strong>{ins.title}</strong>
-                  </div>
-                  <p>{ins.detail}</p>
-                </div>
-              ))}
-            </section>
-          )}
-
-          {/* ── Row 3: Symmetric 2-Column Vercel Tabbed Breakdown Deck (Zero Empty Card Voids!) ── */}
-          <div className="va-two-col">
-            {/* LEFT BREAKDOWN CARD */}
+            {/* RIGHT CARD: Unified Vercel Tabbed Breakdown Deck */}
             <section className="va-panel va-tabbed-panel">
-              <div className="va-card-tabbar" role="tablist" aria-label="Distribution breakdown">
-                <div className="va-card-tabbar-left">
-                {isAdmin ? (
-                  <>
-                    <button
-                      type="button"
-                      role="tab"
-                      aria-selected={leftTab === 'causes'}
-                      className={`va-card-tab ${leftTab === 'causes' ? 'active' : ''}`}
-                      onClick={() => setLeftTab('causes')}
-                    >
-                      By Cause
-                    </button>
-                    <button
-                      type="button"
-                      role="tab"
-                      aria-selected={leftTab === 'regions'}
-                      className={`va-card-tab ${leftTab === 'regions' ? 'active' : ''}`}
-                      onClick={() => setLeftTab('regions')}
-                    >
-                      PH Regions
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <button
-                      type="button"
-                      role="tab"
-                      aria-selected={leftTab === 'goals'}
-                      className={`va-card-tab ${leftTab === 'goals' ? 'active' : ''}`}
-                      onClick={() => setLeftTab('goals')}
-                    >
-                      Campaign Goals
-                    </button>
-                    <button
-                      type="button"
-                      role="tab"
-                      aria-selected={leftTab === 'causes'}
-                      className={`va-card-tab ${leftTab === 'causes' ? 'active' : ''}`}
-                      onClick={() => setLeftTab('causes')}
-                    >
-                      By Cause
-                    </button>
-                  </>
-                )}
-                </div>
-              </div>
-
-              <div className="va-panel-body">
-                {isAdmin && leftTab === 'causes' && (
-                  <VercelBarChart
-                    maxItems={6}
-                    leftColLabel="Cause Category"
-                    rightColLabel="Raised / Funded"
-                    items={categoryBreakdown.map((c) => ({
-                      key: c.key,
-                      label: c.label,
-                      sub: `${c.campaignCount} op${c.campaignCount === 1 ? '' : 's'} · Goal ₱${Number(c.targetPhp || 0).toLocaleString('en-US')}`,
-                      value: c.raisedPhp,
-                      badge: `${c.fundingPct}%`
-                    }))}
-                  />
-                )}
-
-                {isAdmin && leftTab === 'regions' && (
-                  <VercelBarChart
-                    maxItems={6}
-                    leftColLabel="Philippine Region"
-                    rightColLabel="Mobilized / Ops"
-                    items={regionalBreakdown.map((r) => ({
-                      key: r.region,
-                      label: r.region,
-                      sub: `${r.campaignCount} campaign${r.campaignCount === 1 ? '' : 's'} · ${r.fundingPct}% funded`,
-                      value: r.raisedPhp,
-                      badge: `${r.campaignCount} ops`
-                    }))}
-                  />
-                )}
-
-                {!isAdmin && leftTab === 'goals' && (
-                  <VercelBarChart
-                    maxItems={6}
-                    leftColLabel="Campaign"
-                    rightColLabel="Raised / Goal"
-                    items={[...allCampaigns]
-                      .sort((a, b) => b.fundingPct - a.fundingPct)
-                      .map((c) => ({
-                        key: String(c.id),
-                        label: c.title,
-                        sub: `${c.region} · Target ₱${Number(c.targetPhp || 0).toLocaleString('en-US')}`,
-                        value: c.raisedPhp,
-                        forcePct: c.fundingPct,
-                        displayValue: `₱${Number(c.raisedPhp || 0).toLocaleString('en-US')}`,
-                        badge: `${c.fundingPct}%`
-                      }))}
-                  />
-                )}
-
-                {!isAdmin && leftTab === 'causes' && (
-                  <VercelBarChart
-                    maxItems={6}
-                    leftColLabel="Cause Category"
-                    rightColLabel="Raised / Goal"
-                    items={categoryBreakdown.map((c) => ({
-                      key: c.key,
-                      label: c.label,
-                      sub: `${c.campaignCount} op${c.campaignCount === 1 ? '' : 's'} · Goal ₱${Number(c.targetPhp || 0).toLocaleString('en-US')}`,
-                      value: c.raisedPhp,
-                      badge: `${c.fundingPct}%`
-                    }))}
-                  />
-                )}
-              </div>
-            </section>
-
-            {/* RIGHT BREAKDOWN CARD */}
-            <section className="va-panel va-tabbed-panel">
-              <div className="va-card-tabbar" role="tablist" aria-label="Governance and verification breakdown">
+              <div className="va-card-tabbar" role="tablist" aria-label="Analytical breakdowns">
                 <div className="va-card-tabbar-left">
                   {isAdmin ? (
                     <>
                       <button
                         type="button"
                         role="tab"
-                        aria-selected={rightTab === 'ngos'}
-                        className={`va-card-tab ${rightTab === 'ngos' ? 'active' : ''}`}
-                        onClick={() => setRightTab('ngos')}
+                        aria-selected={breakdownTab === 'causes'}
+                        className={`va-card-tab ${breakdownTab === 'causes' ? 'active' : ''}`}
+                        onClick={() => setBreakdownTab('causes')}
+                      >
+                        By Cause
+                      </button>
+                      <button
+                        type="button"
+                        role="tab"
+                        aria-selected={breakdownTab === 'regions'}
+                        className={`va-card-tab ${breakdownTab === 'regions' ? 'active' : ''}`}
+                        onClick={() => setBreakdownTab('regions')}
+                      >
+                        PH Regions
+                      </button>
+                      <button
+                        type="button"
+                        role="tab"
+                        aria-selected={breakdownTab === 'ngos'}
+                        className={`va-card-tab ${breakdownTab === 'ngos' ? 'active' : ''}`}
+                        onClick={() => setBreakdownTab('ngos')}
                       >
                         Top NGOs
                       </button>
                       <button
                         type="button"
                         role="tab"
-                        aria-selected={rightTab === 'slips'}
-                        className={`va-card-tab ${rightTab === 'slips' ? 'active' : ''}`}
-                        onClick={() => setRightTab('slips')}
+                        aria-selected={breakdownTab === 'slips'}
+                        className={`va-card-tab ${breakdownTab === 'slips' ? 'active' : ''}`}
+                        onClick={() => setBreakdownTab('slips')}
                       >
                         Slip Audits
                       </button>
@@ -853,9 +765,9 @@ export default function AnalyticsReportsPanel({ mode = 'admin', onNavigateTab })
                         <button
                           type="button"
                           role="tab"
-                          aria-selected={rightTab === 'audit'}
-                          className={`va-card-tab ${rightTab === 'audit' ? 'active' : ''}`}
-                          onClick={() => setRightTab('audit')}
+                          aria-selected={breakdownTab === 'audit'}
+                          className={`va-card-tab ${breakdownTab === 'audit' ? 'active' : ''}`}
+                          onClick={() => setBreakdownTab('audit')}
                         >
                           Audit Events
                         </button>
@@ -866,18 +778,36 @@ export default function AnalyticsReportsPanel({ mode = 'admin', onNavigateTab })
                       <button
                         type="button"
                         role="tab"
-                        aria-selected={rightTab === 'supporters'}
-                        className={`va-card-tab ${rightTab === 'supporters' ? 'active' : ''}`}
-                        onClick={() => setRightTab('supporters')}
+                        aria-selected={breakdownTab === 'goals'}
+                        className={`va-card-tab ${breakdownTab === 'goals' ? 'active' : ''}`}
+                        onClick={() => setBreakdownTab('goals')}
+                      >
+                        Campaign Goals
+                      </button>
+                      <button
+                        type="button"
+                        role="tab"
+                        aria-selected={breakdownTab === 'causes'}
+                        className={`va-card-tab ${breakdownTab === 'causes' ? 'active' : ''}`}
+                        onClick={() => setBreakdownTab('causes')}
+                      >
+                        By Cause
+                      </button>
+                      <button
+                        type="button"
+                        role="tab"
+                        aria-selected={breakdownTab === 'supporters'}
+                        className={`va-card-tab ${breakdownTab === 'supporters' ? 'active' : ''}`}
+                        onClick={() => setBreakdownTab('supporters')}
                       >
                         Top Supporters
                       </button>
                       <button
                         type="button"
                         role="tab"
-                        aria-selected={rightTab === 'slips'}
-                        className={`va-card-tab ${rightTab === 'slips' ? 'active' : ''}`}
-                        onClick={() => setRightTab('slips')}
+                        aria-selected={breakdownTab === 'slips'}
+                        className={`va-card-tab ${breakdownTab === 'slips' ? 'active' : ''}`}
+                        onClick={() => setBreakdownTab('slips')}
                       >
                         Slip Audits
                       </button>
@@ -896,10 +826,40 @@ export default function AnalyticsReportsPanel({ mode = 'admin', onNavigateTab })
                 )}
               </div>
 
-              <div className="va-panel-body">
-                {isAdmin && rightTab === 'ngos' && (
+              <div className="va-panel-body va-fade-switch" key={breakdownTab}>
+                {isAdmin && breakdownTab === 'causes' && (
                   <VercelBarChart
-                    maxItems={6}
+                    maxItems={5}
+                    leftColLabel="Cause Category"
+                    rightColLabel="Raised / Funded"
+                    items={categoryBreakdown.map((c) => ({
+                      key: c.key,
+                      label: c.label,
+                      sub: `${c.campaignCount} op${c.campaignCount === 1 ? '' : 's'} · Goal ₱${Number(c.targetPhp || 0).toLocaleString('en-US')}`,
+                      value: c.raisedPhp,
+                      badge: `${c.fundingPct}%`
+                    }))}
+                  />
+                )}
+
+                {isAdmin && breakdownTab === 'regions' && (
+                  <VercelBarChart
+                    maxItems={5}
+                    leftColLabel="Philippine Region"
+                    rightColLabel="Mobilized / Ops"
+                    items={regionalBreakdown.map((r) => ({
+                      key: r.region,
+                      label: r.region,
+                      sub: `${r.campaignCount} campaign${r.campaignCount === 1 ? '' : 's'} · ${r.fundingPct}% funded`,
+                      value: r.raisedPhp,
+                      badge: `${r.campaignCount} ops`
+                    }))}
+                  />
+                )}
+
+                {isAdmin && breakdownTab === 'ngos' && (
+                  <VercelBarChart
+                    maxItems={5}
                     leftColLabel="Accredited Organization"
                     rightColLabel="Raised / Funded"
                     items={topOrganizations.filter((o) => o.raisedPhp > 0 || o.campaignCount > 0).map((o) => ({
@@ -912,13 +872,13 @@ export default function AnalyticsReportsPanel({ mode = 'admin', onNavigateTab })
                   />
                 )}
 
-                {rightTab === 'slips' && (
+                {breakdownTab === 'slips' && (
                   <VercelFunnelMeter funnel={verificationFunnel} />
                 )}
 
-                {isAdmin && rightTab === 'audit' && (
+                {isAdmin && breakdownTab === 'audit' && (
                   <VercelBarChart
-                    maxItems={6}
+                    maxItems={5}
                     leftColLabel="Audit Event Category"
                     rightColLabel="Events / Share"
                     items={activityBreakdown.map((act) => ({
@@ -931,9 +891,43 @@ export default function AnalyticsReportsPanel({ mode = 'admin', onNavigateTab })
                   />
                 )}
 
-                {!isAdmin && rightTab === 'supporters' && (
+                {!isAdmin && breakdownTab === 'goals' && (
                   <VercelBarChart
-                    maxItems={6}
+                    maxItems={5}
+                    leftColLabel="Campaign"
+                    rightColLabel="Raised / Goal"
+                    items={[...allCampaigns]
+                      .sort((a, b) => b.fundingPct - a.fundingPct)
+                      .map((c) => ({
+                        key: String(c.id),
+                        label: c.title,
+                        sub: `${c.region} · Target ₱${Number(c.targetPhp || 0).toLocaleString('en-US')}`,
+                        value: c.raisedPhp,
+                        forcePct: c.fundingPct,
+                        displayValue: `₱${Number(c.raisedPhp || 0).toLocaleString('en-US')}`,
+                        badge: `${c.fundingPct}%`
+                      }))}
+                  />
+                )}
+
+                {!isAdmin && breakdownTab === 'causes' && (
+                  <VercelBarChart
+                    maxItems={5}
+                    leftColLabel="Cause Category"
+                    rightColLabel="Raised / Goal"
+                    items={categoryBreakdown.map((c) => ({
+                      key: c.key,
+                      label: c.label,
+                      sub: `${c.campaignCount} op${c.campaignCount === 1 ? '' : 's'} · Goal ₱${Number(c.targetPhp || 0).toLocaleString('en-US')}`,
+                      value: c.raisedPhp,
+                      badge: `${c.fundingPct}%`
+                    }))}
+                  />
+                )}
+
+                {!isAdmin && breakdownTab === 'supporters' && (
+                  <VercelBarChart
+                    maxItems={5}
                     leftColLabel="Contributor"
                     rightColLabel="Total / Gifts"
                     emptyMessage="No confirmed contributors in this period yet."
@@ -950,7 +944,7 @@ export default function AnalyticsReportsPanel({ mode = 'admin', onNavigateTab })
             </section>
           </div>
 
-          {/* ── Row 4: Actionable Flush Vercel Performance Matrix Table ── */}
+          {/* ── Row 3: Actionable Flush Vercel Performance Matrix Table ── */}
           <section className="va-panel">
             <div className="va-panel-head va-table-head-bar">
               <div>

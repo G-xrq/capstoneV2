@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useId } from 'react';
 
 export function formatPhpCompact(val) {
   const num = Number(val || 0);
@@ -79,6 +79,7 @@ export function VercelAreaLineChart({
   seriesMode = 'combined', // 'combined' | 'split' | 'disbursed' | 'volume'
   onSeriesModeChange,
   showModeSwitch = true,
+  animKey = '',
   title = '',
   emptyMessage = 'No contribution activity recorded in this window.'
 }) {
@@ -86,6 +87,10 @@ export function VercelAreaLineChart({
   const [internalMode, setInternalMode] = useState(seriesMode);
   const activeMode = onSeriesModeChange ? seriesMode : internalMode;
   const setMode = onSeriesModeChange || setInternalMode;
+  const uid = useId().replace(/:/g, '');
+  const clipId = `vaReveal_${uid}`;
+  const dataSig = data.length > 0 ? `${data.length}_${data[0]?.date}_${data[data.length - 1]?.date}` : 'empty';
+  const revealKey = `${animKey}_${activeMode}_${dataSig}`;
 
   const w = 640;
   const h = height;
@@ -256,6 +261,16 @@ export function VercelAreaLineChart({
               <stop offset="0%" stopColor="var(--va-series-mono, #a1a1aa)" stopOpacity="0.14" />
               <stop offset="100%" stopColor="var(--va-series-mono, #a1a1aa)" stopOpacity="0.0" />
             </linearGradient>
+            <clipPath id={clipId}>
+              <rect
+                key={revealKey}
+                x={pad.left - 4}
+                y={0}
+                width={plotW + pad.right + 8}
+                height={h}
+                className="va-chart-reveal-rect"
+              />
+            </clipPath>
           </defs>
 
           {/* Horizontal Hairlines & Y Ticks */}
@@ -288,7 +303,8 @@ export function VercelAreaLineChart({
             );
           })}
 
-          {/* Series Rendering */}
+          {/* Series Rendering (Smooth Sweep + Fade on 7D/30D/90D/All or Series Switch) */}
+          <g key={revealKey} clipPath={`url(#${clipId})`} className="va-series-animated">
           {activeMode === 'combined' && (
             <>
               {points.length > 1 && <path d={buildArea('yTotal')} fill="url(#vaAreaBlue)" />}
@@ -366,6 +382,7 @@ export function VercelAreaLineChart({
               />
             </>
           )}
+          </g>
 
           {/* Hover Crosshair & Active Ring */}
           {activePt && (
@@ -568,7 +585,7 @@ export function VercelDonutChart({
                   strokeDashoffset={s.dashOffset}
                   style={{
                     cursor: 'pointer',
-                    transition: 'stroke-width 140ms ease, opacity 140ms ease',
+                    transition: 'stroke-dasharray 420ms cubic-bezier(0.16, 1, 0.3, 1), stroke-dashoffset 420ms cubic-bezier(0.16, 1, 0.3, 1), stroke-width 140ms ease, opacity 140ms ease',
                     opacity: hoveredKey && !isHover ? 0.28 : 1
                   }}
                   onMouseEnter={() => setHoveredKey(s.key)}

@@ -733,10 +733,13 @@ async function buildAdminAnalytics(db, { range = '30d', category = 'ALL' } = {})
     });
   }
   if (pendingOrgs > 0 || verificationFunnel.pending > 0) {
+    const pendingParts = [];
+    if (pendingOrgs > 0) pendingParts.push(`${pendingOrgs} NGO SEC application${pendingOrgs === 1 ? '' : 's'}`);
+    if (verificationFunnel.pending > 0) pendingParts.push(`${verificationFunnel.pending} payment slip${verificationFunnel.pending === 1 ? '' : 's'}`);
     insights.push({
       tone: 'amber',
       title: 'Verification items awaiting review',
-      detail: `${pendingOrgs} NGO SEC application${pendingOrgs === 1 ? '' : 's'} and ${verificationFunnel.pending} payment slip${verificationFunnel.pending === 1 ? '' : 's'} require compliance review.`
+      detail: `${pendingParts.join(' and ')} awaiting compliance review.`
     });
   } else {
     insights.push({

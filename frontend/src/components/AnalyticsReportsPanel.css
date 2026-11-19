@@ -510,37 +510,39 @@
   justify-content: center;
 }
 
-/* ── Row 2: Donor & NGO Ecosystem Cohort Strip (Registered vs Verified) ── */
-.va-ecosystem-strip {
+/* ── Row 2: Complementary Split (Combined Cohort Switcher | Unified Tabbed Breakdown) ── */
+.va-bento-mid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.va-eco-cell {
-  padding: 16px 18px;
-  border-right: 1px solid var(--va-border);
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.45fr);
+  gap: 16px;
+  align-items: stretch;
   min-width: 0;
 }
 
-.va-eco-cell:last-child {
-  border-right: none;
+.va-cohort-card {
+  display: flex;
+  flex-direction: column;
 }
 
-.va-eco-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
+.va-cohort-head {
+  flex-wrap: wrap;
   gap: 10px;
 }
 
-.va-eco-head-right {
-  display: inline-flex;
+.va-cohort-body {
+  padding: 18px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+
+.va-eco-headline-row {
+  display: flex;
   align-items: center;
-  gap: 8px;
-  flex-shrink: 0;
+  justify-content: space-between;
+  gap: 10px;
 }
 
 .va-eco-headline {
@@ -550,7 +552,7 @@
 }
 
 .va-eco-total {
-  font-size: 1.65rem;
+  font-size: 1.75rem;
   font-weight: 700;
   letter-spacing: -0.03em;
   line-height: 1.1;
@@ -572,6 +574,10 @@
   gap: 2px;
 }
 
+.va-eco-seg {
+  transition: width 420ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
 .va-eco-seg.seg-primary { background: var(--va-series-primary); }
 .va-eco-seg.seg-ok { background: #10b981; }
 .va-eco-seg.seg-warn { background: #f5a623; }
@@ -580,7 +586,7 @@
 .va-eco-metrics {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  gap: 12px;
   padding-top: 2px;
 }
 
@@ -606,7 +612,7 @@
 }
 
 .va-eco-metric strong {
-  font-size: 1.05rem;
+  font-size: 1.1rem;
   font-weight: 600;
   letter-spacing: -0.02em;
   color: var(--va-text);
@@ -623,10 +629,62 @@
 
 .va-eco-foot {
   margin-top: auto;
-  padding-top: 10px;
+  padding-top: 12px;
   border-top: 1px solid var(--va-border-subtle);
   font-size: 0.72rem;
   color: var(--va-text-muted);
+}
+
+.va-eco-foot-split {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* ── Smooth SVG Graph Sweep & Tab Switch Animations ── */
+.va-chart-reveal-rect {
+  transform-box: fill-box;
+  transform-origin: left center;
+  animation: vaChartSweep 540ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.va-series-animated {
+  animation: vaSeriesFade 380ms ease-out both;
+}
+
+.va-fade-switch {
+  animation: vaFadeSwitch 220ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes vaChartSweep {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
+@keyframes vaSeriesFade {
+  from { opacity: 0.15; }
+  to { opacity: 1; }
+}
+
+@keyframes vaFadeSwitch {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .va-chart-reveal-rect,
+  .va-series-animated,
+  .va-fade-switch {
+    animation: none !important;
+  }
 }
 
 .va-dot-sm.primary { background: var(--va-series-primary); }
@@ -1512,19 +1570,15 @@
   }
 }
 
-@media (max-width: 900px) {
-  .va-two-col,
-  .va-ecosystem-strip {
+@media (max-width: 1020px) {
+  .va-bento-mid {
     grid-template-columns: 1fr;
   }
+}
 
-  .va-eco-cell {
-    border-right: none;
-    border-bottom: 1px solid var(--va-border);
-  }
-
-  .va-eco-cell:last-child {
-    border-bottom: none;
+@media (max-width: 900px) {
+  .va-two-col {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -1571,7 +1625,7 @@
     width: 100%;
   }
 
-  .va-eco-cell {
+  .va-cohort-body {
     padding: 14px;
   }
 
