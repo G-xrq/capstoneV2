@@ -24,7 +24,11 @@ export function ToastProvider({ children }) {
 
     const newToast = { id, type, title: toastTitle, message, duration, action, icon };
 
-    setToasts((prevToasts) => [...prevToasts.slice(-4), newToast]); // Keep max 5 active toasts
+    setToasts((prevToasts) => {
+      // Prevent duplicate stacked alerts for the same message (e.g. clicking MetaMask button repeatedly)
+      const deduplicated = prevToasts.filter(t => !(t.title === toastTitle && t.message === message));
+      return [...deduplicated.slice(-3), newToast];
+    });
 
     if (duration > 0) {
       setTimeout(() => {

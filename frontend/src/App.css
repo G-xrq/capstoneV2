@@ -1,5 +1,38 @@
 /* App-level layout styles — design tokens live in index.css */
 
+/* Houdini Registered Custom Property for Smooth 0.2-0.3s GPU Blur Transitions */
+@property --card-blur {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+
+@keyframes ping {
+  0% {
+    transform: scale(1);
+    opacity: 0.8;
+  }
+  75%, 100% {
+    transform: scale(2.2);
+    opacity: 0;
+  }
+}
+
+@keyframes radar-pulse {
+  0% {
+    transform: scale(0.95);
+    opacity: 0.8;
+  }
+  50% {
+    transform: scale(1.05);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(0.95);
+    opacity: 0.8;
+  }
+}
+
 /* ============================================================
    App Shell
    ============================================================ */
@@ -733,33 +766,86 @@
   transition: transform var(--transition);
 }
 
-/* Tags Pill Button */
+/* Toolbar Section Badge & Filter Pills */
+.toolbar-section-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  padding: 0 10px;
+  height: 34px;
+  border-radius: 8px;
+  background: var(--bg-subcard, rgba(255, 255, 255, 0.04));
+  border: 1px solid var(--border);
+  letter-spacing: 0.01em;
+  user-select: none;
+  flex-shrink: 0;
+  box-sizing: border-box;
+}
+
+.toolbar-section-badge .material-symbols-outlined {
+  font-size: 17px;
+  color: var(--text-muted);
+}
+
+[data-theme="light"] .toolbar-section-badge {
+  background: #f4f4f5;
+  border-color: #e4e4e7;
+  color: #3f3f46;
+}
+
+[data-theme="light"] .toolbar-section-badge .material-symbols-outlined {
+  color: #71717a;
+}
+
+/* Tags & Filter Pill Buttons */
 .filter-pill-btn {
   display: inline-flex;
   align-items: center;
-  background: var(--bg-input);
+  gap: 6px;
+  background: var(--bg-card);
   border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 0 10px 0 12px;
-  height: 36px;
+  border-radius: 8px;
+  padding: 0 11px;
+  height: 34px;
   box-sizing: border-box;
   color: var(--text-primary);
-  font-size: 0.82rem;
+  font-size: 0.80rem;
   font-weight: 500;
   cursor: pointer;
-  transition: all var(--transition);
+  transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
   user-select: none;
 }
 
 .filter-pill-btn:hover {
   border-color: var(--border-strong);
-  background: var(--bg-card-hover, var(--bg-input));
+  background: var(--bg-hover);
 }
 
 .filter-pill-btn.active-filter {
   border-color: var(--accent);
   background: var(--accent-dim);
   color: var(--accent);
+  font-weight: 600;
+}
+
+[data-theme="light"] .filter-pill-btn {
+  background: #ffffff;
+  border-color: #e4e4e7;
+  color: #18181b;
+}
+
+[data-theme="light"] .filter-pill-btn:hover {
+  background: #f4f4f5;
+  border-color: #d4d4d8;
+}
+
+[data-theme="light"] .filter-pill-btn.active-filter {
+  border-color: #18181b;
+  background: #f4f4f5;
+  color: #18181b;
 }
 
 .tags-dropdown-badge-ref {
@@ -1134,6 +1220,38 @@
   color: var(--accent);
 }
 
+[data-theme="light"] .filter-custom-popover {
+  background: #ffffff;
+  border-color: #e5e7eb;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.08), 0 2px 6px rgba(0, 0, 0, 0.04);
+}
+
+[data-theme="light"] .filter-popover-option:hover {
+  background: #f4f4f5;
+  color: #000000;
+}
+
+[data-theme="light"] .filter-popover-option.selected {
+  background: rgba(0, 0, 0, 0.06);
+  color: #000000;
+}
+
+[data-theme="dark"] .filter-custom-popover {
+  background: #0a0a0a;
+  border-color: #27272a;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+
+[data-theme="dark"] .filter-popover-option:hover {
+  background: rgba(255, 255, 255, 0.07);
+  color: #ffffff;
+}
+
+[data-theme="dark"] .filter-popover-option.selected {
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+}
+
 /* ── ROW 3: Active Filters & Clear All ── */
 .campaign-active-filters-bar {
   display: flex;
@@ -1260,27 +1378,35 @@
   flex-direction: column;
   height: 100%;
   border-radius: 16px;
-  overflow: hidden;
+  overflow: visible !important;
   background: var(--bg-card);
   border: 1px solid var(--border);
   box-shadow: var(--shadow-card);
-  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.2s ease, opacity 0.25s ease, filter 0.25s ease;
-}
-
-/* Blur & Dim non-hovered sibling cards ONLY when an actual card is hovered in grid mode */
-.campaigns-grid:has(.campaign-card:hover) .campaign-card:not(:hover) {
-  opacity: 0.35 !important;
-  filter: blur(4px) !important;
-  transform: scale(0.985);
+  opacity: 1;
+  filter: blur(0px);
+  transform: none;
+  position: relative;
+  z-index: 1;
+  will-change: opacity, filter;
+  transition: filter 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+              opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+              transform 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 0.2s ease, 
+              border-color 0.2s ease;
 }
 
 .campaigns-grid .campaign-card:hover {
   opacity: 1 !important;
-  filter: none !important;
-  transform: translateY(-5px);
+  filter: blur(0px) !important;
+  transform: translateY(-3px);
   box-shadow: 0 16px 36px rgba(0, 0, 0, 0.45), var(--shadow-glow);
   border-color: var(--accent) !important;
-  z-index: 5;
+  z-index: 50 !important;
+  transition: transform 0.25s ease,
+              box-shadow 0.2s ease,
+              border-color 0.2s ease,
+              filter 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+              opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
 }
 
 [data-theme="light"] .campaigns-grid .campaign-card:hover {
@@ -1291,6 +1417,8 @@
 
 /* Card Body in Grid: Vertical Stack */
 .campaigns-grid .campaign-card-body {
+  position: relative;
+  z-index: 1;
   display: flex;
   flex-direction: column;
   padding: 0;
@@ -1318,6 +1446,10 @@
 /* Info Section in Grid */
 .campaigns-grid .campaign-info {
   flex: 1 0 auto;
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  box-sizing: border-box;
   padding: 16px 18px 12px 18px;
   display: flex;
   flex-direction: column;
@@ -1330,20 +1462,18 @@
 }
 
 .campaigns-grid .campaign-title {
-  font-size: 1.12rem;
-  line-height: 1.35;
-  margin-bottom: 10px;
-  min-height: 2.7em;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
+  font-size: 1.05rem;
+  height: 24px;
+  line-height: 24px;
+  min-height: 24px;
+  max-height: 24px;
+  margin: 0;
+  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-.campaigns-grid.cols-2 .campaign-title {
-  min-height: auto;
-  -webkit-line-clamp: 3;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .campaigns-grid .campaign-org-badge {
@@ -1364,14 +1494,35 @@
 /* Progress bar inside grid */
 .campaigns-grid .multi-rail-wrapper {
   margin-bottom: 4px;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.campaigns-grid .multi-rail-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-width: 0;
+  gap: 8px;
 }
 
 .campaigns-grid .multi-rail-goal-text {
   font-size: 0.8rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
 .campaigns-grid .multi-rail-goal-text strong {
   font-size: 0.9rem;
+}
+
+.campaigns-grid .multi-rail-header-right {
+  flex-shrink: 0;
 }
 
 .campaigns-grid .multi-rail-controls-strip {
@@ -1395,9 +1546,10 @@
 }
 
 .campaigns-grid .multi-rail-dropdown-popup {
-  min-width: min(340px, 90vw);
-  max-width: 380px;
-  right: -6px;
+  min-width: min(300px, 90vw);
+  max-width: min(360px, calc(100vw - 32px));
+  right: 0;
+  box-sizing: border-box;
 }
 
 /* Amounts Section in Grid: 3 Uniform Columns */
@@ -1450,20 +1602,28 @@
 
 /* Actions Section at Bottom of Card */
 .campaigns-grid .campaign-actions {
-  flex: 0 0 auto;
-  width: 100%;
-  min-width: 0;
+  flex: 0 0 auto !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  margin: 0 !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  align-self: stretch !important;
   padding: 14px 18px 16px 18px;
   background: var(--bg-surface, rgba(15, 23, 42, 0.45));
   border-top: 1px solid var(--border);
   border-radius: 0 0 15px 15px;
-  box-sizing: border-box;
+  box-sizing: border-box !important;
   gap: 10px;
 }
 
 .campaigns-grid .donate-box-card {
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+  margin: 0 !important;
   padding: 10px 12px;
-  margin-bottom: 0;
   background: var(--bg-card);
 }
 
@@ -1483,7 +1643,9 @@
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 8px;
-  width: 100%;
+  width: 100% !important;
+  box-sizing: border-box !important;
+  margin: 0 !important;
 }
 
 
@@ -1491,56 +1653,146 @@
 /* Base Transition for all cards */
 .campaign-card {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0, 1fr) !important;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
   gap: 0;
   background: var(--bg-card);
   border: 1px solid var(--border);
   box-shadow: var(--shadow-card);
-  transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+  opacity: 1;
+  filter: blur(0px);
+  transform: none;
   border-radius: var(--radius-md, 12px);
   position: relative;
+  z-index: 1;
+  overflow: visible !important;
+  transition: filter 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+              opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+              transform 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 0.2s ease,
+              box-shadow 0.2s ease,
+              background-color 0.15s ease;
 }
 
-.campaign-card:hover {
-  transform: translateY(-2px);
+/* Gap bridge between list cards to eliminate deadzone flicker when moving mouse vertically */
+.campaign-card::before {
+  content: '';
+  position: absolute;
+  top: -10px;
+  bottom: -10px;
+  left: 0;
+  right: 0;
+  pointer-events: auto;
+  z-index: -1;
+}
+
+.campaigns-grid .campaign-card::before {
+  top: -12px;
+  bottom: -12px;
+  left: -12px;
+  right: -12px;
+}
+
+/* Sibling focus spotlight: smoothly blur non-active cards when a card is hovered or has a popup open */
+.campaigns-grid:has(.campaign-card:not(.campaign-skeleton-card):hover) .campaign-card:not(:hover),
+.campaigns-list:has(.campaign-card:not(.campaign-skeleton-card):hover) .campaign-card:not(:hover),
+.dbo-campaigns-grid:has(.campaign-card:not(.campaign-skeleton-card):hover) .campaign-card:not(:hover),
+.ngo-campaigns-grid:has(.campaign-card:not(.campaign-skeleton-card):hover) .campaign-card:not(:hover),
+.campaigns-grid:has(.bbdrts-campaign-item-wrapper:hover) .campaign-card:not(:hover),
+.campaigns-list:has(.bbdrts-campaign-item-wrapper:hover) .campaign-card:not(:hover),
+.campaigns-grid:has(.telemetry-dropdown-active) .campaign-card:not(.telemetry-dropdown-active),
+.campaigns-list:has(.telemetry-dropdown-active) .campaign-card:not(.telemetry-dropdown-active),
+.dbo-campaigns-grid:has(.telemetry-dropdown-active) .campaign-card:not(.telemetry-dropdown-active),
+.ngo-campaigns-grid:has(.telemetry-dropdown-active) .campaign-card:not(.telemetry-dropdown-active),
+.dbo-campaigns-grid:has(.dbo-clean-card:hover) .dbo-clean-card:not(:hover) {
+  opacity: 0.45 !important;
+  filter: blur(4px) !important;
+  transform: scale(0.988);
+  pointer-events: auto;
+}
+
+/* Elevate card and guarantee 100% crispness when hovered or when active popup is open */
+.campaign-card:hover,
+.campaigns-list .campaign-card:hover,
+.campaigns-grid .campaign-card:hover,
+.campaign-card.telemetry-dropdown-active,
+.campaigns-list .campaign-card.telemetry-dropdown-active,
+.campaigns-grid .campaign-card.telemetry-dropdown-active {
+  opacity: 1 !important;
+  filter: blur(0px) !important;
   border-color: var(--border-hover, #666666);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
-  z-index: 2;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.22);
+  z-index: 50 !important;
+  overflow: visible !important;
+}
+
+/* Dropdown / popover active state: elevate above ALL other cards so it never gets cut off */
+.campaign-card.telemetry-dropdown-active,
+.campaigns-list .campaign-card.telemetry-dropdown-active,
+.campaigns-grid .campaign-card.telemetry-dropdown-active {
+  z-index: 250 !important;
 }
 
 /* Light Theme Card Hover Highlight (Clean Vercel White & Crisp Border) */
 [data-theme="light"] .campaign-card:hover {
   background: #ffffff !important;
   border-color: #171717 !important;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06) !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08) !important;
+}
+
+/* Safeguard: disable child backdrop-filter on non-hovered cards to prevent Chromium nested filter compositor flashes */
+.campaign-card:not(:hover) .campaign-media-tag-top,
+.campaign-card:not(:hover) .campaign-media-evidence-badge,
+.campaign-card:not(:hover) .campaign-media-location-tag,
+.campaign-card:not(:hover) .campaign-media-closed-badge {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
 }
 
 .campaign-card-body {
+  position: relative;
+  z-index: 1;
   display: flex;
   gap: 16px;
   flex-wrap: nowrap;
   align-items: stretch;
   padding: 12px 14px;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  overflow: visible !important;
 }
 
-/* Campaign Cover Media Template */
+/* Campaign Cover Media Template (Consistent Fixed Size Across All Cards) */
 .campaign-media {
   position: relative;
   width: 215px;
-  min-width: 195px;
-  max-width: 235px;
-  border-radius: 10px;
+  min-width: 215px;
+  max-width: 215px;
+  height: 230px;
+  min-height: 230px;
+  max-height: 230px;
+  align-self: flex-start;
+  border-radius: 12px;
   overflow: hidden;
   background-color: var(--bg-inset);
   flex-shrink: 0;
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
-  align-self: stretch;
+  display: block;
 }
 
 .campaign-media-img {
   width: 100%;
+  min-width: 100%;
+  max-width: 100%;
   height: 100%;
+  min-height: 100%;
+  max-height: 100%;
   object-fit: cover;
+  object-position: center;
   display: block;
   transition: transform 0.35s ease;
 }
@@ -1575,6 +1827,48 @@
   letter-spacing: 0.3px;
   text-transform: uppercase;
   transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+  z-index: 2;
+}
+
+/* Disaster Impact Evidence Photos Badge Overlay */
+.campaign-media-evidence-badge {
+  position: absolute;
+  bottom: 10px;
+  right: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(10, 15, 29, 0.85);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  color: #e2e8f0;
+  font-size: 0.68rem;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+  letter-spacing: 0.2px;
+  z-index: 2;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.campaign-media-evidence-badge .material-symbols-outlined {
+  font-size: 13px !important;
+  color: #38bdf8;
+  flex-shrink: 0;
+}
+
+[data-theme="light"] .campaign-media-evidence-badge {
+  background: rgba(255, 255, 255, 0.92);
+  color: #0f172a;
+  border-color: rgba(0, 0, 0, 0.14);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
+[data-theme="light"] .campaign-media-evidence-badge .material-symbols-outlined {
+  color: #0284c7;
 }
 
 /* Bottom Location Geotag Capsule Overlay on Media */
@@ -1675,12 +1969,28 @@
 }
 
 .campaign-info {
-  flex: 1 1 320px;
-  min-width: 0;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  box-sizing: border-box;
+  overflow: visible !important;
   display: flex;
   flex-direction: column;
   gap: 6px;
   justify-content: flex-start;
+}
+
+.campaigns-list .campaign-info {
+  flex: 1 1 0px;
+  width: 0;
+  min-width: 0 !important;
+  max-width: 100% !important;
+}
+
+.campaigns-grid .campaign-info {
+  flex: 1 0 auto;
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
 }
 
 .campaign-header-top {
@@ -1832,12 +2142,112 @@
   }
 }
 
+/* ============================================================
+   Campaign Card Single-Line Title & Hover Marquee Effect
+   ============================================================ */
+.campaign-title-marquee-wrapper {
+  display: flex;
+  align-items: center;
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  height: 24px !important;
+  min-height: 24px !important;
+  max-height: 24px !important;
+  line-height: 24px !important;
+  overflow: hidden !important;
+  position: relative;
+  white-space: nowrap;
+  box-sizing: border-box;
+  margin: 0 0 6px 0;
+  padding: 0;
+}
+
+.campaign-title-track {
+  display: flex;
+  align-items: center;
+  height: 24px;
+  min-height: 24px;
+  max-height: 24px;
+  line-height: 24px;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
 .campaign-title {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  height: 24px;
+  min-height: 24px;
+  max-height: 24px;
+  line-height: 24px;
+  margin: 0;
+  padding: 0;
   font-size: 1.05rem;
   font-weight: 700;
   color: var(--text-primary);
-  line-height: 1.32;
-  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  box-sizing: border-box;
+}
+
+/* Hover-triggered Horizontal Marquee (Smooth Glide & Pause)
+   position: absolute removes the expanding text from flexbox flow so it can NEVER push .campaign-actions */
+.campaign-card:hover .campaign-title-track.can-marquee {
+  position: absolute !important;
+  left: 0 !important;
+  top: 0 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  height: 24px !important;
+  min-height: 24px !important;
+  max-height: 24px !important;
+  line-height: 24px !important;
+  width: max-content !important;
+  max-width: none !important;
+  overflow: visible !important;
+  z-index: 2 !important;
+}
+
+.campaign-card:hover .campaign-title-track.can-marquee .campaign-title {
+  display: block !important;
+  width: auto !important;
+  max-width: none !important;
+  height: 24px !important;
+  min-height: 24px !important;
+  max-height: 24px !important;
+  line-height: 24px !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+  will-change: transform;
+  animation: campaignMarqueeGlide var(--marquee-duration, 4s) cubic-bezier(0.35, 0, 0.65, 1) infinite;
+}
+
+/* Elegant soft fade at right edge during scroll */
+.campaign-card:hover .campaign-title-marquee-wrapper.has-overflow {
+  mask-image: linear-gradient(to right, black calc(100% - 24px), transparent 100%);
+  -webkit-mask-image: linear-gradient(to right, black calc(100% - 24px), transparent 100%);
+}
+
+@keyframes campaignMarqueeGlide {
+  0%, 18% {
+    transform: translateX(0);
+  }
+  68%, 84% {
+    transform: translateX(var(--marquee-dist, 0px));
+  }
+  98%, 100% {
+    transform: translateX(0);
+  }
 }
 
 /* Managing Org Attribution Row */
@@ -2083,6 +2493,129 @@
   color: #0b1016 !important;
 }
 
+/* ── Sleek Campaign Metadata Strip (Replaces bulky 3-box container grid) ── */
+.campaign-meta-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 10px;
+  gap: 8px;
+  font-size: 0.8rem;
+  color: var(--text-secondary, #94a3b8);
+  flex-wrap: wrap;
+  min-height: 28px;
+}
+
+.campaign-meta-strip-left {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+
+.campaign-meta-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--text-secondary, #cbd5e1);
+  font-size: 0.78rem;
+  background: transparent;
+  border: none;
+  padding: 0;
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+.campaign-meta-pill .material-symbols-outlined {
+  font-size: 15px;
+  color: var(--text-muted, #94a3b8);
+}
+
+.campaign-meta-pill strong {
+  color: var(--text-primary, #ffffff);
+  font-weight: 700;
+}
+
+.campaign-meta-pill:hover {
+  color: var(--text-primary, #ffffff);
+}
+
+.campaign-meta-dot {
+  color: var(--border, rgba(255, 255, 255, 0.2));
+  font-size: 0.85rem;
+  user-select: none;
+}
+
+.campaign-meta-pill.ledger-pill {
+  color: #10b981;
+  cursor: pointer;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: rgba(16, 185, 129, 0.08);
+  border: 1px solid rgba(16, 185, 129, 0.22);
+  transition: all 0.2s ease;
+  font-size: 0.74rem;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.campaign-meta-pill.ledger-pill .material-symbols-outlined {
+  font-size: 13px;
+  color: #10b981;
+}
+
+.campaign-meta-pill.ledger-pill:hover {
+  background: rgba(16, 185, 129, 0.18);
+  border-color: rgba(16, 185, 129, 0.45);
+  transform: translateY(-1px);
+}
+
+.campaign-meta-text-truncate {
+  max-width: 220px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.campaign-meta-id-tag {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.72rem;
+  color: var(--text-muted, #64748b);
+  background: var(--bg-surface, rgba(255, 255, 255, 0.04));
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.08));
+  user-select: all;
+}
+
+[data-theme="light"] .campaign-meta-strip {
+  color: #64748b;
+}
+
+[data-theme="light"] .campaign-meta-pill {
+  color: #475569;
+}
+
+[data-theme="light"] .campaign-meta-pill strong {
+  color: #0f172a;
+}
+
+[data-theme="light"] .campaign-meta-pill:hover {
+  color: #0f172a;
+}
+
+[data-theme="light"] .campaign-meta-dot {
+  color: rgba(0, 0, 0, 0.2);
+}
+
+[data-theme="light"] .campaign-meta-id-tag {
+  background: #f1f5f9;
+  border-color: rgba(0, 0, 0, 0.08);
+  color: #64748b;
+}
+
 /* Amounts Section: Uniform 3-Box Grid */
 .campaign-amounts {
   display: grid;
@@ -2184,95 +2717,220 @@
 .tag-overflow-wrap {
   position: relative;
   display: inline-flex;
+  z-index: 50;
+}
+
+.tag-overflow-wrap:hover {
+  z-index: 1000;
+}
+
+.campaign-card:has(.tag-overflow-wrap:hover) {
+  z-index: 100 !important;
 }
 
 .tag-overflow-wrap .campaign-tag-pill.overflow-pill {
   cursor: pointer;
-  color: var(--text-muted);
-  background: var(--bg-inset, rgba(255,255,255,0.05));
-  border-color: var(--border);
+  color: var(--text-muted, #a1a1aa);
+  background: var(--bg-inset, rgba(255, 255, 255, 0.05));
+  border-color: var(--border, rgba(255, 255, 255, 0.12));
   font-weight: 700;
+  transition: all 0.15s ease;
 }
 
 .tag-overflow-wrap:hover .campaign-tag-pill.overflow-pill {
-  border-color: var(--accent);
-  color: var(--accent);
-  background: var(--accent-dim, rgba(34,197,94,0.08));
+  border-color: var(--accent, #10b981);
+  color: var(--accent, #10b981);
+  background: var(--accent-dim, rgba(16, 185, 129, 0.1));
 }
 
 .tag-overflow-popover {
   display: none;
   position: absolute;
-  top: calc(100% + 7px);
+  bottom: calc(100% + 8px);
+  top: auto;
   left: 50%;
   transform: translateX(-50%);
-  z-index: 9999;
-  background: var(--bg-surface, #1e2028);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 10px 12px;
-  box-shadow: 0 8px 28px rgba(0,0,0,0.45), 0 2px 8px rgba(0,0,0,0.25);
+  z-index: 99999;
+  background: #09090b !important;
+  opacity: 1 !important;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 10px;
+  padding: 8px 10px;
+  box-shadow: 0 16px 36px -4px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.05);
   white-space: nowrap;
   flex-direction: column;
-  gap: 6px;
-  min-width: 130px;
-  backdrop-filter: blur(12px);
+  gap: 5px;
+  min-width: 140px;
+  max-height: 220px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
 }
 
-/* small arrow pointing UP toward the badge */
+.tag-overflow-popover::-webkit-scrollbar {
+  width: 4px;
+}
+
+.tag-overflow-popover::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+}
+
+/* small arrow pointing DOWN toward the badge */
 .tag-overflow-popover::before {
   content: '';
   position: absolute;
-  bottom: 100%;
+  top: 100%;
+  bottom: auto;
   left: 50%;
   transform: translateX(-50%);
   border: 6px solid transparent;
-  border-bottom-color: var(--border);
+  border-top-color: rgba(255, 255, 255, 0.14);
 }
 
 .tag-overflow-popover::after {
   content: '';
   position: absolute;
-  bottom: 100%;
+  top: 100%;
+  bottom: auto;
   left: 50%;
   transform: translateX(-50%);
-  margin-bottom: -1px;
+  margin-top: -1px;
   border: 5px solid transparent;
-  border-bottom-color: var(--bg-surface, #1e2028);
+  border-top-color: #09090b;
   z-index: 1;
 }
 
-.tag-overflow-wrap:hover .tag-overflow-popover {
+/* Invisible hover bridge to eliminate deadzone between badge and popover */
+.tag-overflow-wrap::after {
+  content: '';
+  position: absolute;
+  bottom: 100%;
+  top: auto;
+  left: -8px;
+  right: -8px;
+  height: 12px;
+  pointer-events: auto;
+}
+
+@keyframes tagPopoverFadeIn {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(4px) scale(0.98);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1);
+  }
+}
+
+.tag-overflow-wrap:hover .tag-overflow-popover,
+.tag-overflow-wrap:focus-within .tag-overflow-popover {
   display: flex;
+  animation: tagPopoverFadeIn 0.16s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.tag-overflow-wrap .campaign-tag-pill.overflow-pill:focus-visible {
+  outline: none;
+  border-color: var(--accent, #10b981);
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.25);
 }
 
 .tag-overflow-popover-label {
-  font-size: 0.65rem;
+  font-size: 0.64rem;
   font-weight: 700;
-  color: var(--text-muted);
+  color: #71717a;
   text-transform: uppercase;
-  letter-spacing: 0.6px;
+  letter-spacing: 0.05em;
   padding-bottom: 4px;
-  border-bottom: 1px solid var(--border-subtle, rgba(255,255,255,0.06));
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   margin-bottom: 2px;
 }
 
 .tag-overflow-popover .campaign-tag-pill {
-  font-size: 0.71rem;
+  font-size: 0.72rem;
+  padding: 3px 8px;
+  border-radius: 5px;
+  background: #141416;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #d4d4d8;
+  transition: all 0.12s ease;
+}
+
+.tag-overflow-popover .campaign-tag-pill:hover {
+  background: rgba(16, 185, 129, 0.12);
+  border-color: #10b981;
+  color: #10b981;
+}
+
+[data-theme="light"] .tag-overflow-wrap .campaign-tag-pill.overflow-pill {
+  background: #f4f4f5;
+  border-color: #e4e4e7;
+  color: #52525b;
+}
+
+[data-theme="light"] .tag-overflow-popover {
+  background: #ffffff !important;
+  border-color: #e4e4e7;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 0, 0, 0.06);
+}
+
+[data-theme="light"] .tag-overflow-popover::before {
+  border-top-color: #e4e4e7;
+}
+
+[data-theme="light"] .tag-overflow-popover::after {
+  border-top-color: #ffffff;
+}
+
+[data-theme="light"] .tag-overflow-popover-label {
+  color: #a1a1aa;
+  border-bottom-color: #f4f4f5;
+}
+
+[data-theme="light"] .tag-overflow-popover .campaign-tag-pill {
+  background: #f9f9fb;
+  border-color: #e4e4e7;
+  color: #27272a;
+}
+
+[data-theme="light"] .tag-overflow-popover .campaign-tag-pill:hover {
+  background: rgba(16, 185, 129, 0.08);
+  border-color: #10b981;
+  color: #059669;
 }
 
 /* ============================================================
-   Donate Action Section (right side of card)
+   Donate Action Section (right side of card in list, bottom in grid)
    ============================================================ */
 .campaign-actions {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  box-sizing: border-box;
+}
+
+.campaigns-list .campaign-actions {
   flex: 0 0 280px;
-  min-width: 260px;
+  width: 280px;
+  min-width: 280px;
+  max-width: 280px;
+  flex-shrink: 0;
   align-self: stretch;
   justify-content: flex-start;
   margin-left: auto;
+}
+
+.campaigns-grid .campaign-actions {
+  flex: 0 0 auto !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  margin: 0 !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  align-self: stretch !important;
 }
 
 .donate-box-card {
@@ -2819,13 +3477,56 @@
   font-size: 16px !important;
 }
 
+.spin,
 .spin-anim {
   animation: spinLedger 0.9s linear infinite;
+  display: inline-block;
 }
 
 @keyframes spinLedger {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
+}
+
+/* AI Receipt Vision Active Scanning Animation */
+.ai-scanner-shimmer-box {
+  position: relative;
+  overflow: hidden;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(2, 132, 199, 0.14) 0%, rgba(14, 165, 233, 0.06) 100%);
+  border: 1.5px solid rgba(56, 189, 248, 0.4);
+  box-shadow: 0 4px 18px rgba(2, 132, 199, 0.15);
+  padding: 12px 14px;
+}
+
+.ai-scanner-shimmer-line {
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 2.5px;
+  background: linear-gradient(90deg, transparent, #38bdf8, #818cf8, transparent);
+  animation: aiScanShimmer 1.4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+@keyframes aiScanShimmer {
+  0% { left: -100%; }
+  100% { left: 100%; }
+}
+
+.ai-scanning-pulse-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #38bdf8;
+  display: inline-block;
+  box-shadow: 0 0 8px #38bdf8;
+  animation: aiPulseDot 0.8s ease-in-out infinite alternate;
+}
+
+@keyframes aiPulseDot {
+  0% { opacity: 0.35; transform: scale(0.75); }
+  100% { opacity: 1; transform: scale(1.25); }
 }
 
 .ledger-modal-close-btn {
@@ -4550,7 +5251,23 @@
 
 .toolbar-refresh-btn:disabled {
   opacity: 0.55;
-  cursor: default;
+  cursor: wait;
+}
+
+.toolbar-refresh-btn .spinning,
+.toolbar-refresh-btn.is-loading .material-symbols-outlined,
+.spinning {
+  display: inline-block;
+  animation: adminRefreshSpin 0.75s linear infinite !important;
+}
+
+@keyframes adminRefreshSpin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* ── Campaigns header impact snapshot ── */
@@ -5380,7 +6097,8 @@ input:-webkit-autofill:active {
 }
 
 /* Light Theme Checkout & Payment Options */
-[data-theme="light"] .payment-order-summary-card {
+[data-theme="light"] .payment-order-summary-card,
+[data-theme="light"] .payment-selector-top-card {
   background: #f8fafc !important;
   border-color: #eaeaea !important;
 }
@@ -5805,12 +6523,19 @@ input:-webkit-autofill:active {
 
   .campaign-media {
     width: 100%;
+    min-width: 0;
     max-width: 100%;
     height: 180px;
+    min-height: 180px;
+    max-height: 180px;
+    align-self: auto;
   }
 
   .campaign-actions {
     flex: 1 1 100%;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
   }
 }
 
@@ -6575,6 +7300,40 @@ input:-webkit-autofill:active {
   flex-wrap: wrap;
 }
 
+/* ── Contribution Gateway Step 0 Payment Summary & Rails ── */
+.payment-selector-top-card {
+  display: grid;
+  grid-template-columns: 1fr 1.15fr;
+  gap: 20px;
+  align-items: center;
+  background: var(--bg-card, rgba(255, 255, 255, 0.02));
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.08));
+  border-radius: 14px;
+  padding: 16px 18px;
+  margin-bottom: 18px;
+}
+
+@media (max-width: 768px) {
+  .payment-selector-top-card {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+}
+
+.payment-rails-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+@media (max-width: 680px) {
+  .payment-rails-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+}
+
 /* ── E-Wallet QR Ph & Interactive Terminal ── */
 .ewallet-checkout-grid {
   display: grid;
@@ -6593,14 +7352,16 @@ input:-webkit-autofill:active {
 .qr-ph-box {
   background: #ffffff;
   border-radius: 18px;
-  padding: 14px;
+  padding: 16px;
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
   display: flex;
   flex-direction: column;
   align-items: center;
-  width: 230px;
+  width: 100%;
+  max-width: 300px;
   margin: 0 auto 16px;
-  border: 2px solid #e2e8f0;
+  border: 1.5px solid #e2e8f0;
+  box-sizing: border-box;
 }
 
 .qr-ph-banner {
@@ -6799,6 +7560,9 @@ input:-webkit-autofill:active {
 
   .campaign-actions {
     flex: 1 1 100%;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
   }
 
   .form-row {
@@ -6921,4 +7685,120 @@ input:-webkit-autofill:active {
 @keyframes targetedBadgeGlow {
   0%, 100% { color: #22c55e; border-color: rgba(34, 197, 94, 0.55); }
   50% { color: #38bdf8; border-color: rgba(56, 189, 248, 0.75); }
+}
+
+/* ============================================================
+   BBDRTS Institutional Account & Settings Modal Overlay
+   ============================================================ */
+.bbdrts-settings-modal-overlay,
+.modal-overlay {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 2147483640 !important;
+  background: rgba(0, 0, 0, 0.78) !important;
+  backdrop-filter: blur(10px) !important;
+  -webkit-backdrop-filter: blur(10px) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 20px !important;
+  box-sizing: border-box !important;
+  animation: fadeInModal 180ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes fadeInModal {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.bbdrts-settings-modal-dialog {
+  position: relative !important;
+  max-width: 820px !important;
+  width: 100% !important;
+  max-height: 88vh !important;
+  overflow-y: auto !important;
+  background: var(--bg-card, #0c0e14) !important;
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.12)) !important;
+  border-radius: 16px !important;
+  padding: 28px !important;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.75), 0 0 0 1px rgba(255, 255, 255, 0.05) !important;
+  box-sizing: border-box !important;
+  animation: scaleUpModal 200ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  scrollbar-width: thin !important;
+  scrollbar-color: rgba(255, 255, 255, 0.16) transparent !important;
+}
+
+.bbdrts-settings-modal-dialog::-webkit-scrollbar {
+  width: 6px !important;
+}
+
+.bbdrts-settings-modal-dialog::-webkit-scrollbar-track {
+  background: transparent !important;
+}
+
+.bbdrts-settings-modal-dialog::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.16) !important;
+  border-radius: 9999px !important;
+}
+
+.bbdrts-settings-modal-dialog::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3) !important;
+}
+
+[data-theme="light"] .bbdrts-settings-modal-dialog {
+  scrollbar-color: rgba(0, 0, 0, 0.15) transparent !important;
+}
+
+[data-theme="light"] .bbdrts-settings-modal-dialog::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.15) !important;
+}
+
+[data-theme="light"] .bbdrts-settings-modal-dialog {
+  background: #ffffff !important;
+  border-color: rgba(0, 0, 0, 0.12) !important;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(0, 0, 0, 0.05) !important;
+}
+
+@keyframes scaleUpModal {
+  from { opacity: 0; transform: scale(0.96) translateY(8px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.bbdrts-settings-modal-close-btn {
+  position: absolute !important;
+  top: 18px !important;
+  right: 18px !important;
+  width: 32px !important;
+  height: 32px !important;
+  border-radius: 8px !important;
+  background: var(--bg-subcard, rgba(255, 255, 255, 0.05)) !important;
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.1)) !important;
+  color: var(--text-secondary, #a1a1aa) !important;
+  font-size: 20px !important;
+  line-height: 1 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer !important;
+  transition: all 120ms ease !important;
+  z-index: 30 !important;
+}
+
+.bbdrts-settings-modal-close-btn:hover {
+  background: rgba(255, 255, 255, 0.12) !important;
+  color: var(--text-primary, #ffffff) !important;
+  border-color: rgba(255, 255, 255, 0.25) !important;
+  transform: scale(1.05);
+}
+
+[data-theme="light"] .bbdrts-settings-modal-close-btn {
+  background: rgba(0, 0, 0, 0.04) !important;
+  border-color: rgba(0, 0, 0, 0.1) !important;
+  color: #6b7280 !important;
+}
+
+[data-theme="light"] .bbdrts-settings-modal-close-btn:hover {
+  background: rgba(0, 0, 0, 0.08) !important;
+  color: #111827 !important;
+  border-color: rgba(0, 0, 0, 0.2) !important;
 }

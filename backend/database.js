@@ -138,6 +138,18 @@ function initSqlite() {
         sqliteDb.run(`ALTER TABLE ORGANIZATION ADD COLUMN Bank_Account_Number TEXT`, () => {});
         sqliteDb.run(`ALTER TABLE ORGANIZATION ADD COLUMN Bank_Details TEXT`, () => {});
         sqliteDb.run(`ALTER TABLE ORGANIZATION ADD COLUMN Bank_Qr_Url TEXT`, () => {});
+        sqliteDb.run(`ALTER TABLE ORGANIZATION ADD COLUMN Tin_Number TEXT`, () => {});
+        sqliteDb.run(`ALTER TABLE ORGANIZATION ADD COLUMN Authorized_Rep_Name TEXT`, () => {});
+        sqliteDb.run(`ALTER TABLE ORGANIZATION ADD COLUMN Authorized_Rep_Position TEXT`, () => {});
+        sqliteDb.run(`ALTER TABLE ORGANIZATION ADD COLUMN Authorized_Rep_Id_Type TEXT`, () => {});
+        sqliteDb.run(`ALTER TABLE ORGANIZATION ADD COLUMN Authorized_Rep_Id_No TEXT`, () => {});
+        sqliteDb.run(`ALTER TABLE ORGANIZATION ADD COLUMN Registered_Address TEXT`, () => {});
+        sqliteDb.run(`ALTER TABLE ORGANIZATION ADD COLUMN Primary_Id_Type TEXT`, () => {});
+        sqliteDb.run(`ALTER TABLE ORGANIZATION ADD COLUMN Primary_Id_Number TEXT`, () => {});
+        sqliteDb.run(`ALTER TABLE ORGANIZATION ADD COLUMN Primary_Id_Url TEXT`, () => {});
+        sqliteDb.run(`ALTER TABLE ORGANIZATION ADD COLUMN Secondary_Id_Type TEXT`, () => {});
+        sqliteDb.run(`ALTER TABLE ORGANIZATION ADD COLUMN Secondary_Id_Number TEXT`, () => {});
+        sqliteDb.run(`ALTER TABLE ORGANIZATION ADD COLUMN Secondary_Id_Url TEXT`, () => {});
 
         sqliteDb.run(`
           CREATE TABLE IF NOT EXISTS DONOR (
@@ -158,6 +170,82 @@ function initSqlite() {
         sqliteDb.run(`ALTER TABLE DONOR ADD COLUMN Avatar_Url TEXT`, () => {});
         sqliteDb.run(`ALTER TABLE DONOR ADD COLUMN Preferences_Json TEXT`, () => {});
         sqliteDb.run(`ALTER TABLE DONOR ADD COLUMN Name_Last_Changed_At DATETIME`, () => {});
+        sqliteDb.run(`ALTER TABLE DONOR ADD COLUMN Created_At DATETIME DEFAULT CURRENT_TIMESTAMP`, () => {});
+        sqliteDb.run(`ALTER TABLE ORGANIZATION ADD COLUMN Created_At DATETIME DEFAULT CURRENT_TIMESTAMP`, () => {});
+        sqliteDb.run(`ALTER TABLE ADMINISTRATOR ADD COLUMN Created_At DATETIME DEFAULT CURRENT_TIMESTAMP`, () => {});
+
+        sqliteDb.run(`ALTER TABLE DONOR ADD COLUMN Known_Devices_Json TEXT`, () => {});
+        sqliteDb.run(`ALTER TABLE ORGANIZATION ADD COLUMN Known_Devices_Json TEXT`, () => {});
+        sqliteDb.run(`ALTER TABLE ADMINISTRATOR ADD COLUMN Known_Devices_Json TEXT`, () => {});
+        sqliteDb.run(`ALTER TABLE DONOR ADD COLUMN Security_Tokens_Json TEXT`, () => {});
+        sqliteDb.run(`ALTER TABLE ORGANIZATION ADD COLUMN Security_Tokens_Json TEXT`, () => {});
+        sqliteDb.run(`ALTER TABLE ADMINISTRATOR ADD COLUMN Security_Tokens_Json TEXT`, () => {});
+        sqliteDb.run(`ALTER TABLE DONOR ADD COLUMN Active_Sessions_Json TEXT`, () => {});
+        sqliteDb.run(`ALTER TABLE ORGANIZATION ADD COLUMN Active_Sessions_Json TEXT`, () => {});
+        sqliteDb.run(`ALTER TABLE ADMINISTRATOR ADD COLUMN Active_Sessions_Json TEXT`, () => {});
+        sqliteDb.run(`ALTER TABLE DONOR ADD COLUMN Two_Factor_Enabled INTEGER DEFAULT 0`, () => {});
+        sqliteDb.run(`ALTER TABLE ORGANIZATION ADD COLUMN Two_Factor_Enabled INTEGER DEFAULT 0`, () => {});
+        sqliteDb.run(`ALTER TABLE ADMINISTRATOR ADD COLUMN Two_Factor_Enabled INTEGER DEFAULT 0`, () => {});
+        sqliteDb.run(`ALTER TABLE DONOR ADD COLUMN Two_Factor_Secret TEXT`, () => {});
+        sqliteDb.run(`ALTER TABLE ORGANIZATION ADD COLUMN Two_Factor_Secret TEXT`, () => {});
+        sqliteDb.run(`ALTER TABLE ADMINISTRATOR ADD COLUMN Two_Factor_Secret TEXT`, () => {});
+        sqliteDb.run(`ALTER TABLE DONOR ADD COLUMN Two_Factor_Recovery_Codes_Json TEXT`, () => {});
+        sqliteDb.run(`ALTER TABLE ORGANIZATION ADD COLUMN Two_Factor_Recovery_Codes_Json TEXT`, () => {});
+        sqliteDb.run(`ALTER TABLE ADMINISTRATOR ADD COLUMN Two_Factor_Recovery_Codes_Json TEXT`, () => {});
+        sqliteDb.run(`ALTER TABLE DONOR ADD COLUMN Failed_Login_Attempts INTEGER DEFAULT 0`, () => {});
+        sqliteDb.run(`ALTER TABLE ORGANIZATION ADD COLUMN Failed_Login_Attempts INTEGER DEFAULT 0`, () => {});
+        sqliteDb.run(`ALTER TABLE ADMINISTRATOR ADD COLUMN Failed_Login_Attempts INTEGER DEFAULT 0`, () => {});
+        sqliteDb.run(`ALTER TABLE DONOR ADD COLUMN Lockout_Until DATETIME`, () => {});
+        sqliteDb.run(`ALTER TABLE ORGANIZATION ADD COLUMN Lockout_Until DATETIME`, () => {});
+        sqliteDb.run(`ALTER TABLE ADMINISTRATOR ADD COLUMN Lockout_Until DATETIME`, () => {});
+
+        sqliteDb.run(`ALTER TABLE DONOR ADD COLUMN Deletion_Scheduled_At DATETIME`, () => {});
+        sqliteDb.run(`ALTER TABLE DONOR ADD COLUMN Deletion_Effective_At DATETIME`, () => {});
+        sqliteDb.run(`ALTER TABLE DONOR ADD COLUMN Is_Deleted INTEGER DEFAULT 0`, () => {});
+        sqliteDb.run(`ALTER TABLE DONOR ADD COLUMN Deletion_Reason TEXT`, () => {});
+
+        sqliteDb.run(`ALTER TABLE ORGANIZATION ADD COLUMN Deletion_Scheduled_At DATETIME`, () => {});
+        sqliteDb.run(`ALTER TABLE ORGANIZATION ADD COLUMN Deletion_Effective_At DATETIME`, () => {});
+        sqliteDb.run(`ALTER TABLE ORGANIZATION ADD COLUMN Is_Deleted INTEGER DEFAULT 0`, () => {});
+        sqliteDb.run(`ALTER TABLE ORGANIZATION ADD COLUMN Deletion_Reason TEXT`, () => {});
+
+        sqliteDb.run(`ALTER TABLE ADMINISTRATOR ADD COLUMN Deletion_Scheduled_At DATETIME`, () => {});
+        sqliteDb.run(`ALTER TABLE ADMINISTRATOR ADD COLUMN Deletion_Effective_At DATETIME`, () => {});
+        sqliteDb.run(`ALTER TABLE ADMINISTRATOR ADD COLUMN Is_Deleted INTEGER DEFAULT 0`, () => {});
+        sqliteDb.run(`ALTER TABLE ADMINISTRATOR ADD COLUMN Deletion_Reason TEXT`, () => {});
+
+        sqliteDb.run(`
+          CREATE TABLE IF NOT EXISTS EMAIL_CHANGE_TOKENS (
+            Token TEXT PRIMARY KEY,
+            Cancel_Token TEXT,
+            Current_Email TEXT NOT NULL,
+            New_Email TEXT NOT NULL,
+            Role TEXT NOT NULL,
+            User_ID INTEGER NOT NULL,
+            Status TEXT DEFAULT 'PENDING',
+            Expires_At DATETIME NOT NULL,
+            Revert_Expires_At DATETIME,
+            Applied_At DATETIME,
+            Reverted_At DATETIME,
+            Created_At DATETIME DEFAULT CURRENT_TIMESTAMP
+          )
+        `, () => {});
+        sqliteDb.run(`ALTER TABLE EMAIL_CHANGE_TOKENS ADD COLUMN Cancel_Token TEXT`, () => {});
+        sqliteDb.run(`ALTER TABLE EMAIL_CHANGE_TOKENS ADD COLUMN Status TEXT DEFAULT 'PENDING'`, () => {});
+        sqliteDb.run(`ALTER TABLE EMAIL_CHANGE_TOKENS ADD COLUMN Revert_Expires_At DATETIME`, () => {});
+        sqliteDb.run(`ALTER TABLE EMAIL_CHANGE_TOKENS ADD COLUMN Applied_At DATETIME`, () => {});
+        sqliteDb.run(`ALTER TABLE EMAIL_CHANGE_TOKENS ADD COLUMN Reverted_At DATETIME`, () => {});
+
+        sqliteDb.run(`
+          CREATE TABLE IF NOT EXISTS PASSWORD_RESET_TOKENS (
+            Token TEXT PRIMARY KEY,
+            Email TEXT NOT NULL,
+            Role TEXT NOT NULL,
+            User_ID INTEGER NOT NULL,
+            Expires_At DATETIME NOT NULL,
+            Created_At DATETIME DEFAULT CURRENT_TIMESTAMP
+          )
+        `, () => {});
 
         // Backfill existing donors where Legal_Name is NULL
         sqliteDb.all(`SELECT Donor_ID, Username, Name FROM DONOR WHERE Legal_Name IS NULL`, [], (err, rows) => {
@@ -181,6 +269,22 @@ function initSqlite() {
         sqliteDb.run(`ALTER TABLE ORGANIZATION ADD COLUMN Gcash_Number TEXT`, () => {});
         sqliteDb.run(`ALTER TABLE ORGANIZATION ADD COLUMN Maya_Number TEXT`, () => {});
         sqliteDb.run(`ALTER TABLE ORGANIZATION ADD COLUMN Bank_Details TEXT`, () => {});
+        sqliteDb.run(`ALTER TABLE ORGANIZATION ADD COLUMN Qr_Codes_Json TEXT`, () => {});
+
+        sqliteDb.run(`
+          CREATE TABLE IF NOT EXISTS ORGANIZATION_QR_CODE (
+            Qr_ID INTEGER PRIMARY KEY AUTOINCREMENT,
+            Org_ID INTEGER,
+            Custom_Name TEXT NOT NULL,
+            Payment_Method TEXT NOT NULL,
+            Account_Name TEXT,
+            Account_Number TEXT,
+            Qr_Image_Url TEXT NOT NULL,
+            Is_Default INTEGER DEFAULT 0,
+            Created_At DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (Org_ID) REFERENCES ORGANIZATION(Org_ID) ON DELETE CASCADE
+          )
+        `);
 
         sqliteDb.run(`ALTER TABLE ADMINISTRATOR ADD COLUMN Name TEXT`, () => {});
         sqliteDb.run(`ALTER TABLE ADMINISTRATOR ADD COLUMN Title TEXT`, () => {});
@@ -245,6 +349,28 @@ function initSqlite() {
         sqliteDb.run(`ALTER TABLE CAMPAIGN ADD COLUMN Created_At DATETIME`, () => {});
         sqliteDb.run(`ALTER TABLE CAMPAIGN ADD COLUMN Ai_Suggested_Allocations TEXT`, () => {});
         sqliteDb.run(`ALTER TABLE CAMPAIGN ADD COLUMN Ai_Generated_Summary TEXT`, () => {});
+        sqliteDb.run(`ALTER TABLE CAMPAIGN ADD COLUMN Disaster_Images_Json TEXT`, () => {});
+        sqliteDb.run(`ALTER TABLE CAMPAIGN ADD COLUMN Disbursed_Amount REAL DEFAULT 0`, () => {});
+        sqliteDb.run(`ALTER TABLE CAMPAIGN ADD COLUMN Disbursed_Amount_Php REAL DEFAULT 0`, () => {});
+        sqliteDb.run(`ALTER TABLE CAMPAIGN ADD COLUMN Disbursement_Status TEXT DEFAULT 'FUNDRAISING'`, () => {});
+        sqliteDb.run(`ALTER TABLE CAMPAIGN ADD COLUMN Last_Disbursement_At DATETIME`, () => {});
+
+        sqliteDb.run(`
+          CREATE TABLE IF NOT EXISTS CAMPAIGN_DISBURSEMENT (
+            Disbursement_ID INTEGER PRIMARY KEY AUTOINCREMENT,
+            Campaign_ID INTEGER NOT NULL,
+            Org_ID INTEGER NOT NULL,
+            Amount_Php REAL NOT NULL,
+            Amount_Eth REAL DEFAULT 0,
+            Beneficiaries_Reached INTEGER DEFAULT 0,
+            Impact_Summary TEXT NOT NULL,
+            Proof_Url TEXT,
+            Tx_Hash TEXT,
+            Disbursed_At DATETIME DEFAULT CURRENT_TIMESTAMP
+          )
+        `);
+        sqliteDb.run(`ALTER TABLE CAMPAIGN ADD COLUMN Target_Amount_Php REAL DEFAULT 0`, () => {});
+        sqliteDb.run(`UPDATE CAMPAIGN SET Target_Amount_Php = ROUND(Target_Amount * 170000, 2) WHERE (Target_Amount_Php IS NULL OR Target_Amount_Php = 0) AND Target_Amount > 0`, () => {});
 
         sqliteDb.run(`
           CREATE TABLE IF NOT EXISTS DONATION_TRANSACTION (
@@ -326,6 +452,45 @@ function initSqlite() {
           if (initErr) return reject(initErr);
           sqliteDb.run(`ALTER TABLE USER_NOTIFICATIONS ADD COLUMN Is_Deleted INTEGER DEFAULT 0`, () => {});
           sqliteDb.run(`ALTER TABLE USER_NOTIFICATIONS ADD COLUMN Deleted_At DATETIME NULL`, () => {});
+
+          sqliteDb.run(`
+            CREATE TABLE IF NOT EXISTS ACTIVITY_LOGS (
+              Log_ID INTEGER PRIMARY KEY AUTOINCREMENT,
+              Activity TEXT NOT NULL,
+              User_Name TEXT,
+              User_Email TEXT,
+              Role TEXT DEFAULT 'SYSTEM',
+              Target TEXT,
+              Category TEXT DEFAULT 'SYSTEM',
+              Status TEXT DEFAULT 'SUCCESS',
+              IP_Address TEXT,
+              Details_Json TEXT,
+              Created_At DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+          `);
+
+          sqliteDb.run(`
+            CREATE TABLE IF NOT EXISTS SYSTEM_ANNOUNCEMENT (
+              Announcement_ID INTEGER PRIMARY KEY AUTOINCREMENT,
+              Title TEXT NOT NULL,
+              Message TEXT NOT NULL,
+              Severity TEXT DEFAULT 'GENERAL',
+              Target_Audience TEXT DEFAULT 'ALL',
+              Is_Active INTEGER DEFAULT 1,
+              Created_By TEXT DEFAULT 'Admin',
+              Created_At DATETIME DEFAULT CURRENT_TIMESTAMP,
+              Expires_At DATETIME NULL
+            )
+          `);
+
+          sqliteDb.run(`
+            CREATE TABLE IF NOT EXISTS SYSTEM_SETTINGS (
+              Setting_Key TEXT PRIMARY KEY,
+              Setting_Value TEXT,
+              Updated_At DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+          `);
+
           console.log('✅ ERD Tables Synchronized with SQLite.');
           await seedDefaultAccounts('sqlite');
           resolve();
@@ -448,6 +613,34 @@ async function initializeDatabase() {
     try { await mysqlPool.query(`ALTER TABLE ORGANIZATION MODIFY COLUMN Preferences_Json LONGTEXT`); } catch (_) {}
     try { await mysqlPool.query(`ALTER TABLE ORGANIZATION ADD COLUMN Audit_Notes LONGTEXT`); } catch (_) {}
     try { await mysqlPool.query(`ALTER TABLE ORGANIZATION MODIFY COLUMN Audit_Notes LONGTEXT`); } catch (_) {}
+    try { await mysqlPool.query(`ALTER TABLE ORGANIZATION ADD COLUMN Qr_Codes_Json LONGTEXT`); } catch (_) {}
+    try { await mysqlPool.query(`ALTER TABLE ORGANIZATION ADD COLUMN Tin_Number VARCHAR(100)`); } catch (_) {}
+    try { await mysqlPool.query(`ALTER TABLE ORGANIZATION ADD COLUMN Authorized_Rep_Name VARCHAR(255)`); } catch (_) {}
+    try { await mysqlPool.query(`ALTER TABLE ORGANIZATION ADD COLUMN Authorized_Rep_Position VARCHAR(255)`); } catch (_) {}
+    try { await mysqlPool.query(`ALTER TABLE ORGANIZATION ADD COLUMN Authorized_Rep_Id_Type VARCHAR(100)`); } catch (_) {}
+    try { await mysqlPool.query(`ALTER TABLE ORGANIZATION ADD COLUMN Authorized_Rep_Id_No VARCHAR(100)`); } catch (_) {}
+    try { await mysqlPool.query(`ALTER TABLE ORGANIZATION ADD COLUMN Registered_Address TEXT`); } catch (_) {}
+    try { await mysqlPool.query(`ALTER TABLE ORGANIZATION ADD COLUMN Primary_Id_Type VARCHAR(100)`); } catch (_) {}
+    try { await mysqlPool.query(`ALTER TABLE ORGANIZATION ADD COLUMN Primary_Id_Number VARCHAR(100)`); } catch (_) {}
+    try { await mysqlPool.query(`ALTER TABLE ORGANIZATION ADD COLUMN Primary_Id_Url LONGTEXT`); } catch (_) {}
+    try { await mysqlPool.query(`ALTER TABLE ORGANIZATION ADD COLUMN Secondary_Id_Type VARCHAR(100)`); } catch (_) {}
+    try { await mysqlPool.query(`ALTER TABLE ORGANIZATION ADD COLUMN Secondary_Id_Number VARCHAR(100)`); } catch (_) {}
+    try { await mysqlPool.query(`ALTER TABLE ORGANIZATION ADD COLUMN Secondary_Id_Url LONGTEXT`); } catch (_) {}
+
+    await mysqlPool.query(`
+      CREATE TABLE IF NOT EXISTS ORGANIZATION_QR_CODE (
+        Qr_ID INT AUTO_INCREMENT PRIMARY KEY,
+        Org_ID INT,
+        Custom_Name VARCHAR(255) NOT NULL,
+        Payment_Method VARCHAR(50) NOT NULL,
+        Account_Name VARCHAR(255),
+        Account_Number VARCHAR(100),
+        Qr_Image_Url LONGTEXT NOT NULL,
+        Is_Default BOOLEAN DEFAULT 0,
+        Created_At DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (Org_ID) REFERENCES ORGANIZATION(Org_ID) ON DELETE CASCADE
+      )
+    `);
 
     try { await mysqlPool.query(`ALTER TABLE ADMINISTRATOR ADD COLUMN Name VARCHAR(255)`); } catch (_) {}
     try { await mysqlPool.query(`ALTER TABLE ADMINISTRATOR ADD COLUMN Title VARCHAR(255)`); } catch (_) {}
@@ -482,13 +675,94 @@ async function initializeDatabase() {
     try { await mysqlPool.query(`ALTER TABLE DONOR MODIFY COLUMN Preferences_Json LONGTEXT`); } catch (_) {}
     try { await mysqlPool.query(`ALTER TABLE DONOR ADD COLUMN Name_Last_Changed_At DATETIME`); } catch (_) {}
     try { await mysqlPool.query(`ALTER TABLE DONOR ADD COLUMN Is_Anonymous BOOLEAN DEFAULT 0`); } catch (_) {}
+    try { await mysqlPool.query(`ALTER TABLE DONOR ADD COLUMN Created_At DATETIME DEFAULT CURRENT_TIMESTAMP`); } catch (_) {}
+    try { await mysqlPool.query(`ALTER TABLE ORGANIZATION ADD COLUMN Created_At DATETIME DEFAULT CURRENT_TIMESTAMP`); } catch (_) {}
+    try { await mysqlPool.query(`ALTER TABLE ADMINISTRATOR ADD COLUMN Created_At DATETIME DEFAULT CURRENT_TIMESTAMP`); } catch (_) {}
+
+    try { await mysqlPool.query(`ALTER TABLE DONOR ADD COLUMN Known_Devices_Json LONGTEXT`); } catch (_) {}
+    try { await mysqlPool.query(`ALTER TABLE ORGANIZATION ADD COLUMN Known_Devices_Json LONGTEXT`); } catch (_) {}
+    try { await mysqlPool.query(`ALTER TABLE ADMINISTRATOR ADD COLUMN Known_Devices_Json LONGTEXT`); } catch (_) {}
+    try { await mysqlPool.query(`ALTER TABLE DONOR ADD COLUMN Security_Tokens_Json LONGTEXT`); } catch (_) {}
+    try { await mysqlPool.query(`ALTER TABLE ORGANIZATION ADD COLUMN Security_Tokens_Json LONGTEXT`); } catch (_) {}
+    try { await mysqlPool.query(`ALTER TABLE ADMINISTRATOR ADD COLUMN Security_Tokens_Json LONGTEXT`); } catch (_) {}
+    try { await mysqlPool.query(`ALTER TABLE DONOR ADD COLUMN Active_Sessions_Json LONGTEXT`); } catch (_) {}
+    try { await mysqlPool.query(`ALTER TABLE ORGANIZATION ADD COLUMN Active_Sessions_Json LONGTEXT`); } catch (_) {}
+    try { await mysqlPool.query(`ALTER TABLE ADMINISTRATOR ADD COLUMN Active_Sessions_Json LONGTEXT`); } catch (_) {}
+    try { await mysqlPool.query(`ALTER TABLE DONOR ADD COLUMN Two_Factor_Enabled TINYINT DEFAULT 0`); } catch (_) {}
+    try { await mysqlPool.query(`ALTER TABLE ORGANIZATION ADD COLUMN Two_Factor_Enabled TINYINT DEFAULT 0`); } catch (_) {}
+    try { await mysqlPool.query(`ALTER TABLE ADMINISTRATOR ADD COLUMN Two_Factor_Enabled TINYINT DEFAULT 0`); } catch (_) {}
+    try { await mysqlPool.query(`ALTER TABLE DONOR ADD COLUMN Two_Factor_Secret VARCHAR(255)`); } catch (_) {}
+    try { await mysqlPool.query(`ALTER TABLE ORGANIZATION ADD COLUMN Two_Factor_Secret VARCHAR(255)`); } catch (_) {}
+    try { await mysqlPool.query(`ALTER TABLE ADMINISTRATOR ADD COLUMN Two_Factor_Secret VARCHAR(255)`); } catch (_) {}
+    try { await mysqlPool.query(`ALTER TABLE DONOR ADD COLUMN Two_Factor_Recovery_Codes_Json LONGTEXT`); } catch (_) {}
+    try { await mysqlPool.query(`ALTER TABLE ORGANIZATION ADD COLUMN Two_Factor_Recovery_Codes_Json LONGTEXT`); } catch (_) {}
+    try { await mysqlPool.query(`ALTER TABLE ADMINISTRATOR ADD COLUMN Two_Factor_Recovery_Codes_Json LONGTEXT`); } catch (_) {}
+    try { await mysqlPool.query(`ALTER TABLE DONOR ADD COLUMN Failed_Login_Attempts INT DEFAULT 0`); } catch (_) {}
+    try { await mysqlPool.query(`ALTER TABLE ORGANIZATION ADD COLUMN Failed_Login_Attempts INT DEFAULT 0`); } catch (_) {}
+    try { await mysqlPool.query(`ALTER TABLE ADMINISTRATOR ADD COLUMN Failed_Login_Attempts INT DEFAULT 0`); } catch (_) {}
+    try { await mysqlPool.query(`ALTER TABLE DONOR ADD COLUMN Lockout_Until DATETIME NULL`); } catch (_) {}
+    try { await mysqlPool.query(`ALTER TABLE ORGANIZATION ADD COLUMN Lockout_Until DATETIME NULL`); } catch (_) {}
+    try { await mysqlPool.query(`ALTER TABLE ADMINISTRATOR ADD COLUMN Lockout_Until DATETIME NULL`); } catch (_) {}
+
+    try { await mysqlPool.query(`ALTER TABLE DONOR ADD COLUMN Deletion_Scheduled_At DATETIME NULL`); } catch (_) {}
+    try { await mysqlPool.query(`ALTER TABLE DONOR ADD COLUMN Deletion_Effective_At DATETIME NULL`); } catch (_) {}
+    try { await mysqlPool.query(`ALTER TABLE DONOR ADD COLUMN Is_Deleted TINYINT(1) DEFAULT 0`); } catch (_) {}
+    try { await mysqlPool.query(`ALTER TABLE DONOR ADD COLUMN Deletion_Reason LONGTEXT NULL`); } catch (_) {}
+
+    try { await mysqlPool.query(`ALTER TABLE ORGANIZATION ADD COLUMN Deletion_Scheduled_At DATETIME NULL`); } catch (_) {}
+    try { await mysqlPool.query(`ALTER TABLE ORGANIZATION ADD COLUMN Deletion_Effective_At DATETIME NULL`); } catch (_) {}
+    try { await mysqlPool.query(`ALTER TABLE ORGANIZATION ADD COLUMN Is_Deleted TINYINT(1) DEFAULT 0`); } catch (_) {}
+    try { await mysqlPool.query(`ALTER TABLE ORGANIZATION ADD COLUMN Deletion_Reason LONGTEXT NULL`); } catch (_) {}
+
+    try { await mysqlPool.query(`ALTER TABLE ADMINISTRATOR ADD COLUMN Deletion_Scheduled_At DATETIME NULL`); } catch (_) {}
+    try { await mysqlPool.query(`ALTER TABLE ADMINISTRATOR ADD COLUMN Deletion_Effective_At DATETIME NULL`); } catch (_) {}
+    try { await mysqlPool.query(`ALTER TABLE ADMINISTRATOR ADD COLUMN Is_Deleted TINYINT(1) DEFAULT 0`); } catch (_) {}
+    try { await mysqlPool.query(`ALTER TABLE ADMINISTRATOR ADD COLUMN Deletion_Reason LONGTEXT NULL`); } catch (_) {}
+
+    try {
+      await mysqlPool.query(`
+        CREATE TABLE IF NOT EXISTS EMAIL_CHANGE_TOKENS (
+          Token VARCHAR(255) PRIMARY KEY,
+          Cancel_Token VARCHAR(255),
+          Current_Email VARCHAR(255) NOT NULL,
+          New_Email VARCHAR(255) NOT NULL,
+          Role VARCHAR(50) NOT NULL,
+          User_ID INT NOT NULL,
+          Status VARCHAR(50) DEFAULT 'PENDING',
+          Expires_At DATETIME NOT NULL,
+          Revert_Expires_At DATETIME,
+          Applied_At DATETIME,
+          Reverted_At DATETIME,
+          Created_At TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+    } catch (_) {}
+    try { await mysqlPool.query(`ALTER TABLE EMAIL_CHANGE_TOKENS ADD COLUMN Cancel_Token VARCHAR(255) NULL`); } catch (_) {}
+    try { await mysqlPool.query(`ALTER TABLE EMAIL_CHANGE_TOKENS ADD COLUMN Status VARCHAR(50) DEFAULT 'PENDING'`); } catch (_) {}
+    try { await mysqlPool.query(`ALTER TABLE EMAIL_CHANGE_TOKENS ADD COLUMN Revert_Expires_At DATETIME NULL`); } catch (_) {}
+    try { await mysqlPool.query(`ALTER TABLE EMAIL_CHANGE_TOKENS ADD COLUMN Applied_At DATETIME NULL`); } catch (_) {}
+    try { await mysqlPool.query(`ALTER TABLE EMAIL_CHANGE_TOKENS ADD COLUMN Reverted_At DATETIME NULL`); } catch (_) {}
+
+    try {
+      await mysqlPool.query(`
+        CREATE TABLE IF NOT EXISTS PASSWORD_RESET_TOKENS (
+          Token VARCHAR(255) PRIMARY KEY,
+          Email VARCHAR(255) NOT NULL,
+          Role VARCHAR(50) NOT NULL,
+          User_ID INT NOT NULL,
+          Expires_At DATETIME NOT NULL,
+          Created_At TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+    } catch (_) {}
 
     await mysqlPool.query(`
       CREATE TABLE IF NOT EXISTS CAMPAIGN (
         Campaign_ID INT AUTO_INCREMENT PRIMARY KEY,
         Org_ID INT,
         Campaign_Title VARCHAR(255) NOT NULL,
-        Target_Amount DECIMAL(20, 2) NOT NULL,
+        Target_Amount DECIMAL(36, 18) NOT NULL,
+        Target_Amount_Php DECIMAL(20, 2) DEFAULT 0,
         Smart_Contract_Address VARCHAR(255),
         Description TEXT,
         Location_Region VARCHAR(255),
@@ -541,6 +815,31 @@ async function initializeDatabase() {
     try { await mysqlPool.query(`ALTER TABLE CAMPAIGN ADD COLUMN Created_At TIMESTAMP DEFAULT CURRENT_TIMESTAMP`); } catch (_) {}
     try { await mysqlPool.query(`ALTER TABLE CAMPAIGN ADD COLUMN Ai_Suggested_Allocations LONGTEXT`); } catch (_) {}
     try { await mysqlPool.query(`ALTER TABLE CAMPAIGN ADD COLUMN Ai_Generated_Summary LONGTEXT`); } catch (_) {}
+    try { await mysqlPool.query(`ALTER TABLE CAMPAIGN ADD COLUMN Disaster_Images_Json LONGTEXT`); } catch (_) {}
+    try { await mysqlPool.query(`ALTER TABLE CAMPAIGN MODIFY COLUMN Disaster_Images_Json LONGTEXT`); } catch (_) {}
+    try { await mysqlPool.query(`ALTER TABLE CAMPAIGN MODIFY COLUMN Target_Amount DECIMAL(36, 18)`); } catch (_) {}
+    try { await mysqlPool.query(`ALTER TABLE CAMPAIGN ADD COLUMN Target_Amount_Php DECIMAL(20, 2) DEFAULT 0`); } catch (_) {}
+    try { await mysqlPool.query(`UPDATE CAMPAIGN SET Target_Amount_Php = ROUND(Target_Amount * 170000, 2) WHERE (Target_Amount_Php IS NULL OR Target_Amount_Php = 0) AND Target_Amount > 0`); } catch (_) {}
+    try { await mysqlPool.query(`ALTER TABLE CAMPAIGN ADD COLUMN Disbursed_Amount DECIMAL(36, 18) DEFAULT 0`); } catch (_) {}
+    try { await mysqlPool.query(`ALTER TABLE CAMPAIGN ADD COLUMN Disbursed_Amount_Php DECIMAL(15, 2) DEFAULT 0`); } catch (_) {}
+    try { await mysqlPool.query(`ALTER TABLE CAMPAIGN ADD COLUMN Disbursement_Status VARCHAR(50) DEFAULT 'FUNDRAISING'`); } catch (_) {}
+    try { await mysqlPool.query(`ALTER TABLE CAMPAIGN ADD COLUMN Last_Disbursement_At TIMESTAMP NULL`); } catch (_) {}
+
+    await mysqlPool.query(`
+      CREATE TABLE IF NOT EXISTS CAMPAIGN_DISBURSEMENT (
+        Disbursement_ID INT AUTO_INCREMENT PRIMARY KEY,
+        Campaign_ID INT NOT NULL,
+        Org_ID INT NOT NULL,
+        Amount_Php DECIMAL(15, 2) NOT NULL,
+        Amount_Eth DECIMAL(36, 18) DEFAULT 0,
+        Beneficiaries_Reached INT DEFAULT 0,
+        Impact_Summary TEXT NOT NULL,
+        Proof_Url LONGTEXT,
+        Tx_Hash VARCHAR(255),
+        Disbursed_At TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (Campaign_ID) REFERENCES CAMPAIGN(Campaign_ID) ON DELETE CASCADE
+      )
+    `);
 
     await mysqlPool.query(`
       CREATE TABLE IF NOT EXISTS DONATION_TRANSACTION (
@@ -622,6 +921,49 @@ async function initializeDatabase() {
     try { await mysqlPool.query(`ALTER TABLE USER_NOTIFICATIONS ADD COLUMN Is_Deleted BOOLEAN DEFAULT 0`); } catch (_) {}
     try { await mysqlPool.query(`ALTER TABLE USER_NOTIFICATIONS ADD COLUMN Deleted_At TIMESTAMP NULL`); } catch (_) {}
 
+    await mysqlPool.query(`
+      CREATE TABLE IF NOT EXISTS ACTIVITY_LOGS (
+        Log_ID INT AUTO_INCREMENT PRIMARY KEY,
+        Activity VARCHAR(500) NOT NULL,
+        User_Name VARCHAR(255),
+        User_Email VARCHAR(255),
+        Role VARCHAR(50) DEFAULT 'SYSTEM',
+        Target VARCHAR(255),
+        Category VARCHAR(50) DEFAULT 'SYSTEM',
+        Status VARCHAR(20) DEFAULT 'SUCCESS',
+        IP_Address VARCHAR(100),
+        Details_Json LONGTEXT,
+        Created_At TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_act_created (Created_At),
+        INDEX idx_act_category (Category),
+        INDEX idx_act_role (Role)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    `);
+
+    await mysqlPool.query(`
+      CREATE TABLE IF NOT EXISTS SYSTEM_ANNOUNCEMENT (
+        Announcement_ID INT AUTO_INCREMENT PRIMARY KEY,
+        Title VARCHAR(255) NOT NULL,
+        Message TEXT NOT NULL,
+        Severity ENUM('EMERGENCY', 'OPERATIONAL', 'GENERAL') DEFAULT 'GENERAL',
+        Target_Audience ENUM('ALL', 'DONOR', 'ORGANIZATION') DEFAULT 'ALL',
+        Is_Active BOOLEAN DEFAULT 1,
+        Created_By VARCHAR(150) DEFAULT 'Admin',
+        Created_At TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        Expires_At TIMESTAMP NULL,
+        INDEX idx_ann_active (Is_Active),
+        INDEX idx_ann_created (Created_At)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    `);
+
+    await mysqlPool.query(`
+      CREATE TABLE IF NOT EXISTS SYSTEM_SETTINGS (
+        Setting_Key VARCHAR(100) PRIMARY KEY,
+        Setting_Value LONGTEXT,
+        Updated_At TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    `);
+
     activeDriver = 'mysql';
     console.log('✅ ERD Tables Synchronized with MySQL.');
     await seedDefaultAccounts('mysql');
@@ -634,6 +976,16 @@ async function initializeDatabase() {
 
 // Start initialization immediately
 const initPromise = initializeDatabase();
+
+// ── Cloud Database Keep-Alive Heartbeat ─────────────────────────────
+// Keeps the remote TiDB Cloud proxy socket active, preventing ECONNRESET drops
+setInterval(async () => {
+  if (activeDriver === 'mysql' && mysqlPool) {
+    try {
+      await mysqlPool.query('SELECT 1');
+    } catch (_) {}
+  }
+}, 20000);
 
 // Universal Query Helper compatible with both MySQL and SQLite
 module.exports = {

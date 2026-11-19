@@ -1,86 +1,31 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
+import { createPortal } from 'react-dom';
+import TermsPolicyModal from '../components/TermsPolicyModal';
+import OtpPinBoxes from '../components/OtpPinBoxes';
 import './AuthView.css';
 
 import { API_URL, apiFetch } from '../config';
 
-// ── 6-Digit Individual Box PIN Input Component ────────────────
-function OtpPinBoxes({ value = '', onChange, autoFocus = true }) {
-  const inputRefs = [useRef(null), useRef(null), useRef(null), useRef(null), useRef(null), useRef(null)];
-
-  const rawDigits = (value || '').split('').slice(0, 6);
-  const digits = Array.from({ length: 6 }, (_, i) => rawDigits[i] || '');
-
-  const handleChange = (index, e) => {
-    const val = e.target.value.replace(/\D/g, '');
-    if (!val) {
-      const next = [...digits];
-      next[index] = '';
-      onChange(next.join(''));
-      return;
-    }
-
-    const lastChar = val.slice(-1);
-    const next = [...digits];
-    next[index] = lastChar;
-    const combined = next.join('');
-    onChange(combined);
-
-    if (index < 5 && lastChar) {
-      inputRefs[index + 1].current?.focus();
-    }
-  };
-
-  const handleKeyDown = (index, e) => {
-    if (e.key === 'Backspace') {
-      if (!digits[index] && index > 0) {
-        inputRefs[index - 1].current?.focus();
-      }
-    } else if (e.key === 'ArrowLeft' && index > 0) {
-      inputRefs[index - 1].current?.focus();
-    } else if (e.key === 'ArrowRight' && index < 5) {
-      inputRefs[index + 1].current?.focus();
-    }
-  };
-
-  const handlePaste = (e) => {
-    e.preventDefault();
-    const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
-    if (pasted) {
-      onChange(pasted);
-      const focusIndex = Math.min(pasted.length, 5);
-      inputRefs[focusIndex].current?.focus();
-    }
-  };
-
-  return (
-    <div className="otp-boxes-container" onPaste={handlePaste}>
-      {digits.map((digit, i) => (
-        <input
-          key={i}
-          ref={inputRefs[i]}
-          type="text"
-          inputMode="numeric"
-          pattern="[0-9]*"
-          maxLength={1}
-          value={digit}
-          onChange={e => handleChange(i, e)}
-          onKeyDown={e => handleKeyDown(i, e)}
-          className={`otp-single-box ${digit ? 'filled' : ''}`}
-          autoFocus={autoFocus && i === 0}
-          aria-label={`Digit ${i + 1}`}
-        />
-      ))}
-    </div>
-  );
-}
-
-export default function AuthView({ onLoginSuccess, onBack, theme, initialMode = 'login' }) {
+export default function AuthView({ onLoginSuccess, onBack, theme, onToggleTheme, initialMode = 'login', initialRole = 'donor' }) {
   const [isRegistering, setIsRegistering] = useState(initialMode === 'register');
+  const [role, setRole] = useState(initialRole === 'organization' ? 'organization' : 'donor');
 
   useEffect(() => {
     setIsRegistering(initialMode === 'register');
   }, [initialMode]);
+
+  useEffect(() => {
+    if (initialRole) {
+      setRole(initialRole === 'organization' ? 'organization' : 'donor');
+    }
+  }, [initialRole]);
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+  }, [isRegistering]);
   const [hasInteracted, setHasInteracted] = useState(false);
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
+  const [legalModal, setLegalModal] = useState({ open: false, tab: 'agreement' });
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [orgName, setOrgName] = useState('');
@@ -92,9 +37,9 @@ export default function AuthView({ onLoginSuccess, onBack, theme, initialMode = 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [role, setRole] = useState('donor');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [passwordFocused, setPasswordFocused] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [rememberMe, setRememberMe] = useState(true);
@@ -122,27 +67,66 @@ export default function AuthView({ onLoginSuccess, onBack, theme, initialMode = 
     setEmail('redcross.leyte@gmail.com');
     setPassword('Password123!');
     setConfirmPassword('Password123!');
-    
+
     // Generate realistic SEC Non-Stock Certificate SVG
     const secCertSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 400" width="600" height="400"><rect width="600" height="400" fill="#fdfbf7" stroke="#b45309" stroke-width="6" rx="8"/><rect x="15" y="15" width="570" height="370" fill="none" stroke="#d97706" stroke-width="2" stroke-dasharray="8 4"/><text x="300" y="60" font-family="Georgia, serif" font-size="16" font-weight="bold" fill="#78350f" text-anchor="middle">REPUBLIC OF THE PHILIPPINES</text><text x="300" y="85" font-family="Georgia, serif" font-size="20" font-weight="bold" fill="#b45309" text-anchor="middle">SECURITIES AND EXCHANGE COMMISSION</text><text x="300" y="110" font-family="sans-serif" font-size="12" fill="#92400e" text-anchor="middle">SEC Building, EDSA, Greenhills, Mandaluyong City</text><line x1="100" y1="125" x2="500" y2="125" stroke="#b45309" stroke-width="2"/><text x="300" y="160" font-family="Georgia, serif" font-size="22" font-style="italic" fill="#1e293b" text-anchor="middle">CERTIFICATE OF INCORPORATION</text><text x="300" y="195" font-family="sans-serif" font-size="14" fill="#334155" text-anchor="middle">This is to certify that</text><text x="300" y="230" font-family="Georgia, serif" font-size="20" font-weight="bold" fill="#0f172a" text-anchor="middle">PHILIPPINE RED CROSS - SOUTHERN LEYTE CHAPTER</text><text x="300" y="260" font-family="sans-serif" font-size="13" fill="#475569" text-anchor="middle">is registered as a Non-Stock, Non-Profit Humanitarian Corporation</text><text x="300" y="295" font-family="monospace" font-size="15" font-weight="bold" fill="#b45309" text-anchor="middle">COMPANY REG. NO. SEC-CN2021-08492</text><text x="300" y="355" font-family="sans-serif" font-size="11" fill="#64748b" text-anchor="middle">Issued under Republic Act 11232 • Duly Verified & Seal Affixed</text></svg>`;
     const b64 = window.btoa(unescape(encodeURIComponent(secCertSvg)));
     setSecCertificateUrl(`data:image/svg+xml;base64,${b64}`);
   };
 
-  // ── Forgot Password Real Email Verification State ──
+  // ── Forgot Password Real Email Link State (60-min Link, Not OTP) ──
   const [forgotOpen, setForgotOpen] = useState(false);
-  const [forgotStep, setForgotStep] = useState(1); // 1: Enter Email, 2: Enter OTP & New Password, 3: Success
+  const [forgotStep, setForgotStep] = useState(1); // 1: Enter Email, 2: Link Sent
   const [forgotEmail, setForgotEmail] = useState('');
-  const [forgotOtp, setForgotOtp] = useState('');
-  const [forgotNewPassword, setForgotNewPassword] = useState('');
-  const [forgotConfirmPassword, setForgotConfirmPassword] = useState('');
   const [forgotLoading, setForgotLoading] = useState(false);
   const [forgotError, setForgotError] = useState('');
-  const [forgotDevCode, setForgotDevCode] = useState('');
-  const [forgotCountdown, setForgotCountdown] = useState(300);
+  const [forgotDevResetUrl, setForgotDevResetUrl] = useState('');
   const [forgotResendCooldown, setForgotResendCooldown] = useState(0);
   const [forgotResendLoading, setForgotResendLoading] = useState(false);
   const [forgotResendMsg, setForgotResendMsg] = useState('');
+
+  // ── Password Reset Deep Link State (from Email Link) ──
+  const [resetModalOpen, setResetModalOpen] = useState(false);
+  const [resetToken, setResetToken] = useState('');
+  const [resetEmail, setResetEmail] = useState('');
+  const [resetNewPassword, setResetNewPassword] = useState('');
+  const [resetConfirmPassword, setResetConfirmPassword] = useState('');
+  const [showResetNewPassword, setShowResetNewPassword] = useState(false);
+  const [showResetConfirmPassword, setShowResetConfirmPassword] = useState(false);
+  const [resetPasswordFocused, setResetPasswordFocused] = useState(false);
+  const [resetLoading, setResetLoading] = useState(false);
+  const [resetError, setResetError] = useState('');
+  const [resetSuccess, setResetSuccess] = useState(false);
+  const [resetChecking, setResetChecking] = useState(false);
+  const [resetTokenValid, setResetTokenValid] = useState(false);
+  const [resetAlreadyUsed, setResetAlreadyUsed] = useState(false);
+
+  // ── Security Alert Deep Link State (Unrecognized Device Login) ──
+  const [secureModalOpen, setSecureModalOpen] = useState(false);
+  const [secureToken, setSecureToken] = useState('');
+  const [secureEmail, setSecureEmail] = useState('');
+  const [secureNewPassword, setSecureNewPassword] = useState('');
+  const [secureConfirmPassword, setSecureConfirmPassword] = useState('');
+  const [showSecureNewPassword, setShowSecureNewPassword] = useState(false);
+  const [showSecureConfirmPassword, setShowSecureConfirmPassword] = useState(false);
+  const [securePasswordFocused, setSecurePasswordFocused] = useState(false);
+  const [secureLoading, setSecureLoading] = useState(false);
+  const [secureError, setSecureError] = useState('');
+  const [secureSuccess, setSecureSuccess] = useState(false);
+
+  // ── Two-Factor Authentication (2FA) Challenge Modal State ──
+  const [twoFactorModalOpen, setTwoFactorModalOpen] = useState(false);
+  const [twoFactorTempToken, setTwoFactorTempToken] = useState('');
+  const [twoFactorEmail, setTwoFactorEmail] = useState('');
+  const [twoFactorCode, setTwoFactorCode] = useState('');
+  const [twoFactorRecoveryCode, setTwoFactorRecoveryCode] = useState('');
+  const [twoFactorUseBackup, setTwoFactorUseBackup] = useState(false);
+  const [twoFactorTrustDevice, setTwoFactorTrustDevice] = useState(true);
+  const [twoFactorLoading, setTwoFactorLoading] = useState(false);
+  const [twoFactorError, setTwoFactorError] = useState('');
+
+  // ── Email Change Link Notification State ──
+  const [emailChangeNotice, setEmailChangeNotice] = useState(null); // { verifying, success, error, message }
 
   // ── Registration Dual-Channel (Email + SMS) Verification State ──
   const [regVerifyOpen, setRegVerifyOpen] = useState(false);
@@ -211,14 +195,114 @@ export default function AuthView({ onLoginSuccess, onBack, theme, initialMode = 
       .catch(err => console.warn('Using fallback stats', err));
   }, []);
 
-  // ── Expiration Countdown Timers ──
+  // ── Deep Link & Route Detection (Password Reset & Device Security Alert) ──
   useEffect(() => {
-    let timer = null;
-    if (forgotOpen && forgotStep === 2 && forgotCountdown > 0) {
-      timer = setInterval(() => setForgotCountdown(prev => prev - 1), 1000);
+    if (typeof window === 'undefined') return;
+
+    const pathname = window.location.pathname;
+    const searchParams = new URLSearchParams(window.location.search);
+
+    const tokenFromPath = pathname.startsWith('/reset-password/')
+      ? pathname.replace('/reset-password/', '').split('/')[0].split('?')[0]
+      : null;
+    const tokenFromQuery = searchParams.get('token') || searchParams.get('resetToken');
+    const emailParam = searchParams.get('email') || '';
+    const actionParam = searchParams.get('action') || '';
+
+    const effectiveToken = tokenFromPath || tokenFromQuery;
+
+    if (actionParam === 'secure-account') {
+      setSecureModalOpen(true);
+      if (effectiveToken) setSecureToken(effectiveToken);
+      if (emailParam) setSecureEmail(emailParam);
+    } else if (actionParam === 'forgot-password') {
+      setForgotOpen(true);
+      setForgotStep(1);
+      if (emailParam) setForgotEmail(emailParam);
+    } else if (actionParam === 'verify-email-change' && effectiveToken) {
+      setEmailChangeNotice({ verifying: true, success: false, error: '', message: 'Verifying your new email address...' });
+      apiFetch(`${API_URL}/api/auth/verify-email-change`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: effectiveToken })
+      })
+        .then(async (res) => {
+          const data = await res.json().catch(() => ({}));
+          if (res.ok) {
+            setEmailChangeNotice({ verifying: false, success: true, message: data.message || 'Email address successfully updated! You can now log in.' });
+          } else {
+            setEmailChangeNotice({ verifying: false, success: false, error: data.error || 'Failed to verify email change link.' });
+          }
+        })
+        .catch(err => {
+          setEmailChangeNotice({ verifying: false, success: false, error: err.message });
+        });
+    } else if (actionParam === 'cancel-email-change' && effectiveToken) {
+      setEmailChangeNotice({ verifying: true, success: false, error: '', message: 'Processing account security request...' });
+      apiFetch(`${API_URL}/api/auth/cancel-email-change`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: effectiveToken })
+      })
+        .then(async (res) => {
+          const data = await res.json().catch(() => ({}));
+          if (res.ok && data.success) {
+            setEmailChangeNotice({
+              verifying: false,
+              success: true,
+              reverted: !!data.reverted,
+              cancelled: !!data.cancelled,
+              alreadyReverted: !!data.alreadyReverted,
+              originalEmail: data.originalEmail,
+              message: data.message || 'Account successfully secured and restored!'
+            });
+            if (data.originalEmail) {
+              setEmail(data.originalEmail);
+            }
+          } else {
+            setEmailChangeNotice({
+              verifying: false,
+              success: false,
+              error: data.error || 'Failed to cancel email change request.'
+            });
+          }
+        })
+        .catch(err => {
+          setEmailChangeNotice({ verifying: false, success: false, error: err.message });
+        });
+    } else if (effectiveToken) {
+      setResetModalOpen(true);
+      setResetToken(effectiveToken);
+      setResetEmail(emailParam);
+      setResetChecking(true);
+      setResetTokenValid(false);
+      setResetAlreadyUsed(false);
+      setResetError('');
+
+      apiFetch(`${API_URL}/api/auth/verify-reset-token?token=${encodeURIComponent(effectiveToken)}`)
+        .then(async (res) => {
+          const data = await res.json().catch(() => ({}));
+          if (res.ok && data.valid) {
+            setResetTokenValid(true);
+            if (data.email) setResetEmail(data.email);
+          } else {
+            setResetTokenValid(false);
+            if (data.alreadyUsed) setResetAlreadyUsed(true);
+            setResetError(data.error || 'This password reset link is invalid or has already been used.');
+          }
+        })
+        .catch(() => {
+          setResetTokenValid(false);
+          setResetError('Unable to verify reset link. Please check your internet connection or request a new link.');
+        })
+        .finally(() => {
+          setResetChecking(false);
+        });
     }
-    return () => clearInterval(timer);
-  }, [forgotOpen, forgotStep, forgotCountdown]);
+  }, []);
+
+  // ── Expiration Countdown Timers ──
+
 
   useEffect(() => {
     let timer = null;
@@ -261,6 +345,47 @@ export default function AuthView({ onLoginSuccess, onBack, theme, initialMode = 
     return () => clearInterval(timer);
   }, [otpLoginResendCooldown]);
 
+  // Global keyboard listener so hitting 'Enter' anywhere in auth view proceeds immediately
+  useEffect(() => {
+    const handleGlobalKeyDown = (e) => {
+      if (e.key !== 'Enter') return;
+      if (loading || regVerifyLoading || otpLoginLoading || forgotLoading) return;
+
+      if (regVerifyOpen) {
+        e.preventDefault();
+        handleVerifyRegistrationOtp(e);
+      } else if (otpLoginOpen) {
+        e.preventDefault();
+        if (otpLoginStep === 1) handleOtpLoginRequest(e);
+        else if (otpLoginStep === 2) handleOtpLoginVerify(e);
+      } else if (forgotOpen) {
+        if (forgotStep === 1) {
+          e.preventDefault();
+          handleForgotRequestLink(e);
+        }
+      } else if (resetModalOpen) {
+        e.preventDefault();
+        handleResetPasswordSubmit(e);
+      } else if (secureModalOpen) {
+        e.preventDefault();
+        handleSecureAccountSubmit(e);
+      } else if (!isRegistering) {
+        if (email && password) {
+          e.preventDefault();
+          handleSubmit(e);
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+  }, [
+    regVerifyOpen, otpLoginOpen, otpLoginStep, forgotOpen, forgotStep,
+    resetModalOpen, secureModalOpen,
+    isRegistering, email, password, loading, regVerifyLoading, otpLoginLoading, forgotLoading,
+    regVerifyEmailOtp, regVerifySmsOtp, regVerifyOtp, otpLoginCode, forgotEmail, resetNewPassword, resetConfirmPassword
+  ]);
+
   const formatTimer = (sec) => {
     const m = Math.floor(sec / 60);
     const s = sec % 60;
@@ -286,7 +411,7 @@ export default function AuthView({ onLoginSuccess, onBack, theme, initialMode = 
       case 4:
         return { score: 4, label: 'Strong', color: '#22c55e', percent: 100 };
       default:
-        return { score: 0, label: 'Too short', color: '#ef4444', percent: 15 };
+        return { score: 0, label: 'Weak', color: '#ef4444', percent: 15 };
     }
   };
 
@@ -294,7 +419,62 @@ export default function AuthView({ onLoginSuccess, onBack, theme, initialMode = 
   const passwordsMatch = confirmPassword.length > 0 && password === confirmPassword;
   const passwordsMismatch = confirmPassword.length > 0 && password !== confirmPassword;
 
-  const forgotPwdStrength = getPasswordStrength(forgotNewPassword);
+  const resetPwdStrength = getPasswordStrength(resetNewPassword);
+  const resetPasswordRequirements = useMemo(() => [
+    { id: 'length', label: 'At least 8 characters', met: resetNewPassword.length >= 8 },
+    { id: 'uppercase', label: 'At least 1 uppercase letter (A–Z)', met: /[A-Z]/.test(resetNewPassword) },
+    { id: 'lowercase', label: 'At least 1 lowercase letter (a–z)', met: /[a-z]/.test(resetNewPassword) },
+    { id: 'number', label: 'At least 1 number (0–9)', met: /\d/.test(resetNewPassword) },
+    { id: 'symbol', label: 'At least 1 special symbol (@$!%*?)', met: /[!@#$%^&*(),.?":{}|<>]/.test(resetNewPassword) }
+  ], [resetNewPassword]);
+  const resetMetRequirementsCount = useMemo(() => resetPasswordRequirements.filter(r => r.met).length, [resetPasswordRequirements]);
+  const resetPasswordsMatch = resetConfirmPassword.length > 0 && resetNewPassword === resetConfirmPassword;
+  const resetPasswordsMismatch = resetConfirmPassword.length > 0 && resetNewPassword !== resetConfirmPassword;
+
+  const securePwdStrength = getPasswordStrength(secureNewPassword);
+  const securePasswordRequirements = useMemo(() => [
+    { id: 'length', label: 'At least 8 characters', met: secureNewPassword.length >= 8 },
+    { id: 'uppercase', label: 'At least 1 uppercase letter (A–Z)', met: /[A-Z]/.test(secureNewPassword) },
+    { id: 'lowercase', label: 'At least 1 lowercase letter (a–z)', met: /[a-z]/.test(secureNewPassword) },
+    { id: 'number', label: 'At least 1 number (0–9)', met: /\d/.test(secureNewPassword) },
+    { id: 'symbol', label: 'At least 1 special symbol (@$!%*?)', met: /[!@#$%^&*(),.?":{}|<>]/.test(secureNewPassword) }
+  ], [secureNewPassword]);
+  const secureMetRequirementsCount = useMemo(() => securePasswordRequirements.filter(r => r.met).length, [securePasswordRequirements]);
+  const securePasswordsMatch = secureConfirmPassword.length > 0 && secureNewPassword === secureConfirmPassword;
+  const securePasswordsMismatch = secureConfirmPassword.length > 0 && secureNewPassword !== secureConfirmPassword;
+
+  // Live real-time password requirements list for floating dropdown
+  const passwordRequirements = useMemo(() => [
+    {
+      id: 'length',
+      label: 'At least 8 characters',
+      met: password.length >= 8
+    },
+    {
+      id: 'uppercase',
+      label: 'At least 1 uppercase letter (A–Z)',
+      met: /[A-Z]/.test(password)
+    },
+    {
+      id: 'lowercase',
+      label: 'At least 1 lowercase letter (a–z)',
+      met: /[a-z]/.test(password)
+    },
+    {
+      id: 'number',
+      label: 'At least 1 number (0–9)',
+      met: /\d/.test(password)
+    },
+    {
+      id: 'symbol',
+      label: 'At least 1 special symbol (@$!%*?)',
+      met: /[!@#$%^&*(),.?":{}|<>]/.test(password)
+    }
+  ], [password]);
+
+  const metRequirementsCount = useMemo(() => {
+    return passwordRequirements.filter(r => r.met).length;
+  }, [passwordRequirements]);
 
   // Live real-time missing requirements generator
   const livePwdFeedback = useMemo(() => {
@@ -328,8 +508,8 @@ export default function AuthView({ onLoginSuccess, onBack, theme, initialMode = 
     };
   }, [password]);
 
-  const liveForgotPwdFeedback = useMemo(() => {
-    if (!forgotNewPassword) {
+  const liveResetPwdFeedback = useMemo(() => {
+    if (!resetNewPassword) {
       return {
         text: 'Must be 8+ characters with uppercase, lowercase, numbers & symbols.',
         isComplete: false,
@@ -338,11 +518,11 @@ export default function AuthView({ onLoginSuccess, onBack, theme, initialMode = 
     }
 
     const missing = [];
-    if (forgotNewPassword.length < 8) missing.push('8+ characters');
-    if (!/[A-Z]/.test(forgotNewPassword)) missing.push('uppercase (A-Z)');
-    if (!/[a-z]/.test(forgotNewPassword)) missing.push('lowercase (a-z)');
-    if (!/\d/.test(forgotNewPassword)) missing.push('number (0-9)');
-    if (!/[!@#$%^&*(),.?":{}|<>]/.test(forgotNewPassword)) missing.push('symbol (@$!%*?)');
+    if (resetNewPassword.length < 8) missing.push('8+ characters');
+    if (!/[A-Z]/.test(resetNewPassword)) missing.push('uppercase (A-Z)');
+    if (!/[a-z]/.test(resetNewPassword)) missing.push('lowercase (a-z)');
+    if (!/\d/.test(resetNewPassword)) missing.push('number (0-9)');
+    if (!/[!@#$%^&*(),.?":{}|<>]/.test(resetNewPassword)) missing.push('symbol (@$!%*?)');
 
     if (missing.length === 0) {
       return {
@@ -357,7 +537,7 @@ export default function AuthView({ onLoginSuccess, onBack, theme, initialMode = 
       isComplete: false,
       color: missing.length <= 2 ? '#f59e0b' : '#ef4444'
     };
-  }, [forgotNewPassword]);
+  }, [resetNewPassword]);
 
   // Fast, responsive settling helper (0-100ms max to prevent UI flicker)
   const simulateDelay = (ms = 100) => new Promise(resolve => setTimeout(resolve, Math.min(ms, 100)));
@@ -368,6 +548,10 @@ export default function AuthView({ onLoginSuccess, onBack, theme, initialMode = 
     setError('');
 
     if (isRegistering) {
+      if (!agreedToTerms) {
+        setError('Please review and check the agreement box for the User Agreement, Terms of Service, and Privacy Policy (RA 10173).');
+        return;
+      }
       if (password !== confirmPassword) {
         setError('Passwords do not match. Please verify your password confirmation.');
         return;
@@ -384,12 +568,17 @@ export default function AuthView({ onLoginSuccess, onBack, theme, initialMode = 
           ? `${firstName.trim()} ${lastName.trim()}`.trim()
           : orgName.trim();
 
+        const computedDisplayName = role === 'donor'
+          ? (firstName.trim() ? `${firstName.trim()} ${lastName.trim()}`.trim() : 'Verified Donor')
+          : orgName.trim();
+
         const [response] = await Promise.all([
           apiFetch(`${API_URL}/api/auth/register-request`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               name: computedName || (role === 'donor' ? 'Anonymous Donor' : 'Relief Organization'),
+              displayName: computedDisplayName,
               firstName: firstName.trim(),
               lastName: lastName.trim(),
               orgName: orgName.trim(),
@@ -432,24 +621,94 @@ export default function AuthView({ onLoginSuccess, onBack, theme, initialMode = 
     // Standard Login
     setLoading(true);
     try {
-      const [response] = await Promise.all([
-        apiFetch(`${API_URL}/api/auth/login`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, password, role })
-        }),
-        simulateDelay(800)
-      ]);
+      const clientTrustToken = localStorage.getItem(`bbdrts_trusted_device_${email.trim().toLowerCase()}`);
+      const response = await apiFetch(`${API_URL}/api/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password, role, trustedDeviceToken: clientTrustToken })
+      });
       const data = await parseApiResponse(response);
+
+      // Feature 4: Two-Factor Authentication Check
+      if (data.requires2FA) {
+        setTwoFactorTempToken(data.tempToken);
+        setTwoFactorEmail(data.email || email);
+        setTwoFactorCode('');
+        setTwoFactorRecoveryCode('');
+        setTwoFactorUseBackup(false);
+        setTwoFactorTrustDevice(true);
+        setTwoFactorError('');
+        setTwoFactorModalOpen(true);
+        setLoading(false);
+        return;
+      }
+
       localStorage.setItem('bbdrts_token', data.token);
+      if (data.user?.role) {
+        localStorage.setItem('bbdrts_role', data.user.role);
+      }
       // Ensure existing users logging in do not auto-trigger new user onboarding
       localStorage.removeItem('bbdrts_tour_force_launch');
       localStorage.removeItem('bbdrts_is_new_registration');
+      localStorage.removeItem('bbdrts_needs_onboarding');
+      // Slight delay so the user sees the button loading spinner before the full workspace transition
+      await new Promise(r => setTimeout(r, 450));
       onLoginSuccess?.(data.user, data.token);
     } catch (err) {
       setError(err.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // ── Two-Factor Authentication Verification Handler ──
+  const handleVerify2FA = async (e, directCode = null) => {
+    if (e && e.preventDefault) e.preventDefault();
+    setTwoFactorError('');
+
+    const effectiveCode = (typeof directCode === 'string' ? directCode : twoFactorCode).replace(/\D/g, '');
+    if (!twoFactorUseBackup) {
+      if (effectiveCode.length !== 6) return;
+    } else {
+      if (twoFactorRecoveryCode.trim().length < 8) return;
+    }
+
+    setTwoFactorLoading(true);
+
+    try {
+      const payload = {
+        tempToken: twoFactorTempToken,
+        trustDevice: twoFactorTrustDevice,
+        ...(twoFactorUseBackup
+          ? { recoveryCode: twoFactorRecoveryCode.trim() }
+          : { code: effectiveCode })
+      };
+
+      const response = await apiFetch(`${API_URL}/api/auth/login-2fa-verify`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await parseApiResponse(response);
+
+      if (data.trustedDeviceToken) {
+        localStorage.setItem(`bbdrts_trusted_device_${(data.user?.email || twoFactorEmail).toLowerCase()}`, data.trustedDeviceToken);
+      }
+
+      setTwoFactorModalOpen(false);
+      localStorage.setItem('bbdrts_token', data.token);
+      if (data.user?.role) {
+        localStorage.setItem('bbdrts_role', data.user.role);
+      }
+      localStorage.removeItem('bbdrts_tour_force_launch');
+      localStorage.removeItem('bbdrts_is_new_registration');
+      localStorage.removeItem('bbdrts_needs_onboarding');
+      await new Promise(r => setTimeout(r, 350));
+      onLoginSuccess?.(data.user, data.token);
+    } catch (err) {
+      setTwoFactorError(err.message || 'Two-factor verification failed. Please try again.');
+    } finally {
+      setTwoFactorLoading(false);
     }
   };
 
@@ -482,9 +741,13 @@ export default function AuthView({ onLoginSuccess, onBack, theme, initialMode = 
       setRegVerifyOpen(false);
       setSimulatedSmsToast(null);
       localStorage.setItem('bbdrts_token', data.token);
+      if (data.user?.role) {
+        localStorage.setItem('bbdrts_role', data.user.role);
+      }
       // Guarantee Guided Spotlight Tour launches immediately ONLY for newly registered accounts
       localStorage.setItem('bbdrts_tour_force_launch', 'true');
       localStorage.setItem('bbdrts_is_new_registration', 'true');
+      localStorage.setItem('bbdrts_needs_onboarding', 'true');
       if (data.user?.id) {
         localStorage.removeItem(`bbdrts_tour_donor_${data.user.id}`);
         localStorage.removeItem(`bbdrts_tour_ngo_${data.user.id}`);
@@ -495,7 +758,7 @@ export default function AuthView({ onLoginSuccess, onBack, theme, initialMode = 
       }
       localStorage.removeItem('bbdrts_tour_donor_done');
       localStorage.removeItem('bbdrts_tour_ngo_done');
-      onLoginSuccess?.(data.user, data.token);
+      onLoginSuccess?.(data.user, data.token, { isNewRegistration: true });
     } catch (err) {
       setRegVerifyError(err.message);
     } finally {
@@ -514,12 +777,17 @@ export default function AuthView({ onLoginSuccess, onBack, theme, initialMode = 
         ? `${firstName.trim()} ${lastName.trim()}`.trim()
         : orgName.trim();
 
+      const computedDisplayName = role === 'donor'
+        ? (firstName.trim() ? `${firstName.trim()} ${lastName.trim()}`.trim() : 'Verified Donor')
+        : orgName.trim();
+
       const [response] = await Promise.all([
         apiFetch(`${API_URL}/api/auth/register-request`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             name: computedName || (role === 'donor' ? 'Anonymous Donor' : 'Relief Organization'),
+            displayName: computedDisplayName,
             firstName: firstName.trim(),
             lastName: lastName.trim(),
             orgName: orgName.trim(),
@@ -615,20 +883,23 @@ export default function AuthView({ onLoginSuccess, onBack, theme, initialMode = 
     setOtpLoginLoading(true);
 
     try {
-      const [response] = await Promise.all([
-        apiFetch(`${API_URL}/api/auth/login-otp-verify`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: otpLoginEmail, otp: otpLoginCode })
-        }),
-        simulateDelay(850)
-      ]);
+      const response = await apiFetch(`${API_URL}/api/auth/login-otp-verify`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: otpLoginEmail, otp: otpLoginCode })
+      });
       const data = await parseApiResponse(response);
 
       setOtpLoginOpen(false);
       localStorage.setItem('bbdrts_token', data.token);
+      if (data.user?.role) {
+        localStorage.setItem('bbdrts_role', data.user.role);
+      }
       localStorage.removeItem('bbdrts_tour_force_launch');
       localStorage.removeItem('bbdrts_is_new_registration');
+      localStorage.removeItem('bbdrts_needs_onboarding');
+      // Slight delay so the user sees the button loading spinner before the full workspace transition
+      await new Promise(r => setTimeout(r, 450));
       onLoginSuccess?.(data.user, data.token);
     } catch (err) {
       setOtpLoginError(err.message);
@@ -638,7 +909,29 @@ export default function AuthView({ onLoginSuccess, onBack, theme, initialMode = 
   };
 
   // Direct Admin Access Bypass
-  const handleDirectAdminAccess = () => {
+  const handleDirectAdminAccess = async (e) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    try {
+      const res = await fetch(`${API_URL}/api/auth/direct-admin`, { method: 'POST' });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.token && data.user) {
+          localStorage.setItem('bbdrts_token', data.token);
+          localStorage.setItem('bbdrts_role', 'admin');
+          localStorage.removeItem('bbdrts_needs_onboarding');
+          localStorage.removeItem('bbdrts_is_new_registration');
+          localStorage.removeItem('bbdrts_tour_force_launch');
+          onLoginSuccess?.(data.user, data.token);
+          return;
+        }
+      }
+    } catch (err) {
+      console.warn('Direct admin API failed, falling back:', err);
+    }
+
     const adminUser = {
       id: 1,
       name: 'System Administrator',
@@ -647,11 +940,16 @@ export default function AuthView({ onLoginSuccess, onBack, theme, initialMode = 
       wallet_address: '0x206e5d8b76c8c4598d1a457493a746535560b771',
       verification_status: 'Approved'
     };
+    localStorage.setItem('bbdrts_token', 'direct_admin_access_token');
+    localStorage.setItem('bbdrts_role', 'admin');
+    localStorage.removeItem('bbdrts_needs_onboarding');
+    localStorage.removeItem('bbdrts_is_new_registration');
+    localStorage.removeItem('bbdrts_tour_force_launch');
     onLoginSuccess?.(adminUser, 'direct_admin_access_token');
   };
 
-  // ── Forgot Password Step 1: Request Real Email OTP ──
-  const handleForgotRequestOtp = async (e) => {
+  // ── Forgot Password: Send 60-Minute Reset Link via Dedicated Email ─────────
+  const handleForgotRequestLink = async (e) => {
     e.preventDefault();
     if (!forgotEmail) return;
     setForgotError('');
@@ -664,16 +962,14 @@ export default function AuthView({ onLoginSuccess, onBack, theme, initialMode = 
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email: forgotEmail })
         }),
-        simulateDelay(800)
+        simulateDelay(650)
       ]);
       const data = await parseApiResponse(response);
 
-      if (data.devCode) {
-        setForgotDevCode(data.devCode);
+      if (data.resetUrl || data.devResetUrl) {
+        setForgotDevResetUrl(data.resetUrl || data.devResetUrl);
       }
-      setForgotOtp('');
-      setForgotStep(2);
-      setForgotCountdown(600); // Reset 10-minute timer
+      setForgotStep(2); // Link Sent confirmation
       setForgotResendCooldown(60);
       setForgotResendMsg('');
     } catch (err) {
@@ -683,8 +979,8 @@ export default function AuthView({ onLoginSuccess, onBack, theme, initialMode = 
     }
   };
 
-  // ── Resend Forgot Password Code Handler ──
-  const handleResendForgotOtp = async () => {
+  // ── Resend Forgot Password Reset Link Handler ──
+  const handleResendForgotLink = async () => {
     if (forgotResendCooldown > 0 || forgotResendLoading) return;
     setForgotResendMsg('');
     setForgotError('');
@@ -696,13 +992,12 @@ export default function AuthView({ onLoginSuccess, onBack, theme, initialMode = 
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email: forgotEmail })
         }),
-        simulateDelay(750)
+        simulateDelay(650)
       ]);
       const data = await parseApiResponse(response);
-      if (data.devCode) setForgotDevCode(data.devCode);
+      if (data.resetUrl || data.devResetUrl) setForgotDevResetUrl(data.resetUrl || data.devResetUrl);
       setForgotResendCooldown(60);
-      setForgotCountdown(600);
-      setForgotResendMsg('A new password recovery code has been dispatched to your email.');
+      setForgotResendMsg('A new password reset link has been dispatched to your email.');
     } catch (err) {
       setForgotError(err.message);
     } finally {
@@ -710,22 +1005,22 @@ export default function AuthView({ onLoginSuccess, onBack, theme, initialMode = 
     }
   };
 
-  // ── Forgot Password Step 2: Verify Code & Update Password ──
-  const handleForgotVerifyAndReset = async (e) => {
+  // ── Reset Password via Secure Email Token ──────────────────────────────────
+  const handleResetPasswordSubmit = async (e) => {
     e.preventDefault();
-    setForgotError('');
+    setResetError('');
 
-    if (forgotNewPassword !== forgotConfirmPassword) {
-      setForgotError('New passwords do not match.');
+    if (resetNewPassword !== resetConfirmPassword) {
+      setResetError('New passwords do not match.');
       return;
     }
 
-    if (forgotNewPassword.length < 6) {
-      setForgotError('New password must be at least 6 characters long.');
+    if (resetNewPassword.length < 6) {
+      setResetError('New password must be at least 6 characters long.');
       return;
     }
 
-    setForgotLoading(true);
+    setResetLoading(true);
 
     try {
       const [response] = await Promise.all([
@@ -733,21 +1028,74 @@ export default function AuthView({ onLoginSuccess, onBack, theme, initialMode = 
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            email: forgotEmail,
-            otp: forgotOtp,
-            newPassword: forgotNewPassword
+            token: resetToken,
+            email: resetEmail,
+            newPassword: resetNewPassword
           })
         }),
-        simulateDelay(850)
+        simulateDelay(750)
       ]);
       await parseApiResponse(response);
 
-      setForgotStep(3);
-      setEmail(forgotEmail); // Autofill updated email on the login form
+      setResetSuccess(true);
+      setResetTokenValid(false);
+      setResetToken('');
+      if (resetEmail) setEmail(resetEmail);
+      if (typeof window !== 'undefined' && window.history?.replaceState) {
+        window.history.replaceState({}, document.title, '/');
+      }
     } catch (err) {
-      setForgotError(err.message);
+      setResetError(err.message);
+      if (err.message?.toLowerCase().includes('already been used') || err.message?.toLowerCase().includes('expired')) {
+        setResetTokenValid(false);
+        setResetAlreadyUsed(true);
+      }
     } finally {
-      setForgotLoading(false);
+      setResetLoading(false);
+    }
+  };
+
+  // ── Secure Account from Unrecognized Device Alert ──────────────────────────
+  const handleSecureAccountSubmit = async (e) => {
+    e.preventDefault();
+    setSecureError('');
+
+    if (secureNewPassword !== secureConfirmPassword) {
+      setSecureError('New passwords do not match.');
+      return;
+    }
+
+    if (secureNewPassword.length < 6) {
+      setSecureError('New password must be at least 6 characters long.');
+      return;
+    }
+
+    setSecureLoading(true);
+
+    try {
+      const [response] = await Promise.all([
+        apiFetch(`${API_URL}/api/auth/secure-account`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            email: secureEmail,
+            securityToken: secureToken,
+            newPassword: secureNewPassword
+          })
+        }),
+        simulateDelay(750)
+      ]);
+      await parseApiResponse(response);
+
+      setSecureSuccess(true);
+      if (secureEmail) setEmail(secureEmail);
+      if (typeof window !== 'undefined' && window.history?.replaceState) {
+        window.history.replaceState({}, document.title, '/');
+      }
+    } catch (err) {
+      setSecureError(err.message);
+    } finally {
+      setSecureLoading(false);
     }
   };
 
@@ -762,8 +1110,72 @@ export default function AuthView({ onLoginSuccess, onBack, theme, initialMode = 
       {/* Ambient background glow backdrop */}
       <div className="login-ambient-mesh"></div>
 
+      {/* Minimal Top Navigation Controls (since Header & Footer are hidden in focused Auth mode) */}
+      <div className="auth-topbar-controls">
+        {onBack ? (
+          <button
+            type="button"
+            className="auth-corner-pill"
+            onClick={onBack}
+            aria-label="Back to landing page"
+          >
+            <span className="material-symbols-outlined">arrow_back</span>
+            <span>Back to Home</span>
+          </button>
+        ) : <span />}
+
+        <div className="auth-topbar-right">
+          <button
+            type="button"
+            className="auth-corner-pill"
+            onClick={handleDirectAdminAccess}
+            title="Direct Access to Administrator Dashboard"
+          >
+            <span className="material-symbols-outlined">admin_panel_settings</span>
+            <span>Admin Access</span>
+          </button>
+
+          <button
+            type="button"
+            className="auth-corner-pill"
+            onClick={() => window.dispatchEvent(new CustomEvent('bbdrts_open_onboarding'))}
+            title="Interactive UI Prototype: Preview First-Time Personalization Experience"
+          >
+            <span className="material-symbols-outlined">tune</span>
+            <span>Preview</span>
+          </button>
+
+          {onToggleTheme && (
+            <button
+              type="button"
+              className="auth-corner-pill icon-only"
+              onClick={onToggleTheme}
+              aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+              title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+            >
+              <span className="material-symbols-outlined">
+                {theme === 'dark' ? 'light_mode' : 'dark_mode'}
+              </span>
+            </button>
+          )}
+        </div>
+      </div>
+
       <div className="login-form-side fade-in">
         <div className={`login-glass-card ${isRegistering ? 'right-panel-active' : ''} ${hasInteracted ? 'has-interacted' : ''}`}>
+
+          {/* Quick Direct Admin Access Floating Button */}
+          {/*}
+          <button
+            type="button"
+            className="bbdrts-auth-floating-admin-btn"
+            onClick={handleDirectAdminAccess}
+            title="Direct Access to Administrator Dashboard"
+          >
+            <span className="material-symbols-outlined">admin_panel_settings</span>
+            <span>Direct Admin Access</span>
+          </button>
+          */}
 
           {/* ===== FORM 1: SIGN IN (RIGHT HALF BY DEFAULT) ===== */}
           <div className="form-panel sign-in-panel">
@@ -772,32 +1184,38 @@ export default function AuthView({ onLoginSuccess, onBack, theme, initialMode = 
               {/* Header */}
               <div className="login-header-modern">
                 <h2>{role === 'organization' ? 'NGO Portal Login' : 'Donor Portal Login'}</h2>
-                <p>Log in to access your transparent relief portal</p>
+                <p className="login-header-subtitle">Log in to access your transparent relief portal</p>
               </div>
 
-              {/* Role Switcher (Donor vs NGO) */}
-              <div className="role-selector">
-                <div
+              {/* Vercel-style Segmented Role Switcher */}
+              <div className="role-selector" role="tablist" aria-label="Account Login Role">
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={role === 'donor'}
                   className={`role-card-opt ${role === 'donor' ? 'active' : ''}`}
-                  onClick={() => setRole('donor')}
+                  onClick={() => {
+                    setRole('donor');
+                    setError('');
+                  }}
                 >
-                  {role === 'donor' && (
-                    <span className="material-symbols-outlined role-check-icon">check_circle</span>
-                  )}
                   <span className="material-symbols-outlined role-type-icon">person</span>
                   <span className="role-type-label">Donor</span>
-                </div>
+                </button>
 
-                <div
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={role === 'organization'}
                   className={`role-card-opt ${role === 'organization' ? 'active' : ''}`}
-                  onClick={() => setRole('organization')}
+                  onClick={() => {
+                    setRole('organization');
+                    setError('');
+                  }}
                 >
-                  {role === 'organization' && (
-                    <span className="material-symbols-outlined role-check-icon">check_circle</span>
-                  )}
                   <span className="material-symbols-outlined role-type-icon">domain</span>
                   <span className="role-type-label">NGO / Relief Org</span>
-                </div>
+                </button>
               </div>
 
               {/* Login Form */}
@@ -811,6 +1229,12 @@ export default function AuthView({ onLoginSuccess, onBack, theme, initialMode = 
                       placeholder={role === 'organization' ? "contact@redcross.org.ph" : "your.email@gmail.com"}
                       value={email}
                       onChange={e => setEmail(e.target.value)}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleSubmit(e);
+                        }
+                      }}
                       required
                     />
                   </div>
@@ -825,6 +1249,12 @@ export default function AuthView({ onLoginSuccess, onBack, theme, initialMode = 
                       placeholder="••••••••"
                       value={password}
                       onChange={e => setPassword(e.target.value)}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          handleSubmit(e);
+                        }
+                      }}
                       required
                     />
                     <button
@@ -864,13 +1294,6 @@ export default function AuthView({ onLoginSuccess, onBack, theme, initialMode = 
                   </button>
                 </div>
 
-                {error && !isRegistering && (
-                  <div className="alert-modern error">
-                    <span className="material-symbols-outlined">warning</span>
-                    <span>{error}</span>
-                  </div>
-                )}
-
                 <button
                   type="submit"
                   className={`btn-modern-primary ${loading && !isRegistering ? 'loading' : ''}`}
@@ -879,11 +1302,11 @@ export default function AuthView({ onLoginSuccess, onBack, theme, initialMode = 
                   {loading && !isRegistering ? (
                     <>
                       <span className="spinner-before"></span>
-                      <span>Signing in...</span>
+                      <span>Logging in...</span>
                     </>
                   ) : (
                     <>
-                      <span>Sign In</span>
+                      <span>Log In</span>
                       <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>arrow_forward</span>
                     </>
                   )}
@@ -899,26 +1322,9 @@ export default function AuthView({ onLoginSuccess, onBack, theme, initialMode = 
                     setOtpLoginError('');
                     setOtpLoginEmail(email);
                   }}
-                  style={{
-                    marginTop: '8px',
-                    width: '100%',
-                    background: 'rgba(34, 197, 94, 0.08)',
-                    border: '1px solid rgba(34, 197, 94, 0.3)',
-                    color: '#22c55e',
-                    borderRadius: '8px',
-                    padding: '8px 12px',
-                    fontSize: '0.78rem',
-                    fontWeight: '700',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '6px',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease'
-                  }}
                 >
                   <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>mark_email_read</span>
-                  <span>Sign In with One-Time Email Code</span>
+                  <span>Log In with One-Time Email Code</span>
                 </button>
               </form>
 
@@ -930,6 +1336,7 @@ export default function AuthView({ onLoginSuccess, onBack, theme, initialMode = 
                   Don't have an account?{" "}
                   <button
                     type="button"
+                    style={{ border: "none" }}
                     className="switch-link"
                     onClick={() => handleToggleMode(true)}
                   >
@@ -948,80 +1355,91 @@ export default function AuthView({ onLoginSuccess, onBack, theme, initialMode = 
               {/* Header */}
               <div className="login-header-modern">
                 <h2>Create Account</h2>
-                <p>{role === 'organization' ? 'Register your Non-Governmental Organization (NGO)' : 'Sign up as a Donor (Individual, Group, or Entity)'}</p>
+                <p className="login-header-subtitle">
+                  {role === 'organization' ? 'Register your Non-Governmental Organization (NGO)' : 'Sign up as a Donor (Individual, Group, or Entity)'}
+                </p>
               </div>
 
-              {/* Role Switcher (Donor vs NGO) */}
-              <div className="role-selector">
-                <div
+              {/* Vercel-style Segmented Role Switcher */}
+              <div className="role-selector" role="tablist" aria-label="Account Registration Role">
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={role === 'donor'}
                   className={`role-card-opt ${role === 'donor' ? 'active' : ''}`}
-                  onClick={() => setRole('donor')}
+                  onClick={() => {
+                    setRole('donor');
+                    setError('');
+                  }}
                 >
-                  {role === 'donor' && (
-                    <span className="material-symbols-outlined role-check-icon">check_circle</span>
-                  )}
                   <span className="material-symbols-outlined role-type-icon">person</span>
                   <span className="role-type-label">Donor</span>
-                </div>
+                </button>
 
-                <div
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={role === 'organization'}
                   className={`role-card-opt ${role === 'organization' ? 'active' : ''}`}
-                  onClick={() => setRole('organization')}
+                  onClick={() => {
+                    setRole('organization');
+                    setError('');
+                  }}
                 >
-                  {role === 'organization' && (
-                    <span className="material-symbols-outlined role-check-icon">check_circle</span>
-                  )}
                   <span className="material-symbols-outlined role-type-icon">domain</span>
                   <span className="role-type-label">NGO / Relief Org</span>
-                </div>
+                </button>
               </div>
 
               {/* Registration Form */}
               <form className="modern-login-form" onSubmit={handleSubmit}>
-                {role === 'donor' ? (
-                  <div className="input-row-2col">
+                {/* Dynamic Role-specific Name Fields with Smooth Transition */}
+                <div key={role} className="role-form-fields">
+                  {role === 'donor' ? (
+                    <div className="input-row-2col">
+                      <div className="input-group-modern">
+                        <label>FIRST NAME (LEGAL)</label>
+                        <div className="input-container">
+                          <span className="material-symbols-outlined input-icon">person</span>
+                          <input
+                            type="text"
+                            placeholder="e.g., Gester"
+                            value={firstName}
+                            onChange={e => setFirstName(e.target.value)}
+                            required={isRegistering && role === 'donor'}
+                          />
+                        </div>
+                      </div>
+                      <div className="input-group-modern">
+                        <label>LAST NAME (LEGAL)</label>
+                        <div className="input-container">
+                          <span className="material-symbols-outlined input-icon">badge</span>
+                          <input
+                            type="text"
+                            placeholder="e.g., Macaldo"
+                            value={lastName}
+                            onChange={e => setLastName(e.target.value)}
+                            required={isRegistering && role === 'donor'}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
                     <div className="input-group-modern">
-                      <label>FIRST NAME</label>
+                      <label>OFFICIAL NGO / ORGANIZATION NAME</label>
                       <div className="input-container">
-                        <span className="material-symbols-outlined input-icon">person</span>
+                        <span className="material-symbols-outlined input-icon">domain</span>
                         <input
                           type="text"
-                          placeholder="e.g., Gester"
-                          value={firstName}
-                          onChange={e => setFirstName(e.target.value)}
-                          required={isRegistering && role === 'donor'}
+                          placeholder="e.g., Philippine Red Cross - Southern Leyte Chapter"
+                          value={orgName}
+                          onChange={e => setOrgName(e.target.value)}
+                          required={isRegistering && role === 'organization'}
                         />
                       </div>
                     </div>
-                    <div className="input-group-modern">
-                      <label>LAST NAME</label>
-                      <div className="input-container">
-                        <span className="material-symbols-outlined input-icon">badge</span>
-                        <input
-                          type="text"
-                          placeholder="e.g., Macaldo"
-                          value={lastName}
-                          onChange={e => setLastName(e.target.value)}
-                          required={isRegistering && role === 'donor'}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="input-group-modern">
-                    <label>OFFICIAL NGO / ORGANIZATION NAME</label>
-                    <div className="input-container">
-                      <span className="material-symbols-outlined input-icon">domain</span>
-                      <input
-                        type="text"
-                        placeholder="e.g., Philippine Red Cross"
-                        value={orgName}
-                        onChange={e => setOrgName(e.target.value)}
-                        required={isRegistering && role === 'organization'}
-                      />
-                    </div>
-                  </div>
-                )}
+                  )}
+                </div>
 
                 <div className="input-group-modern">
                   <label>{role === 'organization' ? 'OFFICIAL NGO EMAIL' : 'EMAIL ADDRESS'}</label>
@@ -1037,30 +1455,37 @@ export default function AuthView({ onLoginSuccess, onBack, theme, initialMode = 
                   </div>
                 </div>
 
-                {/* Password Field with Dynamic Strength Meter */}
-                <div className="input-group-modern">
+                {/* Dedicated Row 1: Password Field with Connected Strength Meter & Floating Requirements */}
+                <div className="input-group-modern pwd-input-group">
                   <div className="label-with-strength">
-                    <label>PASSWORD</label>
+                    <label htmlFor="reg-password">PASSWORD</label>
                     {password && (
                       <span className="pwd-strength-tag" style={{ color: pwdStrength.color }}>
                         {pwdStrength.label}
                       </span>
                     )}
                   </div>
-                  <div className="input-container">
+                  <div className={`input-container ${passwordFocused ? 'is-focused' : ''}`}>
                     <span className="material-symbols-outlined input-icon">lock</span>
                     <input
+                      id="reg-password"
                       type={showPassword ? 'text' : 'password'}
-                      placeholder="Create secure password"
+                      placeholder="Create password"
                       value={password}
                       onChange={e => setPassword(e.target.value)}
+                      onFocus={() => setPasswordFocused(true)}
+                      onBlur={() => setPasswordFocused(false)}
                       required={isRegistering}
+                      autoComplete="new-password"
+                      aria-describedby={passwordFocused ? "pwd-requirements-panel" : undefined}
                     />
                     <button
                       type="button"
                       className="password-toggle"
+                      onMouseDown={(e) => e.preventDefault()}
                       onClick={() => setShowPassword(!showPassword)}
                       tabIndex="-1"
+                      aria-label="Toggle password visibility"
                     >
                       <span className="material-symbols-outlined">
                         {showPassword ? 'visibility_off' : 'visibility'}
@@ -1068,81 +1493,151 @@ export default function AuthView({ onLoginSuccess, onBack, theme, initialMode = 
                     </button>
                   </div>
 
-                  {/* Visual Password Strength Meter Bar */}
-                  {password && (
-                    <div className="pwd-strength-bar-track">
-                      <div
-                        className="pwd-strength-bar-fill"
-                        style={{
-                          width: `${pwdStrength.percent}%`,
-                          backgroundColor: pwdStrength.color
-                        }}
-                      ></div>
+                  {/* Connected Horizontal Password Strength Indicator Directly Below Input */}
+                  <div className="pwd-strength-bar-track" aria-hidden="true">
+                    <div
+                      className="pwd-strength-bar-fill"
+                      style={{
+                        width: password ? `${pwdStrength.percent}%` : '0%',
+                        backgroundColor: password ? pwdStrength.color : 'transparent'
+                      }}
+                    />
+                  </div>
+
+                  {/* Floating Password Requirements Dropdown Panel (Zero layout shift) */}
+                  {passwordFocused && (
+                    <div
+                      id="pwd-requirements-panel"
+                      className="pwd-requirements-dropdown"
+                      onMouseDown={(e) => e.preventDefault()}
+                      role="tooltip"
+                      aria-live="polite"
+                    >
+                      <div className="pwd-requirements-header">
+                        <span className="pwd-requirements-title">PASSWORD REQUIREMENTS</span>
+                        <span className={`pwd-requirements-counter ${metRequirementsCount === 5 ? 'all-met' : ''}`}>
+                          {metRequirementsCount}/5 met
+                        </span>
+                      </div>
+                      <ul className="pwd-requirements-list">
+                        {passwordRequirements.map((req) => (
+                          <li
+                            key={req.id}
+                            className={`pwd-requirement-item ${req.met ? 'is-met' : 'is-unmet'}`}
+                          >
+                            <span className="material-symbols-outlined pwd-req-icon">
+                              {req.met ? 'check_circle' : 'radio_button_unchecked'}
+                            </span>
+                            <span className="pwd-req-label">{req.label}</span>
+                          </li>
+                        ))}
+                      </ul>
                     </div>
                   )}
-
-                  {/* Compact Live Password Guidance Instruction */}
-                  <div
-                    className="password-instruction-box"
-                    style={{ borderColor: livePwdFeedback.isComplete ? 'rgba(34, 197, 94, 0.35)' : 'rgba(255, 255, 255, 0.06)' }}
-                  >
-                    <span className="material-symbols-outlined" style={{ fontSize: '13px', color: livePwdFeedback.color }}>
-                      {livePwdFeedback.isComplete ? 'verified' : 'info'}
-                    </span>
-                    <span style={{ color: livePwdFeedback.isComplete ? '#22c55e' : undefined }}>
-                      {livePwdFeedback.text}
-                    </span>
-                  </div>
                 </div>
 
-                {/* Confirm Password Field */}
-                <div className="input-group-modern">
+                {/* Dedicated Row 2: Confirm Password Field (Full Width Line with Complete Label) */}
+                <div className="input-group-modern confirm-pwd-input-group">
                   <div className="label-with-strength">
-                    <label>CONFIRM PASSWORD</label>
+                    <label htmlFor="reg-confirm-password">CONFIRM PASSWORD</label>
                     {passwordsMatch && (
                       <span className="match-tag success">
                         <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>check_circle</span>
-                        Match
+                        Passwords Match
                       </span>
                     )}
                     {passwordsMismatch && (
-                      <span className="match-tag error">Mismatch</span>
+                      <span className="match-tag error">
+                        <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>error</span>
+                        Passwords Do Not Match
+                      </span>
                     )}
                   </div>
                   <div className="input-container">
                     <span className="material-symbols-outlined input-icon">check</span>
                     <input
+                      id="reg-confirm-password"
                       type={showConfirmPassword ? 'text' : 'password'}
                       placeholder="Repeat password"
                       value={confirmPassword}
                       onChange={e => setConfirmPassword(e.target.value)}
                       required={isRegistering}
+                      autoComplete="new-password"
                     />
                     <button
                       type="button"
                       className="password-toggle"
+                      onMouseDown={(e) => e.preventDefault()}
                       onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                       tabIndex="-1"
+                      aria-label="Toggle confirm password visibility"
                     >
                       <span className="material-symbols-outlined">
                         {showConfirmPassword ? 'visibility_off' : 'visibility'}
                       </span>
                     </button>
                   </div>
-
-                  {/* Smooth NGO Verification Note (CSS-animated, zero layout jump) */}
-                  <div className={`input-hint org-hint ${role === 'organization' ? 'visible' : ''}`}>
-                    <span className="material-symbols-outlined" style={{ fontSize: '14px', color: '#22c55e' }}>info</span>
-                    <span>NGO accounts undergo Admin verification before campaign creation is unlocked.</span>
-                  </div>
                 </div>
 
-                {error && isRegistering && (
-                  <div className="alert-modern error">
-                    <span className="material-symbols-outlined">warning</span>
-                    <span>{error}</span>
-                  </div>
-                )}
+                {/*
+                Smooth NGO Verification Note (CSS-animated, zero layout jump)
+                <div className={`input-hint org-hint ${role === 'organization' ? 'visible' : ''}`}>
+                  <span className="material-symbols-outlined" style={{ fontSize: '14px', color: '#22c55e' }}>info</span>
+                  <span>NGO accounts undergo Admin verification before campaign creation is unlocked.</span>
+                </div>
+                */}
+
+                {/* Statutory Terms & Data Privacy Agreement Notice */}
+                <div className="auth-legal-notice-box">
+                  <label className="auth-legal-checkbox-label">
+                    <input
+                      type="checkbox"
+                      checked={agreedToTerms}
+                      onChange={(e) => setAgreedToTerms(e.target.checked)}
+                      className="auth-legal-checkbox"
+                      required
+                    />
+                    <span className="auth-legal-text">
+                      I have read and agree to the{' '}
+                      <button
+                        type="button"
+                        className="auth-legal-link-btn"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setLegalModal({ open: true, tab: 'agreement' });
+                        }}
+                      >
+                        User Agreement
+                      </button>
+                      ,{' '}
+                      <button
+                        type="button"
+                        className="auth-legal-link-btn"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setLegalModal({ open: true, tab: 'terms' });
+                        }}
+                      >
+                        Terms of Service
+                      </button>
+                      , and{' '}
+                      <button
+                        type="button"
+                        className="auth-legal-link-btn"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setLegalModal({ open: true, tab: 'privacy' });
+                        }}
+                      >
+                        Privacy Policy (RA 10173)
+                      </button>
+                      .
+                    </span>
+                  </label>
+                </div>
 
                 <button
                   type="submit"
@@ -1152,12 +1647,12 @@ export default function AuthView({ onLoginSuccess, onBack, theme, initialMode = 
                   {loading && isRegistering ? (
                     <>
                       <span className="spinner-before"></span>
-                      <span>Sending verification code...</span>
+                      <span>Creating account...</span>
                     </>
                   ) : (
                     <>
-                      <span>Verify Email & Create Account</span>
-                      <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>verified_user</span>
+                      <span>Create Account</span>
+                      <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>arrow_forward</span>
                     </>
                   )}
                 </button>
@@ -1172,6 +1667,7 @@ export default function AuthView({ onLoginSuccess, onBack, theme, initialMode = 
                   <button
                     type="button"
                     className="switch-link"
+                    style={{ textDecoration: "none", border: "none" }}
                     onClick={() => handleToggleMode(false)}
                   >
                     Log In
@@ -1186,7 +1682,7 @@ export default function AuthView({ onLoginSuccess, onBack, theme, initialMode = 
           <div className="sliding-overlay-container">
             <div className="login-brand-side">
 
-              {/* Top Grouped Section: Header & Elevated Metrics */}
+              {/* Top Grouped Section: Brand Identity & Live Metrics */}
               <div className="brand-top-section">
                 <div className="brand-header-block">
                   <div className="brand-logo-wrap">
@@ -1198,12 +1694,12 @@ export default function AuthView({ onLoginSuccess, onBack, theme, initialMode = 
                       <span className="brand-protocol-pill">PROTOCOL</span>
                     </div>
                     <p className="brand-tagline">
-                      Blockchain-Based Donation & Relief Transparency System
+                      Blockchain-Based Donation &amp; Relief Transparency System
                     </p>
                   </div>
                 </div>
 
-                {/* Top-Aligned Glass Metric Card */}
+                {/* Hairline Metric Strip */}
                 <div className="brand-metrics-glass-card">
                   <div className="metric-col">
                     <span className="metric-val">{stats.donors}</span>
@@ -1222,23 +1718,53 @@ export default function AuthView({ onLoginSuccess, onBack, theme, initialMode = 
                 </div>
               </div>
 
-              {/* Bottom Status Pill & Security Seals */}
+              {/* Centerpiece Editorial Mission Statement */}
+              <div className="brand-welcome-block">
+                <div className="brand-welcome-eyebrow">
+                  <span className="material-symbols-outlined">
+                    {role === 'organization' ? 'verified_user' : 'favorite'}
+                  </span>
+                  <span>
+                    {role === 'organization' ? 'VERIFIED NGO PORTAL' : 'DISASTER & CHARITY PORTAL'}
+                  </span>
+                </div>
+                <h2 className="brand-welcome-headline">
+                  {isRegistering
+                    ? (role === 'organization'
+                        ? 'Apply as a verified relief organization.'
+                        : 'Create your donor portal account.')
+                    : (role === 'organization'
+                        ? 'Manage campaigns and spending logs.'
+                        : 'Track your relief and charity donations.')}
+                </h2>
+                <p className="brand-welcome-copy">
+                  {role === 'organization'
+                    ? (isRegistering
+                        ? 'Register with SEC or DSWD credentials for admin approval before posting drives and logging spending reports.'
+                        : 'Run approved campaigns, verify pending wallet slips, and upload itemized store receipts and delivery proof for donors.')
+                    : (isRegistering
+                        ? 'Donate to checked organizations via GCash, Maya, bank/card, or Sepolia ETH, and follow public spending updates with 0% platform fees.'
+                        : 'Browse verified campaigns, give via GCash, Maya, cards, banks, or Sepolia ETH, and view blockchain records alongside NGO spending proof.')}
+                </p>
+              </div>
+
+              {/* Bottom Status Pill & Accurate Trust Labels */}
               <div className="brand-footer-block">
                 <div className="brand-live-pill">
                   <span className="pulse-dot"></span>
-                  <span>Sepolia EVM Protocol Live</span>
+                  <span>Sepolia Network Live</span>
                   <span className="pill-dot-sep">•</span>
-                  <span className="pill-subtext">Zero Non-Profit Fees</span>
+                  <span className="pill-subtext">0% Platform Fees</span>
                 </div>
 
                 <div className="brand-trust-labels">
                   <div className="trust-badge-item">
-                    <span className="material-symbols-outlined">lock</span>
-                    <span>256-Bit SSL</span>
+                    <span className="material-symbols-outlined">document_scanner</span>
+                    <span>AI Slip Checks</span>
                   </div>
                   <div className="trust-badge-item">
                     <span className="material-symbols-outlined">verified</span>
-                    <span>Smart Contract Audited</span>
+                    <span>Checked NGOs</span>
                   </div>
                   <div className="trust-badge-item">
                     <span className="material-symbols-outlined">volunteer_activism</span>
@@ -1253,40 +1779,16 @@ export default function AuthView({ onLoginSuccess, onBack, theme, initialMode = 
         </div>
       </div>
 
-      {/* ── Institutional Footer Area with Direct Admin Access ── */}
-      <footer className="auth-system-footer">
-        <div className="auth-footer-info">
-          <div className="auth-footer-primary">
-            <strong>BBDRTS System</strong>
-            <span className="auth-footer-bullet">•</span>
-            <span>Hybrid Web2/Web3 Authenticated Environment</span>
-          </div>
-          <div className="auth-footer-secondary">
-            College of Computer Studies · Saint Joseph College · Maasin City, Southern Leyte
-          </div>
-        </div>
-
-        <button
-          type="button"
-          className="auth-footer-admin-btn"
-          onClick={handleDirectAdminAccess}
-          title="Direct Access to Administrator Dashboard"
-        >
-          <span className="material-symbols-outlined" style={{ fontSize: '17px' }}>admin_panel_settings</span>
-          <span>Admin Access</span>
-        </button>
-      </footer>
-
       {/* ===== ONE-TIME EMAIL CODE (OTP) LOGIN MODAL ===== */}
       {otpLoginOpen && (
-        <div className="modal-backdrop-auth" onClick={() => setOtpLoginOpen(false)}>
-          <div className="forgot-modal-card" onClick={e => e.stopPropagation()}>
+        <div className="modal-backdrop-auth">
+          <div className="forgot-modal-card">
             <div className="forgot-modal-header">
               <div className="forgot-header-icon">
                 <span className="material-symbols-outlined">mark_email_read</span>
               </div>
               <div className="forgot-header-text">
-                <h3>Sign In with Email Code</h3>
+                <h3>Log In with Email Code</h3>
                 <p>
                   {otpLoginStep === 1
                     ? 'Enter ANY email address to receive a secure 6-digit one-time login code'
@@ -1336,7 +1838,7 @@ export default function AuthView({ onLoginSuccess, onBack, theme, initialMode = 
 
                 <div className="forgot-info-alert">
                   <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#22c55e' }}>verified</span>
-                  <span>A real 6-digit code will be sent to your Gmail inbox. If you are a new user, your account will be created automatically!</span>
+                  <span>A secure 6-digit code will be sent to your inbox. This code is valid for 5 minutes.</span>
                 </div>
 
                 <div className="forgot-action-row">
@@ -1385,7 +1887,7 @@ export default function AuthView({ onLoginSuccess, onBack, theme, initialMode = 
                       Expires in: {formatTimer(otpLoginCountdown)}
                     </span>
                   </div>
-                  <OtpPinBoxes value={otpLoginCode} onChange={setOtpLoginCode} />
+                  <OtpPinBoxes value={otpLoginCode} onChange={setOtpLoginCode} onSubmit={handleOtpLoginVerify} />
                 </div>
 
                 <div className="otp-resend-row">
@@ -1424,11 +1926,11 @@ export default function AuthView({ onLoginSuccess, onBack, theme, initialMode = 
                     {otpLoginLoading ? (
                       <>
                         <span className="spinner-before"></span>
-                        <span>Signing in...</span>
+                        <span>Logging in...</span>
                       </>
                     ) : (
                       <>
-                        <span>Sign In</span>
+                        <span>Log In</span>
                         <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>login</span>
                       </>
                     )}
@@ -1442,8 +1944,8 @@ export default function AuthView({ onLoginSuccess, onBack, theme, initialMode = 
 
       {/* ===== REGISTRATION EMAIL VERIFICATION MODAL ===== */}
       {regVerifyOpen && (
-        <div className="modal-backdrop-auth" onClick={() => setRegVerifyOpen(false)}>
-          <div className="forgot-modal-card" style={{ maxWidth: isDualOtpModal ? '560px' : '480px' }} onClick={e => e.stopPropagation()}>
+        <div className="modal-backdrop-auth">
+          <div className="forgot-modal-card" style={{ maxWidth: isDualOtpModal ? '560px' : '480px' }}>
 
             <div className="forgot-modal-header">
               <div className="forgot-header-icon" style={{ background: role === 'organization' ? 'rgba(56, 189, 248, 0.15)' : 'rgba(34, 197, 94, 0.15)', color: role === 'organization' ? '#38bdf8' : '#22c55e' }}>
@@ -1526,7 +2028,7 @@ export default function AuthView({ onLoginSuccess, onBack, theme, initialMode = 
                         {regVerifyEmailOtp.length === 6 ? '6 Digits Entered' : `Sent to: ${email}`}
                       </span>
                     </div>
-                    <OtpPinBoxes value={regVerifyEmailOtp} onChange={setRegVerifyEmailOtp} autoFocus={true} />
+                    <OtpPinBoxes value={regVerifyEmailOtp} onChange={setRegVerifyEmailOtp} autoFocus={true} onSubmit={handleVerifyRegistrationOtp} />
                   </div>
 
                   {/* 2. Authorized Mobile SMS Code Box */}
@@ -1542,7 +2044,7 @@ export default function AuthView({ onLoginSuccess, onBack, theme, initialMode = 
                         {regVerifySmsOtp.length === 6 ? '6 Digits Entered' : `Sent to: ${mobileNumber || 'Registered Mobile'}`}
                       </span>
                     </div>
-                    <OtpPinBoxes value={regVerifySmsOtp} onChange={setRegVerifySmsOtp} />
+                    <OtpPinBoxes value={regVerifySmsOtp} onChange={setRegVerifySmsOtp} onSubmit={handleVerifyRegistrationOtp} />
 
                     {simulatedSmsToast && (
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '10px', flexWrap: 'wrap' }}>
@@ -1609,7 +2111,7 @@ export default function AuthView({ onLoginSuccess, onBack, theme, initialMode = 
                       Expires in: {formatTimer(regCountdown)}
                     </span>
                   </div>
-                  <OtpPinBoxes value={regVerifyOtp} onChange={setRegVerifyOtp} autoFocus={true} />
+                  <OtpPinBoxes value={regVerifyOtp} onChange={setRegVerifyOtp} autoFocus={true} onSubmit={handleVerifyRegistrationOtp} />
                 </div>
               )}
 
@@ -1675,39 +2177,35 @@ export default function AuthView({ onLoginSuccess, onBack, theme, initialMode = 
         </div>
       )}
 
-      {/* ===== REAL GMAIL OTP PASSWORD RECOVERY MODAL ===== */}
+      {/* ===== SECURE EMAIL LINK PASSWORD RECOVERY MODAL ===== */}
       {forgotOpen && (
-        <div className="modal-backdrop-auth" onClick={() => setForgotOpen(false)}>
-          <div className="forgot-modal-card" onClick={e => e.stopPropagation()}>
+        <div className="modal-backdrop-auth">
+          <div className="forgot-modal-card">
 
             <div className="forgot-modal-header">
               <div className="forgot-header-icon">
                 <span className="material-symbols-outlined">
-                  {forgotStep === 3 ? 'verified_user' : 'lock_reset'}
+                  {forgotStep === 2 ? 'mark_email_read' : 'lock_reset'}
                 </span>
               </div>
               <div className="forgot-header-text">
-                <h3>
-                  {forgotStep === 1 && 'Secure Password Recovery'}
-                  {forgotStep === 2 && 'Enter Verification Code'}
-                  {forgotStep === 3 && 'Password Reset Complete'}
-                </h3>
+                <h3>{forgotStep === 1 ? 'Reset Your Password' : 'Check Your Email'}</h3>
                 <p>
-                  {forgotStep === 1 && 'Enter your registered Gmail to receive a real 6-digit security code'}
-                  {forgotStep === 2 && `6-digit security code sent to ${forgotEmail}`}
-                  {forgotStep === 3 && 'Your credentials have been securely updated on the BBDRTS network'}
+                  {forgotStep === 1
+                    ? 'Enter your registered email address to receive a secure password reset link'
+                    : `We've sent a 60-minute password reset link to ${forgotEmail}`}
                 </p>
               </div>
               <button
                 type="button"
                 className="forgot-close-btn"
                 onClick={() => setForgotOpen(false)}
+                title="Close"
               >
                 <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>close</span>
               </button>
             </div>
 
-            {/* Error Alert */}
             {forgotError && (
               <div className="alert-modern error" style={{ marginBottom: '12px' }}>
                 <span className="material-symbols-outlined">warning</span>
@@ -1722,16 +2220,16 @@ export default function AuthView({ onLoginSuccess, onBack, theme, initialMode = 
               </div>
             )}
 
-            {/* ── STEP 1: ENTER REGISTERED GMAIL ── */}
+            {/* ── STEP 1: ENTER REGISTERED EMAIL ── */}
             {forgotStep === 1 && (
-              <form onSubmit={handleForgotRequestOtp} className="forgot-form-body">
+              <form onSubmit={handleForgotRequestLink} className="forgot-form-body">
                 <div className="input-group-modern">
-                  <label>REGISTERED GMAIL ADDRESS</label>
+                  <label>REGISTERED EMAIL ADDRESS</label>
                   <div className="input-container">
                     <span className="material-symbols-outlined input-icon">mail</span>
                     <input
                       type="email"
-                      placeholder="your.email@gmail.com"
+                      placeholder="your.email@example.com"
                       value={forgotEmail}
                       onChange={e => setForgotEmail(e.target.value)}
                       required
@@ -1741,8 +2239,8 @@ export default function AuthView({ onLoginSuccess, onBack, theme, initialMode = 
                 </div>
 
                 <div className="forgot-info-alert">
-                  <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#22c55e' }}>shield</span>
-                  <span>An official 6-digit one-time security passcode (OTP) will be dispatched directly to your inbox via Google SMTP.</span>
+                  <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#22c55e' }}>verified</span>
+                  <span>A secure 60-minute single-use password reset link will be sent from <strong>bbdrts@gmail.com</strong>.</span>
                 </div>
 
                 <div className="forgot-action-row">
@@ -1756,16 +2254,16 @@ export default function AuthView({ onLoginSuccess, onBack, theme, initialMode = 
                   <button
                     type="submit"
                     className="btn-modern-primary"
-                    disabled={forgotLoading}
+                    disabled={forgotLoading || !forgotEmail}
                   >
                     {forgotLoading ? (
                       <>
                         <span className="spinner-before"></span>
-                        <span>Sending code...</span>
+                        <span>Sending Link...</span>
                       </>
                     ) : (
                       <>
-                        <span>Send Security Code</span>
+                        <span>Send Reset Link</span>
                         <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>send</span>
                       </>
                     )}
@@ -1774,88 +2272,106 @@ export default function AuthView({ onLoginSuccess, onBack, theme, initialMode = 
               </form>
             )}
 
-            {/* ── STEP 2: ENTER OTP & NEW PASSWORD ── */}
+            {/* ── STEP 2: LINK DISPATCHED CONFIRMATION ── */}
             {forgotStep === 2 && (
-              <form onSubmit={handleForgotVerifyAndReset} className="forgot-form-body">
-
-                {forgotDevCode && (
-                  <div className="dev-otp-pill">
-                    <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>terminal</span>
-                    <span>Dev Helper Code: <strong>{forgotDevCode}</strong></span>
-                  </div>
-                )}
-
-                <div className="input-group-modern">
-                  <div className="label-with-strength">
-                    <label>6-DIGIT VERIFICATION CODE</label>
-                    <span className="otp-timer-tag">
-                      <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>timer</span>
-                      Expires in: {formatTimer(forgotCountdown)}
-                    </span>
-                  </div>
-                  <OtpPinBoxes value={forgotOtp} onChange={setForgotOtp} />
+              <div className="forgot-form-body">
+                <div className="forgot-info-alert">
+                  <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#22c55e' }}>mark_email_read</span>
+                  <span>Click the button in the email sent to <strong>{forgotEmail}</strong> to reset your password. The link is single-use and expires in 60 minutes.</span>
                 </div>
 
-                <div className="otp-resend-row">
-                  <span>Didn't receive the code?</span>
+                <div className="forgot-info-alert" style={{ background: 'transparent', borderColor: 'rgba(255, 255, 255, 0.08)' }}>
+                  <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#71717a' }}>info</span>
+                  <span>If you don't see the email within a minute, please check your spam or junk folder.</span>
+                </div>
+
+                <div className="forgot-action-row">
                   <button
                     type="button"
-                    className="otp-resend-btn"
+                    className="forgot-cancel-btn"
                     disabled={forgotResendCooldown > 0 || forgotResendLoading}
-                    onClick={handleResendForgotOtp}
+                    onClick={handleResendForgotLink}
                   >
-                    <span className={`material-symbols-outlined ${forgotResendLoading ? 'btn-resend-spinning' : ''}`} style={{ fontSize: '14px' }}>
-                      sync
-                    </span>
-                    <span>{forgotResendCooldown > 0 ? `Resend in ${forgotResendCooldown}s` : 'Resend Code'}</span>
+                    {forgotResendCooldown > 0 ? `Resend in ${forgotResendCooldown}s` : 'Resend Email'}
+                  </button>
+
+                  <button
+                    type="button"
+                    className="btn-modern-primary"
+                    onClick={() => setForgotOpen(false)}
+                  >
+                    <span>Back to Log In</span>
+                    <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>arrow_forward</span>
                   </button>
                 </div>
+              </div>
+            )}
 
-                <div className="input-group-modern">
-                  <div className="label-with-strength">
-                    <label>NEW PASSWORD</label>
-                    {forgotNewPassword && (
-                      <span className="pwd-strength-tag" style={{ color: forgotPwdStrength.color }}>
-                        {forgotPwdStrength.label}
-                      </span>
-                    )}
-                  </div>
-                  <div className="input-container">
-                    <span className="material-symbols-outlined input-icon">lock</span>
-                    <input
-                      type="password"
-                      placeholder="Enter new password"
-                      value={forgotNewPassword}
-                      onChange={e => setForgotNewPassword(e.target.value)}
-                      required
-                    />
-                  </div>
+          </div>
+        </div>
+      )}
 
-                  {/* Compact Live Password Guidance Instruction */}
-                  <div
-                    className="password-instruction-box"
-                    style={{ borderColor: liveForgotPwdFeedback.isComplete ? 'rgba(34, 197, 94, 0.35)' : 'rgba(255, 255, 255, 0.06)' }}
-                  >
-                    <span className="material-symbols-outlined" style={{ fontSize: '13px', color: liveForgotPwdFeedback.color }}>
-                      {liveForgotPwdFeedback.isComplete ? 'verified' : 'info'}
-                    </span>
-                    <span style={{ color: liveForgotPwdFeedback.isComplete ? '#22c55e' : undefined }}>
-                      {liveForgotPwdFeedback.text}
-                    </span>
-                  </div>
-                </div>
+      {/* ===== SET NEW PASSWORD MODAL (FROM EMAIL LINK) ===== */}
+      {resetModalOpen && (
+        <div className="modal-backdrop-auth">
+          <div className="forgot-modal-card">
+            <div className="forgot-modal-header">
+              <div className="forgot-header-icon">
+                <span className="material-symbols-outlined">
+                  {resetChecking ? 'sync' : (resetSuccess ? 'verified' : (!resetTokenValid ? 'link_off' : 'lock_reset'))}
+                </span>
+              </div>
+              <div className="forgot-header-text">
+                <h3>
+                  {resetChecking
+                    ? 'Verifying Reset Link...'
+                    : (resetSuccess
+                      ? 'Password Reset Complete'
+                      : (!resetTokenValid
+                        ? 'Link Expired or Already Used'
+                        : 'Create New Password'))}
+                </h3>
+                <p>
+                  {resetChecking
+                    ? 'Checking link validity and security status...'
+                    : (resetSuccess
+                      ? 'Your account credentials have been securely updated.'
+                      : (!resetTokenValid
+                        ? 'This password reset link is no longer valid.'
+                        : `Choose a new secure password for ${resetEmail || 'your account'}.`))}
+                </p>
+              </div>
+              <button
+                type="button"
+                className="forgot-close-btn"
+                onClick={() => {
+                  setResetModalOpen(false);
+                  if (typeof window !== 'undefined' && window.history?.replaceState) {
+                    window.history.replaceState({}, document.title, '/');
+                  }
+                }}
+                title="Close"
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>close</span>
+              </button>
+            </div>
 
-                <div className="input-group-modern">
-                  <label>CONFIRM NEW PASSWORD</label>
-                  <div className="input-container">
-                    <span className="material-symbols-outlined input-icon">check</span>
-                    <input
-                      type="password"
-                      placeholder="Repeat new password"
-                      value={forgotConfirmPassword}
-                      onChange={e => setForgotConfirmPassword(e.target.value)}
-                      required
-                    />
+            {/* When Checking Token */}
+            {resetChecking && (
+              <div style={{ padding: '36px 20px', textAlign: 'center', color: '#a1a1aa' }}>
+                <span className="spinner-modern" style={{ width: '28px', height: '28px', marginBottom: '14px', display: 'inline-block' }}></span>
+                <p style={{ margin: 0, fontSize: '0.85rem' }}>Verifying secure link with BBDRTS...</p>
+              </div>
+            )}
+
+            {/* When Link is Invalid / Expired / Already Used */}
+            {!resetChecking && !resetTokenValid && !resetSuccess && (
+              <div className="forgot-form-body">
+                <div className="forgot-info-alert" style={{ background: 'rgba(239, 68, 68, 0.08)', borderColor: 'rgba(239, 68, 68, 0.25)', color: '#fca5a5' }}>
+                  <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#ef4444' }}>error</span>
+                  <div>
+                    <strong style={{ display: 'block', marginBottom: '3px' }}>Single-Use Security Policy</strong>
+                    <span>{resetError || 'This password reset link has already been used to change credentials, or has expired (60-minute limit). For security, each reset link can only be used once.'}</span>
                   </div>
                 </div>
 
@@ -1863,24 +2379,190 @@ export default function AuthView({ onLoginSuccess, onBack, theme, initialMode = 
                   <button
                     type="button"
                     className="forgot-cancel-btn"
-                    onClick={() => setForgotStep(1)}
+                    onClick={() => {
+                      setResetModalOpen(false);
+                      if (typeof window !== 'undefined' && window.history?.replaceState) {
+                        window.history.replaceState({}, document.title, '/');
+                      }
+                    }}
                   >
-                    Back
+                    Back to Log In
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-modern-primary"
+                    onClick={() => {
+                      setResetModalOpen(false);
+                      setForgotOpen(true);
+                      setForgotStep(1);
+                      if (resetEmail) setForgotEmail(resetEmail);
+                      if (typeof window !== 'undefined' && window.history?.replaceState) {
+                        window.history.replaceState({}, document.title, '/');
+                      }
+                    }}
+                  >
+                    <span>Request New Link</span>
+                    <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>arrow_forward</span>
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* When Valid: Form */}
+            {!resetChecking && resetTokenValid && !resetSuccess && (
+              <form onSubmit={handleResetPasswordSubmit} className="forgot-form-body">
+                {resetError && (
+                  <div className="alert-modern error" style={{ marginBottom: '12px' }}>
+                    <span className="material-symbols-outlined">warning</span>
+                    <span>{resetError}</span>
+                  </div>
+                )}
+
+                <div className="input-group-modern" style={{ position: 'relative' }}>
+                  <div className="label-with-strength" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <label style={{ margin: 0 }}>NEW PASSWORD</label>
+                    {resetNewPassword && (
+                      <span className="pwd-strength-tag" style={{ color: resetPwdStrength.color }}>
+                        {resetPwdStrength.label}
+                      </span>
+                    )}
+                  </div>
+                  <div className="input-container">
+                    <span className="material-symbols-outlined input-icon">lock</span>
+                    <input
+                      type={showResetNewPassword ? 'text' : 'password'}
+                      placeholder="Enter new password (8+ characters)"
+                      value={resetNewPassword}
+                      onChange={e => setResetNewPassword(e.target.value)}
+                      onFocus={() => setResetPasswordFocused(true)}
+                      onBlur={() => setTimeout(() => setResetPasswordFocused(false), 200)}
+                      required
+                      autoFocus
+                    />
+                    <button
+                      type="button"
+                      className="password-toggle"
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => setShowResetNewPassword(!showResetNewPassword)}
+                      tabIndex="-1"
+                      aria-label="Toggle password visibility"
+                    >
+                      <span className="material-symbols-outlined">
+                        {showResetNewPassword ? 'visibility_off' : 'visibility'}
+                      </span>
+                    </button>
+                  </div>
+
+                  {/* Connected Horizontal Password Strength Indicator Directly Below Input */}
+                  <div className="pwd-strength-bar-track" aria-hidden="true" style={{ marginTop: '6px' }}>
+                    <div
+                      className="pwd-strength-bar-fill"
+                      style={{
+                        width: resetNewPassword ? `${resetPwdStrength.percent}%` : '0%',
+                        backgroundColor: resetNewPassword ? resetPwdStrength.color : 'transparent'
+                      }}
+                    />
+                  </div>
+
+                  {/* Floating Password Requirements Dropdown Panel (Zero layout shift) */}
+                  {resetPasswordFocused && (
+                    <div
+                      id="reset-pwd-requirements-panel"
+                      className="pwd-requirements-dropdown"
+                      onMouseDown={(e) => e.preventDefault()}
+                      role="tooltip"
+                      aria-live="polite"
+                    >
+                      <div className="pwd-requirements-header">
+                        <span className="pwd-requirements-title">PASSWORD REQUIREMENTS</span>
+                        <span className={`pwd-requirements-counter ${resetMetRequirementsCount === 5 ? 'all-met' : ''}`}>
+                          {resetMetRequirementsCount}/5 met
+                        </span>
+                      </div>
+                      <ul className="pwd-requirements-list">
+                        {resetPasswordRequirements.map((req) => (
+                          <li
+                            key={req.id}
+                            className={`pwd-requirement-item ${req.met ? 'is-met' : 'is-unmet'}`}
+                          >
+                            <span className="material-symbols-outlined pwd-req-icon">
+                              {req.met ? 'check_circle' : 'radio_button_unchecked'}
+                            </span>
+                            <span className="pwd-req-label">{req.label}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+
+                <div className="input-group-modern confirm-pwd-input-group">
+                  <div className="label-with-strength" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <label style={{ margin: 0 }}>CONFIRM NEW PASSWORD</label>
+                    {resetPasswordsMatch && (
+                      <span className="match-tag success">
+                        <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>check_circle</span>
+                        Passwords Match
+                      </span>
+                    )}
+                    {resetPasswordsMismatch && (
+                      <span className="match-tag error">
+                        <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>error</span>
+                        Passwords Do Not Match
+                      </span>
+                    )}
+                  </div>
+                  <div className="input-container">
+                    <span className="material-symbols-outlined input-icon">check</span>
+                    <input
+                      type={showResetConfirmPassword ? 'text' : 'password'}
+                      placeholder="Repeat new password"
+                      value={resetConfirmPassword}
+                      onChange={e => setResetConfirmPassword(e.target.value)}
+                      required
+                    />
+                    <button
+                      type="button"
+                      className="password-toggle"
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => setShowResetConfirmPassword(!showResetConfirmPassword)}
+                      tabIndex="-1"
+                      aria-label="Toggle confirm password visibility"
+                    >
+                      <span className="material-symbols-outlined">
+                        {showResetConfirmPassword ? 'visibility_off' : 'visibility'}
+                      </span>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="forgot-info-alert">
+                  <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#22c55e' }}>verified</span>
+                  <span>Once saved, your new credentials take effect immediately across all sessions.</span>
+                </div>
+
+                <div className="forgot-action-row">
+                  <button
+                    type="button"
+                    className="forgot-cancel-btn"
+                    onClick={() => setResetModalOpen(false)}
+                  >
+                    Cancel
                   </button>
                   <button
                     type="submit"
                     className="btn-modern-primary"
-                    disabled={forgotLoading || forgotCountdown === 0 || forgotOtp.length < 6}
+                    disabled={resetLoading || resetMetRequirementsCount < 5 || !resetPasswordsMatch}
                   >
-                    {forgotLoading ? (
+                    {resetLoading ? (
                       <>
                         <span className="spinner-before"></span>
-                        <span>Updating password...</span>
+                        <span>Updating Password...</span>
                       </>
                     ) : (
                       <>
                         <span>Reset Password</span>
-                        <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>lock_reset</span>
+                        <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>check_circle</span>
                       </>
                     )}
                   </button>
@@ -1888,26 +2570,246 @@ export default function AuthView({ onLoginSuccess, onBack, theme, initialMode = 
               </form>
             )}
 
-            {/* ── STEP 3: SUCCESS STATE ── */}
-            {forgotStep === 3 && (
-              <div className="forgot-success-state">
-                <div className="forgot-success-icon">
-                  <span className="material-symbols-outlined">verified</span>
+            {/* Success State */}
+            {resetSuccess && (
+              <div className="forgot-form-body">
+                <div className="forgot-info-alert">
+                  <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#22c55e' }}>verified</span>
+                  <span>Your account password has been updated securely. You can now log in with your new credentials.</span>
                 </div>
-                <h4>Password Successfully Reset!</h4>
+                <div className="forgot-action-row" style={{ gridTemplateColumns: '1fr' }}>
+                  <button
+                    type="button"
+                    className="btn-modern-primary"
+                    onClick={() => {
+                      setResetModalOpen(false);
+                      setIsRegistering(false);
+                      if (typeof window !== 'undefined' && window.history?.replaceState) {
+                        window.history.replaceState({}, document.title, '/');
+                      }
+                    }}
+                  >
+                    <span>Log In Now</span>
+                    <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>arrow_forward</span>
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ===== EMERGENCY SECURE ACCOUNT MODAL (FROM DEVICE ALERT EMAIL) ===== */}
+      {secureModalOpen && (
+        <div className="modal-backdrop-auth">
+          <div className="forgot-modal-card" style={{ border: '1px solid rgba(239, 68, 68, 0.4)' }}>
+            <div className="forgot-modal-header">
+              <div className="forgot-header-icon" style={{ background: 'rgba(239, 68, 68, 0.15)', borderColor: 'rgba(239, 68, 68, 0.3)', color: '#ef4444' }}>
+                <span className="material-symbols-outlined">
+                  {secureSuccess ? 'gpp_good' : 'gpp_maybe'}
+                </span>
+              </div>
+              <div className="forgot-header-text">
+                <h3 style={{ color: '#ef4444' }}>
+                  {secureSuccess ? 'Account Secured' : 'Secure Your Account'}
+                </h3>
                 <p>
-                  Your account password for <strong>{forgotEmail}</strong> has been encrypted with bcrypt and updated on the BBDRTS database.
+                  {secureSuccess
+                    ? 'All active sessions on other devices were terminated.'
+                    : `Unrecognized device sign-in detected for ${secureEmail || 'your account'}`}
                 </p>
-                <button
-                  type="button"
-                  className="btn-modern-primary"
-                  onClick={() => setForgotOpen(false)}
-                >
-                  Return & Log In Now
-                </button>
+              </div>
+              <button
+                type="button"
+                className="forgot-close-btn"
+                onClick={() => setSecureModalOpen(false)}
+                title="Close"
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>close</span>
+              </button>
+            </div>
+
+            {secureError && (
+              <div className="alert-modern error" style={{ marginBottom: '12px' }}>
+                <span className="material-symbols-outlined">warning</span>
+                <span>{secureError}</span>
               </div>
             )}
 
+            {!secureSuccess ? (
+              <form onSubmit={handleSecureAccountSubmit} className="forgot-form-body">
+                <div className="forgot-info-alert" style={{ background: 'rgba(239, 68, 68, 0.08)', borderColor: 'rgba(239, 68, 68, 0.25)', color: '#fca5a5' }}>
+                  <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#ef4444' }}>warning</span>
+                  <span>Setting a new password will immediately terminate all active logins across other devices and revoke unrecognized sessions.</span>
+                </div>
+
+                <div className="input-group-modern" style={{ position: 'relative' }}>
+                  <div className="label-with-strength" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <label style={{ margin: 0 }}>NEW SECURE PASSWORD</label>
+                    {secureNewPassword && (
+                      <span className="pwd-strength-tag" style={{ color: securePwdStrength.color }}>
+                        {securePwdStrength.label}
+                      </span>
+                    )}
+                  </div>
+                  <div className="input-container">
+                    <span className="material-symbols-outlined input-icon">lock</span>
+                    <input
+                      type={showSecureNewPassword ? 'text' : 'password'}
+                      placeholder="Enter new password (8+ characters)"
+                      value={secureNewPassword}
+                      onChange={e => setSecureNewPassword(e.target.value)}
+                      onFocus={() => setSecurePasswordFocused(true)}
+                      onBlur={() => setTimeout(() => setSecurePasswordFocused(false), 200)}
+                      required
+                      autoFocus
+                    />
+                    <button
+                      type="button"
+                      className="password-toggle"
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => setShowSecureNewPassword(!showSecureNewPassword)}
+                      tabIndex="-1"
+                      aria-label="Toggle password visibility"
+                    >
+                      <span className="material-symbols-outlined">
+                        {showSecureNewPassword ? 'visibility_off' : 'visibility'}
+                      </span>
+                    </button>
+                  </div>
+
+                  {/* Connected Horizontal Password Strength Indicator */}
+                  <div className="pwd-strength-bar-track" aria-hidden="true" style={{ marginTop: '6px' }}>
+                    <div
+                      className="pwd-strength-bar-fill"
+                      style={{
+                        width: secureNewPassword ? `${securePwdStrength.percent}%` : '0%',
+                        backgroundColor: secureNewPassword ? securePwdStrength.color : 'transparent'
+                      }}
+                    />
+                  </div>
+
+                  {/* Floating Password Requirements Dropdown Panel */}
+                  {securePasswordFocused && (
+                    <div
+                      id="secure-pwd-requirements-panel"
+                      className="pwd-requirements-dropdown"
+                      onMouseDown={(e) => e.preventDefault()}
+                      role="tooltip"
+                      aria-live="polite"
+                    >
+                      <div className="pwd-requirements-header">
+                        <span className="pwd-requirements-title">PASSWORD REQUIREMENTS</span>
+                        <span className={`pwd-requirements-counter ${secureMetRequirementsCount === 5 ? 'all-met' : ''}`}>
+                          {secureMetRequirementsCount}/5 met
+                        </span>
+                      </div>
+                      <ul className="pwd-requirements-list">
+                        {securePasswordRequirements.map((req) => (
+                          <li
+                            key={req.id}
+                            className={`pwd-requirement-item ${req.met ? 'is-met' : 'is-unmet'}`}
+                          >
+                            <span className="material-symbols-outlined pwd-req-icon">
+                              {req.met ? 'check_circle' : 'radio_button_unchecked'}
+                            </span>
+                            <span className="pwd-req-label">{req.label}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+
+                <div className="input-group-modern confirm-pwd-input-group">
+                  <div className="label-with-strength" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <label style={{ margin: 0 }}>CONFIRM NEW PASSWORD</label>
+                    {securePasswordsMatch && (
+                      <span className="match-tag success">
+                        <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>check_circle</span>
+                        Passwords Match
+                      </span>
+                    )}
+                    {securePasswordsMismatch && (
+                      <span className="match-tag error">
+                        <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>error</span>
+                        Passwords Do Not Match
+                      </span>
+                    )}
+                  </div>
+                  <div className="input-container">
+                    <span className="material-symbols-outlined input-icon">check</span>
+                    <input
+                      type={showSecureConfirmPassword ? 'text' : 'password'}
+                      placeholder="Repeat new password"
+                      value={secureConfirmPassword}
+                      onChange={e => setSecureConfirmPassword(e.target.value)}
+                      required
+                    />
+                    <button
+                      type="button"
+                      className="password-toggle"
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => setShowSecureConfirmPassword(!showSecureConfirmPassword)}
+                      tabIndex="-1"
+                      aria-label="Toggle confirm password visibility"
+                    >
+                      <span className="material-symbols-outlined">
+                        {showSecureConfirmPassword ? 'visibility_off' : 'visibility'}
+                      </span>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="forgot-action-row">
+                  <button
+                    type="button"
+                    className="forgot-cancel-btn"
+                    onClick={() => setSecureModalOpen(false)}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="btn-modern-primary"
+                    style={{ background: '#ef4444', borderColor: '#ef4444', color: '#ffffff' }}
+                    disabled={secureLoading || secureMetRequirementsCount < 5 || !securePasswordsMatch}
+                  >
+                    {secureLoading ? (
+                      <>
+                        <span className="spinner-before"></span>
+                        <span>Securing Account...</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>Secure Account & Reset</span>
+                        <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>shield</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <div className="forgot-form-body">
+                <div className="forgot-info-alert">
+                  <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#22c55e' }}>verified_user</span>
+                  <span>All unauthorized sessions on other devices have been zeroized and your password has been securely updated.</span>
+                </div>
+                <div className="forgot-action-row" style={{ gridTemplateColumns: '1fr' }}>
+                  <button
+                    type="button"
+                    className="btn-modern-primary"
+                    onClick={() => {
+                      setSecureModalOpen(false);
+                      setIsRegistering(false);
+                    }}
+                  >
+                    <span>Log In Securely</span>
+                    <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>arrow_forward</span>
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -2020,7 +2922,7 @@ export default function AuthView({ onLoginSuccess, onBack, theme, initialMode = 
               <div className="sim-phone-date-divider">Today · {simulatedSmsToast.timestamp || 'Just now'}</div>
               <div className="sim-phone-msg-bubble">
                 <p style={{ margin: '0 0 6px 0' }}>
-                  BBDRTS Protocol: Your 6-digit institutional SMS verification code is:
+                  BBDRTS: Your 6-digit institutional SMS verification code is:
                 </p>
                 <div className="sim-phone-otp-highlight">
                   {simulatedSmsToast.code}
@@ -2048,6 +2950,302 @@ export default function AuthView({ onLoginSuccess, onBack, theme, initialMode = 
             </div>
           </div>
         </div>
+      )}
+
+      {/* ══════════════════════════════════════════════════════════════════
+          TWO-FACTOR AUTHENTICATION CHALLENGE
+          Matching the Log In with Email Code Layout & Visual Tokens
+          ══════════════════════════════════════════════════════════════════ */}
+      {twoFactorModalOpen && (
+        <div className="modal-backdrop-auth">
+          <div className="forgot-modal-card" style={{ maxWidth: '430px' }}>
+            <div className="forgot-modal-header">
+              <div className="forgot-header-icon">
+                <span className="material-symbols-outlined">verified_user</span>
+              </div>
+              <div className="forgot-header-text">
+                <h3>Two-Factor Authentication</h3>
+                <p>
+                  {twoFactorUseBackup
+                    ? 'Enter one of your 8 single-use emergency backup recovery codes'
+                    : `Enter the 6-digit code from your authenticator app for ${twoFactorEmail}`}
+                </p>
+              </div>
+              <button
+                type="button"
+                className="forgot-close-btn"
+                onClick={() => setTwoFactorModalOpen(false)}
+                title="Close"
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>close</span>
+              </button>
+            </div>
+
+            {twoFactorError && (
+              <div className="alert-modern error" style={{ marginBottom: '12px' }}>
+                <span className="material-symbols-outlined">warning</span>
+                <span>{twoFactorError}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleVerify2FA} className="forgot-form-body">
+              {!twoFactorUseBackup ? (
+                <div>
+                  {/* Boxes ONLY, NO label - exactly as requested */}
+                  <div style={{ display: 'flex', justifyContent: 'center', margin: '14px 0 14px 0' }}>
+                    <OtpPinBoxes
+                      value={twoFactorCode}
+                      onChange={setTwoFactorCode}
+                      onComplete={(fullCode) => {
+                        if (!twoFactorLoading) {
+                          handleVerify2FA(null, fullCode);
+                        }
+                      }}
+                      autoFocus={true}
+                      onSubmit={(e, code) => handleVerify2FA(e, code || twoFactorCode)}
+                    />
+                  </div>
+
+                  {/* Trust This Device Checkbox & Lost Device Link */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '8px 0 14px 0' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', userSelect: 'none', margin: 0 }}>
+                      <input
+                        type="checkbox"
+                        checked={twoFactorTrustDevice}
+                        onChange={e => setTwoFactorTrustDevice(e.target.checked)}
+                        style={{ accentColor: '#10b981', width: '15px', height: '15px', cursor: 'pointer', borderRadius: '3px' }}
+                      />
+                      <span style={{ fontSize: '0.8rem', color: '#d4d4d8' }}>Trust this device for 30 days</span>
+                    </label>
+
+                    <button
+                      type="button"
+                      style={{ background: 'none', border: 'none', fontSize: '11px', color: '#a1a1aa', cursor: 'pointer', textDecoration: 'underline' }}
+                      onClick={() => {
+                        setTwoFactorUseBackup(true);
+                        setTwoFactorError('');
+                      }}
+                    >
+                      Lost device?
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="input-group-modern">
+                  <label>EMERGENCY BACKUP RECOVERY CODE</label>
+                  <div className="input-container">
+                    <span className="material-symbols-outlined input-icon">key</span>
+                    <input
+                      type="text"
+                      autoFocus
+                      style={{
+                        letterSpacing: '3px',
+                        fontFamily: 'var(--font-mono, monospace)',
+                        fontWeight: 600,
+                        textTransform: 'uppercase'
+                      }}
+                      placeholder="XXXX-XXXX"
+                      value={twoFactorRecoveryCode}
+                      onChange={e => setTwoFactorRecoveryCode(e.target.value.toUpperCase())}
+                    />
+                  </div>
+                  <div style={{ textAlign: 'right', marginTop: '6px' }}>
+                    <button
+                      type="button"
+                      style={{ background: 'none', border: 'none', fontSize: '11px', color: '#a1a1aa', cursor: 'pointer', textDecoration: 'underline' }}
+                      onClick={() => {
+                        setTwoFactorUseBackup(false);
+                        setTwoFactorError('');
+                      }}
+                    >
+                      Use 6-digit authenticator code instead
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              <div className="forgot-info-alert">
+                <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#22c55e' }}>verified</span>
+                <span>
+                  {twoFactorUseBackup
+                    ? 'Each single-use backup recovery code can only be used once to access your account.'
+                    : 'Open Google Authenticator, Microsoft Authenticator, Authy, or Apple Keychain to view your active code.'}
+                </span>
+              </div>
+
+              <div className="forgot-action-row">
+                <button
+                  type="button"
+                  className="forgot-cancel-btn"
+                  onClick={() => setTwoFactorModalOpen(false)}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn-modern-primary"
+                  disabled={twoFactorLoading || (!twoFactorUseBackup ? twoFactorCode.length < 6 : twoFactorRecoveryCode.trim().length < 8)}
+                >
+                  {twoFactorLoading ? (
+                    <>
+                      <span className="spinner-before"></span>
+                      <span>Verifying...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>Verify & Sign In</span>
+                      <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>login</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════════════════════════════════
+          EMAIL CHANGE NOTIFICATION MODAL (Feature 7 & Hijack Protection)
+          Matching the Log In with Email Code Layout & Visual Tokens
+          ══════════════════════════════════════════════════════════════════ */}
+      {emailChangeNotice && (
+        <div className="modal-backdrop-auth">
+          <div className="forgot-modal-card" style={{ maxWidth: '440px' }}>
+            <div className="forgot-modal-header">
+              <div className="forgot-header-icon" style={emailChangeNotice.reverted ? { borderColor: 'rgba(16, 185, 129, 0.4)', background: 'rgba(16, 185, 129, 0.1)' } : {}}>
+                <span className="material-symbols-outlined" style={emailChangeNotice.reverted ? { color: '#10b981' } : emailChangeNotice.error ? { color: '#ef4444' } : { color: '#10b981' }}>
+                  {emailChangeNotice.verifying ? 'sync' : emailChangeNotice.reverted ? 'shield' : emailChangeNotice.cancelled ? 'task_alt' : emailChangeNotice.success ? 'mark_email_read' : 'error'}
+                </span>
+              </div>
+              <div className="forgot-header-text">
+                <h3>
+                  {emailChangeNotice.reverted
+                    ? 'Account Reclaimed & Restored'
+                    : emailChangeNotice.cancelled
+                    ? 'Email Change Request Cancelled'
+                    : emailChangeNotice.success
+                    ? 'Email Address Updated'
+                    : 'Security Alert'}
+                </h3>
+                <p>
+                  {emailChangeNotice.verifying
+                    ? 'Processing security request with BBDRTS...'
+                    : emailChangeNotice.reverted
+                    ? 'Unauthorized change revoked and active sessions terminated'
+                    : emailChangeNotice.cancelled
+                    ? 'Pending request voided; your primary email is unchanged'
+                    : emailChangeNotice.success
+                    ? 'Your email address has been successfully updated'
+                    : 'Account email verification notice'}
+                </p>
+              </div>
+              <button
+                type="button"
+                className="forgot-close-btn"
+                onClick={() => {
+                  setEmailChangeNotice(null);
+                  window.history.replaceState({}, document.title, window.location.pathname);
+                }}
+                title="Close"
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>close</span>
+              </button>
+            </div>
+
+            <div className="forgot-form-body">
+              <div
+                className="forgot-info-alert"
+                style={
+                  emailChangeNotice.error
+                    ? { background: 'rgba(239, 68, 68, 0.08)', borderColor: 'rgba(239, 68, 68, 0.25)', color: '#fca5a5' }
+                    : { background: 'rgba(16, 185, 129, 0.08)', borderColor: 'rgba(16, 185, 129, 0.25)', color: '#86efac' }
+                }
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: '16px', color: emailChangeNotice.error ? '#ef4444' : '#22c55e', flexShrink: 0 }}>
+                  {emailChangeNotice.error ? 'warning' : 'verified_user'}
+                </span>
+                <span style={{ fontSize: '0.78rem', lineHeight: 1.5 }}>
+                  {emailChangeNotice.message || emailChangeNotice.error}
+                </span>
+              </div>
+
+              {emailChangeNotice.reverted && (
+                <div style={{ background: '#09090b', border: '1px solid #27272a', borderRadius: '8px', padding: '12px 14px', margin: '14px 0', fontSize: '0.75rem', color: '#a1a1aa' }}>
+                  <div style={{ color: '#ffffff', fontWeight: 600, marginBottom: '6px' }}>Protective actions completed:</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
+                    <span className="material-symbols-outlined" style={{ fontSize: '15px', color: '#10b981' }}>check</span>
+                    <span>Primary email active: <strong style={{ color: '#ffffff' }}>{emailChangeNotice.originalEmail}</strong></span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
+                    <span className="material-symbols-outlined" style={{ fontSize: '15px', color: '#10b981' }}>check</span>
+                    <span>All active login sessions across devices terminated</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span className="material-symbols-outlined" style={{ fontSize: '15px', color: '#10b981' }}>check</span>
+                    <span>Unauthorized email change authorization voided</span>
+                  </div>
+                </div>
+              )}
+
+              <div className="forgot-action-row" style={{ gridTemplateColumns: emailChangeNotice.reverted ? '1fr 1fr' : '1fr', gap: '10px' }}>
+                {emailChangeNotice.reverted && (
+                  <button
+                    type="button"
+                    className="forgot-cancel-btn"
+                    style={{ padding: '9px 14px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                    onClick={() => {
+                      if (emailChangeNotice.originalEmail) {
+                        setForgotEmail(emailChangeNotice.originalEmail);
+                      }
+                      setEmailChangeNotice(null);
+                      setForgotOpen(true);
+                      window.history.replaceState({}, document.title, window.location.pathname);
+                    }}
+                  >
+                    <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>lock_reset</span>
+                    <span>Reset Password</span>
+                  </button>
+                )}
+                <button
+                  type="button"
+                  className="btn-modern-primary"
+                  onClick={() => {
+                    setEmailChangeNotice(null);
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                  }}
+                >
+                  <span>Continue to Sign In</span>
+                  <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>arrow_forward</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Statutory Legal Framework, User Agreement, Terms & Privacy (RA 10173) Modal */}
+      <TermsPolicyModal
+        isOpen={legalModal.open}
+        onClose={() => setLegalModal(prev => ({ ...prev, open: false }))}
+        initialTab={legalModal.tab}
+        theme={theme}
+      />
+
+      {/* Non-Shifting Floating Auth Error Notification */}
+      {error && typeof document !== 'undefined' && createPortal(
+        <div className="auth-floating-error" role="alert" aria-live="assertive">
+          <span className="material-symbols-outlined auth-floating-error-icon">warning</span>
+          <span className="auth-floating-error-text">{error}</span>
+          <button
+            type="button"
+            className="auth-floating-error-close"
+            onClick={() => setError('')}
+            aria-label="Dismiss error"
+          >
+            <span className="material-symbols-outlined">close</span>
+          </button>
+        </div>,
+        document.body
       )}
 
     </div>

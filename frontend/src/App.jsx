@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { ethers } from 'ethers';
 import { connectWallet, hydrateContract, getReadOnlyContract } from './web3Connection';
 import { ROLES, ROLE_META } from './roleConfig';
@@ -13,6 +14,9 @@ import Footer from './components/Footer';
 import NgoProfileModal from './components/NgoProfileModal';
 import ErrorBoundary from './components/ErrorBoundary';
 import ReliefAiChat from './components/ReliefAiChat';
+import GlobalBroadcastBanner from './components/GlobalBroadcastBanner';
+import MaintenanceGuardModal from './components/MaintenanceGuardModal';
+import PersonalizationOnboarding from './components/PersonalizationOnboarding';
 import './App.css';
 import { isLocalhost, API_URL } from './config';
 
@@ -23,94 +27,340 @@ export default function App() {
   const [dbUser, setDbUser] = useState(null);
   // dbUser = { id, name, email, role, wallet_address }
   const [authLoading, setAuthLoading] = useState(true);
-  const [showAuth, setShowAuth] = useState(false); // Default to Landing Page!
+  const [showAuth, setShowAuth] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const pathname = window.location.pathname;
+      const searchParams = new URLSearchParams(window.location.search);
+      return (
+        pathname.startsWith('/reset-password') ||
+        searchParams.has('token') ||
+        searchParams.has('resetToken') ||
+        searchParams.get('action') === 'secure-account'
+      );
+    }
+    return false;
+  }); // Default to Landing Page, auto-open if reset/secure link!
   const [authMode, setAuthMode] = useState('login'); // 'login' | 'register'
+  const [authRole, setAuthRole] = useState('donor'); // 'donor' | 'organization'
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [showOnboardingModal, setShowOnboardingModal] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      return params.get('onboarding') === 'true' || params.get('preview') === 'onboarding';
+    }
+    return false;
+  });
+
+  // Listen for custom event to trigger onboarding preview prototype
+  useEffect(() => {
+    const handleOpenOnboarding = () => setShowOnboardingModal(true);
+    window.addEventListener('bbdrts_open_onboarding', handleOpenOnboarding);
+    return () => window.removeEventListener('bbdrts_open_onboarding', handleOpenOnboarding);
+  }, []);
+
+
+
   /* ── Wallet State (Web3) ────────────────────────────── */
   const [walletAddress, setWalletAddress] = useState('');
   const [hasMetaMask, setHasMetaMask] = useState(true);
   const [activeContract, setActiveContract] = useState(null);
 
-  const [campaigns, setCampaigns] = useState([]);
+  const [campaigns, setCampaigns] = useState(() => {
+    try {
+      const cached = localStorage.getItem('bbdrts_cached_campaigns_v2');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (_) {}
+    return [];
+  });
   const [fetchingCampaigns, setFetchingCampaigns] = useState(false);
 
-  /* ── Theme Management (Strictly 2 Themes: White / Light Mode [Default] & Dark Mode) ── */
-  const [theme, setThemeState] = useState(() => {
-    const saved = localStorage.getItem('bbdrts_theme');
-    if (saved === 'dark' || saved === 'light') return saved;
-    return 'light'; // White / Light Mode by default
-  });
+  const DEFAULT_WORKSPACE_PREFS = {
+    experienceMode: 'standard',
+    themePreference: null, // null inherits publicTheme until user chooses their own
+    language: 'en',
+    textSize: 'normal',
+    reducedMotion: false,
+    highContrast: false,
+    lowBandwidthMode: false
+  };
 
-  const themeTransitionTimerRef = useRef(null);
-
-  const applyThemeWithTransition = useCallback((targetTheme) => {
-    const val = targetTheme === 'dark' ? 'dark' : 'light';
-    const root = document.documentElement;
-
-    const commitTheme = () => {
-      root.setAttribute('data-theme', val);
-      localStorage.setItem('bbdrts_theme', val);
-      setThemeState(val);
-    };
-
-    if (typeof document !== 'undefined' && document.startViewTransition && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      document.startViewTransition(() => {
-        commitTheme();
-      });
-    } else {
-      root.classList.add('theme-transitioning');
-      if (themeTransitionTimerRef.current) {
-        clearTimeout(themeTransitionTimerRef.current);
-      }
-      commitTheme();
-      themeTransitionTimerRef.current = setTimeout(() => {
-        root.classList.remove('theme-transitioning');
-        themeTransitionTimerRef.current = null;
-      }, 260);
-    }
-  }, []);
-
-  const setTheme = useCallback((newTheme) => {
-    applyThemeWithTransition(newTheme);
-  }, [applyThemeWithTransition]);
-
-  const toggleTheme = useCallback(() => {
-    const current = document.documentElement.getAttribute('data-theme') || theme;
-    const next = current === 'dark' ? 'light' : 'dark';
-    applyThemeWithTransition(next);
-  }, [theme, applyThemeWithTransition]);
-
-  useEffect(() => {
-    // Initial mount check: ensure DOM matches saved state without animation
-    const currentAttr = document.documentElement.getAttribute('data-theme');
-    if (currentAttr !== theme) {
-      document.documentElement.setAttribute('data-theme', theme);
-    }
-    return () => {
-      if (themeTransitionTimerRef.current) {
-        clearTimeout(themeTransitionTimerRef.current);
-      }
-    };
-  }, []);
-
-  /* ── Text Size / Typography Preference (compact, normal, large, extra-large) ── */
-  const [textSize, setTextSizeState] = useState(() => {
-    const saved = localStorage.getItem('bbdrts_text_size');
-    if (['compact', 'normal', 'large', 'extra-large'].includes(saved)) return saved;
+  const normalizeTextSize = (rawSize) => {
+    if (rawSize === 'comfortable') return 'normal';
+    if (['compact', 'normal', 'large', 'extra-large'].includes(rawSize)) return rawSize;
     return 'normal';
+  };
+
+  const resolveSystemTheme = () => {
+    if (typeof window !== 'undefined' && window.matchMedia) {
+      return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    }
+    return 'dark';
+  };
+
+  const getUserPrefsKey = (u) => {
+    if (!u) return null;
+    const rolePart = u.role || 'donor';
+    const idPart = u.id || u.email || 'anon';
+    return `bbdrts_prefs_${rolePart}_${idPart}`;
+  };
+
+  const parsePrefsObj = (raw) => {
+    if (!raw) return {};
+    if (typeof raw === 'object' && !Array.isArray(raw)) return raw;
+    try {
+      const parsed = JSON.parse(raw);
+      return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+    } catch (_) {
+      return {};
+    }
+  };
+
+  const sanitizeWorkspacePrefs = (rawObj = {}) => ({
+    experienceMode: rawObj.experienceMode === 'simplified' ? 'simplified' : 'standard',
+    themePreference: ['light', 'dark', 'system'].includes(rawObj.themePreference) ? rawObj.themePreference : null,
+    language: ['en', 'fil', 'ceb'].includes(rawObj.language) ? rawObj.language : 'en',
+    textSize: normalizeTextSize(rawObj.textSize),
+    reducedMotion: Boolean(rawObj.reducedMotion),
+    highContrast: Boolean(rawObj.highContrast),
+    lowBandwidthMode: Boolean(rawObj.lowBandwidthMode)
   });
+
+  const clearLegacyGlobalPrefKeys = () => {
+    try {
+      [
+        'bbdrts_interface_mode',
+        'bbdrts_text_size',
+        'bbdrts_theme_mode',
+        'bbdrts_theme',
+        'bbdrts_language',
+        'bbdrts_reduced_motion',
+        'bbdrts_high_contrast',
+        'bbdrts_low_bandwidth'
+      ].forEach(k => localStorage.removeItem(k));
+    } catch (_) {}
+  };
+
+  /* ── Public Theme (Landing & AuthView only — strictly isolated from per-user dashboard setup) ── */
+  const [publicTheme, setPublicThemeState] = useState(() => {
+    const saved = localStorage.getItem('bbdrts_public_theme');
+    if (saved === 'light' || saved === 'dark') return saved;
+    const legacy = localStorage.getItem('bbdrts_theme');
+    if (legacy === 'light' || legacy === 'dark') return legacy;
+    return 'dark';
+  });
+
+  const [systemPrefTheme, setSystemPrefTheme] = useState(resolveSystemTheme);
+
+  /* ── Per-User Dashboard Preferences (strictly scoped to the currently logged-in dbUser) ── */
+  const [workspacePrefs, setWorkspacePrefs] = useState(() => ({ ...DEFAULT_WORKSPACE_PREFS }));
+  const interfaceMode = workspacePrefs.experienceMode;
+  const language = workspacePrefs.language;
+  const textSize = workspacePrefs.textSize;
+  const reducedMotion = workspacePrefs.reducedMotion;
+  const highContrast = workspacePrefs.highContrast;
+  const lowBandwidthMode = workspacePrefs.lowBandwidthMode;
+  const themeMode = dbUser ? (workspacePrefs.themePreference || publicTheme) : publicTheme;
+  const theme = dbUser
+    ? (workspacePrefs.themePreference === 'system'
+        ? systemPrefTheme
+        : (workspacePrefs.themePreference === 'light' || workspacePrefs.themePreference === 'dark'
+            ? workspacePrefs.themePreference
+            : publicTheme))
+    : publicTheme;
+
+  /* ── Smooth Auth Transition (Live Network & Web3 Handshake Synchronization) ── */
+  const [authTransition, setAuthTransition] = useState({
+    active: false,
+    closing: false,
+    type: 'login', // 'login' | 'logout'
+    stage: 1,      // 1, 2, 3, 4
+    title: '',
+    role: '',
+    user: null,
+    latencyMs: 42
+  });
+
+  // Dashboard customization ONLY applies when the signed-in user's dashboard itself is active (never AuthView, LandingView, Onboarding, or other users)
+  const isDashboardViewActive = Boolean(dbUser && !showAuth && !authTransition.active && !showOnboardingModal);
+
+  const runInstantThemeSwitch = (cb) => {
+    const css = document.createElement('style');
+    css.setAttribute('type', 'text/css');
+    css.appendChild(
+      document.createTextNode(
+        `*, *::before, *::after {
+          -webkit-transition: none !important;
+          -moz-transition: none !important;
+          -o-transition: none !important;
+          -ms-transition: none !important;
+          transition: none !important;
+          animation-duration: 0s !important;
+        }`
+      )
+    );
+    document.head.appendChild(css);
+    cb();
+    if (document.body) {
+      void document.body.offsetHeight;
+    }
+    window.setTimeout(() => {
+      if (document.head.contains(css)) {
+        document.head.removeChild(css);
+      }
+    }, 50);
+  };
+
+  const persistWorkspacePreferences = async (patchPrefs, targetUser = dbUser) => {
+    if (!patchPrefs || typeof patchPrefs !== 'object') return;
+    const key = getUserPrefsKey(targetUser);
+    if (key) {
+      try {
+        const existingLocal = parsePrefsObj(localStorage.getItem(key));
+        localStorage.setItem(key, JSON.stringify({ ...existingLocal, ...patchPrefs }));
+      } catch (_) {}
+    }
+    const token = localStorage.getItem('bbdrts_token');
+    if (!token || token === 'direct_admin_access_token') return;
+    try {
+      const res = await fetch(`${API_URL}/api/auth/preferences`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ preferences: patchPrefs })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data?.user) {
+          setDbUser(prev => prev ? { ...prev, ...data.user, preferences: data.user.preferences } : data.user);
+        }
+      }
+    } catch (err) {
+      console.warn('Workspace preferences sync skipped:', err);
+    }
+  };
+
+  const hydrateUserWorkspacePrefs = (targetUser, { isNewRegistration = false } = {}) => {
+    clearLegacyGlobalPrefKeys();
+    if (!targetUser) {
+      setWorkspacePrefs({ ...DEFAULT_WORKSPACE_PREFS });
+      return;
+    }
+    if (isNewRegistration) {
+      const cleanNew = { ...DEFAULT_WORKSPACE_PREFS };
+      setWorkspacePrefs(cleanNew);
+      window.dispatchEvent(new CustomEvent('bbdrts_interface_mode_changed', { detail: { mode: cleanNew.experienceMode } }));
+      return;
+    }
+    const key = getUserPrefsKey(targetUser);
+    const localSaved = key ? parsePrefsObj(localStorage.getItem(key)) : {};
+    const dbSaved = parsePrefsObj(targetUser.preferences);
+    // DB Preferences_Json takes precedence over local user cache; missing keys default cleanly
+    const resolved = sanitizeWorkspacePrefs({ ...localSaved, ...dbSaved });
+    setWorkspacePrefs(resolved);
+    if (key && Object.keys({ ...localSaved, ...dbSaved }).length > 0) {
+      try {
+        localStorage.setItem(key, JSON.stringify({ ...localSaved, ...dbSaved }));
+      } catch (_) {}
+    }
+    window.dispatchEvent(new CustomEvent('bbdrts_interface_mode_changed', { detail: { mode: resolved.experienceMode } }));
+  };
+
+  const setInterfaceMode = (newMode) => {
+    const val = newMode === 'simplified' ? 'simplified' : 'standard';
+    if (!dbUser) return;
+    setWorkspacePrefs(prev => ({ ...prev, experienceMode: val }));
+    window.dispatchEvent(new CustomEvent('bbdrts_interface_mode_changed', { detail: { mode: val } }));
+    persistWorkspacePreferences({ experienceMode: val });
+  };
+
+  const setTheme = (newTheme) => {
+    const mode = ['light', 'dark', 'system'].includes(newTheme) ? newTheme : 'dark';
+    runInstantThemeSwitch(() => {
+      if (dbUser && !showAuth) {
+        setWorkspacePrefs(prev => ({ ...prev, themePreference: mode }));
+      } else {
+        const resolvedPublic = mode === 'system' ? systemPrefTheme : mode;
+        setPublicThemeState(resolvedPublic);
+        localStorage.setItem('bbdrts_public_theme', resolvedPublic);
+      }
+    });
+    if (dbUser && !showAuth) {
+      persistWorkspacePreferences({ themePreference: mode });
+    }
+  };
+
+  const toggleTheme = () => {
+    const next = theme === 'dark' ? 'light' : 'dark';
+    setTheme(next);
+  };
 
   const setTextSize = (newSize) => {
-    const val = ['compact', 'normal', 'large', 'extra-large'].includes(newSize) ? newSize : 'normal';
-    setTextSizeState(val);
-    localStorage.setItem('bbdrts_text_size', val);
-    document.documentElement.setAttribute('data-text-size', val);
+    const val = normalizeTextSize(newSize);
+    if (!dbUser) return;
+    setWorkspacePrefs(prev => ({ ...prev, textSize: val }));
+    persistWorkspacePreferences({ textSize: val });
+  };
+
+  const setLanguage = (newLang) => {
+    const val = ['en', 'fil', 'ceb'].includes(newLang) ? newLang : 'en';
+    if (!dbUser) return;
+    setWorkspacePrefs(prev => ({ ...prev, language: val }));
+    persistWorkspacePreferences({ language: val });
+  };
+
+  const setReducedMotion = (enabled) => {
+    if (!dbUser) return;
+    const val = Boolean(enabled);
+    setWorkspacePrefs(prev => ({ ...prev, reducedMotion: val }));
+    persistWorkspacePreferences({ reducedMotion: val });
+  };
+
+  const setHighContrast = (enabled) => {
+    if (!dbUser) return;
+    const val = Boolean(enabled);
+    setWorkspacePrefs(prev => ({ ...prev, highContrast: val }));
+    persistWorkspacePreferences({ highContrast: val });
+  };
+
+  const setLowBandwidthMode = (enabled) => {
+    if (!dbUser) return;
+    const val = Boolean(enabled);
+    setWorkspacePrefs(prev => ({ ...prev, lowBandwidthMode: val }));
+    persistWorkspacePreferences({ lowBandwidthMode: val });
   };
 
   useEffect(() => {
-    document.documentElement.setAttribute('data-text-size', textSize);
-  }, [textSize]);
+    if (typeof window === 'undefined' || !window.matchMedia) return;
+    const mq = window.matchMedia('(prefers-color-scheme: dark)');
+    const sync = () => setSystemPrefTheme(mq.matches ? 'dark' : 'light');
+    sync();
+    mq.addEventListener?.('change', sync);
+    return () => mq.removeEventListener?.('change', sync);
+  }, []);
+
+  // Strictly scope HTML document attributes so AuthView, LandingView, Onboarding, and logged-out state stay unaffected
+  useEffect(() => {
+    const root = document.documentElement;
+    root.setAttribute('data-theme', theme);
+    if (isDashboardViewActive) {
+      root.setAttribute('data-dashboard-active', 'true');
+      root.setAttribute('data-text-size', textSize);
+    } else {
+      root.setAttribute('data-dashboard-active', 'false');
+      root.setAttribute('data-text-size', 'normal');
+    }
+  }, [theme, isDashboardViewActive, textSize]);
+
+  // Clear stale legacy unscoped keys once on initial mount
+  useEffect(() => {
+    clearLegacyGlobalPrefKeys();
+  }, []);
 
   /* ── 1. Init Session & Check MetaMask ───────────────── */
   useEffect(() => {
@@ -128,14 +378,19 @@ export default function App() {
         .then(res => res.json())
         .then(data => {
           if (data.user) {
+            const pendingOnboarding = localStorage.getItem('bbdrts_needs_onboarding') === 'true' && data.user.role !== 'admin';
             setDbUser(data.user);
+            hydrateUserWorkspacePrefs(data.user, { isNewRegistration: pendingOnboarding });
             const userIsAnon = Boolean(data.user.is_anonymous);
             localStorage.setItem('bbdrts_anon_default', String(userIsAnon));
             if (data.user.id || data.user.email) {
-              localStorage.setItem(`bbdrts_anon_default_${data.user.id || data.user.email}`, String(userIsAnon));
+              localStorage.setItem('bbdrts_anon_default_' + (data.user.id || data.user.email), String(userIsAnon));
             }
             if (data.user.wallet_address) {
               setWalletAddress(data.user.wallet_address);
+            }
+            if (localStorage.getItem('bbdrts_needs_onboarding') === 'true' && data.user.role !== 'admin') {
+              setShowOnboardingModal(true);
             }
           }
         })
@@ -159,6 +414,83 @@ export default function App() {
       window.removeEventListener('bbdrts_profile_updated', handleLiveProfileUpdate);
     };
   }, []);
+
+  /* ── 1c. Scroll Position Guard (Prevent auto-scroll jumps on mount/state changes) ── */
+  useEffect(() => {
+    if (typeof window !== 'undefined' && 'scrollRestoration' in window.history) {
+      window.history.scrollRestoration = 'manual';
+    }
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+  }, []);
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+  }, [dbUser]);
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+  }, [showAuth]);
+
+  /* ── 1b. Synchronize Global Sidebar Layout (Lockstep Vercel Alignment) ── */
+  useEffect(() => {
+    if (dbUser) {
+      document.body.classList.add('has-dashboard-sidebar');
+      const isCollapsed = localStorage.getItem('bbdrts_sidebar_collapsed') === 'true';
+      document.body.setAttribute('data-sidebar-collapsed', String(isCollapsed));
+    } else {
+      document.body.classList.remove('has-dashboard-sidebar');
+      document.body.removeAttribute('data-sidebar-collapsed');
+    }
+
+    const handleSidebarChange = (e) => {
+      const isCollapsed = Boolean(e.detail?.collapsed);
+      document.body.setAttribute('data-sidebar-collapsed', String(isCollapsed));
+    };
+
+    // Universal Keyboard Shortcut to Collapse/Expand Sidebar ([ or Ctrl+\ or Alt+S or Alt+B or Ctrl+B)
+    const handleGlobalSidebarKeyDown = (e) => {
+      const target = e.target;
+      const isInput = target && (
+        target.tagName === 'INPUT' || 
+        target.tagName === 'TEXTAREA' || 
+        target.isContentEditable || 
+        target.closest('input, textarea, [contenteditable="true"]')
+      );
+      if (isInput) return;
+
+      const isMod = e.ctrlKey || e.metaKey;
+      const isBracket = e.key === '[' || e.code === 'BracketLeft';
+      const isBackslash = (isMod && (e.key === '\\' || e.code === 'Backslash'));
+      const isAltShortcut = e.altKey && (
+        e.key === 's' || e.key === 'S' || e.code === 'KeyS' ||
+        e.key === 'b' || e.key === 'B' || e.code === 'KeyB'
+      );
+      const isModShortcut = (
+        (isMod && (e.key === 'b' || e.key === 'B' || e.code === 'KeyB')) ||
+        (isMod && e.shiftKey && (e.key === 's' || e.key === 'S' || e.code === 'KeyS'))
+      );
+
+      if (isBracket || isBackslash || isAltShortcut || isModShortcut) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        // If NGO profile modal is active, toggle the modal's internal 2-column sidebar
+        const hasNgoModal = Boolean(document.querySelector('.vercel-ngo-modal'));
+        if (hasNgoModal) {
+          window.dispatchEvent(new CustomEvent('bbdrts_toggle_modal_sidebar'));
+        } else {
+          window.dispatchEvent(new CustomEvent('bbdrts_toggle_sidebar'));
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleGlobalSidebarKeyDown);
+    window.addEventListener('bbdrts_sidebar_changed', handleSidebarChange);
+    return () => {
+      window.removeEventListener('keydown', handleGlobalSidebarKeyDown);
+      window.removeEventListener('bbdrts_sidebar_changed', handleSidebarChange);
+    };
+  }, [dbUser]);
 
   /* ── 2. Handle Wallet Changes ───────────────────────── */
   useEffect(() => {
@@ -218,17 +550,6 @@ export default function App() {
     }
   };
 
-  /* ── Smooth Auth Transition (Minimalist Vercel-Standard Handoff) ── */
-  const [authTransition, setAuthTransition] = useState({
-    active: false,
-    closing: false,
-    type: 'login', // 'login' | 'logout'
-    title: '',
-    subtitle: '',
-    role: '',
-    user: null
-  });
-
   /* ── 3. Actions ─────────────────────────────────────── */
   const handleConnectWallet = async (forcePrompt = false) => {
     try {
@@ -245,50 +566,85 @@ export default function App() {
     }
   };
 
-  const handleLoginSuccess = async (user, token) => {
-    const assignedRole = user.role || 'donor';
+  const handleLoginSuccess = async (user, token, options = {}) => {
+    const isNewSignup = Boolean(
+      options?.isNewRegistration ||
+      localStorage.getItem('bbdrts_needs_onboarding') === 'true'
+    );
+    hydrateUserWorkspacePrefs(user, { isNewRegistration: isNewSignup });
+    const assignedRole = user?.role || 'donor';
+    const startPing = performance.now();
 
-    let friendlyName = user.display_name || user.name || '';
-    if (!friendlyName || friendlyName.includes('@')) {
-      const handle = user.email ? user.email.split('@')[0] : 'User';
-      friendlyName = handle.replace(/[._]/g, ' ').split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-    }
-    const firstName = friendlyName.split(' ')[0] || '';
-
+    // Stage 1: Validating Session Token
     setAuthTransition({
       active: true,
       closing: false,
       type: 'login',
-      title: firstName ? `Welcome back, ${firstName}` : 'Signing you in...',
-      subtitle: assignedRole === 'organization'
-        ? 'Synchronizing disaster relief operations...'
-        : assignedRole === 'admin'
-          ? 'Loading governance & audit console...'
-          : 'Preparing your humanitarian contributions...',
+      stage: 1,
+      title: 'Signing you in...',
+      subtitle: 'Validating cryptographic session token...',
       role: assignedRole,
-      user
+      user,
+      latencyMs: 32
     });
 
     try {
       const authToken = token || localStorage.getItem('bbdrts_token');
 
-      // Concurrently synchronize session profile, role permissions, and campaigns
+      // ── Stage 1: Session Token (~320ms) ──
+      await Promise.race([
+        Promise.all([
+          authToken ? fetch(API_URL + '/api/auth/me', { headers: { 'Authorization': 'Bearer ' + authToken } }).catch(() => null) : Promise.resolve(),
+          new Promise(r => setTimeout(r, 320))
+        ]),
+        new Promise(r => setTimeout(r, 550))
+      ]);
+
+      // ── Stage 2: Syncing Role Governance Permissions (~320ms) ──
+      setAuthTransition(prev => ({
+        ...prev,
+        stage: 2,
+        title: 'Signing you in...',
+        subtitle: `Syncing ${assignedRole ? (assignedRole.charAt(0).toUpperCase() + assignedRole.slice(1)) : 'donor'} governance permissions...`
+      }));
       const roleFetches = [];
-      if (assignedRole === 'organization') {
-        if (authToken) {
-          roleFetches.push(fetch(`${API_URL}/api/organization/kyc`, { headers: { 'Authorization': `Bearer ${authToken}` } }).catch(() => null));
-          roleFetches.push(fetch(`${API_URL}/api/donations/me`, { headers: { 'Authorization': `Bearer ${authToken}` } }).catch(() => null));
-          roleFetches.push(fetch(`${API_URL}/api/manual-donations/pending`, { headers: { 'Authorization': `Bearer ${authToken}` } }).catch(() => null));
+      if (authToken) {
+        if (assignedRole === 'organization') {
+          roleFetches.push(fetch(API_URL + '/api/organization/kyc', { headers: { 'Authorization': 'Bearer ' + authToken } }).catch(() => null));
+          roleFetches.push(fetch(API_URL + '/api/donations/me', { headers: { 'Authorization': 'Bearer ' + authToken } }).catch(() => null));
+          roleFetches.push(fetch(API_URL + '/api/manual-donations/pending', { headers: { 'Authorization': 'Bearer ' + authToken } }).catch(() => null));
+        } else if (assignedRole === 'admin') {
+          roleFetches.push(fetch(API_URL + '/api/admin/organizations', { headers: { 'Authorization': 'Bearer ' + authToken } }).catch(() => null));
+          roleFetches.push(fetch(API_URL + '/api/public-stats').catch(() => null));
+        } else {
+          roleFetches.push(fetch(API_URL + '/api/donations/me', { headers: { 'Authorization': 'Bearer ' + authToken } }).catch(() => null));
         }
-      } else if (assignedRole === 'admin') {
-        if (authToken) roleFetches.push(fetch(`${API_URL}/api/admin/organizations`, { headers: { 'Authorization': `Bearer ${authToken}` } }).catch(() => null));
-        roleFetches.push(fetch(`${API_URL}/api/public-stats`).catch(() => null));
-      } else {
-        if (authToken) roleFetches.push(fetch(`${API_URL}/api/donations/my`, { headers: { 'Authorization': `Bearer ${authToken}` } }).catch(() => null));
       }
 
+      await Promise.race([
+        Promise.all([...roleFetches, new Promise(r => setTimeout(r, 320))]),
+        new Promise(r => setTimeout(r, 600))
+      ]);
+
+      // ── Stage 3: Connecting Sepolia EVM & Campaigns (~320ms) ──
+      setAuthTransition(prev => ({
+        ...prev,
+        stage: 3,
+        title: 'Connecting Network...',
+        subtitle: 'Connecting Sepolia EVM & campaign ledger...'
+      }));
+      const userIsAnon = Boolean(
+        user?.is_anonymous ||
+        (typeof user?.preferences === 'object' ? (user?.preferences?.is_anonymous || user?.preferences?.anonymous) : false)
+      );
+      localStorage.setItem('bbdrts_anon_default', String(userIsAnon));
+      if (user?.id || user?.email) {
+        localStorage.setItem('bbdrts_anon_default_' + (user.id || user.email), String(userIsAnon));
+      }
+      if (user?.wallet_address) setWalletAddress(user.wallet_address);
+
       let contract = activeContract || contractRef.current;
-      if (!contract && window.ethereum && user.wallet_address) {
+      if (!contract && window.ethereum && user?.wallet_address) {
         try {
           contract = await hydrateContract();
           contractRef.current = contract;
@@ -296,89 +652,170 @@ export default function App() {
         } catch (_) {}
       }
 
-      await Promise.all([
-        fetch(`${API_URL}/api/auth/me`, { headers: authToken ? { 'Authorization': `Bearer ${authToken}` } : {} }).catch(() => null),
-        ...roleFetches,
-        fetchCampaigns(contract).catch(() => null),
-        new Promise(r => setTimeout(r, 450)) // Smooth visual transition settling
-      ]);
+      fetchCampaigns(contract).catch(() => null);
+      await new Promise(r => setTimeout(r, 320));
 
-      // Smooth completion & handoff
-      setAuthTransition(prev => ({ ...prev, closing: true }));
+      // ── Stage 4: Mounting Dashboard Workspace (~320ms) ──
+      setAuthTransition(prev => ({
+        ...prev,
+        stage: 4,
+        title: 'Mounting Workspace...',
+        subtitle: 'Initializing relief workspace telemetry...'
+      }));
       setDbUser(user);
-      const userIsAnon = Boolean(
-        user?.is_anonymous || 
-        (typeof user?.preferences === 'object' ? (user?.preferences?.is_anonymous || user?.preferences?.anonymous) : false)
-      );
-      localStorage.setItem('bbdrts_anon_default', String(userIsAnon));
-      if (user?.id || user?.email) {
-        localStorage.setItem(`bbdrts_anon_default_${user.id || user.email}`, String(userIsAnon));
-      }
-      if (user.wallet_address) setWalletAddress(user.wallet_address);
       setShowAuth(false);
+      await new Promise(r => setTimeout(r, 320));
 
-      setTimeout(() => {
-        setAuthTransition({
-          active: false,
-          closing: false,
-          type: 'login',
-          title: '',
-          subtitle: '',
-          role: '',
-          user: null
-        });
-      }, 200);
+      // ── Stage 5: ALL CHECKED! Slight delay after check all (~700ms) ──
+      const elapsedPing = Math.round(performance.now() - startPing);
+      setAuthTransition(prev => ({
+        ...prev,
+        stage: 5,
+        title: `Welcome, ${user?.name || user?.email || 'Authorized User'}!`,
+        subtitle: 'Workspace ready · Access granted',
+        latencyMs: Math.max(16, Math.min(elapsedPing, 60))
+      }));
+
+      // Explicit pause to let user see all 4 verified checks
+      await new Promise(r => setTimeout(r, 700));
+
+      // ── Smooth Exit ──
+      setAuthTransition(prev => ({ ...prev, closing: true }));
+      await new Promise(r => setTimeout(r, 260));
+
+      setAuthTransition({
+        active: false,
+        closing: false,
+        type: 'login',
+        stage: 1,
+        title: '',
+        subtitle: '',
+        role: '',
+        user: null,
+        latencyMs: 32
+      });
+
+      if (isNewSignup && user?.role !== 'admin') {
+        setShowOnboardingModal(true);
+      }
 
     } catch (err) {
-      console.warn('Notice during auth sign-in handoff:', err);
+      console.warn('Network sync notice during auth transition:', err);
       setDbUser(user);
       setShowAuth(false);
-      setAuthTransition(prev => ({ ...prev, active: false }));
+      setAuthTransition({
+        active: false,
+        closing: false,
+        type: 'login',
+        stage: 1,
+        title: '',
+        subtitle: '',
+        role: '',
+        user: null,
+        latencyMs: 32
+      });
+      if (isNewSignup && user?.role !== 'admin') {
+        setShowOnboardingModal(true);
+      }
     }
   };
 
   const handleLogout = async () => {
     setShowSettingsModal(false);
+
     setAuthTransition({
       active: true,
       closing: false,
       type: 'logout',
-      title: 'Signing out...',
-      subtitle: 'Safely closing your session & clearing cryptographic tokens...',
+      stage: 1,
+      title: 'Ending Session',
+      subtitle: 'Closing active Web3 connection...',
       role: '',
-      user: null
+      user: null,
+      latencyMs: 24
     });
 
-    // Clear local authentication tokens and Web3 contracts immediately
-    localStorage.removeItem('bbdrts_token');
-    localStorage.removeItem('token');
-    localStorage.removeItem('bbdrts_user');
-    localStorage.removeItem('bbdrts_anon_default');
-    contractRef.current = null;
-    setActiveContract(null);
-    setWalletAddress('');
+    try {
+      // ── Stage 1: Closing active Web3 connection (~280ms) ──
+      contractRef.current = null;
+      setActiveContract(null);
+      setWalletAddress('');
+      await new Promise(r => setTimeout(r, 280));
 
-    // Concurrently refresh public drives for the visitor view
-    await Promise.all([
-      fetchCampaigns(null).catch(() => null),
-      new Promise(r => setTimeout(r, 400)) // Graceful transition timing
-    ]);
+      // ── Stage 2: Clearing credentials & session cache (~280ms) ──
+      setAuthTransition(prev => ({
+        ...prev,
+        stage: 2,
+        title: 'Ending Session...',
+        subtitle: 'Purging credentials & session cache...'
+      }));
+      localStorage.removeItem('bbdrts_token');
+      localStorage.removeItem('token');
+      localStorage.removeItem('bbdrts_user');
+      localStorage.removeItem('bbdrts_role');
+      localStorage.removeItem('bbdrts_anon_default');
+      localStorage.removeItem('bbdrts_needs_onboarding');
+      localStorage.removeItem('bbdrts_is_new_registration');
+      localStorage.removeItem('bbdrts_tour_force_launch');
+      clearLegacyGlobalPrefKeys();
+      setShowOnboardingModal(false);
+      setWorkspacePrefs({ ...DEFAULT_WORKSPACE_PREFS });
+      await new Promise(r => setTimeout(r, 280));
 
-    setAuthTransition(prev => ({ ...prev, closing: true }));
-    setDbUser(null);
-    setShowAuth(true);
+      // ── Stage 3: Resetting public workspace & unmounting dashboard (~300ms) ──
+      setAuthTransition(prev => ({
+        ...prev,
+        stage: 3,
+        title: 'Resetting Workspace...',
+        subtitle: 'Resetting public portal & unmounting views...'
+      }));
+      setDbUser(null);
+      setShowAuth(true);
+      setAuthMode('login');
+      fetchCampaigns(null).catch(() => null);
+      await new Promise(r => setTimeout(r, 300));
 
-    setTimeout(() => {
+      // ── Stage 4: Session Terminated / All Checked (~650ms delay) ──
+      setAuthTransition(prev => ({
+        ...prev,
+        stage: 4,
+        title: 'Session Terminated',
+        subtitle: 'Credentials purged · Returning to portal'
+      }));
+      await new Promise(r => setTimeout(r, 650));
+
+      // ── Smooth Exit ──
+      setAuthTransition(prev => ({ ...prev, closing: true }));
+      await new Promise(r => setTimeout(r, 240));
+
       setAuthTransition({
         active: false,
         closing: false,
         type: 'logout',
+        stage: 1,
         title: '',
         subtitle: '',
         role: '',
-        user: null
+        user: null,
+        latencyMs: 24
       });
-    }, 200);
+
+    } catch (err) {
+      console.warn('Logout notice:', err);
+      setDbUser(null);
+      setShowAuth(true);
+      setAuthTransition({
+        active: false,
+        closing: false,
+        type: 'logout',
+        stage: 1,
+        title: '',
+        subtitle: '',
+        role: '',
+        user: null,
+        latencyMs: 24
+      });
+    }
   };
 
   /* ── 4. Fetch campaigns ──────────────────────────────── */
@@ -387,7 +824,7 @@ export default function App() {
       setFetchingCampaigns(true);
       let dbCampaigns = [];
       try {
-        const res = await fetch(`${API_URL}/api/campaigns?_t=${Date.now()}`, { cache: 'no-store' });
+        const res = await fetch(`${API_URL}/api/campaigns`);
         if (res.ok) {
           dbCampaigns = await res.json();
         }
@@ -395,7 +832,7 @@ export default function App() {
         console.error('Offline DB Sync failed:', e);
       }
 
-      // Merge client-side localStorage cached campaigns (only enrich existing DB campaigns; do not inject ghost campaigns)
+      // Merge client-side localStorage cached campaigns (only enrich existing DB campaigns)
       try {
         const localCreated = JSON.parse(localStorage.getItem('bbdrts_created_campaigns') || '[]');
         const validLocal = [];
@@ -421,7 +858,6 @@ export default function App() {
           };
 
           if (dbIndex !== -1) {
-            // Overwrite any empty DB fields with local cache
             dbCampaigns[dbIndex] = {
               ...dbCampaigns[dbIndex],
               tags: dbCampaigns[dbIndex].tags || enriched.tags,
@@ -439,60 +875,65 @@ export default function App() {
             validLocal.push(lc);
           }
         });
-        // Prune orphan/stale campaigns from localStorage so ghost causes never persist
         localStorage.setItem('bbdrts_created_campaigns', JSON.stringify(validLocal));
       } catch (e) {
         console.warn('Failed to load local campaign cache:', e);
       }
 
-      const contract = contractOverride || contractRef.current || getReadOnlyContract();
-      if (contract && dbCampaigns.length > 0) {
-        try {
-          const count = Number(await contract.campaignCount());
-          const synced = [];
-          for (const dbCamp of dbCampaigns) {
-            let onChainData = null;
-            if (dbCamp.id && dbCamp.id <= count) {
-              try {
-                const c = await contract.campaigns(dbCamp.id);
-                if (c && c[1]) onChainData = c;
-              } catch (_) { }
-            }
-            if (!onChainData) {
-              for (let i = 1; i <= count; i++) {
-                try {
-                  const c = await contract.campaigns(i);
-                  if (c && c[1] && c[1].trim().toLowerCase() === (dbCamp.title || '').trim().toLowerCase()) {
-                    onChainData = c;
-                    break;
-                  }
-                } catch (_) { }
-              }
-            }
-
-            if (onChainData) {
-              const onChainEth = parseFloat(ethers.formatEther(onChainData[3])) || 0;
-              const dbEth = parseFloat(dbCamp.currentAmount || 0) || 0;
-              const finalCurrent = Math.max(onChainEth, dbEth);
-
-              synced.push({
-                ...dbCamp,
-                orgAddress: onChainData[0] || dbCamp.orgAddress,
-                targetAmount: ethers.formatEther(onChainData[2]),
-                currentAmount: finalCurrent.toString(),
-                isActive: onChainData[4]
-              });
-            } else {
-              synced.push(dbCamp);
-            }
-          }
-          setCampaigns(synced);
-        } catch (contractErr) {
-          console.warn('On-chain campaign sync warning:', contractErr);
-          setCampaigns(dbCampaigns);
-        }
-      } else {
+      // Immediately display campaigns from DB without waiting for Sepolia RPC
+      if (dbCampaigns && dbCampaigns.length > 0) {
         setCampaigns(dbCampaigns);
+        try {
+          localStorage.setItem('bbdrts_cached_campaigns_v2', JSON.stringify(dbCampaigns));
+        } catch (_) {}
+      }
+
+      // Fast non-blocking background on-chain sync (runs silently without blocking the UI)
+      const contract = contractOverride !== undefined ? contractOverride : (contractRef.current || getReadOnlyContract());
+      if (contract && dbCampaigns.length > 0) {
+        (async () => {
+          try {
+            const count = Number(await contract.campaignCount());
+            if (!count || count <= 0) return;
+
+            const onChainBatch = await Promise.all(
+              Array.from({ length: Math.min(count, 30) }, (_, idx) =>
+                contract.campaigns(idx + 1).catch(() => null)
+              )
+            );
+
+            setCampaigns(prev => {
+              let changed = false;
+              const next = prev.map(dbCamp => {
+                let onChainData = (dbCamp.id && dbCamp.id <= count) ? onChainBatch[dbCamp.id - 1] : null;
+                if (!onChainData || !onChainData[1]) {
+                  onChainData = onChainBatch.find(c => c && c[1] && c[1].trim().toLowerCase() === (dbCamp.title || '').trim().toLowerCase()) || null;
+                }
+
+                if (onChainData && onChainData[1]) {
+                  const onChainEth = parseFloat(ethers.formatEther(onChainData[3])) || 0;
+                  const dbEth = parseFloat(dbCamp.currentAmount || 0) || 0;
+                  const finalCurrent = Math.max(onChainEth, dbEth);
+
+                  if (finalCurrent.toString() !== dbCamp.currentAmount || onChainData[4] !== dbCamp.isActive) {
+                    changed = true;
+                    return {
+                      ...dbCamp,
+                      orgAddress: onChainData[0] || dbCamp.orgAddress,
+                      targetAmount: ethers.formatEther(onChainData[2]),
+                      currentAmount: finalCurrent.toString(),
+                      isActive: onChainData[4]
+                    };
+                  }
+                }
+                return dbCamp;
+              });
+              return changed ? next : prev;
+            });
+          } catch (_) {
+            // Silently retain DB campaigns on RPC glitch
+          }
+        })();
       }
     } catch (err) {
       console.error('Campaign sync error:', err);
@@ -542,9 +983,20 @@ export default function App() {
     handleLogout,
     updateDbWallet,
     theme,
+    themeMode,
     setTheme,
     textSize,
     setTextSize,
+    interfaceMode,
+    setInterfaceMode,
+    language,
+    setLanguage,
+    reducedMotion,
+    setReducedMotion,
+    highContrast,
+    setHighContrast,
+    lowBandwidthMode,
+    setLowBandwidthMode,
     onOpenNgoProfile: (id) => setSelectedNgoForProfile(id || 3),
     onActiveTabChange: handleActiveTabChange
   };
@@ -552,35 +1004,56 @@ export default function App() {
   return (
     <div className="app" data-theme={theme}>
 
-      {/* ── Modern Institutional Header with Live Network Status & Profile Hub ── */}
-      <Header
+      {/* ── Global Broadcast Announcement Banner (High Priority Alerts) ── */}
+      {!(!dbUser && showAuth) && (
+        <GlobalBroadcastBanner userRole={dbUser?.role || 'donor'} />
+      )}
+
+      {/* ── System Maintenance Guard (Full Platform or Route Interceptor) ── */}
+      <MaintenanceGuardModal
+        userRole={uiRole}
+        activeView={
+          !dbUser
+            ? (showAuth ? 'auth' : 'landing')
+            : (uiRole === ROLES.ADMIN ? 'admin' : uiRole === ROLES.ORGANIZATION ? 'ngo' : 'donor')
+        }
         dbUser={dbUser}
-        walletAddress={walletAddress}
-        handleConnectWallet={handleConnectWallet}
-        handleLogout={handleLogout}
-        showAuth={showAuth}
-        setShowAuth={setShowAuth}
-        authMode={authMode}
-        setAuthMode={setAuthMode}
-        setShowSettingsModal={setShowSettingsModal}
-        theme={theme}
-        toggleTheme={toggleTheme}
-        onOpenNgoProfile={(id) => setSelectedNgoForProfile(id || 3)}
       />
+
+      {/* ── Modern Institutional Header with Live Network Status & Profile Hub ── */}
+      {!(!dbUser && showAuth) && (
+        <Header
+          dbUser={dbUser}
+          walletAddress={walletAddress}
+          handleConnectWallet={handleConnectWallet}
+          handleLogout={handleLogout}
+          showAuth={showAuth}
+          setShowAuth={setShowAuth}
+          authMode={authMode}
+          setAuthMode={setAuthMode}
+          setShowSettingsModal={setShowSettingsModal}
+          theme={theme}
+          toggleTheme={toggleTheme}
+          onOpenNgoProfile={(id) => setSelectedNgoForProfile(id || 3)}
+        />
+      )}
 
       <ErrorBoundary>
         {/* ── Unauthenticated Views: Default Landing Page vs Auth Portal ── */}
         {!dbUser && !showAuth && (
           <LandingView
-            onConnect={() => {
+            onConnect={(targetRole, targetMode) => {
+              if (targetRole) setAuthRole(targetRole);
+              setAuthMode(targetMode || 'login');
+              setShowAuth(true);
+            }}
+            onSignIn={(targetRole) => {
+              if (targetRole) setAuthRole(targetRole);
               setAuthMode('login');
               setShowAuth(true);
             }}
-            onSignIn={() => {
-              setAuthMode('login');
-              setShowAuth(true);
-            }}
-            onSignUp={() => {
+            onSignUp={(targetRole) => {
+              if (targetRole) setAuthRole(targetRole);
               setAuthMode('register');
               setShowAuth(true);
             }}
@@ -598,62 +1071,25 @@ export default function App() {
             hasMetaMask={hasMetaMask}
             onBack={() => setShowAuth(false)}
             theme={theme}
+            onToggleTheme={toggleTheme}
             initialMode={authMode}
+            initialRole={authRole}
           />
         )}
 
         {/* ── Role-based Dashboards (Require Wallet for Actions) ── */}
         {dbUser && (
-          <div className="dashboard-enter-reveal">
-            {/* Connect wallet prompt (Required for live on-chain, optional for localhost) */}
-            {!walletAddress && (
-              <div className="container" style={{ marginTop: '20px' }}>
-                <div
-                  className="metamask-alert-banner"
-                  style={isLocalhost ? {
-                    background: 'linear-gradient(90deg, rgba(56, 189, 248, 0.08), rgba(34, 197, 94, 0.1))',
-                    borderColor: 'rgba(34, 197, 94, 0.35)',
-                    color: 'var(--success)'
-                  } : {}}
-                >
-                  <span className="material-symbols-outlined metamask-icon" style={isLocalhost ? { color: '#22c55e' } : {}}>
-                    {isLocalhost ? 'bolt' : 'warning'}
-                  </span>
-                  <div className="metamask-alert-content">
-                    <strong>
-                      {isLocalhost
-                        ? 'Localhost Mode: MetaMask Requirement Removed'
-                        : (!hasMetaMask ? 'MetaMask Required' : 'MetaMask Required for Financial Actions')}
-                    </strong>
-                    <span>
-                      {isLocalhost
-                        ? `You are signed in as ${dbUser.email}. On localhost, you can deploy relief campaigns directly without connecting MetaMask.`
-                        : !hasMetaMask
-                          ? 'Please install the MetaMask browser extension to connect your Web3 wallet.'
-                          : `You are signed securely into your account (${dbUser.email}), but to deploy campaigns or make donations, you must connect your Web3 wallet.`}
-                    </span>
-                  </div>
-                  {!isLocalhost && !hasMetaMask ? (
-                    <a
-                      href="https://metamask.io/download/"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="btn btn-sm btn-primary metamask-connect-btn"
-                      style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-                    >
-                      <span className="material-symbols-outlined icon-sm">download</span>
-                      <span>Download MetaMask ↗</span>
-                    </a>
-                  ) : (
-                    <button className={`btn btn-sm metamask-connect-btn ${isLocalhost ? 'btn-outline' : 'btn-primary'}`} onClick={handleConnectWallet}>
-                      <span className="material-symbols-outlined icon-sm">link</span>
-                      {isLocalhost ? 'Connect Wallet (Optional)' : 'Connect MetaMask'}
-                    </button>
-                  )}
-                </div>
-              </div>
-            )}
-
+          <div
+            className="dashboard-enter-reveal"
+            data-dashboard-role={uiRole}
+            data-interface-mode={interfaceMode}
+            data-text-size={textSize}
+            data-reduced-motion={String(reducedMotion)}
+            data-high-contrast={String(highContrast)}
+            data-low-bandwidth={String(lowBandwidthMode)}
+            data-language={language}
+            lang={language}
+          >
             {uiRole === ROLES.ADMIN && <AdminView {...sharedProps} />}
             {uiRole === ROLES.ORGANIZATION && <OrganizationView {...sharedProps} />}
             {uiRole === ROLES.DONOR && <DonorView {...sharedProps} />}
@@ -662,15 +1098,18 @@ export default function App() {
       </ErrorBoundary>
 
       {/* ── Account Settings Modal Overlay ── */}
-      {showSettingsModal && (
-        <div className="modal-overlay" onClick={() => setShowSettingsModal(false)} style={{ zIndex: 10000 }}>
-          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '860px', width: '92%', maxHeight: '90vh', overflowY: 'auto', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '16px', padding: '24px', position: 'relative' }}>
+      {showSettingsModal && typeof document !== 'undefined' && createPortal(
+        <div className="bbdrts-settings-modal-overlay">
+          <div
+            className="bbdrts-settings-modal-dialog"
+            onClick={e => e.stopPropagation()}
+          >
             <button
               onClick={() => setShowSettingsModal(false)}
-              style={{ position: 'absolute', top: '16px', right: '16px', background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', zIndex: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '4px', borderRadius: '8px' }}
-              title="Close Settings (Esc)"
+              className="bbdrts-settings-modal-close-btn"
+              aria-label="Close settings"
             >
-              <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>close</span>
+              ×
             </button>
             <SettingsPanel
               contract={activeContract}
@@ -680,55 +1119,69 @@ export default function App() {
               handleLogout={handleLogout}
               updateDbWallet={updateDbWallet}
               theme={theme}
+              themeMode={themeMode}
               setTheme={setTheme}
               textSize={textSize}
               setTextSize={setTextSize}
+              interfaceMode={interfaceMode}
+              setInterfaceMode={setInterfaceMode}
+              language={language}
+              setLanguage={setLanguage}
+              reducedMotion={reducedMotion}
+              setReducedMotion={setReducedMotion}
+              highContrast={highContrast}
+              setHighContrast={setHighContrast}
+              lowBandwidthMode={lowBandwidthMode}
+              setLowBandwidthMode={setLowBandwidthMode}
               onProfileUpdated={(updated) => setDbUser(updated)}
             />
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
-      {/* ── Reworked Premium Vercel-Standard Auth Transition Overlay ── */}
+          {/* ── Vercel Geist Protocol Handshake Transition Overlay ── */}
       {authTransition.active && (
-        <div
-          className={`auth-transition-backdrop ${authTransition.closing ? 'closing' : ''}`}
+        <div 
+          className={`auth-transition-backdrop ${authTransition.closing ? 'closing' : ''}`} 
           data-theme={theme}
-          role="status"
-          aria-live="polite"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="auth-transition-title"
         >
           <div className="auth-transition-card">
-            {/* Top Hairline Animated Progress Bar */}
-            <div className="auth-transition-progress-bar">
-              <div className={`auth-transition-progress-indicator ${authTransition.closing ? 'done' : 'running'}`} />
+            {/* Top Hairline Progress Stream */}
+            <div className="auth-transition-progress-stream">
+              <div
+                className={`auth-transition-progress-fill ${authTransition.stage >= (authTransition.type === 'logout' ? 4 : 5) ? 'done' : 'running'}`}
+                style={{
+                  width: authTransition.stage >= (authTransition.type === 'logout' ? 4 : 5)
+                    ? '100%'
+                    : authTransition.type === 'logout'
+                      ? `${Math.min(Math.round((authTransition.stage / 3) * 100), 90)}%`
+                      : `${Math.min(Math.round((authTransition.stage / 4) * 100), 90)}%`
+                }}
+              />
             </div>
 
             <div className="auth-transition-inner">
-              {/* Top Row: System Identity & Status Badge */}
-              <div className="auth-transition-top-row">
-                <div className="auth-transition-brand">
-                  <div className="auth-transition-logo-badge">
-                    <img
-                      src="/logo.png"
-                      alt="BBDRTS"
-                      className="auth-transition-logo-img"
-                      onError={(e) => { e.currentTarget.style.display = 'none'; }}
-                    />
-                    <span className="material-symbols-outlined auth-transition-logo-fallback">shield</span>
+              {/* Header: Clean Logo Badge + BBDRTS + Status Pill */}
+              <div className="auth-transition-header">
+                <div className="auth-brand-lockup">
+                  <div className="auth-handshake-emblem">
+                    <img src="/logo.png" alt="BBDRTS" className="auth-handshake-logo-img" />
                   </div>
-                  <span className="auth-transition-sysname">BBDRTS</span>
+                  <span className="auth-brand-name">BBDRTS</span>
                 </div>
 
-                <div className={`auth-transition-status-pill ${authTransition.type}`}>
-                  <span className="auth-transition-pulse-dot" />
-                  <span>
-                    {authTransition.type === 'logout'
-                      ? 'Closing Session'
-                      : authTransition.role === 'organization'
-                        ? 'NGO Portal'
-                        : authTransition.role === 'admin'
-                          ? 'Governance'
-                          : 'Donor Hub'}
+                <div className={`auth-status-chip ${authTransition.stage >= (authTransition.type === 'logout' ? 4 : 5) ? 'ready' : authTransition.type === 'logout' ? 'logout' : 'active'}`}>
+                  <span className="auth-chip-pulse" />
+                  <span className="auth-chip-label">
+                    {authTransition.stage >= (authTransition.type === 'logout' ? 4 : 5)
+                      ? (authTransition.type === 'logout' ? 'CLOSED' : 'READY')
+                      : authTransition.type === 'logout'
+                        ? 'DISCONNECTING'
+                        : 'AUTHENTICATING'}
                   </span>
                 </div>
               </div>
@@ -736,7 +1189,13 @@ export default function App() {
               {/* Main Visual & Info */}
               <div className="auth-transition-main-content">
                 <div className="auth-transition-avatar-box">
-                  {authTransition.type === 'logout' ? (
+                  {authTransition.stage >= (authTransition.type === 'logout' ? 4 : 5) ? (
+                    <div className="auth-transition-icon-circle is-ready">
+                      <span className="material-symbols-outlined">
+                        {authTransition.type === 'logout' ? 'lock' : 'check'}
+                      </span>
+                    </div>
+                  ) : authTransition.type === 'logout' ? (
                     <div className="auth-transition-icon-circle logout">
                       <span className="material-symbols-outlined">logout</span>
                     </div>
@@ -748,33 +1207,39 @@ export default function App() {
                         {authTransition.role === 'organization'
                           ? 'corporate_fare'
                           : authTransition.role === 'admin'
-                            ? 'admin_panel_settings'
+                            ? 'shield_person'
                             : 'volunteer_activism'}
                       </span>
                     </div>
                   )}
-                  <div className="auth-transition-spinner-ring" />
+                  {authTransition.stage < (authTransition.type === 'logout' ? 4 : 5) && (
+                    <div className={`auth-transition-spinner-ring ${authTransition.type === 'logout' ? 'logout' : ''}`} />
+                  )}
                 </div>
 
                 <div className="auth-transition-copy">
-                  <h3 className="auth-transition-title">
-                    {authTransition.title || (authTransition.type === 'logout' ? 'Signing you out...' : 'Signing you in...')}
+                  <h3 className="auth-transition-title" id="auth-transition-title">
+                    {authTransition.title}
                   </h3>
                   <p className="auth-transition-subtitle">
-                    {authTransition.subtitle || (authTransition.type === 'logout' ? 'Safely closing your session...' : 'Preparing your workspace...')}
+                    {authTransition.subtitle}
                   </p>
                 </div>
               </div>
 
-              {/* Bottom Cryptographic Assurance Footer */}
+              {/* Minimalist Telemetry Footer */}
               <div className="auth-transition-footer">
                 <div className="auth-transition-assurance">
-                  <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>lock</span>
+                  <span className="material-symbols-outlined footer-icon">lock</span>
                   <span>
                     {authTransition.type === 'logout'
-                      ? 'Securely wiping local session keys'
-                      : 'Sepolia EVM Cryptographic Verification'}
+                      ? 'Securely zeroizing session storage'
+                      : 'Sepolia EVM · Cryptographic Ledger'}
                   </span>
+                </div>
+                <div className="auth-transition-latency">
+                  <span className="auth-latency-dot" />
+                  <span>{authTransition.latencyMs || 28}ms</span>
                 </div>
               </div>
             </div>
@@ -782,7 +1247,7 @@ export default function App() {
         </div>
       )}
 
-      {/* ── Verified Institutional NGO Social Profile Modal ── */}
+            {/* ── Verified Institutional NGO Social Profile Modal ── */}
       {selectedNgoForProfile && (
         <NgoProfileModal
           orgId={selectedNgoForProfile}
@@ -798,8 +1263,8 @@ export default function App() {
         userRole={dbUser?.role || 'donor'}
         campaigns={campaigns}
         activeView={
-          !dbUser 
-            ? (showAuth ? 'Authentication Portal' : 'Public Landing Page') 
+          !dbUser
+            ? (showAuth ? 'Authentication Portal' : 'Public Landing Page')
             : (uiRole === ROLES.ADMIN ? 'Admin Governance Console' : uiRole === ROLES.ORGANIZATION ? 'NGO Operations Portal' : 'Donor Portal')
         }
         activeSubpage={
@@ -814,8 +1279,60 @@ export default function App() {
         activeTabMeta={activeTabInfo?.meta}
       />
 
+      {/* ── Post-Signup BBDRTS Workspace Setup & Personalization ── */}
+      {showOnboardingModal && (
+        <PersonalizationOnboarding
+          isOpen={showOnboardingModal}
+          onClose={async () => {
+            localStorage.removeItem('bbdrts_needs_onboarding');
+            setShowOnboardingModal(false);
+            if (dbUser) {
+              await persistWorkspacePreferences({
+                onboardingCompleted: true,
+                onboardingSkipped: true,
+                onboardingCompletedAt: new Date().toISOString()
+              });
+            }
+            window.dispatchEvent(new CustomEvent('bbdrts_onboarding_finished', { detail: { skipped: true } }));
+          }}
+          onComplete={async (selectedPrefs) => {
+            if (!dbUser) {
+              // Preview mode only: do NOT mutate AuthView/LandingView or future users
+              setShowOnboardingModal(false);
+              return;
+            }
+            const normalizedSize = normalizeTextSize(selectedPrefs?.textSize);
+            const fullPrefs = {
+              experienceMode: selectedPrefs?.experienceMode === 'simplified' ? 'simplified' : 'standard',
+              themePreference: ['light', 'dark', 'system'].includes(selectedPrefs?.themePreference) ? selectedPrefs.themePreference : themeMode,
+              language: ['en', 'fil', 'ceb'].includes(selectedPrefs?.language) ? selectedPrefs.language : language,
+              textSize: normalizedSize,
+              reducedMotion: Boolean(selectedPrefs?.reducedMotion),
+              highContrast: Boolean(selectedPrefs?.highContrast),
+              lowBandwidthMode: Boolean(selectedPrefs?.lowBandwidthMode),
+              onboardingCompleted: true,
+              onboardingCompletedAt: new Date().toISOString()
+            };
+
+            setWorkspacePrefs(sanitizeWorkspacePrefs(fullPrefs));
+            window.dispatchEvent(new CustomEvent('bbdrts_interface_mode_changed', { detail: { mode: fullPrefs.experienceMode } }));
+            await persistWorkspacePreferences(fullPrefs, dbUser);
+
+            localStorage.removeItem('bbdrts_needs_onboarding');
+            setShowOnboardingModal(false);
+            window.dispatchEvent(new CustomEvent('bbdrts_onboarding_finished', { detail: { completed: true, preferences: fullPrefs } }));
+          }}
+          user={dbUser || { name: 'Preview User', email: 'preview@bbdrts.org', role: 'donor' }}
+          initialTheme={dbUser ? themeMode : publicTheme}
+          initialMode={dbUser ? interfaceMode : 'standard'}
+          campaigns={campaigns}
+        />
+      )}
+
       {/* ── Modern Institutional 4-Column Mega Footer ── */}
-      <Footer onNavigate={() => { }} theme={theme} toggleTheme={toggleTheme} />
+      {!(!dbUser && showAuth) && (
+        <Footer onNavigate={() => { }} />
+      )}
 
     </div>
   );

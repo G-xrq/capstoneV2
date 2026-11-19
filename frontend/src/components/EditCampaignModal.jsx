@@ -2,8 +2,12 @@ import { useState, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { API_URL } from '../config';
 import { useToast } from '../context/ToastContext';
+import { formatPhoneNumber, cleanPhoneNumber } from '../utils/formatters';
+import { autoCropQrScreenshot } from '../utils/qrCropper';
+import { getRegions, getRegionForProvince } from '../data/philippineGeoData';
+import LocationMapPicker from './LocationMapPicker';
+import './EditCampaignModal.css';
 
-// Preset tags identical to Campaign Deployment
 const PRESET_CAMPAIGN_TAGS = [
   'Flood Relief',
   'Emergency Food',
@@ -21,9 +25,20 @@ const PRESET_CAMPAIGN_TAGS = [
   'Evacuation Support'
 ];
 
+const WIZARD_STEPS = [
+  { num: 1, label: 'Schedule' },
+  { num: 2, label: 'Location' },
+  { num: 3, label: 'Story & Tags' },
+  { num: 4, label: 'Payment & QR' }
+];
+
 export default function EditCampaignModal({ camp, isOpen, onClose, onSaved }) {
   const { showSuccess, showError, showWarning } = useToast();
 
+  // Wizard Stepper State: 1 to 4 (matching Deploy Campaign)
+  const [currentStep, setCurrentStep] = useState(1);
+
+  // Editable Fields
   const [description, setDescription] = useState('');
   const [targetDate, setTargetDate] = useState('');
   const [urgency, setUrgency] = useState('');
@@ -33,14 +48,68 @@ export default function EditCampaignModal({ camp, isOpen, onClose, onSaved }) {
   const [contactInfo, setContactInfo] = useState('');
   const [documentUrl, setDocumentUrl] = useState('');
   const [selectedTags, setSelectedTags] = useState([]);
+  const [customTagInput, setCustomTagInput] = useState('');
   const [saving, setSaving] = useState(false);
 
-  // Custom Web3 Calendar Popover state (matching Deploy Campaign)
+  // Granular Address Details (Deploy Campaign Image 3 Standard)
+  const [street, setStreet] = useState('');
+  const [barangay, setBarangay] = useState('');
+  const [city, setCity] = useState('');
+  const [province, setProvince] = useState('');
+  const [region, setRegion] = useState('');
+  const [zipCode, setZipCode] = useState('');
+  const [country, setCountry] = useState('Philippines');
+  const [landmark, setLandmark] = useState('');
+  const [isFindingLocation, setIsFindingLocation] = useState(false);
+  const [mapSearchTrigger, setMapSearchTrigger] = useState(null);
+
+  // Dropdown Popovers State (Deploy Campaign Style)
+  const [showUrgencyDropdown, setShowUrgencyDropdown] = useState(false);
+  const urgencyDropdownRef = useRef(null);
+
+  // Calendar Popover State
   const [deliveryDatePickerOpen, setDeliveryDatePickerOpen] = useState(false);
   const [calViewDate, setCalViewDate] = useState(() => new Date());
   const deliveryDateContainerRef = useRef(null);
+  const nativeDateInputRef = useRef(null);
 
-  // Initialize modal state when camp changes or modal opens
+  // Payment Relief Channels
+  const [activePaymentChannelTab, setActivePaymentChannelTab] = useState('gcash');
+  const [gcashName, setGcashName] = useState('');
+  const [gcashNumber, setGcashNumber] = useState('');
+  const [gcashQrUrl, setGcashQrUrl] = useState('');
+
+  const [mayaName, setMayaName] = useState('');
+  const [mayaNumber, setMayaNumber] = useState('');
+  const [mayaQrUrl, setMayaQrUrl] = useState('');
+
+  const [bankName, setBankName] = useState('');
+  const [bankAccountName, setBankAccountName] = useState('');
+  const [bankAccountNumber, setBankAccountNumber] = useState('');
+  const [bankQrUrl, setBankQrUrl] = useState('');
+
+  const [savedQrList, setSavedQrList] = useState([]);
+  const [showSelectQrModal, setShowSelectQrModal] = useState(null);
+  const [uploadingQrRail, setUploadingQrRail] = useState(null);
+  const [previewQrModalUrl, setPreviewQrModalUrl] = useState(null);
+
+  // Fetch NGO's reusable QR code library
+  const fetchSavedQrCodes = async () => {
+    try {
+      const token = localStorage.getItem('bbdrts_token') || localStorage.getItem('token');
+      const res = await fetch(`${API_URL}/api/organization/qr-codes`, {
+        headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const list = Array.isArray(data) ? data : (data.qr_codes || []);
+        setSavedQrList(list);
+      }
+    } catch (err) {
+      console.warn('Failed to load saved QR codes:', err);
+    }
+  };
+
   useEffect(() => {
     if (camp && isOpen) {
       setDescription(camp.description || '');
@@ -48,21 +117,64 @@ export default function EditCampaignModal({ camp, isOpen, onClose, onSaved }) {
       setTargetDate(initialDate);
       if (initialDate) {
         const d = new Date(initialDate + 'T00:00:00');
-        if (!isNaN(d.getTime())) {
-          setCalViewDate(d);
-        }
+        if (!isNaN(d.getTime())) setCalViewDate(d);
       } else {
         setCalViewDate(new Date());
       }
 
       setUrgency(camp.urgency || 'HIGH (EMERGENCY AID)');
       setBeneficiariesImpact(camp.beneficiariesImpact || camp.beneficiaries_impact || '');
-      setLocationRegion(camp.locationRegion || camp.location_region || camp.location || '');
+      const loc = camp.locationRegion || camp.location_region || camp.location || '';
+      setLocationRegion(loc);
       setGpsCoordinates(camp.gpsCoordinates || camp.gps_coordinates || camp.gps || '');
       setContactInfo(camp.contactInfo || camp.contact_info || '');
       setDocumentUrl(camp.documentUrl || camp.document_url || '');
 
-      // Parse tags
+      // Parse granular location if available or initialize from composite string
+      if (camp.street || camp.city || camp.province) {
+        setStreet(camp.street || '');
+        setBarangay(camp.barangay || '');
+        setCity(camp.city || '');
+        setProvince(camp.province || '');
+        setRegion(camp.region || '');
+        setZipCode(camp.zipCode || camp.zip_code || '');
+        setLandmark(camp.landmark || '');
+        setCountry(camp.country || 'Philippines');
+      } else if (loc) {
+        const parts = loc.split(',').map(s => s.trim());
+        if (parts.length >= 3) {
+          setStreet(parts[0] || '');
+          setBarangay(parts[1] || '');
+          setCity(parts[2] || '');
+          if (parts[3]) {
+            setProvince(parts[3]);
+            const autoReg = getRegionForProvince(parts[3]);
+            if (autoReg) setRegion(autoReg);
+          }
+        } else if (parts.length === 2) {
+          setStreet(parts[0] || '');
+          setCity(parts[1] || '');
+        } else {
+          setStreet(loc);
+        }
+        setCountry('Philippines');
+      }
+
+      setGcashName(camp.gcashName || camp.gcash_name || '');
+      setGcashNumber(formatPhoneNumber(camp.gcashNumber || camp.gcash_number || ''));
+      setGcashQrUrl(camp.gcashQrUrl || camp.gcash_qr_url || '');
+
+      setMayaName(camp.mayaName || camp.maya_name || '');
+      setMayaNumber(formatPhoneNumber(camp.mayaNumber || camp.maya_number || ''));
+      setMayaQrUrl(camp.mayaQrUrl || camp.maya_qr_url || '');
+
+      setBankName(camp.bankName || camp.bank_name || '');
+      setBankAccountName(camp.bankAccountName || camp.bank_account_name || '');
+      setBankAccountNumber(formatPhoneNumber(camp.bankAccountNumber || camp.bank_account_number || ''));
+      setBankQrUrl(camp.bankQrUrl || camp.bank_qr_url || '');
+
+      fetchSavedQrCodes();
+
       const rawTags = camp.tags || camp.tags_json || camp.tagsJson || '';
       let tagsArr = [];
       if (Array.isArray(rawTags)) {
@@ -71,20 +183,29 @@ export default function EditCampaignModal({ camp, isOpen, onClose, onSaved }) {
         tagsArr = rawTags.split(',').map(t => t.trim().replace(/^#/, '')).filter(Boolean);
       }
       setSelectedTags(tagsArr);
+      setCurrentStep(1);
       setDeliveryDatePickerOpen(false);
+      setShowUrgencyDropdown(false);
+      setShowSelectQrModal(null);
+      setPreviewQrModalUrl(null);
     }
   }, [camp, isOpen]);
 
-  // Close calendar popover on outside click or Escape
+  // Outside click listener for popovers
   useEffect(() => {
-    if (!deliveryDatePickerOpen) return;
     const handleOutside = (e) => {
       if (deliveryDateContainerRef.current && !deliveryDateContainerRef.current.contains(e.target)) {
         setDeliveryDatePickerOpen(false);
       }
+      if (urgencyDropdownRef.current && !urgencyDropdownRef.current.contains(e.target)) {
+        setShowUrgencyDropdown(false);
+      }
     };
     const handleKey = (e) => {
-      if (e.key === 'Escape') setDeliveryDatePickerOpen(false);
+      if (e.key === 'Escape') {
+        setDeliveryDatePickerOpen(false);
+        setShowUrgencyDropdown(false);
+      }
     };
     document.addEventListener('mousedown', handleOutside);
     document.addEventListener('keydown', handleKey);
@@ -92,28 +213,74 @@ export default function EditCampaignModal({ camp, isOpen, onClose, onSaved }) {
       document.removeEventListener('mousedown', handleOutside);
       document.removeEventListener('keydown', handleKey);
     };
-  }, [deliveryDatePickerOpen]);
+  }, []);
 
-  // Close modal on Escape if calendar is closed
-  useEffect(() => {
-    const handleModalEsc = (e) => {
-      if (e.key === 'Escape' && isOpen && !deliveryDatePickerOpen) {
-        onClose();
+  // Update composite address whenever any granular field changes
+  const updateGranularField = (field, val) => {
+    let nextStreet = field === 'street' ? val : street;
+    let nextBarangay = field === 'barangay' ? val : barangay;
+    let nextCity = field === 'city' ? val : city;
+    let nextProvince = field === 'province' ? val : province;
+    let nextRegion = field === 'region' ? val : region;
+    let nextZip = field === 'zipCode' ? val : zipCode;
+    let nextCountry = field === 'country' ? val : country;
+    let nextLandmark = field === 'landmark' ? val : landmark;
+
+    if (field === 'street') setStreet(val);
+    else if (field === 'barangay') setBarangay(val);
+    else if (field === 'city') setCity(val);
+    else if (field === 'province') {
+      setProvince(val);
+      const autoReg = getRegionForProvince(val);
+      if (autoReg) {
+        setRegion(autoReg);
+        nextRegion = autoReg;
       }
-    };
-    window.addEventListener('keydown', handleModalEsc);
-    return () => window.removeEventListener('keydown', handleModalEsc);
-  }, [isOpen, deliveryDatePickerOpen, onClose]);
+    }
+    else if (field === 'region') setRegion(val);
+    else if (field === 'zipCode') setZipCode(val);
+    else if (field === 'country') setCountry(val);
+    else if (field === 'landmark') setLandmark(val);
 
-  // Calendar month navigation
-  const handlePrevCalMonth = () => {
-    setCalViewDate(prev => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
-  };
-  const handleNextCalMonth = () => {
-    setCalViewDate(prev => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
+    const full = [
+      nextStreet,
+      nextBarangay,
+      nextCity,
+      nextProvince,
+      nextRegion ? `(${nextRegion})` : '',
+      nextZip,
+      nextCountry || 'Philippines',
+      nextLandmark ? `(Landmark: ${nextLandmark})` : ''
+    ].filter(Boolean).join(', ');
+    setLocationRegion(full);
   };
 
-  // Compute calendar cells matching Deploy Campaign
+  // Two-way sync from Map pin / click to granular inputs
+  const handleGranularAddressFromMap = ({ street: s = '', barangay: b = '', city: c = '', province: p = '', region: r = '', country: cnt = 'Philippines', zip: z = '', landmark: l = '', fullAddress = '' }) => {
+    const resolvedRegion = r || (p ? getRegionForProvince(p) : '') || '';
+    if (s) setStreet(s);
+    if (b) setBarangay(b);
+    if (c) setCity(c);
+    if (p) setProvince(p);
+    if (resolvedRegion) setRegion(resolvedRegion);
+    setCountry(cnt || 'Philippines');
+    if (z) setZipCode(z);
+    if (l) setLandmark(l);
+
+    const constructed = fullAddress || [
+      s,
+      b,
+      c,
+      p,
+      resolvedRegion ? `(${resolvedRegion})` : '',
+      z,
+      cnt || 'Philippines',
+      l ? `(Landmark: ${l})` : ''
+    ].filter(Boolean).join(', ');
+    setLocationRegion(constructed);
+  };
+
+  // Calendar cells computation (Deploy Campaign Style - Unrestricted Date Selection)
   const calMonthCells = useMemo(() => {
     const year = calViewDate.getFullYear();
     const month = calViewDate.getMonth();
@@ -152,13 +319,12 @@ export default function EditCampaignModal({ camp, isOpen, onClose, onSaved }) {
     try {
       const d = new Date(dateStr + 'T00:00:00');
       if (isNaN(d.getTime())) return dateStr;
-      return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      return d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
     } catch {
       return dateStr;
     }
   };
 
-  // Date selection with automatic urgency calculation matching Deploy Campaign
   const handleTargetDateChange = (newDate) => {
     setTargetDate(newDate);
     if (newDate) {
@@ -169,19 +335,21 @@ export default function EditCampaignModal({ camp, isOpen, onClose, onSaved }) {
       const diffTime = chosen.getTime() - today.getTime();
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-      if (diffDays <= 5) {
-        setUrgency('HIGH (EMERGENCY AID)');
-      } else if (diffDays <= 14) {
-        setUrgency('MEDIUM (URGENT REHABILITATION)');
-      } else {
-        setUrgency('STABLE (CHARITABLE AID)');
-      }
-    } else {
-      setUrgency('');
+      if (diffDays <= 5) setUrgency('HIGH (EMERGENCY AID)');
+      else if (diffDays <= 14) setUrgency('MEDIUM (URGENT REHABILITATION)');
+      else setUrgency('STABLE (CHARITABLE AID)');
     }
   };
 
-  // Tag chip toggle
+  // Quick Preset Date Helper
+  const applyDatePreset = (daysOffset) => {
+    const d = new Date();
+    d.setDate(d.getDate() + daysOffset);
+    const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    handleTargetDateChange(iso);
+    setCalViewDate(d);
+  };
+
   const handleTagToggle = (tag) => {
     if (selectedTags.includes(tag)) {
       setSelectedTags(selectedTags.filter(t => t !== tag));
@@ -190,13 +358,68 @@ export default function EditCampaignModal({ camp, isOpen, onClose, onSaved }) {
     }
   };
 
+  const handleAddCustomTag = (e) => {
+    e.preventDefault();
+    const clean = customTagInput.trim().replace(/^#/, '');
+    if (clean && !selectedTags.includes(clean)) {
+      setSelectedTags([...selectedTags, clean]);
+      setCustomTagInput('');
+    }
+  };
+
   if (!isOpen || !camp) return null;
 
-  // Format financial targets for the EVM lock note
   const rawTargetEth = camp.targetAmount || camp.target_amount || camp.target || '0';
   const targetEthFormatted = parseFloat(rawTargetEth) > 0 ? parseFloat(rawTargetEth).toFixed(4) : '0.0000';
   const rawTargetPhp = camp.targetAmountPhp || camp.target_amount_php || (parseFloat(rawTargetEth) * 170000);
   const targetPhpFormatted = Math.round(rawTargetPhp).toLocaleString('en-US');
+
+  // Assign QR from library
+  const handleSelectSavedQr = (qr) => {
+    if (qr.payment_method === 'GCash') {
+      setGcashQrUrl(qr.qr_image_url);
+      if (qr.account_name) setGcashName(qr.account_name);
+      if (qr.account_number) setGcashNumber(formatPhoneNumber(qr.account_number));
+      showSuccess(`Assigned "${qr.custom_name}" GCash QR!`, 'QR Code Assigned');
+    } else if (qr.payment_method === 'Maya') {
+      setMayaQrUrl(qr.qr_image_url);
+      if (qr.account_name) setMayaName(qr.account_name);
+      if (qr.account_number) setMayaNumber(formatPhoneNumber(qr.account_number));
+      showSuccess(`Assigned "${qr.custom_name}" Maya QR!`, 'QR Code Assigned');
+    } else if (qr.payment_method === 'Bank') {
+      setBankQrUrl(qr.qr_image_url);
+      if (qr.account_name) setBankAccountName(qr.account_name);
+      if (qr.account_number) setBankAccountNumber(formatPhoneNumber(qr.account_number));
+      showSuccess(`Assigned "${qr.custom_name}" Bank QR!`, 'QR Code Assigned');
+    }
+    setShowSelectQrModal(null);
+  };
+
+  // Upload new QR code with auto-crop
+  const handleUploadNewQr = async (rail, e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingQrRail(rail);
+    try {
+      const croppedUrl = await autoCropQrScreenshot(file);
+      if (rail === 'GCash') setGcashQrUrl(croppedUrl);
+      else if (rail === 'Maya') setMayaQrUrl(croppedUrl);
+      else if (rail === 'Bank') setBankQrUrl(croppedUrl);
+
+      showSuccess(`Successfully cropped and attached ${rail} QR code!`, 'QR Code Ready');
+    } catch (_) {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        if (rail === 'GCash') setGcashQrUrl(ev.target.result);
+        else if (rail === 'Maya') setMayaQrUrl(ev.target.result);
+        else if (rail === 'Bank') setBankQrUrl(ev.target.result);
+      };
+      reader.readAsDataURL(file);
+    } finally {
+      setUploadingQrRail(null);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e?.preventDefault();
@@ -223,7 +446,25 @@ export default function EditCampaignModal({ camp, isOpen, onClose, onSaved }) {
           gps_coordinates: gpsCoordinates.trim(),
           contact_info: contactInfo.trim(),
           tags: selectedTags.join(', '),
-          document_url: documentUrl.trim()
+          document_url: documentUrl.trim(),
+          street: street.trim(),
+          barangay: barangay.trim(),
+          city: city.trim(),
+          province: province.trim(),
+          region: region.trim(),
+          zip_code: zipCode.trim(),
+          country: country.trim(),
+          landmark: landmark.trim(),
+          gcash_name: gcashName.trim(),
+          gcash_number: cleanPhoneNumber(gcashNumber),
+          gcash_qr_url: gcashQrUrl,
+          maya_name: mayaName.trim(),
+          maya_number: cleanPhoneNumber(mayaNumber),
+          maya_qr_url: mayaQrUrl,
+          bank_name: bankName.trim(),
+          bank_account_name: bankAccountName.trim(),
+          bank_account_number: bankAccountNumber.trim(),
+          bank_qr_url: bankQrUrl
         })
       });
 
@@ -244,599 +485,1227 @@ export default function EditCampaignModal({ camp, isOpen, onClose, onSaved }) {
   };
 
   return createPortal(
-    <div
-      className="bbdrts-edit-profile-backdrop"
-      onClick={onClose}
-      style={{
-        position: 'fixed',
-        inset: 0,
-        width: '100vw',
-        height: '100vh',
-        background: 'rgba(0, 0, 0, 0.82)',
-        backdropFilter: 'blur(8px)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 9999999,
-        padding: '16px'
-      }}
-    >
-      <div
-        className="fade-in"
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          width: '100%',
-          maxWidth: '760px',
-          maxHeight: '92vh',
-          display: 'flex',
-          flexDirection: 'column',
-          background: 'var(--bg-card, #1c1c1c)',
-          borderRadius: '16px',
-          border: '1px solid var(--border-strong, rgba(255, 255, 255, 0.16))',
-          boxShadow: '0 25px 65px rgba(0, 0, 0, 0.85)',
-          overflow: 'hidden'
-        }}
-      >
-        {/* ── Modal Header: Clean, Authentic Web3 NGO Console ── */}
-        <div style={{
-          padding: '16px 22px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          borderBottom: '1px solid var(--border, rgba(255, 255, 255, 0.08))',
-          background: 'var(--bg-subcard, #232323)',
-          flexShrink: 0
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0 }}>
-            <div style={{
-              width: '40px',
-              height: '40px',
-              borderRadius: '10px',
-              background: 'var(--accent-dim, rgba(34, 197, 94, 0.15))',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: 'var(--accent, #22c55e)',
-              border: '1px solid var(--accent-glow, rgba(34, 197, 94, 0.3))',
-              flexShrink: 0
-            }}>
-              <span className="material-symbols-outlined" style={{ fontSize: '22px' }}>edit_note</span>
+    <div className="bbdrts-edit-camp-backdrop" onClick={onClose} role="dialog" aria-modal="true">
+      <div className="bbdrts-edit-camp-modal" onClick={(e) => e.stopPropagation()}>
+
+        {/* ── 1. Modal Header ── */}
+        <div className="bbdrts-edit-header">
+          <div className="bbdrts-edit-title-wrap">
+            <div className="bbdrts-edit-icon">
+              <span className="material-symbols-outlined">edit_note</span>
             </div>
-            <div style={{ minWidth: 0 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <h2 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-                  Edit Campaign Details
-                </h2>
-                <span className="deploy-step-pill" style={{ fontSize: '0.68rem', padding: '2px 8px' }}>
-                  Campaign #{camp.id}
-                </span>
+            <div>
+              <div className="bbdrts-edit-title-line">
+                <h2 className="bbdrts-edit-title">Edit Campaign Settings</h2>
+                <span className="bbdrts-camp-id-badge">#{camp.id}</span>
               </div>
-              <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <div className="bbdrts-edit-subtitle" title={camp.title}>
                 {camp.title}
               </div>
             </div>
           </div>
-
           <button
             type="button"
+            className="bbdrts-edit-close-btn"
             onClick={onClose}
-            className="btn btn-ghost btn-sm"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              padding: '6px',
-              borderRadius: '8px',
-              color: 'var(--text-muted)'
-            }}
-            title="Close"
+            aria-label="Close dialog"
           >
-            <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>close</span>
+            <span className="material-symbols-outlined">close</span>
           </button>
         </div>
 
-        {/* ── EVM Cryptographic Lock Banner ── */}
-        <div style={{
-          padding: '10px 22px',
-          background: 'rgba(34, 197, 94, 0.06)',
-          borderBottom: '1px solid rgba(34, 197, 94, 0.15)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: '12px',
-          flexShrink: 0
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-            <span className="material-symbols-outlined" style={{ fontSize: '16px', color: 'var(--accent, #22c55e)' }}>lock</span>
+        {/* ── 2. EVM Cryptographic Lock Strip ── */}
+        <div className="bbdrts-edit-lock-strip">
+          <div className="lock-left">
+            <span className="material-symbols-outlined" style={{ fontSize: '15px', color: '#10b981' }}>lock</span>
             <span>
-              Financial target (<strong style={{ color: 'var(--text-primary)' }}>₱{targetPhpFormatted} PHP</strong> • {targetEthFormatted} ETH) is cryptographically locked on Sepolia EVM. Operational relief and field details below can be updated at any time.
+              Target fund (<strong className="font-mono">₱{targetPhpFormatted}</strong> • {targetEthFormatted} ETH) is cryptographically locked on Sepolia EVM. Operational relief and field details below can be updated at any time.
             </span>
           </div>
-          <span style={{
-            fontSize: '0.66rem',
-            fontWeight: 700,
-            letterSpacing: '0.5px',
-            color: 'var(--accent, #22c55e)',
-            background: 'var(--accent-dim, rgba(34, 197, 94, 0.18))',
-            padding: '3px 8px',
-            borderRadius: '6px',
-            textTransform: 'uppercase',
-            whiteSpace: 'nowrap'
-          }}>
-            On-Chain Audited
-          </span>
+          <span className="audited-pill">On-Chain Audited</span>
         </div>
 
-        {/* ── Scrollable Form Body: Identical to Deploy Campaign ── */}
-        <form
-          id="edit-campaign-form"
-          onSubmit={handleSubmit}
-          style={{
-            flex: 1,
-            minHeight: 0,
-            overflowY: 'auto',
-            padding: '18px 22px',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '16px'
-          }}
-        >
-          {/* Section 1: Operational Timeline & Urgency Priority */}
-          <div className="deploy-section-card" style={{ flexShrink: 0, overflow: 'visible' }}>
-            <div className="deploy-section-header">
-              <div className="deploy-section-title">
-                <span className="material-symbols-outlined deploy-section-icon">schedule</span>
-                <span>1. Operational Timeline & Urgency Priority</span>
-              </div>
-              <span className="deploy-step-pill">Priority & Schedule</span>
-            </div>
+        {/* ── 3. Interactive Multi-Step Stepper Bar (Matching Image 1 & Deploy Campaign) ── */}
+        <div className="bbdrts-stepper-wrap">
+          <div className="bbdrts-edit-stepper-bar">
+            {WIZARD_STEPS.map((st) => {
+              const isActive = currentStep === st.num;
+              const isCompleted = currentStep > st.num;
+              return (
+                <button
+                  key={st.num}
+                  type="button"
+                  onClick={() => setCurrentStep(st.num)}
+                  className={`bbdrts-edit-step-btn ${isActive ? 'active' : ''} ${isCompleted ? 'completed' : ''}`}
+                  title={`Jump to Step ${st.num}: ${st.label}`}
+                >
+                  <span className="bbdrts-edit-step-num">
+                    {isCompleted ? <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>check</span> : `0${st.num}`}
+                  </span>
+                  <span>{st.label}</span>
+                </button>
+              );
+            })}
+          </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '14px' }}>
-              {/* Target Relief Delivery Date with Web3 Calendar Popover */}
-              <div style={{ position: 'relative' }} ref={deliveryDateContainerRef}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                  <label className="deploy-input-label" style={{ margin: 0 }}>
-                    Target Relief Delivery Date
-                  </label>
-                  {targetDate && (
-                    <span style={{ fontSize: '0.68rem', color: 'var(--accent, #22c55e)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
-                      <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>check</span> Date set
-                    </span>
-                  )}
+          {/* Slim Progress Track Bar */}
+          <div className="bbdrts-edit-progress-track">
+            <div className="bbdrts-edit-progress-bar" style={{ width: `${currentStep * 25}%` }} />
+          </div>
+        </div>
+
+        {/* ── 4. Scrollable Form Content Body ── */}
+        <form id="edit-campaign-form" onSubmit={handleSubmit} className="bbdrts-edit-form">
+          <div className="bbdrts-edit-scroll-body">
+
+            {/* ════ STEP 1: OPERATIONAL TIMELINE & URGENCY PRIORITY ════ */}
+            {currentStep === 1 && (
+              <div className="bbdrts-step-card">
+                <div className="bbdrts-step-header">
+                  <div className="bbdrts-step-title-wrap">
+                    <div className="bbdrts-step-icon-badge">
+                      <span className="material-symbols-outlined">schedule</span>
+                    </div>
+                    <div>
+                      <h3 className="bbdrts-step-title">1. Operational Timeline &amp; Urgency Priority</h3>
+                      <div className="bbdrts-step-subtitle">
+                        Adjust target relief delivery deadline, impact scope, and emergency aid priority.
+                      </div>
+                    </div>
+                  </div>
+                  <span className="bbdrts-step-pill">Step 1 of 4</span>
                 </div>
 
-                <div style={{ position: 'relative' }}>
-                  <button
-                    type="button"
-                    onClick={() => !saving && setDeliveryDatePickerOpen(prev => !prev)}
-                    disabled={saving}
-                    className="input deploy-field-input"
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      width: '100%',
-                      cursor: saving ? 'not-allowed' : 'pointer',
-                      textAlign: 'left',
-                      padding: '9px 12px',
-                      background: 'var(--bg-input, rgba(255,255,255,0.03))',
-                      border: targetDate ? '1.5px solid var(--accent, #22c55e)' : '1px solid var(--border)',
-                      borderRadius: '10px'
-                    }}
-                    title="Click to open calendar and select delivery target date"
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden' }}>
-                      <span className="material-symbols-outlined" style={{ fontSize: '1.15rem', color: targetDate ? 'var(--accent)' : 'var(--text-muted)' }}>
-                        calendar_month
-                      </span>
-                      <span style={{ fontSize: '0.84rem', fontWeight: targetDate ? 700 : 500, color: targetDate ? 'var(--text-primary)' : 'var(--text-muted)' }}>
+                <div className="bbdrts-edit-grid-2">
+                  {/* Delivery Date with Deploy Campaign Popover + Quick Preset Chips */}
+                  <div className="bbdrts-field" style={{ position: 'relative' }} ref={deliveryDateContainerRef}>
+                    <div className="bbdrts-field-label-row">
+                      <label>Target Due Date <span style={{ color: '#ef4444' }}>*</span></label>
+                      <div className="bbdrts-date-quick-chips">
+                        <button type="button" className="bbdrts-date-chip-btn" onClick={() => applyDatePreset(7)} title="Set 7 days from now">+7d</button>
+                        <button type="button" className="bbdrts-date-chip-btn" onClick={() => applyDatePreset(14)} title="Set 14 days from now">+14d</button>
+                        <button type="button" className="bbdrts-date-chip-btn" onClick={() => applyDatePreset(30)} title="Set 30 days from now">+30d</button>
+                        {targetDate && (
+                          <button type="button" className="bbdrts-date-chip-btn" onClick={() => handleTargetDateChange('')} title="Clear selected date" style={{ color: '#f43f5e' }}>Clear</button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Trigger Bar */}
+                    <div
+                      className="bbdrts-input-wrap"
+                      style={{ cursor: 'pointer' }}
+                      onClick={() => setDeliveryDatePickerOpen(prev => !prev)}
+                    >
+                      <span className="prefix material-symbols-outlined" style={{ color: targetDate ? '#10b981' : '#71717a' }}>calendar_month</span>
+                      <span style={{ flex: 1, fontSize: '0.82rem', color: targetDate ? '#ededed' : '#71717a', fontWeight: targetDate ? 600 : 400 }}>
                         {targetDate ? formatSelectedDeliveryDate(targetDate) : 'Select Delivery Date...'}
+                      </span>
+                      {targetDate && (
+                        <span
+                          role="button"
+                          onClick={(e) => { e.stopPropagation(); handleTargetDateChange(''); }}
+                          style={{ color: '#71717a', cursor: 'pointer', padding: '2px', display: 'flex' }}
+                          title="Clear date"
+                        >
+                          <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>close</span>
+                        </span>
+                      )}
+                      <span
+                        className="material-symbols-outlined"
+                        style={{
+                          fontSize: '1.1rem',
+                          color: '#71717a',
+                          transition: 'transform 0.15s ease',
+                          transform: deliveryDatePickerOpen ? 'rotate(180deg)' : 'none'
+                        }}
+                      >
+                        expand_more
                       </span>
                     </div>
 
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      {targetDate ? (
-                        <span
-                          role="button"
-                          tabIndex={0}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleTargetDateChange('');
-                          }}
-                          style={{
-                            padding: '2px 4px',
-                            borderRadius: '6px',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            color: 'var(--text-muted)',
-                            background: 'rgba(255,255,255,0.08)',
-                            cursor: 'pointer'
-                          }}
-                          title="Clear date"
-                        >
-                          <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>close</span>
-                        </span>
-                      ) : (
-                        <span className="material-symbols-outlined" style={{ fontSize: '1.1rem', color: 'var(--text-muted)' }}>
-                          {deliveryDatePickerOpen ? 'expand_less' : 'expand_more'}
+                    {/* Hidden Native Date Input for Accessibility / Browser Pickers */}
+                    <input
+                      ref={nativeDateInputRef}
+                      type="date"
+                      value={targetDate}
+                      onChange={(e) => handleTargetDateChange(e.target.value)}
+                      style={{ position: 'absolute', opacity: 0, pointerEvents: 'none', width: 0, height: 0 }}
+                      tabIndex={-1}
+                    />
+
+                    {/* Web3 Calendar Popover (Unrestricted Date Selection) */}
+                    {deliveryDatePickerOpen && (
+                      <div className="bbdrts-cal-popover" onClick={e => e.stopPropagation()}>
+                        <div className="bbdrts-cal-header">
+                          <button
+                            type="button"
+                            className="bbdrts-cal-header-btn"
+                            onClick={() => setCalViewDate(prev => new Date(prev.getFullYear(), prev.getMonth() - 1, 1))}
+                            title="Previous Month"
+                          >
+                            <span className="material-symbols-outlined" style={{ fontSize: '17px' }}>chevron_left</span>
+                          </button>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span className="bbdrts-cal-month-title">
+                              {calViewDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+                            </span>
+                            <button
+                              type="button"
+                              className="bbdrts-date-chip-btn"
+                              onClick={() => {
+                                const now = new Date();
+                                setCalViewDate(now);
+                              }}
+                              style={{ padding: '0 4px', fontSize: '0.62rem' }}
+                            >
+                              Today
+                            </button>
+                          </div>
+                          <button
+                            type="button"
+                            className="bbdrts-cal-header-btn"
+                            onClick={() => setCalViewDate(prev => new Date(prev.getFullYear(), prev.getMonth() + 1, 1))}
+                            title="Next Month"
+                          >
+                            <span className="material-symbols-outlined" style={{ fontSize: '17px' }}>chevron_right</span>
+                          </button>
+                        </div>
+
+                        <div className="bbdrts-cal-weekdays">
+                          {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map(d => <span key={d}>{d}</span>)}
+                        </div>
+
+                        <div className="bbdrts-cal-grid">
+                          {calMonthCells.map((cell) => {
+                            const isSelected = targetDate === cell.iso;
+                            const today = new Date();
+                            today.setHours(0, 0, 0, 0);
+                            const cellDate = new Date(cell.iso + 'T00:00:00');
+                            const diffDays = Math.ceil((cellDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+
+                            let dotColor = null;
+                            if (cell.isCurrentMonth) {
+                              if (diffDays >= 0 && diffDays <= 5) dotColor = '#ef4444';
+                              else if (diffDays > 5 && diffDays <= 14) dotColor = '#f59e0b';
+                              else if (diffDays > 14) dotColor = '#22c55e';
+                            }
+
+                            return (
+                              <button
+                                key={cell.iso}
+                                type="button"
+                                className={`bbdrts-cal-day ${!cell.isCurrentMonth ? 'outside' : ''} ${cell.isPast ? 'past' : ''} ${cell.isToday ? 'today' : ''} ${isSelected ? 'selected' : ''}`}
+                                onClick={() => {
+                                  handleTargetDateChange(cell.iso);
+                                  setDeliveryDatePickerOpen(false);
+                                }}
+                                title={`${cell.iso} (${diffDays === 0 ? 'Today' : `${diffDays} days from now`})`}
+                              >
+                                <span>{cell.dayNum}</span>
+                                {dotColor && !isSelected && (
+                                  <span className="bbdrts-cal-dot" style={{ background: dotColor }} />
+                                )}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                    <span className="field-hint">Setting a relief delivery deadline auto-calculates emergency urgency.</span>
+                  </div>
+
+                  {/* Urgency Status (Deploy Campaign Custom Dropdown Popover) */}
+                  <div className="bbdrts-field" style={{ position: 'relative' }} ref={urgencyDropdownRef}>
+                    <div className="bbdrts-field-label-row">
+                      <label>Urgency Priority Level</label>
+                      {targetDate && urgency && (
+                        <span style={{ fontSize: '0.68rem', color: '#10b981', display: 'flex', alignItems: 'center', gap: '3px' }}>
+                          <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>autorenew</span> Auto-set from date
                         </span>
                       )}
                     </div>
-                  </button>
 
-                  {/* Web3 Calendar Popover */}
-                  {deliveryDatePickerOpen && (
-                    <div
-                      className="ledger-custom-calendar-popover"
-                      onClick={(e) => e.stopPropagation()}
-                      style={{
-                        position: 'absolute',
-                        top: 'calc(100% + 6px)',
-                        left: 0,
-                        right: 'auto',
-                        width: '300px',
-                        zIndex: 1000
-                      }}
+                    <button
+                      type="button"
+                      className={`bbdrts-dropdown-trigger ${showUrgencyDropdown ? 'open' : ''}`}
+                      onClick={() => setShowUrgencyDropdown(prev => !prev)}
                     >
-                      {/* Month Header */}
-                      <div className="cal-header">
-                        <button
-                          type="button"
-                          className="cal-nav-btn"
-                          onClick={handlePrevCalMonth}
-                          title="Previous Month"
-                        >
-                          <span className="material-symbols-outlined">chevron_left</span>
-                        </button>
-                        <div className="cal-month-title">
-                          {calViewDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
-                        </div>
-                        <button
-                          type="button"
-                          className="cal-nav-btn"
-                          onClick={handleNextCalMonth}
-                          title="Next Month"
-                        >
-                          <span className="material-symbols-outlined">chevron_right</span>
-                        </button>
-                      </div>
-
-                      {/* Urgency Helper Banner */}
-                      <div className="cal-lifecycle-banner" style={{ fontSize: '0.66rem', padding: '3px 8px' }}>
-                        <span className="cal-pulse-dot" />
-                        <span className="cal-lifecycle-text">
-                          Auto Urgency: ≤5d High • 6–14d Medium • &gt;14d Stable
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span
+                          style={{
+                            width: '8px',
+                            height: '8px',
+                            borderRadius: '50%',
+                            background: urgency === 'HIGH (EMERGENCY AID)' ? '#ef4444' : (urgency === 'MEDIUM (URGENT REHABILITATION)' ? '#f59e0b' : (urgency === 'STABLE (CHARITABLE AID)' ? '#22c55e' : '#71717a')),
+                            flexShrink: 0
+                          }}
+                        />
+                        <span style={{ fontSize: '0.82rem', fontWeight: 600, color: urgency ? '#ededed' : '#71717a' }}>
+                          {urgency === 'HIGH (EMERGENCY AID)' && 'Critical Emergency (≤ 5 Days)'}
+                          {urgency === 'MEDIUM (URGENT REHABILITATION)' && 'Urgent Relief (6–14 Days)'}
+                          {urgency === 'STABLE (CHARITABLE AID)' && 'Standard Operations (> 14 Days)'}
+                          {!urgency && 'Select Urgency Status...'}
                         </span>
                       </div>
+                      <span
+                        className="material-symbols-outlined"
+                        style={{
+                          fontSize: '1.1rem',
+                          color: '#71717a',
+                          transition: 'transform 0.15s ease',
+                          transform: showUrgencyDropdown ? 'rotate(180deg)' : 'none'
+                        }}
+                      >
+                        expand_more
+                      </span>
+                    </button>
 
-                      {/* Weekday Labels */}
-                      <div className="cal-weekdays">
-                        <span>Su</span>
-                        <span>Mo</span>
-                        <span>Tu</span>
-                        <span>We</span>
-                        <span>Th</span>
-                        <span>Fr</span>
-                        <span>Sa</span>
+                    {/* Popover */}
+                    {showUrgencyDropdown && (
+                      <div className="bbdrts-dropdown-popover" onClick={e => e.stopPropagation()}>
+                        <div className="bbdrts-dropdown-popover-header">
+                          <span>Urgency Status</span>
+                        </div>
+
+                        <button
+                          type="button"
+                          className={`bbdrts-dropdown-option ${urgency === 'HIGH (EMERGENCY AID)' ? 'active' : ''}`}
+                          onClick={() => {
+                            setUrgency('HIGH (EMERGENCY AID)');
+                            setShowUrgencyDropdown(false);
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#ef4444' }} />
+                            <span>Critical Emergency (≤ 5 Days)</span>
+                          </div>
+                          {urgency === 'HIGH (EMERGENCY AID)' && (
+                            <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#22c55e' }}>check</span>
+                          )}
+                        </button>
+
+                        <button
+                          type="button"
+                          className={`bbdrts-dropdown-option ${urgency === 'MEDIUM (URGENT REHABILITATION)' ? 'active' : ''}`}
+                          onClick={() => {
+                            setUrgency('MEDIUM (URGENT REHABILITATION)');
+                            setShowUrgencyDropdown(false);
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#f59e0b' }} />
+                            <span>Urgent Relief (6–14 Days)</span>
+                          </div>
+                          {urgency === 'MEDIUM (URGENT REHABILITATION)' && (
+                            <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#22c55e' }}>check</span>
+                          )}
+                        </button>
+
+                        <button
+                          type="button"
+                          className={`bbdrts-dropdown-option ${urgency === 'STABLE (CHARITABLE AID)' ? 'active' : ''}`}
+                          onClick={() => {
+                            setUrgency('STABLE (CHARITABLE AID)');
+                            setShowUrgencyDropdown(false);
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#22c55e' }} />
+                            <span>Standard Operations (&gt; 14 Days)</span>
+                          </div>
+                          {urgency === 'STABLE (CHARITABLE AID)' && (
+                            <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#22c55e' }}>check</span>
+                          )}
+                        </button>
                       </div>
+                    )}
+                    <span className="field-hint">Prioritizes campaign dispatch in disaster radar feeds.</span>
+                  </div>
+                </div>
 
-                      {/* Days Grid */}
-                      <div className="cal-grid">
-                        {calMonthCells.map((cell) => {
-                          const isSelected = targetDate === cell.iso;
-                          let cellClass = 'cal-day';
-                          if (!cell.isCurrentMonth) cellClass += ' cal-day-outside';
-                          if (cell.isPast) cellClass += ' cal-day-past';
-                          if (isSelected) cellClass += ' cal-day-selected';
+                {/* Beneficiaries Scope */}
+                <div className="bbdrts-field">
+                  <label htmlFor="edit-beneficiaries">Estimated Beneficiaries / Impact Scope</label>
+                  <div className="bbdrts-input-wrap">
+                    <span className="prefix material-symbols-outlined">group</span>
+                    <input
+                      id="edit-beneficiaries"
+                      type="text"
+                      placeholder="e.g. 1,000 displaced families in Barangay Hibunawan"
+                      value={beneficiariesImpact}
+                      onChange={(e) => setBeneficiariesImpact(e.target.value)}
+                    />
+                  </div>
+                  <span className="field-hint">Target family count or community population receiving assistance.</span>
+                </div>
+              </div>
+            )}
 
-                          const today = new Date();
-                          today.setHours(0, 0, 0, 0);
-                          const cellDate = new Date(cell.iso + 'T00:00:00');
-                          const diffDays = Math.ceil((cellDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-
-                          let dotColor = null;
-                          if (!cell.isPast && cell.isCurrentMonth) {
-                            if (diffDays <= 5) dotColor = '#ef4444';
-                            else if (diffDays <= 14) dotColor = '#eab308';
-                            else dotColor = '#22c55e';
-                          }
-
-                          return (
-                            <button
-                              key={cell.iso}
-                              type="button"
-                              className={cellClass}
-                              disabled={cell.isPast}
-                              onClick={() => {
-                                handleTargetDateChange(cell.iso);
-                                setDeliveryDatePickerOpen(false);
-                              }}
-                              style={{
-                                opacity: cell.isPast ? 0.35 : 1,
-                                cursor: cell.isPast ? 'not-allowed' : 'pointer',
-                                border: cell.isToday ? '1px dashed var(--accent, #22c55e)' : 'none',
-                                background: isSelected ? 'var(--accent, #22c55e)' : (cell.isToday ? 'rgba(34,197,94,0.08)' : 'transparent'),
-                                color: isSelected ? '#000000' : 'inherit',
-                                fontWeight: isSelected || cell.isToday ? 700 : 500,
-                                position: 'relative'
-                              }}
-                              title={cell.isPast ? 'Past date unavailable' : `${cell.iso} (${diffDays === 0 ? 'Today' : `${diffDays} days from now`})`}
-                            >
-                              <span className="cal-day-num">{cell.dayNum}</span>
-                              {dotColor && !isSelected && (
-                                <span
-                                  style={{
-                                    width: '4px',
-                                    height: '4px',
-                                    borderRadius: '50%',
-                                    background: dotColor,
-                                    position: 'absolute',
-                                    bottom: '3px'
-                                  }}
-                                />
-                              )}
-                            </button>
-                          );
-                        })}
+            {/* ════ STEP 2: DISASTER LOCATION & GROUND PIN (DEPLOY CAMPAIGN IMAGE 3 EXACT MATCH) ════ */}
+            {currentStep === 2 && (
+              <div className="bbdrts-step-card">
+                <div className="bbdrts-step-header">
+                  <div className="bbdrts-step-title-wrap">
+                    <div className="bbdrts-step-icon-badge">
+                      <span className="material-symbols-outlined">explore</span>
+                    </div>
+                    <div>
+                      <h3 className="bbdrts-step-title">2. Disaster Location &amp; Ground Pin</h3>
+                      <div className="bbdrts-step-subtitle">
+                        Enter the disaster ground location or click anywhere on the map to pin exact coordinates.
                       </div>
                     </div>
-                  )}
-                </div>
-                <div style={{ marginTop: '4px', fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                  Selecting a date will auto-fill the Urgency Status below.
-                </div>
-              </div>
-
-              {/* Urgency Status Dropdown */}
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                  <label className="deploy-input-label" style={{ margin: 0 }}>
-                    Urgency Status
-                  </label>
-                  {urgency && (
-                    <span style={{ fontSize: '0.68rem', color: 'var(--accent, #22c55e)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
-                      <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>check</span> Auto-set from target date
-                    </span>
-                  )}
-                </div>
-                <select
-                  className="input deploy-field-input"
-                  value={urgency}
-                  onChange={(e) => setUrgency(e.target.value)}
-                  disabled={saving}
-                  style={{ cursor: 'pointer' }}
-                >
-                  <option value="">-- Select or Auto-filled by Delivery Date --</option>
-                  <option value="HIGH (EMERGENCY AID)">High Emergency Aid (≤ 5 Days)</option>
-                  <option value="MEDIUM (URGENT REHABILITATION)">Urgent Rehabilitation (6–14 Days)</option>
-                  <option value="STABLE (CHARITABLE AID)">Standard Aid Operation (&gt; 14 Days)</option>
-                </select>
-                <div style={{ marginTop: '4px', fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                  Prioritizes campaign dispatch in humanitarian radar and feed.
-                </div>
-              </div>
-
-              {/* Estimated Beneficiaries / Impact Scope (Full Width) */}
-              <div style={{ gridColumn: '1 / -1' }}>
-                <label className="deploy-input-label">
-                  Estimated Beneficiaries / Impact Scope
-                </label>
-                <input
-                  className="input deploy-field-input"
-                  type="text"
-                  placeholder="e.g., ~3,500 Displaced Families across 12 Barangays"
-                  value={beneficiariesImpact}
-                  onChange={(e) => setBeneficiariesImpact(e.target.value)}
-                  disabled={saving}
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Section 2: Ground Distribution & Field Contact */}
-          <div className="deploy-section-card" style={{ flexShrink: 0, overflow: 'visible' }}>
-            <div className="deploy-section-header">
-              <div className="deploy-section-title">
-                <span className="material-symbols-outlined deploy-section-icon">location_on</span>
-                <span>2. Ground Distribution & Field Contact</span>
-              </div>
-              <span className="deploy-step-pill">Ground Relief</span>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '14px' }}>
-              {/* Distribution Location */}
-              <div>
-                <label className="deploy-input-label">
-                  Relief Distribution Location & Evacuation Landmark
-                </label>
-                <input
-                  className="input deploy-field-input"
-                  type="text"
-                  placeholder="e.g., Southern Leyte Provincial Sports Complex, Maasin City"
-                  value={locationRegion}
-                  onChange={(e) => setLocationRegion(e.target.value)}
-                  disabled={saving}
-                />
-              </div>
-
-              {/* GPS Coordinates */}
-              <div>
-                <label className="deploy-input-label">
-                  GPS Coordinates (Latitude, Longitude) (Optional)
-                </label>
-                <input
-                  className="input deploy-field-input"
-                  type="text"
-                  placeholder="e.g., 10.1335, 124.8436"
-                  value={gpsCoordinates}
-                  onChange={(e) => setGpsCoordinates(e.target.value)}
-                  disabled={saving}
-                />
-                <div style={{ marginTop: '4px', fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                  Used by Relief Radar and Humanitarian Pin Map.
-                </div>
-              </div>
-
-              {/* Emergency Contact Hotline / Desk (Full Width) */}
-              <div style={{ gridColumn: '1 / -1' }}>
-                <label className="deploy-input-label">
-                  Emergency Contact Hotline / Response Desk
-                </label>
-                <input
-                  className="input deploy-field-input"
-                  type="text"
-                  placeholder="e.g., relief@redcross.org.ph • (053) 570-8899"
-                  value={contactInfo}
-                  onChange={(e) => setContactInfo(e.target.value)}
-                  disabled={saving}
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Section 3: Mission Purpose & Campaign Operation Tags */}
-          <div className="deploy-section-card" style={{ flexShrink: 0, overflow: 'visible' }}>
-            <div className="deploy-section-header">
-              <div className="deploy-section-title">
-                <span className="material-symbols-outlined deploy-section-icon">description</span>
-                <span>3. Mission Purpose & Campaign Operation Tags</span>
-              </div>
-              <span className="deploy-step-pill">Humanitarian Context</span>
-            </div>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              {/* Campaign Operation Tags */}
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                  <label className="deploy-input-label" style={{ margin: 0 }}>
-                    Campaign Operation Tags
-                  </label>
-                  <span style={{ fontSize: '0.74rem', color: selectedTags.length > 0 ? 'var(--accent, #22c55e)' : 'var(--text-muted)', fontWeight: 600 }}>
-                    {selectedTags.length} Selected
-                  </span>
-                </div>
-                <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: '8px' }}>
-                  Click to toggle preset tags or add custom relief tags below.
+                  </div>
+                  <span className="bbdrts-step-pill">Step 2 of 4</span>
                 </div>
 
-                {/* Preset Tag Chips identical to Deploy Campaign */}
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '10px' }}>
-                  {PRESET_CAMPAIGN_TAGS.map((tag) => {
-                    const isSelected = selectedTags.includes(tag);
-                    return (
-                      <button
-                        key={tag}
-                        type="button"
-                        onClick={() => handleTagToggle(tag)}
-                        className={`deploy-tag-chip ${isSelected ? 'active' : ''}`}
-                        title={`Click to ${isSelected ? 'remove' : 'add'} ${tag}`}
-                      >
-                        <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>{isSelected ? 'check' : 'add'}</span>
-                        <span>{tag}</span>
-                      </button>
-                    );
-                  })}
+                <div className="bbdrts-location-map-grid">
+                  {/* Left Column: Granular Address Details */}
+                  <div className="bbdrts-location-left-col">
+                    <div className="bbdrts-col-header-line">
+                      <div className="bbdrts-col-header-title">
+                        <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#ef4444' }}>location_on</span>
+                        <span>Complete Address Details</span>
+                      </div>
+                      {(street || barangay || city || province || region || zipCode || landmark || locationRegion || gpsCoordinates) && (
+                        <button
+                          type="button"
+                          className="btn btn-ghost btn-xs"
+                          onClick={() => {
+                            setStreet('');
+                            setBarangay('');
+                            setCity('');
+                            setProvince('');
+                            setRegion('');
+                            setZipCode('');
+                            setLandmark('');
+                            setCountry('Philippines');
+                            setLocationRegion('');
+                            setGpsCoordinates('');
+                          }}
+                          style={{ fontSize: '0.70rem', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.3)', padding: '2px 8px', borderRadius: '5px', display: 'inline-flex', alignItems: 'center', gap: '4px', background: 'transparent', cursor: 'pointer' }}
+                          title="Clear all address inputs"
+                        >
+                          <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>clear_all</span>
+                          <span>Clear</span>
+                        </button>
+                      )}
+                    </div>
 
-                  {/* Any existing custom tags not in PRESET_CAMPAIGN_TAGS */}
-                  {selectedTags.filter(t => !PRESET_CAMPAIGN_TAGS.includes(t)).map((customTag) => (
+                    {/* 1. Street / Building / House No. */}
+                    <div className="bbdrts-field">
+                      <label>Street / Building / House No.</label>
+                      <div className="bbdrts-input-wrap">
+                        <input
+                          type="text"
+                          placeholder="e.g., Rizal Street, Block 4"
+                          value={street}
+                          onChange={(e) => updateGranularField('street', e.target.value)}
+                        />
+                      </div>
+                    </div>
+
+                    {/* 2. Barangay & Municipality / City */}
+                    <div className="bbdrts-edit-grid-2">
+                      <div className="bbdrts-field">
+                        <label>Barangay</label>
+                        <div className="bbdrts-input-wrap">
+                          <input
+                            type="text"
+                            placeholder="e.g., Barangay Abgao"
+                            value={barangay}
+                            onChange={(e) => updateGranularField('barangay', e.target.value)}
+                          />
+                        </div>
+                      </div>
+                      <div className="bbdrts-field">
+                        <label>Municipality / City <span style={{ color: '#ef4444' }}>*</span></label>
+                        <div className="bbdrts-input-wrap">
+                          <input
+                            type="text"
+                            placeholder="e.g., Maasin City"
+                            value={city}
+                            onChange={(e) => updateGranularField('city', e.target.value)}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* 3. Province / State & Zip / Postal Code */}
+                    <div className="bbdrts-edit-grid-2">
+                      <div className="bbdrts-field">
+                        <label>Province / State <span style={{ color: '#ef4444' }}>*</span></label>
+                        <div className="bbdrts-input-wrap">
+                          <input
+                            type="text"
+                            placeholder="e.g., Southern Leyte"
+                            value={province}
+                            onChange={(e) => updateGranularField('province', e.target.value)}
+                          />
+                        </div>
+                      </div>
+                      <div className="bbdrts-field">
+                        <label>Zip / Postal Code</label>
+                        <div className="bbdrts-input-wrap">
+                          <input
+                            type="text"
+                            placeholder="e.g., 6600"
+                            value={zipCode}
+                            onChange={(e) => updateGranularField('zipCode', e.target.value)}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* 4. Region & Country */}
+                    <div className="bbdrts-edit-grid-2">
+                      <div className="bbdrts-field">
+                        <label>Region <span style={{ color: '#ef4444' }}>*</span></label>
+                        <div className="bbdrts-input-wrap">
+                          <input
+                            type="text"
+                            list="ph-region-edit-options"
+                            placeholder="e.g., Region VIII (Eastern Visayas)"
+                            value={region}
+                            onChange={(e) => updateGranularField('region', e.target.value)}
+                          />
+                          <datalist id="ph-region-edit-options">
+                            {getRegions().map((r) => (
+                              <option key={r} value={r} />
+                            ))}
+                          </datalist>
+                        </div>
+                      </div>
+                      <div className="bbdrts-field">
+                        <label>Country</label>
+                        <div className="bbdrts-input-wrap">
+                          <input
+                            type="text"
+                            placeholder="Philippines"
+                            value={country}
+                            onChange={(e) => updateGranularField('country', e.target.value)}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* 5. Landmark / Evacuation Site (Optional) */}
+                    <div className="bbdrts-field">
+                      <label>Landmark / Evacuation Site (Optional)</label>
+                      <div className="bbdrts-input-wrap">
+                        <input
+                          type="text"
+                          placeholder="e.g., Near City Port, Rizal Park, Evacuation Center"
+                          value={landmark}
+                          onChange={(e) => updateGranularField('landmark', e.target.value)}
+                        />
+                      </div>
+                    </div>
+
+                    {/* 6. Find Location & Pin on Map Button */}
                     <button
-                      key={customTag}
                       type="button"
-                      onClick={() => handleTagToggle(customTag)}
-                      className="deploy-tag-chip active"
-                      title="Custom tag. Click to remove."
+                      className="bbdrts-locate-btn"
+                      onClick={() => {
+                        const searchAddress = [street, barangay, city, province, region, country].filter(Boolean).join(', ');
+                        if (!city && !province && !searchAddress) {
+                          return showWarning('Please enter at least a Municipality/City or Province to locate on map.', 'Location Required');
+                        }
+                        setIsFindingLocation(true);
+                        setMapSearchTrigger({
+                          structured: { street, barangay, city, province, region, country, landmark },
+                          query: searchAddress,
+                          ts: Date.now()
+                        });
+                      }}
+                      disabled={isFindingLocation}
                     >
-                      <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>check</span>
-                      <span>{customTag}</span>
+                      {isFindingLocation ? (
+                        <>
+                          <span className="material-symbols-outlined spin" style={{ fontSize: '18px', color: '#22c55e' }}>progress_activity</span>
+                          <span>Locating on Map...</span>
+                        </>
+                      ) : (
+                        <>
+                          <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#22c55e' }}>explore</span>
+                          <span>Find Location &amp; Pin on Map</span>
+                        </>
+                      )}
                     </button>
-                  ))}
+
+                    {/* 7. Confirmed Target Area Summary Box & GPS Badge */}
+                    <div className="bbdrts-target-summary-box">
+                      <div style={{ flex: 1, minWidth: '160px' }}>
+                        <div style={{ fontSize: '0.68rem', color: '#71717a', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <span className="material-symbols-outlined" style={{ fontSize: '13px', color: '#22c55e' }}>location_on</span>
+                          <span>Confirmed Target Area:</span>
+                        </div>
+                        <div style={{ fontSize: '0.78rem', fontWeight: 600, color: locationRegion ? '#ededed' : '#71717a', marginTop: '2px', wordBreak: 'break-word' }}>
+                          {locationRegion || 'Fill inputs above or select a point on the map →'}
+                        </div>
+                      </div>
+                      <div className="bbdrts-gps-badge">
+                        <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>my_location</span>
+                        <span>GPS: {gpsCoordinates || '10.1333° N, 124.8667° E'}</span>
+                      </div>
+                    </div>
+
+                    {/* 8. Field Operations Hotline / Contact */}
+                    <div className="bbdrts-field" style={{ marginTop: '2px' }}>
+                      <label htmlFor="edit-contact">Field Operations Contact &amp; Hotline</label>
+                      <div className="bbdrts-input-wrap">
+                        <span className="prefix material-symbols-outlined">call</span>
+                        <input
+                          id="edit-contact"
+                          type="text"
+                          placeholder="e.g. relief-operations@redcross.org.ph / (053) 832-1923"
+                          value={contactInfo}
+                          onChange={(e) => setContactInfo(e.target.value)}
+                        />
+                      </div>
+                      <span className="field-hint">Official contact info for donor inquiries and logistics.</span>
+                    </div>
+                  </div>
+
+                  {/* Right Column: Square Leaflet Map View */}
+                  <div className="bbdrts-location-right-col">
+                    <div className="bbdrts-col-header-line">
+                      <div className="bbdrts-col-header-title">
+                        <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#22c55e' }}>pin_drop</span>
+                        <span>Deployment Topo Map</span>
+                      </div>
+                      <span
+                        style={{
+                          fontSize: '0.68rem',
+                          color: '#22c55e',
+                          background: 'rgba(34, 197, 94, 0.12)',
+                          border: '1px solid rgba(34, 197, 94, 0.25)',
+                          padding: '2px 8px',
+                          borderRadius: '10px',
+                          fontWeight: 700,
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.5px',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px'
+                        }}
+                      >
+                        <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>sync</span>
+                        <span>Auto-Sync Pin</span>
+                      </span>
+                    </div>
+
+                    <div className="bbdrts-map-frame-box">
+                      <LocationMapPicker
+                        address={locationRegion}
+                        gps={gpsCoordinates}
+                        onChangeAddress={(addr) => setLocationRegion(addr)}
+                        onChangeGranularAddress={handleGranularAddressFromMap}
+                        onChangeGps={(coords) => setGpsCoordinates(coords)}
+                        onLocationFound={(res) => {
+                          setIsFindingLocation(false);
+                          showSuccess(
+                            `Location found: ${res.name || res.display_name?.split(',')[0] || 'Map pinned successfully'}.`,
+                            'Map Location Set'
+                          );
+                          if (!zipCode && res.address?.postcode) {
+                            setZipCode(res.address.postcode);
+                          }
+                        }}
+                        onSearchStatus={(status) => {
+                          setIsFindingLocation(false);
+                          if (!status.success) {
+                            showWarning(
+                              'Could not find address on the map. Please verify municipality or click directly on the map.',
+                              'Location Search'
+                            );
+                          }
+                        }}
+                        hideSearch={true}
+                        allowLayerSwitch={true}
+                        defaultLayer="terrain"
+                        searchTrigger={mapSearchTrigger}
+                        height="440px"
+                        theme="dark"
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
+            )}
 
-              {/* Mission & Campaign Description */}
-              <div>
-                <label className="deploy-input-label">
-                  Mission & Campaign Description
-                </label>
-                <textarea
-                  className="input deploy-field-input"
-                  rows="3"
-                  placeholder="Provide mission background, emergency relief scope, and on-ground deployment plan..."
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  disabled={saving}
-                  style={{ width: '100%', resize: 'vertical', lineHeight: 1.5 }}
-                />
-              </div>
+            {/* ════ STEP 3: MISSION PURPOSE & CAMPAIGN TAGS ════ */}
+            {currentStep === 3 && (
+              <div className="bbdrts-step-card">
+                <div className="bbdrts-step-header">
+                  <div className="bbdrts-step-title-wrap">
+                    <div className="bbdrts-step-icon-badge">
+                      <span className="material-symbols-outlined">description</span>
+                    </div>
+                    <div>
+                      <h3 className="bbdrts-step-title">3. Mission Purpose &amp; Campaign Operation Tags</h3>
+                      <div className="bbdrts-step-subtitle">
+                        Refine your humanitarian appeal narrative, operational tags, and official accreditation link.
+                      </div>
+                    </div>
+                  </div>
+                  <span className="bbdrts-step-pill">Step 3 of 4</span>
+                </div>
 
-              {/* Official Document / Verification Link */}
-              <div>
-                <label className="deploy-input-label">
-                  Official Document / Verification Link (Optional)
-                </label>
-                <input
-                  className="input deploy-field-input"
-                  type="url"
-                  placeholder="e.g., https://redcross.org.ph/press-release-102"
-                  value={documentUrl}
-                  onChange={(e) => setDocumentUrl(e.target.value)}
-                  disabled={saving}
-                />
+                {/* Description */}
+                <div className="bbdrts-field">
+                  <label htmlFor="edit-description">Mission Purpose &amp; Operational Narrative</label>
+                  <textarea
+                    id="edit-description"
+                    rows={4}
+                    placeholder="Describe the disaster relief mission, emergency relief supply delivery, and recovery objectives..."
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                  />
+                  <span className="field-hint">This narrative is public and visible to all global donors.</span>
+                </div>
+
+                {/* Operation Tags */}
+                <div className="bbdrts-field">
+                  <div className="bbdrts-field-label-row">
+                    <label>Campaign Operation Tags</label>
+                    <span style={{ fontSize: '0.70rem', color: '#10b981' }}>{selectedTags.length} Selected</span>
+                  </div>
+                  <div className="bbdrts-tag-chips-wrap">
+                    {PRESET_CAMPAIGN_TAGS.map((tag) => {
+                      const isSelected = selectedTags.includes(tag);
+                      return (
+                        <button
+                          key={tag}
+                          type="button"
+                          className={`bbdrts-tag-chip ${isSelected ? 'active' : ''}`}
+                          onClick={() => handleTagToggle(tag)}
+                        >
+                          <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>
+                            {isSelected ? 'check' : 'add'}
+                          </span>
+                          <span>{tag}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Add Custom Tag */}
+                  <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+                    <div className="bbdrts-input-wrap" style={{ flex: 1 }}>
+                      <span className="prefix">#</span>
+                      <input
+                        type="text"
+                        placeholder="Add custom tag (e.g. LeyteRebuild)..."
+                        value={customTagInput}
+                        onChange={(e) => setCustomTagInput(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') handleAddCustomTag(e); }}
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      className="btn btn-outline"
+                      onClick={handleAddCustomTag}
+                      style={{ padding: '0 12px', fontSize: '0.74rem' }}
+                    >
+                      Add Tag
+                    </button>
+                  </div>
+                </div>
+
+                {/* Accreditation URL */}
+                <div className="bbdrts-field">
+                  <label htmlFor="edit-doc">Accreditation Document or Evacuation Manifest Link</label>
+                  <div className="bbdrts-input-wrap">
+                    <span className="prefix material-symbols-outlined">link</span>
+                    <input
+                      id="edit-doc"
+                      type="url"
+                      placeholder="https://drive.google.com/... or IPFS / SEC certification link"
+                      value={documentUrl}
+                      onChange={(e) => setDocumentUrl(e.target.value)}
+                    />
+                  </div>
+                  <span className="field-hint">Public link to SEC, DSWD, or NDRRMC verification documents.</span>
+                </div>
               </div>
+            )}
+
+            {/* ════ STEP 4: PAYMENT RELIEF CHANNELS & QR CODES ════ */}
+            {currentStep === 4 && (
+              <div className="bbdrts-step-card">
+                <div className="bbdrts-step-header">
+                  <div className="bbdrts-step-title-wrap">
+                    <div className="bbdrts-step-icon-badge">
+                      <span className="material-symbols-outlined">qr_code_2</span>
+                    </div>
+                    <div>
+                      <h3 className="bbdrts-step-title">4. Payment Relief Channels &amp; QR Codes</h3>
+                      <div className="bbdrts-step-subtitle">
+                        Manage receiving e-wallets, bank accounts, and verified QR Ph codes for donor contributions.
+                      </div>
+                    </div>
+                  </div>
+                  <span className="bbdrts-step-pill">Step 4 of 4</span>
+                </div>
+
+                {/* Payment Rail Switcher Tabs */}
+                <div className="bbdrts-rail-switcher" role="tablist">
+                  <button
+                    type="button"
+                    role="tab"
+                    className={`bbdrts-rail-btn ${activePaymentChannelTab === 'gcash' ? 'active' : ''}`}
+                    onClick={() => setActivePaymentChannelTab('gcash')}
+                  >
+                    <span>GCash</span>
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    className={`bbdrts-rail-btn ${activePaymentChannelTab === 'maya' ? 'active' : ''}`}
+                    onClick={() => setActivePaymentChannelTab('maya')}
+                  >
+                    <span>Maya</span>
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    className={`bbdrts-rail-btn ${activePaymentChannelTab === 'bank' ? 'active' : ''}`}
+                    onClick={() => setActivePaymentChannelTab('bank')}
+                  >
+                    <span>Bank Transfer</span>
+                  </button>
+                </div>
+
+                {/* GCASH RAIL */}
+                {activePaymentChannelTab === 'gcash' && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                    <div className="bbdrts-edit-grid-2">
+                      <div className="bbdrts-field">
+                        <label>Official GCash Account Name</label>
+                        <div className="bbdrts-input-wrap">
+                          <input
+                            type="text"
+                            placeholder="e.g. ReliefLink Operations"
+                            value={gcashName}
+                            onChange={(e) => setGcashName(e.target.value)}
+                          />
+                        </div>
+                      </div>
+                      <div className="bbdrts-field">
+                        <label>Official GCash Number</label>
+                        <div className="bbdrts-input-wrap">
+                          <input
+                            type="text"
+                            placeholder="e.g. 0917 123 4567"
+                            value={gcashNumber}
+                            onChange={(e) => setGcashNumber(formatPhoneNumber(e.target.value))}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="bbdrts-qr-row-simple">
+                      {gcashQrUrl ? (
+                        <div className="bbdrts-qr-thumb" onClick={() => setPreviewQrModalUrl(gcashQrUrl)} title="Click to enlarge">
+                          <img src={gcashQrUrl} alt="GCash QR" />
+                        </div>
+                      ) : (
+                        <div className="bbdrts-qr-thumb" style={{ background: '#141414', border: '1px dashed #333' }}>
+                          <span className="material-symbols-outlined" style={{ fontSize: '24px', color: '#71717a' }}>qr_code_2</span>
+                        </div>
+                      )}
+                      <div className="bbdrts-qr-info">
+                        <div className="title">GCash QR Ph Code</div>
+                        <div className="sub">{gcashQrUrl ? 'Active QR Ph code attached' : 'No QR attached yet'}</div>
+                        {gcashQrUrl && (
+                          <button
+                            type="button"
+                            onClick={() => setGcashQrUrl('')}
+                            style={{ background: 'transparent', border: 'none', color: '#f43f5e', fontSize: '0.68rem', cursor: 'pointer', textAlign: 'left', padding: 0, marginTop: '2px' }}
+                          >
+                            Remove QR
+                          </button>
+                        )}
+                      </div>
+                      <div className="bbdrts-qr-actions-row">
+                        <button
+                          type="button"
+                          className="bbdrts-btn-qr-action"
+                          onClick={() => setShowSelectQrModal('GCash')}
+                        >
+                          <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>bookmark</span>
+                          <span>Library ({savedQrList.filter(q => q.payment_method === 'GCash').length})</span>
+                        </button>
+                        <label className="bbdrts-btn-qr-action" style={{ cursor: 'pointer', margin: 0 }}>
+                          <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>upload</span>
+                          <span>{uploadingQrRail === 'GCash' ? 'Cropping...' : 'Upload QR'}</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            style={{ display: 'none' }}
+                            onChange={(e) => handleUploadNewQr('GCash', e)}
+                            disabled={saving || uploadingQrRail === 'GCash'}
+                          />
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* MAYA RAIL */}
+                {activePaymentChannelTab === 'maya' && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                    <div className="bbdrts-edit-grid-2">
+                      <div className="bbdrts-field">
+                        <label>Official Maya Account Name</label>
+                        <div className="bbdrts-input-wrap">
+                          <input
+                            type="text"
+                            placeholder="e.g. Philippine Red Cross"
+                            value={mayaName}
+                            onChange={(e) => setMayaName(e.target.value)}
+                          />
+                        </div>
+                      </div>
+                      <div className="bbdrts-field">
+                        <label>Official Maya Number</label>
+                        <div className="bbdrts-input-wrap">
+                          <input
+                            type="text"
+                            placeholder="e.g. 0918 765 4321"
+                            value={mayaNumber}
+                            onChange={(e) => setMayaNumber(formatPhoneNumber(e.target.value))}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="bbdrts-qr-row-simple">
+                      {mayaQrUrl ? (
+                        <div className="bbdrts-qr-thumb" onClick={() => setPreviewQrModalUrl(mayaQrUrl)} title="Click to enlarge">
+                          <img src={mayaQrUrl} alt="Maya QR" />
+                        </div>
+                      ) : (
+                        <div className="bbdrts-qr-thumb" style={{ background: '#141414', border: '1px dashed #333' }}>
+                          <span className="material-symbols-outlined" style={{ fontSize: '24px', color: '#71717a' }}>qr_code_2</span>
+                        </div>
+                      )}
+                      <div className="bbdrts-qr-info">
+                        <div className="title">Maya QR Ph Code</div>
+                        <div className="sub">{mayaQrUrl ? 'Active Maya QR attached' : 'No QR attached yet'}</div>
+                        {mayaQrUrl && (
+                          <button
+                            type="button"
+                            onClick={() => setMayaQrUrl('')}
+                            style={{ background: 'transparent', border: 'none', color: '#f43f5e', fontSize: '0.68rem', cursor: 'pointer', textAlign: 'left', padding: 0, marginTop: '2px' }}
+                          >
+                            Remove QR
+                          </button>
+                        )}
+                      </div>
+                      <div className="bbdrts-qr-actions-row">
+                        <button
+                          type="button"
+                          className="bbdrts-btn-qr-action"
+                          onClick={() => setShowSelectQrModal('Maya')}
+                        >
+                          <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>bookmark</span>
+                          <span>Library ({savedQrList.filter(q => q.payment_method === 'Maya').length})</span>
+                        </button>
+                        <label className="bbdrts-btn-qr-action" style={{ cursor: 'pointer', margin: 0 }}>
+                          <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>upload</span>
+                          <span>{uploadingQrRail === 'Maya' ? 'Cropping...' : 'Upload QR'}</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            style={{ display: 'none' }}
+                            onChange={(e) => handleUploadNewQr('Maya', e)}
+                            disabled={saving || uploadingQrRail === 'Maya'}
+                          />
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* BANK TRANSFER RAIL */}
+                {activePaymentChannelTab === 'bank' && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                    <div className="bbdrts-edit-grid-2">
+                      <div className="bbdrts-field">
+                        <label>Bank Name</label>
+                        <div className="bbdrts-input-wrap">
+                          <input
+                            type="text"
+                            placeholder="e.g. BDO Unibank / BPI / Landbank"
+                            value={bankName}
+                            onChange={(e) => setBankName(e.target.value)}
+                          />
+                        </div>
+                      </div>
+                      <div className="bbdrts-field">
+                        <label>Account Name</label>
+                        <div className="bbdrts-input-wrap">
+                          <input
+                            type="text"
+                            placeholder="e.g. Relief Foundation Inc."
+                            value={bankAccountName}
+                            onChange={(e) => setBankAccountName(e.target.value)}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="bbdrts-field">
+                      <label>Bank Account Number</label>
+                      <div className="bbdrts-input-wrap">
+                        <input
+                          type="text"
+                          placeholder="e.g. 0012 3456 7890"
+                          value={bankAccountNumber}
+                          onChange={(e) => setBankAccountNumber(e.target.value)}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="bbdrts-qr-row-simple">
+                      {bankQrUrl ? (
+                        <div className="bbdrts-qr-thumb" onClick={() => setPreviewQrModalUrl(bankQrUrl)} title="Click to enlarge">
+                          <img src={bankQrUrl} alt="Bank QR" />
+                        </div>
+                      ) : (
+                        <div className="bbdrts-qr-thumb" style={{ background: '#141414', border: '1px dashed #333' }}>
+                          <span className="material-symbols-outlined" style={{ fontSize: '24px', color: '#71717a' }}>qr_code_2</span>
+                        </div>
+                      )}
+                      <div className="bbdrts-qr-info">
+                        <div className="title">Bank QR / Deposit Slip</div>
+                        <div className="sub">{bankQrUrl ? 'Active Bank QR attached' : 'No QR attached yet'}</div>
+                        {bankQrUrl && (
+                          <button
+                            type="button"
+                            onClick={() => setBankQrUrl('')}
+                            style={{ background: 'transparent', border: 'none', color: '#f43f5e', fontSize: '0.68rem', cursor: 'pointer', textAlign: 'left', padding: 0, marginTop: '2px' }}
+                          >
+                            Remove QR
+                          </button>
+                        )}
+                      </div>
+                      <div className="bbdrts-qr-actions-row">
+                        <button
+                          type="button"
+                          className="bbdrts-btn-qr-action"
+                          onClick={() => setShowSelectQrModal('Bank')}
+                        >
+                          <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>bookmark</span>
+                          <span>Library ({savedQrList.filter(q => q.payment_method === 'Bank').length})</span>
+                        </button>
+                        <label className="bbdrts-btn-qr-action" style={{ cursor: 'pointer', margin: 0 }}>
+                          <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>upload</span>
+                          <span>{uploadingQrRail === 'Bank' ? 'Cropping...' : 'Upload QR'}</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            style={{ display: 'none' }}
+                            onChange={(e) => handleUploadNewQr('Bank', e)}
+                            disabled={saving || uploadingQrRail === 'Bank'}
+                          />
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+          </div>
+
+          {/* ── 5. Fixed Sticky Footer with Step Navigation & Save ── */}
+          <div className="bbdrts-edit-footer">
+            <button
+              type="button"
+              className="btn btn-outline"
+              onClick={onClose}
+              disabled={saving}
+            >
+              Cancel
+            </button>
+
+            <div className="bbdrts-footer-actions-right">
+              {currentStep > 1 && (
+                <button
+                  type="button"
+                  className="btn btn-outline"
+                  onClick={() => setCurrentStep(s => Math.max(1, s - 1))}
+                  disabled={saving}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>arrow_back</span>
+                  <span>Previous</span>
+                </button>
+              )}
+
+              {currentStep < 4 ? (
+                <>
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    onClick={() => setCurrentStep(s => Math.min(4, s + 1))}
+                    disabled={saving}
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}
+                  >
+                    <span>Next Step</span>
+                    <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>arrow_forward</span>
+                  </button>
+
+                  <button
+                    type="submit"
+                    className="btn btn-outline"
+                    disabled={saving}
+                    style={{ fontSize: '0.76rem', color: '#10b981', borderColor: 'rgba(16, 185, 129, 0.35)' }}
+                    title="Save current modifications immediately"
+                  >
+                    <span>Save Now</span>
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="submit"
+                  className="btn btn-primary bbdrts-btn-save"
+                  disabled={saving}
+                >
+                  {saving ? (
+                    <>
+                      <span className="spinner-border spinner-border-sm" role="status" aria-hidden="true" style={{ width: '15px', height: '15px', marginRight: '6px' }} />
+                      <span>Saving Changes...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>save</span>
+                      <span>Save Campaign Details</span>
+                    </>
+                  )}
+                </button>
+              )}
             </div>
           </div>
         </form>
 
-        {/* ── Fixed Footer Action Bar ── */}
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'flex-end',
-          gap: '12px',
-          padding: '14px 22px',
-          borderTop: '1px solid var(--border, rgba(255, 255, 255, 0.08))',
-          background: 'var(--bg-subcard, #232323)',
-          flexShrink: 0
-        }}>
-          <button
-            type="button"
-            className="btn btn-ghost"
-            onClick={onClose}
-            disabled={saving}
-            style={{ padding: '8px 18px', fontSize: '0.84rem' }}
-          >
-            Cancel
-          </button>
-
-          <button
-            type="submit"
-            form="edit-campaign-form"
-            className="btn btn-primary glow"
-            disabled={saving}
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              padding: '8px 22px',
-              fontSize: '0.85rem',
-              fontWeight: 700
-            }}
-          >
-            {saving ? (
-              <>
-                <div className="spinner spinner-light" style={{ width: 15, height: 15 }} />
-                <span>Saving…</span>
-              </>
-            ) : (
-              <>
-                <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>save</span>
-                <span>Save Campaign Details</span>
-              </>
-            )}
-          </button>
-        </div>
       </div>
+
+      {/* ── SELECT REUSABLE QR CODE MODAL ── */}
+      {showSelectQrModal && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.85)',
+            backdropFilter: 'blur(6px)',
+            zIndex: 99999999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '16px'
+          }}
+          onClick={() => setShowSelectQrModal(null)}
+        >
+          <div
+            style={{
+              background: '#0d0d0d',
+              border: '1px solid #282828',
+              borderRadius: '12px',
+              padding: '18px 20px',
+              width: '420px',
+              maxWidth: '100%',
+              boxShadow: '0 24px 50px rgba(0,0,0,0.9)'
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+              <strong style={{ fontSize: '0.88rem', color: '#ededed' }}>
+                Select Saved {showSelectQrModal} QR Code
+              </strong>
+              <button
+                type="button"
+                onClick={() => setShowSelectQrModal(null)}
+                style={{ background: 'transparent', border: 'none', color: '#71717a', cursor: 'pointer' }}
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>close</span>
+              </button>
+            </div>
+
+            <div style={{ maxHeight: '280px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {savedQrList.filter(q => q.payment_method === showSelectQrModal).length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '24px 10px', color: '#71717a', fontSize: '0.78rem' }}>
+                  No saved {showSelectQrModal} QR codes found in your library.
+                </div>
+              ) : (
+                savedQrList
+                  .filter(q => q.payment_method === showSelectQrModal)
+                  .map(qr => (
+                    <div
+                      key={qr.id}
+                      onClick={() => handleSelectSavedQr(qr)}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '12px',
+                        padding: '8px 12px',
+                        background: '#141414',
+                        border: '1px solid #222222',
+                        borderRadius: '6px',
+                        cursor: 'pointer',
+                        transition: 'border-color 0.12s'
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.borderColor = '#444'}
+                      onMouseLeave={e => e.currentTarget.style.borderColor = '#222'}
+                    >
+                      <img src={qr.qr_image_url} alt={qr.custom_name} style={{ width: '40px', height: '40px', objectFit: 'contain', background: '#fff', borderRadius: '4px' }} />
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: '0.80rem', fontWeight: 600, color: '#ededed' }}>{qr.custom_name}</div>
+                        <div style={{ fontSize: '0.70rem', color: '#71717a' }}>{qr.account_name} ({qr.account_number})</div>
+                      </div>
+                      <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#10b981' }}>arrow_forward</span>
+                    </div>
+                  ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── IMAGE ZOOM PREVIEW MODAL ── */}
+      {previewQrModalUrl && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.9)',
+            backdropFilter: 'blur(8px)',
+            zIndex: 999999999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '24px'
+          }}
+          onClick={() => setPreviewQrModalUrl(null)}
+        >
+          <div style={{ maxWidth: '380px', width: '100%', background: '#fff', borderRadius: '12px', padding: '16px', textAlign: 'center' }} onClick={e => e.stopPropagation()}>
+            <img src={previewQrModalUrl} alt="QR Preview" style={{ width: '100%', height: 'auto', display: 'block', borderRadius: '8px' }} />
+            <button
+              type="button"
+              className="btn btn-outline"
+              onClick={() => setPreviewQrModalUrl(null)}
+              style={{ marginTop: '12px', width: '100%', color: '#000', borderColor: '#ccc' }}
+            >
+              Close Preview
+            </button>
+          </div>
+        </div>
+      )}
+
     </div>,
     document.body
   );

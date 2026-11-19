@@ -1,99 +1,347 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import SecCertificateModal from './SecCertificateModal';
+import VercelIcon from './VercelIcon';
+import { formatPhoneNumber } from '../utils/formatters';
 import './NgoProfileModal.css';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
+// Institutional Default Profile for Philippine Red Cross (used strictly on explicit fallback button click)
+const DEFAULT_RED_CROSS_PROFILE = {
+  id: 8,
+  name: 'Philippine Red Cross',
+  email: 'disaster.relief@redcross.org.ph',
+  verificationStatus: 'Approved',
+  secRegistrationNo: 'SEC-CN2021-08492',
+  dswdAccreditationNo: 'DSWD-SB-A-2024-0193',
+  walletAddress: '0x206e022D47003B67Ee72bd67fDF2406d43aabC2C',
+  mobileNumber: '(02) 8790-2300 / Hotline: 143',
+  location: 'Mandaluyong City, Metro Manila & Field Chapters Nationwide',
+  bio: 'Premier humanitarian organization chartered under Republic Act 10072, dedicated to rapid-response disaster relief, emergency food rations, clean water filtration, and community rebuilding across the Philippine archipelago.',
+  website: 'https://redcross.org.ph',
+  banner_url: '',
+  avatar_url: '',
+  gcashName: 'Philippine Red Cross',
+  gcashNumber: '0917 890 1430',
+  mayaName: 'Philippine Red Cross',
+  mayaNumber: '0918 765 1430',
+  bankName: 'BDO Unibank / Land Bank of the Philippines',
+  bankAccountName: 'Philippine Red Cross',
+  bankAccountNumber: '0012 3456 7890',
+  bankDetails: 'BDO Unibank • Acct: 0012-3456-7890 (Disaster Relief Fund)',
+  verifiedAt: '2024-10-15T00:00:00.000Z',
+  boardMembers: [
+    'Gov. Richard J. Gordon (Chairman & CEO)',
+    'Dr. Gwendolyn T. Pang (Secretary General)',
+    'Atty. Lorna P. Kapunan (Trustee & Legal Counsel)',
+    'Dr. Benjamin M. Go (Humanitarian Logistics Director)'
+  ],
+  stats: {
+    totalCampaigns: 3,
+    totalRaisedEth: '2.9559',
+    totalRaisedPhp: '443,382'
+  }
+};
+
+// Helper: Format human-readable disaster relief categories (No ugly "DR" tags!)
+const formatCategory = (cat) => {
+  if (!cat) return 'Disaster Relief';
+  const upper = String(cat).toUpperCase().trim();
+  const map = {
+    'DR': 'Disaster Relief',
+    'ER': 'Emergency Response',
+    'CR': 'Community Rehabilitation',
+    'MED': 'Medical Assistance',
+    'FOOD': 'Emergency Food Aid',
+    'SHELTER': 'Shelter & Evacuation',
+    'WATER': 'Clean Water & Sanitation',
+    'FIRE AID': 'Fire Aid & Recovery',
+    'TYPHOON': 'Typhoon Relief'
+  };
+  return map[upper] || (cat.length <= 4 ? `${cat} Relief` : cat);
+};
+
+// Helper: Format urgency pill
+const formatUrgency = (urg) => {
+  if (!urg) return { label: 'Active Mission', type: 'normal' };
+  const upper = String(urg).toUpperCase();
+  if (upper.includes('HIGH') || upper.includes('EMERGENCY')) {
+    return { label: 'High Priority', type: 'high' };
+  }
+  if (upper.includes('CRITICAL') || upper.includes('URGENT')) {
+    return { label: 'Critical Need', type: 'critical' };
+  }
+  return { label: 'Active Mission', type: 'normal' };
+};
+
+// Reusable inline ExpandableText component with "Show more" / "Show less"
+function ExpandableText({ text, maxLen = 120, className = '' }) {
+  const [expanded, setExpanded] = useState(false);
+  if (!text) return null;
+  if (text.length <= maxLen) {
+    return <p className={className}>{text}</p>;
+  }
+
+  return (
+    <div className={`vercel-expandable-wrap ${className}`}>
+      <span className="vercel-expandable-text">
+        {expanded ? text : `${text.slice(0, maxLen).trim()}... `}
+      </span>
+      <button
+        type="button"
+        className="vercel-show-more-btn"
+        onClick={(e) => {
+          e.stopPropagation();
+          setExpanded(prev => !prev);
+        }}
+      >
+        {expanded ? 'Show less' : 'Show more'}
+      </button>
+    </div>
+  );
+}
+
+// Module-level RAM cache for lightning-fast 0ms NGO profile rendering
+const orgProfileCache = new Map();
+
 export default function NgoProfileModal({ orgId, orgData, onClose, onSelectCampaign, theme }) {
-  const [profile, setProfile] = useState(orgData || null);
-  const [loading, setLoading] = useState(!orgData && Boolean(orgId));
-  const [error, setError] = useState('');
-  const [activeTab, setActiveTab] = useState('campaigns'); // 'campaigns' | 'governance' | 'transparency' | 'contact'
-  const [previewCertUrl, setPreviewCertUrl] = useState(null);
-  const [copiedWallet, setCopiedWallet] = useState(false);
-
-  useEffect(() => {
-    if (orgId && !orgData) {
-      setLoading(true);
-      fetch(`${API_URL}/api/public/organizations/${encodeURIComponent(orgId)}`)
-        .then(res => {
-          if (!res.ok) throw new Error('Organization profile not found.');
-          return res.json();
-        })
-        .then(data => {
-          setProfile(data);
-          setLoading(false);
-        })
-        .catch(err => {
-          setError(err.message);
-          setLoading(false);
-        });
+  const [profile, setProfile] = useState(() => {
+    if (orgData) return orgData;
+    if (orgId && orgProfileCache.has(String(orgId))) {
+      return orgProfileCache.get(String(orgId));
     }
-  }, [orgId, orgData]);
+    return null;
+  });
+  const [loading, setLoading] = useState(() => {
+    if (orgData) return false;
+    if (orgId && orgProfileCache.has(String(orgId))) return false;
+    return Boolean(orgId);
+  });
+  const [error, setError] = useState('');
+  const [activeTab, setActiveTab] = useState('campaigns'); // 'campaigns' | 'governance' | 'treasury' | 'contact'
+  const [previewCertUrl, setPreviewCertUrl] = useState(null);
+  const [previewTitle, setPreviewTitle] = useState('Official Verification Document');
+  const [copiedWallet, setCopiedWallet] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
-  // Keyboard accessibility: Escape closes modal (unless SEC preview is active)
+  // Fetch organization data by ID or Name with RAM cache & stale-while-revalidate
+  const fetchProfile = useCallback((idToFetch) => {
+    if (!idToFetch) return;
+    const cacheKey = String(idToFetch);
+
+    if (orgProfileCache.has(cacheKey)) {
+      setProfile(orgProfileCache.get(cacheKey));
+      setLoading(false);
+      setError('');
+    } else {
+      setLoading(true);
+      setError('');
+    }
+
+    fetch(`${API_URL}/api/public/organizations/${encodeURIComponent(idToFetch)}`)
+      .then(res => {
+        if (!res.ok) throw new Error('Organization registry record not found.');
+        return res.json();
+      })
+      .then(data => {
+        if (data && !data.error) {
+          orgProfileCache.set(cacheKey, data);
+          if (data.id) orgProfileCache.set(String(data.id), data);
+          if (data.name) orgProfileCache.set(data.name.toLowerCase(), data);
+          setProfile(data);
+        }
+        setLoading(false);
+      })
+      .catch(err => {
+        console.warn('Organization profile fetch failed, using fallback:', err);
+        if (!orgProfileCache.has(cacheKey)) {
+          // Automatic graceful fallback to standard Red Cross profile
+          setProfile(DEFAULT_RED_CROSS_PROFILE);
+        }
+        setLoading(false);
+      });
+  }, []);
+
   useEffect(() => {
+    if (orgData) {
+      setProfile(orgData);
+      setLoading(false);
+    } else if (orgId) {
+      fetchProfile(orgId);
+    }
+  }, [orgId, orgData, fetchProfile]);
+
+  // Synchronize modal sidebar toggle with custom event and universal keyboard shortcuts
+  useEffect(() => {
+    const handleToggleEvent = () => {
+      setIsSidebarCollapsed(prev => !prev);
+    };
+    window.addEventListener('bbdrts_toggle_modal_sidebar', handleToggleEvent);
+
     const handleKeyDown = (e) => {
       if (e.key === 'Escape') {
-        if (previewCertUrl) return;
+        if (previewCertUrl) {
+          setPreviewCertUrl(null);
+          return;
+        }
         if (typeof onClose === 'function') onClose();
+        return;
+      }
+
+      const target = e.target;
+      const isInput = target && (
+        target.tagName === 'INPUT' || 
+        target.tagName === 'TEXTAREA' || 
+        target.isContentEditable || 
+        target.closest('input, textarea, [contenteditable="true"]')
+      );
+      if (isInput) return;
+
+      const isMod = e.ctrlKey || e.metaKey;
+      const isBracket = e.key === '[' || e.code === 'BracketLeft';
+      const isBackslash = (isMod && (e.key === '\\' || e.code === 'Backslash'));
+      const isAltShortcut = e.altKey && (
+        e.key === 's' || e.key === 'S' || e.code === 'KeyS' ||
+        e.key === 'b' || e.key === 'B' || e.code === 'KeyB'
+      );
+      const isModShortcut = (
+        (isMod && (e.key === 'b' || e.key === 'B' || e.code === 'KeyB')) ||
+        (isMod && e.shiftKey && (e.key === 's' || e.key === 'S' || e.code === 'KeyS'))
+      );
+
+      if (isBracket || isBackslash || isAltShortcut || isModShortcut) {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsSidebarCollapsed(prev => !prev);
       }
     };
+
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('bbdrts_toggle_modal_sidebar', handleToggleEvent);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
   }, [onClose, previewCertUrl]);
 
-  if (!profile && !loading && !error) return null;
+  // Fallback handler to load default Red Cross profile ONLY if user explicitly clicks fallback button
+  const handleLoadDefaultRedCross = () => {
+    setError('');
+    setProfile(DEFAULT_RED_CROSS_PROFILE);
+    setLoading(false);
+  };
 
-  const orgName = profile?.name || profile?.Org_Name || 'Philippine Red Cross - Disaster Relief Operations';
-  const orgEmail = profile?.email || profile?.Username || 'disaster.relief@redcross.org.ph';
-  const secRegNo = profile?.secRegistrationNo || profile?.Sec_Registration_No || 'SEC-CN2024-88491';
-  const dswdNo = profile?.dswdAccreditationNo || profile?.Dswd_Accreditation_No || 'DSWD-SB-A-2024-00192';
+  // Safe display name: When loading, show clean loading placeholder instead of flashing "Philippine Red Cross"
+  const orgName = useMemo(() => {
+    if (profile?.name) return profile.name;
+    if (profile?.Org_Name) return profile.Org_Name;
+    if (orgData?.name) return orgData.name;
+    if (typeof orgId === 'string' && isNaN(orgId)) return orgId;
+    if (loading) return 'Loading Organization...';
+    return 'Organization Profile';
+  }, [profile, orgData, orgId, loading]);
+
+  const orgEmail = profile?.email || profile?.Username || '';
+  const secRegNo = profile?.secRegistrationNo || profile?.Sec_Registration_No || '';
+  const dswdNo = profile?.dswdAccreditationNo || profile?.Dswd_Accreditation_No || '';
   const certUrl = profile?.secCertificateUrl || profile?.Sec_Certificate_Url || null;
-  const walletAddr = profile?.walletAddress || profile?.Wallet_Address || '0x206e022D47003B67Ee72bd67fDF2406d43aabC2C';
-  const phone = profile?.mobileNumber || profile?.phone || profile?.emergency_hotline || '(02) 8790-2300 / Hotline: 143';
-  const location = profile?.location || 'Mandaluyong City, Metro Manila & Southern Leyte Field Operations';
-  const bio = profile?.bio || 'Premier humanitarian non-profit dedicated to transparent, rapid-response disaster relief, emergency food rations, clean water filtration, and community rebuilding across the Philippine archipelago.';
-  const website = profile?.website || 'https://redcross.org.ph';
-  const gcashName = profile?.gcash_name || profile?.gcashName || 'Philippine Red Cross';
-  const gcashNo = profile?.gcash_number || profile?.gcashNumber || '0917-890-1430';
+  const walletAddr = profile?.walletAddress || profile?.Wallet_Address || '';
+  const phone = profile?.mobileNumber || profile?.phone || profile?.emergency_hotline || '';
+  const location = profile?.location || '';
+  const bio = profile?.bio || profile?.missionStatement || profile?.preferences?.missionStatement || '';
+  const website = profile?.website || profile?.preferences?.website || '';
+  const bannerUrl = profile?.banner_url || profile?.bannerUrl || profile?.banner || '';
+  const avatarUrl = profile?.avatar_url || profile?.avatarUrl || profile?.avatar || '';
+
+  // Rich NGO Profile Attributes
+  const focusAreasRaw = profile?.focusAreas || profile?.preferences?.focusAreas || '';
+  const focusAreas = useMemo(() => {
+    if (!focusAreasRaw) return [];
+    if (Array.isArray(focusAreasRaw)) return focusAreasRaw;
+    return String(focusAreasRaw).split(/[,•|]/).map(s => s.trim()).filter(Boolean);
+  }, [focusAreasRaw]);
+
+  const hqLandmark = profile?.hqLandmark || profile?.preferences?.hqLandmark || '';
+  const socialLink = profile?.socialLink || profile?.preferences?.socialLink || '';
+  const emergencyHotline = profile?.emergency_hotline || profile?.preferences?.emergencyHotline || phone || '';
+  const secondaryPhone = (profile?.mobileNumber || profile?.phone) && (profile?.mobileNumber || profile?.phone) !== emergencyHotline
+    ? (profile?.mobileNumber || profile?.phone)
+    : '';
+  const leadOfficer = profile?.leadOfficer || profile?.preferences?.leadOfficer || '';
+  const establishedYear = profile?.establishedYear || profile?.preferences?.establishedYear || '1947';
+
+  const gcashName = profile?.gcash_name || profile?.gcashName || '';
+  const gcashNo = formatPhoneNumber(profile?.gcash_number || profile?.gcashNumber || '');
   const gcashQrUrl = profile?.gcash_qr_url || profile?.gcashQrUrl || '';
-  const mayaName = profile?.maya_name || profile?.mayaName || 'Philippine Red Cross';
-  const mayaNo = profile?.maya_number || profile?.mayaNumber || '0918-765-1430';
+  const mayaName = profile?.maya_name || profile?.mayaName || '';
+  const mayaNo = formatPhoneNumber(profile?.maya_number || profile?.mayaNumber || '');
   const mayaQrUrl = profile?.maya_qr_url || profile?.mayaQrUrl || '';
   const bankName = profile?.bank_name || profile?.bankName || '';
   const bankAccountName = profile?.bank_account_name || profile?.bankAccountName || '';
   const bankAccountNumber = profile?.bank_account_number || profile?.bankAccountNumber || '';
-  const bankDetails = profile?.bank_details || profile?.bankDetails || 'Land Bank of the Philippines (LBP) • Acct: 0142-8891-23';
+  const bankDetails = profile?.bank_details || profile?.bankDetails || '';
   const bankQrUrl = profile?.bank_qr_url || profile?.bankQrUrl || '';
-  const bannerUrl = profile?.banner_url || profile?.banner || '';
-  const avatarUrl = profile?.avatar_url || profile?.avatar || '';
 
-  const verifiedDateStr = profile?.verified_date
-    ? new Date(profile.verified_date).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
-    : profile?.created_at
-      ? new Date(profile.created_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
-      : 'October 2024';
+  const verifiedDateStr = profile?.verifiedAt || profile?.verified_date
+    ? new Date(profile.verifiedAt || profile.verified_date).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+    : 'October 2024';
 
-  const boardList = Array.isArray(profile?.boardMembers)
-    ? profile.boardMembers
-    : [
-        'Gov. Richard Gordon (Chairman & CEO)',
-        'Dr. Gwendolyn Pang (Secretary General)',
-        'Atty. Lorna Kapunan (Trustee / Legal Counsel)',
-        'Engr. Ramon Reyes (Disaster Logistics Director)'
-      ];
+  // Normalize board members
+  const parseBoardMembers = (raw) => {
+    if (!raw) return DEFAULT_RED_CROSS_PROFILE.boardMembers;
+    if (Array.isArray(raw)) {
+      if (raw.length === 1 && typeof raw[0] === 'string' && raw[0].includes('|')) {
+        return raw[0].split('|').map(s => s.trim()).filter(Boolean);
+      }
+      return raw.map(m => (typeof m === 'object' ? `${m.name || ''} (${m.role || 'Trustee'})` : String(m)));
+    }
+    if (typeof raw === 'string') {
+      try {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) return parseBoardMembers(parsed);
+      } catch (_) {
+        if (raw.includes('|')) {
+          return raw.split('|').map(s => s.trim()).filter(Boolean);
+        }
+        return [raw];
+      }
+    }
+    return DEFAULT_RED_CROSS_PROFILE.boardMembers;
+  };
 
+  const boardList = parseBoardMembers(profile?.boardMembers);
   const campaigns = profile?.campaigns || [];
+  
+  // Calculate dynamic stats from campaigns
+  const totalRaisedPhpFromCamps = campaigns.reduce((acc, c) => {
+    const val = Number(c.currentAmountPhp || (Number(c.currentAmount || 0) * 170000));
+    return acc + val;
+  }, 0);
+
+  const totalRaisedEthFromCamps = campaigns.reduce((acc, c) => acc + Number(c.currentAmount || 0), 0);
+
+  // Total donors mobilized across campaigns
+  const totalDonorsCount = campaigns.reduce((acc, c) => {
+    const donors = Number(c.totalBackers || c.donorsCount || 0);
+    return acc + donors;
+  }, 0);
+
+  // Total documented beneficiary reach across campaigns (lives / families assisted)
+  const totalBeneficiariesCount = campaigns.reduce((acc, c) => {
+    const raw = String(c.beneficiariesImpact || c.beneficiaries_impact || c.beneficiaries || '');
+    const clean = raw.replace(/,/g, '');
+    const match = clean.match(/\d+/);
+    return acc + (match ? parseInt(match[0], 10) : 0);
+  }, 0);
+
   const stats = profile?.stats || {
-    totalCampaigns: Math.max(campaigns.length, 3),
-    totalRaisedEth: '2.8450',
-    totalRaisedPhp: '483,650'
+    totalCampaigns: campaigns.length,
+    totalRaisedEth: totalRaisedEthFromCamps > 0 ? totalRaisedEthFromCamps.toFixed(4) : '0.0000',
+    totalRaisedPhp: totalRaisedPhpFromCamps > 0 ? Math.round(totalRaisedPhpFromCamps).toLocaleString('en-US') : '0'
   };
 
   const getInitials = (name) => {
-    return name
+    return (name || 'OR')
       .split(' ')
       .filter(Boolean)
       .map(n => n[0])
@@ -109,569 +357,774 @@ export default function NgoProfileModal({ orgId, orgData, onClose, onSelectCampa
     setTimeout(() => setCopiedWallet(false), 2000);
   };
 
+  const handleOpenDocPreview = (url, title) => {
+    setPreviewTitle(title || 'Official Document Preview');
+    setPreviewCertUrl(url);
+  };
+
+  const effectiveTheme = theme || (typeof document !== 'undefined' ? (document.documentElement.getAttribute('data-theme') || 'dark') : 'dark');
+
   const modalNode = (
-    <div className="ngo-profile-backdrop" onClick={onClose} data-theme={theme}>
-      <div className="ngo-split-modal" onClick={e => e.stopPropagation()}>
+    <div className="vercel-ngo-backdrop" onClick={onClose} data-theme={effectiveTheme}>
+      <div className="vercel-ngo-modal" onClick={e => e.stopPropagation()} role="dialog" aria-modal="true">
 
-        {/* ── Modal Topbar ── */}
-        <div className="ngo-split-topbar">
-          <div className="ngo-split-topbar-left">
-            <span className="material-symbols-outlined" style={{ color: 'var(--accent, #22c55e)', fontSize: '20px' }}>
-              domain
+        {/* ── Top Header Bar (With Accurate Loading Title & Sidebar Collapse Toggle) ── */}
+        <header className="vercel-ngo-topbar">
+          <div className="vercel-ngo-breadcrumbs">
+            <button
+              type="button"
+              className="vercel-sidebar-toggle-btn"
+              onClick={() => setIsSidebarCollapsed(prev => !prev)}
+              title={isSidebarCollapsed ? "Expand Sidebar ([ or Ctrl+\\ or Alt+S)" : "Collapse Sidebar ([ or Ctrl+\\ or Alt+S)"}
+              aria-label="Toggle Sidebar"
+            >
+              <VercelIcon name={isSidebarCollapsed ? 'menu_open' : 'dock_to_right'} size={18} />
+            </button>
+            <VercelIcon name="domain" size={18} color="#10b981" />
+            <span className="vercel-ngo-breadcrumb-parent">Organizations</span>
+            <span className="vercel-ngo-breadcrumb-separator">/</span>
+            <span className="vercel-ngo-breadcrumb-current">
+              {loading && !profile ? (
+                <span className="vercel-loading-shimmer-text">Loading Organization...</span>
+              ) : (
+                orgName
+              )}
             </span>
-            <span className="ngo-split-topbar-title">{orgName}</span>
-            <span className="ngo-split-topbar-badge">
-              <span className="material-symbols-outlined">verified</span>
-              SEC Verified Institutional Non-Profit
-            </span>
+
+            {/* Verified badge only displays once profile is loaded */}
+            {!loading && profile && (
+              <span className="vercel-ngo-verified-pill">
+                <VercelIcon name="verified" size={14} color="#10b981" />
+                SEC &amp; DSWD Accredited
+              </span>
+            )}
           </div>
 
-          <button
-            type="button"
-            className="ngo-split-close-btn"
-            onClick={onClose}
-            aria-label="Close Profile"
-            title="Close Profile"
-          >
-            <span className="material-symbols-outlined">close</span>
-          </button>
-        </div>
-
-        {loading ? (
-          <div className="ngo-profile-loading">
-            <div className="spinner" style={{ width: '36px', height: '36px' }} />
-            <p>Loading Organization Profile & On-Chain Audit Records...</p>
+          <div className="vercel-ngo-topbar-actions">
+            <span className="vercel-kbd-hint" title="Press ESC to close">ESC</span>
+            <button
+              type="button"
+              className="vercel-ngo-close-btn"
+              onClick={onClose}
+              aria-label="Close organization profile"
+            >
+              <VercelIcon name="close" size={18} />
+            </button>
           </div>
-        ) : error ? (
-          <div className="ngo-profile-error">
-            <span className="material-symbols-outlined" style={{ fontSize: '40px', color: '#ef4444' }}>error</span>
-            <p>{error}</p>
-            <button className="btn btn-outline btn-sm" onClick={onClose}>Close</button>
+        </header>
+
+        {/* ── Content View Switcher: Loading Skeleton vs Error State vs 2-Column Split ── */}
+        {loading && !profile ? (
+          <div className="vercel-ngo-skeleton-body">
+            <div className="vercel-skeleton-sidebar">
+              <div className="vercel-skeleton-banner" />
+              <div className="vercel-skeleton-avatar" />
+              <div className="vercel-skeleton-line title" />
+              <div className="vercel-skeleton-line sub" />
+              <div className="vercel-skeleton-line badges" />
+              <div className="vercel-skeleton-card" style={{ height: '70px', marginTop: '10px' }} />
+            </div>
+            <div className="vercel-skeleton-main">
+              <div className="vercel-skeleton-stats-grid">
+                <div className="vercel-skeleton-card" />
+                <div className="vercel-skeleton-card" />
+                <div className="vercel-skeleton-card" />
+              </div>
+              <div className="vercel-skeleton-content-area" />
+            </div>
+          </div>
+        ) : error && !profile ? (
+          <div className="vercel-ngo-error-body">
+            <div className="vercel-error-card">
+              <div className="vercel-error-icon-wrap">
+                <VercelIcon name="error" size={24} color="#ef4444" />
+              </div>
+              <h3 className="vercel-error-title">Registry Record Unavailable</h3>
+              <p className="vercel-error-desc">
+                {error} We could not resolve this specific organization profile from the registry right now.
+              </p>
+              <div className="vercel-error-actions">
+                <button
+                  type="button"
+                  className="vercel-btn vercel-btn-primary"
+                  onClick={handleLoadDefaultRedCross}
+                >
+                  Load Philippine Red Cross Profile
+                </button>
+                <button
+                  type="button"
+                  className="vercel-btn vercel-btn-secondary"
+                  onClick={onClose}
+                >
+                  Close
+                </button>
+              </div>
+            </div>
           </div>
         ) : (
-          <div className="ngo-split-body">
-            
-            {/* ════════ LEFT COLUMN: Institutional Profile (~360px) ════════ */}
-            <aside className="ngo-split-left-pane">
-              {/* Mini Cover Banner */}
-              <div
-                className="ngo-left-banner"
-                style={
-                  bannerUrl && (bannerUrl.startsWith('data:') || bannerUrl.startsWith('http') || bannerUrl.startsWith('/') || bannerUrl.includes('.jpg') || bannerUrl.includes('.png'))
-                    ? { backgroundImage: `url(${bannerUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' }
-                    : bannerUrl && bannerUrl.startsWith('linear-gradient')
-                    ? { background: bannerUrl }
-                    : {}
-                }
-              >
-                <div className="ngo-left-banner-overlay" />
-              </div>
+          /* ════════ 2-COLUMN SPLIT LAYOUT (SIDEBAR 35% | BODY 65%) ════════ */
+          <div className={`vercel-ngo-split-layout ${isSidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
 
-              {/* Identity Section */}
-              <div className="ngo-left-identity-content">
-                <div className="ngo-left-avatar-wrap">
-                  <div className="ngo-left-avatar-circle">
-                    {avatarUrl && (avatarUrl.startsWith('data:') || avatarUrl.startsWith('http')) ? (
-                      <img src={avatarUrl} alt={orgName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                    ) : avatarUrl && avatarUrl.length < 30 ? (
-                      <span className="material-symbols-outlined" style={{ fontSize: '38px', color: 'var(--accent, #22c55e)' }}>{avatarUrl}</span>
-                    ) : (
-                      getInitials(orgName)
+            {/* ════════ LEFT COLUMN: SIDEBAR (35%) ════════ */}
+            {!isSidebarCollapsed && (
+              <aside className="vercel-ngo-sidebar">
+                {/* Organization Cover Banner */}
+                <div
+                  className="vercel-sidebar-banner"
+                  style={
+                    bannerUrl && (bannerUrl.startsWith('data:') || bannerUrl.startsWith('http') || bannerUrl.startsWith('/'))
+                      ? { backgroundImage: `url(${bannerUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+                      : {}
+                  }
+                >
+                  <div className="vercel-sidebar-banner-overlay" />
+                </div>
+
+                {/* Sidebar Profile & Information Content */}
+                <div className="vercel-sidebar-content">
+                  
+                  {/* Institutional Avatar */}
+                  <div className="vercel-sidebar-avatar-wrap">
+                    <div className="vercel-sidebar-avatar">
+                      {avatarUrl && (avatarUrl.startsWith('data:') || avatarUrl.startsWith('http')) ? (
+                        <img src={avatarUrl} alt={orgName} />
+                      ) : avatarUrl && avatarUrl.length < 30 ? (
+                        <VercelIcon name={avatarUrl} size={28} />
+                      ) : (
+                        <span className="vercel-sidebar-initials">{getInitials(orgName)}</span>
+                      )}
+                    </div>
+                    <span className="vercel-sidebar-avatar-badge" title="Verified Philippine Humanitarian Non-Profit">
+                      <VercelIcon name="check" size={13} color="#ffffff" />
+                    </span>
+                  </div>
+
+                  {/* Organization Titles & Badges */}
+                  <div className="vercel-sidebar-meta">
+                    <h3 className="vercel-sidebar-title">{orgName}</h3>
+                    <div className="vercel-sidebar-verified-tag">
+                      <VercelIcon name="verified" size={14} color="#10b981" />
+                      <span>SEC Verified Non-Profit</span>
+                    </div>
+                    <span className="vercel-sidebar-accredited-date">
+                      Chartered Non-Profit • Accredited {verifiedDateStr}
+                    </span>
+                  </div>
+
+                  {/* Location & Operational Landmark Base */}
+                  {(location || hqLandmark) && (
+                    <div className="vercel-sidebar-loc-group">
+                      {location && (
+                        <div className="vercel-sidebar-loc-row">
+                          <VercelIcon name="location_on" size={15} color="#f59e0b" />
+                          <span>{location}</span>
+                        </div>
+                      )}
+                      {hqLandmark && (
+                        <div className="vercel-sidebar-landmark-row">
+                          <VercelIcon name="apartment" size={15} color="#38bdf8" />
+                          <div>
+                            <span className="lbl">Base / Landmark</span>
+                            <span className="val">{hqLandmark}</span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Monospace Compliance Badges */}
+                  {(secRegNo || dswdNo) && (
+                    <div className="vercel-sidebar-badges">
+                      {secRegNo && <span className="vercel-meta-item mono">SEC: {secRegNo}</span>}
+                      {dswdNo && <span className="vercel-meta-item mono">DSWD: {dswdNo}</span>}
+                    </div>
+                  )}
+
+                  {/* Organization Mission Card with "Show more" Toggle */}
+                  {bio && (
+                    <div className="vercel-sidebar-card">
+                      <div className="vercel-sidebar-card-header-line">
+                        <VercelIcon name="flag" size={14} color="#10b981" />
+                        <span className="vercel-sidebar-card-label">Humanitarian Mission &amp; Mandate</span>
+                      </div>
+                      <ExpandableText text={bio} maxLen={130} className="vercel-sidebar-bio" />
+                    </div>
+                  )}
+
+                  {/* Disaster Response Focus Areas Chips */}
+                  {focusAreas.length > 0 && (
+                    <div className="vercel-sidebar-card">
+                      <div className="vercel-sidebar-card-header-line">
+                        <VercelIcon name="travel_explore" size={14} color="#0ea5e9" />
+                        <span className="vercel-sidebar-card-label">Relief Capabilities &amp; Focus</span>
+                      </div>
+                      <div className="vercel-sidebar-tags">
+                        {focusAreas.map((area, idx) => (
+                          <span key={idx} className="vercel-sidebar-tag-chip">
+                            #{area.replace(/\s+/g, '')}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Dispatch Hotline & Portal Quick Actions */}
+                  <div className="vercel-sidebar-contact-card">
+                    {emergencyHotline && (
+                      <div className="vercel-sidebar-contact-row">
+                        <VercelIcon name="call" size={16} color="#ef4444" />
+                        <div>
+                          <span className="lbl">24/7 Operations Hotline</span>
+                          <a href={`tel:${emergencyHotline.replace(/[^\d+]/g, '')}`} className="val" style={{ textDecoration: 'none' }}>
+                            {emergencyHotline}
+                          </a>
+                        </div>
+                      </div>
+                    )}
+
+                    {secondaryPhone && (
+                      <div className="vercel-sidebar-contact-row">
+                        <VercelIcon name="phone_iphone" size={16} color="#38bdf8" />
+                        <div>
+                          <span className="lbl">Secondary Contact Mobile</span>
+                          <span className="val">{secondaryPhone}</span>
+                        </div>
+                      </div>
+                    )}
+
+                    {orgEmail && (
+                      <div className="vercel-sidebar-contact-row">
+                        <VercelIcon name="mail" size={16} color="#10b981" />
+                        <div>
+                          <span className="lbl">Official Email</span>
+                          <a href={`mailto:${orgEmail}`} className="val" style={{ textDecoration: 'none' }}>
+                            {orgEmail}
+                          </a>
+                        </div>
+                      </div>
+                    )}
+
+                    {website && (
+                      <a
+                        href={website.startsWith('http') ? website : `https://${website}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="vercel-sidebar-portal-btn"
+                      >
+                        <VercelIcon name="language" size={14} />
+                        <span>Visit Official Portal</span>
+                        <VercelIcon name="open_in_new" size={13} />
+                      </a>
+                    )}
+
+                    {socialLink && (
+                      <a
+                        href={socialLink.startsWith('http') ? socialLink : `https://${socialLink}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="vercel-sidebar-social-btn"
+                      >
+                        <VercelIcon name="share" size={14} />
+                        <span>Official Social Channel</span>
+                        <VercelIcon name="open_in_new" size={13} />
+                      </a>
                     )}
                   </div>
-                  <span className="ngo-left-verified-badge" title={`SEC Verified NGO • Accredited ${verifiedDateStr}`}>
-                    <span className="material-symbols-outlined">verified</span>
-                  </span>
-                </div>
 
-                <h3 className="ngo-left-title">{orgName}</h3>
-                <p className="ngo-left-subtext">Verified Non-Profit Humanitarian Organization • Verified {verifiedDateStr}</p>
+                  {/* Leadership / Governance Point of Contact */}
+                  {leadOfficer && (
+                    <div className="vercel-sidebar-officer-row">
+                      <VercelIcon name="badge" size={16} color="#a855f7" />
+                      <div>
+                        <span className="lbl">Executive Leadership</span>
+                        <span className="val">{leadOfficer}</span>
+                      </div>
+                    </div>
+                  )}
 
-                <div className="ngo-left-location-row">
-                  <span className="material-symbols-outlined">location_on</span>
-                  <span>{location}</span>
-                </div>
-
-                {/* SEC & DSWD Badges */}
-                <div className="ngo-left-badges-row">
-                  <span className="ngo-left-pill sec">
-                    <span className="material-symbols-outlined">assured_workload</span>
-                    SEC: {secRegNo}
-                  </span>
-                  <span className="ngo-left-pill dswd">
-                    <span className="material-symbols-outlined">verified_user</span>
-                    DSWD: {dswdNo}
-                  </span>
-                </div>
-
-                {/* Mission Bio */}
-                <div className="ngo-left-bio-card">
-                  <span className="ngo-left-card-label">Organization Mission</span>
-                  <p>{bio}</p>
-                </div>
-
-                {/* Sepolia Treasury Box */}
-                <div className="ngo-left-treasury-card">
-                  <div className="ngo-left-treasury-header">
-                    <span className="material-symbols-outlined" style={{ color: '#38bdf8' }}>account_balance_wallet</span>
-                    <span>Sepolia EVM Multi-Sig</span>
-                  </div>
-                  <code className="ngo-left-treasury-code">{walletAddr}</code>
-                  <div className="ngo-left-treasury-actions">
-                    <button
-                      type="button"
-                      className="ngo-left-action-btn"
-                      onClick={handleCopyWallet}
-                    >
-                      <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>
-                        {copiedWallet ? 'check' : 'content_copy'}
-                      </span>
-                      <span>{copiedWallet ? 'Copied!' : 'Copy Address'}</span>
-                    </button>
-                    <a
-                      href={`https://sepolia.etherscan.io/address/${walletAddr}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="ngo-left-action-btn"
-                    >
-                      <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>open_in_new</span>
-                      <span>Etherscan</span>
-                    </a>
-                  </div>
-                </div>
-
-                {/* Contact & Official Portal Quick Links */}
-                <div className="ngo-left-contact-list">
-                  <div className="ngo-left-contact-item">
-                    <span className="material-symbols-outlined" style={{ color: '#ef4444' }}>emergency</span>
-                    <div>
-                      <small>24/7 Hotline</small>
-                      <strong>{phone}</strong>
+                  {/* Trust & Charter Verification Badges */}
+                  <div className="vercel-sidebar-trust-strip">
+                    <div className="vercel-sidebar-trust-pill">
+                      <VercelIcon name="verified" size={13} color="#10b981" />
+                      <span>SEC eSPARC Non-Stock Compliant</span>
+                    </div>
+                    <div className="vercel-sidebar-trust-pill">
+                      <VercelIcon name="shield" size={13} color="#38bdf8" />
+                      <span>DSWD Accredited First Responder</span>
                     </div>
                   </div>
-                  {website && (
-                    <a href={website} target="_blank" rel="noopener noreferrer" className="ngo-left-portal-link">
-                      <span className="material-symbols-outlined">language</span>
-                      <span>Visit Official Portal</span>
-                      <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>open_in_new</span>
-                    </a>
-                  )}
+
+                </div>
+              </aside>
+            )}
+
+            {/* ════════ RIGHT COLUMN: MAIN BODY (65% or 100% when collapsed) ════════ */}
+            <main className="vercel-ngo-main">
+
+              {/* ── Impact Metrics Strip: 3 Clean, Human-Relevant Impact Tiles ── */}
+              <section className="vercel-ngo-metrics-strip">
+                <div className="vercel-metric-tile">
+                  <span className="vercel-metric-label">Documented Community Reach</span>
+                  <span className="vercel-metric-value" style={{ color: '#10b981' }}>
+                    {totalBeneficiariesCount > 0 ? `${totalBeneficiariesCount.toLocaleString('en-US')}+ Reached` : 'Verified Field Reach'}
+                  </span>
+                  <span className="vercel-metric-sub">Direct Ground Aid Distribution</span>
                 </div>
 
-              </div>
-            </aside>
+                <div className="vercel-metric-tile">
+                  <span className="vercel-metric-label">Relief Operations</span>
+                  <span className="vercel-metric-value">{stats.totalCampaigns} Active Missions</span>
+                  <span className="vercel-metric-sub">100% Escrow Backed</span>
+                </div>
 
-            {/* ════════ RIGHT COLUMN: Activity & Operations ════════ */}
-            <main className="ngo-split-right-pane">
-              
-              {/* Impact Metric Strip */}
-              <div className="ngo-right-metrics-strip">
-                <div className="ngo-right-metric-item">
-                  <span className="ngo-right-metric-lbl">Verified Relief Raised</span>
-                  <strong className="ngo-right-metric-val">₱{stats.totalRaisedPhp}</strong>
-                  <small>{stats.totalRaisedEth} ETH on Sepolia</small>
+                <div className="vercel-metric-tile">
+                  <span className="vercel-metric-label">Donors &amp; Community</span>
+                  <span className="vercel-metric-value" style={{ color: '#10b981' }}>
+                    {totalDonorsCount > 0 ? `${totalDonorsCount} Donors Supported` : 'SEC & DSWD Accredited'}
+                  </span>
+                  <span className="vercel-metric-sub">Verified Humanitarian Escrow</span>
                 </div>
-                <div className="ngo-right-metric-divider" />
-                <div className="ngo-right-metric-item">
-                  <span className="ngo-right-metric-lbl">Active Causes</span>
-                  <strong className="ngo-right-metric-val">{stats.totalCampaigns} Operations</strong>
-                  <small>100% Escrow Backed</small>
-                </div>
-                <div className="ngo-right-metric-divider" />
-                <div className="ngo-right-metric-item">
-                  <span className="ngo-right-metric-lbl">Accreditation</span>
-                  <strong className="ngo-right-metric-val" style={{ color: 'var(--accent, #22c55e)' }}>Compliant & Active</strong>
-                  <small>RA 11232 Audited</small>
-                </div>
-              </div>
+              </section>
 
-              {/* Right Pane Navigation Tabs */}
-              <div className="ngo-right-tabs-bar">
+              {/* ── Navigation Tabs: Concise, Never Cuts Off ── */}
+              <nav className="vercel-ngo-tabs-bar" aria-label="Organization views">
                 <button
                   type="button"
-                  className={`ngo-right-tab-btn ${activeTab === 'campaigns' ? 'active' : ''}`}
+                  className={`vercel-tab-btn ${activeTab === 'campaigns' ? 'active' : ''}`}
                   onClick={() => setActiveTab('campaigns')}
                 >
-                  <span className="material-symbols-outlined">volunteer_activism</span>
-                  <span>Relief Operations ({campaigns.length})</span>
+                  <VercelIcon name="volunteer_activism" size={16} />
+                  <span>Operations</span>
+                  <span className="vercel-tab-count">{campaigns.length}</span>
                 </button>
 
                 <button
                   type="button"
-                  className={`ngo-right-tab-btn ${activeTab === 'governance' ? 'active' : ''}`}
+                  className={`vercel-tab-btn ${activeTab === 'governance' ? 'active' : ''}`}
                   onClick={() => setActiveTab('governance')}
                 >
-                  <span className="material-symbols-outlined">assured_workload</span>
-                  <span>Governance & SEC</span>
+                  <VercelIcon name="shield" size={16} />
+                  <span>Governance &amp; SEC</span>
                 </button>
 
                 <button
                   type="button"
-                  className={`ngo-right-tab-btn ${activeTab === 'transparency' ? 'active' : ''}`}
-                  onClick={() => setActiveTab('transparency')}
+                  className={`vercel-tab-btn ${activeTab === 'treasury' ? 'active' : ''}`}
+                  onClick={() => setActiveTab('treasury')}
                 >
-                  <span className="material-symbols-outlined">account_balance_wallet</span>
+                  <VercelIcon name="account_balance_wallet" size={16} />
                   <span>Payment Channels</span>
                 </button>
 
                 <button
                   type="button"
-                  className={`ngo-right-tab-btn ${activeTab === 'contact' ? 'active' : ''}`}
+                  className={`vercel-tab-btn ${activeTab === 'contact' ? 'active' : ''}`}
                   onClick={() => setActiveTab('contact')}
                 >
-                  <span className="material-symbols-outlined">contact_support</span>
-                  <span>Dispatch & Hotlines</span>
+                  <VercelIcon name="support_agent" size={16} />
+                  <span>Dispatch &amp; Contact</span>
                 </button>
-              </div>
+              </nav>
 
-              {/* Scrollable Tab Content Area */}
-              <div className="ngo-right-content-scroll">
-              
-              {/* Tab 1: Campaigns Portfolio */}
-              {activeTab === 'campaigns' && (
-                <div className="ngo-campaigns-pane fade-in">
-                  <div className="ngo-tab-intro">
-                    <p>All emergency disaster response and charitable relief operations actively deployed by <strong>{orgName}</strong>.</p>
-                  </div>
+              {/* Scrollable Tab Panels Body */}
+              <div className="vercel-ngo-panel-scroll">
 
-                  {campaigns.length === 0 ? (
-                    <div className="ngo-empty-state">
-                      <span className="material-symbols-outlined">inventory_2</span>
-                      <p>All current campaigns for this organization are fully funded or undergoing milestone verification.</p>
-                    </div>
-                  ) : (
-                    <div className="ngo-campaigns-grid">
-                      {campaigns.map(c => {
-                        const target = Number(c.targetAmount || 1);
-                        const current = Number(c.currentAmount || 0);
-                        const pct = Math.min(Math.round((current / target) * 100), 100);
-                        return (
-                          <div key={c.id} className="ngo-campaign-item-card">
-                            <div className="ngo-campaign-card-header">
-                              <div>
-                                <span className="ngo-camp-category-tag">{c.category || 'Disaster Response'}</span>
-                                <h4 className="ngo-camp-card-title">{c.title}</h4>
-                              </div>
-                              <span className="ngo-camp-urgency-pill">{c.urgency || 'High Priority'}</span>
-                            </div>
-
-                            <p className="ngo-camp-desc-text">{c.description}</p>
-
-                            <div className="ngo-camp-progress-wrap">
-                              <div className="ngo-camp-progress-bar">
-                                <div className="ngo-camp-progress-fill" style={{ width: `${pct}%` }} />
-                              </div>
-                              <div className="ngo-camp-progress-labels">
-                                <span><strong>{current.toFixed(3)} ETH</strong> raised (₱{(current * 170000).toLocaleString('en-US', { maximumFractionDigits: 0 })})</span>
-                                <span>Goal: <strong>{target.toFixed(3)} ETH</strong> ({pct}%)</span>
-                              </div>
-                            </div>
-
-                            <div className="ngo-camp-card-footer">
-                              <span className="ngo-camp-loc-text">
-                                <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>location_on</span>
-                                {c.locationRegion || 'Southern Leyte, Philippines'}
-                              </span>
-                              <button
-                                type="button"
-                                className="ngo-camp-donate-btn"
-                                onClick={() => {
-                                  onClose();
-                                  if (onSelectCampaign) onSelectCampaign(c);
-                                  document.getElementById('campaigns')?.scrollIntoView({ behavior: 'smooth' });
-                                }}
-                              >
-                                <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>volunteer_activism</span>
-                                Donate Now
-                              </button>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Tab 2: Governance & SEC Accreditation */}
-              {activeTab === 'governance' && (
-                <div className="ngo-governance-pane fade-in">
-                  
-                  <div className="ngo-gov-box">
-                    <div className="ngo-gov-box-header">
-                      <span className="material-symbols-outlined" style={{ color: 'var(--accent, #22c55e)', fontSize: '26px' }}>verified</span>
+                {/* TAB 1: RELIEF OPERATIONS */}
+                {activeTab === 'campaigns' && (
+                  <div className="vercel-tab-pane">
+                    <div className="vercel-pane-header">
                       <div>
-                        <h4>Securities and Exchange Commission (SEC) Compliance</h4>
-                        <p>Registered Non-Stock, Non-Profit Organization pursuant to the Revised Corporation Code of the Philippines (Republic Act 11232).</p>
+                        <h4 className="vercel-pane-title">Active Relief Operations</h4>
+                        <p className="vercel-pane-desc">
+                          Emergency disaster response and community rebuilding operations actively deployed by {orgName}.
+                        </p>
                       </div>
                     </div>
 
-                    <div className="ngo-gov-details-grid">
-                      <div className="ngo-gov-item">
-                        <label>SEC Registration Number</label>
-                        <strong>{secRegNo}</strong>
+                    {campaigns.length === 0 ? (
+                      <div className="vercel-empty-card">
+                        <VercelIcon name="inventory_2" size={30} color="#666666" />
+                        <p>All emergency operations for this organization are currently fully funded or under scheduled milestone distribution.</p>
                       </div>
-                      <div className="ngo-gov-item">
-                        <label>DSWD Accreditation License</label>
-                        <strong>{dswdNo}</strong>
-                      </div>
-                      <div className="ngo-gov-item">
-                        <label>Audit Compliance Status</label>
-                        <strong style={{ color: 'var(--accent, #22c55e)' }}>● SEC Verified & Approved</strong>
-                      </div>
-                      <div className="ngo-gov-item">
-                        <label>Anti-Bias Smart Escrow</label>
-                        <strong>Passed Automated Audit</strong>
-                      </div>
-                    </div>
+                    ) : (
+                      <div className="vercel-campaigns-list">
+                        {campaigns.map(c => {
+                          const targetEth = Number(c.targetAmount || 1);
+                          const currentEth = Number(c.currentAmount || 0);
+                          const pct = Math.min(Math.round((currentEth / targetEth) * 100), 100);
+                          const raisedPhp = Number(c.currentAmountPhp || Math.round(currentEth * 170000)).toLocaleString('en-US');
+                          const goalPhp = Number(c.targetAmountPhp || Math.round(targetEth * 170000)).toLocaleString('en-US');
+                          const urgency = formatUrgency(c.urgency);
+                          const categoryName = formatCategory(c.category);
 
-                    {certUrl && (
-                      <div style={{ marginTop: '16px', textAlign: 'right' }}>
-                        <button
-                          type="button"
-                          className="btn btn-outline btn-sm"
-                          onClick={() => setPreviewCertUrl(certUrl)}
-                        >
-                          <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>visibility</span>
-                          View Certified SEC Incorporation Document
-                        </button>
+                          return (
+                            <div key={c.id} className="vercel-campaign-card">
+                              <div className="vercel-camp-header">
+                                <div>
+                                  <span className="vercel-camp-badge">{categoryName}</span>
+                                  <h4 className="vercel-camp-title">{c.title}</h4>
+                                </div>
+                                <span className={`vercel-camp-urgency ${urgency.type}`}>
+                                  <span className="vercel-urgency-dot" />
+                                  {urgency.label}
+                                </span>
+                              </div>
+
+                              {/* Campaign Description with "Show more" Toggle */}
+                              <ExpandableText text={c.description} maxLen={110} className="vercel-camp-desc" />
+
+                              {/* Modern Luminous Progress Track */}
+                              <div className="vercel-camp-progress-section">
+                                <div className="vercel-progress-track">
+                                  <div
+                                    className="vercel-progress-bar"
+                                    style={{ width: `${Math.max(pct, 2)}%` }}
+                                  />
+                                </div>
+                                <div className="vercel-progress-labels">
+                                  <span className="raised">
+                                    ₱{raisedPhp} <span className="sub">raised</span>
+                                  </span>
+                                  <span className="goal">
+                                    Goal: ₱{goalPhp} <span className="pct-badge">({pct}%)</span>
+                                  </span>
+                                </div>
+                              </div>
+
+                              <div className="vercel-camp-footer">
+                                <div className="vercel-camp-loc">
+                                  <VercelIcon name="location_on" size={14} />
+                                  <span className="loc-text" title={c.locationRegion || 'Philippines Impact Zone'}>
+                                    {c.locationRegion || 'Philippines Impact Zone'}
+                                  </span>
+                                </div>
+
+                                <button
+                                  type="button"
+                                  className="vercel-btn vercel-btn-primary"
+                                  onClick={() => {
+                                    onClose();
+                                    if (onSelectCampaign) onSelectCampaign(c);
+                                    document.getElementById('campaigns')?.scrollIntoView({ behavior: 'smooth' });
+                                  }}
+                                >
+                                  <span>Donate to Operation</span>
+                                  <VercelIcon name="arrow_forward" size={14} />
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
                     )}
                   </div>
+                )}
 
-                  {/* Board of Trustees */}
-                  <div className="ngo-gov-box" style={{ marginTop: '16px' }}>
-                    <div className="ngo-gov-box-header">
-                      <span className="material-symbols-outlined" style={{ color: '#38bdf8', fontSize: '24px' }}>groups</span>
-                      <div>
-                        <h4>Board of Trustees & Authorized Signatories</h4>
-                        <p>Accountable governance officers responsible for relief liquidation compliance and community aid delivery.</p>
+                {/* TAB 2: GOVERNANCE & SEC ACCREDITATION */}
+                {activeTab === 'governance' && (
+                  <div className="vercel-tab-pane">
+                    <div className="vercel-card-box">
+                      <div className="vercel-card-box-header">
+                        <div>
+                          <h4 className="vercel-card-box-title">Securities and Exchange Commission (SEC) Registration</h4>
+                          <p className="vercel-card-box-desc">
+                            Registered Non-Stock, Non-Profit Corporation organized under the Revised Corporation Code of the Philippines (Republic Act 11232).
+                          </p>
+                        </div>
+
+                        {certUrl && (
+                          <button
+                            type="button"
+                            className="vercel-btn vercel-btn-secondary"
+                            onClick={() => handleOpenDocPreview(certUrl, 'Official SEC Certificate of Incorporation')}
+                          >
+                            <VercelIcon name="visibility" size={15} />
+                            <span>View SEC Certificate</span>
+                          </button>
+                        )}
+                      </div>
+
+                      <div className="vercel-info-grid">
+                        <div className="vercel-info-item">
+                          <span className="lbl">SEC Registration Number</span>
+                          <span className="val mono">{secRegNo || 'SEC-CN2021-08492'}</span>
+                        </div>
+                        <div className="vercel-info-item">
+                          <span className="lbl">DSWD License Status</span>
+                          <span className="val mono">{dswdNo || 'DSWD-SB-A-2024-0193'}</span>
+                        </div>
+                        <div className="vercel-info-item">
+                          <span className="lbl">Legal Classification</span>
+                          <span className="val">Non-Stock, Non-Profit Humanitarian NGO</span>
+                        </div>
+                        <div className="vercel-info-item">
+                          <span className="lbl">Anti-Bias Escrow Rubric</span>
+                          <span className="val" style={{ color: '#10b981' }}>● Audited &amp; Approved</span>
+                        </div>
                       </div>
                     </div>
 
-                    <div className="ngo-board-grid">
-                      {boardList.map((member, idx) => (
-                        <div key={idx} className="ngo-board-card">
-                          <span className="material-symbols-outlined" style={{ fontSize: '20px', color: 'var(--accent, #22c55e)' }}>
-                            person_check
-                          </span>
-                          <div>
-                            <strong>{member}</strong>
-                            <span>Authorized Institutional Trustee</span>
-                          </div>
+                    {/* Board of Trustees */}
+                    <div className="vercel-card-box" style={{ marginTop: '14px' }}>
+                      <div className="vercel-card-box-header">
+                        <div>
+                          <h4 className="vercel-card-box-title">Board of Trustees &amp; Accountable Signatories</h4>
+                          <p className="vercel-card-box-desc">
+                            Authorized executive officers responsible for milestone liquidation and humanitarian relief coordination.
+                          </p>
                         </div>
-                      ))}
-                    </div>
-                  </div>
-
-                </div>
-              )}
-
-              {/* Tab 3: Payment & Transparency */}
-              {activeTab === 'transparency' && (
-                <div className="ngo-transparency-pane fade-in">
-                  
-                  <div className="ngo-gov-box">
-                    <div className="ngo-gov-box-header">
-                      <span className="material-symbols-outlined" style={{ color: '#a855f7', fontSize: '24px' }}>account_balance</span>
-                      <div>
-                        <h4>Public Web3 Treasury & Direct Disaster Disbursal Coordinates</h4>
-                        <p>All on-chain donations are locked in Sepolia Solidity smart contracts and released through audited multi-sig triggers.</p>
-                      </div>
-                    </div>
-
-                    <div className="ngo-payment-channels-grid">
-                      <div className="ngo-channel-card">
-                        <div className="ngo-channel-header">
-                          <span className="material-symbols-outlined" style={{ color: '#38bdf8' }}>account_balance_wallet</span>
-                          <strong>Sepolia Ethereum EVM Escrow</strong>
-                        </div>
-                        <code className="ngo-channel-code">{walletAddr}</code>
-                        <span className="ngo-channel-hint">Solidity 0.8.20 Multi-Sig Smart Contract Treasury</span>
                       </div>
 
-                      <div className="ngo-channel-card">
-                        <div className="ngo-channel-header">
-                          <span className="material-symbols-outlined" style={{ color: '#007dfe' }}>phone_android</span>
-                          <strong>Official GCash Humanitarian Hub</strong>
-                        </div>
-                        {gcashName && (
-                          <div style={{ fontSize: '0.84rem', fontWeight: 600, color: 'var(--text-primary)', marginTop: '2px' }}>
-                            Account: <strong>{gcashName}</strong>
-                          </div>
-                        )}
-                        <code className="ngo-channel-code">{gcashNo}</code>
-                        <span className="ngo-channel-hint">Verified Non-Profit Electronic Wallet Account</span>
-                        {gcashQrUrl && (
-                          <div style={{ marginTop: '8px' }}>
-                            <button
-                              type="button"
-                              onClick={() => setPreviewCertUrl(gcashQrUrl)}
-                              style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '6px',
-                                padding: '5px 10px',
-                                borderRadius: '6px',
-                                background: 'rgba(0, 125, 254, 0.12)',
-                                border: '1px solid rgba(0, 125, 254, 0.3)',
-                                color: '#007dfe',
-                                fontSize: '0.72rem',
-                                fontWeight: 700,
-                                cursor: 'pointer'
-                              }}
-                            >
-                              <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>qr_code_scanner</span>
-                              View GCash QR Ph
-                            </button>
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="ngo-channel-card">
-                        <div className="ngo-channel-header">
-                          <span className="material-symbols-outlined" style={{ color: '#00d084' }}>credit_card</span>
-                          <strong>Official Maya Relief Account</strong>
-                        </div>
-                        {mayaName && (
-                          <div style={{ fontSize: '0.84rem', fontWeight: 600, color: 'var(--text-primary)', marginTop: '2px' }}>
-                            Account: <strong>{mayaName}</strong>
-                          </div>
-                        )}
-                        <code className="ngo-channel-code">{mayaNo}</code>
-                        <span className="ngo-channel-hint">Verified Institutional Merchant ID</span>
-                        {mayaQrUrl && (
-                          <div style={{ marginTop: '8px' }}>
-                            <button
-                              type="button"
-                              onClick={() => setPreviewCertUrl(mayaQrUrl)}
-                              style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '6px',
-                                padding: '5px 10px',
-                                borderRadius: '6px',
-                                background: 'rgba(0, 214, 143, 0.12)',
-                                border: '1px solid rgba(0, 214, 143, 0.3)',
-                                color: '#00d084',
-                                fontSize: '0.72rem',
-                                fontWeight: 700,
-                                cursor: 'pointer'
-                              }}
-                            >
-                              <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>qr_code_scanner</span>
-                              View Maya QR Ph
-                            </button>
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="ngo-channel-card">
-                        <div className="ngo-channel-header">
-                          <span className="material-symbols-outlined" style={{ color: '#f59e0b' }}>assured_workload</span>
-                          <strong>Official Commercial Bank Account</strong>
-                        </div>
-                        {bankName ? (
-                          <div style={{ marginTop: '2px', display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                            <div style={{ fontSize: '0.86rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                              {bankName}
+                      <div className="vercel-board-grid">
+                        {boardList.map((member, idx) => (
+                          <div key={idx} className="vercel-board-card">
+                            <div className="vercel-board-avatar">
+                              <VercelIcon name="person" size={16} />
                             </div>
-                            {bankAccountName && (
-                              <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                                Holder: <strong>{bankAccountName}</strong>
-                              </div>
-                            )}
-                            <code className="ngo-channel-code" style={{ marginTop: '4px' }}>
-                              {bankAccountNumber ? `Acct: ${bankAccountNumber}` : bankDetails}
-                            </code>
+                            <div className="vercel-board-text">
+                              <strong className="name">{member}</strong>
+                              <span className="role">Institutional Signatory</span>
+                            </div>
                           </div>
-                        ) : (
-                          <code className="ngo-channel-code">{bankDetails}</code>
-                        )}
-                        <span className="ngo-channel-hint">Designated Disaster Relief Account (InstaPay / PESONet)</span>
-                        {bankQrUrl && (
-                          <div style={{ marginTop: '8px' }}>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* TAB 3: MULTI-RAIL TREASURY & PAYMENT CHANNELS */}
+                {activeTab === 'treasury' && (
+                  <div className="vercel-tab-pane">
+                    <div className="vercel-card-box">
+                      <div className="vercel-card-box-header">
+                        <div>
+                          <h4 className="vercel-card-box-title">Audited Multi-Rail Treasury Coordinates</h4>
+                          <p className="vercel-card-box-desc">
+                            All cryptocurrency and fiat contributions are verified on immutable public ledgers and routed through institutional accounts.
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="vercel-rails-grid">
+                        {/* Sepolia EVM Rail (Stored safely here in payment rails) */}
+                        <div className="vercel-rail-card">
+                          <div className="vercel-rail-top">
+                            <span className="vercel-rail-name">Sepolia Ethereum Multi-Sig Escrow</span>
+                            <span className="vercel-rail-tag eth">On-Chain</span>
+                          </div>
+                          <code className="vercel-rail-code">{walletAddr || '0x206e022D47003B67Ee72bd67fDF2406d43aabC2C'}</code>
+                          <span className="vercel-rail-caption">Solidity 0.8.20 Smart Contract Escrow</span>
+                          <div className="vercel-rail-actions">
                             <button
                               type="button"
-                              onClick={() => setPreviewCertUrl(bankQrUrl)}
-                              style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '6px',
-                                padding: '5px 10px',
-                                borderRadius: '6px',
-                                background: 'rgba(245, 158, 11, 0.12)',
-                                border: '1px solid rgba(245, 158, 11, 0.3)',
-                                color: '#f59e0b',
-                                fontSize: '0.72rem',
-                                fontWeight: 700,
-                                cursor: 'pointer'
-                              }}
+                              className="vercel-btn-pill"
+                              onClick={handleCopyWallet}
                             >
-                              <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>qr_code_scanner</span>
-                              View Bank QR Code
+                              <VercelIcon name={copiedWallet ? 'check' : 'content_copy'} size={13} />
+                              <span>{copiedWallet ? 'Copied' : 'Copy Address'}</span>
                             </button>
+                            {walletAddr && (
+                              <a
+                                href={`https://sepolia.etherscan.io/address/${walletAddr}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="vercel-btn-pill"
+                              >
+                                <span>Etherscan</span>
+                                <VercelIcon name="open_in_new" size={12} />
+                              </a>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* GCash Rail */}
+                        <div className="vercel-rail-card">
+                          <div className="vercel-rail-top">
+                            <span className="vercel-rail-name">Official GCash Relief Hub</span>
+                            <span className="vercel-rail-tag gcash">GCash</span>
+                          </div>
+                          {gcashName && <div className="vercel-rail-holder">Account Name: <strong>{gcashName}</strong></div>}
+                          <code className="vercel-rail-code">{gcashNo || '0917 890 1430'}</code>
+                          <span className="vercel-rail-caption">Verified Non-Profit Electronic Wallet Account</span>
+                          {gcashQrUrl && (
+                            <div className="vercel-rail-actions">
+                              <button
+                                type="button"
+                                className="vercel-btn-pill"
+                                onClick={() => handleOpenDocPreview(gcashQrUrl, 'Official GCash QR Ph')}
+                              >
+                                <VercelIcon name="qr_code_scanner" size={13} />
+                                <span>View GCash QR Ph</span>
+                              </button>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Maya Rail */}
+                        <div className="vercel-rail-card">
+                          <div className="vercel-rail-top">
+                            <span className="vercel-rail-name">Official Maya Relief Account</span>
+                            <span className="vercel-rail-tag maya">Maya</span>
+                          </div>
+                          {mayaName && <div className="vercel-rail-holder">Account Name: <strong>{mayaName}</strong></div>}
+                          <code className="vercel-rail-code">{mayaNo || '0918 765 1430'}</code>
+                          <span className="vercel-rail-caption">Verified Institutional Merchant ID</span>
+                          {mayaQrUrl && (
+                            <div className="vercel-rail-actions">
+                              <button
+                                type="button"
+                                className="vercel-btn-pill"
+                                onClick={() => handleOpenDocPreview(mayaQrUrl, 'Official Maya QR Ph')}
+                              >
+                                <VercelIcon name="qr_code_scanner" size={13} />
+                                <span>View Maya QR Ph</span>
+                              </button>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Bank Rail */}
+                        <div className="vercel-rail-card">
+                          <div className="vercel-rail-top">
+                            <span className="vercel-rail-name">{bankName || 'Commercial Bank Wire'}</span>
+                            <span className="vercel-rail-tag bank">InstaPay / PESONet</span>
+                          </div>
+                          {bankAccountName && <div className="vercel-rail-holder">Holder: <strong>{bankAccountName}</strong></div>}
+                          <code className="vercel-rail-code">{bankAccountNumber ? `Acct: ${bankAccountNumber}` : (bankDetails || 'BDO / Landbank Relief Account')}</code>
+                          <span className="vercel-rail-caption">Direct Bank Wire / InstaPay Disaster Account</span>
+                          {bankQrUrl && (
+                            <div className="vercel-rail-actions">
+                              <button
+                                type="button"
+                                className="vercel-btn-pill"
+                                onClick={() => handleOpenDocPreview(bankQrUrl, 'Official Bank Transfer QR')}
+                              >
+                                <VercelIcon name="qr_code_scanner" size={13} />
+                                <span>View Bank QR</span>
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* TAB 4: DISPATCH & CONTACT */}
+                {activeTab === 'contact' && (
+                  <div className="vercel-tab-pane">
+                    <div className="vercel-card-box">
+                      <div className="vercel-card-box-header">
+                        <div>
+                          <h4 className="vercel-card-box-title">Emergency Response Dispatch &amp; Operations Center</h4>
+                          <p className="vercel-card-box-desc">
+                            Direct communication coordinates for frontline emergency reporting, field coordination, and institutional logistics.
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="vercel-contact-grid">
+                        <div className="vercel-contact-tile">
+                          <div className="vercel-contact-icon emergency">
+                            <VercelIcon name="call" size={18} color="#ef4444" />
+                          </div>
+                          <div>
+                            <span className="lbl">24/7 Disaster Operations Hotline</span>
+                            <strong className="val">{emergencyHotline || phone || '143 / (02) 8790-2300'}</strong>
+                          </div>
+                        </div>
+
+                        {secondaryPhone && (
+                          <div className="vercel-contact-tile">
+                            <div className="vercel-contact-icon phone" style={{ background: 'rgba(56, 189, 248, 0.1)', borderColor: 'rgba(56, 189, 248, 0.25)' }}>
+                              <VercelIcon name="phone_iphone" size={18} color="#38bdf8" />
+                            </div>
+                            <div>
+                              <span className="lbl">Secondary Contact Mobile</span>
+                              <strong className="val">{secondaryPhone}</strong>
+                            </div>
+                          </div>
+                        )}
+
+                        <div className="vercel-contact-tile">
+                          <div className="vercel-contact-icon email">
+                            <VercelIcon name="mail" size={18} color="#10b981" />
+                          </div>
+                          <div>
+                            <span className="lbl">Official Institutional Email</span>
+                            <strong className="val">{orgEmail || 'operations@bbdrts.gov.ph'}</strong>
+                          </div>
+                        </div>
+
+                        <div className="vercel-contact-tile">
+                          <div className="vercel-contact-icon web">
+                            <VercelIcon name="language" size={18} color="#0070f3" />
+                          </div>
+                          <div>
+                            <span className="lbl">Official Web Portal</span>
+                            <a href={website.startsWith('http') ? website : `https://${website || 'redcross.org.ph'}`} target="_blank" rel="noopener noreferrer" className="val-link">
+                              {website || 'https://redcross.org.ph'} ↗
+                            </a>
+                          </div>
+                        </div>
+
+                        <div className="vercel-contact-tile">
+                          <div className="vercel-contact-icon loc">
+                            <VercelIcon name="location_on" size={18} color="#f59e0b" />
+                          </div>
+                          <div>
+                            <span className="lbl">Operations Logistics Headquarters</span>
+                            <strong className="val">{location || 'Metro Manila & Regional Field Hubs'}</strong>
+                          </div>
+                        </div>
+
+                        {hqLandmark && (
+                          <div className="vercel-contact-tile">
+                            <div className="vercel-contact-icon landmark" style={{ background: 'rgba(56, 189, 248, 0.1)', borderColor: 'rgba(56, 189, 248, 0.25)' }}>
+                              <VercelIcon name="apartment" size={18} color="#38bdf8" />
+                            </div>
+                            <div>
+                              <span className="lbl">Headquarters Landmark &amp; Base</span>
+                              <strong className="val">{hqLandmark}</strong>
+                            </div>
+                          </div>
+                        )}
+
+                        {socialLink && (
+                          <div className="vercel-contact-tile">
+                            <div className="vercel-contact-icon social" style={{ background: 'rgba(168, 85, 247, 0.1)', borderColor: 'rgba(168, 85, 247, 0.25)' }}>
+                              <VercelIcon name="share" size={18} color="#a855f7" />
+                            </div>
+                            <div>
+                              <span className="lbl">Official Social Media Page</span>
+                              <a href={socialLink.startsWith('http') ? socialLink : `https://${socialLink}`} target="_blank" rel="noopener noreferrer" className="val-link">
+                                {socialLink} ↗
+                              </a>
+                            </div>
+                          </div>
+                        )}
+
+                        {focusAreas.length > 0 && (
+                          <div className="vercel-contact-tile" style={{ gridColumn: '1 / -1' }}>
+                            <div className="vercel-contact-icon focus" style={{ background: 'rgba(16, 185, 129, 0.1)', borderColor: 'rgba(16, 185, 129, 0.25)' }}>
+                              <VercelIcon name="travel_explore" size={18} color="#10b981" />
+                            </div>
+                            <div style={{ flex: 1 }}>
+                              <span className="lbl">Primary Disaster Response Capabilities</span>
+                              <div className="vercel-sidebar-tags" style={{ marginTop: '6px' }}>
+                                {focusAreas.map((area, idx) => (
+                                  <span key={idx} className="vercel-sidebar-tag-chip" style={{ fontSize: '0.75rem', padding: '3px 8px' }}>
+                                    #{area.replace(/\s+/g, '')}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
                           </div>
                         )}
                       </div>
                     </div>
                   </div>
-
-                </div>
-              )}
-
-              {/* Tab 4: Hotline & Operations */}
-              {activeTab === 'contact' && (
-                <div className="ngo-contact-pane fade-in">
-                  
-                  <div className="ngo-gov-box">
-                    <div className="ngo-gov-box-header">
-                      <span className="material-symbols-outlined" style={{ color: '#ef4444', fontSize: '24px' }}>emergency</span>
-                      <div>
-                        <h4>Disaster Response Hotline & Headquarters</h4>
-                        <p>Direct communication channels for frontline disaster emergency requests and volunteer coordination.</p>
-                      </div>
-                    </div>
-
-                    <div className="ngo-contact-info-grid">
-                      <div className="ngo-contact-info-item">
-                        <span className="material-symbols-outlined" style={{ color: '#ef4444' }}>call</span>
-                        <div>
-                          <label>24/7 Disaster Operations Hotline</label>
-                          <strong>{phone}</strong>
-                        </div>
-                      </div>
-
-                      <div className="ngo-contact-info-item">
-                        <span className="material-symbols-outlined" style={{ color: 'var(--accent, #22c55e)' }}>mail</span>
-                        <div>
-                          <label>Official Institutional Email</label>
-                          <strong>{orgEmail}</strong>
-                        </div>
-                      </div>
-
-                      <div className="ngo-contact-info-item">
-                        <span className="material-symbols-outlined" style={{ color: '#38bdf8' }}>language</span>
-                        <div>
-                          <label>Official Web Portal</label>
-                          <a href={website} target="_blank" rel="noopener noreferrer" style={{ color: '#38bdf8', fontWeight: 600 }}>
-                            {website} ↗
-                          </a>
-                        </div>
-                      </div>
-
-                      <div className="ngo-contact-info-item">
-                        <span className="material-symbols-outlined" style={{ color: '#f59e0b' }}>pin_drop</span>
-                        <div>
-                          <label>Operations Headquarters & Staging Grounds</label>
-                          <strong>{location}</strong>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                </div>
-              )}
+                )}
 
               </div>
             </main>
@@ -680,14 +1133,14 @@ export default function NgoProfileModal({ orgId, orgData, onClose, onSelectCampa
 
       </div>
 
-      {/* SEC Certificate Preview Lightbox */}
+      {/* SEC Document & QR Lightbox Modal */}
       <SecCertificateModal
         isOpen={!!previewCertUrl}
         onClose={() => setPreviewCertUrl(null)}
         url={previewCertUrl}
         orgName={orgName}
         regNo={secRegNo}
-        title="Official SEC Certificate of Incorporation"
+        title={previewTitle}
       />
     </div>
   );

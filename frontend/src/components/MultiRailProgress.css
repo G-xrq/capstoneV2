@@ -301,7 +301,9 @@
    Dropdown Popup Card anchored below Rail Breakdown button
    ============================================================ */
 .campaign-card.telemetry-dropdown-active {
-  z-index: 60 !important;
+  z-index: 40 !important;
+  opacity: 1 !important;
+  overflow: visible !important;
 }
 
 /* Wrapper that makes the popup anchor right-aligned below the button */
@@ -320,19 +322,21 @@
   min-width: 320px;
   width: max-content;
   max-width: min(390px, 90vw);
-  z-index: 200;
-  background: var(--bg-surface, #1a1a1a);
+  z-index: 9999 !important;
+  background: #111318 !important;
   border: 1px solid var(--accent, #22c55e);
   border-radius: 14px;
   padding: 14px;
-  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.65), 0 0 20px rgba(34, 197, 94, 0.18);
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.85), 0 0 24px rgba(34, 197, 94, 0.2);
   animation: dropdownPopupSlide 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  opacity: 1 !important;
 }
 
 [data-theme="light"] .multi-rail-dropdown-popup {
-  background: var(--bg-surface, #ffffff);
+  background: #ffffff !important;
   border: 1px solid var(--accent, #16a34a);
-  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.12), 0 0 16px rgba(22, 163, 74, 0.15);
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.16), 0 0 20px rgba(22, 163, 74, 0.18);
+  opacity: 1 !important;
 }
 
 @keyframes dropdownPopupSlide {
@@ -354,7 +358,7 @@
   right: 28px;
   width: 10px;
   height: 10px;
-  background: var(--bg-surface, #1a1a1a);
+  background: #111318 !important;
   border-left: 1px solid var(--accent, #22c55e);
   border-top: 1px solid var(--accent, #22c55e);
   transform: rotate(45deg);
@@ -362,7 +366,7 @@
 }
 
 [data-theme="light"] .multi-rail-dropdown-popup::before {
-  background: var(--bg-surface, #ffffff);
+  background: #ffffff !important;
   border-left-color: var(--accent, #16a34a);
   border-top-color: var(--accent, #16a34a);
 }
@@ -462,23 +466,25 @@
   gap: 12px;
   padding: 7px 11px;
   border-radius: 8px;
-  background: var(--bg-card, #222222);
-  border: 1px solid var(--border, rgba(255,255,255,0.06));
+  background: #1c1f26 !important;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  opacity: 1 !important;
   transition: border-color 0.15s ease, background 0.15s ease;
 }
 
 .drawer-compact-row:hover {
-  border-color: rgba(34, 197, 94, 0.3);
-  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(34, 197, 94, 0.4);
+  background: #252932 !important;
 }
 
 [data-theme="light"] .drawer-compact-row {
-  background: var(--bg-subcard, #edf0f4);
-  border-color: var(--border, rgba(0,0,0,0.07));
+  background: #f1f5f9 !important;
+  border-color: rgba(0, 0, 0, 0.08);
+  opacity: 1 !important;
 }
 
 [data-theme="light"] .drawer-compact-row:hover {
-  background: #e2e8f0;
+  background: #e2e8f0 !important;
   border-color: rgba(22, 163, 74, 0.35);
 }
 

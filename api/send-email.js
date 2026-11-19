@@ -1,8 +1,8 @@
 import nodemailer from 'nodemailer';
 
 const EMAIL_RELAY_SECRET = process.env.EMAIL_RELAY_SECRET || 'bbdrts_secure_email_secret_2026';
-const SMTP_USER = process.env.SMTP_USER || 'gestermacaldo@gmail.com';
-const SMTP_PASS = process.env.SMTP_PASS || 'vlijrjrvwonjjmwe';
+const SMTP_USER = process.env.SMTP_USER || 'bbdrts@gmail.com';
+const SMTP_PASS = process.env.SMTP_PASS || 'gabhclncqnavyjyk';
 
 export default async function handler(req, res) {
   // CORS configuration for cross-origin dispatch from backend
@@ -49,12 +49,17 @@ export default async function handler(req, res) {
       greetingTimeout: 9000
     });
 
+    const fromHeader = req.body.from || `"BBDRTS" <${SMTP_USER}>`;
+    const replyToHeader = req.body.replyTo || `"BBDRTS Support" <${SMTP_USER}>`;
+
     const info = await transporter.sendMail({
-      from: `"BBDRTS Protocol" <${SMTP_USER}>`,
+      from: fromHeader,
+      replyTo: replyToHeader,
       to,
-      subject: subject || 'BBDRTS Protocol Verification Code',
+      subject: subject || 'BBDRTS Notification',
       text: text || '',
-      html: html || `<p>${text}</p>`
+      html: html || `<p>${text}</p>`,
+      attachments: req.body.attachments || []
     });
 
     console.log(`✅ [VERCEL RELAY] Email dispatched to ${to} | ID: ${info.messageId}`);

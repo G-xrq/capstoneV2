@@ -122,6 +122,12 @@
   border-bottom: 1px solid var(--border, #eaeaea);
   padding-bottom: 2px;
   overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.bbdrts-settings-tabs::-webkit-scrollbar {
+  display: none;
 }
 
 [data-theme="dark"] .bbdrts-settings-tabs {
@@ -132,17 +138,18 @@
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  padding: 8px 14px;
+  padding: 7px 13px;
   border-radius: 6px;
   background: transparent;
-  border: none;
+  border: 1px solid transparent;
+  box-sizing: border-box;
   font-size: 0.82rem;
-  font-weight: 500;
+  font-weight: 600;
   color: var(--text-muted, #666666);
   cursor: pointer;
   white-space: nowrap;
   position: relative;
-  transition: all 150ms ease;
+  transition: background 120ms ease, color 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
 }
 
 .bbdrts-settings-tab-btn:hover {
@@ -152,19 +159,9 @@
 
 .bbdrts-settings-tab-btn.active {
   color: var(--text-primary, #000000);
-  font-weight: 600;
-  background: var(--bg-subcard, #f0f0f0);
-}
-
-.bbdrts-settings-tab-btn.active::after {
-  content: '';
-  position: absolute;
-  bottom: -3px;
-  left: 12px;
-  right: 12px;
-  height: 2px;
-  background: var(--text-primary, #000000);
-  border-radius: 2px;
+  background: rgba(0, 0, 0, 0.07);
+  border-color: rgba(0, 0, 0, 0.12);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 [data-theme="dark"] .bbdrts-settings-tab-btn {
@@ -173,16 +170,14 @@
 
 [data-theme="dark"] .bbdrts-settings-tab-btn:hover {
   color: #ffffff;
-  background: #161616;
+  background: #1a1a1a;
 }
 
 [data-theme="dark"] .bbdrts-settings-tab-btn.active {
   color: #ffffff;
-  background: #161616;
-}
-
-[data-theme="dark"] .bbdrts-settings-tab-btn.active::after {
-  background: #ffffff;
+  background: #242424;
+  border-color: rgba(255, 255, 255, 0.12);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
 }
 
 /* ── Content Panes ── */
@@ -214,16 +209,25 @@
 
 .bbdrts-settings-card-header {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
+  gap: 16px;
+  min-height: 42px;
 }
 
 .bbdrts-settings-card-title-wrap {
+  flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
+}
+
+.bbdrts-settings-card-actions {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .bbdrts-settings-card-title {
@@ -661,6 +665,92 @@
   border-color: #ffffff;
 }
 
+/* ── NGO Profile Inputs Studio in Settings ── */
+.bbdrts-ngo-studio-card {
+  border-left: 3px solid #10b981;
+}
+
+.bbdrts-settings-textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 6px;
+  background: var(--bg-card, #ffffff);
+  border: 1px solid var(--border, #eaeaea);
+  color: var(--text-primary, #000000);
+  font-family: inherit;
+  font-size: 0.84rem;
+  outline: none;
+  resize: vertical;
+  line-height: 1.5;
+  transition: border-color 150ms ease;
+  box-sizing: border-box;
+}
+
+[data-theme="dark"] .bbdrts-settings-textarea {
+  background: #181818;
+  border-color: #2e2e2e;
+  color: #ffffff;
+}
+
+.bbdrts-settings-textarea:focus {
+  border-color: #10b981;
+}
+
+.bbdrts-quick-chips-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.bbdrts-quick-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  font-size: 0.72rem;
+  font-weight: 500;
+  border-radius: 4px;
+  background: rgba(16, 185, 129, 0.08);
+  border: 1px solid rgba(16, 185, 129, 0.2);
+  color: #10b981;
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+
+.bbdrts-quick-chip:hover {
+  background: rgba(16, 185, 129, 0.16);
+  border-color: rgba(16, 185, 129, 0.4);
+}
+
+.bbdrts-field-help {
+  font-size: 0.72rem;
+  color: var(--text-muted, #737373);
+  margin-top: 4px;
+  display: block;
+}
+
+.bbdrts-settings-input-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 14px;
+  margin-top: 14px;
+}
+
+.bbdrts-settings-field-box {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.bbdrts-settings-field-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary, #888888);
+}
+
 /* ── Theme Selection Cards ── */
 .bbdrts-theme-cards-grid {
   display: grid;
@@ -1072,4 +1162,1017 @@
 
 [data-theme="dark"] .bbdrts-rail-sub {
   color: #a1a1aa;
+}
+
+/* ============================================================
+   Vercel Geist Password Change Suite & Strength Meter
+   ============================================================ */
+.bbdrts-password-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+}
+
+.bbdrts-password-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+@media (max-width: 640px) {
+  .bbdrts-password-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.bbdrts-form-label {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary, #a1a1aa);
+  margin-bottom: 6px;
+}
+
+.bbdrts-label-with-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.bbdrts-label-with-meta .bbdrts-form-label {
+  margin-bottom: 0;
+}
+
+.bbdrts-pwd-strength-badge {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-family: var(--font-mono, monospace);
+}
+
+.bbdrts-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.bbdrts-input-wrap .bbdrts-settings-input {
+  width: 100%;
+  padding-right: 36px;
+}
+
+.bbdrts-input-wrap *::-ms-reveal,
+.bbdrts-input-wrap *::-ms-clear,
+.bbdrts-input-wrap input::-ms-reveal,
+.bbdrts-input-wrap input::-ms-clear {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  visibility: hidden !important;
+}
+
+.bbdrts-input-eye-btn {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  color: var(--text-muted, #71717a);
+  cursor: pointer;
+  padding: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 120ms ease;
+}
+
+.bbdrts-input-eye-btn:hover {
+  color: var(--text-primary, #ffffff);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.bbdrts-pwd-strength-track {
+  width: 100%;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 9999px;
+  margin-top: 6px;
+  overflow: hidden;
+}
+
+[data-theme="light"] .bbdrts-pwd-strength-track {
+  background: rgba(0, 0, 0, 0.08);
+}
+
+.bbdrts-pwd-strength-fill {
+  height: 100%;
+  transition: width 200ms ease, background-color 200ms ease;
+  border-radius: 9999px;
+}
+
+.bbdrts-pwd-criteria-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+.bbdrts-criteria-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.68rem;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--text-muted, #71717a);
+  transition: all 150ms ease;
+  user-select: none;
+}
+
+[data-theme="light"] .bbdrts-criteria-pill {
+  background: rgba(0, 0, 0, 0.03);
+  border-color: rgba(0, 0, 0, 0.08);
+  color: #64748b;
+}
+
+.bbdrts-criteria-pill.met {
+  background: rgba(16, 185, 129, 0.1);
+  border-color: rgba(16, 185, 129, 0.3);
+  color: #10b981;
+}
+
+.bbdrts-match-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  padding: 1px 7px;
+  border-radius: 4px;
+}
+
+.bbdrts-match-pill.match {
+  color: #10b981;
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+}
+
+.bbdrts-match-pill.mismatch {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+}
+
+.bbdrts-password-actions-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 6px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border, rgba(255, 255, 255, 0.08));
+  flex-wrap: wrap;
+}
+
+[data-theme="light"] .bbdrts-password-actions-bar {
+  border-top-color: rgba(0, 0, 0, 0.08);
+}
+
+.bbdrts-password-actions-note {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.74rem;
+  color: var(--text-muted, #71717a);
+}
+
+.bbdrts-btn-primary-action {
+  height: 36px;
+  padding: 0 16px;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #000000;
+  border: 1px solid #ffffff;
+  font-size: 0.8rem;
+  font-weight: 600;
+  font-family: inherit;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+
+.bbdrts-btn-primary-action:hover {
+  background: #eaeaea;
+  border-color: #eaeaea;
+  transform: translateY(-1px);
+}
+
+.bbdrts-btn-primary-action:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
+}
+
+[data-theme="light"] .bbdrts-btn-primary-action {
+  background: #000000;
+  color: #ffffff;
+  border-color: #000000;
+}
+
+[data-theme="light"] .bbdrts-btn-primary-action:hover {
+  background: #262626;
+  border-color: #262626;
+}
+
+/* ── Reusable NGO Payment QR Code & Payout Rails Studio ── */
+.bbdrts-qr-tab-count-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1px 7px;
+  border-radius: 12px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  background: rgba(0, 125, 254, 0.15);
+  color: #007dfe;
+  border: 1px solid rgba(0, 125, 254, 0.3);
+  margin-left: 4px;
+}
+
+.bbdrts-qr-card-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+}
+
+.bbdrts-qr-card-item:hover .bbdrts-qr-hover-zoom {
+  opacity: 1 !important;
+}
+
+[data-theme="light"] .bbdrts-qr-card-item {
+  background: #ffffff !important;
+  border-color: #e5e5e5 !important;
+}
+
+[data-theme="light"] .bbdrts-qr-card-item:hover {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   ACCOUNT SECURITY (2FA, ACTIVE SESSIONS, EMAIL CHANGE) STYLES
+   ══════════════════════════════════════════════════════════════════ */
+.bbdrts-sec-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: 9999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+}
+
+.bbdrts-sec-status-badge.active {
+  background: rgba(16, 185, 129, 0.12);
+  color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.25);
+}
+
+.bbdrts-sec-status-badge.inactive {
+  background: rgba(113, 113, 122, 0.12);
+  color: #a1a1aa;
+  border: 1px solid rgba(113, 113, 122, 0.25);
+}
+
+.bbdrts-sec-card-body {
+  padding: 0;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.bbdrts-sec-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.bbdrts-sec-info {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.bbdrts-sec-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-primary, #ffffff);
+}
+
+.bbdrts-sec-desc {
+  font-size: 0.76rem;
+  color: var(--text-muted, #a1a1aa);
+  line-height: 1.4;
+}
+
+/* Active Sessions List */
+.bbdrts-sessions-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.bbdrts-session-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-subtle, #27272a);
+  transition: all 120ms ease;
+}
+
+.bbdrts-session-card:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+[data-theme="light"] .bbdrts-session-card {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+}
+
+[data-theme="light"] .bbdrts-session-card:hover {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+}
+
+.bbdrts-session-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.bbdrts-session-icon-wrap {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #38bdf8;
+  flex-shrink: 0;
+}
+
+[data-theme="light"] .bbdrts-session-icon-wrap {
+  background: #e0f2fe;
+  color: #0284c7;
+}
+
+.bbdrts-session-details {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.bbdrts-session-title {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-primary, #ffffff);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.bbdrts-current-pill {
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  background: rgba(16, 185, 129, 0.15);
+  color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.bbdrts-session-meta {
+  font-size: 0.72rem;
+  color: var(--text-muted, #71717a);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.bbdrts-btn-revoke {
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 5px;
+  background: transparent;
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 120ms ease;
+}
+
+.bbdrts-btn-revoke:hover {
+  background: rgba(239, 68, 68, 0.12);
+  border-color: #ef4444;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   VERCEL DESIGN SYSTEM SPECIFICATION (MODALS & SECURITY UI)
+   ══════════════════════════════════════════════════════════════════ */
+.vercel-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.72);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  padding: 16px;
+  animation: vercelFadeIn 120ms ease-out;
+}
+
+@keyframes vercelFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.vercel-modal-card {
+  width: 100%;
+  max-width: 460px;
+  background: #000000;
+  border: 1px solid #27272a;
+  border-radius: 12px;
+  box-shadow: 0 24px 48px -12px rgba(0, 0, 0, 0.9), 0 0 0 1px rgba(255, 255, 255, 0.05);
+  font-family: var(--font-sans, -apple-system, BlinkMacSystemFont, 'Inter', system-ui, sans-serif);
+  color: #ededed;
+  overflow: hidden;
+  animation: vercelCardSlideUp 140ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+[data-theme="light"] .vercel-modal-card {
+  background: #ffffff;
+  border-color: #e4e4e7;
+  color: #09090b;
+  box-shadow: 0 24px 48px -12px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(0, 0, 0, 0.05);
+}
+
+@keyframes vercelCardSlideUp {
+  from { opacity: 0; transform: translateY(6px) scale(0.985); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.vercel-modal-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid #27272a;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+[data-theme="light"] .vercel-modal-header {
+  border-color: #f4f4f5;
+}
+
+.vercel-modal-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: #ededed;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+[data-theme="light"] .vercel-modal-title {
+  color: #09090b;
+}
+
+.vercel-modal-close-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  background: transparent;
+  border: none;
+  color: #71717a;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 120ms ease;
+  padding: 0;
+}
+
+.vercel-modal-close-btn:hover {
+  background: #18181b;
+  color: #ffffff;
+}
+
+[data-theme="light"] .vercel-modal-close-btn:hover {
+  background: #f4f4f5;
+  color: #000000;
+}
+
+.vercel-modal-body {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  max-height: calc(85vh - 120px);
+  overflow-y: auto;
+}
+
+/* Steps System */
+.vercel-step-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.vercel-step-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.vercel-step-header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.vercel-step-badge {
+  width: 20px;
+  height: 20px;
+  border-radius: 9999px;
+  background: #18181b;
+  border: 1px solid #27272a;
+  color: #a1a1aa;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: var(--font-mono, monospace);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+[data-theme="light"] .vercel-step-badge {
+  background: #f4f4f5;
+  border-color: #e4e4e7;
+  color: #52525b;
+}
+
+.vercel-step-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #ededed;
+  letter-spacing: -0.01em;
+}
+
+[data-theme="light"] .vercel-step-title {
+  color: #09090b;
+}
+
+.vercel-step-desc {
+  margin: 0;
+  font-size: 12px;
+  color: #888888;
+  line-height: 1.5;
+}
+
+[data-theme="light"] .vercel-step-desc {
+  color: #71717a;
+}
+
+/* QR Code Container */
+.vercel-qr-frame {
+  width: fit-content;
+  margin: 4px auto 0 auto;
+  padding: 12px;
+  background: #ffffff;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+[data-theme="light"] .vercel-qr-frame {
+  border-color: #e4e4e7;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+}
+
+/* Secret Key Row */
+.vercel-manual-key-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 12px;
+  background: #09090b;
+  border: 1px solid #27272a;
+  border-radius: 6px;
+  margin-top: 4px;
+}
+
+[data-theme="light"] .vercel-manual-key-row {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+}
+
+.vercel-manual-key-label {
+  font-size: 11px;
+  color: #71717a;
+  font-weight: 500;
+}
+
+.vercel-manual-key-code {
+  font-family: var(--font-mono, monospace);
+  font-size: 12px;
+  color: #ededed;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  user-select: all;
+}
+
+[data-theme="light"] .vercel-manual-key-code {
+  color: #09090b;
+}
+
+.vercel-copy-icon-btn {
+  background: transparent;
+  border: none;
+  color: #71717a;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  border-radius: 4px;
+  transition: all 120ms ease;
+}
+
+.vercel-copy-icon-btn:hover {
+  color: #ffffff;
+  background: #18181b;
+}
+
+[data-theme="light"] .vercel-copy-icon-btn:hover {
+  color: #000000;
+  background: #f4f4f5;
+}
+
+/* Backup Codes Grid */
+.vercel-backup-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  padding: 10px;
+  background: #09090b;
+  border: 1px solid #27272a;
+  border-radius: 8px;
+}
+
+[data-theme="light"] .vercel-backup-grid {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+}
+
+.vercel-backup-code-pill {
+  font-family: var(--font-mono, monospace);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  color: #ededed;
+  background: #141416;
+  border: 1px solid #222226;
+  border-radius: 5px;
+  padding: 6px 10px;
+  text-align: center;
+  user-select: all;
+}
+
+[data-theme="light"] .vercel-backup-code-pill {
+  background: #ffffff;
+  border-color: #e2e8f0;
+  color: #09090b;
+}
+
+/* Vercel 6-Box OTP Display */
+.vercel-otp-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  position: relative;
+  margin: 6px 0;
+}
+
+.vercel-otp-box {
+  width: 44px;
+  height: 48px;
+  border-radius: 6px;
+  background: #09090b;
+  border: 1px solid #27272a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono, monospace);
+  font-size: 19px;
+  font-weight: 600;
+  color: #ededed;
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+  user-select: none;
+}
+
+[data-theme="light"] .vercel-otp-box {
+  background: #ffffff;
+  border-color: #e4e4e7;
+  color: #09090b;
+}
+
+.vercel-otp-box.active {
+  border-color: #ffffff;
+  box-shadow: 0 0 0 1px #ffffff;
+}
+
+[data-theme="light"] .vercel-otp-box.active {
+  border-color: #000000;
+  box-shadow: 0 0 0 1px #000000;
+}
+
+.vercel-otp-box.filled {
+  border-color: #3f3f46;
+}
+
+.vercel-otp-hidden-input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  width: 100%;
+  height: 100%;
+  cursor: text;
+  font-size: 1px;
+}
+
+/* Callout Notice */
+.vercel-callout-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 6px;
+  background: #09090b;
+  border: 1px solid #27272a;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #888888;
+}
+
+[data-theme="light"] .vercel-callout-notice {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+  color: #64748b;
+}
+
+.vercel-callout-notice strong {
+  color: #ededed;
+}
+
+[data-theme="light"] .vercel-callout-notice strong {
+  color: #09090b;
+}
+
+/* Modal Form Fields */
+.vercel-input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.vercel-input-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  color: #a1a1aa;
+}
+
+[data-theme="light"] .vercel-input-label {
+  color: #52525b;
+}
+
+.vercel-text-input {
+  width: 100%;
+  height: 36px;
+  padding: 0 12px;
+  border-radius: 6px;
+  background: #000000;
+  border: 1px solid #27272a;
+  color: #ededed;
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+  transition: all 120ms ease;
+  box-sizing: border-box;
+}
+
+.vercel-text-input:focus {
+  border-color: #52525b;
+  box-shadow: 0 0 0 1px #52525b;
+}
+
+[data-theme="light"] .vercel-text-input {
+  background: #ffffff;
+  border-color: #e4e4e7;
+  color: #09090b;
+}
+
+[data-theme="light"] .vercel-text-input:focus {
+  border-color: #000000;
+  box-shadow: 0 0 0 1px #000000;
+}
+
+/* Modal Footer */
+.vercel-modal-footer {
+  padding: 14px 20px;
+  border-top: 1px solid #27272a;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+[data-theme="light"] .vercel-modal-footer {
+  border-color: #f4f4f5;
+}
+
+.vercel-btn-secondary {
+  height: 36px;
+  padding: 0 14px;
+  border-radius: 6px;
+  background: transparent;
+  border: 1px solid #27272a;
+  color: #888888;
+  font-size: 13px;
+  font-weight: 500;
+  font-family: inherit;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: all 120ms ease;
+}
+
+.vercel-btn-secondary:hover {
+  color: #ffffff;
+  background: #141416;
+  border-color: #3f3f46;
+}
+
+[data-theme="light"] .vercel-btn-secondary {
+  border-color: #e4e4e7;
+  color: #52525b;
+}
+
+[data-theme="light"] .vercel-btn-secondary:hover {
+  color: #000000;
+  background: #f4f4f5;
+  border-color: #d4d4d8;
+}
+
+.vercel-btn-secondary-sm {
+  height: 26px;
+  padding: 0 10px;
+  border-radius: 5px;
+  background: #141416;
+  border: 1px solid #27272a;
+  color: #a1a1aa;
+  font-size: 12px;
+  font-weight: 500;
+  font-family: inherit;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  cursor: pointer;
+  transition: all 120ms ease;
+}
+
+.vercel-btn-secondary-sm:hover {
+  color: #ffffff;
+  background: #1c1c1f;
+  border-color: #3f3f46;
+}
+
+[data-theme="light"] .vercel-btn-secondary-sm {
+  background: #f4f4f5;
+  border-color: #e4e4e7;
+  color: #52525b;
+}
+
+[data-theme="light"] .vercel-btn-secondary-sm:hover {
+  background: #e4e4e7;
+  color: #09090b;
+}
+
+.vercel-btn-primary {
+  height: 36px;
+  padding: 0 16px;
+  border-radius: 6px;
+  background: #ffffff;
+  border: 1px solid #ffffff;
+  color: #000000;
+  font-size: 13px;
+  font-weight: 500;
+  font-family: inherit;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: all 120ms ease;
+}
+
+.vercel-btn-primary:hover:not(:disabled) {
+  background: #eaeaea;
+  border-color: #eaeaea;
+}
+
+.vercel-btn-primary:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+[data-theme="light"] .vercel-btn-primary {
+  background: #000000;
+  border-color: #000000;
+  color: #ffffff;
+}
+
+[data-theme="light"] .vercel-btn-primary:hover:not(:disabled) {
+  background: #262626;
+  border-color: #262626;
+}
+
+.vercel-btn-danger {
+  height: 36px;
+  padding: 0 16px;
+  border-radius: 6px;
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #ef4444;
+  font-size: 13px;
+  font-weight: 500;
+  font-family: inherit;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: all 120ms ease;
+}
+
+.vercel-btn-danger:hover:not(:disabled) {
+  background: rgba(239, 68, 68, 0.2);
+  border-color: #ef4444;
+}
+
+.vercel-btn-danger:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }

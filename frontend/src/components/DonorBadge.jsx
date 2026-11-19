@@ -234,14 +234,14 @@ export const BadgeTier14DistinguishedLifesaver = BadgeTier14ChampionOfHope;
 export const BadgeTier15HonoraryReliefTrustee = BadgeTier15ApexLuminary;
 
 /**
- * 15 Dignified Humanitarian Recognition Societies strictly based on cumulative donations across all campaigns
+ * 15 Dignified Donor Recognition Tiers based on cumulative disaster relief contributions
  */
 export const DONOR_TIERS = [
   {
     tierNumber: 1,
     id: 'tier-1',
-    name: 'Community Supporter Circle',
-    subtitle: 'Supporter Member',
+    name: 'Supporter',
+    subtitle: 'Emergency Relief',
     minPhp: 1,
     minEth: 0.000006,
     IconComponent: BadgeTier1Contributor,
@@ -249,13 +249,13 @@ export const DONOR_TIERS = [
     border: 'rgba(16, 185, 129, 0.35)',
     bg: 'rgba(16, 185, 129, 0.08)',
     badgeClass: 'tier-1',
-    description: 'Helps provide immediate emergency food packs and clean water to families in need.'
+    description: 'Helps provide emergency food packs and clean drinking water to families in need.'
   },
   {
     tierNumber: 2,
     id: 'tier-2',
-    name: 'Relief Sustainer Society',
-    subtitle: 'Sustaining Member',
+    name: 'Contributor',
+    subtitle: 'Family Care Kits',
     minPhp: 1000,
     minEth: 0.006,
     IconComponent: BadgeTier2Supporter,
@@ -263,13 +263,13 @@ export const DONOR_TIERS = [
     border: 'rgba(2, 132, 199, 0.35)',
     bg: 'rgba(2, 132, 199, 0.08)',
     badgeClass: 'tier-2',
-    description: 'Helps provide food packs, drinking water, and hygiene supplies.'
+    description: 'Helps fund food packs, drinking water, and family hygiene supplies.'
   },
   {
     tierNumber: 3,
     id: 'tier-3',
-    name: 'Frontline Partner Council',
-    subtitle: 'Partner Member',
+    name: 'Relief Partner',
+    subtitle: 'Rescue & Medical Aid',
     minPhp: 5000,
     minEth: 0.03,
     IconComponent: BadgeTier3ReliefPartner,
@@ -277,13 +277,13 @@ export const DONOR_TIERS = [
     border: 'rgba(37, 99, 235, 0.35)',
     bg: 'rgba(37, 99, 235, 0.08)',
     badgeClass: 'tier-3',
-    description: 'Helps equip volunteer rescue teams and provide first-aid supplies.'
+    description: 'Helps equip volunteer rescue teams with first-aid kits and emergency gear.'
   },
   {
     tierNumber: 4,
     id: 'tier-4',
-    name: 'Shelter Benefactors Circle',
-    subtitle: 'Benefactor Member',
+    name: 'Shelter Partner',
+    subtitle: 'Emergency Shelters',
     minPhp: 10000,
     minEth: 0.06,
     IconComponent: BadgeTier4Benefactor,
@@ -291,13 +291,13 @@ export const DONOR_TIERS = [
     border: 'rgba(124, 58, 237, 0.35)',
     bg: 'rgba(124, 58, 237, 0.08)',
     badgeClass: 'tier-4',
-    description: 'Helps provide emergency tents and shelter materials for displaced families.'
+    description: 'Helps provide emergency tents and shelter repair kits for displaced families.'
   },
   {
     tierNumber: 5,
     id: 'tier-5',
-    name: 'Humanitarian Advocate Society',
-    subtitle: 'Advocate Member',
+    name: 'Aid Advocate',
+    subtitle: 'Community Health Aid',
     minPhp: 25000,
     minEth: 0.15,
     IconComponent: BadgeTier5Advocate,
@@ -305,13 +305,13 @@ export const DONOR_TIERS = [
     border: 'rgba(225, 29, 72, 0.35)',
     bg: 'rgba(225, 29, 72, 0.08)',
     badgeClass: 'tier-5',
-    description: 'Helps fund medicines, health kits, and emergency medical checkups.'
+    description: 'Helps fund emergency clinic medicines, health kits, and volunteer doctors.'
   },
   {
     tierNumber: 6,
     id: 'tier-6',
-    name: 'Philanthropic Partners Circle',
-    subtitle: 'Associate Patron',
+    name: 'Community Patron',
+    subtitle: 'Barangay Relief Drives',
     minPhp: 50000,
     minEth: 0.30,
     IconComponent: BadgeTier6Philanthropist,
@@ -319,13 +319,13 @@ export const DONOR_TIERS = [
     border: 'rgba(217, 119, 6, 0.35)',
     bg: 'rgba(217, 119, 6, 0.08)',
     badgeClass: 'tier-6',
-    description: 'Helps fund relief drives and support affected barangays.'
+    description: 'Helps sponsor full-barangay relief distribution drives in affected areas.'
   },
   {
     tierNumber: 7,
     id: 'tier-7',
-    name: 'Distinguished Humanitarian Society',
-    subtitle: 'Distinguished Patron',
+    name: 'Distinguished Patron',
+    subtitle: 'Rapid Disaster Response',
     minPhp: 100000,
     minEth: 0.60,
     IconComponent: BadgeTier7Humanitarian,
@@ -333,13 +333,13 @@ export const DONOR_TIERS = [
     border: 'rgba(220, 38, 38, 0.35)',
     bg: 'rgba(220, 38, 38, 0.08)',
     badgeClass: 'tier-7',
-    description: 'Helps fund major relief missions in disaster-hit areas.'
+    description: 'Helps fund rapid emergency response deployments to critical disaster zones.'
   },
   {
     tierNumber: 8,
     id: 'tier-8',
-    name: 'Pillars of Mercy Fellowship',
-    subtitle: 'Senior Fellow',
+    name: 'Crisis Responder',
+    subtitle: 'Clean Water & Power',
     minPhp: 250000,
     minEth: 1.50,
     IconComponent: BadgeTier8DistinguishedHumanitarian,
@@ -347,13 +347,13 @@ export const DONOR_TIERS = [
     border: 'rgba(13, 148, 136, 0.35)',
     bg: 'rgba(13, 148, 136, 0.08)',
     badgeClass: 'tier-8',
-    description: 'Helps deploy clean water filtration and emergency power equipment.'
+    description: 'Helps deploy mobile water filtration rigs and emergency power generators.'
   },
   {
     tierNumber: 9,
     id: 'tier-9',
-    name: 'Patrons of Relief Society',
-    subtitle: 'Executive Patron',
+    name: 'Honor Patron',
+    subtitle: 'Bulk Aid Logistics',
     minPhp: 500000,
     minEth: 3.00,
     IconComponent: BadgeTier9PatronOfRelief,
@@ -361,13 +361,13 @@ export const DONOR_TIERS = [
     border: 'rgba(29, 78, 216, 0.35)',
     bg: 'rgba(29, 78, 216, 0.08)',
     badgeClass: 'tier-9',
-    description: 'Helps send bulk food and relief goods to evacuation centers.'
+    description: 'Helps fund cargo transport and bulk relief distribution to remote evacuation hubs.'
   },
   {
     tierNumber: 10,
     id: 'tier-10',
-    name: 'Disaster Relief Leadership Council',
-    subtitle: 'Council Member',
+    name: 'Benefactor',
+    subtitle: 'Community Recovery',
     minPhp: 1000000,
     minEth: 6.00,
     IconComponent: BadgeTier10GrandBenefactor,
@@ -375,13 +375,13 @@ export const DONOR_TIERS = [
     border: 'rgba(2, 132, 199, 0.4)',
     bg: 'rgba(2, 132, 199, 0.1)',
     badgeClass: 'tier-10',
-    description: 'Helps families recover and rebuild communities after major disasters.'
+    description: 'Helps rebuild disaster-hit communities and restore local livelihood.'
   },
   {
     tierNumber: 11,
     id: 'tier-11',
-    name: 'Principal Benefactors Fellowship',
-    subtitle: 'Principal Fellow',
+    name: 'Lead Benefactor',
+    subtitle: 'Infrastructure & Schools',
     minPhp: 2500000,
     minEth: 15.00,
     IconComponent: BadgeTier11PrincipalBenefactor,
@@ -389,13 +389,13 @@ export const DONOR_TIERS = [
     border: 'rgba(126, 34, 206, 0.4)',
     bg: 'rgba(126, 34, 206, 0.1)',
     badgeClass: 'tier-11',
-    description: 'Helps repair schools and build stronger community evacuation centers.'
+    description: 'Helps repair damaged schools and construct fortified community evacuation centers.'
   },
   {
     tierNumber: 12,
     id: 'tier-12',
-    name: 'Legacy Philanthropists Circle',
-    subtitle: 'Legacy Fellow',
+    name: 'Philanthropist',
+    subtitle: 'Disaster Resilience',
     minPhp: 5000000,
     minEth: 30.00,
     IconComponent: BadgeTier12LegacyBenefactor,
@@ -403,13 +403,13 @@ export const DONOR_TIERS = [
     border: 'rgba(5, 150, 105, 0.45)',
     bg: 'rgba(5, 150, 105, 0.1)',
     badgeClass: 'tier-12',
-    description: 'Helps build safer homes and prepare communities for future disasters.'
+    description: 'Helps construct typhoon-resilient permanent homes in high-risk coastal zones.'
   },
   {
     tierNumber: 13,
     id: 'tier-13',
-    name: 'Visionary Benefactors Council',
-    subtitle: 'Founding Patron',
+    name: 'Visionary Patron',
+    subtitle: 'Regional Relief Fleet',
     minPhp: 10000000,
     minEth: 60.00,
     IconComponent: BadgeTier13SovereignGuardian,
@@ -417,13 +417,13 @@ export const DONOR_TIERS = [
     border: 'rgba(22, 163, 74, 0.45)',
     bg: 'rgba(22, 163, 74, 0.1)',
     badgeClass: 'tier-13',
-    description: 'Helps fund disaster preparedness and fast relief delivery across islands.'
+    description: 'Helps fund disaster relief speedboats and inter-island emergency supply routes.'
   },
   {
     tierNumber: 14,
     id: 'tier-14',
-    name: 'Distinguished Lifesavers Society',
-    subtitle: 'Trustee Fellow',
+    name: 'Humanitarian Leader',
+    subtitle: 'National Emergency Aid',
     minPhp: 25000000,
     minEth: 150.00,
     IconComponent: BadgeTier14ChampionOfHope,
@@ -431,13 +431,13 @@ export const DONOR_TIERS = [
     border: 'rgba(180, 83, 9, 0.5)',
     bg: 'rgba(180, 83, 9, 0.1)',
     badgeClass: 'tier-14',
-    description: 'Provides life-saving support for disaster relief across the nation.'
+    description: 'Provides strategic funding for nationwide disaster relief and recovery operations.'
   },
   {
     tierNumber: 15,
     id: 'tier-15',
-    name: 'Honorary Relief Board of Trustees',
-    subtitle: 'Honorary Trustee',
+    name: 'Honorary Trustee',
+    subtitle: 'Lifetime Relief Legacy',
     minPhp: 50000000,
     minEth: 300.00,
     IconComponent: BadgeTier15ApexLuminary,
@@ -445,7 +445,7 @@ export const DONOR_TIERS = [
     border: 'rgba(71, 85, 105, 0.5)',
     bg: 'rgba(71, 85, 105, 0.12)',
     badgeClass: 'tier-15',
-    description: 'A lasting legacy of helping disaster-hit families across the Philippines.'
+    description: 'A lasting legacy ensuring rapid humanitarian disaster response across the Philippines.'
   }
 ];
 
@@ -533,7 +533,7 @@ class DonorRegistry {
 
     const totalEth = Math.max(existingEth, inputEth);
     const totalPhp = Math.max(existingPhp, inputPhp, Math.round(totalEth * 170000));
-    const count = Math.max(existing.donationCount || 0, data.donationCount || 0, 1);
+    const count = Math.max(existing.donationCount || 0, data.donationCount || 0, (totalEth > 0 || totalPhp > 0) ? 1 : 0);
 
     const merged = {
       ...existing,
@@ -846,7 +846,7 @@ export function DonorProgressCard({
         <div className="dpc-right">
           <button type="button" className="dpc-ladder-btn" onClick={onOpenLadder}>
             <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>workspace_premium</span>
-            <span>View Giving Societies</span>
+            <span>View Donor Tiers</span>
           </button>
         </div>
       </div>
@@ -859,7 +859,7 @@ export function DonorProgressCard({
     <div className={`donor-progress-card ${tier.badgeClass}`}>
       <div className="dpc-main">
         {/* Large Visual Badge Emblem */}
-        <div className="dpc-badge-col" onClick={onOpenLadder} title="Click to view Giving Societies & Certificate">
+        <div className="dpc-badge-col" onClick={onOpenLadder} title="Click to view Donor Tiers & Certificate">
           <div className="dpc-badge-emblem-wrap">
             <ActiveIcon size={46} />
           </div>
@@ -894,12 +894,12 @@ export function DonorProgressCard({
               {nextTier ? (
                 <div className="dpc-next-society-hint">
                   <span className="material-symbols-outlined" style={{ fontSize: '14px', color: '#10b981' }}>verified</span>
-                  <span>Next Giving Society: <strong>{nextTier.name}</strong> (₱{nextTier.minPhp.toLocaleString('en-US')}+)</span>
+                  <span>Next Tier: <strong>{nextTier.name}</strong> (₱{nextTier.minPhp.toLocaleString('en-US')}+)</span>
                 </div>
               ) : (
                 <div className="dpc-next-society-hint">
                   <span className="material-symbols-outlined" style={{ fontSize: '14px', color: '#10b981' }}>verified</span>
-                  <span>Honorary Relief Board of Trustees • Highest Philanthropic Recognition</span>
+                  <span>Honorary Trustee • Highest Recognition Tier</span>
                 </div>
               )}
 
@@ -909,7 +909,7 @@ export function DonorProgressCard({
                   <span>View Certificate</span>
                 </button>
                 <button type="button" className="dpc-ladder-link" onClick={onOpenLadder}>
-                  <span>Giving Societies</span>
+                  <span>Donor Tiers</span>
                   <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>arrow_forward</span>
                 </button>
               </div>
@@ -959,7 +959,7 @@ export function BadgeUpgradeModal({
         </span>
 
         <h2 className="donor-upgrade-title">
-          New Giving Society Recognized!
+          New Recognition Tier Unlocked!
         </h2>
         <h3 className="donor-upgrade-tier-name" style={{ color: newTier.color }}>
           {newTier.name}
@@ -1029,6 +1029,8 @@ export function DonorTierModal({
   const [loadingTx, setLoadingTx] = useState(false);
   const [ledgerFilter, setLedgerFilter] = useState('ALL');
   const [railLoading, setRailLoading] = useState(false);
+  const [ledgerPage, setLedgerPage] = useState(1);
+  const LEDGER_PAGE_SIZE = 4;
   const railTimerRef = useRef(null);
 
   useEffect(() => {
@@ -1042,6 +1044,7 @@ export function DonorTierModal({
     if (railTimerRef.current) clearTimeout(railTimerRef.current);
     setRailLoading(true);
     setLedgerFilter(targetRail);
+    setLedgerPage(1);
     railTimerRef.current = setTimeout(() => {
       setRailLoading(false);
     }, 280);
@@ -1125,6 +1128,13 @@ export function DonorTierModal({
     });
   }, [donorTransactions, ledgerFilter]);
 
+  const totalLedgerPages = Math.max(1, Math.ceil(filteredTxList.length / LEDGER_PAGE_SIZE));
+  const safeLedgerPage = Math.min(ledgerPage, totalLedgerPages);
+  const pagedTxList = useMemo(() => {
+    const start = (safeLedgerPage - 1) * LEDGER_PAGE_SIZE;
+    return filteredTxList.slice(start, start + LEDGER_PAGE_SIZE);
+  }, [filteredTxList, safeLedgerPage, LEDGER_PAGE_SIZE]);
+
   if (!isOpen) return null;
 
   const globalStats = globalDonorRegistry.get(walletAddress, donorId);
@@ -1137,14 +1147,14 @@ export function DonorTierModal({
     globalStats?.totalPhp !== undefined ? globalStats.totalPhp : (totalDonatedPhp || (effectiveEth * 170000)),
     Math.round(txSumEth * 170000)
   );
-  const effectiveDonations = Math.max(donationCount || 0, globalStats?.donationCount || 0, donorTransactions.length, 1);
+  const effectiveDonations = Math.max(donationCount || 0, globalStats?.donationCount || 0, donorTransactions.length, (effectiveEth > 0 || effectivePhp > 0) ? 1 : 0);
 
   const tierInfo = getDonorTier({
     amountEth: effectiveEth,
     amountPhp: effectivePhp
   });
 
-  const { tier: activeTier, nextTier, totalPhp } = tierInfo;
+  const { tier: activeTier, nextTier, totalPhp, progressPct, remainingPhp } = tierInfo;
   const ActiveIcon = activeTier ? activeTier.IconComponent : BadgeTier1Contributor;
 
   const currentTheme = typeof document !== 'undefined' ? document.documentElement.getAttribute('data-theme') || 'dark' : 'dark';
@@ -1173,7 +1183,7 @@ export function DonorTierModal({
       `Blockchain: Sepolia Ethereum\n` +
       `${isActualTx ? 'Latest Transaction Hash' : 'Wallet Address'}: ${displayHash}\n` +
       `Total Verified Donations: ${donorTransactions.length || 1} records\n` +
-      `Platform: Philippine Blockchain Disaster Relief Transparency Network (BBDRTS)\n` +
+      `Platform: Blockchain-Based Donation & Relief Transparency System (BBDRTS)\n` +
       `Explorer Link: ${certExplorerUrl}\n` +
       `Verification Link: ${window.location.origin}`;
 
@@ -1202,42 +1212,43 @@ export function DonorTierModal({
         {/* Modal Header */}
         <div className="donor-modal-header" style={{ flexShrink: 0 }}>
           <div className="donor-modal-title-wrap">
-            <div className="donor-modal-badge-preview" style={{ background: activeTier ? activeTier.bg : 'rgba(255,255,255,0.05)', borderColor: activeTier ? activeTier.border : 'rgba(255,255,255,0.1)' }}>
-              <ActiveIcon size={34} />
+            <div className="donor-modal-header-icon-box">
+              <ActiveIcon size={20} />
             </div>
             <div>
               <h3 className="donor-modal-title">Donor Impact & Certificate</h3>
-              <p className="donor-modal-subtitle">
-                Verified Disaster Relief Donations • Philippines
-              </p>
+              <div className="donor-modal-subtitle">
+                <span className="donor-live-dot" />
+                <span>Verified Disaster Relief Donations</span>
+                <span className="donor-modal-sub-sep">•</span>
+                <span>Philippines</span>
+              </div>
             </div>
           </div>
-          <button type="button" className="donor-modal-close" onClick={onClose} title="Close">
+          <button type="button" className="donor-modal-close" onClick={onClose} title="Close (Esc)" aria-label="Close modal">
             <span className="material-symbols-outlined">close</span>
           </button>
         </div>
 
-        {/* Tab Switcher: Certificate & Impact vs Complete Ledger vs All Badges */}
-        <div className="donor-portfolio-tabs" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px', height: '44px', minHeight: '44px', maxHeight: '44px', padding: '4px', boxSizing: 'border-box', alignItems: 'stretch', flexShrink: 0 }}>
+        {/* Tab Switcher: Vercel Precision Segmented Control */}
+        <div className="donor-portfolio-tabs">
           <button
             type="button"
             className={`donor-tab-btn ${modalTab === 'portfolio' ? 'is-active' : ''}`}
             onClick={() => setModalTab('portfolio')}
-            style={{ height: '36px', minHeight: '36px', maxHeight: '36px', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', boxSizing: 'border-box', padding: '0 8px', lineHeight: 1 }}
           >
-            <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>workspace_premium</span>
+            <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>workspace_premium</span>
             <span>Certificate & Impact</span>
           </button>
           <button
             type="button"
             className={`donor-tab-btn ${modalTab === 'ledger' ? 'is-active' : ''}`}
             onClick={() => setModalTab('ledger')}
-            style={{ height: '36px', minHeight: '36px', maxHeight: '36px', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', boxSizing: 'border-box', padding: '0 8px', lineHeight: 1 }}
           >
-            <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>receipt_long</span>
+            <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>receipt_long</span>
             <span>Complete Ledger</span>
             {donorTransactions.length > 0 && (
-              <span className="donor-tab-count-badge" style={{ height: '18px', minHeight: '18px', maxHeight: '18px', lineHeight: '18px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', boxSizing: 'border-box' }}>
+              <span className="donor-tab-count-badge">
                 {donorTransactions.length}
               </span>
             )}
@@ -1246,10 +1257,9 @@ export function DonorTierModal({
             type="button"
             className={`donor-tab-btn ${modalTab === 'directory' ? 'is-active' : ''}`}
             onClick={() => setModalTab('directory')}
-            style={{ height: '36px', minHeight: '36px', maxHeight: '36px', width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', boxSizing: 'border-box', padding: '0 8px', lineHeight: 1 }}
           >
-            <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>history_edu</span>
-            <span>Giving Societies</span>
+            <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>history_edu</span>
+            <span>Donor Tiers</span>
           </button>
         </div>
 
@@ -1260,25 +1270,36 @@ export function DonorTierModal({
             style={{ flex: '1 1 auto', minHeight: 0, overflowY: 'auto', overscrollBehavior: 'contain', paddingRight: '4px' }}
           >
             
-            {/* Active Standing Hero Banner */}
-            <div className="donor-current-card" style={{ borderColor: activeTier ? activeTier.border : 'rgba(255,255,255,0.1)' }}>
+            {/* Card 1: Verified Donor Profile & Society Recognition */}
+            <div className="donor-current-card">
+              <div className="donor-profile-eyebrow-row">
+                <span className="donor-profile-eyebrow">VERIFIED DONOR IDENTITY</span>
+              </div>
+
               <div className="donor-current-top">
                 <div>
-                  <span className="donor-current-eyebrow">Donor Profile</span>
-                  <h2 className="donor-current-name" style={{ color: activeTier ? activeTier.color : 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <ActiveIcon size={26} />
-                    <span>{donorName}</span>
-                  </h2>
-                  <div className="donor-current-sub" style={{ marginTop: '2px' }}>
-                    <strong style={{ color: activeTier ? activeTier.color : '#10b981' }}>{activeTier ? activeTier.name : 'Community Supporter'}</strong>
-                    {activeTier && activeTier.subtitle && !activeTier.name.toLowerCase().includes(activeTier.subtitle.toLowerCase()) && (
-                      <span> • {activeTier.subtitle}</span>
-                    )}
+                  <div className="donor-current-name-row">
+                    <h2 className="donor-current-name">
+                      {donorName}
+                    </h2>
+                    <span className="donor-verified-badge" title="Verified Disaster Relief Contributor">
+                      <span className="material-symbols-outlined" style={{ fontSize: '17px' }}>verified</span>
+                    </span>
+                  </div>
+                  <div className="donor-society-pill-wrap">
+                    <span className="donor-society-pill">
+                      <ActiveIcon size={14} />
+                      <span className="donor-society-name">{activeTier ? activeTier.name : 'Community Supporter'}</span>
+                      {activeTier?.subtitle && !activeTier.name.toLowerCase().includes(activeTier.subtitle.toLowerCase()) && (
+                        <span className="donor-society-sub">• {activeTier.subtitle}</span>
+                      )}
+                    </span>
                   </div>
                 </div>
+
                 <div className="donor-current-metric">
-                  <span className="donor-metric-amt">₱{Math.round(totalPhp).toLocaleString('en-US')}</span>
-                  <span className="donor-metric-lbl">Total Donated ({effectiveEth.toFixed(4)} ETH)</span>
+                  <div className="donor-metric-amt">₱{Math.round(totalPhp).toLocaleString('en-US')}</div>
+                  <div className="donor-metric-lbl">{effectiveEth.toFixed(4)} ETH Total Donated</div>
                 </div>
               </div>
 
@@ -1289,61 +1310,76 @@ export function DonorTierModal({
                 </div>
               )}
 
-              {activeTier && <p className="donor-current-desc" style={{ marginTop: '8px' }}>{activeTier.description}</p>}
+              {activeTier && <p className="donor-current-desc">{activeTier.description}</p>}
 
               {nextTier && (
-                <div className="donor-current-next-society">
-                  <span className="material-symbols-outlined" style={{ fontSize: '15px', color: '#10b981' }}>info</span>
-                  <span>Next Badge: <strong>{nextTier.name}</strong> (₱{nextTier.minPhp.toLocaleString('en-US')}+ total donations)</span>
+                <div className="donor-milestone-box">
+                  <div className="donor-milestone-header">
+                    <div className="donor-milestone-left">
+                      <span className="donor-milestone-label">Next Recognition:</span>
+                      <span className="donor-milestone-name">{nextTier.name}</span>
+                      <span className="donor-milestone-target">(₱{nextTier.minPhp.toLocaleString('en-US')}+)</span>
+                    </div>
+                    <div className="donor-milestone-right">
+                      <span>₱{Math.round(remainingPhp).toLocaleString('en-US')} to unlock</span>
+                      <span className="donor-milestone-pct">({progressPct}%)</span>
+                    </div>
+                  </div>
+                  <div className="donor-milestone-bar-bg">
+                    <div className="donor-milestone-bar-fill" style={{ width: `${Math.min(100, Math.max(2, progressPct))}%` }} />
+                  </div>
                 </div>
               )}
             </div>
 
-            {/* Donation Summary (100% Authentic Database & Blockchain Metrics) */}
+            {/* Card 2: Donation Summary & Impact KPI Grid */}
             <div className="donor-impact-footprint-section">
-              <div className="donor-footprint-header">
-                <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#10b981' }}>verified</span>
-                <span className="donor-footprint-title">Donation Summary</span>
+              <div className="donor-footprint-header-row">
+                <div className="donor-footprint-title-group">
+                  <span className="donor-footprint-eyebrow">BLOCKCHAIN DISASTER RELIEF SUMMARY</span>
+                  <h4 className="donor-footprint-title">Donation Summary</h4>
+                </div>
+                <span className="donor-footprint-badge">
+                  <span className="material-symbols-outlined" style={{ fontSize: '13px', color: '#10b981' }}>verified</span>
+                  Immutable Audit Record
+                </span>
               </div>
-              <p className="donor-footprint-sub">
-                Verified records stored safely on the blockchain:
-              </p>
 
               <div className="donor-footprint-grid">
-                <div className="donor-footprint-item">
-                  <div className="donor-footprint-icon-circle food">
-                    <span className="material-symbols-outlined">payments</span>
+                <div className="donor-kpi-card">
+                  <div className="donor-kpi-top">
+                    <span className="donor-kpi-label">TOTAL DONATED</span>
+                    <span className="material-symbols-outlined donor-kpi-icon">payments</span>
                   </div>
-                  <div className="donor-footprint-val">₱{Math.round(totalPhp).toLocaleString('en-US')}</div>
-                  <div className="donor-footprint-lbl">Total Donated</div>
-                  <div className="donor-footprint-desc">{effectiveEth.toFixed(4)} ETH sent to disaster relief</div>
+                  <div className="donor-kpi-val">₱{Math.round(totalPhp).toLocaleString('en-US')}</div>
+                  <div className="donor-kpi-sub">{effectiveEth.toFixed(4)} ETH disaster relief</div>
                 </div>
 
-                <div className="donor-footprint-item">
-                  <div className="donor-footprint-icon-circle water">
-                    <span className="material-symbols-outlined">campaign</span>
+                <div className="donor-kpi-card">
+                  <div className="donor-kpi-top">
+                    <span className="donor-kpi-label">RELIEF DRIVES</span>
+                    <span className="material-symbols-outlined donor-kpi-icon">campaign</span>
                   </div>
-                  <div className="donor-footprint-val">{Math.max(1, campaignsSupported || 1)} Campaigns</div>
-                  <div className="donor-footprint-lbl">Drives Supported</div>
-                  <div className="donor-footprint-desc">Different disaster campaigns you helped</div>
+                  <div className="donor-kpi-val">{Math.max(1, campaignsSupported || 1)} Campaigns</div>
+                  <div className="donor-kpi-sub">Verified relief drives helped</div>
                 </div>
 
-                <div className="donor-footprint-item">
-                  <div className="donor-footprint-icon-circle medical">
-                    <span className="material-symbols-outlined">receipt_long</span>
+                <div className="donor-kpi-card">
+                  <div className="donor-kpi-top">
+                    <span className="donor-kpi-label">DONATIONS</span>
+                    <span className="material-symbols-outlined donor-kpi-icon">receipt_long</span>
                   </div>
-                  <div className="donor-footprint-val">{effectiveDonations} Records</div>
-                  <div className="donor-footprint-lbl">Donations Made</div>
-                  <div className="donor-footprint-desc">Confirmed donations on record</div>
+                  <div className="donor-kpi-val">{effectiveDonations} Records</div>
+                  <div className="donor-kpi-sub">Confirmed on-chain entries</div>
                 </div>
 
-                <div className="donor-footprint-item">
-                  <div className="donor-footprint-icon-circle escrow">
-                    <span className="material-symbols-outlined">lock_open</span>
+                <div className="donor-kpi-card">
+                  <div className="donor-kpi-top">
+                    <span className="donor-kpi-label">ESCROW STATUS</span>
+                    <span className="material-symbols-outlined donor-kpi-icon">lock_open</span>
                   </div>
-                  <div className="donor-footprint-val">100% Escrow</div>
-                  <div className="donor-footprint-lbl">Escrow Protection</div>
-                  <div className="donor-footprint-desc">Funds released only when relief work is verified</div>
+                  <div className="donor-kpi-val">100% Escrow</div>
+                  <div className="donor-kpi-sub">Funds released upon verification</div>
                 </div>
               </div>
             </div>
@@ -1353,30 +1389,32 @@ export function DonorTierModal({
               <div className="donor-cert-inner">
                 <div className="donor-cert-header">
                   <div className="donor-cert-gov-seal">
-                    <span className="material-symbols-outlined" style={{ fontSize: '28px', color: '#10b981' }}>verified_user</span>
+                    <span className="material-symbols-outlined" style={{ fontSize: '22px', color: '#10b981' }}>verified_user</span>
                   </div>
                   <div className="donor-cert-org">
-                    PHILIPPINE BLOCKCHAIN DISASTER RELIEF TRANSPARENCY NETWORK
+                    BLOCKCHAIN-BASED DONATION & RELIEF TRANSPARENCY SYSTEM
                   </div>
                   <div className="donor-cert-network-sub">
-                    Partnered with Verified Relief NGOs • SEC Registered
+                    Official Certificate of Humanitarian Relief • Republic of the Philippines
                   </div>
                   <div className="donor-cert-main-title">
                     CERTIFICATE OF APPRECIATION
                   </div>
-                  <div className="donor-cert-ribbon-line" />
+                  <div className="donor-cert-hairline" />
                 </div>
 
                 <div className="donor-cert-body">
                   <p className="donor-cert-intro">This certificate is proudly presented to</p>
-                  <h1 className="donor-cert-holder-name">{donorName}</h1>
+                  <h1 className="donor-cert-holder-name">
+                    <span className="donor-cert-name-underline">{donorName}</span>
+                  </h1>
                   <p className="donor-cert-prose">
                     for generously supporting disaster relief operations in the Philippines. Your verified donations help provide emergency food, clean water, and vital aid to families affected by disasters.
                   </p>
 
                   <div className="donor-cert-badge-row">
                     <div className="donor-cert-badge-circle" style={{ borderColor: activeTier ? activeTier.border : '#10b981' }}>
-                      <ActiveIcon size={38} />
+                      <ActiveIcon size={26} />
                     </div>
                     <div className="donor-cert-badge-text">
                       <div className="donor-cert-society-name" style={{ color: activeTier ? activeTier.color : '#10b981' }}>
@@ -1424,19 +1462,19 @@ export function DonorTierModal({
                     <div className="donor-cert-col" style={{ textAlign: 'right' }}>
                       <span className="donor-cert-meta-lbl">TRANSPARENCY GUARANTEE</span>
                       <span className="donor-cert-standard-val">
-                        <span className="material-symbols-outlined" style={{ fontSize: '12px', color: '#10b981' }}>verified</span>
-                        100% of aid goes directly to relief operations
+                        <span className="material-symbols-outlined" style={{ fontSize: '13px', color: '#10b981' }}>verified</span>
+                        100% On-Chain Relief Escrow
                       </span>
                     </div>
                   </div>
                 </div>
               </div>
 
-              {/* Certificate Action Bar - Clean & focused */}
+              {/* Certificate Action Bar - Clean Vercel Buttons */}
               <div className="donor-cert-actions-bar">
                 <button
                   type="button"
-                  className="donor-cert-action-btn primary"
+                  className="donor-cert-btn-primary"
                   onClick={handlePrintCertificate}
                   title="Print Certificate"
                 >
@@ -1446,7 +1484,7 @@ export function DonorTierModal({
 
                 <button
                   type="button"
-                  className="donor-cert-action-btn secondary"
+                  className="donor-cert-btn-secondary"
                   onClick={handleCopyProof}
                   title="Copy verification link to clipboard"
                 >
@@ -1545,7 +1583,7 @@ export function DonorTierModal({
               </div>
             ) : (
               <div className="donor-ledger-list donor-data-fade-in">
-                {filteredTxList.map((tx, idx) => {
+                {pagedTxList.map((tx, idx) => {
                   const pm = (tx.paymentMethod || 'ETH').toUpperCase();
                   const isCard = pm.includes('CARD');
                   const isGcash = pm.includes('GCASH');
@@ -1645,6 +1683,39 @@ export function DonorTierModal({
                     </div>
                   );
                 })}
+
+                {filteredTxList.length > LEDGER_PAGE_SIZE && (
+                  <div className="donor-ledger-pagination">
+                    <span className="donor-pagination-info">
+                      Showing <strong>{(safeLedgerPage - 1) * LEDGER_PAGE_SIZE + 1}–{Math.min(safeLedgerPage * LEDGER_PAGE_SIZE, filteredTxList.length)}</strong> of <strong>{filteredTxList.length}</strong> records
+                    </span>
+                    <div className="donor-pagination-actions">
+                      <button
+                        type="button"
+                        className="donor-pagination-btn"
+                        disabled={safeLedgerPage <= 1}
+                        onClick={() => setLedgerPage(p => Math.max(1, p - 1))}
+                        title="Previous Page"
+                      >
+                        <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>chevron_left</span>
+                        <span>Previous</span>
+                      </button>
+                      <span className="donor-pagination-pill">
+                        Page {safeLedgerPage} of {totalLedgerPages}
+                      </span>
+                      <button
+                        type="button"
+                        className="donor-pagination-btn"
+                        disabled={safeLedgerPage >= totalLedgerPages}
+                        onClick={() => setLedgerPage(p => Math.min(totalLedgerPages, p + 1))}
+                        title="Next Page"
+                      >
+                        <span>Next</span>
+                        <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>chevron_right</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -1657,8 +1728,8 @@ export function DonorTierModal({
             style={{ flex: '1 1 auto', minHeight: 0, overflowY: 'auto', overscrollBehavior: 'contain', paddingRight: '4px' }}
           >
             <div className="donor-ladder-title">
-              <span>Philanthropic Giving Societies</span>
-              <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>Formal donor recognition based on cumulative disaster relief contributions</span>
+              <span>Donor Recognition Tiers</span>
+              <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>Verified donor badges based on cumulative disaster relief contributions</span>
             </div>
 
             <div className="donor-ladder-list">
@@ -1682,8 +1753,8 @@ export function DonorTierModal({
                           <span className="donor-tier-row-name" style={{ color: isCurrent ? t.color : 'var(--text-primary)' }}>
                             {t.name}
                           </span>
-                          {isCurrent && <span className="donor-tier-current-tag">CURRENT GIVING SOCIETY</span>}
-                          {isUnlocked && !isCurrent && <span className="donor-tier-unlocked-tag">MEMBER</span>}
+                          {isCurrent && <span className="donor-tier-current-tag">CURRENT TIER</span>}
+                          {isUnlocked && !isCurrent && <span className="donor-tier-unlocked-tag">UNLOCKED</span>}
                         </div>
                         <div className="donor-tier-row-sub">{t.subtitle}</div>
                         <div className="donor-tier-row-crit">
@@ -1708,12 +1779,12 @@ export function DonorTierModal({
         )}
 
         {/* Footer */}
-        <div className="donor-modal-footer" style={{ flexShrink: 0, marginTop: 'auto', paddingTop: '14px' }}>
+        <div className="donor-modal-footer">
           <div className="donor-footer-verified">
-            <span className="material-symbols-outlined" style={{ color: '#10b981', fontSize: '16px' }}>verified_user</span>
-            <span>All donations are securely tracked and verified on the blockchain.</span>
+            <span className="donor-live-dot" />
+            <span>Cryptographically audited on Sepolia EVM • All records immutable</span>
           </div>
-          <button type="button" className="btn btn-outline btn-sm" onClick={onClose}>
+          <button type="button" className="donor-modal-footer-close" onClick={onClose}>
             Close
           </button>
         </div>

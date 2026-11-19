@@ -1,0 +1,565 @@
+/* ══════════════════════════════════════════════════════════════════
+   CUSTOM DATE & TIME PICKER (Vercel Dark Theme with Side Time Panel)
+   ══════════════════════════════════════════════════════════════════ */
+
+.bbdrts-custom-dt-root {
+  position: relative;
+  width: 100%;
+  font-family: var(--font-sans, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif);
+}
+
+/* ── Trigger Box (Replaces Native Browser Input) ── */
+.bbdrts-custom-dt-trigger {
+  width: 100%;
+  background: #141414;
+  border: 1px solid #282828;
+  border-radius: 6px;
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  color: #ededed;
+  font-size: 0.80rem;
+  font-family: inherit;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.14s ease;
+  box-sizing: border-box;
+}
+
+.bbdrts-custom-dt-trigger:hover:not(:disabled) {
+  background: #191919;
+  border-color: #383838;
+}
+
+.bbdrts-custom-dt-trigger:focus-visible {
+  outline: none;
+  border-color: #38bdf8;
+  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2);
+}
+
+.bbdrts-custom-dt-trigger.open {
+  border-color: #38bdf8;
+  background: #181818;
+  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.15);
+}
+
+/* Emerald highlight modifier (for completion time) */
+.bbdrts-custom-dt-trigger.highlight:hover:not(:disabled) {
+  border-color: rgba(16, 185, 129, 0.4);
+}
+
+.bbdrts-custom-dt-trigger.highlight.open {
+  border-color: #10b981;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.15);
+}
+
+.bbdrts-custom-dt-trigger.highlight .trigger-icon {
+  color: #10b981;
+}
+
+.bbdrts-custom-dt-trigger .trigger-icon {
+  font-size: 18px;
+  color: #71717a;
+  flex-shrink: 0;
+}
+
+.bbdrts-custom-dt-trigger .trigger-display-text {
+  flex: 1;
+  font-size: 0.78rem;
+  color: #71717a;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bbdrts-custom-dt-trigger.has-value .trigger-display-text {
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.bbdrts-custom-dt-trigger .trigger-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.bbdrts-custom-dt-trigger .trigger-clear-btn {
+  background: transparent;
+  border: none;
+  color: #71717a;
+  cursor: pointer;
+  padding: 2px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.12s ease;
+}
+
+.bbdrts-custom-dt-trigger .trigger-clear-btn:hover {
+  color: #ef4444;
+}
+
+.bbdrts-custom-dt-trigger .trigger-clear-btn .material-symbols-outlined {
+  font-size: 15px;
+}
+
+.bbdrts-custom-dt-trigger .trigger-chevron {
+  font-size: 18px;
+  color: #71717a;
+  transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.bbdrts-custom-dt-trigger.open .trigger-chevron {
+  transform: rotate(180deg);
+  color: #ededed;
+}
+
+/* ── Custom Popover Dropdown Container ── */
+.bbdrts-custom-dt-popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  background: #0d0d0d;
+  border: 1px solid #282828;
+  border-radius: 10px;
+  box-shadow: 0 24px 50px rgba(0, 0, 0, 0.95), 0 0 0 1px rgba(255, 255, 255, 0.05);
+  display: flex;
+  flex-direction: row;
+  z-index: 1050;
+  animation: dtPopIn 0.15s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  user-select: none;
+  box-sizing: border-box;
+}
+
+.bbdrts-custom-dt-root.align-right .bbdrts-custom-dt-popover {
+  left: auto;
+  right: 0;
+}
+
+@keyframes dtPopIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   LEFT COLUMN: CALENDAR (Exact Match to Image 1, NO Colored Dots)
+   ══════════════════════════════════════════════════════════════════ */
+.dt-cal-column {
+  width: 270px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  box-sizing: border-box;
+}
+
+/* Header: < Nov 2026 [Today] > */
+.dt-cal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.dt-cal-header-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  color: #71717a;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.12s ease;
+}
+
+.dt-cal-header-btn:hover {
+  background: #1a1a1a;
+  color: #ededed;
+  border-color: #2e2e2e;
+}
+
+.dt-cal-header-btn .material-symbols-outlined {
+  font-size: 17px;
+}
+
+.dt-cal-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dt-cal-month-title {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #ededed;
+  letter-spacing: -0.01em;
+}
+
+.dt-cal-today-chip {
+  background: #1c1c1c;
+  border: 1px solid #2e2e2e;
+  color: #a1a1aa;
+  font-size: 0.62rem;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.dt-cal-today-chip:hover {
+  background: #282828;
+  color: #ffffff;
+}
+
+/* Weekdays: SU MO TU WE TH FR SA */
+.dt-cal-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+  text-align: center;
+  font-size: 0.63rem;
+  font-weight: 700;
+  color: #71717a;
+  letter-spacing: 0.04em;
+  margin-bottom: 6px;
+}
+
+/* 7-Col Day Buttons Grid */
+.dt-cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 3px;
+}
+
+.dt-cal-day {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 6px 0;
+  font-size: 0.74rem;
+  font-weight: 500;
+  color: #ededed;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.12s ease;
+  position: relative;
+  font-family: inherit;
+}
+
+.dt-cal-day:hover {
+  background: #1c1c1c;
+  color: #ffffff;
+}
+
+.dt-cal-day.outside {
+  color: #4b4b52;
+}
+
+.dt-cal-day.past {
+  color: #71717a;
+}
+
+.dt-cal-day.today {
+  border-color: #10b981;
+  font-weight: 700;
+}
+
+/* Selected Day: Solid Emerald Capsule (Just like Image 1) */
+.dt-cal-day.selected {
+  background: #10b981 !important;
+  color: #000000 !important;
+  font-weight: 800 !important;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.4);
+}
+
+.dt-cal-bottom-hint {
+  margin-top: 10px;
+  font-size: 0.62rem;
+  color: #52525b;
+  text-align: center;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   VERTICAL DIVIDER
+   ══════════════════════════════════════════════════════════════════ */
+.dt-cal-divider {
+  width: 1px;
+  background: #242424;
+  margin: 10px 0;
+  flex-shrink: 0;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   RIGHT COLUMN: TIME & PRESETS PANEL (On the side of the calendar)
+   ══════════════════════════════════════════════════════════════════ */
+.dt-time-column {
+  width: 230px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex-shrink: 0;
+  box-sizing: border-box;
+}
+
+.dt-section-block {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.dt-section-title {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: #71717a;
+  text-transform: uppercase;
+}
+
+.dt-section-title .material-symbols-outlined {
+  font-size: 14px;
+  color: #10b981;
+}
+
+/* ── 12-Hour Time Picker Controls ── */
+.dt-time-picker-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  background: #141414;
+  border: 1px solid #242424;
+  border-radius: 6px;
+  padding: 6px 8px;
+}
+
+.dt-time-unit {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.dt-time-sub {
+  font-size: 0.58rem;
+  font-weight: 700;
+  color: #52525b;
+  letter-spacing: 0.04em;
+}
+
+.dt-select-input {
+  background: #1a1a1a;
+  border: 1px solid #2a2a2a;
+  border-radius: 4px;
+  color: #ffffff;
+  font-size: 0.78rem;
+  font-weight: 700;
+  padding: 3px 5px;
+  cursor: pointer;
+  outline: none;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.dt-select-input:focus {
+  border-color: #10b981;
+}
+
+.dt-time-colon {
+  font-size: 0.88rem;
+  font-weight: 800;
+  color: #71717a;
+  margin-top: 10px;
+}
+
+/* AM / PM Segmented Control */
+.dt-ampm-switch {
+  display: flex;
+  background: #1a1a1a;
+  border: 1px solid #282828;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-top: 10px;
+}
+
+.dt-ampm-btn {
+  background: transparent;
+  border: none;
+  color: #71717a;
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 4px 7px;
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.dt-ampm-btn:hover {
+  color: #ffffff;
+}
+
+.dt-ampm-btn.active {
+  background: #10b981;
+  color: #000000;
+  font-weight: 800;
+}
+
+/* ── Quick Duration Presets Grid ── */
+.dt-presets-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+}
+
+.dt-preset-pill {
+  background: #161616;
+  border: 1px solid #262626;
+  color: #a1a1aa;
+  font-size: 0.67rem;
+  font-weight: 600;
+  padding: 4px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.12s ease;
+  font-family: inherit;
+}
+
+.dt-preset-pill:hover {
+  background: #202020;
+  border-color: #383838;
+  color: #ffffff;
+}
+
+.dt-preset-pill.highlight-preset {
+  grid-column: span 2;
+  color: #10b981;
+  border-color: rgba(16, 185, 129, 0.25);
+  background: rgba(16, 185, 129, 0.05);
+}
+
+.dt-preset-pill.highlight-preset:hover {
+  background: rgba(16, 185, 129, 0.12);
+  border-color: #10b981;
+}
+
+/* ── Footer Preview & Action Buttons ── */
+.dt-column-footer {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-top: 1px solid #1f1f1f;
+  padding-top: 8px;
+}
+
+.dt-live-preview-box {
+  background: #111111;
+  border: 1px solid #1c1c1c;
+  border-radius: 4px;
+  padding: 5px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.preview-label {
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #71717a;
+  text-transform: uppercase;
+}
+
+.preview-val {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #10b981;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dt-actions-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dt-btn-set-now {
+  flex: 1;
+  background: #181818;
+  border: 1px solid #282828;
+  color: #a1a1aa;
+  font-size: 0.68rem;
+  font-weight: 600;
+  padding: 5px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.12s ease;
+  font-family: inherit;
+}
+
+.dt-btn-set-now:hover {
+  background: #242424;
+  color: #ffffff;
+}
+
+.dt-btn-apply-done {
+  background: #10b981;
+  border: 1px solid #10b981;
+  color: #000000;
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 5px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.12s ease;
+  font-family: inherit;
+}
+
+.dt-btn-apply-done:hover {
+  background: #059669;
+  border-color: #059669;
+}
+
+.dt-btn-apply-done .material-symbols-outlined {
+  font-size: 13px;
+  font-weight: 800;
+}
+
+/* Mobile responsive fallback */
+@media (max-width: 580px) {
+  .bbdrts-custom-dt-popover {
+    flex-direction: column;
+    width: 290px;
+  }
+  .dt-cal-column,
+  .dt-time-column {
+    width: 100%;
+  }
+  .dt-cal-divider {
+    width: 100%;
+    height: 1px;
+    margin: 4px 0;
+  }
+}

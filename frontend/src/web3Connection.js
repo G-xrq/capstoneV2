@@ -44,12 +44,7 @@ export const connectWallet = async (forcePrompt = false) => {
             window.showToast(
                 'warning',
                 'Please install the MetaMask browser extension to connect your Web3 wallet.',
-                'MetaMask Required',
-                8000,
-                {
-                    label: 'Download MetaMask ↗',
-                    onClick: () => window.open('https://metamask.io/download/', '_blank', 'noopener,noreferrer')
-                }
+                'MetaMask Required'
             );
         } else {
             console.warn('MetaMask extension not detected.');

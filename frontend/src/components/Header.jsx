@@ -3,7 +3,9 @@ import NotificationCenter from './NotificationCenter.jsx';
 import LeaderboardModal from './LeaderboardModal.jsx';
 import SmartContractModal from './SmartContractModal.jsx';
 import LiveTrackerModal from './LiveTrackerModal.jsx';
+import BbdrtsLogo from './BbdrtsLogo.jsx';
 import { contractAddress } from '../contractConfig';
+import { useToast } from '../context/ToastContext';
 import './Header.css';
 
 export default function Header({
@@ -20,13 +22,38 @@ export default function Header({
   toggleTheme,
   onOpenNgoProfile
 }) {
+  const { showSuccess } = useToast();
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [copiedAddr, setCopiedAddr] = useState(false);
+  const [copiedId, setCopiedId] = useState(false);
   const [showLeaderboardModal, setShowLeaderboardModal] = useState(false);
   const [showSmartContractModal, setShowSmartContractModal] = useState(false);
   const [showLiveTrackerModal, setShowLiveTrackerModal] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState(null); // 'campaigns' | 'transparency' | null
+  const [collapsedBroadcast, setCollapsedBroadcast] = useState(null);
+
+  // Synchronize collapsed broadcast announcement state
+  useEffect(() => {
+    const handleBroadcastStatus = (e) => {
+      if (e?.detail?.isCollapsed && e?.detail?.activeAnnouncement) {
+        setCollapsedBroadcast(e.detail.activeAnnouncement);
+      } else {
+        setCollapsedBroadcast(null);
+      }
+    };
+    window.addEventListener('bbdrts_broadcast_status', handleBroadcastStatus);
+    return () => window.removeEventListener('bbdrts_broadcast_status', handleBroadcastStatus);
+  }, []);
+
+  // Dismiss any lingering nav dropdowns when entering authentication view
+  useEffect(() => {
+    if (showAuth) {
+      setActiveDropdown(null);
+      setIsProfileOpen(false);
+      setMobileMenuOpen(false);
+    }
+  }, [showAuth]);
 
   // Close profile dropdown & nav dropdowns when clicking outside
   useEffect(() => {
@@ -41,32 +68,40 @@ export default function Header({
   }, [isProfileOpen, activeDropdown]);
 
   // Formatted User Display Name & Initials
-  let userDisplayName = dbUser?.display_name || dbUser?.name;
-  if (!userDisplayName || userDisplayName.includes('@')) {
-    const handle = dbUser?.email ? dbUser.email.split('@')[0] : 'User';
-    if (handle.toLowerCase() === 'gestermacaldo') {
-      userDisplayName = 'Gester Macaldo';
-    } else {
-      userDisplayName = handle.replace(/[\._]/g, ' ').split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
-    }
+  let rawName = dbUser?.role === 'organization'
+    ? (dbUser?.org_name || dbUser?.organization_name || dbUser?.name || dbUser?.display_name || dbUser?.Username || dbUser?.email)
+    : (dbUser?.display_name || dbUser?.name || dbUser?.Username || dbUser?.email);
+
+  const rawEmail = (dbUser?.email || dbUser?.Username || '').toLowerCase();
+  const rawClean = (rawName || '').toLowerCase().replace(/[\s\-_]/g, '');
+
+  let userDisplayName = rawName;
+  if (rawEmail.includes('relieflink') || rawClean.includes('relieflink')) {
+    userDisplayName = 'ReliefLink PH';
+  } else if (rawEmail.includes('gestermacaldo') || rawClean.includes('gestermacaldo')) {
+    userDisplayName = 'Gester Macaldo';
+  } else if (rawEmail.includes('redcross') || rawClean.includes('redcross')) {
+    userDisplayName = 'Philippine Red Cross';
+  } else if (!userDisplayName || userDisplayName.includes('@')) {
+    const handle = (rawEmail ? rawEmail.split('@')[0] : 'User');
+    userDisplayName = handle.replace(/[\._\d]/g, ' ').trim().split(' ').filter(Boolean).map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ') || handle;
   }
   const userInitials = userDisplayName ? userDisplayName.split(' ').filter(Boolean).map(n => n[0]).join('').substring(0, 2).toUpperCase() : 'US';
-  const roleLabel = dbUser?.role ? dbUser.role.toUpperCase() : 'VISITOR';
+  const roleLabel = dbUser?.role
+    ? (dbUser.role === 'organization' ? 'NGO' : dbUser.role === 'admin' ? 'ADMIN' : 'DONOR')
+    : 'VISITOR';
 
   const handleRadarClick = (e) => {
     if (e && e.preventDefault) e.preventDefault();
     if (mobileMenuOpen) setMobileMenuOpen(false);
     setActiveDropdown(null);
 
-    // If guest is viewing the login/signup portal, return to landing view
     if (!dbUser && showAuth && setShowAuth) {
       setShowAuth(false);
     }
 
-    // Broadcast global event to active dashboards (Donor, NGO, Admin)
     window.dispatchEvent(new CustomEvent('bbdrts_navigate_radar'));
 
-    // Smooth scroll if on LandingView
     setTimeout(() => {
       const radarEl = document.getElementById('radar-heatmap');
       if (radarEl) {
@@ -131,7 +166,7 @@ export default function Header({
     }, 100);
   };
 
-  const handlePaymentRailsClick = (e) => {
+  const handleTransparencyClick = (e) => {
     if (e && e.preventDefault) e.preventDefault();
     if (mobileMenuOpen) setMobileMenuOpen(false);
     setActiveDropdown(null);
@@ -140,23 +175,7 @@ export default function Header({
       setShowAuth(false);
     }
     setTimeout(() => {
-      const el = document.getElementById('payment-rails');
-      if (el) {
-        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }
-    }, 100);
-  };
-
-  const handleFaqClick = (e) => {
-    if (e && e.preventDefault) e.preventDefault();
-    if (mobileMenuOpen) setMobileMenuOpen(false);
-    setActiveDropdown(null);
-
-    if (!dbUser && showAuth && setShowAuth) {
-      setShowAuth(false);
-    }
-    setTimeout(() => {
-      const el = document.getElementById('faq');
+      const el = document.getElementById('transparency');
       if (el) {
         el.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
@@ -165,351 +184,418 @@ export default function Header({
 
   return (
     <>
-      {/* ── Sticky Main Navigation Header (Vercel-Standard Minimalist Header) ── */}
-      <header className="bbdrts-main-header">
-        <div className="container bbdrts-header-inner">
+      <header className={`bbdrts-main-header ${dbUser ? 'dashboard-mode' : ''}`}>
+        <div className={`bbdrts-header-inner ${dbUser ? 'dashboard-mode' : 'public-mode'}`}>
 
-          {/* ── Brand Logo & Vercel-Style Workspace Breadcrumb ── */}
-          <div
-            className="bbdrts-brand-link"
-            onClick={handleHomeClick}
-            title={dbUser ? "Return to Dashboard Overview" : "Blockchain-Based Donation & Relief Transparency System"}
-          >
-            <div className="bbdrts-logo-wrapper">
-              <img src="/logo.png" alt="BBDRTS" className="bbdrts-logo-img" />
+          {/* Left Cluster: Vercel Brand + Slash Breadcrumb + Public Nav */}
+          <div className="bbdrts-header-left">
+            {dbUser && (
+              <button
+                type="button"
+                className="bbdrts-sidebar-toggle-btn"
+                onClick={() => window.dispatchEvent(new CustomEvent('bbdrts_toggle_sidebar'))}
+                title="Toggle Navigation Menu"
+                aria-label="Toggle Navigation Menu"
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: '19px' }}>menu</span>
+              </button>
+            )}
+
+            <div
+              className="bbdrts-brand-link"
+              onClick={handleHomeClick}
+              title="BBDRTS — Blockchain-Based Donation & Relief Transparency System"
+            >
+              <div className="bbdrts-logo-wrapper">
+                <BbdrtsLogo size={32} />
+              </div>
+              <div className="bbdrts-brand-text-block">
+                <span className="bbdrts-brand-wordmark">BBDRTS</span>
+                <span className={`bbdrts-brand-tagline ${!dbUser ? 'landing-tagline' : ''}`}>
+                  Blockchain-Based Donation &amp; Relief Transparency System
+                </span>
+              </div>
             </div>
 
-            <div className="bbdrts-brand-breadcrumb">
-              <span className="bbdrts-brand-title">BBDRTS</span>
+            {!dbUser && (
+              <span className="bbdrts-crumb-slash" aria-hidden="true">/</span>
+            )}
 
-              {dbUser && (
-                <>
-                  <span className="bbdrts-brand-slash">/</span>
-                  <span className="bbdrts-brand-workspace">
-                    {roleLabel === 'ORGANIZATION'
-                      ? 'NGO Operations'
-                      : roleLabel === 'ADMIN'
-                        ? 'Governance Console'
-                        : 'Donor Impact'}
-                  </span>
-                </>
-              )}
-            </div>
-          </div>
+            {!dbUser && (
+              <nav aria-label="Main Navigation" className="bbdrts-public-nav-wrap bbdrts-desktop-nav">
+                <ul className="bbdrts-nav-menu">
+                  <li className="bbdrts-nav-item">
+                    <button type="button" className="bbdrts-nav-link" onClick={handleHomeClick}>
+                      <span>Home</span>
+                    </button>
+                  </li>
 
-          {/* ── Desktop Navigation Links ── */}
-          {!dbUser ? (
-            /* Visitor Landing Navigation */
-            <nav aria-label="Main Navigation" className="bbdrts-desktop-nav">
-              <ul className="bbdrts-nav-menu">
-                <li className="bbdrts-nav-item">
-                  <button type="button" className="bbdrts-nav-link" onClick={handleRadarClick}>
-                    <span className="bbdrts-nav-dot" />
-                    <span>Disaster Map</span>
-                  </button>
-                </li>
-
-                {/* Relief Causes Dropdown */}
-                <li
-                  className="bbdrts-nav-item has-dropdown"
-                  onClick={(e) => e.stopPropagation()}
-                  onMouseEnter={() => setActiveDropdown('campaigns')}
-                  onMouseLeave={() => setActiveDropdown(null)}
-                >
-                  <button
-                    type="button"
-                    className={`bbdrts-nav-link ${activeDropdown === 'campaigns' ? 'active' : ''}`}
-                    onClick={(e) => {
-                      if (e.target && e.target.classList.contains('bbdrts-dropdown-caret')) {
-                        e.stopPropagation();
-                        setActiveDropdown(prev => prev === 'campaigns' ? null : 'campaigns');
-                        return;
-                      }
-                      handleCampaignsClick('ALL');
-                    }}
+                  <li
+                    className="bbdrts-nav-item has-dropdown"
+                    onClick={(e) => e.stopPropagation()}
+                    onMouseEnter={() => setActiveDropdown('campaigns')}
+                    onMouseLeave={() => setActiveDropdown(null)}
                   >
-                    <span>Relief Causes</span>
-                    <span className="material-symbols-outlined bbdrts-dropdown-caret">
-                      {activeDropdown === 'campaigns' ? 'expand_less' : 'expand_more'}
-                    </span>
-                  </button>
-
-                  <div className={`bbdrts-nav-dropdown ${activeDropdown === 'campaigns' ? 'show' : ''}`}>
-                    <div className="bbdrts-dropdown-section-title">Filter by Calamity</div>
                     <button
                       type="button"
-                      className="bbdrts-dropdown-action"
+                      className={`bbdrts-nav-link ${activeDropdown === 'campaigns' ? 'active' : ''}`}
                       onClick={() => handleCampaignsClick('ALL')}
                     >
-                      <span className="material-symbols-outlined action-icon">view_carousel</span>
-                      <div className="bbdrts-dropdown-action-text">
-                        <span className="bbdrts-dropdown-action-title">All Active Relief Drives</span>
-                        <span className="bbdrts-dropdown-action-desc">Full registry of verified disaster response causes</span>
-                      </div>
+                      <span>Campaigns</span>
+                      <span className="material-symbols-outlined bbdrts-dropdown-caret">
+                        expand_more
+                      </span>
                     </button>
 
-                    <button
-                      type="button"
-                      className="bbdrts-dropdown-action"
-                      onClick={() => handleCampaignsClick('TYPHOON')}
-                    >
-                      <span className="material-symbols-outlined action-icon">cyclone</span>
-                      <div className="bbdrts-dropdown-action-text">
-                        <span className="bbdrts-dropdown-action-title">Typhoon Response</span>
-                        <span className="bbdrts-dropdown-action-desc">Storm surge, wind damage & emergency relief</span>
-                      </div>
+                    <div className={`bbdrts-nav-dropdown ${activeDropdown === 'campaigns' ? 'show' : ''}`}>
+                      <div className="bbdrts-dropdown-section-title">Filter by Calamity</div>
+                      <button
+                        type="button"
+                        className="bbdrts-dropdown-action"
+                        onClick={() => handleCampaignsClick('ALL')}
+                      >
+                        <span className="material-symbols-outlined">grid_view</span>
+                        <div className="bbdrts-dropdown-action-text">
+                          <span className="bbdrts-dropdown-action-title">All Active Operations</span>
+                          <span className="bbdrts-dropdown-action-desc">Full registry of verified relief drives</span>
+                        </div>
+                      </button>
+
+                      <button
+                        type="button"
+                        className="bbdrts-dropdown-action"
+                        onClick={() => handleCampaignsClick('TYPHOON')}
+                      >
+                        <span className="material-symbols-outlined">cyclone</span>
+                        <div className="bbdrts-dropdown-action-text">
+                          <span className="bbdrts-dropdown-action-title">Typhoon Response</span>
+                          <span className="bbdrts-dropdown-action-desc">Storm surge, wind damage & evacuation</span>
+                        </div>
+                      </button>
+
+                      <button
+                        type="button"
+                        className="bbdrts-dropdown-action"
+                        onClick={() => handleCampaignsClick('FLOOD')}
+                      >
+                        <span className="material-symbols-outlined">flood</span>
+                        <div className="bbdrts-dropdown-action-text">
+                          <span className="bbdrts-dropdown-action-title">Flood & Inundation</span>
+                          <span className="bbdrts-dropdown-action-desc">High-ground logistics & emergency shelter</span>
+                        </div>
+                      </button>
+
+                      <button
+                        type="button"
+                        className="bbdrts-dropdown-action"
+                        onClick={() => handleCampaignsClick('FOOD')}
+                      >
+                        <span className="material-symbols-outlined">water_drop</span>
+                        <div className="bbdrts-dropdown-action-text">
+                          <span className="bbdrts-dropdown-action-title">Food & Clean Water</span>
+                          <span className="bbdrts-dropdown-action-desc">Hydration filtration & dry rations</span>
+                        </div>
+                      </button>
+
+                      <button
+                        type="button"
+                        className="bbdrts-dropdown-action"
+                        onClick={() => handleCampaignsClick('MEDICAL')}
+                      >
+                        <span className="material-symbols-outlined">medical_services</span>
+                        <div className="bbdrts-dropdown-action-text">
+                          <span className="bbdrts-dropdown-action-title">Medical & First Aid</span>
+                          <span className="bbdrts-dropdown-action-desc">Mobile clinics & trauma supplies</span>
+                        </div>
+                      </button>
+                    </div>
+                  </li>
+
+                  <li className="bbdrts-nav-item">
+                    <button type="button" className="bbdrts-nav-link" onClick={handleRadarClick}>
+                      <span>Radar</span>
+                      <span className="bbdrts-nav-live-dot" title="Live PAGASA Doppler Telemetry" />
                     </button>
+                  </li>
 
-                    <button
-                      type="button"
-                      className="bbdrts-dropdown-action"
-                      onClick={() => handleCampaignsClick('FLOOD')}
-                    >
-                      <span className="material-symbols-outlined action-icon">flood</span>
-                      <div className="bbdrts-dropdown-action-text">
-                        <span className="bbdrts-dropdown-action-title">Flood & Inundation</span>
-                        <span className="bbdrts-dropdown-action-desc">High-ground logistics & emergency shelter</span>
-                      </div>
-                    </button>
-
-                    <button
-                      type="button"
-                      className="bbdrts-dropdown-action"
-                      onClick={() => handleCampaignsClick('FOOD')}
-                    >
-                      <span className="material-symbols-outlined action-icon">water_drop</span>
-                      <div className="bbdrts-dropdown-action-text">
-                        <span className="bbdrts-dropdown-action-title">Food & Clean Water</span>
-                        <span className="bbdrts-dropdown-action-desc">Hydration filtration kits & emergency dry rations</span>
-                      </div>
-                    </button>
-
-                    <button
-                      type="button"
-                      className="bbdrts-dropdown-action"
-                      onClick={() => handleCampaignsClick('MEDICAL')}
-                    >
-                      <span className="material-symbols-outlined action-icon">medical_services</span>
-                      <div className="bbdrts-dropdown-action-text">
-                        <span className="bbdrts-dropdown-action-title">Medical & First Aid</span>
-                        <span className="bbdrts-dropdown-action-desc">Mobile clinics, pharmaceuticals & trauma supplies</span>
-                      </div>
-                    </button>
-                  </div>
-                </li>
-
-                {/* How It Works (4-Step Escrow Workflow) */}
-                <li className="bbdrts-nav-item">
-                  <button type="button" className="bbdrts-nav-link" onClick={handleHowItWorksClick}>
-                    How It Works
-                  </button>
-                </li>
-
-                {/* Transparency Dropdown */}
-                <li
-                  className="bbdrts-nav-item has-dropdown"
-                  onClick={(e) => e.stopPropagation()}
-                  onMouseEnter={() => setActiveDropdown('transparency')}
-                  onMouseLeave={() => setActiveDropdown(null)}
-                >
-                  <button
-                    type="button"
-                    className={`bbdrts-nav-link ${activeDropdown === 'transparency' ? 'active' : ''}`}
-                    onClick={() => setActiveDropdown(prev => prev === 'transparency' ? null : 'transparency')}
+                  <li
+                    className="bbdrts-nav-item has-dropdown"
+                    onClick={(e) => e.stopPropagation()}
+                    onMouseEnter={() => setActiveDropdown('transparency')}
+                    onMouseLeave={() => setActiveDropdown(null)}
                   >
-                    <span>Transparency</span>
-                    <span className="material-symbols-outlined bbdrts-dropdown-caret">
-                      {activeDropdown === 'transparency' ? 'expand_less' : 'expand_more'}
-                    </span>
-                  </button>
-
-                  <div className={`bbdrts-nav-dropdown ${activeDropdown === 'transparency' ? 'show' : ''}`}>
-                    <div className="bbdrts-dropdown-section-title">Smart Contract Verification</div>
                     <button
                       type="button"
-                      className="bbdrts-dropdown-action"
-                      onClick={() => {
-                        setActiveDropdown(null);
-                        setShowSmartContractModal(true);
-                      }}
+                      className={`bbdrts-nav-link ${activeDropdown === 'transparency' ? 'active' : ''}`}
+                      onClick={() => setActiveDropdown(prev => prev === 'transparency' ? null : 'transparency')}
                     >
-                      <span className="material-symbols-outlined action-icon">code_blocks</span>
-                      <div className="bbdrts-dropdown-action-text">
-                        <span className="bbdrts-dropdown-action-title">Smart Contract Details</span>
-                        <span className="bbdrts-dropdown-action-desc">Sepolia verified contract ABI, code & escrow</span>
-                      </div>
+                      <span>Transparency</span>
+                      <span className="material-symbols-outlined bbdrts-dropdown-caret">
+                        expand_more
+                      </span>
                     </button>
 
-                    <a
-                      href={`https://sepolia.etherscan.io/address/${contractAddress}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="bbdrts-dropdown-action"
-                      onClick={() => setActiveDropdown(null)}
-                    >
-                      <span className="material-symbols-outlined action-icon">receipt_long</span>
-                      <div className="bbdrts-dropdown-action-text">
-                        <span className="bbdrts-dropdown-action-title">Public Ledger on Etherscan ↗</span>
-                        <span className="bbdrts-dropdown-action-desc">Live on-chain immutable transaction history</span>
-                      </div>
-                    </a>
+                    <div className={`bbdrts-nav-dropdown ${activeDropdown === 'transparency' ? 'show' : ''}`}>
+                      <div className="bbdrts-dropdown-section-title">On-Chain Verification</div>
+                      <button
+                        type="button"
+                        className="bbdrts-dropdown-action"
+                        onClick={() => {
+                          setActiveDropdown(null);
+                          setShowSmartContractModal(true);
+                        }}
+                      >
+                        <span className="material-symbols-outlined">code_blocks</span>
+                        <div className="bbdrts-dropdown-action-text">
+                          <span className="bbdrts-dropdown-action-title">Smart Contract Details</span>
+                          <span className="bbdrts-dropdown-action-desc">Sepolia verified ABI, source & escrow</span>
+                        </div>
+                      </button>
 
-                    <div className="bbdrts-dropdown-divider" />
-                    <div className="bbdrts-dropdown-section-title">Ecosystem & Integrity</div>
+                      <a
+                        href={`https://sepolia.etherscan.io/address/${contractAddress}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="bbdrts-dropdown-action"
+                        onClick={() => setActiveDropdown(null)}
+                      >
+                        <span className="material-symbols-outlined">receipt_long</span>
+                        <div className="bbdrts-dropdown-action-text">
+                          <span className="bbdrts-dropdown-action-title">Public Ledger on Etherscan ↗</span>
+                          <span className="bbdrts-dropdown-action-desc">Immutable on-chain transaction history</span>
+                        </div>
+                      </a>
 
-                    <button
-                      type="button"
-                      className="bbdrts-dropdown-action"
-                      onClick={() => {
-                        setActiveDropdown(null);
-                        setShowLeaderboardModal(true);
-                      }}
-                    >
-                      <span className="material-symbols-outlined action-icon">volunteer_activism</span>
-                      <div className="bbdrts-dropdown-action-text">
-                        <span className="bbdrts-dropdown-action-title">Top Donors & Partners</span>
-                        <span className="bbdrts-dropdown-action-desc">See top donors, relief groups & total aid</span>
-                      </div>
-                    </button>
+                      <div className="bbdrts-dropdown-divider" />
+                      <div className="bbdrts-dropdown-section-title">Governance</div>
 
-                    <button
-                      type="button"
-                      className="bbdrts-dropdown-action"
-                      onClick={handlePaymentRailsClick}
-                    >
-                      <span className="material-symbols-outlined action-icon">payments</span>
-                      <div className="bbdrts-dropdown-action-text">
-                        <span className="bbdrts-dropdown-action-title">Payment Methods</span>
-                        <span className="bbdrts-dropdown-action-desc">GCash, Maya, Bank Transfer & Sepolia Crypto</span>
-                      </div>
-                    </button>
-                  </div>
-                </li>
+                      <button
+                        type="button"
+                        className="bbdrts-dropdown-action"
+                        onClick={() => {
+                          setActiveDropdown(null);
+                          setShowLeaderboardModal(true);
+                        }}
+                      >
+                        <span className="material-symbols-outlined">emoji_events</span>
+                        <div className="bbdrts-dropdown-action-text">
+                          <span className="bbdrts-dropdown-action-title">Top Donors & Partners</span>
+                          <span className="bbdrts-dropdown-action-desc">Verified contributors & accredited NGOs</span>
+                        </div>
+                      </button>
 
-                {/* FAQ Link */}
-                <li className="bbdrts-nav-item">
-                  <button type="button" className="bbdrts-nav-link" onClick={handleFaqClick}>
-                    FAQ
-                  </button>
-                </li>
-              </ul>
-            </nav>
-          ) : (
-            /* Authenticated Quick Tabs (Instant Dashboard Navigation) */
-            <nav aria-label="Dashboard Navigation" className="bbdrts-desktop-nav">
-              <ul className="bbdrts-nav-menu">
-                <li className="bbdrts-nav-item">
-                  <button type="button" className="bbdrts-nav-link" onClick={handleHomeClick}>
-                    <span>Dashboard</span>
-                  </button>
-                </li>
-                <li className="bbdrts-nav-item">
-                  <button type="button" className="bbdrts-nav-link" onClick={handleRadarClick}>
-                    <span className="bbdrts-nav-dot" />
-                    <span>Relief Radar</span>
-                  </button>
-                </li>
-                <li className="bbdrts-nav-item">
-                  <button type="button" className="bbdrts-nav-link" onClick={() => handleCampaignsClick('ALL')}>
-                    <span>Relief Causes</span>
-                  </button>
-                </li>
-              </ul>
-            </nav>
-          )}
+                      <button
+                        type="button"
+                        className="bbdrts-dropdown-action"
+                        onClick={handleHowItWorksClick}
+                      >
+                        <span className="material-symbols-outlined">schema</span>
+                        <div className="bbdrts-dropdown-action-text">
+                          <span className="bbdrts-dropdown-action-title">How Escrow Works</span>
+                          <span className="bbdrts-dropdown-action-desc">Milestone proof & aid disbursement</span>
+                        </div>
+                      </button>
 
-          {/* ── Header Actions Toolbar ── */}
+                      <button
+                        type="button"
+                        className="bbdrts-dropdown-action"
+                        onClick={handleTransparencyClick}
+                      >
+                        <span className="material-symbols-outlined">verified_user</span>
+                        <div className="bbdrts-dropdown-action-text">
+                          <span className="bbdrts-dropdown-action-title">Direct NGO Routing</span>
+                          <span className="bbdrts-dropdown-action-desc">0% platform fee, direct escrow custody</span>
+                        </div>
+                      </button>
+                    </div>
+                  </li>
+                </ul>
+              </nav>
+            )}
+          </div>
+
+          {/* Right Cluster: Minimalist Geist Action Controls */}
           <div className="bbdrts-header-actions">
 
-            {/* 1. Real-Time Live Donation Tracker Pill */}
+            {/* Reopen Broadcast Pill (Only shown when an announcement is active but hidden/collapsed by user) */}
+            {collapsedBroadcast && (
+              <button
+                type="button"
+                className={`bbdrts-header-broadcast-pill severity-${(collapsedBroadcast.severity || 'general').toLowerCase()}`}
+                onClick={() => window.dispatchEvent(new CustomEvent('bbdrts_toggle_broadcast', { detail: { collapsed: false } }))}
+                title="Show active broadcast announcement banner"
+                aria-label="Show active broadcast announcement banner"
+              >
+                <span className="bbdrts-live-beacon" />
+                <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>
+                  {collapsedBroadcast.severity === 'EMERGENCY' ? 'warning' : (collapsedBroadcast.severity === 'OPERATIONAL' ? 'info' : 'podcasts')}
+                </span>
+                <span className="bbdrts-header-broadcast-label">
+                  {collapsedBroadcast.severity === 'EMERGENCY' ? 'Emergency Alert' : (collapsedBroadcast.severity === 'OPERATIONAL' ? 'Notice Active' : 'Advisory Active')}
+                </span>
+                <span className="bbdrts-header-show-badge">Show ▾</span>
+              </button>
+            )}
+
+            {/* Live Stream Trigger */}
             <button
               type="button"
               className={`bbdrts-live-pill ${showLiveTrackerModal ? 'active' : ''}`}
               onClick={() => setShowLiveTrackerModal(true)}
-              title="Live Donation Tracker — Real-Time Donations Across All Rails"
+              title="Live Donation Tracker — Real-Time Activity"
               aria-label="Open Live Donation Tracker"
             >
               <span className="bbdrts-live-beacon" />
-              <span>Live Tracker</span>
+              <span>Live</span>
             </button>
 
-            {/* 2. Vercel-Style Dedicated Theme Switcher */}
+            {/* Leaderboard Trigger */}
             <button
               type="button"
-              className="bbdrts-icon-btn"
-              onClick={toggleTheme}
-              title={`Switch to ${theme === 'light' ? 'Dark' : 'Light'} Mode`}
-              aria-label="Toggle color theme"
+              className={`bbdrts-icon-btn ${showLeaderboardModal ? 'active' : ''}`}
+              onClick={() => setShowLeaderboardModal(true)}
+              title="Top Donors & Relief Partners"
+              aria-label="Open Top Donors and Relief Partners"
             >
-              <span className={`material-symbols-outlined bbdrts-theme-icon ${theme === 'dark' ? 'is-dark' : 'is-light'}`} style={{ fontSize: '18px' }}>
-                {theme === 'light' ? 'dark_mode' : 'light_mode'}
-              </span>
+              <span className="material-symbols-outlined bbdrts-theme-icon" style={{ fontSize: '18px' }}>history_edu</span>
             </button>
 
-            {/* 3. Notification Center Trigger (Authenticated Only) */}
+            {/* Quick Theme Switcher */}
+            {toggleTheme && (
+              <button
+                type="button"
+                className="bbdrts-icon-btn"
+                onClick={toggleTheme}
+                title={`Switch Theme (Current: ${theme === 'light' ? 'Light' : 'Dark'})`}
+                aria-label="Toggle Theme"
+              >
+                <span className={`material-symbols-outlined bbdrts-theme-icon ${theme === 'dark' ? 'is-dark' : 'is-light'}`} style={{ fontSize: '18px' }}>
+                  {theme === 'light' ? 'dark_mode' : 'light_mode'}
+                </span>
+              </button>
+            )}
+
+            {/* Notification Center (Authenticated) */}
             {dbUser && (
               <NotificationCenter
                 dbUser={dbUser}
                 theme={theme}
                 onSelectNotificationAction={(notif) => {
-                  if (notif.type === 'campaign') {
-                    document.getElementById('campaigns')?.scrollIntoView({ behavior: 'smooth' });
-                  } else if (notif.type === 'kyc' && onOpenNgoProfile) {
-                    onOpenNgoProfile(notif.orgId || 3);
-                  } else if (notif.type === 'security' && typeof setShowSettingsModal === 'function') {
-                    setShowSettingsModal(true);
+                  const role = (dbUser?.role || 'donor').toLowerCase();
+                  const type = (notif?.type || '').toUpperCase();
+
+                  let targetTab = 'dashboard';
+                  if (type === 'DONATION' || type === 'WITHDRAWAL') {
+                    targetTab = role === 'donor' ? 'my-donations' : 'ledger';
+                  } else if (type === 'CAMPAIGN') {
+                    targetTab = 'campaigns';
+                  } else if (type === 'DISBURSEMENT' || type === 'MILESTONE' || type === 'RELIEF_PROOF') {
+                    targetTab = role === 'admin' ? 'disbursements' : (role === 'organization' ? 'my-campaigns' : 'campaigns');
+                    const campMatch = String(notif?.link || '').match(/[?&]campaign=([0-9]+)/i) || String(notif?.link || '').match(/\/campaigns\/([0-9]+)/i);
+                    const campaignId = campMatch ? Number(campMatch[1]) : (notif?.referenceType === 'CAMPAIGN' && /^[0-9]+$/.test(String(notif?.referenceId)) ? Number(notif?.referenceId) : null);
+                    if (campaignId) {
+                      window.dispatchEvent(new CustomEvent('bbdrts_open_proof_modal', {
+                        detail: { campaignId, notif }
+                      }));
+                    }
+                  } else if (type === 'VERIFICATION' || type === 'KYC') {
+                    targetTab = role === 'admin' ? 'approvals' : (role === 'organization' ? 'sec-kyc' : 'campaigns');
+                  } else if (type === 'SECURITY') {
+                    if (typeof setShowSettingsModal === 'function') {
+                      setShowSettingsModal(true);
+                      return;
+                    }
+                    targetTab = 'settings';
+                  } else if (type === 'EMERGENCY' || type === 'BROADCAST') {
+                    targetTab = role === 'admin' ? 'broadcast' : 'radar-heatmap';
                   } else {
-                    document.getElementById('campaigns')?.scrollIntoView({ behavior: 'smooth' });
+                    targetTab = role === 'admin' ? 'audit-logs' : 'dashboard';
                   }
+
+                  window.dispatchEvent(new CustomEvent('bbdrts_navigate_tab', { detail: { tab: targetTab } }));
                 }}
               />
             )}
 
-            {/* 4. Guest Connected Wallet Pill (Only shown if wallet is connected) */}
+            {/* Guest Wallet Connect */}
+            {!dbUser && !walletAddress && (
+              <button
+                type="button"
+                className="bbdrts-secondary-btn bbdrts-wallet-btn"
+                onClick={handleConnectWallet}
+                title="Connect Web3 Wallet (MetaMask / EVM)"
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>account_balance_wallet</span>
+                <span>Connect Wallet</span>
+              </button>
+            )}
+
+            {/* Guest Wallet Connected Pill */}
             {!dbUser && walletAddress && (
               <div className="bbdrts-wallet-pill" title={`Connected to Sepolia EVM: ${walletAddress}`}>
-                <span className="bbdrts-wallet-dot" />
-                <span className="bbdrts-wallet-addr">{walletAddress.substring(0, 6)}...{walletAddress.substring(walletAddress.length - 4)}</span>
+                <span className="bbdrts-status-dot" />
+                <span className="bbdrts-wallet-addr">{walletAddress.substring(0, 6)}…{walletAddress.substring(walletAddress.length - 4)}</span>
               </div>
             )}
 
-            {/* 7. Authenticated User Profile Hub or Guest Sign In */}
+            {/* Authenticated User Profile Hub */}
             {dbUser ? (
               <div className="bbdrts-profile-hub" onClick={(e) => e.stopPropagation()}>
-                <button
-                  type="button"
+                <div
                   className={`bbdrts-profile-chip ${isProfileOpen ? 'active' : ''}`}
                   onClick={() => setIsProfileOpen(prev => !prev)}
-                  aria-label="Open Account Menu"
                 >
-                  <div className="bbdrts-profile-avatar">
-                    {dbUser?.avatar_url && (dbUser.avatar_url.startsWith('data:') || dbUser.avatar_url.startsWith('http')) ? (
-                      <img src={dbUser.avatar_url} alt="Avatar" style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
-                    ) : dbUser?.avatar_url && dbUser.avatar_url.length < 30 ? (
-                      <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#ffffff' }}>{dbUser.avatar_url}</span>
-                    ) : (
-                      userInitials
-                    )}
+                  <div className="bbdrts-avatar-wrap">
+                    <div className="bbdrts-profile-avatar">
+                      {dbUser?.avatar_url && (dbUser.avatar_url.startsWith('data:') || dbUser.avatar_url.startsWith('http')) ? (
+                        <img src={dbUser.avatar_url} alt="Avatar" style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
+                      ) : dbUser?.avatar_url && dbUser.avatar_url.length < 30 ? (
+                        <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>{dbUser.avatar_url}</span>
+                      ) : (
+                        userInitials
+                      )}
+                    </div>
+                    <span
+                      className="bbdrts-avatar-status-dot"
+                      style={{ background: walletAddress ? 'var(--accent)' : 'var(--warning)' }}
+                      title={walletAddress ? 'Web3 Wallet Connected' : 'Wallet Disconnected'}
+                    />
                   </div>
                   <span className="bbdrts-profile-name">{userDisplayName}</span>
-                  <span className="material-symbols-outlined bbdrts-profile-chevron">
-                    {isProfileOpen ? 'expand_less' : 'expand_more'}
+                  <span className="material-symbols-outlined" style={{ fontSize: '16px', color: 'var(--text-muted)' }}>
+                    expand_more
                   </span>
-                </button>
+                </div>
 
                 {isProfileOpen && (
                   <div className="bbdrts-profile-dropdown">
                     <div className="bbdrts-dropdown-header">
                       <div className="bbdrts-dropdown-name">{userDisplayName}</div>
                       <div className="bbdrts-dropdown-subrow">
-                        <span className="bbdrts-dropdown-id">
-                          {dbUser?.email || dbUser?.system_id || `BBDRTS-${roleLabel}-${String(dbUser?.id || 1).padStart(4, '0')}`}
-                        </span>
+                        <button
+                          type="button"
+                          className="bbdrts-dropdown-id-btn"
+                          title="Click to copy System ID"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const sid = dbUser?.system_id || `BBDRTS-${roleLabel}-2026-${String(dbUser?.id || 1).padStart(5, '0')}`;
+                            navigator.clipboard.writeText(sid);
+                            setCopiedId(true);
+                            setTimeout(() => setCopiedId(false), 2000);
+                            showSuccess('User ID copied to clipboard.');
+                          }}
+                        >
+                          <span className="bbdrts-dropdown-id-text">
+                            {dbUser?.system_id || `BBDRTS-${roleLabel}-2026-${String(dbUser?.id || 1).padStart(5, '0')}`}
+                          </span>
+                          <span className="material-symbols-outlined bbdrts-id-copy-icon">
+                            {copiedId ? 'check' : 'content_copy'}
+                          </span>
+                        </button>
                         <span className="bbdrts-dropdown-role-pill">{roleLabel}</span>
                       </div>
                     </div>
 
-                    {/* Integrated Web3 Network Status */}
                     {walletAddress ? (
                       <div className="bbdrts-dropdown-wallet-box">
                         <div className="bbdrts-dropdown-wallet-status">
@@ -519,7 +605,7 @@ export default function Header({
                         </div>
                         <div className="bbdrts-dropdown-addr-row">
                           <span className="bbdrts-dropdown-addr-text" title={walletAddress}>
-                            {walletAddress.substring(0, 6)}...{walletAddress.substring(walletAddress.length - 4)}
+                            {walletAddress.substring(0, 6)}…{walletAddress.substring(walletAddress.length - 4)}
                           </span>
                           <div className="bbdrts-dropdown-addr-actions">
                             <button
@@ -530,8 +616,9 @@ export default function Header({
                                 navigator.clipboard.writeText(walletAddress);
                                 setCopiedAddr(true);
                                 setTimeout(() => setCopiedAddr(false), 2000);
+                                showSuccess('Wallet address copied to clipboard.');
                               }}
-                              title={copiedAddr ? 'Copied to Clipboard!' : 'Copy Wallet Address'}
+                              title={copiedAddr ? 'Copied!' : 'Copy Wallet Address'}
                             >
                               <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>
                                 {copiedAddr ? 'check' : 'content_copy'}
@@ -553,8 +640,8 @@ export default function Header({
                     ) : (
                       <div className="bbdrts-dropdown-wallet-box disconnected">
                         <div className="bbdrts-dropdown-wallet-status">
-                          <span className="bbdrts-wallet-warn-dot" />
-                          <span className="bbdrts-dropdown-net-name" style={{ color: 'var(--warning)' }}>Wallet Disconnected</span>
+                          <span className="bbdrts-status-dot" style={{ background: 'var(--warning)' }} />
+                          <span className="bbdrts-dropdown-net-name" style={{ color: 'var(--text-secondary)' }}>Wallet Not Linked</span>
                         </div>
                         <button
                           type="button"
@@ -564,221 +651,126 @@ export default function Header({
                             handleConnectWallet();
                           }}
                         >
-                          <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>account_balance_wallet</span>
+                          <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>account_balance_wallet</span>
                           <span>Connect MetaMask</span>
                         </button>
                       </div>
                     )}
 
-                    {/* Profile Dropdown Navigation Links */}
                     <div className="bbdrts-dropdown-links">
-                      <button
-                        type="button"
-                        className="bbdrts-dropdown-link"
-                        onClick={() => {
-                          setShowSettingsModal(true);
-                          setIsProfileOpen(false);
-                        }}
-                      >
+                      <a href="#" className="bbdrts-dropdown-link" onClick={(e) => { e.preventDefault(); setShowSettingsModal(true); setIsProfileOpen(false); }}>
                         <span className="material-symbols-outlined bbdrts-dropdown-item-icon">manage_accounts</span>
-                        <span>Account & Settings</span>
-                      </button>
+                        <span>Profile & Settings</span>
+                      </a>
 
-                      <button
-                        type="button"
-                        className="bbdrts-dropdown-link"
-                        onClick={() => {
-                          toggleTheme();
-                        }}
-                      >
-                        <span className="material-symbols-outlined bbdrts-dropdown-item-icon">
-                          {theme === 'light' ? 'dark_mode' : 'light_mode'}
-                        </span>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
-                          <span>Appearance</span>
-                          <span className="bbdrts-dropdown-theme-tag">
-                            {theme === 'light' ? 'Light' : 'Dark'}
-                          </span>
-                        </div>
-                      </button>
-
-                      <button
-                        type="button"
-                        className="bbdrts-dropdown-link"
-                        onClick={() => {
-                          setIsProfileOpen(false);
-                          setShowLeaderboardModal(true);
-                        }}
-                      >
-                        <span className="material-symbols-outlined bbdrts-dropdown-item-icon">leaderboard</span>
-                        <span>Top Donors & Partners</span>
-                      </button>
-
-                      {roleLabel === 'ORGANIZATION' && (
-                        <button
-                          type="button"
+                      {(roleLabel === 'NGO' || roleLabel === 'ORGANIZATION') && (
+                        <a
+                          href="#"
                           className="bbdrts-dropdown-link"
-                          onClick={() => {
+                          onClick={(e) => {
+                            e.preventDefault();
                             setIsProfileOpen(false);
                             if (onOpenNgoProfile) onOpenNgoProfile(3);
                           }}
                         >
                           <span className="material-symbols-outlined bbdrts-dropdown-item-icon">corporate_fare</span>
-                          <span>My NGO Organization Profile</span>
-                        </button>
+                          <span>Organization Profile</span>
+                        </a>
                       )}
 
-                      {roleLabel === 'DONOR' && (
-                        <>
-                          <button
-                            type="button"
-                            className="bbdrts-dropdown-link"
-                            onClick={() => {
-                              setIsProfileOpen(false);
-                              window.dispatchEvent(new CustomEvent('bbdrts_navigate_contributions'));
-                            }}
-                          >
-                            <span className="material-symbols-outlined bbdrts-dropdown-item-icon">receipt_long</span>
-                            <span>My Contributions</span>
-                          </button>
-                          <button
-                            type="button"
-                            className="bbdrts-dropdown-link"
-                            onClick={() => {
-                              setIsProfileOpen(false);
-                              handleCampaignsClick('ALL');
-                            }}
-                          >
-                            <span className="material-symbols-outlined bbdrts-dropdown-item-icon">volunteer_activism</span>
-                            <span>Explore Relief Causes</span>
-                          </button>
-                        </>
-                      )}
-
-                      <a
-                        href={`https://sepolia.etherscan.io/address/${contractAddress}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="bbdrts-dropdown-link"
-                      >
+                      <a href="https://sepolia.etherscan.io" target="_blank" rel="noopener noreferrer" className="bbdrts-dropdown-link">
                         <span className="material-symbols-outlined bbdrts-dropdown-item-icon">receipt_long</span>
-                        <span>Sepolia Contract Ledger ↗</span>
+                        <span>Sepolia Etherscan ↗</span>
                       </a>
 
                       <div className="bbdrts-dropdown-divider" />
 
-                      <button
-                        type="button"
-                        className="bbdrts-dropdown-link logout"
-                        onClick={() => {
-                          handleLogout();
-                          setIsProfileOpen(false);
-                        }}
-                      >
+                      <a href="#" className="bbdrts-dropdown-link logout" onClick={(e) => { e.preventDefault(); handleLogout(); setIsProfileOpen(false); }}>
                         <span className="material-symbols-outlined bbdrts-dropdown-item-icon">logout</span>
-                        <span>Sign Out</span>
-                      </button>
+                        <span>Log Out</span>
+                      </a>
                     </div>
                   </div>
                 )}
               </div>
-            ) : showAuth ? (
-              /* Back to Home when AuthView is active */
-              <button
-                type="button"
-                className="bbdrts-secondary-btn"
-                onClick={() => setShowAuth(false)}
-                title="Return to Landing Page"
-              >
-                <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>arrow_back</span>
-                <span>Back to Home</span>
-              </button>
             ) : (
-              /* Dual Log In & Sign Up Auth Group */
               <div className="bbdrts-auth-btn-group">
                 <button
                   type="button"
-                  className="bbdrts-ghost-btn"
+                  className={`bbdrts-ghost-btn ${showAuth && authMode === 'login' ? 'active' : ''}`}
                   onClick={() => {
                     if (setAuthMode) setAuthMode('login');
                     setShowAuth(true);
                   }}
-                  title="Sign In to Your Account"
+                  title="Log in to your account"
                 >
                   <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>login</span>
                   <span>Log In</span>
                 </button>
-
                 <button
                   type="button"
-                  className="bbdrts-primary-btn"
+                  className={`bbdrts-primary-btn ${showAuth && authMode === 'register' ? 'active' : ''}`}
                   onClick={() => {
                     if (setAuthMode) setAuthMode('register');
                     setShowAuth(true);
                   }}
-                  title="Create a Free Account"
+                  title="Create a new account"
                 >
                   <span>Sign Up</span>
                 </button>
               </div>
             )}
 
-            {/* 8. Mobile Drawer Hamburger Button */}
+            {/* Mobile Hamburger */}
             <button
               type="button"
               className="bbdrts-mobile-toggle"
               onClick={() => setMobileMenuOpen(prev => !prev)}
-              aria-label="Toggle navigation drawer"
+              aria-label="Toggle Navigation Drawer"
             >
-              <span className="material-symbols-outlined">{mobileMenuOpen ? 'close' : 'menu'}</span>
+              <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>{mobileMenuOpen ? 'close' : 'menu'}</span>
             </button>
-
           </div>
 
         </div>
 
-        {/* ── Mobile Navigation Drawer ── */}
+        {/* Mobile Navigation Drawer */}
         {mobileMenuOpen && (
           <div className="bbdrts-mobile-drawer open">
             {!dbUser ? (
               <>
                 <button type="button" className="bbdrts-mobile-nav-link" onClick={handleHomeClick}>
                   <span className="material-symbols-outlined">home</span>
-                  <span>Overview</span>
+                  <span>Home</span>
                 </button>
-
                 <button type="button" className="bbdrts-mobile-nav-link" onClick={handleRadarClick}>
                   <span className="material-symbols-outlined">radar</span>
                   <span>Relief Radar</span>
-                  <span className="bbdrts-mobile-live-tag">LIVE</span>
+                  <span className="bbdrts-nav-live-dot" style={{ marginLeft: 'auto' }} />
                 </button>
 
                 <div className="bbdrts-mobile-nav-group">
-                  <div className="bbdrts-mobile-group-title">Relief Drives</div>
+                  <div className="bbdrts-mobile-group-title">Campaigns</div>
                   <button type="button" className="bbdrts-mobile-nav-link" onClick={() => handleCampaignsClick('ALL')}>
-                    <span className="material-symbols-outlined">view_carousel</span>
-                    <span>All Relief Causes</span>
+                    <span className="material-symbols-outlined">grid_view</span>
+                    <span>All Active Operations</span>
                   </button>
                   <button type="button" className="bbdrts-mobile-nav-link sub" onClick={() => handleCampaignsClick('TYPHOON')}>
-                    <span className="material-symbols-outlined">cyclone</span>
                     <span>Typhoon Response</span>
                   </button>
                   <button type="button" className="bbdrts-mobile-nav-link sub" onClick={() => handleCampaignsClick('FLOOD')}>
-                    <span className="material-symbols-outlined">flood</span>
                     <span>Flood & Inundation</span>
                   </button>
                   <button type="button" className="bbdrts-mobile-nav-link sub" onClick={() => handleCampaignsClick('FOOD')}>
-                    <span className="material-symbols-outlined">water_drop</span>
-                    <span>Food & Water</span>
+                    <span>Food & Clean Water</span>
                   </button>
                   <button type="button" className="bbdrts-mobile-nav-link sub" onClick={() => handleCampaignsClick('MEDICAL')}>
-                    <span className="material-symbols-outlined">medical_services</span>
-                    <span>Medical Aid</span>
+                    <span>Medical & First Aid</span>
                   </button>
                 </div>
 
                 <div className="bbdrts-mobile-nav-group">
-                  <div className="bbdrts-mobile-group-title">Protocol & Auditing</div>
+                  <div className="bbdrts-mobile-group-title">Transparency</div>
                   <button
                     type="button"
                     className="bbdrts-mobile-nav-link"
@@ -804,20 +796,16 @@ export default function Header({
                     <span className="material-symbols-outlined">schema</span>
                     <span>How Escrow Works</span>
                   </button>
-                  <button type="button" className="bbdrts-mobile-nav-link" onClick={handlePaymentRailsClick}>
-                    <span className="material-symbols-outlined">payments</span>
-                    <span>Payment Methods</span>
-                  </button>
-                  <button type="button" className="bbdrts-mobile-nav-link" onClick={handleFaqClick}>
-                    <span className="material-symbols-outlined">quiz</span>
-                    <span>Frequently Asked Questions</span>
+                  <button type="button" className="bbdrts-mobile-nav-link" onClick={handleTransparencyClick}>
+                    <span className="material-symbols-outlined">verified_user</span>
+                    <span>0% Intermediary Guarantee</span>
                   </button>
                 </div>
               </>
             ) : (
               <>
                 <div className="bbdrts-mobile-nav-group">
-                  <div className="bbdrts-mobile-group-title">Workspace Navigation</div>
+                  <div className="bbdrts-mobile-group-title">Workspace</div>
                   <button type="button" className="bbdrts-mobile-nav-link" onClick={handleHomeClick}>
                     <span className="material-symbols-outlined">dashboard</span>
                     <span>Dashboard Overview</span>
@@ -828,12 +816,12 @@ export default function Header({
                   </button>
                   <button type="button" className="bbdrts-mobile-nav-link" onClick={() => handleCampaignsClick('ALL')}>
                     <span className="material-symbols-outlined">volunteer_activism</span>
-                    <span>Relief Causes</span>
+                    <span>Relief Campaigns</span>
                   </button>
                 </div>
 
                 <div className="bbdrts-mobile-nav-group">
-                  <div className="bbdrts-mobile-group-title">Account & Security</div>
+                  <div className="bbdrts-mobile-group-title">Account</div>
                   <button
                     type="button"
                     className="bbdrts-mobile-nav-link"
@@ -853,7 +841,7 @@ export default function Header({
                       setShowSmartContractModal(true);
                     }}
                   >
-                    <span className="material-symbols-outlined">verified</span>
+                    <span className="material-symbols-outlined">code_blocks</span>
                     <span>Smart Contract Audit</span>
                   </button>
                   <button
@@ -863,9 +851,10 @@ export default function Header({
                       setMobileMenuOpen(false);
                       handleLogout();
                     }}
+                    style={{ color: 'var(--danger)' }}
                   >
-                    <span className="material-symbols-outlined">logout</span>
-                    <span>Sign Out</span>
+                    <span className="material-symbols-outlined" style={{ color: 'var(--danger)' }}>logout</span>
+                    <span>Log Out</span>
                   </button>
                 </div>
               </>
@@ -879,12 +868,12 @@ export default function Header({
                 setShowLeaderboardModal(true);
               }}
             >
-              <span className="material-symbols-outlined">leaderboard</span>
-              <span>Top Donors & Partners</span>
+              <span className="material-symbols-outlined">emoji_events</span>
+              <span>Top Donors & Relief Partners</span>
             </button>
 
             {!dbUser && (
-              <div className="bbdrts-mobile-auth-dock">
+              <div className="bbdrts-mobile-auth-dock" style={{ display: 'flex', gap: '8px', marginTop: '12px', paddingTop: '12px', borderTop: '1px solid var(--border)' }}>
                 <button
                   type="button"
                   className="btn btn-outline btn-sm"
@@ -916,7 +905,6 @@ export default function Header({
         )}
       </header>
 
-      {/* Philanthropy & Relief Impact Leaderboard Modal */}
       <LeaderboardModal
         isOpen={showLeaderboardModal}
         onClose={() => setShowLeaderboardModal(false)}
@@ -926,14 +914,12 @@ export default function Header({
         onOpenNgoProfile={onOpenNgoProfile}
       />
 
-      {/* Smart Contract Verification Modal */}
       <SmartContractModal
         isOpen={showSmartContractModal}
         onClose={() => setShowSmartContractModal(false)}
         theme={theme}
       />
 
-      {/* Real-Time Live Donation Tracker Modal */}
       <LiveTrackerModal
         isOpen={showLiveTrackerModal}
         onClose={() => setShowLiveTrackerModal(false)}

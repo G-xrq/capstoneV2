@@ -1,0 +1,736 @@
+/* ============================================================
+   BBDRTS Legal Framework, Terms of Service & Privacy Policy Modal
+   Strict Vercel UI Design System (Geist Design)
+   ============================================================ */
+
+.vercel-legal-backdrop {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000000080 !important;
+  padding: 16px;
+  animation: vercelLegalFadeIn 0.18s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes vercelLegalFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.vercel-legal-modal {
+  background: #000000;
+  border: 1px solid #262626;
+  border-radius: 12px;
+  box-shadow: 0 32px 80px rgba(0, 0, 0, 0.95), 0 0 0 1px rgba(255, 255, 255, 0.05);
+  max-width: 960px;
+  width: 95vw;
+  height: 88vh;
+  max-height: 840px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  color: #ededed;
+  font-family: var(--font-sans, 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  animation: vercelLegalScaleIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes vercelLegalScaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.98) translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* ── Topbar (Geist Header) ── */
+.vercel-legal-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  background: #000000;
+  border-bottom: 1px solid #1f1f1f;
+  flex-shrink: 0;
+  gap: 12px;
+}
+
+.vercel-legal-topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.vercel-legal-logo-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #ededed;
+}
+
+.vercel-legal-sep {
+  color: #52525b;
+  font-size: 0.85rem;
+}
+
+.vercel-legal-current-title {
+  color: #a1a1aa;
+  font-size: 0.82rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.vercel-legal-jurisdiction-pill {
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: #a1a1aa;
+  background: #111111;
+  border: 1px solid #27272a;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.vercel-legal-topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.vercel-legal-print-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  background: #111111;
+  border: 1px solid #27272a;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: #a1a1aa;
+  cursor: pointer;
+  transition: all 0.14s ease;
+}
+
+.vercel-legal-print-btn:hover {
+  background: #1a1a1a;
+  border-color: #3f3f46;
+  color: #ededed;
+}
+
+.vercel-legal-esc-kbd {
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 3px 6px;
+  border-radius: 4px;
+  background: #111111;
+  border: 1px solid #27272a;
+  color: #71717a;
+  user-select: none;
+}
+
+.vercel-legal-close-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  background: transparent;
+  border: 1px solid transparent;
+  color: #888888;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.14s ease;
+}
+
+.vercel-legal-close-btn:hover {
+  background: #18181b;
+  border-color: #27272a;
+  color: #ffffff;
+}
+
+/* ── Subbar: Tabs & Search ── */
+.vercel-legal-subbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+  background: #050505;
+  border-bottom: 1px solid #1f1f1f;
+  flex-shrink: 0;
+  gap: 16px;
+  overflow-x: auto;
+}
+
+.vercel-legal-tabs-list {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.vercel-legal-tab-item {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 14px;
+  background: transparent;
+  border: none;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: #71717a;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color 0.14s ease;
+}
+
+.vercel-legal-tab-item:hover {
+  color: #d4d4d8;
+}
+
+.vercel-legal-tab-item.is-active {
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.vercel-legal-tab-indicator {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: #10b981;
+}
+
+.vercel-legal-search-box {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #0e0e0e;
+  border: 1px solid #27272a;
+  border-radius: 6px;
+  padding: 4px 10px;
+  width: 260px;
+  max-width: 100%;
+}
+
+.vercel-legal-search-input {
+  background: transparent;
+  border: none;
+  color: #ededed;
+  font-size: 0.78rem;
+  width: 100%;
+  outline: none;
+}
+
+.vercel-legal-search-input::placeholder {
+  color: #52525b;
+}
+
+.vercel-legal-search-clear {
+  background: transparent;
+  border: none;
+  color: #71717a;
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+}
+
+/* ── Legal Body Content ── */
+.vercel-legal-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  background: #000000;
+  padding: 24px 28px 40px 28px;
+}
+
+.vercel-legal-body::-webkit-scrollbar {
+  width: 6px;
+}
+
+.vercel-legal-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.vercel-legal-body::-webkit-scrollbar-thumb {
+  background: #27272a;
+  border-radius: 3px;
+}
+
+.vercel-legal-body::-webkit-scrollbar-thumb:hover {
+  background: #3f3f46;
+}
+
+.vercel-legal-content-wrapper {
+  max-width: 820px;
+  margin: 0 auto;
+}
+
+/* Document Meta Banner */
+.vercel-legal-meta-banner {
+  padding-bottom: 24px;
+  border-bottom: 1px solid #1f1f1f;
+  margin-bottom: 28px;
+}
+
+.vercel-legal-meta-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: #10b981;
+  margin-bottom: 8px;
+}
+
+.vercel-legal-doc-title {
+  font-size: 1.6rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: #ffffff;
+  margin: 0 0 8px 0;
+  line-height: 1.25;
+}
+
+.vercel-legal-doc-summary {
+  font-size: 0.88rem;
+  line-height: 1.5;
+  color: #a1a1aa;
+  margin: 0 0 14px 0;
+}
+
+.vercel-legal-meta-stats {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 0.76rem;
+  color: #71717a;
+}
+
+.vercel-legal-meta-stats strong {
+  color: #d4d4d8;
+  font-weight: 500;
+}
+
+.vercel-legal-dot {
+  color: #3f3f46;
+}
+
+/* ── Prose Typography ── */
+.vercel-legal-prose {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+.vercel-legal-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.vercel-legal-section h3 {
+  font-size: 1.05rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: #fafafa;
+  margin: 0;
+}
+
+.vercel-legal-section p {
+  font-size: 0.85rem;
+  line-height: 1.6;
+  color: #a1a1aa;
+  margin: 0;
+}
+
+.vercel-legal-section strong {
+  color: #ededed;
+  font-weight: 600;
+}
+
+.vercel-legal-bullet-list {
+  margin: 4px 0 0 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.vercel-legal-bullet-list li {
+  font-size: 0.84rem;
+  line-height: 1.55;
+  color: #a1a1aa;
+}
+
+/* ── Custom Component Blocks ── */
+.vercel-legal-grid-2 {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin-top: 6px;
+}
+
+@media (max-width: 640px) {
+  .vercel-legal-grid-2 {
+    grid-template-columns: 1fr;
+  }
+}
+
+.vercel-legal-callout {
+  background: #09090b;
+  border: 1px solid #1f1f23;
+  border-radius: 8px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.vercel-callout-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.vercel-callout-header h4 {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #ffffff;
+  margin: 0;
+}
+
+.vercel-legal-callout p {
+  font-size: 0.8rem;
+  line-height: 1.5;
+  color: #a1a1aa;
+  margin: 0;
+}
+
+.vercel-legal-info-box {
+  background: rgba(245, 158, 11, 0.08);
+  border: 1px solid rgba(245, 158, 11, 0.25);
+  border-radius: 8px;
+  padding: 12px 14px;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: #fbbf24;
+}
+
+.vercel-legal-statute-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #09090b;
+  border: 1px solid #1f1f23;
+  border-radius: 8px;
+  padding: 14px 16px;
+}
+
+.vercel-legal-statute-header h3 {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #ffffff;
+  margin: 0 0 2px 0;
+}
+
+.vercel-legal-statute-header span {
+  font-size: 0.78rem;
+  color: #a1a1aa;
+}
+
+/* Data Table Wrap */
+.vercel-legal-data-table-wrap {
+  overflow-x: auto;
+  border: 1px solid #1f1f23;
+  border-radius: 8px;
+  background: #050505;
+  margin-top: 6px;
+}
+
+.vercel-legal-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 0.8rem;
+}
+
+.vercel-legal-table th {
+  background: #0e0e11;
+  color: #d4d4d8;
+  font-weight: 600;
+  padding: 10px 14px;
+  border-bottom: 1px solid #1f1f23;
+  white-space: nowrap;
+}
+
+.vercel-legal-table td {
+  padding: 10px 14px;
+  border-bottom: 1px solid #18181b;
+  color: #a1a1aa;
+  vertical-align: top;
+  line-height: 1.45;
+}
+
+.vercel-legal-table tr:last-child td {
+  border-bottom: none;
+}
+
+/* Rights Grid */
+.vercel-legal-rights-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin-top: 6px;
+}
+
+@media (max-width: 640px) {
+  .vercel-legal-rights-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.vercel-legal-right-card {
+  background: #09090b;
+  border: 1px solid #1f1f23;
+  border-radius: 8px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.vercel-legal-right-card strong {
+  font-size: 0.82rem;
+  color: #10b981;
+}
+
+.vercel-legal-right-card p {
+  font-size: 0.78rem;
+  color: #a1a1aa;
+  margin: 0;
+  line-height: 1.4;
+}
+
+/* Pillars List */
+.vercel-legal-pillars-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.vercel-legal-pillar-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  background: #09090b;
+  border: 1px solid #1f1f23;
+  border-radius: 8px;
+  padding: 12px 14px;
+}
+
+.vercel-pillar-num {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #10b981;
+  background: rgba(16, 185, 129, 0.1);
+  border: 1px solid rgba(16, 185, 129, 0.2);
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.vercel-pillar-body {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.vercel-pillar-body strong {
+  font-size: 0.84rem;
+  color: #ffffff;
+}
+
+.vercel-pillar-body p {
+  font-size: 0.78rem;
+  color: #a1a1aa;
+  margin: 0;
+  line-height: 1.45;
+}
+
+/* Contact Card */
+.vercel-legal-contact-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  background: #09090b;
+  border: 1px solid #1f1f23;
+  border-radius: 8px;
+  padding: 14px;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: #a1a1aa;
+  margin-top: 6px;
+}
+
+.vercel-legal-link {
+  color: #10b981;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.vercel-legal-link:hover {
+  color: #34d399;
+}
+
+/* ── Modal Footer ── */
+.vercel-legal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 20px;
+  background: #000000;
+  border-top: 1px solid #1f1f1f;
+  flex-shrink: 0;
+  gap: 12px;
+}
+
+.vercel-legal-footer-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.78rem;
+  color: #71717a;
+}
+
+.vercel-legal-footer-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.vercel-legal-btn-secondary {
+  padding: 7px 14px;
+  background: #111111;
+  border: 1px solid #27272a;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: #ededed;
+  cursor: pointer;
+  transition: all 0.14s ease;
+}
+
+.vercel-legal-btn-secondary:hover {
+  background: #1a1a1a;
+  border-color: #3f3f46;
+}
+
+.vercel-legal-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 16px;
+  background: #ffffff;
+  border: 1px solid #ffffff;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #000000;
+  cursor: pointer;
+  transition: all 0.14s ease;
+}
+
+.vercel-legal-btn-primary:hover {
+  background: #e4e4e7;
+  border-color: #e4e4e7;
+}
+
+/* ── Light Mode Support ── */
+[data-theme="light"] .vercel-legal-modal {
+  background: #ffffff;
+  border-color: #e4e4e7;
+  color: #18181b;
+  box-shadow: 0 32px 80px rgba(0, 0, 0, 0.12);
+}
+
+[data-theme="light"] .vercel-legal-topbar,
+[data-theme="light"] .vercel-legal-footer {
+  background: #ffffff;
+  border-color: #e4e4e7;
+}
+
+[data-theme="light"] .vercel-legal-subbar {
+  background: #fbfbfb;
+  border-color: #e4e4e7;
+}
+
+[data-theme="light"] .vercel-legal-body {
+  background: #ffffff;
+}
+
+[data-theme="light"] .vercel-legal-doc-title,
+[data-theme="light"] .vercel-legal-section h3,
+[data-theme="light"] .vercel-callout-header h4,
+[data-theme="light"] .vercel-pillar-body strong {
+  color: #09090b;
+}
+
+[data-theme="light"] .vercel-legal-doc-summary,
+[data-theme="light"] .vercel-legal-section p,
+[data-theme="light"] .vercel-legal-bullet-list li,
+[data-theme="light"] .vercel-pillar-body p {
+  color: #52525b;
+}
+
+[data-theme="light"] .vercel-legal-callout,
+[data-theme="light"] .vercel-legal-right-card,
+[data-theme="light"] .vercel-legal-pillar-item,
+[data-theme="light"] .vercel-legal-contact-card,
+[data-theme="light"] .vercel-legal-statute-header {
+  background: #f9f9fb;
+  border-color: #e4e4e7;
+}
+
+[data-theme="light"] .vercel-legal-btn-primary {
+  background: #000000;
+  border-color: #000000;
+  color: #ffffff;
+}
+
+[data-theme="light"] .vercel-legal-btn-primary:hover {
+  background: #27272a;
+  border-color: #27272a;
+}

@@ -1,8 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import './EditProfileModal.css';
+import VercelIcon from './VercelIcon';
 import { useToast } from '../context/ToastContext';
 import { regions as fetchRegions, provinces as fetchProvinces, cities as fetchCities, barangays as fetchBarangays } from 'select-philippines-address';
+import { autoCropQrScreenshot, extractQrVoucherText } from '../utils/qrCropper';
+import { formatPhoneNumber } from '../utils/formatters';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
@@ -165,6 +168,23 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
   const [saveState, setSaveState] = useState('idle');
   const [isClosing, setIsClosing] = useState(false);
 
+  const [cropper, setCropper] = useState({
+    active: false,
+    mode: 'avatar', // 'avatar' | 'banner'
+    imageSrc: null,
+    zoom: 1,
+    rotation: 0,
+    panX: 0,
+    panY: 0,
+    isDragging: false,
+    dragStartX: 0,
+    dragStartY: 0,
+    imgNaturalWidth: 400,
+    imgNaturalHeight: 400
+  });
+
+  const cropperImgRef = useRef(null);
+
   const handleBannerSelect = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -271,7 +291,14 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
   });
   const [bio, setBio] = useState(currentUser?.bio || '');
   const [emergencyHotline, setEmergencyHotline] = useState(currentUser?.emergency_hotline || '');
-  const [website, setWebsite] = useState(currentUser?.website || '');
+  const [website, setWebsite] = useState(currentUser?.website || initialPrefs.website || '');
+  const [occupation, setOccupation] = useState(initialPrefs.occupation || '');
+  const [socialLink, setSocialLink] = useState(initialPrefs.socialLink || '');
+  const [preferredCauses, setPreferredCauses] = useState(initialPrefs.preferredCauses || '');
+  const [emergencyContact, setEmergencyContact] = useState(initialPrefs.emergencyContact || '');
+  const [missionStatement, setMissionStatement] = useState(initialPrefs.missionStatement || '');
+  const [focusAreas, setFocusAreas] = useState(initialPrefs.focusAreas || '');
+  const [hqLandmark, setHqLandmark] = useState(initialPrefs.hqLandmark || '');
   const [gcashName, setGcashName] = useState(currentUser?.gcash_name || initialPrefs.gcash_name || '');
   const [gcashNumber, setGcashNumber] = useState(currentUser?.gcash_number || '');
   const [gcashQrUrl, setGcashQrUrl] = useState(currentUser?.gcash_qr_url || initialPrefs.gcash_qr_url || '');
@@ -303,7 +330,141 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
   const [bankDetails, setBankDetails] = useState(currentUser?.bank_details || '');
   const [bankQrUrl, setBankQrUrl] = useState(currentUser?.bank_qr_url || initialPrefs.bank_qr_url || '');
 
-  const handleQrUpload = (file, setter, channelName) => {
+  // ── Smart QR Auto-Cropping, OCR Extraction & Saved QR Library Integration ──
+  const [isProcessingQr, setIsProcessingQr] = useState(false);
+  const [savedQrLibrary, setSavedQrLibrary] = useState([]);
+  const [showQrPicker, setShowQrPicker] = useState(null); // 'GCash' | 'Maya' | 'Bank' | null
+  const [activePaymentChannelTab, setActivePaymentChannelTab] = useState('gcash');
+  const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
+
+  // Snapshot initial form values on mount for unsaved changes detection
+  const initialFormRef = useRef({
+    displayName: initialDisplayName,
+    orgName: currentUser?.name || currentUser?.org_name || '',
+    avatarUrl: currentUser?.avatar_url || '',
+    bannerUrl: currentUser?.banner_url || initialPrefs.banner_url || '',
+    phone: currentUser?.phone || '',
+    location: currentUser?.location || '',
+    bio: currentUser?.bio || '',
+    emergencyHotline: currentUser?.emergency_hotline || '',
+    website: currentUser?.website || initialPrefs.website || '',
+    gcashName: currentUser?.gcash_name || initialPrefs.gcash_name || '',
+    gcashNumber: currentUser?.gcash_number || '',
+    gcashQrUrl: currentUser?.gcash_qr_url || initialPrefs.gcash_qr_url || '',
+    mayaName: currentUser?.maya_name || initialPrefs.maya_name || '',
+    mayaNumber: currentUser?.maya_number || '',
+    mayaQrUrl: currentUser?.maya_qr_url || initialPrefs.maya_qr_url || '',
+    bankName: initBankName,
+    bankAccountName: initBankAccountName,
+    bankAccountNumber: initBankAccountNumber,
+    bankQrUrl: currentUser?.bank_qr_url || initialPrefs.bank_qr_url || '',
+    missionStatement: initialPrefs.missionStatement || '',
+    focusAreas: initialPrefs.focusAreas || '',
+    hqLandmark: initialPrefs.hqLandmark || ''
+  });
+
+  const isFormDirty = () => {
+    const init = initialFormRef.current;
+    if (!init) return false;
+    return (
+      displayName !== init.displayName ||
+      orgName !== init.orgName ||
+      avatarUrl !== init.avatarUrl ||
+      bannerUrl !== init.bannerUrl ||
+      phone !== init.phone ||
+      location !== init.location ||
+      bio !== init.bio ||
+      emergencyHotline !== init.emergencyHotline ||
+      website !== init.website ||
+      gcashName !== init.gcashName ||
+      gcashNumber !== init.gcashNumber ||
+      gcashQrUrl !== init.gcashQrUrl ||
+      mayaName !== init.mayaName ||
+      mayaNumber !== init.mayaNumber ||
+      mayaQrUrl !== init.mayaQrUrl ||
+      bankName !== init.bankName ||
+      bankAccountName !== init.bankAccountName ||
+      bankAccountNumber !== init.bankAccountNumber ||
+      bankQrUrl !== init.bankQrUrl ||
+      missionStatement !== init.missionStatement ||
+      focusAreas !== init.focusAreas ||
+      hqLandmark !== init.hqLandmark
+    );
+  };
+
+  const handleAttemptClose = () => {
+    if (saveState === 'saving') return;
+    if (isFormDirty()) {
+      setShowDiscardConfirm(true);
+    } else {
+      handleSmoothClose();
+    }
+  };
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        e.stopPropagation();
+        if (cropper.active) {
+          setCropper(prev => ({ ...prev, active: false }));
+          return;
+        }
+        if (showQrPicker) {
+          setShowQrPicker(null);
+          return;
+        }
+        if (showDiscardConfirm) {
+          setShowDiscardConfirm(false);
+          return;
+        }
+        handleAttemptClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [
+    cropper.active, showQrPicker, showDiscardConfirm, saveState,
+    displayName, orgName, avatarUrl, bannerUrl, phone, location, bio,
+    emergencyHotline, website, gcashName, gcashNumber, gcashQrUrl,
+    mayaName, mayaNumber, mayaQrUrl, bankName, bankAccountName, bankAccountNumber, bankQrUrl
+  ]);
+
+  useEffect(() => {
+    if (isOrg) {
+      const token = localStorage.getItem('bbdrts_token') || localStorage.getItem('token');
+      fetch(`${API_URL}/api/organization/qr-codes?org_id=${currentUser?.id || 8}`, {
+        headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) }
+      })
+        .then(r => r.ok ? r.json() : [])
+        .then(data => {
+          if (Array.isArray(data)) setSavedQrLibrary(data);
+        })
+        .catch(() => {});
+    }
+  }, [isOrg, currentUser?.id]);
+
+  const handleSelectFromLibrary = (qr) => {
+    if (qr.payment_method === 'GCash') {
+      setGcashQrUrl(qr.qr_image_url);
+      if (qr.account_name) setGcashName(qr.account_name);
+      if (qr.account_number) setGcashNumber(formatPhoneNumber(qr.account_number));
+      showSuccess(`Assigned saved "${qr.custom_name}" GCash QR to profile!`, 'QR Applied');
+    } else if (qr.payment_method === 'Maya') {
+      setMayaQrUrl(qr.qr_image_url);
+      if (qr.account_name) setMayaName(qr.account_name);
+      if (qr.account_number) setMayaNumber(formatPhoneNumber(qr.account_number));
+      showSuccess(`Assigned saved "${qr.custom_name}" Maya QR to profile!`, 'QR Applied');
+    } else if (qr.payment_method === 'Bank') {
+      setBankQrUrl(qr.qr_image_url);
+      if (qr.account_name) setBankAccountName(qr.account_name);
+      if (qr.account_number) setBankAccountNumber(formatPhoneNumber(qr.account_number));
+      showSuccess(`Assigned saved "${qr.custom_name}" Bank QR to profile!`, 'QR Applied');
+    }
+    setShowQrPicker(null);
+  };
+
+  const handleQrUpload = async (file, setter, channelName) => {
     if (!file) return;
     if (!file.type.startsWith('image/')) {
       showWarning('Please select a valid image file (PNG, JPG, WEBP).', 'Invalid File');
@@ -313,12 +474,50 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
       showWarning('QR Code image exceeds 8MB. Please select a smaller photo.', 'File Too Large');
       return;
     }
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      setter(e.target.result);
-      showSuccess(`${channelName} QR Code attached successfully!`, 'QR Uploaded');
-    };
-    reader.readAsDataURL(file);
+
+    setIsProcessingQr(true);
+    showSuccess(`Analyzing ${channelName} image & auto-cropping voucher...`, 'Processing QR');
+
+    try {
+      const { croppedUrl, wasCropped } = await autoCropQrScreenshot(file);
+      setter(croppedUrl);
+
+      // Run OCR recipient detection on cropped QR voucher card
+      try {
+        const { detectedName, detectedNumber } = await extractQrVoucherText(croppedUrl);
+        if (channelName === 'GCash') {
+          if (detectedName && !gcashName) setGcashName(detectedName);
+          if (detectedNumber && !gcashNumber) setGcashNumber(formatPhoneNumber(detectedNumber));
+        } else if (channelName === 'Maya') {
+          if (detectedName && !mayaName) setMayaName(detectedName);
+          if (detectedNumber && !mayaNumber) setMayaNumber(formatPhoneNumber(detectedNumber));
+        } else if (channelName === 'Bank') {
+          if (detectedName && !bankAccountName) setBankAccountName(detectedName);
+          if (detectedNumber && !bankAccountNumber) setBankAccountNumber(formatPhoneNumber(detectedNumber));
+        }
+
+        if (wasCropped && (detectedName || detectedNumber)) {
+          showSuccess(`Clean ${channelName} voucher cropped and account details auto-extracted via OCR!`, 'Smart QR Auto-Cropped');
+        } else if (wasCropped) {
+          showSuccess(`Clean ${channelName} QR voucher extracted (mobile screenshot background cropped)!`, 'Smart QR Auto-Cropped');
+        } else {
+          showSuccess(`${channelName} QR Code attached successfully!`, 'QR Uploaded');
+        }
+      } catch (ocrErr) {
+        console.warn('OCR error:', ocrErr);
+        showSuccess(`${channelName} QR Code attached successfully!`, 'QR Uploaded');
+      }
+    } catch (cropErr) {
+      console.warn('Auto-crop error, falling back to standard reader:', cropErr);
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setter(e.target.result);
+        showSuccess(`${channelName} QR Code attached!`, 'QR Uploaded');
+      };
+      reader.readAsDataURL(file);
+    } finally {
+      setIsProcessingQr(false);
+    }
   };
   const [activeTab, setActiveTab] = useState(isOrg ? 'org_details' : 'persona');
 
@@ -383,23 +582,6 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
     setBarangayCode(code);
     setBarangayName(item ? item.brgy_name : '');
   };
-
-  const [cropper, setCropper] = useState({
-    active: false,
-    mode: 'avatar', // 'avatar' | 'banner'
-    imageSrc: null,
-    zoom: 1,
-    rotation: 0,
-    panX: 0,
-    panY: 0,
-    isDragging: false,
-    dragStartX: 0,
-    dragStartY: 0,
-    imgNaturalWidth: 400,
-    imgNaturalHeight: 400
-  });
-
-  const cropperImgRef = useRef(null);
 
   // 14-Day Cooldown Calculator for Donor Display Name
   const COOLDOWN_DAYS = 14;
@@ -735,22 +917,31 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
             municipality: cityName,
             barangay: barangayName,
             phone_verified: true,
-            banner_url: bannerUrl && !bannerUrl.startsWith('data:') ? bannerUrl : '',
+            banner_url: bannerUrl || '',
             gcash_name: gcashName,
             gcash_number: gcashNumber,
-            gcash_qr_url: gcashQrUrl && !gcashQrUrl.startsWith('data:') ? gcashQrUrl : '',
+            gcash_qr_url: gcashQrUrl || '',
             maya_name: mayaName,
             maya_number: mayaNumber,
-            maya_qr_url: mayaQrUrl && !mayaQrUrl.startsWith('data:') ? mayaQrUrl : '',
+            maya_qr_url: mayaQrUrl || '',
             bank_name: bankName,
             bank_account_name: bankAccountName,
             bank_account_number: bankAccountNumber,
             bank_details: [bankName, bankAccountName, bankAccountNumber ? `Acct: ${bankAccountNumber}` : ''].filter(Boolean).join(' • ') || bankDetails,
-            bank_qr_url: bankQrUrl && !bankQrUrl.startsWith('data:') ? bankQrUrl : '',
+            bank_qr_url: bankQrUrl || '',
             notifEmailReceipts,
             notifSmsAlerts,
             notifMilestones,
-            notifReliefProof
+            notifReliefProof,
+            website,
+            occupation,
+            socialLink,
+            preferredCauses,
+            missionStatement,
+            focusAreas,
+            hqLandmark,
+            emergencyHotline,
+            emergencyContact
           })
         }
         : {
@@ -787,7 +978,16 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
             notifEmailReceipts,
             notifSmsAlerts,
             notifMilestones,
-            notifReliefProof
+            notifReliefProof,
+            website,
+            occupation,
+            socialLink,
+            preferredCauses,
+            missionStatement,
+            focusAreas,
+            hqLandmark,
+            emergencyHotline,
+            emergencyContact
           })
         };
 
@@ -861,14 +1061,14 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
 
   // Render via createPortal directly into document.body to ensure perfect center alignment
   return createPortal(
-    <div className={`bbdrts-edit-profile-backdrop ${isClosing ? 'closing' : ''}`} onClick={handleSmoothClose} data-theme={theme}>
+    <div className={`bbdrts-edit-profile-backdrop ${isClosing ? 'closing' : ''}`} onClick={handleAttemptClose} data-theme={theme}>
       <div className="bbdrts-profile-studio-modal" onClick={e => e.stopPropagation()}>
 
-        {/* ── Studio Top Header ── */}
+        {/* ── Studio Top Header (Vercel Style) ── */}
         <div className="bbdrts-studio-header">
           <div className="bbdrts-studio-header-title">
             <div className="bbdrts-studio-header-icon-box">
-              <span className="material-symbols-outlined">
+              <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>
                 {isOrg ? 'domain' : 'account_circle'}
               </span>
             </div>
@@ -877,9 +1077,12 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
               <span>{isOrg ? 'Manage verified non-profit credentials and emergency response channels' : 'Manage your public persona, verified credentials, and regional settings'}</span>
             </div>
           </div>
-          <button type="button" className="bbdrts-studio-close-btn" onClick={handleSmoothClose} aria-label="Close">
-            <span className="material-symbols-outlined">close</span>
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span className="bbdrts-studio-kbd" title="Press ESC to close">ESC</span>
+            <button type="button" className="bbdrts-studio-close-btn" onClick={handleAttemptClose} aria-label="Close">
+              <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>close</span>
+            </button>
+          </div>
         </div>
 
         {/* ── Studio 2-Column Layout ── */}
@@ -907,6 +1110,14 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
                   >
                     <span className="material-symbols-outlined">call</span>
                     <span>Contact & Region</span>
+                  </button>
+                  <button
+                    type="button"
+                    className={`bbdrts-studio-nav-item ${activeTab === 'additional' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('additional')}
+                  >
+                    <span className="material-symbols-outlined">badge</span>
+                    <span>Additional Info</span>
                   </button>
                   <button
                     type="button"
@@ -958,6 +1169,14 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
                   >
                     <span className="material-symbols-outlined">support_agent</span>
                     <span>Hotlines & Region</span>
+                  </button>
+                  <button
+                    type="button"
+                    className={`bbdrts-studio-nav-item ${activeTab === 'org_additional' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('org_additional')}
+                  >
+                    <span className="material-symbols-outlined">info</span>
+                    <span>Additional Info</span>
                   </button>
                   <button
                     type="button"
@@ -1070,7 +1289,7 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
                             <h4>{displayName}</h4>
                             <span className="bbdrts-studio-role-pill">
                               <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>verified</span>
-                              Verified Relief Donor
+                              Verified Donor
                             </span>
                           </div>
                           <p className="bbdrts-studio-avatar-sub">PNG, JPG, or WEBP up to 15MB • 1:1 square ratio recommended</p>
@@ -1102,8 +1321,10 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
                                 type="button"
                                 className="bbdrts-studio-btn-sm danger"
                                 onClick={handleRemovePhoto}
+                                title="Remove current photo"
                               >
-                                Reset
+                                <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>delete</span>
+                                <span>Remove</span>
                               </button>
                             )}
                           </div>
@@ -1112,7 +1333,7 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
 
                       {/* Preset Badges Selector */}
                       <div className="bbdrts-studio-preset-bar">
-                        <span className="bbdrts-studio-preset-title">Or choose a supporter badge:</span>
+                        <span className="bbdrts-studio-preset-title">Or select a supporter avatar badge:</span>
                         <div className="bbdrts-studio-preset-grid">
                           {DONOR_AVATAR_PRESETS.map((p) => (
                             <button
@@ -1243,11 +1464,11 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
                           <input
                             type="tel"
                             className="bbdrts-studio-input with-prefix"
-                            value={phone.replace(/^\+63\s*/, '')}
+                            value={phone ? phone.replace(/^\+63\s*/, '').replace(/^0+/, '') : ''}
                             onChange={e => {
-                              const raw = e.target.value;
-                              const formatted = raw.startsWith('+63') ? raw : `+63 ${raw.replace(/^[0\s]+/, '')}`;
-                              setPhone(formatted);
+                              const raw = e.target.value.replace(/[^0-9]/g, '');
+                              const cleaned = raw.replace(/^0+/, '');
+                              setPhone(cleaned ? `+63 ${cleaned}` : '');
                             }}
                             placeholder="912 345 6789"
                           />
@@ -1394,6 +1615,119 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
                 {/* ══════════════════════════════════════════════════
                   DONOR: VERIFIED IDENTITY TAB
                  ══════════════════════════════════════════════════ */}
+                {!isOrg && !isAdmin && activeTab === 'additional' && (
+                  <div className="bbdrts-studio-pane fade-in">
+                    <div className="bbdrts-studio-card">
+                      <div className="bbdrts-studio-card-header">
+                        <div className="bbdrts-studio-card-title-wrap">
+                          <div className="bbdrts-studio-card-icon-box">
+                            <span className="material-symbols-outlined">badge</span>
+                          </div>
+                          <div>
+                            <h5>Additional Background & Humanitarian Profile (Optional)</h5>
+                            <span>Share optional details to help communities and NGOs better recognize your humanitarian contributions.</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="bbdrts-studio-field-box">
+                        <label className="bbdrts-studio-label">
+                          Occupation / Profession
+                          <span className="bbdrts-opt-tag" style={{ marginLeft: '6px', fontSize: '0.68rem', opacity: 0.65 }}>(Optional)</span>
+                        </label>
+                        <div className="bbdrts-input-icon-wrap">
+                          <span className="material-symbols-outlined bbdrts-input-icon">work</span>
+                          <input
+                            type="text"
+                            className="bbdrts-studio-input"
+                            value={occupation}
+                            onChange={e => setOccupation(e.target.value)}
+                            placeholder="e.g. Software Engineer, Healthcare Worker, Educator"
+                            maxLength={80}
+                          />
+                        </div>
+                        <span className="bbdrts-status-hint">Optional profession for contributor background.</span>
+                      </div>
+
+                      <div className="bbdrts-studio-field-box">
+                        <label className="bbdrts-studio-label">
+                          Personal Website or Portfolio
+                          <span className="bbdrts-opt-tag" style={{ marginLeft: '6px', fontSize: '0.68rem', opacity: 0.65 }}>(Optional)</span>
+                        </label>
+                        <div className="bbdrts-input-icon-wrap">
+                          <span className="material-symbols-outlined bbdrts-input-icon">language</span>
+                          <input
+                            type="url"
+                            className="bbdrts-studio-input"
+                            value={website}
+                            onChange={e => setWebsite(e.target.value)}
+                            placeholder="https://yourwebsite.com"
+                            maxLength={160}
+                          />
+                        </div>
+                        <span className="bbdrts-status-hint">Link to your personal homepage, portfolio, or foundation page.</span>
+                      </div>
+
+                      <div className="bbdrts-studio-field-box">
+                        <label className="bbdrts-studio-label">
+                          Social Media Profile / Handle
+                          <span className="bbdrts-opt-tag" style={{ marginLeft: '6px', fontSize: '0.68rem', opacity: 0.65 }}>(Optional)</span>
+                        </label>
+                        <div className="bbdrts-input-icon-wrap">
+                          <span className="material-symbols-outlined bbdrts-input-icon">alternate_email</span>
+                          <input
+                            type="text"
+                            className="bbdrts-studio-input"
+                            value={socialLink}
+                            onChange={e => setSocialLink(e.target.value)}
+                            placeholder="@yourusername or https://linkedin.com/in/..."
+                            maxLength={120}
+                          />
+                        </div>
+                        <span className="bbdrts-status-hint">LinkedIn, X (Twitter), Facebook, or Instagram profile.</span>
+                      </div>
+
+                      <div className="bbdrts-studio-field-box">
+                        <label className="bbdrts-studio-label">
+                          Preferred Relief Causes
+                          <span className="bbdrts-opt-tag" style={{ marginLeft: '6px', fontSize: '0.68rem', opacity: 0.65 }}>(Optional)</span>
+                        </label>
+                        <div className="bbdrts-input-icon-wrap">
+                          <span className="material-symbols-outlined bbdrts-input-icon">favorite</span>
+                          <input
+                            type="text"
+                            className="bbdrts-studio-input"
+                            value={preferredCauses}
+                            onChange={e => setPreferredCauses(e.target.value)}
+                            placeholder="e.g. Typhoon Relief, Flood Evacuation, Medical Aid"
+                            maxLength={120}
+                          />
+                        </div>
+                        <span className="bbdrts-status-hint">Relief sectors you are passionate about supporting.</span>
+                      </div>
+
+                      <div className="bbdrts-studio-field-box">
+                        <label className="bbdrts-studio-label">
+                          Emergency Contact / Alternate Contact
+                          <span className="bbdrts-opt-tag" style={{ marginLeft: '6px', fontSize: '0.68rem', opacity: 0.65 }}>(Optional)</span>
+                        </label>
+                        <div className="bbdrts-input-icon-wrap">
+                          <span className="material-symbols-outlined bbdrts-input-icon">emergency</span>
+                          <input
+                            type="text"
+                            className="bbdrts-studio-input"
+                            value={emergencyContact}
+                            onChange={e => setEmergencyContact(e.target.value)}
+                            placeholder="Name & Contact (e.g. Maria Santos - 0917 123 4567)"
+                            maxLength={100}
+                          />
+                        </div>
+                        <span className="bbdrts-status-hint">Designated backup emergency contact during disaster coordination.</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {!isOrg && !isAdmin && activeTab === 'verified' && (
                   <div className="bbdrts-studio-pane fade-in">
 
@@ -1708,13 +2042,12 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
                 {isOrg && activeTab === 'org_details' && (
                   <div className="bbdrts-studio-pane fade-in">
 
-                    {/* ── Unified Organization Profile & Half-Banner Card (50/50 Split) ── */}
+                    {/* ── Unified Organization Profile & Banner Card (Vercel Style) ── */}
                     <div className="bbdrts-ngo-header-card">
-                      {/* Top Half: Cover Banner (Clickable Canvas with Center Hover Popup) */}
+                      {/* Top Half: Cover Banner */}
                       <div
                         className="bbdrts-ngo-banner-cover"
                         onClick={() => bannerInputRef.current?.click()}
-                        title="Click anywhere to upload a new cover banner"
                       >
                         {/* High-Performance Dedicated Background Image Layer */}
                         <div
@@ -1724,27 +2057,27 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
                               ? { backgroundImage: `url(${bannerUrl})` }
                               : bannerUrl && bannerUrl.startsWith('linear-gradient')
                                 ? { background: bannerUrl }
-                                : { background: 'linear-gradient(135deg, #064e3b 0%, #0f172a 100%)' }
+                                : { background: 'linear-gradient(135deg, #111111 0%, #1a1a1a 100%)' }
                           }
                         />
 
-                        {/* Full-Coverage Dark Shroud (Zero Gaps, Complete 100% Uniform Darkening) */}
-                        <div className="bbdrts-ngo-banner-shroud" />
-
-                        {/* Center Hover Action Badge */}
-                        <div className="bbdrts-ngo-banner-center-hover">
-                          <div className="bbdrts-banner-hover-pill">
-                            <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>photo_camera</span>
-                            <span>Click to Change Cover Banner</span>
-                          </div>
-                        </div>
-
-                        {/* Corner Action Buttons on Hover */}
-                        {bannerUrl && (
-                          <div className="bbdrts-banner-corner-actions">
+                        {/* Top-Right Sleek Floating Banner Controls */}
+                        <div className="bbdrts-banner-controls-bar">
+                          <button
+                            type="button"
+                            className="bbdrts-banner-action-btn"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              bannerInputRef.current?.click();
+                            }}
+                          >
+                            <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>photo_camera</span>
+                            <span>{bannerUrl ? 'Change Banner' : 'Upload Banner'}</span>
+                          </button>
+                          {bannerUrl && (
                             <button
                               type="button"
-                              className="bbdrts-banner-corner-btn danger"
+                              className="bbdrts-banner-action-btn danger"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setBannerUrl('');
@@ -1754,75 +2087,80 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
                               <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>delete</span>
                               <span>Remove</span>
                             </button>
-                          </div>
-                        )}
+                          )}
+                        </div>
                       </div>
 
-                      {/* Bottom Half: Profile Lower Space with 50% Overlapping Avatar & Org Name Beside */}
+                      {/* Bottom Half: Profile Lower Space with Clean Avatar & Organization Info */}
                       <div className="bbdrts-ngo-profile-lower">
                         <div className="bbdrts-ngo-identity-row">
-                          {/* 50% Overlapping Logo Avatar Circle */}
+                          {/* Clean Overlapping Logo Avatar Circle */}
                           <div className="bbdrts-ngo-avatar-overlap-wrap">
                             <div
                               className="bbdrts-ngo-avatar-circle"
                               onClick={() => fileInputRef.current?.click()}
                               title="Click to change organization logo"
                             >
-                              {/* Inner Container with 100% Boundary Clipping to Prevent Un-Darkened Rim */}
                               <div className="bbdrts-ngo-avatar-inner">
                                 {avatarUrl && (avatarUrl.startsWith('data:') || avatarUrl.startsWith('http')) ? (
                                   <img src={avatarUrl} alt="Logo" className="bbdrts-ngo-avatar-img" />
                                 ) : avatarUrl && avatarUrl.length < 30 ? (
-                                  <span className="material-symbols-outlined" style={{ fontSize: '46px', color: 'var(--accent, #22c55e)' }}>{avatarUrl}</span>
+                                  <span className="material-symbols-outlined" style={{ fontSize: '38px', color: '#10b981' }}>{avatarUrl}</span>
                                 ) : (
                                   userInitials
                                 )}
 
-                                {/* Hover Darkening Shroud with "Change" Callout */}
+                                {/* Subtle Vercel Hover Overlay (Camera Icon Only) */}
                                 <div className="bbdrts-ngo-avatar-hover-shroud">
-                                  <span className="material-symbols-outlined" style={{ fontSize: '24px' }}>photo_camera</span>
-                                  <span>Change</span>
+                                  <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>photo_camera</span>
                                 </div>
                               </div>
-
-                              {/* Integrated Bottom-Right Camera Badge */}
-                              <div
-                                className="bbdrts-avatar-action-badge upload"
-                                title="Upload new organization logo"
-                              >
-                                <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>photo_camera</span>
-                              </div>
-
-                              {/* Integrated Top-Left Remove Badge (shown when custom logo exists) */}
-                              {avatarUrl && (
-                                <button
-                                  type="button"
-                                  className="bbdrts-avatar-action-badge remove"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleRemovePhoto();
-                                  }}
-                                  title="Remove organization logo"
-                                >
-                                  <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>close</span>
-                                </button>
-                              )}
                             </div>
                           </div>
 
-                          {/* Organization Name & Verified Badge (Directly Beside Avatar) */}
+                          {/* Organization Name, Badges & Action Buttons (Side by Side) */}
                           <div className="bbdrts-ngo-meta-section">
                             <div className="bbdrts-ngo-name-row">
                               <h4>{orgName || 'Organization Profile'}</h4>
-                              <span
-                                className="bbdrts-verified-badge-icon"
-                                title={`SEC Verified NGO • Verified ${verifiedDateStr}`}
-                                aria-label={`SEC Verified NGO • Verified ${verifiedDateStr}`}
-                              >
-                                <span className="material-symbols-outlined">verified</span>
-                              </span>
+                              {(currentUser?.verification_status === 'Approved' || currentUser?.Verification_Status === 'Approved') && (
+                                <span
+                                  className="bbdrts-verified-badge-icon"
+                                  title={`SEC Verified NGO • Verified ${verifiedDateStr}`}
+                                  aria-label={`SEC Verified NGO • Verified ${verifiedDateStr}`}
+                                >
+                                  <VercelIcon name="verified" size={15} color="#10b981" />
+                                </span>
+                              )}
                             </div>
-                            <p className="bbdrts-ngo-subtext">Verified Non-Profit Humanitarian Organization • Verified {verifiedDateStr}</p>
+                            <p className="bbdrts-ngo-subtext">
+                              {(currentUser?.verification_status === 'Approved' || currentUser?.Verification_Status === 'Approved')
+                                ? `SEC & DSWD Accredited NGO • Accredited ${verifiedDateStr}`
+                                : (currentUser?.verification_status === 'Pending' || currentUser?.Verification_Status === 'Pending')
+                                  ? `Accreditation Pending Review • Submitted ${verifiedDateStr}`
+                                  : 'Registered Humanitarian Entity'}
+                            </p>
+
+                            {/* Clean Vercel Action Row for Avatar */}
+                            <div className="bbdrts-avatar-controls-row">
+                              <button
+                                type="button"
+                                className="bbdrts-avatar-action-btn"
+                                onClick={() => fileInputRef.current?.click()}
+                              >
+                                <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>upload</span>
+                                <span>{avatarUrl ? 'Change Logo' : 'Upload Logo'}</span>
+                              </button>
+                              {avatarUrl && (
+                                <button
+                                  type="button"
+                                  className="bbdrts-avatar-action-btn danger"
+                                  onClick={handleRemovePhoto}
+                                >
+                                  <span>Remove</span>
+                                </button>
+                              )}
+                              <span className="bbdrts-avatar-hint">Square PNG/JPG, recommended 400×400px</span>
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -2056,348 +2394,686 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
                   </div>
                 )}
 
-                {isOrg && activeTab === 'org_payments' && (
+                {isOrg && activeTab === 'org_additional' && (
                   <div className="bbdrts-studio-pane fade-in">
-                    <div className="bbdrts-studio-banner-notice">
-                      <span className="material-symbols-outlined" style={{ color: '#38bdf8' }}>account_balance_wallet</span>
-                      <div>
-                        <strong>Payment Accounts for Relief Operations</strong>
-                        <span>Set up your verified GCash, Maya, and Bank accounts to receive donations for emergency disaster relief.</span>
-                      </div>
-                    </div>
-
-                    {/* 1. Official GCash Channel */}
                     <div className="bbdrts-studio-card">
                       <div className="bbdrts-studio-card-header">
                         <div className="bbdrts-studio-card-title-wrap">
-                          <div className="bbdrts-studio-card-icon-box" style={{ background: 'rgba(0, 125, 254, 0.12)', borderColor: 'rgba(0, 125, 254, 0.3)', color: '#007dfe' }}>
-                            <span className="material-symbols-outlined" style={{ color: '#007dfe' }}>smartphone</span>
+                          <div className="bbdrts-studio-card-icon-box">
+                            <span className="material-symbols-outlined">info</span>
                           </div>
                           <div>
-                            <h5>Official GCash Humanitarian Channel</h5>
-                            <span>Mobile receiving number and verified account holder name</span>
+                            <h5>Institutional Background & Operational Profile (Optional)</h5>
+                            <span>Optional organizational information visible to donors, relief partners, and humanitarian audits.</span>
                           </div>
                         </div>
-                        {gcashQrUrl && (
-                          <span className="bbdrts-verified-badge-inline" style={{ color: '#007dfe', borderColor: 'rgba(0, 125, 254, 0.3)', background: 'rgba(0, 125, 254, 0.1)' }}>
-                            <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>qr_code_scanner</span>
-                            QR Ph Ready
-                          </span>
-                        )}
                       </div>
 
-                      <div className="bbdrts-studio-grid-2">
-                        <div className="bbdrts-studio-field-box">
-                          <label className="bbdrts-studio-label">Official GCash Account Name</label>
+                      <div className="bbdrts-studio-field-box">
+                        <label className="bbdrts-studio-label">
+                          Official NGO Website
+                          <span className="bbdrts-opt-tag" style={{ marginLeft: '6px', fontSize: '0.68rem', opacity: 0.65 }}>(Optional)</span>
+                        </label>
+                        <div className="bbdrts-input-icon-wrap">
+                          <span className="material-symbols-outlined bbdrts-input-icon">language</span>
+                          <input
+                            type="url"
+                            className="bbdrts-studio-input"
+                            value={website}
+                            onChange={e => setWebsite(e.target.value)}
+                            placeholder="https://www.redcross.org.ph"
+                            maxLength={160}
+                          />
+                        </div>
+                        <span className="bbdrts-status-hint">Official humanitarian website or operations portal.</span>
+                      </div>
+
+                      <div className="bbdrts-studio-field-box">
+                        <label className="bbdrts-studio-label">
+                          Official Social Media Page / Channel
+                          <span className="bbdrts-opt-tag" style={{ marginLeft: '6px', fontSize: '0.68rem', opacity: 0.65 }}>(Optional)</span>
+                        </label>
+                        <div className="bbdrts-input-icon-wrap">
+                          <span className="material-symbols-outlined bbdrts-input-icon">share</span>
                           <input
                             type="text"
                             className="bbdrts-studio-input"
-                            value={gcashName}
-                            onChange={e => setGcashName(e.target.value)}
-                            placeholder="e.g. Philippine Red Cross - Southern Leyte"
+                            value={socialLink}
+                            onChange={e => setSocialLink(e.target.value)}
+                            placeholder="https://facebook.com/your-ngo or @officialhandle"
+                            maxLength={140}
                           />
-                          <span className="bbdrts-field-hint">
-                            Must match the registered account name on your recipient GCash account.
-                          </span>
                         </div>
-
-                        <div className="bbdrts-studio-field-box">
-                          <label className="bbdrts-studio-label">Official GCash Relief Number</label>
-                          <div className="bbdrts-input-icon-wrap">
-                            <span className="material-symbols-outlined bbdrts-input-icon" style={{ color: '#007dfe' }}>call</span>
-                            <input
-                              type="text"
-                              className="bbdrts-studio-input"
-                              value={gcashNumber}
-                              onChange={e => setGcashNumber(e.target.value)}
-                              placeholder="0917-XXX-XXXX"
-                            />
-                          </div>
-                          <span className="bbdrts-field-hint">
-                            Donors can copy and transfer emergency funds directly to this GCash mobile number.
-                          </span>
-                        </div>
+                        <span className="bbdrts-status-hint">Verified organization Facebook, X (Twitter), or YouTube page.</span>
                       </div>
 
-                      {/* Compact QR Upload Strip */}
-                      <div style={{ marginTop: '12px', paddingTop: '10px', borderTop: '1px dashed var(--border, rgba(255,255,255,0.08))', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                          {gcashQrUrl ? (
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                              <img src={gcashQrUrl} alt="GCash QR" style={{ width: '40px', height: '40px', borderRadius: '8px', objectFit: 'contain', border: '1px solid #007dfe', background: '#fff' }} />
-                              <div>
-                                <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#007dfe', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                  <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>verified</span> GCash QR Ph Ready
-                                </div>
-                                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted, #94a3b8)' }}>Official QR code image attached</span>
-                              </div>
-                            </div>
-                          ) : (
-                            <div style={{ fontSize: '0.76rem', color: 'var(--text-muted, #94a3b8)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                              <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#007dfe' }}>qr_code_scanner</span>
-                              <span>Optional: Attach official GCash QR Ph image</span>
-                            </div>
-                          )}
-                        </div>
-
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <button
-                            type="button"
-                            onClick={() => gcashFileInputRef.current?.click()}
-                            style={{ padding: '6px 12px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 600, background: 'rgba(0, 125, 254, 0.12)', border: '1px solid rgba(0, 125, 254, 0.3)', color: '#007dfe', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
-                          >
-                            <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>upload</span>
-                            {gcashQrUrl ? 'Change QR' : 'Upload GCash QR'}
-                          </button>
-                          {gcashQrUrl && (
-                            <button
-                              type="button"
-                              onClick={() => setGcashQrUrl('')}
-                              style={{ padding: '6px 10px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 600, background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.25)', color: '#ef4444', cursor: 'pointer' }}
-                            >
-                              Remove
-                            </button>
-                          )}
-                        </div>
-                        <input
-                          type="file"
-                          ref={gcashFileInputRef}
-                          accept="image/*"
-                          onChange={e => handleQrUpload(e.target.files?.[0], setGcashQrUrl, 'GCash')}
-                          style={{ display: 'none' }}
+                      <div className="bbdrts-studio-field-box">
+                        <label className="bbdrts-studio-label">
+                          Mission Statement & Core Mandate
+                          <span className="bbdrts-opt-tag" style={{ marginLeft: '6px', fontSize: '0.68rem', opacity: 0.65 }}>(Optional)</span>
+                        </label>
+                        <textarea
+                          className="bbdrts-studio-textarea"
+                          value={missionStatement}
+                          onChange={e => setMissionStatement(e.target.value)}
+                          placeholder="Provide a brief summary of your organization's humanitarian mandate, community goals, and disaster response mission..."
+                          rows={3}
+                          maxLength={350}
                         />
+                        <span className="bbdrts-status-hint">Displayed on public NGO audit profile and campaign headers.</span>
+                      </div>
+
+                      <div className="bbdrts-studio-field-box">
+                        <label className="bbdrts-studio-label">
+                          Primary Disaster Response Focus Areas
+                          <span className="bbdrts-opt-tag" style={{ marginLeft: '6px', fontSize: '0.68rem', opacity: 0.65 }}>(Optional)</span>
+                        </label>
+                        <div className="bbdrts-input-icon-wrap">
+                          <span className="material-symbols-outlined bbdrts-input-icon">travel_explore</span>
+                          <input
+                            type="text"
+                            className="bbdrts-studio-input"
+                            value={focusAreas}
+                            onChange={e => setFocusAreas(e.target.value)}
+                            placeholder="e.g. Typhoon Emergency Relief, Medical First Response, Water & Sanitation"
+                            maxLength={160}
+                          />
+                        </div>
+                        <span className="bbdrts-status-hint">Key sectors of expertise and deployment capability.</span>
+                      </div>
+
+                      <div className="bbdrts-studio-field-box">
+                        <label className="bbdrts-studio-label">
+                          Headquarters Landmark / Campus Directions
+                          <span className="bbdrts-opt-tag" style={{ marginLeft: '6px', fontSize: '0.68rem', opacity: 0.65 }}>(Optional)</span>
+                        </label>
+                        <div className="bbdrts-input-icon-wrap">
+                          <span className="material-symbols-outlined bbdrts-input-icon">apartment</span>
+                          <input
+                            type="text"
+                            className="bbdrts-studio-input"
+                            value={hqLandmark}
+                            onChange={e => setHqLandmark(e.target.value)}
+                            placeholder="e.g. Near Provincial Capitol, Beside City Hall Complex"
+                            maxLength={120}
+                          />
+                        </div>
+                        <span className="bbdrts-status-hint">Physical landmarks to assist in-person aid deliveries and logistics dispatch.</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {isOrg && activeTab === 'org_payments' && (
+                  <div className="bbdrts-studio-pane fade-in">
+                    <div className="bbdrts-studio-banner-notice">
+                      <VercelIcon name="account_balance_wallet" size={18} color="#38bdf8" />
+                      <div>
+                        <strong>Official Donation Receiving Channels &amp; QR Codes</strong>
+                        <span>Configure receiving channels for donors contributing via GCash, Maya, or direct Bank Transfer. Synchronizes with campaign deployment.</span>
                       </div>
                     </div>
 
-                    {/* 2. Official Maya Channel */}
-                    <div className="bbdrts-studio-card" style={{ marginTop: '14px' }}>
-                      <div className="bbdrts-studio-card-header">
-                        <div className="bbdrts-studio-card-title-wrap">
-                          <div className="bbdrts-studio-card-icon-box" style={{ background: 'rgba(0, 214, 143, 0.12)', borderColor: 'rgba(0, 214, 143, 0.3)', color: '#00d68f' }}>
-                            <span className="material-symbols-outlined" style={{ color: '#00d68f' }}>credit_card</span>
-                          </div>
-                          <div>
-                            <h5>Official Maya Relief Channel</h5>
-                            <span>Merchant / personal receiving number and registered account name</span>
-                          </div>
-                        </div>
-                        {mayaQrUrl && (
-                          <span className="bbdrts-verified-badge-inline" style={{ color: '#00d68f', borderColor: 'rgba(0, 214, 143, 0.3)', background: 'rgba(0, 214, 143, 0.1)' }}>
-                            <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>qr_code_scanner</span>
-                            QR Ph Ready
-                          </span>
-                        )}
-                      </div>
-
-                      <div className="bbdrts-studio-grid-2">
-                        <div className="bbdrts-studio-field-box">
-                          <label className="bbdrts-studio-label">Official Maya Account Name</label>
-                          <input
-                            type="text"
-                            className="bbdrts-studio-input"
-                            value={mayaName}
-                            onChange={e => setMayaName(e.target.value)}
-                            placeholder="e.g. Philippine Red Cross or Official Merchant Name"
-                          />
-                          <span className="bbdrts-field-hint">
-                            Registered account or merchant name displayed inside Maya.
-                          </span>
-                        </div>
-
-                        <div className="bbdrts-studio-field-box">
-                          <label className="bbdrts-studio-label">Official Maya Relief Number</label>
-                          <div className="bbdrts-input-icon-wrap">
-                            <span className="material-symbols-outlined bbdrts-input-icon" style={{ color: '#00d68f' }}>call</span>
-                            <input
-                              type="text"
-                              className="bbdrts-studio-input"
-                              value={mayaNumber}
-                              onChange={e => setMayaNumber(e.target.value)}
-                              placeholder="0918-XXX-XXXX"
-                            />
-                          </div>
-                          <span className="bbdrts-field-hint">
-                            Donors can send relief funds via Maya mobile or merchant account ID.
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Compact QR Upload Strip */}
-                      <div style={{ marginTop: '12px', paddingTop: '10px', borderTop: '1px dashed var(--border, rgba(255,255,255,0.08))', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                          {mayaQrUrl ? (
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                              <img src={mayaQrUrl} alt="Maya QR" style={{ width: '40px', height: '40px', borderRadius: '8px', objectFit: 'contain', border: '1px solid #00d68f', background: '#000' }} />
-                              <div>
-                                <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#00d68f', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                  <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>verified</span> Maya QR Ph Ready
-                                </div>
-                                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted, #94a3b8)' }}>Official QR code image attached</span>
-                              </div>
-                            </div>
-                          ) : (
-                            <div style={{ fontSize: '0.76rem', color: 'var(--text-muted, #94a3b8)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                              <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#00d68f' }}>qr_code_scanner</span>
-                              <span>Optional: Attach official Maya QR Ph image</span>
-                            </div>
-                          )}
-                        </div>
-
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <button
-                            type="button"
-                            onClick={() => mayaFileInputRef.current?.click()}
-                            style={{ padding: '6px 12px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 600, background: 'rgba(0, 214, 143, 0.12)', border: '1px solid rgba(0, 214, 143, 0.3)', color: '#00d68f', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
-                          >
-                            <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>upload</span>
-                            {mayaQrUrl ? 'Change QR' : 'Upload Maya QR'}
-                          </button>
-                          {mayaQrUrl && (
-                            <button
-                              type="button"
-                              onClick={() => setMayaQrUrl('')}
-                              style={{ padding: '6px 10px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 600, background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.25)', color: '#ef4444', cursor: 'pointer' }}
-                            >
-                              Remove
-                            </button>
-                          )}
-                        </div>
-                        <input
-                          type="file"
-                          ref={mayaFileInputRef}
-                          accept="image/*"
-                          onChange={e => handleQrUpload(e.target.files?.[0], setMayaQrUrl, 'Maya')}
-                          style={{ display: 'none' }}
-                        />
-                      </div>
-                    </div>
-
-                    {/* 3. Official Commercial Bank Account */}
-                    <div className="bbdrts-studio-card" style={{ marginTop: '14px' }}>
-                      <div className="bbdrts-studio-card-header">
-                        <div className="bbdrts-studio-card-title-wrap">
-                          <div className="bbdrts-studio-card-icon-box" style={{ background: 'rgba(245, 158, 11, 0.12)', borderColor: 'rgba(245, 158, 11, 0.3)', color: '#f59e0b' }}>
-                            <span className="material-symbols-outlined" style={{ color: '#f59e0b' }}>assured_workload</span>
-                          </div>
-                          <div>
-                            <h5>Official Commercial Bank Account</h5>
-                            <span>Structured banking credentials for direct electronic bank deposits (InstaPay / PESONet)</span>
-                          </div>
-                        </div>
-                        {bankQrUrl && (
-                          <span className="bbdrts-verified-badge-inline" style={{ color: '#f59e0b', borderColor: 'rgba(245, 158, 11, 0.3)', background: 'rgba(245, 158, 11, 0.1)' }}>
-                            <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>qr_code_scanner</span>
-                            Bank QR Attached
-                          </span>
-                        )}
-                      </div>
-
-                      <div className="bbdrts-studio-grid-2">
-                        <div className="bbdrts-studio-field-box">
-                          <label className="bbdrts-studio-label">Bank / Financial Institution</label>
-                          <input
-                            type="text"
-                            className="bbdrts-studio-input"
-                            value={bankName}
-                            onChange={e => {
-                              const bName = e.target.value;
-                              setBankName(bName);
-                              setBankDetails([bName, bankAccountName, bankAccountNumber ? `Acct: ${bankAccountNumber}` : ''].filter(Boolean).join(' • '));
-                            }}
-                            placeholder="e.g. Land Bank of the Philippines (LBP) / BDO"
-                          />
-                          <span className="bbdrts-field-hint">
-                            Official commercial or universal bank institution.
-                          </span>
-                        </div>
-
-                        <div className="bbdrts-studio-field-box">
-                          <label className="bbdrts-studio-label">Bank Account Number</label>
-                          <input
-                            type="text"
-                            className="bbdrts-studio-input font-mono"
-                            value={bankAccountNumber}
-                            onChange={e => {
-                              const bNum = e.target.value;
-                              setBankAccountNumber(bNum);
-                              setBankDetails([bankName, bankAccountName, bNum ? `Acct: ${bNum}` : ''].filter(Boolean).join(' • '));
-                            }}
-                            placeholder="e.g. 0142-8891-23"
-                          />
-                          <span className="bbdrts-field-hint">
-                            Designated relief savings or current checking account number.
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="bbdrts-studio-field-box" style={{ marginTop: '12px' }}>
-                        <label className="bbdrts-studio-label">Bank Account Holder Name</label>
-                        <input
-                          type="text"
-                          className="bbdrts-studio-input"
-                          value={bankAccountName}
-                          onChange={e => {
-                            const bAcctName = e.target.value;
-                            setBankAccountName(bAcctName);
-                            setBankDetails([bankName, bAcctName, bankAccountNumber ? `Acct: ${bankAccountNumber}` : ''].filter(Boolean).join(' • '));
+                    {/* Payment Channel Switcher Toolbar matching Step 5 */}
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: '12px',
+                      flexWrap: 'wrap'
+                    }}>
+                      <div style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        background: 'rgba(255, 255, 255, 0.05)',
+                        padding: '4px',
+                        borderRadius: '10px',
+                        border: '1px solid #262626',
+                        gap: '4px'
+                      }}>
+                        <button
+                          type="button"
+                          onClick={() => setActivePaymentChannelTab('gcash')}
+                          style={{
+                            padding: '6px 16px',
+                            borderRadius: '6px',
+                            border: 'none',
+                            background: activePaymentChannelTab === 'gcash' ? '#007DFE' : 'transparent',
+                            color: activePaymentChannelTab === 'gcash' ? '#ffffff' : '#888888',
+                            fontSize: '0.82rem',
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            transition: 'all 0.12s ease'
                           }}
-                          placeholder="e.g. Philippine Red Cross - Southern Leyte Chapter"
-                        />
-                        <span className="bbdrts-field-hint">
-                          Exact corporate or institutional account holder name registered with the bank.
-                        </span>
-                      </div>
+                        >
+                          <span style={{
+                            width: '8px',
+                            height: '8px',
+                            borderRadius: '50%',
+                            background: (gcashNumber || gcashQrUrl || gcashName) ? (activePaymentChannelTab === 'gcash' ? '#ffffff' : '#22c55e') : 'rgba(255,255,255,0.3)'
+                          }} />
+                          <span>GCash</span>
+                          {(gcashNumber || gcashQrUrl || gcashName) && <VercelIcon name="check" size={12} color={activePaymentChannelTab === 'gcash' ? '#ffffff' : '#22c55e'} />}
+                        </button>
 
-                      {/* Compact QR Upload Strip */}
-                      <div style={{ marginTop: '12px', paddingTop: '10px', borderTop: '1px dashed var(--border, rgba(255,255,255,0.08))', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '10px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                          {bankQrUrl ? (
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                              <img src={bankQrUrl} alt="Bank QR" style={{ width: '40px', height: '40px', borderRadius: '8px', objectFit: 'contain', border: '1px solid #f59e0b', background: '#fff' }} />
-                              <div>
-                                <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#f59e0b', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                  <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>verified</span> Bank QR Attached
-                                </div>
-                                <span style={{ fontSize: '0.7rem', color: 'var(--text-muted, #94a3b8)' }}>InstaPay / PESONet QR code attached</span>
-                              </div>
-                            </div>
-                          ) : (
-                            <div style={{ fontSize: '0.76rem', color: 'var(--text-muted, #94a3b8)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                              <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#f59e0b' }}>qr_code_scanner</span>
-                              <span>Optional: Attach Bank Transfer / InstaPay QR code image</span>
-                            </div>
-                          )}
-                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setActivePaymentChannelTab('maya')}
+                          style={{
+                            padding: '6px 16px',
+                            borderRadius: '6px',
+                            border: 'none',
+                            background: activePaymentChannelTab === 'maya' ? '#00b87c' : 'transparent',
+                            color: activePaymentChannelTab === 'maya' ? '#ffffff' : '#888888',
+                            fontSize: '0.82rem',
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            transition: 'all 0.12s ease'
+                          }}
+                        >
+                          <span style={{
+                            width: '8px',
+                            height: '8px',
+                            borderRadius: '50%',
+                            background: (mayaNumber || mayaQrUrl || mayaName) ? (activePaymentChannelTab === 'maya' ? '#ffffff' : '#22c55e') : 'rgba(255,255,255,0.3)'
+                          }} />
+                          <span>Maya</span>
+                          {(mayaNumber || mayaQrUrl || mayaName) && <VercelIcon name="check" size={12} color={activePaymentChannelTab === 'maya' ? '#ffffff' : '#22c55e'} />}
+                        </button>
 
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <button
-                            type="button"
-                            onClick={() => bankFileInputRef.current?.click()}
-                            style={{ padding: '6px 12px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 600, background: 'rgba(245, 158, 11, 0.12)', border: '1px solid rgba(245, 158, 11, 0.3)', color: '#f59e0b', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '5px' }}
-                          >
-                            <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>upload</span>
-                            {bankQrUrl ? 'Change QR' : 'Upload Bank QR'}
-                          </button>
-                          {bankQrUrl && (
-                            <button
-                              type="button"
-                              onClick={() => setBankQrUrl('')}
-                              style={{ padding: '6px 10px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 600, background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.25)', color: '#ef4444', cursor: 'pointer' }}
-                            >
-                              Remove
-                            </button>
-                          )}
-                        </div>
-                        <input
-                          type="file"
-                          ref={bankFileInputRef}
-                          accept="image/*"
-                          onChange={e => handleQrUpload(e.target.files?.[0], setBankQrUrl, 'Bank')}
-                          style={{ display: 'none' }}
-                        />
+                        <button
+                          type="button"
+                          onClick={() => setActivePaymentChannelTab('bank')}
+                          style={{
+                            padding: '6px 16px',
+                            borderRadius: '6px',
+                            border: 'none',
+                            background: activePaymentChannelTab === 'bank' ? '#16a34a' : 'transparent',
+                            color: activePaymentChannelTab === 'bank' ? '#ffffff' : '#888888',
+                            fontSize: '0.82rem',
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                            transition: 'all 0.12s ease'
+                          }}
+                        >
+                          <span style={{
+                            width: '8px',
+                            height: '8px',
+                            borderRadius: '50%',
+                            background: (bankAccountNumber || bankQrUrl) ? (activePaymentChannelTab === 'bank' ? '#ffffff' : '#22c55e') : 'rgba(255,255,255,0.3)'
+                          }} />
+                          <span>Direct Bank Deposit</span>
+                          {(bankAccountNumber || bankQrUrl) && <VercelIcon name="check" size={12} color={activePaymentChannelTab === 'bank' ? '#ffffff' : '#22c55e'} />}
+                        </button>
                       </div>
                     </div>
 
+                    {/* ── 1. GCASH CHANNEL ── */}
+                    {activePaymentChannelTab === 'gcash' && (
+                      <div className="bbdrts-studio-card fade-in">
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: '20px', alignItems: 'stretch' }}>
+                          {/* Left Column: Account Details */}
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                            <div className="bbdrts-studio-field-box">
+                              <label className="bbdrts-studio-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <VercelIcon name="badge" size={16} color="#007DFE" />
+                                Official GCash Account Name
+                              </label>
+                              <input
+                                type="text"
+                                className="bbdrts-studio-input"
+                                placeholder="e.g., Philippine Red Cross - Southern Leyte"
+                                value={gcashName}
+                                onChange={e => setGcashName(e.target.value)}
+                              />
+                              <span className="bbdrts-field-hint">
+                                Registered name displayed on GCash app confirmation.
+                              </span>
+                            </div>
+
+                            <div className="bbdrts-studio-field-box">
+                              <label className="bbdrts-studio-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <VercelIcon name="phone_iphone" size={16} color="#007DFE" />
+                                Official GCash Receiving Number
+                              </label>
+                              <input
+                                type="text"
+                                className="bbdrts-studio-input"
+                                placeholder="0992 982 4615"
+                                value={gcashNumber}
+                                onChange={e => setGcashNumber(formatPhoneNumber(e.target.value))}
+                                style={{ fontFamily: 'monospace', fontWeight: 600 }}
+                              />
+                              <span className="bbdrts-field-hint">
+                                Donors can copy and send funds directly to this GCash account.
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Right Column: GCash QR Code Preview / Dropzone */}
+                          <div style={{ display: 'flex', flexDirection: 'column' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                              <label className="bbdrts-studio-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', margin: 0 }}>
+                                <VercelIcon name="qr_code" size={16} color="#007DFE" />
+                                GCash QR Code Image
+                              </label>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <button
+                                  type="button"
+                                  onClick={() => setShowQrPicker('GCash')}
+                                  style={{
+                                    background: 'rgba(0, 125, 254, 0.1)',
+                                    border: '1px solid rgba(0, 125, 254, 0.3)',
+                                    color: '#007DFE',
+                                    fontSize: '0.74rem',
+                                    padding: '3px 8px',
+                                    borderRadius: '6px',
+                                    cursor: 'pointer',
+                                    fontWeight: 600,
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '4px'
+                                  }}
+                                  title="Pick from reusable QR library"
+                                >
+                                  <VercelIcon name="qr_code_2" size={13} color="#007DFE" />
+                                  <span>Select QR Code ({savedQrLibrary.filter(q => q.payment_method === 'GCash').length})</span>
+                                </button>
+                                {gcashQrUrl && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setGcashQrUrl('')}
+                                    style={{ background: 'transparent', border: 'none', color: '#ef4444', fontSize: '0.74rem', cursor: 'pointer', fontWeight: 600 }}
+                                  >
+                                    Remove
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+
+                            {gcashQrUrl ? (
+                              <div style={{
+                                flex: 1,
+                                minHeight: '140px',
+                                position: 'relative',
+                                borderRadius: '8px',
+                                overflow: 'hidden',
+                                border: '1.5px solid rgba(0, 125, 254, 0.45)',
+                                background: '#111111',
+                                padding: '12px',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                textAlign: 'center'
+                              }}>
+                                <img
+                                  src={gcashQrUrl}
+                                  alt="Organization GCash QR"
+                                  style={{ maxHeight: '110px', maxWidth: '100%', objectFit: 'contain', borderRadius: '6px' }}
+                                />
+                                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', marginTop: '6px', fontSize: '0.74rem', color: '#007DFE', fontWeight: 600 }}>
+                                  <VercelIcon name="verified" size={14} color="#007DFE" />
+                                  GCash QR Attached
+                                </div>
+                              </div>
+                            ) : (
+                              <label style={{
+                                flex: 1,
+                                minHeight: '140px',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                padding: '16px',
+                                border: '1.5px dashed rgba(0, 125, 254, 0.4)',
+                                borderRadius: '8px',
+                                cursor: 'pointer',
+                                background: 'rgba(0, 125, 254, 0.03)',
+                                transition: 'all 0.15s ease',
+                                textAlign: 'center'
+                              }}>
+                                <VercelIcon name="qr_code_scanner" size={32} color="#007DFE" style={{ marginBottom: '6px' }} />
+                                <span style={{ fontSize: '0.82rem', fontWeight: 600, color: '#ededed' }}>
+                                  Upload GCash QR
+                                </span>
+                                <span style={{ fontSize: '0.72rem', color: '#888888', marginTop: '2px' }}>
+                                  PNG, JPG or WebP image • Auto-crop &amp; OCR enabled
+                                </span>
+                                <input
+                                  type="file"
+                                  ref={gcashFileInputRef}
+                                  accept="image/*"
+                                  onChange={e => handleQrUpload(e.target.files?.[0], setGcashQrUrl, 'GCash')}
+                                  style={{ display: 'none' }}
+                                />
+                              </label>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* ── 2. MAYA CHANNEL ── */}
+                    {activePaymentChannelTab === 'maya' && (
+                      <div className="bbdrts-studio-card fade-in">
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: '20px', alignItems: 'stretch' }}>
+                          {/* Left Column: Account Details */}
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                            <div className="bbdrts-studio-field-box">
+                              <label className="bbdrts-studio-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <VercelIcon name="badge" size={16} color="#00b87c" />
+                                Official Maya Account Name
+                              </label>
+                              <input
+                                type="text"
+                                className="bbdrts-studio-input"
+                                placeholder="e.g., Philippine Red Cross or Official Merchant Name"
+                                value={mayaName}
+                                onChange={e => setMayaName(e.target.value)}
+                              />
+                              <span className="bbdrts-field-hint">
+                                Registered account or merchant name displayed inside Maya.
+                              </span>
+                            </div>
+
+                            <div className="bbdrts-studio-field-box">
+                              <label className="bbdrts-studio-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <VercelIcon name="phone_iphone" size={16} color="#00b87c" />
+                                Official Maya Relief Number
+                              </label>
+                              <input
+                                type="text"
+                                className="bbdrts-studio-input"
+                                placeholder="0918 765 1430"
+                                value={mayaNumber}
+                                onChange={e => setMayaNumber(formatPhoneNumber(e.target.value))}
+                                style={{ fontFamily: 'monospace', fontWeight: 600 }}
+                              />
+                              <span className="bbdrts-field-hint">
+                                Donors can send relief funds via Maya mobile or merchant account ID.
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Right Column: Maya QR Code Preview / Dropzone */}
+                          <div style={{ display: 'flex', flexDirection: 'column' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                              <label className="bbdrts-studio-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', margin: 0 }}>
+                                <VercelIcon name="qr_code" size={16} color="#00b87c" />
+                                Maya QR Code Image
+                              </label>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <button
+                                  type="button"
+                                  onClick={() => setShowQrPicker('Maya')}
+                                  style={{
+                                    background: 'rgba(0, 184, 124, 0.1)',
+                                    border: '1px solid rgba(0, 184, 124, 0.3)',
+                                    color: '#00b87c',
+                                    fontSize: '0.74rem',
+                                    padding: '3px 8px',
+                                    borderRadius: '6px',
+                                    cursor: 'pointer',
+                                    fontWeight: 600,
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '4px'
+                                  }}
+                                  title="Pick from reusable QR library"
+                                >
+                                  <VercelIcon name="qr_code_2" size={13} color="#00b87c" />
+                                  <span>Select QR Code ({savedQrLibrary.filter(q => q.payment_method === 'Maya').length})</span>
+                                </button>
+                                {mayaQrUrl && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setMayaQrUrl('')}
+                                    style={{ background: 'transparent', border: 'none', color: '#ef4444', fontSize: '0.74rem', cursor: 'pointer', fontWeight: 600 }}
+                                  >
+                                    Remove
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+
+                            {mayaQrUrl ? (
+                              <div style={{
+                                flex: 1,
+                                minHeight: '140px',
+                                position: 'relative',
+                                borderRadius: '8px',
+                                overflow: 'hidden',
+                                border: '1.5px solid rgba(0, 184, 124, 0.45)',
+                                background: '#111111',
+                                padding: '12px',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                textAlign: 'center'
+                              }}>
+                                <img
+                                  src={mayaQrUrl}
+                                  alt="Organization Maya QR"
+                                  style={{ maxHeight: '110px', maxWidth: '100%', objectFit: 'contain', borderRadius: '6px' }}
+                                />
+                                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', marginTop: '6px', fontSize: '0.74rem', color: '#00b87c', fontWeight: 600 }}>
+                                  <VercelIcon name="verified" size={14} color="#00b87c" />
+                                  Maya QR Attached
+                                </div>
+                              </div>
+                            ) : (
+                              <label style={{
+                                flex: 1,
+                                minHeight: '140px',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                padding: '16px',
+                                border: '1.5px dashed rgba(0, 184, 124, 0.4)',
+                                borderRadius: '8px',
+                                cursor: 'pointer',
+                                background: 'rgba(0, 184, 124, 0.03)',
+                                transition: 'all 0.15s ease',
+                                textAlign: 'center'
+                              }}>
+                                <VercelIcon name="qr_code_scanner" size={32} color="#00b87c" style={{ marginBottom: '6px' }} />
+                                <span style={{ fontSize: '0.82rem', fontWeight: 600, color: '#ededed' }}>
+                                  Upload Maya QR
+                                </span>
+                                <span style={{ fontSize: '0.72rem', color: '#888888', marginTop: '2px' }}>
+                                  PNG, JPG or WebP image • Auto-crop &amp; OCR enabled
+                                </span>
+                                <input
+                                  type="file"
+                                  ref={mayaFileInputRef}
+                                  accept="image/*"
+                                  onChange={e => handleQrUpload(e.target.files?.[0], setMayaQrUrl, 'Maya')}
+                                  style={{ display: 'none' }}
+                                />
+                              </label>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* ── 3. DIRECT BANK DEPOSIT CHANNEL ── */}
+                    {activePaymentChannelTab === 'bank' && (
+                      <div className="bbdrts-studio-card fade-in">
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: '20px', alignItems: 'stretch' }}>
+                          {/* Left Column: Bank Account Details */}
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                            <div className="bbdrts-studio-field-box">
+                              <label className="bbdrts-studio-label">Bank / Financial Institution</label>
+                              <input
+                                type="text"
+                                className="bbdrts-studio-input"
+                                value={bankName}
+                                onChange={e => {
+                                  const bName = e.target.value;
+                                  setBankName(bName);
+                                  setBankDetails([bName, bankAccountName, bankAccountNumber ? `Acct: ${bankAccountNumber}` : ''].filter(Boolean).join(' • '));
+                                }}
+                                placeholder="e.g. Land Bank of the Philippines (LBP) / BDO"
+                              />
+                              <span className="bbdrts-field-hint">
+                                Official commercial or universal bank institution.
+                              </span>
+                            </div>
+
+                            <div className="bbdrts-studio-field-box">
+                              <label className="bbdrts-studio-label">Bank Account Number</label>
+                              <input
+                                type="text"
+                                className="bbdrts-studio-input font-mono"
+                                value={bankAccountNumber}
+                                onChange={e => {
+                                  const bNum = e.target.value;
+                                  setBankAccountNumber(bNum);
+                                  setBankDetails([bankName, bankAccountName, bNum ? `Acct: ${bNum}` : ''].filter(Boolean).join(' • '));
+                                }}
+                                placeholder="e.g. 0142-8891-23"
+                                style={{ fontFamily: 'monospace', fontWeight: 600 }}
+                              />
+                              <span className="bbdrts-field-hint">
+                                Designated relief savings or current checking account number.
+                              </span>
+                            </div>
+
+                            <div className="bbdrts-studio-field-box">
+                              <label className="bbdrts-studio-label">Bank Account Holder Name</label>
+                              <input
+                                type="text"
+                                className="bbdrts-studio-input"
+                                value={bankAccountName}
+                                onChange={e => {
+                                  const bAcctName = e.target.value;
+                                  setBankAccountName(bAcctName);
+                                  setBankDetails([bankName, bAcctName, bankAccountNumber ? `Acct: ${bankAccountNumber}` : ''].filter(Boolean).join(' • '));
+                                }}
+                                placeholder="e.g. Philippine Red Cross - Southern Leyte Chapter"
+                              />
+                              <span className="bbdrts-field-hint">
+                                Exact corporate or institutional account holder name registered with the bank.
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Right Column: Bank QR Code Preview / Dropzone */}
+                          <div style={{ display: 'flex', flexDirection: 'column' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                              <label className="bbdrts-studio-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', margin: 0 }}>
+                                <VercelIcon name="qr_code" size={16} color="#16a34a" />
+                                Bank Transfer / InstaPay QR Image
+                              </label>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <button
+                                  type="button"
+                                  onClick={() => setShowQrPicker('Bank')}
+                                  style={{
+                                    background: 'rgba(22, 163, 74, 0.1)',
+                                    border: '1px solid rgba(22, 163, 74, 0.3)',
+                                    color: '#16a34a',
+                                    fontSize: '0.74rem',
+                                    padding: '3px 8px',
+                                    borderRadius: '6px',
+                                    cursor: 'pointer',
+                                    fontWeight: 600,
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '4px'
+                                  }}
+                                  title="Pick from reusable QR library"
+                                >
+                                  <VercelIcon name="qr_code_2" size={13} color="#16a34a" />
+                                  <span>Select QR Code ({savedQrLibrary.filter(q => q.payment_method === 'Bank').length})</span>
+                                </button>
+                                {bankQrUrl && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setBankQrUrl('')}
+                                    style={{ background: 'transparent', border: 'none', color: '#ef4444', fontSize: '0.74rem', cursor: 'pointer', fontWeight: 600 }}
+                                  >
+                                    Remove
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+
+                            {bankQrUrl ? (
+                              <div style={{
+                                flex: 1,
+                                minHeight: '140px',
+                                position: 'relative',
+                                borderRadius: '8px',
+                                overflow: 'hidden',
+                                border: '1.5px solid rgba(22, 163, 74, 0.45)',
+                                background: '#111111',
+                                padding: '12px',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                textAlign: 'center'
+                              }}>
+                                <img
+                                  src={bankQrUrl}
+                                  alt="Organization Bank QR"
+                                  style={{ maxHeight: '110px', maxWidth: '100%', objectFit: 'contain', borderRadius: '6px' }}
+                                />
+                                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', marginTop: '6px', fontSize: '0.74rem', color: '#16a34a', fontWeight: 600 }}>
+                                  <VercelIcon name="verified" size={14} color="#16a34a" />
+                                  Bank QR Attached
+                                </div>
+                              </div>
+                            ) : (
+                              <label style={{
+                                flex: 1,
+                                minHeight: '140px',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                padding: '16px',
+                                border: '1.5px dashed rgba(22, 163, 74, 0.4)',
+                                borderRadius: '8px',
+                                cursor: 'pointer',
+                                background: 'rgba(22, 163, 74, 0.03)',
+                                transition: 'all 0.15s ease',
+                                textAlign: 'center'
+                              }}>
+                                <VercelIcon name="qr_code_scanner" size={32} color="#16a34a" style={{ marginBottom: '6px' }} />
+                                <span style={{ fontSize: '0.82rem', fontWeight: 600, color: '#ededed' }}>
+                                  Upload Bank QR
+                                </span>
+                                <span style={{ fontSize: '0.72rem', color: '#888888', marginTop: '2px' }}>
+                                  PNG, JPG or WebP image • InstaPay / PESONet
+                                </span>
+                                <input
+                                  type="file"
+                                  ref={bankFileInputRef}
+                                  accept="image/*"
+                                  onChange={e => handleQrUpload(e.target.files?.[0], setBankQrUrl, 'Bank')}
+                                  style={{ display: 'none' }}
+                                />
+                              </label>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -2443,40 +3119,46 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
 
               </div>
 
-              {/* ── Studio Fixed Bottom Footer ── */}
+              {/* ── Studio Fixed Bottom Footer (Vercel Style) ── */}
               <div className="bbdrts-studio-footer">
-                <button
-                  type="button"
-                  className="bbdrts-studio-btn-cancel"
-                  onClick={handleSmoothClose}
-                  disabled={saveState === 'saving' || saveState === 'success'}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className={`bbdrts-studio-btn-save ${saveState === 'success' ? 'success' : ''}`}
-                  disabled={saveState === 'saving' || saveState === 'success'}
-                >
-                  {saveState === 'saving' && (
-                    <>
-                      <div className="spinner" style={{ width: '15px', height: '15px' }} />
-                      <span>Saving Changes...</span>
-                    </>
-                  )}
-                  {saveState === 'success' && (
-                    <>
-                      <span className="material-symbols-outlined bbdrts-success-pop-icon" style={{ fontSize: '18px' }}>check_circle</span>
-                      <span>Changes Saved</span>
-                    </>
-                  )}
-                  {saveState === 'idle' && (
-                    <>
-                      <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>save</span>
-                      <span>Save Changes</span>
-                    </>
-                  )}
-                </button>
+                <div className="bbdrts-studio-footer-meta">
+                  <span className="material-symbols-outlined" style={{ fontSize: '15px', color: '#10b981' }}>verified</span>
+                  <span>Changes automatically synchronize with official registry and public ledger.</span>
+                </div>
+                <div className="bbdrts-studio-footer-actions">
+                  <button
+                    type="button"
+                    className="bbdrts-studio-btn-cancel"
+                    onClick={handleSmoothClose}
+                    disabled={saveState === 'saving' || saveState === 'success'}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className={`bbdrts-studio-btn-save ${saveState === 'success' ? 'success' : ''}`}
+                    disabled={saveState === 'saving' || saveState === 'success'}
+                  >
+                    {saveState === 'saving' && (
+                      <>
+                        <div className="spinner" style={{ width: '14px', height: '14px' }} />
+                        <span>Saving Changes...</span>
+                      </>
+                    )}
+                    {saveState === 'success' && (
+                      <>
+                        <span className="material-symbols-outlined bbdrts-success-pop-icon" style={{ fontSize: '16px' }}>check_circle</span>
+                        <span>Saved</span>
+                      </>
+                    )}
+                    {saveState === 'idle' && (
+                      <>
+                        <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>save</span>
+                        <span>Save Changes</span>
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
 
             </form>
@@ -2485,6 +3167,44 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
         </div>
 
       </div>
+
+
+      {/* ── Discard Unsaved Changes Confirmation Dialog ── */}
+      {showDiscardConfirm && (
+        <div className="bbdrts-discard-backdrop" onClick={() => setShowDiscardConfirm(false)}>
+          <div className="bbdrts-discard-card" onClick={e => e.stopPropagation()} role="alertdialog" aria-modal="true">
+            <div className="bbdrts-discard-header">
+              <div className="bbdrts-discard-icon-wrap">
+                <VercelIcon name="error" size={20} color="#ef4444" />
+              </div>
+              <div className="bbdrts-discard-titles">
+                <h4>Discard Unsaved Changes?</h4>
+                <p>You have unsaved modifications in your profile. Discarding will revert all changes and close the editor.</p>
+              </div>
+            </div>
+            <div className="bbdrts-discard-actions">
+              <button
+                type="button"
+                className="bbdrts-discard-btn-cancel"
+                onClick={() => setShowDiscardConfirm(false)}
+                autoFocus
+              >
+                Keep Editing
+              </button>
+              <button
+                type="button"
+                className="bbdrts-discard-btn-confirm"
+                onClick={() => {
+                  setShowDiscardConfirm(false);
+                  handleSmoothClose();
+                }}
+              >
+                Discard Changes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ══════════════════════════════════════════════════
           INTERACTIVE IMAGE & BANNER ADJUSTER MODAL LIGHTBOX

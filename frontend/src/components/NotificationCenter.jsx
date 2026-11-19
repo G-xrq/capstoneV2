@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useToast } from '../context/ToastContext';
+import DisbursementProofModal from './DisbursementProofModal';
 import './NotificationCenter.css';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
@@ -41,6 +42,51 @@ function renderFormattedMessage(text) {
   });
 }
 
+// Robust helper to extract campaign information from notification payloads
+function extractCampaignInfo(notif) {
+  if (!notif) return null;
+  let campaignId = null;
+  const link = String(notif.link || '');
+
+  // 1. Query parameter: e.g. /campaigns?campaign=4
+  const queryMatch = link.match(/[?&]campaign=([0-9]+)/i);
+  if (queryMatch) {
+    campaignId = Number(queryMatch[1]);
+  }
+
+  // 2. Hash / Path format: e.g. #campaign-4 or /campaigns/4
+  if (!campaignId) {
+    const hashMatch = link.match(/#campaign-?([0-9]+)/i) || link.match(/\/campaigns\/([0-9]+)/i);
+    if (hashMatch) {
+      campaignId = Number(hashMatch[1]);
+    }
+  }
+
+  // 3. Reference ID when type is campaign
+  if (!campaignId && (notif.referenceType === 'CAMPAIGN' || notif.reference_type === 'CAMPAIGN')) {
+    if (/^[0-9]+$/.test(String(notif.referenceId || '').trim())) {
+      campaignId = Number(notif.referenceId);
+    }
+  }
+
+  // 4. Clean campaign title from notification title
+  let cleanTitle = String(notif.title || '')
+    .replace(/^Relief Disbursed:\s*/i, '')
+    .replace(/^Proof of Relief:\s*/i, '')
+    .replace(/^Disbursement Milestone:\s*/i, '')
+    .replace(/^Funds Disbursed:\s*/i, '')
+    .trim();
+
+  return {
+    id: campaignId,
+    Campaign_ID: campaignId,
+    title: cleanTitle || 'Relief Campaign',
+    Campaign_Title: cleanTitle || 'Relief Campaign',
+    referenceId: notif.referenceId,
+    txHash: notif.referenceId && String(notif.referenceId).startsWith('0x') ? notif.referenceId : null
+  };
+}
+
 export default function NotificationCenter({ dbUser, theme, onSelectNotificationAction }) {
   const { showSuccess, showWarning, showInfo, showError } = useToast();
 
@@ -53,10 +99,58 @@ export default function NotificationCenter({ dbUser, theme, onSelectNotification
   const [page, setPage] = useState(1);
   const [filter, setFilter] = useState('all');
   const [selectedNotif, setSelectedNotif] = useState(null); // Active Detail Card Modal
+  const [proofModalCamp, setProofModalCamp] = useState(null); // Active relief proof modal
   const [activeMenuId, setActiveMenuId] = useState(null); // 3-dots menu per item
   const [currentTime, setCurrentTime] = useState(Date.now()); // Real-time timestamp ticker
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const panelRef = useRef(null);
+
+  // Handle opening relief proofs directly from notification
+  const handleViewProofs = async (notif) => {
+    let camp = extractCampaignInfo(notif);
+
+    // If campaign ID was not extracted directly, query /api/campaigns to resolve by title
+    if (!camp?.id) {
+      try {
+        const res = await fetch(`${API_URL}/api/campaigns`);
+        if (res.ok) {
+          const camps = await res.json();
+          const targetTitle = String(camp?.title || '').toLowerCase().trim();
+          const found = (Array.isArray(camps) ? camps : []).find(c => {
+            const ct = String(c.title || c.Campaign_Title || '').toLowerCase().trim();
+            return ct && (ct === targetTitle || ct.includes(targetTitle) || targetTitle.includes(ct));
+          });
+          if (found) {
+            camp = {
+              ...found,
+              id: found.id || found.Campaign_ID,
+              Campaign_ID: found.id || found.Campaign_ID,
+              title: found.title || found.Campaign_Title,
+              Campaign_Title: found.title || found.Campaign_Title,
+              orgName: found.orgName || found.Org_Name
+            };
+          }
+        }
+      } catch (err) {
+        console.warn('Could not resolve campaign by title:', err);
+      }
+    }
+
+    if (camp && (camp.id || camp.Campaign_ID)) {
+      setSelectedNotif(null);
+      setIsOpen(false);
+      setProofModalCamp(camp);
+      window.dispatchEvent(new CustomEvent('bbdrts_open_proof_modal', {
+        detail: { campaign: camp, campaignId: camp.id || camp.Campaign_ID, notif }
+      }));
+    } else {
+      setSelectedNotif(null);
+      setIsOpen(false);
+      if (onSelectNotificationAction) {
+        onSelectNotificationAction(notif);
+      }
+    }
+  };
 
   // Dynamic category filter chips strictly role-specific (Inbox only)
   const getFilterChips = () => {
@@ -66,7 +160,7 @@ export default function NotificationCenter({ dbUser, theme, onSelectNotification
         { id: 'all', label: 'All' },
         { id: 'unread', label: 'Unread', count: unreadCount },
         { id: 'DONATION', label: 'Donations' },
-        { id: 'MILESTONE', label: 'Milestone Proofs' },
+        { id: 'MILESTONE', label: 'Relief Proofs' },
         { id: 'SECURITY', label: 'Security' },
         { id: 'SYSTEM', label: 'System' }
       ];
@@ -77,7 +171,7 @@ export default function NotificationCenter({ dbUser, theme, onSelectNotification
         { id: 'unread', label: 'Unread', count: unreadCount },
         { id: 'DONATION', label: 'Donations' },
         { id: 'CAMPAIGN', label: 'Campaigns' },
-        { id: 'VERIFICATION', label: 'SEC Audits' },
+        { id: 'VERIFICATION', label: 'SEC Accreditation' },
         { id: 'SECURITY', label: 'Security' }
       ];
     }
@@ -85,7 +179,10 @@ export default function NotificationCenter({ dbUser, theme, onSelectNotification
     return [
       { id: 'all', label: 'All' },
       { id: 'unread', label: 'Unread', count: unreadCount },
-      { id: 'VERIFICATION', label: 'SEC Audits' },
+      { id: 'DONATION', label: 'Ledger' },
+      { id: 'CAMPAIGN', label: 'Campaigns' },
+      { id: 'VERIFICATION', label: 'KYC Approvals' },
+      { id: 'BROADCAST', label: 'Broadcasts' },
       { id: 'SECURITY', label: 'Security' },
       { id: 'SYSTEM', label: 'System' }
     ];
@@ -109,8 +206,6 @@ export default function NotificationCenter({ dbUser, theme, onSelectNotification
         setUnreadCount(unread);
         setTotalCount(total);
         setTrashCount(trash);
-        setHasMore(Boolean(data.hasMore));
-        setPage(pageNum);
 
         if (append) {
           setNotifications(prev => {
@@ -118,8 +213,22 @@ export default function NotificationCenter({ dbUser, theme, onSelectNotification
             const fresh = notifList.filter(n => !existingIds.has(n.id));
             return [...prev, ...fresh];
           });
+          setPage(pageNum);
+          setHasMore(Boolean(data.hasMore));
         } else {
-          setNotifications(notifList);
+          // If the user has already loaded older notifications (page > 1), do NOT truncate them during 3s background polling
+          setNotifications(prev => {
+            if (prev.length > 20 && pageNum === 1) {
+              const freshMap = new Map(notifList.map(n => [n.id, n]));
+              const updated = prev.map(p => freshMap.get(p.id) || p);
+              const prevIds = new Set(prev.map(p => p.id));
+              const brandNew = notifList.filter(n => !prevIds.has(n.id));
+              return [...brandNew, ...updated];
+            }
+            setHasMore(Boolean(data.hasMore));
+            setPage(1);
+            return notifList;
+          });
         }
       }
     } catch (err) {
@@ -127,13 +236,14 @@ export default function NotificationCenter({ dbUser, theme, onSelectNotification
     }
   };
 
-  // Initial & periodic 3s live polling
+  // Reset pagination when filter changes
   useEffect(() => {
     if (!dbUser) return;
+    setPage(1);
     fetchNotifications(1, false, filter);
     const pollInterval = setInterval(() => {
       fetchNotifications(1, false, filter);
-    }, 3000);
+    }, 4000);
     return () => clearInterval(pollInterval);
   }, [dbUser, filter]);
 
@@ -210,8 +320,6 @@ export default function NotificationCenter({ dbUser, theme, onSelectNotification
     if (selectedNotif && selectedNotif.id === notif.id) {
       setSelectedNotif(prev => ({ ...prev, isRead: newStatus }));
     }
-
-    showInfo(newStatus ? 'Notification marked as read.' : 'Notification marked as unread.', 'Status Updated');
 
     const token = localStorage.getItem('bbdrts_token');
     try {
@@ -347,7 +455,9 @@ export default function NotificationCenter({ dbUser, theme, onSelectNotification
   };
 
   // Load more notifications
-  const handleLoadMore = async () => {
+  const handleLoadMore = async (e) => {
+    if (e) e.stopPropagation();
+    if (isLoadingMore) return;
     setIsLoadingMore(true);
     await fetchNotifications(page + 1, true, filter);
     setIsLoadingMore(false);
@@ -357,15 +467,18 @@ export default function NotificationCenter({ dbUser, theme, onSelectNotification
   const getTypeIcon = (type) => {
     const t = (type || '').toUpperCase();
     switch (t) {
-      case 'DONATION': return 'volunteer_activism';
+      case 'DONATION': return 'payments';
+      case 'DISBURSEMENT': return 'volunteer_activism';
       case 'CAMPAIGN': return 'campaign';
       case 'MILESTONE':
       case 'RELIEF_PROOF': return 'verified';
       case 'VERIFICATION':
       case 'KYC': return 'verified_user';
-      case 'SECURITY': return 'shield_lock';
-      case 'ACCOUNT': return 'person_check';
-      case 'WITHDRAWAL': return 'payments';
+      case 'SECURITY': return 'shield';
+      case 'ACCOUNT': return 'person';
+      case 'WITHDRAWAL': return 'account_balance_wallet';
+      case 'EMERGENCY': return 'warning';
+      case 'BROADCAST': return 'podcasts';
       default: return 'notifications';
     }
   };
@@ -374,7 +487,8 @@ export default function NotificationCenter({ dbUser, theme, onSelectNotification
   const getTypeColor = (type) => {
     const t = (type || '').toUpperCase();
     switch (t) {
-      case 'DONATION': return '#22c55e';
+      case 'DONATION': return '#10b981';
+      case 'DISBURSEMENT': return '#10b981';
       case 'CAMPAIGN': return '#f59e0b';
       case 'MILESTONE':
       case 'RELIEF_PROOF': return '#10b981';
@@ -383,7 +497,9 @@ export default function NotificationCenter({ dbUser, theme, onSelectNotification
       case 'SECURITY': return '#a855f7';
       case 'ACCOUNT': return '#ec4899';
       case 'WITHDRAWAL': return '#10b981';
-      default: return 'var(--accent, #22c55e)';
+      case 'EMERGENCY': return '#ef4444';
+      case 'BROADCAST': return '#06b6d4';
+      default: return 'var(--accent, #10b981)';
     }
   };
 
@@ -392,6 +508,7 @@ export default function NotificationCenter({ dbUser, theme, onSelectNotification
     const t = (type || '').toUpperCase();
     switch (t) {
       case 'DONATION': return 'Donation Activity';
+      case 'DISBURSEMENT': return 'Relief Disbursed to Beneficiaries';
       case 'CAMPAIGN': return 'Disaster Relief Campaign';
       case 'MILESTONE': return 'Relief Milestone Verified';
       case 'RELIEF_PROOF': return 'Proof-of-Delivery Evidence';
@@ -400,8 +517,78 @@ export default function NotificationCenter({ dbUser, theme, onSelectNotification
       case 'SECURITY': return 'Protocol Security Alert';
       case 'ACCOUNT': return 'Account Lifecycle';
       case 'WITHDRAWAL': return 'Relief Disbursement';
+      case 'EMERGENCY': return 'Emergency Alert';
+      case 'BROADCAST': return 'Broadcast Announcement';
+      default: return 'Platform Notice';
+    }
+  };
+
+  // Compact tag label for notification list item
+  const getTypeShortLabel = (type) => {
+    const t = (type || '').toUpperCase();
+    switch (t) {
+      case 'DONATION': return 'Donation';
+      case 'DISBURSEMENT': return 'Disbursement';
+      case 'CAMPAIGN': return 'Campaign';
+      case 'MILESTONE': return 'Milestone';
+      case 'RELIEF_PROOF': return 'Relief Proof';
+      case 'VERIFICATION':
+      case 'KYC': return 'SEC Accreditation';
+      case 'SECURITY': return 'Security';
+      case 'ACCOUNT': return 'Account';
+      case 'WITHDRAWAL': return 'Disbursement';
+      case 'EMERGENCY': return 'Emergency';
+      case 'BROADCAST': return 'Broadcast';
       default: return 'System Notice';
     }
+  };
+
+  // Action button configuration for Detail Card Modal (context-aware for NGO, Donor, Admin)
+  const getCardActionButton = () => {
+    if (!selectedNotif) return null;
+    const role = (dbUser?.role || 'donor').toLowerCase();
+    const type = (selectedNotif.type || '').toUpperCase();
+
+    if (type === 'DONATION' || type === 'WITHDRAWAL') {
+      return {
+        icon: 'receipt_long',
+        label: role === 'donor' ? 'View My Donations' : 'View Financial Ledger'
+      };
+    }
+    if (type === 'CAMPAIGN') {
+      return {
+        icon: 'campaign',
+        label: role === 'organization' ? 'Manage My Campaigns' : 'View Relief Campaigns'
+      };
+    }
+    if (type === 'DISBURSEMENT' || type === 'MILESTONE' || type === 'RELIEF_PROOF') {
+      return {
+        icon: 'volunteer_activism',
+        label: role === 'admin' ? 'Audit Disbursements' : (role === 'organization' ? 'View Campaigns & Proofs' : 'View Relief Proofs')
+      };
+    }
+    if (type === 'VERIFICATION' || type === 'KYC') {
+      return {
+        icon: 'verified_user',
+        label: role === 'admin' ? 'Review KYC Approvals' : (role === 'organization' ? 'View SEC Accreditation' : 'View Accredited NGOs')
+      };
+    }
+    if (type === 'SECURITY') {
+      return {
+        icon: 'shield',
+        label: 'Security Settings'
+      };
+    }
+    if (type === 'EMERGENCY' || type === 'BROADCAST') {
+      return {
+        icon: 'podcasts',
+        label: role === 'admin' ? 'Manage Broadcasts' : 'View Relief Radar'
+      };
+    }
+    return {
+      icon: 'open_in_new',
+      label: role === 'admin' ? 'View Activity Logs' : 'View Dashboard'
+    };
   };
 
   // Dynamic Relative Time Formatter (authoritative database timestamp vs live clock)
@@ -499,11 +686,11 @@ export default function NotificationCenter({ dbUser, theme, onSelectNotification
       {/* Dropdown Panel */}
       {isOpen && (
         <div className="bbdrts-notif-panel" data-theme={theme}>
-          {/* Panel Header */}
+          {/* Vercel-Style Panel Header */}
           <div className="bbdrts-notif-header">
             <div className="bbdrts-notif-header-title">
-              <span className="material-symbols-outlined" style={{ fontSize: '18px', color: 'var(--accent, #22c55e)' }}>
-                {filter === 'trash' ? 'auto_delete' : 'notifications_active'}
+              <span className="material-symbols-outlined" style={{ fontSize: '18px', color: filter === 'trash' ? '#f59e0b' : 'var(--accent, #10b981)' }}>
+                {filter === 'trash' ? 'auto_delete' : 'notifications'}
               </span>
               <strong>{filter === 'trash' ? 'Trash Bin' : 'Notifications'}</strong>
               {filter !== 'trash' && unreadCount > 0 && (
@@ -511,86 +698,100 @@ export default function NotificationCenter({ dbUser, theme, onSelectNotification
               )}
             </div>
 
-            {/* Header Right Action Group */}
+            {/* Header Actions: Single clear controls */}
             <div className="bbdrts-notif-header-actions">
-              {filter !== 'trash' && unreadCount > 0 && (
-                <button
-                  type="button"
-                  className="bbdrts-notif-mark-btn"
-                  onClick={handleMarkAllAsRead}
-                  title="Mark all notifications as read"
-                >
-                  Mark all read
-                </button>
-              )}
+              {filter !== 'trash' ? (
+                <>
+                  {unreadCount > 0 && (
+                    <button
+                      type="button"
+                      className="bbdrts-notif-mark-btn"
+                      onClick={handleMarkAllAsRead}
+                      title="Mark all notifications as read"
+                    >
+                      Mark all read
+                    </button>
+                  )}
 
-              {/* Dedicated Trash / Inbox Toggle Button in Header */}
-              <button
-                type="button"
-                className={`bbdrts-notif-trash-toggle-btn ${filter === 'trash' ? 'active' : ''}`}
-                onClick={() => {
-                  setFilter(prev => prev === 'trash' ? 'all' : 'trash');
-                  setActiveMenuId(null);
-                }}
-                title={filter === 'trash' ? "Return to Notifications Inbox" : "Open 30-Day Trash Bin"}
-              >
-                <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>
-                  {filter === 'trash' ? 'inbox' : 'delete'}
-                </span>
-                <span>{filter === 'trash' ? 'Inbox' : 'Trash'}</span>
-                {filter !== 'trash' && trashCount > 0 && (
-                  <span className="bbdrts-trash-count-badge">{trashCount}</span>
-                )}
-              </button>
+                  <button
+                    type="button"
+                    className="bbdrts-notif-trash-toggle-btn"
+                    onClick={() => {
+                      setFilter('trash');
+                      setActiveMenuId(null);
+                    }}
+                    title={`Open Trash Bin (${trashCount} items, 30d auto-purge)`}
+                  >
+                    <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>delete</span>
+                    <span>Trash</span>
+                    {trashCount > 0 && (
+                      <span className="bbdrts-trash-count-badge">{trashCount}</span>
+                    )}
+                  </button>
+                </>
+              ) : (
+                <>
+                  {trashCount > 0 && (
+                    <button
+                      type="button"
+                      className="bbdrts-notif-empty-trash-btn-header"
+                      onClick={handleEmptyTrash}
+                      title="Permanently delete all items in trash"
+                    >
+                      Empty Trash
+                    </button>
+                  )}
+
+                  <button
+                    type="button"
+                    className="bbdrts-notif-inbox-return-btn"
+                    onClick={() => {
+                      setFilter('all');
+                      setActiveMenuId(null);
+                    }}
+                    title="Return to Notifications Inbox"
+                  >
+                    <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>inbox</span>
+                    <span>Inbox</span>
+                  </button>
+                </>
+              )}
             </div>
           </div>
 
-          {/* Dedicated View Navigation: Trash Bar vs Category Filter Chips */}
-          {filter === 'trash' ? (
-            <div className="bbdrts-notif-trash-nav-bar">
-              <button
-                type="button"
-                className="bbdrts-notif-back-inbox-btn"
-                onClick={() => {
-                  setFilter('all');
-                  setActiveMenuId(null);
-                }}
-              >
-                <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>arrow_back</span>
-                <span>Back to Inbox</span>
-              </button>
-
-              <span className="bbdrts-notif-trash-info-text">
-                {trashCount} {trashCount === 1 ? 'item' : 'items'} in Trash (30d auto-purge)
-              </span>
-
-              {trashCount > 0 && (
-                <button
-                  type="button"
-                  className="bbdrts-notif-empty-trash-btn"
-                  onClick={handleEmptyTrash}
-                >
-                  Empty Trash
-                </button>
-              )}
-            </div>
-          ) : (
-            <div className="bbdrts-notif-filters">
-              {getFilterChips().map(chip => (
-                <button
-                  key={chip.id}
-                  type="button"
-                  className={`bbdrts-notif-filter-chip ${filter === chip.id ? 'active' : ''}`}
-                  onClick={() => {
-                    setFilter(chip.id);
-                    setActiveMenuId(null);
-                  }}
-                >
-                  {chip.label} {chip.count !== undefined && chip.count > 0 ? `(${chip.count})` : ''}
-                </button>
-              ))}
-            </div>
-          )}
+          {/* Consistent Fixed-Height Sub-Bar: Filter Chips or Trash Info */}
+          <div className="bbdrts-notif-subbar-fixed">
+            {filter === 'trash' ? (
+              <div className="bbdrts-notif-trash-bar-content">
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span className="material-symbols-outlined" style={{ fontSize: '14px', color: '#f59e0b' }}>schedule</span>
+                  <span className="bbdrts-trash-hint-text">Auto-purged after 30 days</span>
+                </div>
+                <span className="bbdrts-trash-count-pill">
+                  {trashCount} {trashCount === 1 ? 'item' : 'items'}
+                </span>
+              </div>
+            ) : (
+              <div className="bbdrts-notif-filters">
+                {getFilterChips().map(chip => (
+                  <button
+                    key={chip.id}
+                    type="button"
+                    className={`bbdrts-notif-filter-chip ${filter === chip.id ? 'active' : ''}`}
+                    onClick={() => {
+                      setFilter(chip.id);
+                      setActiveMenuId(null);
+                    }}
+                  >
+                    <span>{chip.label}</span>
+                    {chip.count !== undefined && chip.count > 0 && (
+                      <span className="bbdrts-chip-num">{chip.count}</span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
 
           {/* Notification List */}
           <div className="bbdrts-notif-list">
@@ -656,11 +857,11 @@ export default function NotificationCenter({ dbUser, theme, onSelectNotification
 
                         <div className="bbdrts-notif-item-footer">
                           <span className="bbdrts-notif-tag" style={{ color: inTrash ? '#a3a3a3' : getTypeColor(n.type) }}>
-                            ● {getTypeLabel(n.type)}
+                            ● {getTypeShortLabel(n.type)}
                           </span>
                           {n.referenceId && (
                             <span className="bbdrts-notif-ref-tag">
-                              Ref: {String(n.referenceId).substring(0, 16)}
+                              Ref: #{String(n.referenceId).substring(0, 16)}
                             </span>
                           )}
                         </div>
@@ -696,6 +897,27 @@ export default function NotificationCenter({ dbUser, theme, onSelectNotification
                           >
                             {!inTrash ? (
                               <>
+                                <button
+                                  type="button"
+                                  className="bbdrts-notif-menu-item"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setActiveMenuId(null);
+                                    const type = (n?.type || '').toUpperCase();
+                                    if (type === 'DISBURSEMENT' || type === 'MILESTONE' || type === 'RELIEF_PROOF') {
+                                      handleViewProofs(n);
+                                      return;
+                                    }
+                                    setIsOpen(false);
+                                    if (onSelectNotificationAction) {
+                                      onSelectNotificationAction(n);
+                                    }
+                                  }}
+                                >
+                                  <span className="material-symbols-outlined">launch</span>
+                                  <span>Open Related View</span>
+                                </button>
+
                                 <button
                                   type="button"
                                   className="bbdrts-notif-menu-item"
@@ -807,8 +1029,9 @@ export default function NotificationCenter({ dbUser, theme, onSelectNotification
                 </span>
 
                 {selectedNotif.isDeleted && (
-                  <span className="bbdrts-notif-card-trash-timer-pill">
-                    ⏰ {selectedNotif.daysRemaining !== undefined ? `${selectedNotif.daysRemaining} days left` : '30 days left'}
+                  <span className="bbdrts-notif-card-trash-timer-pill" style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                    <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>schedule</span>
+                    <span>{selectedNotif.daysRemaining !== undefined ? `${selectedNotif.daysRemaining} days left` : '30 days left'}</span>
                   </span>
                 )}
               </div>
@@ -905,22 +1128,40 @@ export default function NotificationCenter({ dbUser, theme, onSelectNotification
                       {selectedNotif.isRead ? 'Mark as Unread' : 'Mark as Read'}
                     </button>
 
-                    <button
-                      type="button"
-                      className="btn btn-primary btn-sm"
-                      onClick={() => {
-                        const target = selectedNotif;
-                        setSelectedNotif(null);
-                        if (onSelectNotificationAction) {
-                          onSelectNotificationAction(target);
-                        }
-                      }}
-                    >
-                      <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>
-                        {selectedNotif.type === 'VERIFICATION' || selectedNotif.type === 'KYC' ? 'corporate_fare' : selectedNotif.type === 'SECURITY' ? 'settings' : 'explore'}
-                      </span>
-                      {selectedNotif.type === 'VERIFICATION' || selectedNotif.type === 'KYC' ? 'View Organization' : selectedNotif.type === 'SECURITY' ? 'Security Settings' : 'View On-Chain Ledger'}
-                    </button>
+                    {(() => {
+                      const actionCfg = getCardActionButton();
+                      if (!actionCfg) return null;
+                      return (
+                        <button
+                          type="button"
+                          className="btn btn-primary btn-sm"
+                          onClick={() => {
+                            const target = selectedNotif;
+                            const type = (target?.type || '').toUpperCase();
+                            if (type === 'DISBURSEMENT' || type === 'MILESTONE' || type === 'RELIEF_PROOF') {
+                              handleViewProofs(target);
+                              return;
+                            }
+                            setSelectedNotif(null);
+                            setIsOpen(false);
+                            if (onSelectNotificationAction) {
+                              onSelectNotificationAction(target);
+                            }
+                          }}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            fontWeight: 600
+                          }}
+                        >
+                          <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>
+                            {actionCfg.icon}
+                          </span>
+                          <span>{actionCfg.label}</span>
+                        </button>
+                      );
+                    })()}
                   </div>
                 </>
               ) : (
@@ -953,6 +1194,16 @@ export default function NotificationCenter({ dbUser, theme, onSelectNotification
           </div>
         </div>,
         document.body
+      )}
+
+      {/* ── Verified Aid Distribution Proof & Receipts Modal (Contextual to Notifications) ── */}
+      {proofModalCamp && (
+        <DisbursementProofModal
+          camp={proofModalCamp}
+          isOpen={Boolean(proofModalCamp)}
+          onClose={() => setProofModalCamp(null)}
+          theme={theme}
+        />
       )}
 
     </div>

@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-theme="light">
+<html lang="en" data-theme="dark">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
@@ -10,13 +10,26 @@
       (function() {
         try {
           var saved = localStorage.getItem('bbdrts_theme');
-          var theme = (saved === 'dark' || saved === 'light') ? saved : 'light';
+          var theme = (saved === 'dark' || saved === 'light') ? saved : 'dark';
           document.documentElement.setAttribute('data-theme', theme);
         } catch (e) {
-          document.documentElement.setAttribute('data-theme', 'light');
+          document.documentElement.setAttribute('data-theme', 'dark');
+        }
+
+        // Fast icon font loading guard: prevents raw ligature text flash (e.g. location_on, apartment)
+        if ('fonts' in document) {
+          document.fonts.load('24px "Material Symbols Outlined"').then(function() {
+            document.documentElement.classList.add('bbdrts-icons-ready');
+          }).catch(function() {
+            document.documentElement.classList.add('bbdrts-icons-ready');
+          });
+        } else {
+          document.documentElement.classList.add('bbdrts-icons-ready');
         }
       })();
     </script>
+    <!-- Preload local Material Symbols font for instantaneous 0ms icon rendering locally and on Vercel -->
+    <link rel="preload" href="/fonts/material-symbols-outlined.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />

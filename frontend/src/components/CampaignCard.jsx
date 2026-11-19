@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useEffect } from 'react';
+import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { ethers } from 'ethers';
 import Tesseract from 'tesseract.js';
@@ -7,7 +7,12 @@ import LocationMapPicker from './LocationMapPicker';
 import { useToast } from '../context/ToastContext';
 import DonorBadge, { DonorTierModal, globalDonorRegistry } from './DonorBadge';
 import EditCampaignModal from './EditCampaignModal';
+import DisburseModal from './DisburseModal';
+import DisbursementProofModal from './DisbursementProofModal';
 import { API_URL } from '../config';
+import { autoCropQrScreenshot } from '../utils/qrCropper';
+import { formatPhoneNumber } from '../utils/formatters';
+import { getWorkspaceStrings } from '../data/workspaceTranslations';
 import './MultiRailProgress.css';
 import './CampaignDetailsModal.css';
 
@@ -54,11 +59,185 @@ export const formatCampaignTitle = (title, id) => {
   return title.trim();
 };
 
+/* ── Unified Tracking State Helper across Donor Portal ── */
+export const isCampaignTracked = (campId, currentUser, walletAddress) => {
+  if (typeof window === 'undefined' || !campId) return false;
+  const cId = String(campId);
+
+  // 1. Direct universal keys
+  if (localStorage.getItem(`bbdrts_tracked_camp_${cId}`) === 'true') return true;
+  if (localStorage.getItem(`bbdrts_tracked_${cId}`) === 'true') return true;
+
+  // 2. User identifier keys
+  const uid = currentUser?.id ? `u_${currentUser.id}` : (currentUser?.email ? `u_${currentUser.email}` : null);
+  if (uid && localStorage.getItem(`bbdrts_tracked_${uid}_camp_${cId}`) === 'true') return true;
+
+  // 3. Wallet address key
+  if (walletAddress) {
+    const w = `w_${walletAddress.toLowerCase()}`;
+    if (localStorage.getItem(`bbdrts_tracked_${w}_camp_${cId}`) === 'true') return true;
+  }
+
+  // 4. Guest key
+  if (localStorage.getItem(`bbdrts_tracked_guest_camp_${cId}`) === 'true') return true;
+
+  // 5. Stored user profile key fallback
+  try {
+    const storedUser = localStorage.getItem('bbdrts_user');
+    if (storedUser) {
+      const parsed = JSON.parse(storedUser);
+      const sUid = parsed?.id ? `u_${parsed.id}` : (parsed?.email ? `u_${parsed.email}` : null);
+      if (sUid && localStorage.getItem(`bbdrts_tracked_${sUid}_camp_${cId}`) === 'true') return true;
+    }
+  } catch (_) {}
+
+  return false;
+};
+
+export const setCampaignTrackedState = (campId, isTracked, currentUser, walletAddress) => {
+  if (typeof window === 'undefined' || !campId) return;
+  const cId = String(campId);
+  const val = String(isTracked);
+
+  // Write to universal key
+  localStorage.setItem(`bbdrts_tracked_camp_${cId}`, val);
+
+  // Write to user key if available
+  const uid = currentUser?.id ? `u_${currentUser.id}` : (currentUser?.email ? `u_${currentUser.email}` : null);
+  if (uid) {
+    localStorage.setItem(`bbdrts_tracked_${uid}_camp_${cId}`, val);
+  }
+
+  // Write to wallet key if available
+  if (walletAddress) {
+    localStorage.setItem(`bbdrts_tracked_w_${walletAddress.toLowerCase()}_camp_${cId}`, val);
+  }
+
+  // Also write to guest key
+  localStorage.setItem(`bbdrts_tracked_guest_camp_${cId}`, val);
+
+  // Broadcast event across application so all views & cards re-render instantaneously
+  window.dispatchEvent(new CustomEvent('bbdrts_track_change', {
+    detail: { campId: cId, isTracked: Boolean(isTracked) }
+  }));
+};
+
+/**
+ * CampaignTitleMarquee
+ * Single-line campaign title with smooth hover-triggered horizontal marquee animation
+ * Only animates if the text exceeds the card's available width.
+ */
+export function CampaignTitleMarquee({ title, className = '' }) {
+  const containerRef = useRef(null);
+  const textRef = useRef(null);
+  const [overflowDist, setOverflowDist] = useState(0);
+
+  const measureOverflow = useCallback(() => {
+    if (!containerRef.current || !textRef.current) return;
+    const containerW = containerRef.current.clientWidth;
+    const textW = textRef.current.scrollWidth;
+    if (textW > containerW + 4) {
+      setOverflowDist(textW - containerW);
+    } else {
+      setOverflowDist(0);
+    }
+  }, []);
+
+  useEffect(() => {
+    measureOverflow();
+
+    const handleResize = () => measureOverflow();
+    window.addEventListener('resize', handleResize);
+
+    let ro;
+    if (typeof ResizeObserver !== 'undefined' && containerRef.current) {
+      ro = new ResizeObserver(() => {
+        measureOverflow();
+      });
+      ro.observe(containerRef.current);
+    }
+
+    if (typeof document !== 'undefined' && document.fonts?.ready) {
+      document.fonts.ready.then(measureOverflow);
+    }
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      if (ro) ro.disconnect();
+    };
+  }, [measureOverflow, title]);
+
+  const hasOverflow = overflowDist > 0;
+  // Natural reading speed: ~30px per second, with a minimum duration of 4s
+  const duration = Math.max(4, (overflowDist / 30) + 1.8);
+
+  return (
+    <div
+      ref={containerRef}
+      className={`campaign-title-marquee-wrapper ${hasOverflow ? 'has-overflow' : ''}`}
+      title={hasOverflow ? title : undefined}
+    >
+      <div
+        className={`campaign-title-track ${hasOverflow ? 'can-marquee' : ''}`}
+        style={hasOverflow ? {
+          '--marquee-dist': `-${overflowDist + 12}px`,
+          '--marquee-duration': `${duration.toFixed(2)}s`
+        } : undefined}
+      >
+        <h3
+          ref={textRef}
+          className={`campaign-title ${className}`}
+        >
+          {title}
+        </h3>
+      </div>
+    </div>
+  );
+}
+
+export const formatCleanLocation = (rawLoc) => {
+  if (!rawLoc || !String(rawLoc).trim()) return 'Philippines';
+  const str = String(rawLoc).trim();
+  if (str.includes(',')) {
+    const parts = str.split(',').map(s => s.trim()).filter(Boolean);
+    const filtered = parts.filter(p => {
+      const pLower = p.toLowerCase();
+      if (pLower === 'philippines' || pLower === 'ph') return false;
+      if (!isNaN(Number(pLower))) return false; // zip codes like 6601
+      if (/^\d+/.test(pLower)) return false; // street / house numbers
+      if (/street|st\.|ave|avenue|road|rd\.|blvd|boulevard|highway|hwy|lane|ln|drive|dr|way|expressway|corner|cor\.|building|bldg|floor|flr|room|rm|unit|block|blk|lot/i.test(pLower)) return false; // drop street & highway infrastructure
+      if (/^(?:barangay|brgy|purok|sitio|poblacion|zone|subd|subdivision)\b/i.test(pLower)) return false; // drop hyper-local zones
+      return true;
+    });
+    // Remove duplicate consecutive names (e.g. "Bohol, Bohol" -> "Bohol")
+    const deduped = [];
+    filtered.forEach(p => {
+      if (!deduped.some(d => d.toLowerCase() === p.toLowerCase())) {
+        deduped.push(p);
+      }
+    });
+    if (deduped.length >= 2) {
+      // Pick the last 2 (City / Municipality, Province)
+      return deduped.slice(-2).join(', ');
+    }
+    if (deduped.length === 1) return deduped[0];
+  }
+  return str.replace(/\s*,\s*philippines$/i, '').replace(/\s*,\s*ph$/i, '').trim();
+};
+
 export const parseSafeDate = (dateVal) => {
   if (!dateVal) return null;
   if (dateVal instanceof Date) return isNaN(dateVal.getTime()) ? null : dateVal;
   if (typeof dateVal === 'string') {
     let s = dateVal.trim();
+    // Pure date string "YYYY-MM-DD" -> parse components directly in local time to avoid UTC shift
+    const ymdMatch = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+    if (ymdMatch) {
+      const year = parseInt(ymdMatch[1], 10);
+      const month = parseInt(ymdMatch[2], 10) - 1;
+      const day = parseInt(ymdMatch[3], 10);
+      return new Date(year, month, day);
+    }
     // If format is "YYYY-MM-DD HH:MM:SS" (MySQL standard raw timestamp), convert space to 'T' and append 'Z' for UTC
     if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}/.test(s)) {
       s = s.replace(' ', 'T') + 'Z';
@@ -277,23 +456,99 @@ export const getCampaignAuditDetails = (arg1, arg2, arg3) => {
   };
 };
 
+export const getCategoryEvidencePhotos = (text = '') => {
+  const full = String(text).toLowerCase();
+  if (/fisherfolk|boat|palawan|marine|banca|livelihood/i.test(full) && !/fire|ember|volcano|typhoon|flood/i.test(full)) {
+    return [
+      'https://images.unsplash.com/photo-1544551763-46a013bb70d5?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1509099836639-18ba1795216d?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1488521787991-ed7bbaae773c?auto=format&fit=crop&w=800&q=80'
+    ];
+  }
+  if (/kanlaon|mayon|volcano|ashfall|blanket|tremor/i.test(full)) {
+    return [
+      'https://images.unsplash.com/photo-1532629345422-7515f3d16bb6?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1509099836639-18ba1795216d?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1584515979956-d9f6e5d09982?auto=format&fit=crop&w=800&q=80'
+    ];
+  }
+  if (/medical|hygiene|medicine|doctor|clinic|sanitation|antibiotic/i.test(full)) {
+    return [
+      'https://images.unsplash.com/photo-1584515979956-d9f6e5d09982?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1584036561566-baf8f5f1b144?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1532938911079-1b06ac7ceec7?auto=format&fit=crop&w=800&q=80'
+    ];
+  }
+  if (/shelter|reconstruct|rebuild|roof|lumber|tarpaulin|housing|fire/i.test(full)) {
+    return [
+      'https://images.unsplash.com/photo-1509099836639-18ba1795216d?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1527482797697-8795b05a13fe?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1469571486292-0ba58a3f068b?auto=format&fit=crop&w=800&q=80'
+    ];
+  }
+  if (/flood|baha|inundat/i.test(full)) {
+    return [
+      'https://images.unsplash.com/photo-1547683905-f686c993aae5?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1517486808906-6ca8b3f04846?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1488521787991-ed7bbaae773c?auto=format&fit=crop&w=800&q=80'
+    ];
+  }
+  if (/typhoon|bagyo|storm|odette|kristine|tino|yolanda|salin|luzon/i.test(full)) {
+    return [
+      'https://images.unsplash.com/photo-1527482797697-8795b05a13fe?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1547683905-f686c993aae5?auto=format&fit=crop&w=800&q=80',
+      'https://images.unsplash.com/photo-1509099836639-18ba1795216d?auto=format&fit=crop&w=800&q=80'
+    ];
+  }
+  return [
+    'https://images.unsplash.com/photo-1532629345422-7515f3d16bb6?auto=format&fit=crop&w=800&q=80',
+    'https://images.unsplash.com/photo-1488521787991-ed7bbaae773c?auto=format&fit=crop&w=800&q=80',
+    'https://images.unsplash.com/photo-1509099836639-18ba1795216d?auto=format&fit=crop&w=800&q=80'
+  ];
+};
+
 export const getCampaignCoverData = (camp = {}) => {
-  const title = (camp.title || '').toLowerCase();
+  const title = (camp.title || camp.Campaign_Title || '').toLowerCase();
   const desc = (camp.description || '').toLowerCase();
   const fullText = `${title} ${desc}`;
 
   let imageUrl = camp.imageUrl || camp.image_url;
+
+  // Resolve disaster aftermath photos if uploaded
+  let disasterPhotos = camp.disasterImages;
+  if (!disasterPhotos && (camp.disaster_images_json || camp.disasterImagesJson)) {
+    try {
+      const parsed = typeof (camp.disaster_images_json || camp.disasterImagesJson) === 'string'
+        ? JSON.parse(camp.disaster_images_json || camp.disasterImagesJson)
+        : (camp.disaster_images_json || camp.disasterImagesJson);
+      if (Array.isArray(parsed) && parsed.length > 0) disasterPhotos = parsed;
+    } catch (_) {}
+  }
+
+  // Provide realistic disaster evidence photos if none were uploaded
+  if (!Array.isArray(disasterPhotos) || disasterPhotos.length === 0) {
+    disasterPhotos = getCategoryEvidencePhotos(fullText);
+  }
+
+  const hasDisasterPhotos = Boolean(Array.isArray(disasterPhotos) && disasterPhotos.length > 0);
+  const disasterPhotosCount = hasDisasterPhotos ? disasterPhotos.length : 0;
+
+  // Prioritize using the first uploaded field disaster photo as the cover image if no specific cover is set
+  if (!imageUrl && hasDisasterPhotos) {
+    imageUrl = disasterPhotos[0];
+  }
+
   let categoryIcon = 'volunteer_activism';
   let categoryTag = 'Relief Cause';
   const rawLocation = camp.locationRegion || camp.location_region || camp.location || camp.region;
   let locationTag = rawLocation || 'Southern Leyte, PH';
 
   if (imageUrl) {
-    return { imageUrl, categoryIcon, categoryTag, locationTag };
+    return { imageUrl, categoryIcon, categoryTag, locationTag, hasDisasterPhotos, disasterPhotosCount };
   }
 
   // 1. Fisherfolk / Coastal Livelihood
-  if (/fisherfolk|boat|palawan|marine|banca|livelihood/i.test(fullText)) {
+  if (/fisherfolk|boat|palawan|marine|banca|livelihood/i.test(fullText) && !/fire|ember|volcano|typhoon|flood/i.test(fullText)) {
     imageUrl = 'https://images.unsplash.com/photo-1544551763-46a013bb70d5?auto=format&fit=crop&w=600&q=80';
     categoryIcon = 'sailing';
     categoryTag = 'Livelihood Aid';
@@ -313,8 +568,8 @@ export const getCampaignCoverData = (camp = {}) => {
     categoryTag = 'Medical Aid';
     locationTag = rawLocation || 'Mindanao Disaster Zone';
   }
-  // 4. Shelter & Reconstruction
-  else if (/shelter|reconstruct|rebuild|roof|lumber|tarpaulin|housing/i.test(fullText)) {
+  // 4. Shelter, Fire Recovery & Reconstruction
+  else if (/shelter|reconstruct|rebuild|roof|lumber|tarpaulin|housing|fire|ember/i.test(fullText)) {
     imageUrl = 'https://images.unsplash.com/photo-1509099836639-18ba1795216d?auto=format&fit=crop&w=600&q=80';
     categoryIcon = 'roofing';
     categoryTag = 'Shelter Recovery';
@@ -347,7 +602,7 @@ export const getCampaignCoverData = (camp = {}) => {
     locationTag = rawLocation || 'Philippines';
   }
 
-  return { imageUrl, categoryIcon, categoryTag, locationTag };
+  return { imageUrl, categoryIcon, categoryTag, locationTag, hasDisasterPhotos, disasterPhotosCount };
 };
 
 export const getCampaignTags = (camp = {}) => {
@@ -407,15 +662,98 @@ export const getCampaignCategoryInfo = (camp = {}) => {
   return { prefix: 'DR', label: 'Disaster Relief', icon: 'crisis_alert', colorClass: 'cat-pill-dr' };
 };
 
+function CleanQrVoucherDisplay({ qrUrl, gatewayMethod }) {
+  const [displayUrl, setDisplayUrl] = useState(qrUrl);
+  const isMaya = (gatewayMethod || '').toLowerCase() === 'maya';
+
+  useEffect(() => {
+    let active = true;
+    if (qrUrl) {
+      autoCropQrScreenshot(qrUrl).then(res => {
+        if (active && res.wasCropped && res.croppedUrl) {
+          setDisplayUrl(res.croppedUrl);
+        } else if (active) {
+          setDisplayUrl(qrUrl);
+        }
+      });
+    } else {
+      setDisplayUrl(qrUrl);
+    }
+    return () => { active = false; };
+  }, [qrUrl]);
+
+  return (
+    <div className="qr-ph-box" style={{ width: '100%', maxWidth: '290px', margin: '0 auto 16px', textAlign: 'center', padding: '16px', borderRadius: '18px', background: '#FFFFFF', boxShadow: '0 12px 32px rgba(0,0,0,0.35)', border: '1.5px solid #e2e8f0' }}>
+      {/* Integrated Brand Header inside QR Voucher */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', paddingBottom: '10px', marginBottom: '10px', borderBottom: '1.5px solid #f1f5f9' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div style={{
+            width: '26px',
+            height: '26px',
+            borderRadius: '7px',
+            background: isMaya ? '#000000' : '#007DFE',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: '0 2px 5px rgba(0,0,0,0.15)'
+          }}>
+            {isMaya ? (
+              <span style={{ color: '#00d68f', fontWeight: 900, fontSize: '12px', letterSpacing: '-0.5px' }}>m</span>
+            ) : (
+              <span style={{ color: '#ffffff', fontWeight: 900, fontSize: '15px' }}>G</span>
+            )}
+          </div>
+          <span style={{ fontSize: '12px', fontWeight: 900, color: '#0f172a', letterSpacing: '0.4px' }}>
+            OFFICIAL {gatewayMethod.toUpperCase()}
+          </span>
+        </div>
+        <span style={{ fontSize: '9px', fontWeight: 800, color: '#16a34a', background: 'rgba(34, 197, 94, 0.12)', padding: '3px 8px', borderRadius: '10px', textTransform: 'uppercase', letterSpacing: '0.3px' }}>
+          NGO Verified
+        </span>
+      </div>
+
+      {/* QR Code / Voucher Image */}
+      <div style={{ position: 'relative', width: '100%', minHeight: '220px', maxHeight: '340px', margin: '0 auto', borderRadius: '10px', overflow: 'hidden', background: '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <img
+          src={displayUrl}
+          alt={`${gatewayMethod} Official QR`}
+          style={{ width: '100%', maxHeight: '330px', objectFit: 'contain', display: 'block' }}
+        />
+      </div>
+
+      <div style={{ fontSize: '0.74rem', color: '#64748b', marginTop: '10px', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
+        <span className="material-symbols-outlined" style={{ fontSize: '15px', color: '#007DFE' }}>qr_code_scanner</span>
+        Point your {gatewayMethod} camera to scan
+      </div>
+    </div>
+  );
+}
+
 export default function CampaignCard(props) {
   const { showWarning, showSuccess, showInfo } = useToast();
   const camp = props.camp || props.campaign || {};
-  const { contract, role, walletAddress, onDonated, onDeactivated, onCampaignUpdated, onOpenNgoProfile } = props;
+  const {
+    contract,
+    role,
+    walletAddress,
+    onDonated,
+    onDeactivated,
+    onCampaignUpdated,
+    onOpenNgoProfile,
+    interfaceMode = 'standard',
+    lowBandwidthMode = false,
+    language = 'en'
+  } = props;
+  const wt = useMemo(() => getWorkspaceStrings(language), [language]);
+  const [mediaLoaded, setMediaLoaded] = useState(false);
+  useEffect(() => {
+    if (!lowBandwidthMode) setMediaLoaded(false);
+  }, [lowBandwidthMode]);
   const activeTheme = props.theme || (typeof document !== 'undefined' ? document.documentElement.getAttribute('data-theme') || 'light' : 'light');
   const [amount, setAmount] = useState('');
   const [deactivating, setDeactivating] = useState(false);
   const [ledgerOpen, setLedgerOpen] = useState(false);
-  const [history, setHistory] = useState(null);
+  const [history, setHistory] = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [ledgerSearch, setLedgerSearch] = useState('');
   const [ledgerRailFilter, setLedgerRailFilter] = useState('ALL');
@@ -427,6 +765,8 @@ export default function CampaignCard(props) {
   const datePickerContainerRef = useRef(null);
   const [copiedHashKey, setCopiedHashKey] = useState('');
   const [selectedLedgerDonor, setSelectedLedgerDonor] = useState(null);
+  const [activeEvidenceImg, setActiveEvidenceImg] = useState(null);
+  const [showAllDetailsTags, setShowAllDetailsTags] = useState(false);
 
   const handleCopyHash = (e, text, label = 'Reference') => {
     if (e && e.stopPropagation) e.stopPropagation();
@@ -455,6 +795,8 @@ export default function CampaignCard(props) {
 
   // Cover image & location tag determination
   const coverData = useMemo(() => getCampaignCoverData(camp), [camp]);
+  const rawLocation = camp.locationRegion || camp.location_region || camp.location || camp.region || coverData?.locationTag || '';
+  const cleanLocation = useMemo(() => formatCleanLocation(rawLocation), [rawLocation]);
 
   // Campaign tags (custom NGO selected or fallback)
   const campaignTags = useMemo(() => getCampaignTags(camp), [camp]);
@@ -465,10 +807,9 @@ export default function CampaignCard(props) {
     if (!raw || !String(raw).trim()) return null;
     const s = String(raw).trim();
     if (s.toLowerCase().includes('active')) return 'Active Dispatch';
-    const parsed = Date.parse(s);
-    if (!isNaN(parsed)) {
+    const d = parseSafeDate(s);
+    if (d) {
       try {
-        const d = new Date(parsed);
         return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
       } catch (_) {
         return s;
@@ -498,8 +839,8 @@ export default function CampaignCard(props) {
         tooltip: 'Active relief drive accepting emergency contributions.'
       };
     }
-    const parsed = Date.parse(raw);
-    if (isNaN(parsed)) {
+    const targetDateObj = parseSafeDate(raw);
+    if (!targetDateObj) {
       return {
         isOverdue: false,
         label: 'Active Relief Drive',
@@ -509,7 +850,6 @@ export default function CampaignCard(props) {
       };
     }
 
-    const targetDateObj = new Date(parsed);
     targetDateObj.setHours(23, 59, 59, 999);
     const now = new Date();
 
@@ -726,16 +1066,47 @@ export default function CampaignCard(props) {
   const [customMsg, setCustomMsg] = useState('');
   const [isAnonymous, setIsAnonymous] = useState(false);
   const [receiptBase64, setReceiptBase64] = useState('');
+  const [previewReceiptModal, setPreviewReceiptModal] = useState(false);
   const [aiScanLoading, setAiScanLoading] = useState(false);
   const [aiScanResult, setAiScanResult] = useState(null);
   const [isUploading, setIsUploading] = useState(false);
   const [deactivateModal, setDeactivateModal] = useState({ show: false, step: 0, hash: '', error: '' });
   const [editModalOpen, setEditModalOpen] = useState(false);
+  const [disburseModalOpen, setDisburseModalOpen] = useState(false);
+  const [proofModalOpen, setProofModalOpen] = useState(false);
   const [txHash, setTxHash] = useState('');
   const [legalConfirm, setLegalConfirm] = useState(false);
   const [certModalOpen, setCertModalOpen] = useState(false);
   const [auditProofExpanded, setAuditProofExpanded] = useState(false);
   const [showAllocationDrawer, setShowAllocationDrawer] = useState(false);
+
+  // ── Maintenance Mode Guard State ──
+  const [maintState, setMaintState] = useState(() => {
+    try {
+      const c = localStorage.getItem('bbdrts_maintenance');
+      return c ? JSON.parse(c) : null;
+    } catch (_) { return null; }
+  });
+
+  useEffect(() => {
+    const handleMaint = (e) => {
+      if (e.detail) setMaintState(e.detail);
+    };
+    window.addEventListener('bbdrts_maintenance_changed', handleMaint);
+    return () => window.removeEventListener('bbdrts_maintenance_changed', handleMaint);
+  }, []);
+
+  const isDonationsMaintenance = Boolean(
+    maintState?.enabled &&
+    (maintState.scope?.includes('DONATIONS') || maintState.scope?.includes('FULL_PLATFORM') || maintState.scope?.includes('DONOR_PORTAL')) &&
+    role !== ROLES.ADMIN
+  );
+
+  const isDisbursementsMaintenance = Boolean(
+    maintState?.enabled &&
+    (maintState.scope?.includes('DISBURSEMENTS') || maintState.scope?.includes('FULL_PLATFORM') || maintState.scope?.includes('NGO_PORTAL')) &&
+    role !== ROLES.ADMIN
+  );
 
   // Fiat Gateway Additions
   const [donorName, setDonorName] = useState('');
@@ -750,38 +1121,31 @@ export default function CampaignCard(props) {
   // ── Mission Utility State: Campaign Tracking & Verified Sharing ──
   const campId = camp.id || 1;
 
-  const getTrackStorageKey = (uid) => {
-    let userIdentifier = uid;
-    if (!userIdentifier && typeof window !== 'undefined') {
-      try {
-        const u = localStorage.getItem('bbdrts_user');
-        if (u) {
-          const parsed = JSON.parse(u);
-          userIdentifier = parsed?.id ? `u_${parsed.id}` : (parsed?.email ? `u_${parsed.email}` : null);
-        }
-      } catch (_) {}
-    }
-    if (!userIdentifier && walletAddress) {
-      userIdentifier = `w_${walletAddress.toLowerCase()}`;
-    }
-    return `bbdrts_tracked_${userIdentifier || 'guest'}_camp_${campId}`;
-  };
-
   const [isTracked, setIsTracked] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const key = getTrackStorageKey();
-      return localStorage.getItem(key) === 'true';
-    }
-    return false;
+    return isCampaignTracked(campId, props.currentUser, walletAddress);
   });
 
   // Re-evaluate when user changes or campaign changes
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const key = getTrackStorageKey();
-      setIsTracked(localStorage.getItem(key) === 'true');
-    }
-  }, [campId, walletAddress]);
+    setIsTracked(isCampaignTracked(campId, props.currentUser, walletAddress));
+  }, [campId, walletAddress, props.currentUser]);
+
+  // Synchronize live with any tracking event across cards or views
+  useEffect(() => {
+    const handleTrackChange = (e) => {
+      if (e.detail && String(e.detail.campId) === String(campId)) {
+        setIsTracked(Boolean(e.detail.isTracked));
+      } else {
+        setIsTracked(isCampaignTracked(campId, props.currentUser, walletAddress));
+      }
+    };
+    window.addEventListener('bbdrts_track_change', handleTrackChange);
+    window.addEventListener('storage', handleTrackChange);
+    return () => {
+      window.removeEventListener('bbdrts_track_change', handleTrackChange);
+      window.removeEventListener('storage', handleTrackChange);
+    };
+  }, [campId, walletAddress, props.currentUser]);
 
   const [isCopied, setIsCopied] = useState(false);
 
@@ -789,10 +1153,7 @@ export default function CampaignCard(props) {
     e.stopPropagation();
     const next = !isTracked;
     setIsTracked(next);
-    if (typeof window !== 'undefined') {
-      const key = getTrackStorageKey();
-      localStorage.setItem(key, String(next));
-    }
+    setCampaignTrackedState(campId, next, props.currentUser, walletAddress);
     if (next) {
       showSuccess(`Now tracking Campaign #${campId} for milestone & ledger updates!`);
     } else {
@@ -873,6 +1234,163 @@ export default function CampaignCard(props) {
 
     return () => clearTimeout(timer);
   }, [refNumber, gatewayRefNo, receiptBase64]);
+
+  const receiptFileInputRef = useRef(null);
+
+  const handleRemoveProof = () => {
+    setReceiptBase64('');
+    setAiScanResult(null);
+    setAiScanLoading(false);
+    setDuplicateRefWarning(null);
+    setRailMismatchWarning(null);
+    setRefNumber('');
+    setGatewayRefNo('');
+    if (receiptFileInputRef.current) {
+      receiptFileInputRef.current.value = '';
+    }
+  };
+
+  const handleReferenceChange = (val) => {
+    if (gatewayMethod === 'GCash') {
+      const digits = val.replace(/\D/g, '').slice(0, 13);
+      let formatted = digits;
+      if (digits.length > 7) {
+        formatted = `${digits.slice(0, 4)} ${digits.slice(4, 7)} ${digits.slice(7)}`;
+      } else if (digits.length > 4) {
+        formatted = `${digits.slice(0, 4)} ${digits.slice(4)}`;
+      }
+      setRefNumber(formatted);
+      setGatewayRefNo(formatted);
+    } else if (gatewayMethod === 'Maya') {
+      const clean = val.replace(/[^a-zA-Z0-9\s]/g, '').slice(0, 16);
+      setRefNumber(clean);
+      setGatewayRefNo(clean);
+    } else {
+      const clean = val.replace(/[^a-zA-Z0-9\s\-_]/g, '').slice(0, 24);
+      setRefNumber(clean);
+      setGatewayRefNo(clean);
+    }
+  };
+
+  // Real-Time Dynamic AI Receipt Verification State that synchronizes with active amount and duplicate warnings
+  const activeAiResult = useMemo(() => {
+    if (!aiScanResult) return null;
+    const currentNumAmount = parseFloat(amount || 0);
+    const extAmt = parseFloat(aiScanResult.extractedAmountPhp || 0);
+
+    // Filter out any stale AMOUNT_MISMATCH flag
+    let flags = (aiScanResult.fraudFlags || []).filter(f => !f.includes('AMOUNT_MISMATCH'));
+    let hasAmtMismatch = false;
+
+    // Only flag mismatch if user has a declared amount AND extracted amount, and they differ by > 5%
+    if (extAmt > 0 && currentNumAmount > 0) {
+      const diff = Math.abs(extAmt - currentNumAmount) / extAmt;
+      if (diff > 0.05) {
+        hasAmtMismatch = true;
+        flags.push(`AMOUNT_MISMATCH: Receipt states ₱${extAmt.toLocaleString()} PHP, but declared donation is ₱${currentNumAmount.toLocaleString()} PHP`);
+      }
+    }
+
+    // Recipient Credentials Cross-Check against active Campaign receiving details
+    const expectedName = (gatewayMethod === 'Maya' ? (camp.mayaName || camp.maya_name) : (camp.gcashName || camp.gcash_name || 'CL***E JU*****E V.') || '').trim();
+    const expectedPhone = (gatewayMethod === 'Maya' ? (camp.mayaNumber || camp.maya_number) : (camp.gcashNumber || camp.gcash_number || '0997 9939521') || '').trim();
+
+    const extName = (aiScanResult.recipientName || '').trim();
+    const extPhone = (aiScanResult.recipientPhone || '').trim();
+
+    if (extName || extPhone) {
+      // Check recipient name
+      if (extName && expectedName) {
+        const cleanStr = s => (s || '').toUpperCase().replace(/[^A-Z]/g, '');
+        const extLetters = cleanStr(extName);
+        const expLetters = cleanStr(expectedName);
+        if (extLetters.length > 0 && expLetters.length > 0 && extLetters[0] !== expLetters[0]) {
+          if (!flags.some(f => f.includes('RECIPIENT_NAME_MISMATCH') || f.includes('RECIPIENT_MISMATCH'))) {
+            flags.push(`RECIPIENT_NAME_MISMATCH: Funds were transferred to "${extName}", but this campaign's official receiving account name is "${expectedName}".`);
+          }
+        }
+      }
+      // Check recipient phone
+      if (extPhone && expectedPhone) {
+        const extDigits = extPhone.replace(/\D/g, '');
+        const expDigits = expectedPhone.replace(/\D/g, '');
+        if (extDigits.length >= 4 && expDigits.length >= 4) {
+          const extSuf = extDigits.slice(-4);
+          const expSuf = expDigits.slice(-4);
+          if (extSuf !== expSuf) {
+            if (!flags.some(f => f.includes('RECIPIENT_PHONE_MISMATCH') || f.includes('RECIPIENT_MISMATCH'))) {
+              flags.push(`RECIPIENT_PHONE_MISMATCH: Funds were sent to mobile ending in ${extSuf}, but this campaign's official receiving number ends in ${expSuf}.`);
+            }
+          }
+        }
+      }
+    }
+
+    // Receipt Date Stale / Expired Check (anti-recycling)
+    if (aiScanResult.receiptDate) {
+      const parsedDate = new Date(aiScanResult.receiptDate);
+      if (!isNaN(parsedDate.getTime())) {
+        const now = new Date();
+        const diffDays = (now.getTime() - parsedDate.getTime()) / (1000 * 60 * 60 * 24);
+        if (diffDays > 30 || (now.getFullYear() - parsedDate.getFullYear() >= 1)) {
+          const daysAgo = Math.max(1, Math.round(diffDays));
+          if (!flags.some(f => f.includes('EXPIRED_RECEIPT'))) {
+            flags.push(`EXPIRED_RECEIPT: Receipt is dated ${aiScanResult.receiptDate} (~${daysAgo} days old). Recycled or expired receipts cannot be accepted.`);
+          }
+        }
+      }
+    }
+
+    const hasRailMismatch = Boolean(railMismatchWarning) || flags.some(f => f.includes('PAYMENT_RAIL_MISMATCH') || f.includes('RAIL_MISMATCH'));
+    const isDuplicate = Boolean(duplicateRefWarning) || flags.some(f => f.includes('DUPLICATE_REF_NUMBER'));
+    const isExpired = flags.some(f => f.includes('EXPIRED_RECEIPT'));
+    const isRecipientMismatch = flags.some(f => f.includes('RECIPIENT_MISMATCH') || f.includes('RECIPIENT_NAME_MISMATCH') || f.includes('RECIPIENT_PHONE_MISMATCH'));
+    const isTampered = flags.some(f => f.includes('TAMPERED') || f.includes('INVALID_RECEIPT'));
+    const isHighValue = extAmt >= 10000 || currentNumAmount >= 10000 || Boolean(aiScanResult.requiresManualAudit) || flags.some(f => f.includes('HIGH_VALUE'));
+    if (isHighValue && !flags.some(f => f.includes('HIGH_VALUE_AUDIT_REQUIRED'))) {
+      const val = extAmt || currentNumAmount;
+      flags.push(`HIGH_VALUE_AUDIT_REQUIRED: High-value transfer (₱${val.toLocaleString()} PHP). Mandatory secondary verification against recipient account balance and official SMS notification before confirmation.`);
+    }
+
+    const hasInvalidReceipt = (aiScanResult.isPaymentReceipt === false) || isExpired || isRecipientMismatch || isTampered || flags.some(f => f.includes('INVALID_RECEIPT') || f.includes('INVALID_RECEIPT_IMAGE'));
+    const hasValidRef = Boolean(aiScanResult.extractedRef && aiScanResult.extractedRef.trim().length >= 8);
+
+    const hasAnySevereFlag = hasAmtMismatch || hasRailMismatch || isDuplicate || hasInvalidReceipt || isExpired || isRecipientMismatch || isTampered || flags.some(f => f.includes('FRAUD') || f.includes('MISMATCH') || f.includes('DUPLICATE') || f.includes('INVALID'));
+
+    // Normalize score to percentage (handle float 0.98 -> 98)
+    const rawScore = typeof aiScanResult.confidenceScore === 'number'
+      ? (aiScanResult.confidenceScore <= 1.0 && aiScanResult.confidenceScore > 0 ? Math.round(aiScanResult.confidenceScore * 100) : Math.round(aiScanResult.confidenceScore))
+      : 95;
+
+    const isVerified = !hasAnySevereFlag && hasValidRef && !hasInvalidReceipt && !isHighValue && aiScanResult.isAiVerified === true && (rawScore >= 60);
+
+    const confidenceScore = hasInvalidReceipt || hasAnySevereFlag
+      ? 0
+      : (isHighValue
+          ? Math.min(rawScore, 70)
+          : (!hasValidRef
+              ? Math.min(rawScore, 35)
+              : rawScore));
+
+    // Filter out flags that already have dedicated banners displayed below to avoid duplicate warnings
+    const visibleFraudFlags = flags.filter(f => {
+      if ((railMismatchWarning || hasRailMismatch) && (f.includes('RAIL_MISMATCH') || f.includes('PAYMENT_RAIL_MISMATCH'))) {
+        return false;
+      }
+      if ((duplicateRefWarning || isDuplicate) && (f.includes('DUPLICATE_REF_NUMBER') || f.includes('DUPLICATE'))) {
+        return false;
+      }
+      return true;
+    });
+
+    return {
+      ...aiScanResult,
+      isPaymentReceipt: !hasInvalidReceipt,
+      fraudFlags: visibleFraudFlags,
+      isAiVerified: isVerified,
+      confidenceScore
+    };
+  }, [aiScanResult, amount, duplicateRefWarning, railMismatchWarning, camp, gatewayMethod]);
 
   const [gatewayMobile, setGatewayMobile] = useState('');
   const [gatewayOtp, setGatewayOtp] = useState(['', '', '', '', '', '']);
@@ -1233,10 +1751,16 @@ export default function CampaignCard(props) {
 
       const totalTracked = ethAmt + gcashAmt + mayaAmt + bankAmt;
       const currentEth = parseFloat(camp.currentAmount || 0);
-      if (currentEth > totalTracked) {
+      // Meaningful epsilon (0.000001 ETH ~ 0.17 PHP) strictly prevents IEEE-754 precision noise from creating phantom donors
+      if (currentEth > totalTracked + 0.000001) {
         ethAmt += (currentEth - totalTracked);
-        if (ethCnt === 0) ethCnt = 1;
+        if (ethCnt === 0 && (!history || history.length === 0)) ethCnt = 1;
       }
+
+      // Exact count of actual ledger donations
+      const exactBackers = (history && history.length > 0)
+        ? history.length 
+        : (ethCnt + gcashCnt + mayaCnt + bankCnt);
 
       return {
         eth: { amount: ethAmt, php: Math.round(ethAmt * 170000), count: ethCnt },
@@ -1245,25 +1769,30 @@ export default function CampaignCard(props) {
         bank: { amount: bankAmt, php: Math.round(bankAmt * 170000), count: bankCnt },
         totalRaisedEth: Math.max(totalTracked, currentEth),
         totalRaisedPhp: Math.round(Math.max(totalTracked, currentEth) * 170000),
-        totalBackers: ethCnt + gcashCnt + mayaCnt + bankCnt
+        totalBackers: exactBackers
       };
     }
 
     // 2. If camp.railBreakdown is provided by API
     if (camp.railBreakdown && typeof camp.railBreakdown === 'object') {
-      return camp.railBreakdown;
+      const apiBackers = camp.totalBackers ?? camp.donorsCount ?? camp.railBreakdown.totalBackers ?? (parseFloat(camp.currentAmount || 0) > 0 ? 1 : 0);
+      return {
+        ...camp.railBreakdown,
+        totalBackers: apiBackers
+      };
     }
 
     // 3. Fallback
     const currentEth = parseFloat(camp.currentAmount || 0);
+    const apiBackers = camp.totalBackers ?? camp.donorsCount ?? (currentEth > 0 ? 1 : 0);
     return {
-      eth: { amount: currentEth, php: Math.round(currentEth * 170000), count: currentEth > 0 ? 1 : 0 },
+      eth: { amount: currentEth, php: Math.round(currentEth * 170000), count: apiBackers > 0 ? 1 : 0 },
       gcash: { amount: 0, php: 0, count: 0 },
       maya: { amount: 0, php: 0, count: 0 },
       bank: { amount: 0, php: 0, count: 0 },
       totalRaisedEth: currentEth,
       totalRaisedPhp: Math.round(currentEth * 170000),
-      totalBackers: currentEth > 0 ? 1 : 0
+      totalBackers: apiBackers
     };
   }, [camp.railBreakdown, camp.currentAmount, history]);
 
@@ -1272,21 +1801,40 @@ export default function CampaignCard(props) {
                           (parseFloat(breakdown?.maya?.amount || 0)) + 
                           (parseFloat(breakdown?.bank?.amount || 0));
   const displayCurrentEth = Math.max(parseFloat(camp.currentAmount || 0), parseFloat(breakdown?.totalRaisedEth || 0), totalRailRaised);
-  const targetGoal = Math.max(0.0001, parseFloat(camp.targetAmount || 1));
-  const currentTotal = Math.max(0.000001, displayCurrentEth);
-  const pct = progressPct(displayCurrentEth, camp.targetAmount);
-  const totalBarPct = Math.min(100, Math.max(0, (displayCurrentEth / targetGoal) * 100));
-  // True once lifetime funding reaches the goal (cap bar/percent cleanly at "Goal reached")
-  const goalReached = parseFloat(camp.targetAmount || 0) > 0 && (displayCurrentEth / targetGoal) >= 1;
+  const targetPhp = parseFloat(camp.targetAmountPhp || camp.target_amount_php || 0) || (parseFloat(camp.targetAmount || 0) * 170000);
   const totalRaisedPhp = Math.round(((breakdown?.gcash?.php || 0) + (breakdown?.maya?.php || 0) + (breakdown?.bank?.php || 0) + (breakdown?.eth?.php || 0)));
+  const targetGoal = Math.max(0.00000001, parseFloat(camp.targetAmount || 0.00000001));
+  const currentTotal = Math.max(0.000001, displayCurrentEth);
 
-  // Compute segment widths on the bar proportional to target goal
-  const rawSumPct = targetGoal > 0 ? (totalRailRaised / targetGoal) * 100 : 0;
+  // Accurate percentage computation supporting micro-goals (e.g. ₱2 goal with ₱1 raised)
+  const pct = targetPhp > 0 && totalRaisedPhp > 0
+    ? (totalRaisedPhp >= targetPhp ? '100' : ((totalRaisedPhp / targetPhp) * 100).toFixed(1).replace(/\.0$/, ''))
+    : progressPct(displayCurrentEth, camp.targetAmount);
+
+  // True once lifetime funding reaches the goal (cap bar/percent cleanly at "Goal reached")
+  const goalReached = (targetPhp > 0 && totalRaisedPhp >= targetPhp) ||
+                      (parseFloat(camp.targetAmount || 0) > 0 && (displayCurrentEth / targetGoal) >= 0.99999);
+
+  // Compute segment widths on the bar proportional to target goal (in PHP if available, else ETH)
+  const usePhpBasis = targetPhp > 0;
+  const rawSumPct = usePhpBasis 
+    ? (totalRaisedPhp / targetPhp) * 100 
+    : (targetGoal > 0 ? (totalRailRaised / targetGoal) * 100 : 0);
   const scale = rawSumPct > 100 ? (100 / rawSumPct) : 1;
-  const ethSegmentPct = ((parseFloat(breakdown?.eth?.amount || 0) / targetGoal) * 100) * scale;
-  const gcashSegmentPct = ((parseFloat(breakdown?.gcash?.amount || 0) / targetGoal) * 100) * scale;
-  const mayaSegmentPct = ((parseFloat(breakdown?.maya?.amount || 0) / targetGoal) * 100) * scale;
-  const bankSegmentPct = ((parseFloat(breakdown?.bank?.amount || 0) / targetGoal) * 100) * scale;
+
+  const totalBarPct = Math.min(100, Math.max(0, rawSumPct));
+  const ethSegmentPct = usePhpBasis
+    ? (((breakdown?.eth?.php || 0) / targetPhp) * 100) * scale
+    : ((parseFloat(breakdown?.eth?.amount || 0) / targetGoal) * 100) * scale;
+  const gcashSegmentPct = usePhpBasis
+    ? (((breakdown?.gcash?.php || 0) / targetPhp) * 100) * scale
+    : ((parseFloat(breakdown?.gcash?.amount || 0) / targetGoal) * 100) * scale;
+  const mayaSegmentPct = usePhpBasis
+    ? (((breakdown?.maya?.php || 0) / targetPhp) * 100) * scale
+    : ((parseFloat(breakdown?.maya?.amount || 0) / targetGoal) * 100) * scale;
+  const bankSegmentPct = usePhpBasis
+    ? (((breakdown?.bank?.php || 0) / targetPhp) * 100) * scale
+    : ((parseFloat(breakdown?.bank?.amount || 0) / targetGoal) * 100) * scale;
 
   // Percentage shares of total funds raised (Strictly sums to 100%)
   const ethShare = currentTotal > 0 ? Math.round(((parseFloat(breakdown?.eth?.amount || 0)) / currentTotal) * 100) : 0;
@@ -1521,9 +2069,12 @@ export default function CampaignCard(props) {
 
   /* ── Checkout Modal Logic ─────────────────────── */
   const handleOpenCheckout = () => {
-    const parsed = parseFloat(amount);
-    if (isNaN(parsed) || parsed <= 0) {
-      return showWarning('Please enter a valid donation amount greater than ₱0.', 'Enter Amount');
+    if (isDonationsMaintenance) {
+      showWarning(
+        `Donation gateway is temporarily paused for scheduled maintenance (${maintState?.title || 'System Maintenance'}). Please try again shortly.`,
+        'Maintenance Mode Active'
+      );
+      return;
     }
     setDonateStep(0); // Start at Payment Selector
     setCustomMsg('');
@@ -1534,6 +2085,13 @@ export default function CampaignCard(props) {
   };
 
   const handleConfirmDonate = async () => {
+    if (isDonationsMaintenance) {
+      showWarning(
+        'Donation transactions are currently paused for system maintenance.',
+        'Maintenance Active'
+      );
+      return;
+    }
     try {
       setDonateStep(2); // Signature Phase
       const parsed = parseFloat(amount);
@@ -1634,7 +2192,7 @@ export default function CampaignCard(props) {
   };
 
   const handleAutofillTestCard = () => {
-    setCardNumber('1234 5678 9012 3456');
+    setCardNumber('4242 4242 4242 4242'); // Official Sandbox Visa test card
     setCardName('GESTER MACALDO');
     setCardExpiry('12/28');
     setCardCvv('888');
@@ -1644,7 +2202,10 @@ export default function CampaignCard(props) {
     setCardState('Metro Manila');
     setCardZip('1226');
     setCardCountry('Philippines');
-    showSuccess?.('Verified Demo Card credentials loaded!', 'Test Card Ready');
+    if (!amount || parseFloat(amount) <= 0) {
+      setAmount('500');
+    }
+    showSuccess?.('Standard Sandbox Visa (4242) test credentials loaded!', 'Test Card Ready');
   };
 
   const handleClearCardForm = () => {
@@ -1671,6 +2232,12 @@ export default function CampaignCard(props) {
   const mcLogo = '/Mastercard.png';
   const amexLogo = '/Amex.png';
   const activeLogo = cardType === 'visa' ? visaLogo : cardType === 'mastercard' ? mcLogo : cardType === 'amex' ? amexLogo : null;
+
+  // Universal Payment Processing Flag across all payment rails
+  const isPaymentProcessing = (donateStep === 6 && isUploading) ||
+                              (donateStep === 7 && gatewayLoading) ||
+                              donateStep === 2 ||
+                              donateStep === 3;
 
   const getDisplayCardNumber = () => {
     const cleanNumber = cardNumber.replace(/\D/g, '');
@@ -1811,15 +2378,31 @@ export default function CampaignCard(props) {
       return showWarning("Receipt image must be under 8MB.", "File Too Large");
     }
 
+    // Immediately clear stale verification alerts from previous uploads
+    setDuplicateRefWarning(null);
+    setRailMismatchWarning(null);
+    setAiScanResult(null);
+
     const reader = new FileReader();
     reader.onload = async () => {
       const b64 = reader.result;
       setReceiptBase64(b64);
-      setRailMismatchWarning(null);
       setAiScanLoading(true);
 
-      // Call Backend Gemini AI Receipt Vision Endpoint
+      let serverExtractedSuccess = false;
+
+      // Call Backend Gemini AI Receipt Vision Endpoint with Recipient Credentials
       try {
+        const expectedRecipientName = gatewayMethod === 'Maya' 
+          ? (camp.mayaName || camp.maya_name) 
+          : (camp.gcashName || camp.gcash_name || 'CL***E JU*****E V.');
+
+        const expectedRecipientPhone = gatewayMethod === 'Maya' 
+          ? (camp.mayaNumber || camp.maya_number) 
+          : (camp.gcashNumber || camp.gcash_number || '0997 9939521');
+
+        const expectedOrgName = camp.orgName || camp.org_name || camp.title;
+
         const verifyRes = await fetch(`${API_URL}/api/verify-receipt-ai`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -1827,21 +2410,63 @@ export default function CampaignCard(props) {
             receiptBase64: b64,
             amountEth: amount ? (parseFloat(amount) / 170000) : 0,
             paymentMethod: gatewayMethod || 'GCash',
-            refNumber: refNumber || null
+            refNumber: refNumber || null,
+            expectedRecipientName,
+            expectedRecipientPhone,
+            expectedOrgName
           })
         });
         if (verifyRes.ok) {
           const verifyData = await verifyRes.json();
           setAiScanResult(verifyData);
-          if (verifyData.extractedRef && !refNumber) {
+          serverExtractedSuccess = true;
+
+          // Non-receipt, tampered, expired, or recipient mismatch handling (Hard Fraud Rejection)
+          const isHardRejection = verifyData.isPaymentReceipt === false || 
+            verifyData.confidenceScore === 0 ||
+            verifyData.fraudFlags?.some(f => 
+              f.includes('INVALID_RECEIPT') || 
+              f.includes('RECIPIENT_MISMATCH') || 
+              f.includes('RECIPIENT_NAME_MISMATCH') || 
+              f.includes('RECIPIENT_PHONE_MISMATCH') || 
+              f.includes('EXPIRED_RECEIPT') || 
+              f.includes('SUSPICIOUS_REFERENCE_SEQUENCE') || 
+              f.includes('TAMPERED')
+            );
+
+          if (isHardRejection) {
+            setRefNumber('');
+            setGatewayRefNo('');
+            showWarning?.(verifyData.summary || 'Receipt flagged by AI audit. Please verify payment details.', 'Verification Alert');
+            return;
+          }
+
+          if (verifyData.extractedRef) {
             setRefNumber(verifyData.extractedRef);
             setGatewayRefNo(verifyData.extractedRef);
           }
-          if (verifyData.extractedAmountPhp && (!amount || parseFloat(amount) <= 0)) {
+          if (verifyData.extractedAmountPhp && Number(verifyData.extractedAmountPhp) > 0) {
             setAmount(String(verifyData.extractedAmountPhp));
           }
           if (verifyData.fraudFlags?.some(f => f.includes('RAIL_MISMATCH'))) {
             setRailMismatchWarning(verifyData.fraudFlags.find(f => f.includes('RAIL_MISMATCH')));
+          }
+
+          // Strict Rail Mismatch check: GCash reference scheme (13 digits) vs Maya, or detectedPaymentRail mismatch
+          const digitsOnly = (verifyData.extractedRef || '').replace(/\D/g, '');
+          const currentMethod = (gatewayMethod || 'GCash').toLowerCase();
+          const detectedRail = verifyData.detectedPaymentRail || (digitsOnly.length === 13 ? 'GCash' : null);
+
+          if (detectedRail && detectedRail.toLowerCase() !== currentMethod) {
+            setRailMismatchWarning(`Payment Rail Mismatch: You selected ${gatewayMethod}, but uploaded a ${detectedRail} receipt screenshot! Please upload a valid ${gatewayMethod} slip.`);
+          }
+
+          if (verifyData.isDuplicateRef) {
+            setDuplicateRefWarning(verifyData.fraudFlags?.find(f => f.includes('DUPLICATE_REF_NUMBER')) || `Reference number "${verifyData.extractedRef}" was already submitted in a previous donation transaction!`);
+          }
+
+          if (verifyData.extractedRef) {
+            showSuccess?.(`AI Extracted Ref #${verifyData.extractedRef}${verifyData.extractedAmountPhp ? ` & Amount ₱${Number(verifyData.extractedAmountPhp).toLocaleString()}` : ''}!`, 'Auto-Filled');
           }
         }
       } catch (aiErr) {
@@ -1850,36 +2475,52 @@ export default function CampaignCard(props) {
         setAiScanLoading(false);
       }
 
-      // ── Real Pixel OCR with Tesseract.js & Server AI Vision Fallback ───────
+      // Fast-Path: If server AI Vision inspected the receipt, finish immediately (No need for heavy browser OCR)
+      if (serverExtractedSuccess) {
+        return;
+      }
+
+      // ── Client-side Fallback Only When Server Offline ───
       try {
         const ocrResult = await Tesseract.recognize(file, 'eng');
         const text = ocrResult?.data?.text || '';
+        const lowerText = text.toLowerCase();
 
-        // Character Normalization Helper ('O'->'0', 'l'->'1', 'S'->'5', 'b'->'6', 'B'->'8')
-        const normText = text
-          .replace(/[O|o|D|Q]/g, '0')
-          .replace(/[I|l|\||\!]/g, '1')
-          .replace(/Z/g, '2')
-          .replace(/[S|s]/g, '5')
-          .replace(/b/g, '6')
-          .replace(/B/g, '8')
-          .replace(/[g|q]/g, '9');
+        // Require transaction keywords
+        const receiptKeywords = ['express send', 'send money', 'reference no', 'ref no', 'ref.', 'ref #', 'instapay', 'pesonet', 'transfer fee', 'total amount', 'payment details', 'transferred to', 'gcash', 'paymaya', 'maya'];
+        const hasKeywords = receiptKeywords.some(kw => lowerText.includes(kw));
 
-        // GCash 13-digit & Maya Reference Patterns
-        const refMatch = normText.match(/(?:Ref|Ret|Rel|Reference|No|ID)[\s\.\:\#\-]*([0-9\s]{11,18})/i) ||
-                         normText.match(/\b(\d{4}[\s\.\-]+\d{3}[\s\.\-]+\d{6})\b/) ||
-                         normText.match(/\b(00\d{11}|10\d{11}|\d{13})\b/) ||
-                         normText.match(/\b(\d{4}[\s\-]?\d{9})\b/);
+        if (!hasKeywords) {
+          setAiScanResult({
+            isPaymentReceipt: false,
+            isAiVerified: false,
+            confidenceScore: 0,
+            extractedRef: null,
+            extractedAmountPhp: null,
+            fraudFlags: ['INVALID_RECEIPT: Uploaded image does not contain transaction headers or reference details.'],
+            summary: 'Uploaded file is not a recognized payment receipt.'
+          });
+          setRefNumber('');
+          setGatewayRefNo('');
+          showWarning?.('Uploaded image does not appear to be a payment receipt.', 'Invalid Receipt');
+          return;
+        }
 
-        // Strict Amount Regex: Only match when preceded by explicit Amount/Total/Sent keywords or PHP/₱ with decimals
-        const amtMatch = text.match(/(?:Total\s*Amount\s*Sent|Total\s*Amount|Amount\s*Sent|Amount|Total|Paid)[\s\S]{0,35}?(?:PHP|₱|P)?\s*([\d,]+\.\d{2})/i) ||
-                         text.match(/(?:PHP|₱)\s*([\d,]+\.\d{2})/i);
+        // Search for reference numbers only after explicit keywords or 13-digit format
+        const refMatch = text.match(/(?:Ref(?:\s*No|\.|\:|\#)?|Reference(?:\s*No|\.|\:|\#)?|Express\s*Send)[\s\.\:\#\-]*([0-9\s]{11,18})/i) ||
+                         text.match(/\b(\d{4}[\s\.\-]+\d{3}[\s\.\-]+\d{6})\b/) ||
+                         text.match(/\b(00\d{11}|10\d{11}|\d{13})\b/) ||
+                         text.match(/\b(\d{4}[\s\-]?\d{9})\b/);
+
+        // Strict Amount Regex
+        const amtMatch = text.match(/(?:Total\s*Amount\s*Sent|Total\s*Amount|Amount\s*Sent|Amount|Total|Paid)[\s\S]{0,35}?(?:PHP|₱|P|Php)?\s*([\d,]+(?:\.\d{2})?)/i) ||
+                          text.match(/(?:PHP|₱|Php)\s*([\d,]+(?:\.\d{2})?)/i) ||
+                          text.match(/\b(?:PHP|₱|Php)?\s*(\d{1,3}(?:,\d{3})*(?:\.\d{2}))\b/);
 
         let extractedRef = null;
         if (refMatch) {
           const rawRef = (refMatch[1] || refMatch[0]).trim().replace(/\s+/g, ' ');
           const digitsOnly = rawRef.replace(/\D/g, '');
-          // Only auto-fill if reference meets strict length requirements (13 digits for GCash, 10-16 for Maya/Bank)
           if (digitsOnly.length === 13) {
             extractedRef = `${digitsOnly.slice(0, 4)} ${digitsOnly.slice(4, 7)} ${digitsOnly.slice(7)}`;
           } else if (digitsOnly.length >= 10 && digitsOnly.length <= 16) {
@@ -1890,7 +2531,6 @@ export default function CampaignCard(props) {
         let extractedAmt = null;
         if (amtMatch) {
           const parsed = parseFloat(amtMatch[1].replace(/,/g, ''));
-          // Only auto-fill if parsed amount is reasonable and clear
           if (!isNaN(parsed) && parsed > 0 && parsed < 10000000) {
             extractedAmt = parsed;
           }
@@ -1924,6 +2564,10 @@ export default function CampaignCard(props) {
 
         // Rail Mismatch Validation on Donor Modal
         const currentSelectedRail = (gatewayMethod || '').trim().toLowerCase();
+        const extractedDigits = (extractedRef || '').replace(/\D/g, '');
+        if (!detectedRail && extractedDigits.length === 13) {
+          detectedRail = 'GCash';
+        }
         if (detectedRail && currentSelectedRail) {
           if (detectedRail.toLowerCase() !== currentSelectedRail) {
             setRailMismatchWarning(`Payment Rail Mismatch: You selected ${gatewayMethod}, but uploaded a ${detectedRail} receipt screenshot! Please upload a valid ${gatewayMethod} slip.`);
@@ -1962,12 +2606,29 @@ export default function CampaignCard(props) {
   };
 
   const verifyGatewayPayment = async () => {
+    if (railMismatchWarning) return showWarning(railMismatchWarning, "Payment Rail Mismatch Blocked");
     if (duplicateRefWarning) return showWarning(duplicateRefWarning, "Duplicate Receipt Blocked");
+    if (activeAiResult?.fraudFlags?.some(f => f.includes('EXPIRED_RECEIPT'))) {
+      return showWarning("Receipt is expired (~1+ year old) and cannot be accepted. Please upload an authentic, recent payment slip.", "Expired Receipt Blocked");
+    }
+    if (activeAiResult?.fraudFlags?.some(f => f.includes('TAMPERED'))) {
+      return showWarning("Image contains instructional tutorial markings or tampering and cannot be accepted.", "Tampered Image Blocked");
+    }
+    const finalRef = (refNumber || gatewayRefNo || '').trim();
+    if (!finalRef) return showWarning("Please enter the transaction reference number from your receipt.", "Missing Reference");
+    if (gatewayMethod === 'GCash') {
+      const cleanDigits = finalRef.replace(/\D/g, '');
+      if (cleanDigits.length !== 13) {
+        return showWarning("GCash reference numbers must be exactly 13 digits (e.g. 0044 579 175068).", "Invalid GCash Reference");
+      }
+    }
+    if (!receiptBase64) return showWarning("Please upload your payment confirmation receipt screenshot.", "Missing Receipt");
+    // Only block if image is invalid AND user did not enter a reference number
+    if (activeAiResult && (activeAiResult.isPaymentReceipt === false || activeAiResult.confidenceScore === 0 || activeAiResult.fraudFlags?.some(f => f.includes('INVALID_RECEIPT'))) && !finalRef) {
+      return showWarning("Uploaded image could not be verified. Please enter the reference number from your receipt.", "Reference Required");
+    }
     const finalAmount = parseFloat(amount || 0);
     if (!finalAmount || finalAmount <= 0) return showWarning("Please enter a valid amount greater than ₱0.", "Invalid Amount");
-    const finalRef = (refNumber || gatewayRefNo || '').trim();
-    if (!finalRef) return showWarning("Please enter the transaction reference number or use Demo Autofill.", "Missing Reference");
-    if (!receiptBase64) return showWarning("Please upload your payment screenshot or click Demo Autofill.", "Missing Receipt");
 
     setGatewayLoading(true);
 
@@ -2022,7 +2683,12 @@ export default function CampaignCard(props) {
   const getGatewayThemeText = () => 'var(--text-primary, #ffffff)';
 
   const submitManualDonation = async (paymentMethod) => {
-    if (paymentMethod !== 'Credit Card' && !receiptBase64) return showWarning("Please upload a screenshot of your receipt before submitting.", "Missing Receipt");
+    if (paymentMethod === 'Credit Card') {
+      const numAmt = parseFloat(amount || 0);
+      if (!numAmt || numAmt <= 0) return showWarning("Please enter a donation amount greater than ₱0.", "Invalid Amount");
+    } else if (!receiptBase64) {
+      return showWarning("Please upload a screenshot of your receipt before submitting.", "Missing Receipt");
+    }
     setIsUploading(true);
     try {
       // Simulate real-world gateway processing time
@@ -2306,17 +2972,42 @@ export default function CampaignCard(props) {
 
         {/* ── Left: Campaign Cover Media ── */}
         <div className="campaign-media">
-          <img
-            src={coverData.imageUrl}
-            alt={camp.title}
-            className="campaign-media-img"
-            loading="lazy"
-            onError={(e) => {
-              e.target.onerror = null;
-              e.target.src = 'https://images.unsplash.com/photo-1532629345422-7515f3d16bb6?auto=format&fit=crop&w=600&q=80';
-            }}
-          />
-          <div className="campaign-media-overlay" />
+          {lowBandwidthMode && !mediaLoaded ? (
+            <div className="data-saver-media-placeholder">
+              <span className="material-symbols-outlined" style={{ fontSize: '26px', color: '#f59e0b' }}>
+                signal_cellular_alt
+              </span>
+              <span style={{ fontSize: '0.75rem', fontWeight: 700 }}>{wt.dataSaverTitle}</span>
+              <span style={{ fontSize: '0.7rem', opacity: 0.85, maxWidth: '170px', lineHeight: 1.35 }}>
+                {wt.dataSaverDeferred}
+              </span>
+              <button
+                type="button"
+                className="data-saver-load-btn"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setMediaLoaded(true);
+                }}
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>image</span>
+                <span>{wt.loadPhoto}</span>
+              </button>
+            </div>
+          ) : (
+            <>
+              <img
+                src={coverData.imageUrl}
+                alt={camp.title}
+                className="campaign-media-img"
+                loading="lazy"
+                onError={(e) => {
+                  e.target.onerror = null;
+                  e.target.src = 'https://images.unsplash.com/photo-1532629345422-7515f3d16bb6?auto=format&fit=crop&w=600&q=80';
+                }}
+              />
+              <div className="campaign-media-overlay" />
+            </>
+          )}
 
           {/* Top Category Tag Capsule */}
           <div className="campaign-media-tag-top">
@@ -2324,20 +3015,12 @@ export default function CampaignCard(props) {
             <span>{coverData.categoryTag}</span>
           </div>
 
-          {/* Bottom Location Geotag Capsule Overlay on Media */}
-          {coverData.locationTag && (
-            <button
-              type="button"
-              className="campaign-media-location-tag"
-              title={`Relief Operation Area: ${coverData.locationTag} • Click to view GPS Audit & Map`}
-              onClick={(e) => {
-                e.stopPropagation();
-                setDetailsOpen(true);
-              }}
-            >
-              <span className="material-symbols-outlined">location_on</span>
-              <span className="campaign-media-location-text">{coverData.locationTag}</span>
-            </button>
+          {/* Disaster Evidence Photos Badge */}
+          {coverData.hasDisasterPhotos && (
+            <div className="campaign-media-evidence-badge" title={`${coverData.disasterPhotosCount} disaster impact evidence photo(s) attached`}>
+              <span className="material-symbols-outlined" style={{ fontSize: '11px' }}>photo_camera</span>
+              <span>{coverData.disasterPhotosCount} Field Photo{coverData.disasterPhotosCount > 1 ? 's' : ''}</span>
+            </div>
           )}
 
           {/* Closed State Banner Overlay */}
@@ -2371,12 +3054,12 @@ export default function CampaignCard(props) {
                 title={deliveryDateStatus.tooltip}
               >
                 <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>local_shipping</span>
-                <span>Distribution in Progress</span>
+                <span>{wt.distributionBadge}</span>
               </span>
             ) : (
               <span className={`badge ${camp.isActive ? 'badge-active' : 'badge-closed'}`} title={deliveryDateStatus.tooltip}>
                 <span className="status-dot" />
-                <span>{camp.isActive ? (formattedDeliveryDate ? `Active • Due ${formattedDeliveryDate}` : 'Active') : 'Concluded'}</span>
+                <span>{camp.isActive ? wt.activeBadge : wt.concludedBadge}</span>
               </span>
             )}
 
@@ -2385,14 +3068,35 @@ export default function CampaignCard(props) {
                 Your Campaign
               </span>
             )}
+
+            {(camp.disbursementStatus === 'DISBURSED' || (camp.disbursedAmountPhp || 0) > 0) && (
+              <button
+                type="button"
+                className="badge badge-success"
+                onClick={() => setProofModalOpen(true)}
+                title="Click to inspect verified ground distribution receipts"
+                style={{
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  background: 'rgba(34, 197, 94, 0.15)',
+                  color: 'var(--accent, #22c55e)',
+                  border: '1px solid rgba(34, 197, 94, 0.35)',
+                  fontSize: '0.68rem',
+                  padding: '2px 8px'
+                }}
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>task_alt</span>
+                <span>Aid Disbursed to Beneficiaries</span>
+              </button>
+            )}
           </div>
 
-          {/* Prominent Clean Title */}
-          <h3 className="campaign-title">
-            {formatCampaignTitle(camp.title, camp.id)}
-          </h3>
+          {/* Prominent Clean Title with Hover-Triggered Marquee */}
+          <CampaignTitleMarquee title={formatCampaignTitle(camp.title, camp.id)} />
 
-          {/* Managing Org Attribution Row */}
+          {/* Managing Org & Ground Location Attribution Row */}
           <div className="campaign-org-row">
             <button
               type="button"
@@ -2412,6 +3116,21 @@ export default function CampaignCard(props) {
               </span>
               <span className="material-symbols-outlined campaign-org-arrow">chevron_right</span>
             </button>
+
+            {cleanLocation && (
+              <button
+                type="button"
+                className="campaign-location-badge"
+                title={`Relief Operations Area: ${rawLocation || cleanLocation} • Click to view GPS Audit & Map`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setDetailsOpen(true);
+                }}
+              >
+                <span className="material-symbols-outlined campaign-location-icon">location_on</span>
+                <span className="campaign-location-text">{cleanLocation}</span>
+              </button>
+            )}
           </div>
 
           {/* Multi-Rail Interactive Progress Bar */}
@@ -2419,7 +3138,7 @@ export default function CampaignCard(props) {
             {/* Header: Goal & Total Percent (Clickable trigger for dropdown) */}
             <div className="multi-rail-header">
               <span className="multi-rail-goal-text">
-                <strong>₱{totalRaisedPhp.toLocaleString('en-US', { maximumFractionDigits: 0 })}</strong> raised of ₱{(parseFloat(camp.targetAmount || 0) * 170000).toLocaleString('en-US', { maximumFractionDigits: 0 })} goal
+                <strong>₱{totalRaisedPhp.toLocaleString('en-US', { maximumFractionDigits: 0 })}</strong> raised of ₱{(camp.targetAmountPhp || camp.target_amount_php || Math.round(parseFloat(camp.targetAmount || 0) * 170000)).toLocaleString('en-US', { maximumFractionDigits: 0 })} goal
               </span>
 
               <div className="multi-rail-header-right">
@@ -2559,7 +3278,7 @@ export default function CampaignCard(props) {
                   />
                 )}
                 {totalBarPct === 0 && (
-                  <div className="multi-rail-segment" style={{ width: '100%', background: 'transparent' }} />
+                  <div className="multi-rail-segment is-empty-placeholder" style={{ width: '100%', minWidth: 0, background: 'transparent' }} />
                 )}
               </div>
 
@@ -2611,40 +3330,50 @@ export default function CampaignCard(props) {
             </div>
           </div>
 
-          {/* Amounts: Non-redundant meta grid (id/backers/bar shown above; values here are unique) */}
+          {/* Sleek, Non-redundant Metadata Strip */}
           {(() => {
-            const targetPhp = parseFloat(camp.targetAmount || 0) * 170000;
-            const ethAmt = breakdown.eth.amount ? formatEthAmt(breakdown.eth.amount) : '0';
+            const totalBackers = breakdown?.totalBackers || 0;
+            const audit = getCampaignAuditDetails(camp.id, camp.title, camp);
+            const shortBeneficiaries = audit?.beneficiaries 
+              ? audit.beneficiaries.split('(')[0].replace(/\s*\/\s*approx.*$/i, '').trim() 
+              : null;
             return (
-              <div className="campaign-amounts">
-                <div
-                  className="amount-block"
-                  style={{ cursor: 'pointer' }}
-                  onClick={() => setShowRailTelemetry(prev => !prev)}
-                  title={`Click to view funding sources (${ethAmt} ETH on-chain)`}
-                >
-                  <span className="amount-label">Donors</span>
-                  <span className="amount-value accent">
-                    {breakdown.totalBackers || 0}
+              <div className="campaign-meta-strip">
+                <div className="campaign-meta-strip-left">
+                  <span
+                    className="campaign-meta-pill"
+                    style={{ cursor: 'pointer' }}
+                    onClick={() => setShowRailTelemetry(prev => !prev)}
+                    title={`Click to view payment breakdown (${totalBackers} total contributors)`}
+                  >
+                    <span className="material-symbols-outlined">group</span>
+                    <span><strong>{totalBackers}</strong> {totalBackers === 1 ? 'donor' : 'donors'}</span>
                   </span>
+
+                  {shortBeneficiaries && (
+                    <>
+                      <span className="campaign-meta-dot">·</span>
+                      <span className="campaign-meta-pill" title={`Target Relief Impact: ${audit.beneficiaries}`}>
+                        <span className="material-symbols-outlined">family_restroom</span>
+                        <span className="campaign-meta-text-truncate">{shortBeneficiaries}</span>
+                      </span>
+                    </>
+                  )}
+
+                  {formattedDeliveryDate && (
+                    <>
+                      <span className="campaign-meta-dot">·</span>
+                      <span className="campaign-meta-pill" title={`Target Relief Delivery Milestone: ${formattedDeliveryDate}`}>
+                        <span className="material-symbols-outlined">event</span>
+                        <span>Due {formattedDeliveryDate}</span>
+                      </span>
+                    </>
+                  )}
                 </div>
-                <div
-                  className="amount-block"
-                  style={{ cursor: 'pointer' }}
-                  onClick={() => setShowRailTelemetry(prev => !prev)}
-                  title={`On-chain total: ${ethAmt} ETH of ₱${targetPhp.toLocaleString('en-US', { maximumFractionDigits: 0 })} goal`}
-                >
-                  <span className="amount-label">On-chain</span>
-                  <span className="amount-value">
-                    {ethAmt}<span style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-secondary)', marginLeft: '3px' }}>ETH</span>
-                  </span>
-                </div>
-                <div className="amount-block">
-                  <span className="amount-label">Campaign ID</span>
-                  <span className="amount-value" style={{ color: 'var(--text-secondary)' }}>
-                    #{camp.id}
-                  </span>
-                </div>
+
+                <span className="campaign-meta-id-tag" title={`Audit Campaign Reference #${camp.id}`}>
+                  #{camp.id}
+                </span>
               </div>
             );
           })()}
@@ -2661,10 +3390,15 @@ export default function CampaignCard(props) {
               ))}
               {campaignTags.length > 3 && (
                 <div className="tag-overflow-wrap">
-                  <span className="campaign-tag-pill overflow-pill">
+                  <span
+                    className="campaign-tag-pill overflow-pill"
+                    tabIndex={0}
+                    role="button"
+                    aria-label={`View ${campaignTags.length - 3} additional relief tags`}
+                  >
                     +{campaignTags.length - 3}
                   </span>
-                  <div className="tag-overflow-popover">
+                  <div className="tag-overflow-popover" role="tooltip">
                     <span className="tag-overflow-popover-label">
                       {campaignTags.length - 3} more tag{campaignTags.length - 3 !== 1 ? 's' : ''}
                     </span>
@@ -2717,7 +3451,62 @@ export default function CampaignCard(props) {
             <div className="campaign-owner-actions">
               <button
                 type="button"
-                className="btn btn-primary btn-sm btn-full"
+                className="btn btn-sm btn-full"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  if (isDisbursementsMaintenance) {
+                    showWarning(
+                      `Fund disbursement is temporarily paused for scheduled maintenance (${maintState?.title || 'System Maintenance'}). Escrow vault is safely locked.`,
+                      'Maintenance Active'
+                    );
+                    return;
+                  }
+                  setDisburseModalOpen(true);
+                }}
+                title={isDisbursementsMaintenance ? 'Disbursement paused for maintenance' : 'Disburse raised funds and upload distribution photos / official receipts'}
+                style={{
+                  background: isDisbursementsMaintenance ? 'var(--bg-inset, #27272a)' : 'var(--accent-green, #10b981)',
+                  color: isDisbursementsMaintenance ? 'var(--text-muted, #a1a1aa)' : '#ffffff',
+                  border: `1px solid ${isDisbursementsMaintenance ? 'var(--border)' : 'var(--accent-green, #10b981)'}`,
+                  fontWeight: 700,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                  marginBottom: '6px',
+                  cursor: isDisbursementsMaintenance ? 'not-allowed' : 'pointer'
+                }}
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: '17px' }}>
+                  {isDisbursementsMaintenance ? 'construction' : 'local_shipping'}
+                </span>
+                <span>{isDisbursementsMaintenance ? 'Disbursement (Maintenance)' : 'Disburse & Upload Relief Proof'}</span>
+              </button>
+
+              {(camp.disbursementStatus === 'DISBURSED' || (camp.disbursedAmountPhp || 0) > 0) && (
+                <button
+                  type="button"
+                  className="btn btn-outline btn-sm btn-full"
+                  onClick={() => setProofModalOpen(true)}
+                  style={{
+                    borderColor: 'rgba(34, 197, 94, 0.4)',
+                    color: 'var(--accent-green, #10b981)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px',
+                    marginBottom: '6px'
+                  }}
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>verified</span>
+                  <span>View Relief Proof (₱{(camp.disbursedAmountPhp || 0).toLocaleString()})</span>
+                </button>
+              )}
+
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm btn-full"
                 onClick={() => setEditModalOpen(true)}
                 title="Update ground relief operations and campaign details"
               >
@@ -2773,7 +3562,7 @@ export default function CampaignCard(props) {
                 title="Direct donations are reserved for certified donor accounts to prevent circular funding."
               >
                 <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>corporate_fare</span>
-                <span>Partner Operation • View Only</span>
+                <span>{wt.partnerViewOnly}</span>
               </div>
 
               <div className="campaign-observer-btns-stack">
@@ -2783,18 +3572,20 @@ export default function CampaignCard(props) {
                   onClick={() => setDetailsOpen(true)}
                 >
                   <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>map</span>
-                  <span>Details & Map</span>
+                  <span>{wt.detailsMap}</span>
                 </button>
 
-                <button
-                  type="button"
-                  className="btn btn-ghost btn-sm btn-full"
-                  onClick={toggleLedger}
-                  title="Open public blockchain ledger modal"
-                >
-                  <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>receipt_long</span>
-                  <span>Public Ledger</span>
-                </button>
+                {interfaceMode !== 'simplified' && (
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm btn-full"
+                    onClick={toggleLedger}
+                    title="Open public blockchain ledger modal"
+                  >
+                    <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>receipt_long</span>
+                    <span>{wt.publicLedger}</span>
+                  </button>
+                )}
               </div>
             </div>
           ) : (
@@ -2805,7 +3596,7 @@ export default function CampaignCard(props) {
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <span className="material-symbols-outlined" style={{ fontSize: '15px', color: 'var(--accent)' }}>volunteer_activism</span>
                     <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                      Contribution
+                      {wt.contribution}
                     </span>
                   </div>
                   {amount && Number(amount) > 0 ? (
@@ -2814,7 +3605,7 @@ export default function CampaignCard(props) {
                       onClick={() => setAmount('')}
                       style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: '0.72rem', cursor: 'pointer', padding: 0, display: 'inline-flex', alignItems: 'center', gap: '3px' }}
                     >
-                      <span>Clear</span>
+                      <span>{wt.clear}</span>
                       <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>close</span>
                     </button>
                   ) : null}
@@ -2828,7 +3619,7 @@ export default function CampaignCard(props) {
                       type="number"
                       step="1"
                       min="0"
-                      placeholder="Enter amount"
+                      placeholder={wt.amountPlaceholder}
                       value={amount}
                       onChange={(e) => setAmount(e.target.value)}
                       disabled={!canDonate}
@@ -2836,7 +3627,7 @@ export default function CampaignCard(props) {
 
                     {/* Floating Focus Popover with 4 Tailored Quick Add Chips */}
                     <div className="donate-focus-popover">
-                      <div className="donate-popover-title">Quick Add Amount:</div>
+                      <div className="donate-popover-title">{wt.quickAdd}</div>
                       <div className="donate-presets-row">
                         {presetIncrements.map((inc) => (
                           <button
@@ -2864,14 +3655,14 @@ export default function CampaignCard(props) {
                     onClick={handleOpenCheckout}
                     disabled={!canDonate}
                   >
-                    <span>Donate</span>
+                    <span>{interfaceMode === 'simplified' ? wt.donateRelief : wt.donate}</span>
                     <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>arrow_forward</span>
                   </button>
                 </div>
 
                 {!camp.isActive && (
                   <p style={{ fontSize: '0.74rem', color: 'var(--danger)', textAlign: 'center', margin: 0 }}>
-                    This campaign is closed to donations.
+                    {wt.campaignClosed}
                   </p>
                 )}
               </div>
@@ -2882,13 +3673,15 @@ export default function CampaignCard(props) {
                   onClick={() => setDetailsOpen(true)}
                 >
                   <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>map</span>
-                  <span>Details & Map</span>
+                  <span>{wt.detailsMap}</span>
                 </button>
 
-                <button className="btn btn-ghost btn-sm btn-full" onClick={toggleLedger} title="Open public blockchain ledger modal">
-                  <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>receipt_long</span>
-                  <span>Public Ledger</span>
-                </button>
+                {interfaceMode !== 'simplified' && (
+                  <button className="btn btn-ghost btn-sm btn-full" onClick={toggleLedger} title="Open public blockchain ledger modal">
+                    <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>receipt_long</span>
+                    <span>{wt.publicLedger}</span>
+                  </button>
+                )}
               </div>
             </>
           )}
@@ -3637,7 +4430,7 @@ export default function CampaignCard(props) {
                 <span>Decentralized &amp; Cryptographically Audited Ledger</span>
               </div>
               <div className="ledger-footer-actions">
-                <span className="ledger-footer-count">Showing {filteredHistory.length} of {history.length} records</span>
+                <span className="ledger-footer-count">Showing {filteredHistory.length} of {history ? history.length : 0} records</span>
                 <button
                   type="button"
                   className="btn btn-outline btn-sm"
@@ -3714,33 +4507,326 @@ export default function CampaignCard(props) {
               className="card bounce-in"
               style={{
                 position: 'relative',
-                width: (donateStep === 6 || donateStep === 7) ? '880px' : '500px',
+                width: isPaymentProcessing ? '540px' : ((donateStep === 0 || donateStep === 6 || donateStep === 7) ? '880px' : '500px'),
                 maxWidth: '94vw',
                 maxHeight: '92vh',
                 overflowY: 'auto',
-                padding: '24px',
-                background: 'var(--surface)',
-                border: '1px solid var(--border)',
-                boxShadow: 'var(--shadow-card, 0 25px 50px -12px rgba(0, 0, 0, 0.7))',
+                padding: isPaymentProcessing ? '32px 24px' : '24px',
+                background: isPaymentProcessing ? '#0a0a0a' : 'var(--surface)',
+                border: isPaymentProcessing ? '1px solid #222222' : '1px solid var(--border)',
+                boxShadow: isPaymentProcessing ? '0 25px 65px rgba(0, 0, 0, 0.9)' : 'var(--shadow-card, 0 25px 50px -12px rgba(0, 0, 0, 0.7))',
                 borderRadius: '18px',
                 transition: 'width 0.25s ease'
               }}
             >
 
+              {/* ── Universal Institutional Payment Processing Screen ── */}
+              {isPaymentProcessing && (() => {
+                const isEthSign = donateStep === 2;
+                const isEthMine = donateStep === 3;
+                const isCard = donateStep === 6 && isUploading;
+                const isWallet = donateStep === 7 && gatewayLoading;
+
+                let railName = 'GCash';
+                let railColor = '#007DFE';
+                let railIcon = 'account_balance_wallet';
+                let railBadge = 'Official GCash Payment Channel';
+                let title = 'Processing GCash Transfer';
+                let subtitle = 'Cross-referencing payment slip reference with official GCash gateway and recording to on-chain ledger.';
+                let primaryAmount = `₱${parseFloat(amount || 0).toLocaleString()} PHP`;
+                let secondaryAmount = `≈ ${(parseFloat(amount || 0) / 170000).toFixed(6)} ETH`;
+                let traceLabel = 'GCash Reference No.';
+                let traceValue = (refNumber || gatewayRefNo || 'Analyzing slip...').trim();
+                let step1Text = 'Payment Slip & Reference Ingested';
+                let step2Text = 'Validating Reference with GCash Gateway';
+                let step3Text = 'Notarizing to Sepolia EVM Relief Ledger';
+
+                if (isWallet) {
+                  railName = gatewayMethod || 'GCash';
+                  railColor = railName === 'Maya' ? '#00D68F' : '#007DFE';
+                  railIcon = 'account_balance_wallet';
+                  railBadge = `Official ${railName} Payment Channel`;
+                  title = `Processing ${railName} Transfer`;
+                  subtitle = `Cross-referencing payment slip reference with official ${railName} gateway and recording to on-chain ledger.`;
+                  primaryAmount = `₱${parseFloat(amount || 0).toLocaleString()} PHP`;
+                  secondaryAmount = `≈ ${(parseFloat(amount || 0) / 170000).toFixed(6)} ETH`;
+                  traceLabel = `${railName} Reference No.`;
+                  traceValue = (refNumber || gatewayRefNo || 'Analyzing slip...').trim();
+                  step1Text = 'Payment Slip & Reference Ingested';
+                  step2Text = `Validating Reference with ${railName} Gateway`;
+                  step3Text = 'Notarizing to Sepolia EVM Relief Ledger';
+                } else if (isCard) {
+                  const brand = cardType !== 'unknown' ? cardType.toUpperCase() : 'Credit / Debit Card';
+                  railName = brand;
+                  railColor = '#3b82f6';
+                  railIcon = 'credit_card';
+                  railBadge = 'PCI-DSS Level 1 Encrypted Rail';
+                  title = 'Authorizing Card Payment';
+                  subtitle = 'Transmitting 256-bit encrypted card payload to direct banking clearing gateway.';
+                  primaryAmount = `₱${parseFloat(amount || 0).toLocaleString()} PHP`;
+                  secondaryAmount = `≈ ${(parseFloat(amount || 0) / 170000).toFixed(6)} ETH`;
+                  traceLabel = 'Payment Instrument';
+                  traceValue = `${brand} •••• ${cardNumber ? cardNumber.replace(/\D/g, '').slice(-4) : '••••'}`;
+                  step1Text = 'Card Details Tokenized & Encrypted';
+                  step2Text = '3D Secure Bank Clearing Authorization';
+                  step3Text = 'Minting Tamper-Proof Audit Voucher';
+                } else if (isEthSign) {
+                  railName = 'Sepolia EVM (ETH)';
+                  railColor = '#10b981';
+                  railIcon = 'currency_exchange';
+                  railBadge = 'EVM Smart Contract Gateway';
+                  title = 'Awaiting MetaMask Signature';
+                  subtitle = 'Please review and confirm the transaction parameters in your MetaMask browser extension.';
+                  primaryAmount = `${amount || '0'} ETH`;
+                  secondaryAmount = `≈ ₱${(parseFloat(amount || 0) * 170000).toLocaleString()} PHP`;
+                  traceLabel = 'Sender Web3 Wallet';
+                  traceValue = walletAddress ? `${walletAddress.slice(0, 8)}...${walletAddress.slice(-6)}` : 'MetaMask Connected';
+                  step1Text = 'Relief Smart Contract Call Prepared';
+                  step2Text = 'Awaiting Cryptographic Signature in MetaMask';
+                  step3Text = 'Broadcasting to Sepolia Validator Nodes';
+                } else if (isEthMine) {
+                  railName = 'Sepolia EVM (ETH)';
+                  railColor = '#10b981';
+                  railIcon = 'hub';
+                  railBadge = 'Consensus Validator Network';
+                  title = 'Mining on Sepolia Blockchain';
+                  subtitle = 'Broadcasting transaction payload to consensus validator nodes. Awaiting block inclusion...';
+                  primaryAmount = `${amount || '0'} ETH`;
+                  secondaryAmount = `≈ ₱${(parseFloat(amount || 0) * 170000).toLocaleString()} PHP`;
+                  traceLabel = 'Transaction Hash';
+                  traceValue = txHash ? `${txHash.slice(0, 10)}...${txHash.slice(-8)}` : 'Broadcasting...';
+                  step1Text = 'Client Signature Cryptographically Verified';
+                  step2Text = 'Consensus Node Mining & State Finalization';
+                  step3Text = 'Generating Immutable Cryptographic Receipt';
+                }
+
+                return (
+                  <div className="fade-in" style={{
+                    padding: '24px 14px 18px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    textAlign: 'center',
+                    minHeight: '440px',
+                    background: '#0a0a0a',
+                    borderRadius: '14px',
+                    color: '#ededed'
+                  }}>
+                    {/* Top Rail Badge */}
+                    <div style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      padding: '4px 12px',
+                      borderRadius: '20px',
+                      background: `${railColor}15`,
+                      border: `1px solid ${railColor}40`,
+                      color: railColor,
+                      fontSize: '0.72rem',
+                      fontWeight: 700,
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.05em',
+                      marginBottom: '20px'
+                    }}>
+                      <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>{railIcon}</span>
+                      <span>{railBadge}</span>
+                    </div>
+
+                    {/* Animated Pulsing Ring & Node Icon */}
+                    <div style={{
+                      position: 'relative',
+                      width: '84px',
+                      height: '84px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      marginBottom: '20px'
+                    }}>
+                      <div style={{
+                        position: 'absolute',
+                        width: '100%',
+                        height: '100%',
+                        borderRadius: '50%',
+                        border: `2px solid ${railColor}45`,
+                        animation: 'ping 1.8s cubic-bezier(0, 0, 0.2, 1) infinite'
+                      }} />
+                      <div style={{
+                        width: '64px',
+                        height: '64px',
+                        borderRadius: '50%',
+                        background: '#111111',
+                        border: `1px solid ${railColor}40`,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        boxShadow: `0 0 35px ${railColor}30`
+                      }}>
+                        <span className="material-symbols-outlined" style={{ fontSize: '28px', color: railColor }}>
+                          {railIcon}
+                        </span>
+                      </div>
+                    </div>
+
+                    <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#ededed', margin: '0 0 6px 0', letterSpacing: '-0.02em' }}>
+                      {title}
+                    </h3>
+                    <p style={{ fontSize: '0.82rem', color: '#888888', maxWidth: '420px', margin: '0 0 22px 0', lineHeight: 1.5 }}>
+                      {subtitle}
+                    </p>
+
+                    {/* Transaction Financial Summary Box */}
+                    <div style={{
+                      width: '100%',
+                      maxWidth: '460px',
+                      background: '#0e0e0e',
+                      border: '1px solid #222222',
+                      borderRadius: '10px',
+                      padding: '14px 18px',
+                      marginBottom: '18px',
+                      textAlign: 'left',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '9px'
+                    }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontSize: '0.72rem', color: '#888888', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Contribution Value</span>
+                        <span style={{ fontSize: '1.05rem', fontWeight: 700, color: railColor, fontFamily: 'var(--font-mono, monospace)' }}>
+                          {primaryAmount}
+                          <span style={{ fontSize: '0.74rem', color: '#888888', fontWeight: 500, marginLeft: '6px' }}>
+                            ({secondaryAmount})
+                          </span>
+                        </span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontSize: '0.72rem', color: '#888888', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Beneficiary Campaign</span>
+                        <span style={{ fontSize: '0.78rem', color: '#ededed', fontWeight: 600, maxWidth: '240px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={camp.title}>
+                          {camp.title}
+                        </span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontSize: '0.72rem', color: '#888888', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{traceLabel}</span>
+                        <span style={{ fontSize: '0.78rem', color: '#ededed', fontFamily: 'var(--font-mono, monospace)', fontWeight: 600 }}>
+                          {traceValue}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Live 3-Step Verification Pipeline */}
+                    <div style={{
+                      width: '100%',
+                      maxWidth: '460px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '8px',
+                      marginBottom: '20px',
+                      textAlign: 'left'
+                    }}>
+                      {/* Step 1: Ingested */}
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '10px',
+                        padding: '8px 12px',
+                        borderRadius: '8px',
+                        background: '#121212',
+                        border: '1px solid #1f1f1f',
+                        fontSize: '0.78rem'
+                      }}>
+                        <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#10b981' }}>check_circle</span>
+                        <span style={{ color: '#ededed', fontWeight: 500 }}>{step1Text}</span>
+                      </div>
+
+                      {/* Step 2: In-Flight Processing */}
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '10px',
+                        padding: '8px 12px',
+                        borderRadius: '8px',
+                        background: `${railColor}10`,
+                        border: `1px solid ${railColor}35`,
+                        fontSize: '0.78rem'
+                      }}>
+                        <div className="spinner" style={{ width: '14px', height: '14px', borderWidth: '2px', borderColor: railColor, borderTopColor: 'transparent', flexShrink: 0 }} />
+                        <span style={{ color: '#ffffff', fontWeight: 600 }}>{step2Text}</span>
+                      </div>
+
+                      {/* Step 3: Ledger Notarization */}
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '10px',
+                        padding: '8px 12px',
+                        borderRadius: '8px',
+                        background: '#121212',
+                        border: '1px solid #1c1c1c',
+                        fontSize: '0.78rem',
+                        opacity: 0.55
+                      }}>
+                        <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#666666' }}>radio_button_unchecked</span>
+                        <span style={{ color: '#888888', fontWeight: 500 }}>{step3Text}</span>
+                      </div>
+                    </div>
+
+                    {/* Return button if awaiting metamask signature */}
+                    {isEthSign && (
+                      <button
+                        type="button"
+                        onClick={() => setDonateStep(1)}
+                        style={{
+                          background: 'transparent',
+                          border: '1px solid #333333',
+                          color: '#888888',
+                          borderRadius: '8px',
+                          padding: '6px 16px',
+                          fontSize: '0.75rem',
+                          cursor: 'pointer',
+                          marginBottom: '16px',
+                          transition: 'all 0.15s ease'
+                        }}
+                        onMouseEnter={e => { e.currentTarget.style.color = '#ededed'; e.currentTarget.style.borderColor = '#555555'; }}
+                        onMouseLeave={e => { e.currentTarget.style.color = '#888888'; e.currentTarget.style.borderColor = '#333333'; }}
+                      >
+                        Cancel & Return to Form
+                      </button>
+                    )}
+
+                    {/* Bottom Trust & Security Indicator */}
+                    <div style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      fontSize: '0.70rem',
+                      color: '#666666',
+                      letterSpacing: '0.04em',
+                      textTransform: 'uppercase',
+                      fontFamily: 'var(--font-mono, monospace)'
+                    }}>
+                      <span style={{ display: 'inline-block', width: '6px', height: '6px', borderRadius: '50%', background: '#10b981' }} />
+                      <span>256-Bit SSL Encrypted Gateway • Tamper-Proof Audit Trail</span>
+                    </div>
+                  </div>
+                );
+              })()}
+
               {/* ── STEP 0: Multi-Rail Payment Gateway Selector (Territory: Full Modal) ── */}
-              {donateStep === 0 && (
+              {!isPaymentProcessing && donateStep === 0 && (
                 <div className="fade-in" style={{ position: 'relative' }}>
 
-                  {/* Header with Close Button inside the main container */}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px' }}>
+                  {/* Header matching Step 6 & 7 */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '18px', borderBottom: '1px solid var(--border, rgba(255,255,255,0.08))', paddingBottom: '14px', flexWrap: 'wrap', gap: '10px' }}>
                     <div>
                       <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.74rem', color: '#22c55e', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>
                         <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>lock</span>
                         Institutional Contribution Gateway
                       </div>
-                      <h2 style={{ margin: 0, fontSize: '1.3rem', color: 'var(--text-primary, #fff)', fontWeight: 800 }}>
+                      <h2 style={{ margin: 0, fontSize: '1.35rem', color: 'var(--text-primary, #fff)', fontWeight: 800 }}>
                         Select Payment Method
                       </h2>
+                      <div style={{ fontSize: '0.78rem', color: 'var(--text-muted, #94a3b8)', marginTop: '3px' }}>
+                        Beneficiary Campaign: <strong style={{ color: 'var(--text-secondary, #cbd5e1)' }}>{camp.title}</strong>
+                      </div>
                     </div>
                     <button
                       onClick={() => {
@@ -3754,26 +4840,105 @@ export default function CampaignCard(props) {
                     </button>
                   </div>
 
-                  {/* Order Context Summary Banner */}
-                  <div className="payment-order-summary-card">
-                    <div style={{ flex: 1, minWidth: '180px' }}>
-                      <div className="payment-order-summary-title">{camp.title}</div>
-                      <div className="payment-order-summary-org">
-                        Beneficiary: <strong style={{ color: 'var(--text-secondary, #cbd5e1)' }}>{getOrgDisplayName(camp)}</strong>
+                  {/* Top Combined Summary Card: Campaign Context (Left) + Donation Amount (Right) */}
+                  <div className="payment-selector-top-card">
+                    {/* Left Side: Campaign Context & Beneficiary */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '14px', minWidth: 0 }}>
+                      <img
+                        src={coverData.imageUrl}
+                        alt={camp.title}
+                        style={{ width: '54px', height: '54px', borderRadius: '12px', objectFit: 'cover', flexShrink: 0, border: '1px solid var(--border)' }}
+                        onError={(e) => { e.target.onerror = null; e.target.src = 'https://images.unsplash.com/photo-1532629345422-7515f3d16bb6?auto=format&fit=crop&w=150&q=80'; }}
+                      />
+                      <div style={{ minWidth: 0, flex: 1 }}>
+                        <div style={{ fontSize: '0.94rem', fontWeight: 800, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {camp.title}
+                        </div>
+                        <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '5px', marginTop: '3px' }}>
+                          <span className="material-symbols-outlined" style={{ fontSize: '15px', color: '#22c55e' }}>corporate_fare</span>
+                          <span style={{ color: 'var(--text-secondary)' }}>Beneficiary: {getOrgDisplayName(camp)}</span>
+                        </div>
+                        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', marginTop: '2px' }}>
+                          ≈ {((Number(amount || 0)) / 170000).toFixed(5)} ETH
+                        </div>
                       </div>
                     </div>
-                    <div className="payment-amount-capsule">
-                      <div className="payment-amount-php">₱{Number(amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</div>
-                      <div className="payment-amount-eth">≈ {((Number(amount || 0)) / 170000).toFixed(5)} ETH</div>
+
+                    {/* Right Side: Interactive Donation Amount Input with Chips */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <label style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                          Donation Amount (PHP)
+                        </label>
+                        {amount && Number(amount) > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => setAmount('')}
+                            style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: '0.7rem', cursor: 'pointer', padding: 0 }}
+                          >
+                            Clear
+                          </button>
+                        )}
+                      </div>
+
+                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                        <div style={{ position: 'relative', display: 'flex', alignItems: 'center', flex: '1 1 140px', minWidth: '120px' }}>
+                          <span style={{ position: 'absolute', left: '12px', color: 'var(--accent, #10b981)', fontWeight: 800, fontSize: '1.05rem', fontFamily: 'var(--font-mono)' }}>₱</span>
+                          <input
+                            type="number"
+                            step="1"
+                            min="1"
+                            value={amount}
+                            onChange={(e) => setAmount(e.target.value)}
+                            placeholder="0.00"
+                            style={{
+                              width: '100%',
+                              padding: '8px 12px 8px 30px',
+                              background: 'var(--bg-subcard, rgba(0,0,0,0.3))',
+                              border: '1.5px solid var(--border, rgba(255,255,255,0.15))',
+                              borderRadius: '8px',
+                              color: 'var(--text-primary, #fff)',
+                              fontSize: '1.05rem',
+                              fontWeight: 700,
+                              fontFamily: 'var(--font-mono)',
+                              outline: 'none'
+                            }}
+                          />
+                        </div>
+
+                        <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', flex: '1 1 auto' }}>
+                          {['100', '500', '1000', '2500', '5000'].map((val) => (
+                            <button
+                              key={val}
+                              type="button"
+                              onClick={() => setAmount(val)}
+                              style={{
+                                padding: '5px 8px',
+                                borderRadius: '6px',
+                                fontSize: '0.72rem',
+                                fontWeight: 600,
+                                cursor: 'pointer',
+                                background: amount === val ? 'var(--text-primary)' : 'var(--bg-subcard, rgba(255,255,255,0.05))',
+                                color: amount === val ? 'var(--bg-page, #000)' : 'var(--text-secondary)',
+                                border: `1px solid ${amount === val ? 'var(--text-primary)' : 'var(--border)'}`,
+                                transition: 'all 0.15s ease'
+                              }}
+                            >
+                              ₱{Number(val).toLocaleString()}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
                     </div>
                   </div>
 
-                  <p style={{ color: 'var(--text-muted, #94a3b8)', fontSize: '0.78rem', margin: '0 0 14px 2px' }}>
+                  {/* Section Subtitle */}
+                  <p style={{ color: 'var(--text-muted, #94a3b8)', fontSize: '0.78rem', margin: '0 0 12px 2px' }}>
                     Choose how you would like to securely transfer your disaster relief aid:
                   </p>
 
-                  {/* 4 Dedicated Payment Rails */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '20px' }}>
+                  {/* 2x2 Grid of the 4 Payment Rails */}
+                  <div className="payment-rails-grid">
 
                     {/* Option 1: Web3 MetaMask */}
                     <button
@@ -3782,12 +4947,7 @@ export default function CampaignCard(props) {
                           if (typeof window !== 'undefined' && !window.ethereum) {
                             return showWarning(
                               "Please install the MetaMask browser extension to connect your Web3 wallet.",
-                              "MetaMask Required",
-                              8000,
-                              {
-                                label: "Download MetaMask ↗",
-                                onClick: () => window.open('https://metamask.io/download/', '_blank', 'noopener,noreferrer')
-                              }
+                              "MetaMask Required"
                             );
                           }
                           return showWarning("MetaMask is not actively connected. Please connect your wallet first.", "Wallet Not Connected");
@@ -3804,7 +4964,7 @@ export default function CampaignCard(props) {
                           <span className="payment-option-title">Web3 MetaMask Key</span>
                           <span className="payment-option-badge">100% On-Chain</span>
                         </div>
-                        <div className="payment-option-desc">Direct Sepolia smart contract dispatch & immutable blockchain ledger entry</div>
+                        <div className="payment-option-desc">Direct Sepolia smart contract dispatch &amp; immutable blockchain ledger entry</div>
                       </div>
                       <span className="material-symbols-outlined" style={{ color: 'var(--text-muted, #94a3b8)', fontSize: '20px' }}>chevron_right</span>
                     </button>
@@ -3816,9 +4976,7 @@ export default function CampaignCard(props) {
                         setGatewayStep(0);
                         setGatewayMobile('');
                         setGatewayOtp(['', '', '', '', '', '']);
-                        setGatewayRefNo('');
-                        setRefNumber('');
-                        setReceiptBase64('');
+                        handleRemoveProof();
                         setDonateStep(7);
                       }}
                       className="payment-option-btn"
@@ -3843,9 +5001,7 @@ export default function CampaignCard(props) {
                         setGatewayStep(0);
                         setGatewayMobile('');
                         setGatewayOtp(['', '', '', '', '', '']);
-                        setGatewayRefNo('');
-                        setRefNumber('');
-                        setReceiptBase64('');
+                        handleRemoveProof();
                         setDonateStep(7);
                       }}
                       className="payment-option-btn"
@@ -3883,15 +5039,16 @@ export default function CampaignCard(props) {
 
                   </div>
 
+                  {/* Footer Bar */}
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.72rem', color: 'var(--text-muted, #94a3b8)', borderTop: '1px solid var(--border, rgba(255,255,255,0.08))', paddingTop: '12px' }}>
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                      <span className="material-symbols-outlined" style={{ fontSize: '14px', color: '#22c55e' }}>verified_user</span>
-                      Decentralized Disaster Relief Protocol
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                      <span className="material-symbols-outlined" style={{ fontSize: '15px', color: '#22c55e' }}>verified_user</span>
+                      Decentralized Disaster Relief Protocol • 100% Verified Humanitarian Routing
                     </span>
                     <button
                       className="btn btn-ghost btn-sm"
                       onClick={() => setModalOpen(false)}
-                      style={{ fontSize: '0.78rem', padding: '4px 10px' }}
+                      style={{ fontSize: '0.78rem', padding: '5px 12px' }}
                     >
                       Cancel
                     </button>
@@ -3900,7 +5057,7 @@ export default function CampaignCard(props) {
               )}
 
               {/* ── STEP 1: Web3 MetaMask Review & Signing ── */}
-              {donateStep === 1 && (
+              {!isPaymentProcessing && donateStep === 1 && (
                 <div className="fade-in">
 
                   {/* Step Bar */}
@@ -3942,17 +5099,52 @@ export default function CampaignCard(props) {
                     </div>
                   </div>
 
-                  {/* Amount Breakdown Box */}
-                  <div style={{ marginBottom: '14px', textAlign: 'center', background: 'var(--bg-input, rgba(0,0,0,0.3))', padding: '14px', borderRadius: '12px', border: '1px solid var(--border, rgba(255,255,255,0.06))' }}>
-                    <div style={{ fontSize: '0.74rem', textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--text-muted, #94a3b8)', marginBottom: '4px', fontWeight: 600 }}>
-                      Selected Contribution
+                  {/* Amount Breakdown Box & Input */}
+                  <div style={{ marginBottom: '14px', background: 'var(--bg-card)', padding: '16px', borderRadius: 'var(--radius-lg, 12px)', border: '1px solid var(--border)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                      <span style={{ fontSize: '0.74rem', textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--text-muted)', fontWeight: 700 }}>
+                        Donation Amount (PHP)
+                      </span>
+                      <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontWeight: 600 }}>
+                        ≈ {((Number(amount || 0)) / 170000).toFixed(6)} ETH
+                      </span>
                     </div>
-                    <div style={{ display: 'inline-flex', alignItems: 'baseline', gap: '6px' }}>
-                      <span style={{ fontSize: '2.2rem', fontWeight: '800', color: '#22c55e', lineHeight: '1' }}>₱{Number(amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
-                      <span style={{ fontSize: '0.9rem', fontWeight: '700', color: 'var(--text-muted, #94a3b8)' }}>PHP</span>
+
+                    <div style={{ position: 'relative', marginBottom: '10px' }}>
+                      <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', fontWeight: 800, color: 'var(--accent)', fontSize: '1.2rem' }}>₱</span>
+                      <input
+                        type="number"
+                        className="input"
+                        style={{ width: '100%', paddingLeft: '32px', fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-primary)', borderRadius: 'var(--radius-md, 8px)' }}
+                        value={amount}
+                        onChange={(e) => setAmount(e.target.value)}
+                        placeholder="500"
+                        min="1"
+                      />
                     </div>
-                    <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary, #cbd5e1)', marginTop: '6px', fontWeight: '600', fontFamily: 'var(--font-mono, monospace)' }}>
-                      ≈ {((Number(amount || 0)) / 170000).toFixed(6)} ETH (1 ETH ≈ ₱170,000)
+
+                    {/* Quick Preset Increments */}
+                    <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                      {['100', '500', '1000', '2500', '5000'].map((preset) => (
+                        <button
+                          key={preset}
+                          type="button"
+                          className="payment-quick-msg-chip"
+                          style={{
+                            background: amount === preset ? 'var(--accent)' : 'var(--bg-hover)',
+                            borderColor: amount === preset ? 'var(--accent)' : 'var(--border)',
+                            color: amount === preset ? 'var(--bg-base)' : 'var(--text-primary)',
+                            fontWeight: 600,
+                            fontSize: '0.74rem',
+                            padding: '4px 10px',
+                            borderRadius: 'var(--radius-sm, 6px)',
+                            cursor: 'pointer'
+                          }}
+                          onClick={() => setAmount(preset)}
+                        >
+                          ₱{Number(preset).toLocaleString()}
+                        </button>
+                      ))}
                     </div>
                   </div>
 
@@ -4007,7 +5199,7 @@ export default function CampaignCard(props) {
                         </div>
                         <div style={{ display: 'flex', flexDirection: 'column' }}>
                           <span style={{ fontSize: '0.88rem', fontWeight: '700', color: isAnonymous ? '#22c55e' : 'var(--text-primary, #fff)' }}>Donate Anonymously</span>
-                          <span style={{ fontSize: '0.72rem', color: 'var(--text-muted, #94a3b8)' }}>Mask identity on the public Sepolia blockchain ledger</span>
+                          <span style={{ fontSize: '0.72rem', color: 'var(--text-muted, #94a3b8)' }}>{isAnonymous ? 'Name hidden from public list' : 'Hide name on public donor list'}</span>
                         </div>
                       </div>
 
@@ -4057,7 +5249,7 @@ export default function CampaignCard(props) {
                       className="btn btn-primary"
                       style={{ flex: 2, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
                       onClick={handleConfirmDonate}
-                      disabled={!legalConfirm}
+                      disabled={!legalConfirm || !amount || parseFloat(amount) <= 0}
                     >
                       <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>lock</span>
                       <span>Confirm & Sign via MetaMask</span>
@@ -4066,37 +5258,8 @@ export default function CampaignCard(props) {
                 </div>
               )}
 
-              {/* ── STEP 2: Awaiting MetaMask Signature ── */}
-              {donateStep === 2 && (
-                <div className="fade-in" style={{ textAlign: 'center', padding: '36px 12px' }}>
-                  <div className="spinner" style={{ width: '46px', height: '46px', margin: '0 auto 20px', borderColor: '#22c55e', borderRightColor: 'transparent' }}></div>
-                  <h3 style={{ marginBottom: '8px', color: 'var(--text-primary, #fff)', fontSize: '1.25rem', fontWeight: 800 }}>Awaiting MetaMask Signature</h3>
-                  <p style={{ color: 'var(--text-muted, #94a3b8)', fontSize: '0.86rem', maxWidth: '340px', margin: '0 auto', lineHeight: '1.5' }}>
-                    Please open MetaMask extension and confirm the cryptographic signature to authorize this relief transaction.
-                  </p>
-                  <div style={{ marginTop: '20px', fontSize: '0.76rem', color: '#22c55e', fontFamily: 'monospace' }}>
-                    ● SECURE CLIENT EVM GATEWAY LISTENING
-                  </div>
-                </div>
-              )}
-
-              {/* ── STEP 3: Mining Transaction on Sepolia Network ── */}
-              {donateStep === 3 && (
-                <div className="fade-in" style={{ textAlign: 'center', padding: '30px 12px' }}>
-                  <div className="spinner" style={{ width: '46px', height: '46px', margin: '0 auto 20px', borderColor: '#22c55e', borderRightColor: 'transparent' }}></div>
-                  <h3 style={{ marginBottom: '8px', color: 'var(--text-primary, #fff)', fontSize: '1.25rem', fontWeight: 800 }}>Mining on Sepolia Blockchain</h3>
-                  <p style={{ color: 'var(--text-muted, #94a3b8)', fontSize: '0.86rem', marginBottom: '16px' }}>
-                    Broadcasting blocks to consensus nodes. This will finalize in a few moments.
-                  </p>
-                  <div style={{ padding: '12px', background: 'var(--bg-input, rgba(0,0,0,0.3))', borderRadius: '10px', fontSize: '0.78rem', wordBreak: 'break-all', border: '1px solid var(--border, rgba(255,255,255,0.08))', textAlign: 'left' }}>
-                    <div style={{ color: 'var(--text-muted, #94a3b8)', marginBottom: '4px', fontSize: '0.72rem', textTransform: 'uppercase' }}>Transaction Hash:</div>
-                    <div style={{ fontFamily: 'monospace', color: '#22c55e', fontSize: '0.82rem' }}>{txHash}</div>
-                  </div>
-                </div>
-              )}
-
               {/* ── STEP 4: Verified Cryptographic Receipt Screen ── */}
-              {donateStep === 4 && (
+              {!isPaymentProcessing && donateStep === 4 && (
                 <div className="fade-in" style={{ textAlign: 'center', padding: '16px 8px 8px' }}>
                   <div className="success-circle-container" style={{ margin: '0 auto 14px' }}>
                     <span
@@ -4155,6 +5318,43 @@ export default function CampaignCard(props) {
                         </div>
                       );
                     })()}
+
+                    {/* Two-Sided Settlement Audit: Sender Card (Debited) -> Receiver NGO Account (Credited) */}
+                    {cardNumber && (
+                      <div style={{ marginTop: '12px', paddingTop: '10px', borderTop: '1px dashed rgba(255,255,255,0.12)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                        <div style={{ background: 'rgba(0,0,0,0.28)', padding: '10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                          <div style={{ fontSize: '0.68rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <span className="material-symbols-outlined" style={{ fontSize: '14px', color: '#38bdf8' }}>credit_card</span>
+                            Sender Card (Debited)
+                          </div>
+                          <div style={{ fontSize: '0.80rem', color: '#fff', fontWeight: 700, marginTop: '4px' }}>
+                            {cardName || 'Gester Macaldo'}
+                          </div>
+                          <div style={{ fontSize: '0.72rem', color: '#94a3b8', fontFamily: 'monospace', marginTop: '2px' }}>
+                            •••• {cardNumber.replace(/\s+/g, '').slice(-4) || '4242'} ({cardType?.toUpperCase() || 'VISA'})
+                          </div>
+                          <div style={{ fontSize: '0.76rem', color: '#ef4444', fontWeight: 800, marginTop: '4px' }}>
+                            -₱{Number(amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })} PHP
+                          </div>
+                        </div>
+
+                        <div style={{ background: 'rgba(34, 197, 94, 0.06)', padding: '10px', borderRadius: '8px', border: '1px solid rgba(34, 197, 94, 0.22)' }}>
+                          <div style={{ fontSize: '0.68rem', color: '#22c55e', textTransform: 'uppercase', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <span className="material-symbols-outlined" style={{ fontSize: '14px', color: '#22c55e' }}>account_balance</span>
+                            Receiver NGO (Credited)
+                          </div>
+                          <div style={{ fontSize: '0.80rem', color: '#fff', fontWeight: 700, marginTop: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {camp.orgName || 'BBDRTS Relief Foundation'}
+                          </div>
+                          <div style={{ fontSize: '0.72rem', color: '#94a3b8', fontFamily: 'monospace', marginTop: '2px' }}>
+                            {camp.bankName || 'BDO Unibank'} • {camp.bankAccountNumber || '1092 8847 2910'}
+                          </div>
+                          <div style={{ fontSize: '0.76rem', color: '#22c55e', fontWeight: 800, marginTop: '4px' }}>
+                            +₱{Number(amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })} PHP
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   {/* Donor Recognition & Certificate Callout */}
@@ -4238,11 +5438,25 @@ export default function CampaignCard(props) {
               )}
 
               {/* ── STEP 6: Institutional Card & Bank Checkout ── */}
-              {donateStep === 6 && (
+              {!isPaymentProcessing && donateStep === 6 && (
                 <div className="fade-in">
 
-                  {/* Modal Header */}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '18px', borderBottom: '1px solid var(--border, rgba(255,255,255,0.08))', paddingBottom: '14px' }}>
+                  {/* Modal Header (Sticky) */}
+                  <div style={{
+                    position: 'sticky',
+                    top: '-24px',
+                    marginTop: '-24px',
+                    paddingTop: '20px',
+                    paddingBottom: '14px',
+                    background: 'var(--surface)',
+                    backdropFilter: 'blur(12px)',
+                    zIndex: 25,
+                    borderBottom: '1px solid var(--border, rgba(255,255,255,0.08))',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'flex-start',
+                    marginBottom: '18px'
+                  }}>
                     <div>
                       <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.74rem', color: '#22c55e', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>
                         <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>credit_card</span>
@@ -4276,13 +5490,25 @@ export default function CampaignCard(props) {
                         </span>
                         <button
                           type="button"
-                          className="card-autofill-btn"
                           onClick={handleAutofillTestCard}
-                          style={{ margin: 0 }}
-                          title="Autofill verified demo test card details"
+                          className="btn btn-ghost btn-xs"
+                          style={{
+                            fontSize: '0.70rem',
+                            padding: '3px 8px',
+                            color: '#38bdf8',
+                            background: 'rgba(56, 189, 248, 0.12)',
+                            border: '1px solid rgba(56, 189, 248, 0.35)',
+                            borderRadius: '6px',
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            fontWeight: 600
+                          }}
+                          title="Click to auto-populate standard sandbox test card credentials"
                         >
-                          <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>bolt</span>
-                          Demo Test Card
+                          <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>bolt</span>
+                          Fill Test Card
                         </button>
                       </div>
 
@@ -4416,18 +5642,80 @@ export default function CampaignCard(props) {
 
                       {/* Financial Settlement Breakdown Card */}
                       <div style={{ background: 'var(--bg-card, rgba(255,255,255,0.03))', border: '1px solid var(--border, rgba(255,255,255,0.08))', borderRadius: '12px', padding: '14px' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', color: 'var(--text-secondary, #cbd5e1)', fontSize: '0.84rem' }}>
-                          <span>Donation Amount:</span>
-                          <strong style={{ color: 'var(--text-primary, #fff)' }}>₱{parseFloat(amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })} PHP</strong>
+                        
+                        {/* Donation Amount Interactive Input */}
+                        <div style={{ marginBottom: '14px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                            <label style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary, #cbd5e1)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                              Donation Amount (PHP)
+                            </label>
+                            <span style={{ fontSize: '0.72rem', color: 'var(--text-muted, #94a3b8)', fontFamily: 'var(--font-mono, monospace)', fontWeight: 600 }}>
+                              ≈ {((parseFloat(amount || 0)) / 170000).toFixed(6)} ETH
+                            </span>
+                          </div>
+
+                          <div style={{ position: 'relative' }}>
+                            <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', fontWeight: 800, color: '#22c55e', fontSize: '1.1rem' }}>₱</span>
+                            <input
+                              type="number"
+                              className="input"
+                              style={{
+                                width: '100%',
+                                paddingLeft: '32px',
+                                paddingRight: '56px',
+                                fontSize: '1.05rem',
+                                fontWeight: 800,
+                                color: 'var(--text-primary, #ffffff)',
+                                background: 'var(--bg-base, #0d0e12)',
+                                border: '1px solid var(--border, rgba(255,255,255,0.12))',
+                                borderRadius: 'var(--radius-md, 8px)'
+                              }}
+                              value={amount}
+                              onChange={(e) => setAmount(e.target.value)}
+                              placeholder="500"
+                              min="1"
+                              step="any"
+                            />
+                            <span style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', fontWeight: 700, color: 'var(--text-muted, #94a3b8)', fontSize: '0.75rem', fontFamily: 'var(--font-mono)' }}>
+                              PHP
+                            </span>
+                          </div>
+
+                          {/* Quick Preset Amount Chips */}
+                          <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '8px' }}>
+                            {['100', '500', '1000', '2500', '5000'].map((preset) => (
+                              <button
+                                key={preset}
+                                type="button"
+                                style={{
+                                  background: amount === preset ? '#22c55e' : 'var(--bg-hover, rgba(255,255,255,0.06))',
+                                  borderColor: amount === preset ? '#22c55e' : 'var(--border, rgba(255,255,255,0.1))',
+                                  borderWidth: '1px',
+                                  borderStyle: 'solid',
+                                  color: amount === preset ? '#000000' : 'var(--text-primary, #ffffff)',
+                                  fontWeight: 700,
+                                  fontSize: '0.72rem',
+                                  padding: '4px 10px',
+                                  borderRadius: 'var(--radius-sm, 6px)',
+                                  cursor: 'pointer',
+                                  transition: 'all 0.15s ease'
+                                }}
+                                onClick={() => setAmount(preset)}
+                              >
+                                ₱{Number(preset).toLocaleString()}
+                              </button>
+                            ))}
+                          </div>
                         </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '10px', color: 'var(--text-muted, #94a3b8)', fontSize: '0.8rem' }}>
+
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', color: 'var(--text-muted, #94a3b8)', fontSize: '0.8rem' }}>
                           <span>Processing & Gas Fee:</span>
                           <span style={{ color: '#22c55e', fontWeight: 600 }}>₱0.00 (Zero Non-Profit Fee)</span>
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '10px', borderTop: '1px solid var(--border, rgba(255,255,255,0.08))' }}>
                           <span style={{ fontSize: '0.84rem', fontWeight: 700, color: 'var(--text-primary, #fff)' }}>Total Settlement:</span>
                           <div style={{ textAlign: 'right' }}>
-                            <div style={{ color: '#22c55e', fontWeight: 800, fontSize: '1.05rem', lineHeight: '1.2' }}>₱{parseFloat(amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</div>
+                            <div style={{ color: '#22c55e', fontWeight: 800, fontSize: '1.05rem', lineHeight: '1.2' }}>₱{parseFloat(amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })} PHP</div>
                             <div style={{ fontSize: '0.72rem', color: 'var(--text-muted, #94a3b8)', fontFamily: 'var(--font-mono, monospace)' }}>≈ {(parseFloat(amount || 0) / 170000).toFixed(6)} ETH</div>
                           </div>
                         </div>
@@ -4664,7 +5952,7 @@ export default function CampaignCard(props) {
                                 {isAnonymous ? 'Anonymous Card Donation' : 'Donate Anonymously'}
                               </span>
                               <span style={{ fontSize: '0.7rem', color: 'var(--text-muted, #94a3b8)' }}>
-                                {isAnonymous ? 'Cardholder name will not appear on public ledger' : 'Mask cardholder identity on public campaign ledger'}
+                                {isAnonymous ? 'Name hidden from public list' : 'Hide name on public donor list'}
                               </span>
                             </div>
                           </div>
@@ -4692,7 +5980,7 @@ export default function CampaignCard(props) {
                           className="btn btn-primary"
                           style={{ flex: 2, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
                           onClick={() => submitManualDonation('Credit Card')}
-                          disabled={isUploading || !cardNumber || !cardExpiry || !cardCvv || !cardEmail}
+                          disabled={isUploading || !cardNumber || !cardExpiry || !cardCvv || !cardEmail || !amount || parseFloat(amount) <= 0}
                         >
                           {isUploading ? (
                             <>
@@ -4702,7 +5990,7 @@ export default function CampaignCard(props) {
                           ) : (
                             <>
                               <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>lock</span>
-                              <span>Pay ₱{parseFloat(amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })} PHP</span>
+                              <span>{amount && parseFloat(amount) > 0 ? `Pay ₱${parseFloat(amount).toLocaleString('en-US', { minimumFractionDigits: 2 })} PHP` : 'Enter Donation Amount'}</span>
                             </>
                           )}
                         </button>
@@ -4727,11 +6015,27 @@ export default function CampaignCard(props) {
               )}
 
               {/* ── STEP 7: Institutional E-Wallet (GCash / Maya) Terminal ── */}
-              {donateStep === 7 && (
+              {!isPaymentProcessing && donateStep === 7 && (
                 <div className="fade-in">
 
-                  {/* Modal Header */}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '16px', borderBottom: '1px solid var(--border, rgba(255,255,255,0.08))', paddingBottom: '14px', flexWrap: 'wrap', gap: '10px' }}>
+                  {/* Modal Header (Sticky) */}
+                  <div style={{
+                    position: 'sticky',
+                    top: '-24px',
+                    marginTop: '-24px',
+                    paddingTop: '20px',
+                    paddingBottom: '14px',
+                    background: 'var(--surface)',
+                    backdropFilter: 'blur(12px)',
+                    zIndex: 25,
+                    borderBottom: '1px solid var(--border, rgba(255,255,255,0.08))',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'flex-start',
+                    marginBottom: '16px',
+                    flexWrap: 'wrap',
+                    gap: '10px'
+                  }}>
                     <div>
                       <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.74rem', color: gatewayMethod === 'Maya' ? '#00D68F' : '#007DFE', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>
                         <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>account_balance_wallet</span>
@@ -4747,18 +6051,10 @@ export default function CampaignCard(props) {
 
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       <button
-                        type="button"
-                        className="card-autofill-btn"
-                        onClick={handleAutofillDemoReceipt}
-                        style={{ margin: 0, padding: '6px 12px', fontSize: '0.76rem', background: 'rgba(34, 197, 94, 0.15)', color: '#22c55e', border: '1px solid rgba(34, 197, 94, 0.4)', borderRadius: '8px', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '5px', fontWeight: 700 }}
-                        title="Autofill realistic demo receipt screenshot, ₱500 amount, and verified reference number"
-                      >
-                        <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>bolt</span>
-                        Demo Autofill (₱500 + Ref + Receipt)
-                      </button>
-
-                      <button
-                        onClick={() => setDonateStep(0)}
+                        onClick={() => {
+                          handleRemoveProof();
+                          setDonateStep(0);
+                        }}
                         style={{ background: 'var(--bg-input, rgba(255,255,255,0.05))', border: '1px solid var(--border, rgba(255,255,255,0.1))', color: 'var(--text-muted, #94a3b8)', width: '32px', height: '32px', borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                         title="Back to Payment Selector"
                       >
@@ -4771,59 +6067,45 @@ export default function CampaignCard(props) {
                   <div className="ewallet-checkout-grid">
 
                     {/* Left Column: NGO's Official E-Wallet QR & Manual Copy Number Credentials */}
-                    <div style={{ display: 'flex', flexDirection: 'column' }}>
-                      <div style={{ background: 'var(--bg-card, rgba(255,255,255,0.02))', border: '1px solid var(--border, rgba(255,255,255,0.08))', borderRadius: '16px', padding: '18px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-
-                        {/* Brand Badge */}
-                        <div style={{ width: '50px', height: '50px', borderRadius: '14px', background: gatewayMethod === 'Maya' ? '#000000' : '#007DFE', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '12px', border: gatewayMethod === 'Maya' ? '1.5px solid rgba(0,214,143,0.4)' : '1.5px solid rgba(255,255,255,0.2)', boxShadow: '0 4px 14px rgba(0,0,0,0.2)' }}>
-                          {gatewayMethod === 'Maya' ? (
-                            <span style={{ color: '#00d68f', fontWeight: 900, fontSize: '15px', letterSpacing: '-0.5px' }}>maya</span>
-                          ) : (
-                            <span style={{ color: '#ffffff', fontWeight: 900, fontSize: '24px' }}>G</span>
-                          )}
-                        </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                      <div style={{ width: '100%', maxWidth: '340px', background: 'var(--bg-card, rgba(255,255,255,0.02))', border: '1px solid var(--border, rgba(255,255,255,0.08))', borderRadius: '16px', padding: '18px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
 
                         {/* NGO Uploaded QR Code OR Informative QR Fallback */}
                         {((gatewayMethod === 'Maya' ? (camp.mayaQrUrl || camp.maya_qr_url) : (camp.gcashQrUrl || camp.gcash_qr_url))) ? (
-                          <div className="qr-ph-box" style={{ maxWidth: '210px', margin: '0 auto 12px', textAlign: 'center' }}>
-                            <div className="qr-ph-banner">
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
-                                <span style={{ fontSize: '10px', fontWeight: 900, color: '#0f172a' }}>OFFICIAL</span>
-                                <span style={{ fontSize: '10px', fontWeight: 900, color: gatewayMethod === 'Maya' ? '#00d68f' : '#007DFE' }}>{gatewayMethod.toUpperCase()}</span>
-                                <span style={{ width: '4px', height: '4px', borderRadius: '50%', background: '#22c55e', display: 'inline-block', margin: '0 1px' }}></span>
-                              </div>
-                              <span style={{ fontSize: '7px', fontWeight: 700, color: '#475569', textTransform: 'uppercase' }}>
-                                NGO Verified
-                              </span>
-                            </div>
-
-                            <div style={{ position: 'relative', width: '160px', height: '160px', margin: '0 auto', borderRadius: '10px', overflow: 'hidden', border: '1px solid rgba(0,0,0,0.08)', background: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '6px' }}>
-                              <img
-                                src={gatewayMethod === 'Maya' ? (camp.mayaQrUrl || camp.maya_qr_url) : (camp.gcashQrUrl || camp.gcash_qr_url)}
-                                alt={`${gatewayMethod} QR`}
-                                style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-                              />
-                            </div>
-                            <div style={{ fontSize: '0.68rem', color: 'var(--text-muted, #94a3b8)', marginTop: '4px' }}>
-                              Point your {gatewayMethod} camera to scan
-                            </div>
-                          </div>
+                          <CleanQrVoucherDisplay
+                            qrUrl={gatewayMethod === 'Maya' ? (camp.mayaQrUrl || camp.maya_qr_url) : (camp.gcashQrUrl || camp.gcash_qr_url)}
+                            gatewayMethod={gatewayMethod}
+                          />
                         ) : (
-                          <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px dashed var(--border, rgba(255,255,255,0.15))', borderRadius: '12px', padding: '16px', textAlign: 'center', width: '100%', maxWidth: '220px', marginBottom: '12px' }}>
-                            <span className="material-symbols-outlined" style={{ fontSize: '32px', color: gatewayMethod === 'Maya' ? '#00d68f' : '#007DFE', marginBottom: '4px' }}>
-                              phone_android
-                            </span>
-                            <div style={{ fontSize: '0.78rem', color: 'var(--text-primary, #ffffff)', fontWeight: 700 }}>
-                              Direct Transfer Channel
+                          <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px dashed var(--border, rgba(255,255,255,0.15))', borderRadius: '12px', padding: '16px', textAlign: 'center', width: '100%', maxWidth: '300px', marginBottom: '14px' }}>
+                            <div style={{
+                              width: '44px',
+                              height: '44px',
+                              borderRadius: '12px',
+                              background: gatewayMethod === 'Maya' ? '#000000' : '#007DFE',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              margin: '0 auto 8px',
+                              boxShadow: '0 4px 12px rgba(0,0,0,0.2)'
+                            }}>
+                              {gatewayMethod === 'Maya' ? (
+                                <span style={{ color: '#00d68f', fontWeight: 900, fontSize: '14px' }}>m</span>
+                              ) : (
+                                <span style={{ color: '#ffffff', fontWeight: 900, fontSize: '20px' }}>G</span>
+                              )}
                             </div>
-                            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted, #94a3b8)', marginTop: '2px', lineHeight: 1.4 }}>
-                              No custom {gatewayMethod} QR uploaded. Transfer directly to the mobile number below:
+                            <div style={{ fontSize: '0.82rem', color: 'var(--text-primary, #ffffff)', fontWeight: 700 }}>
+                              Direct {gatewayMethod} Transfer
+                            </div>
+                            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted, #94a3b8)', marginTop: '4px', lineHeight: 1.4 }}>
+                              No custom {gatewayMethod} QR uploaded. Transfer directly using the mobile number below:
                             </div>
                           </div>
                         )}
 
                         {/* Merchant Details Box with 1-Click Copy Number */}
-                        <div style={{ width: '100%', background: 'var(--bg-input, rgba(0,0,0,0.25))', borderRadius: '12px', padding: '12px', border: '1px solid var(--border, rgba(255,255,255,0.06))', fontSize: '0.78rem' }}>
+                        <div style={{ width: '100%', maxWidth: '300px', background: 'var(--bg-input, rgba(0,0,0,0.25))', borderRadius: '12px', padding: '12px', border: '1px solid var(--border, rgba(255,255,255,0.06))', fontSize: '0.78rem' }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
                             <span style={{ color: 'var(--text-muted, #94a3b8)' }}>Beneficiary Org:</span>
                             <strong style={{ color: 'var(--text-primary, #ffffff)', textAlign: 'right', maxWidth: '140px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={camp.orgName || 'Accredited Relief Org'}>
@@ -4840,36 +6122,70 @@ export default function CampaignCard(props) {
                             </div>
                           )}
 
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px', background: gatewayMethod === 'Maya' ? 'rgba(0, 214, 143, 0.08)' : 'rgba(34, 197, 94, 0.08)', padding: '6px 8px', borderRadius: '8px', border: gatewayMethod === 'Maya' ? '1.5px solid rgba(0, 214, 143, 0.3)' : '1px solid rgba(34, 197, 94, 0.2)' }}>
-                            <span style={{ color: 'var(--text-secondary, #cbd5e1)', fontWeight: 600 }}>{gatewayMethod} No:</span>
-                            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
-                              <strong style={{ color: gatewayMethod === 'Maya' ? '#00d68f' : '#22c55e', fontFamily: 'monospace', fontSize: '0.85rem' }}>
+                          <div style={{
+                            background: gatewayMethod === 'Maya' ? 'rgba(0, 214, 143, 0.08)' : 'rgba(34, 197, 94, 0.08)',
+                            padding: '8px 10px',
+                            borderRadius: '10px',
+                            border: gatewayMethod === 'Maya' ? '1px solid rgba(0, 214, 143, 0.3)' : '1px solid rgba(34, 197, 94, 0.25)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            gap: '10px',
+                            marginBottom: '8px'
+                          }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', minWidth: 0 }}>
+                              <span style={{ fontSize: '0.64rem', color: 'var(--text-muted, #94a3b8)', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 600 }}>
+                                Official {gatewayMethod} Receiving No:
+                              </span>
+                              <strong style={{
+                                color: gatewayMethod === 'Maya' ? '#00d68f' : '#22c55e',
+                                fontFamily: 'var(--font-mono, monospace)',
+                                fontSize: '0.88rem',
+                                fontWeight: 800,
+                                whiteSpace: 'nowrap',
+                                letterSpacing: '0.5px'
+                              }}>
                                 {gatewayMethod === 'Maya'
-                                  ? (camp.mayaNumber || camp.maya_number || '0918 765 4321')
-                                  : (camp.gcashNumber || camp.gcash_number || '0917 890 1234')}
+                                  ? formatPhoneNumber(camp.mayaNumber || camp.maya_number || '0918 765 4321')
+                                  : formatPhoneNumber(camp.gcashNumber || camp.gcash_number || '0917 890 1234')}
                               </strong>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  const targetNumber = gatewayMethod === 'Maya'
-                                    ? (camp.mayaNumber || camp.maya_number || '09187654321')
-                                    : (camp.gcashNumber || camp.gcash_number || '09178901234');
-                                  const cleanNum = targetNumber.replace(/\s+/g, '');
-                                  navigator.clipboard.writeText(cleanNum);
-                                  showSuccess?.(`${gatewayMethod} number ${cleanNum} copied to clipboard!`, 'Number Copied');
-                                }}
-                                style={{ background: gatewayMethod === 'Maya' ? 'rgba(0, 214, 143, 0.2)' : 'rgba(34, 197, 94, 0.2)', border: gatewayMethod === 'Maya' ? '1px solid rgba(0, 214, 143, 0.5)' : '1px solid rgba(34, 197, 94, 0.4)', color: gatewayMethod === 'Maya' ? '#00d68f' : '#22c55e', cursor: 'pointer', display: 'flex', padding: '3px 6px', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 700, alignItems: 'center', gap: '3px' }}
-                                title="Copy Number to Clipboard"
-                              >
-                                <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>content_copy</span>
-                                Copy
-                              </button>
                             </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const rawNum = gatewayMethod === 'Maya'
+                                  ? (camp.mayaNumber || camp.maya_number || '09187654321')
+                                  : (camp.gcashNumber || camp.gcash_number || '09178901234');
+                                const targetNumber = formatPhoneNumber(rawNum);
+                                const cleanNum = targetNumber.replace(/\s+/g, '');
+                                navigator.clipboard.writeText(cleanNum);
+                                showSuccess?.(`${gatewayMethod} number ${cleanNum} copied to clipboard!`, 'Number Copied');
+                              }}
+                              style={{
+                                background: gatewayMethod === 'Maya' ? 'rgba(0, 214, 143, 0.2)' : 'rgba(34, 197, 94, 0.2)',
+                                border: gatewayMethod === 'Maya' ? '1px solid rgba(0, 214, 143, 0.5)' : '1px solid rgba(34, 197, 94, 0.4)',
+                                color: gatewayMethod === 'Maya' ? '#00d68f' : '#22c55e',
+                                cursor: 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                padding: '5px 8px',
+                                borderRadius: '6px',
+                                fontSize: '0.72rem',
+                                fontWeight: 700,
+                                whiteSpace: 'nowrap',
+                                flexShrink: 0
+                              }}
+                              title="Copy Number to Clipboard"
+                            >
+                              <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>content_copy</span>
+                              Copy
+                            </button>
                           </div>
 
-                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                            <span style={{ color: 'var(--text-muted, #94a3b8)' }}>Transfer Fee:</span>
-                            <span style={{ color: '#22c55e', fontWeight: 700 }}>₱0.00 (Zero Fee)</span>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span style={{ color: 'var(--text-muted, #94a3b8)', whiteSpace: 'nowrap' }}>Transfer Fee:</span>
+                            <span style={{ color: '#22c55e', fontWeight: 700, whiteSpace: 'nowrap' }}>₱0.00 (Zero Fee)</span>
                           </div>
                         </div>
 
@@ -4891,25 +6207,25 @@ export default function CampaignCard(props) {
                           : '0 4px 16px rgba(0, 125, 254, 0.35)';
 
                         return (
-                          <div style={{ background: 'var(--bg-card, rgba(255,255,255,0.02))', padding: '20px', borderRadius: '16px', border: `1.5px solid ${railBorder}` }}>
+                          <div style={{ background: 'var(--bg-card)', padding: '20px', borderRadius: 'var(--radius-lg, 14px)', border: '1px solid var(--border)' }}>
 
                             {/* 1. Amount Input */}
                             <div style={{ marginBottom: '14px' }}>
                               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                                <label style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary, #cbd5e1)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                <label style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                                   1. Donation Amount (PHP)
                                 </label>
-                                <span style={{ fontSize: '0.74rem', color: railColor, fontFamily: 'monospace', fontWeight: 700 }}>
+                                <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontWeight: 600 }}>
                                   ≈ {((parseFloat(amount || 0)) / 170000).toFixed(6)} ETH
                                 </span>
                               </div>
 
                               <div style={{ position: 'relative' }}>
-                                <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', fontWeight: 800, color: railColor, fontSize: '1.1rem' }}>₱</span>
+                                <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', fontWeight: 800, color: 'var(--accent)', fontSize: '1.1rem' }}>₱</span>
                                 <input
                                   type="number"
                                   className="input"
-                                  style={{ width: '100%', paddingLeft: '32px', fontSize: '1.1rem', fontWeight: 800, color: railColor, borderRadius: '10px', borderColor: railBorder }}
+                                  style={{ width: '100%', paddingLeft: '32px', fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-primary)', borderRadius: 'var(--radius-md, 8px)' }}
                                   value={amount}
                                   onChange={(e) => setAmount(e.target.value)}
                                   placeholder="500"
@@ -4925,13 +6241,14 @@ export default function CampaignCard(props) {
                                     type="button"
                                     className="payment-quick-msg-chip"
                                     style={{
-                                      background: amount === preset ? railBgLight : 'rgba(255,255,255,0.05)',
-                                      borderColor: amount === preset ? railColor : 'rgba(255,255,255,0.1)',
-                                      color: amount === preset ? railColor : 'var(--text-secondary, #cbd5e1)',
-                                      fontWeight: 700,
+                                      background: amount === preset ? 'var(--accent)' : 'var(--bg-hover)',
+                                      borderColor: amount === preset ? 'var(--accent)' : 'var(--border)',
+                                      color: amount === preset ? 'var(--bg-base)' : 'var(--text-primary)',
+                                      fontWeight: 600,
                                       fontSize: '0.75rem',
                                       padding: '4px 10px',
-                                      borderRadius: '8px'
+                                      borderRadius: 'var(--radius-sm, 6px)',
+                                      cursor: 'pointer'
                                     }}
                                     onClick={() => setAmount(preset)}
                                   >
@@ -4944,31 +6261,28 @@ export default function CampaignCard(props) {
                             {/* 2. Reference Number Input */}
                             <div style={{ marginBottom: '14px' }}>
                               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                                <label style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary, #cbd5e1)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                <label style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                                   2. {gatewayMethod} Reference Number
                                 </label>
-                                <span style={{ fontSize: '0.68rem', color: railColor, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                                <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '3px', fontFamily: 'var(--font-mono)' }}>
                                   <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>auto_awesome</span>
-                                  AI Vision OCR Auto-Fill
+                                  AI Auto-Fill
                                 </span>
                               </div>
                               <div style={{ position: 'relative' }}>
-                                <span className="material-symbols-outlined" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: railColor, fontSize: '18px' }}>
+                                <span className="material-symbols-outlined" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', fontSize: '18px' }}>
                                   pin
                                 </span>
                                 <input
                                   type="text"
                                   className="input"
                                   style={{
-                                    width: '100%', paddingLeft: '38px', fontSize: '0.92rem', fontFamily: 'monospace', fontWeight: 700, borderRadius: '10px',
-                                    borderColor: (refNumber || gatewayRefNo) ? railColor : 'var(--border, rgba(255,255,255,0.12))',
-                                    boxShadow: (refNumber || gatewayRefNo) ? `0 0 0 2px ${railBgLight}` : 'none'
+                                    width: '100%', paddingLeft: '38px', fontSize: '0.92rem', fontFamily: 'var(--font-mono)', fontWeight: 700, borderRadius: 'var(--radius-md, 8px)',
+                                    borderColor: (refNumber || gatewayRefNo) ? 'var(--border-strong)' : 'var(--border)'
                                   }}
                                   value={refNumber || gatewayRefNo || ''}
-                                  onChange={(e) => {
-                                    setRefNumber(e.target.value);
-                                    setGatewayRefNo(e.target.value);
-                                  }}
+                                  onChange={(e) => handleReferenceChange(e.target.value)}
+                                  maxLength={gatewayMethod === 'GCash' ? 15 : (gatewayMethod === 'Maya' ? 16 : 24)}
                                   placeholder={isMaya ? "e.g. 9012 3456 7890" : "e.g. 0044 579 175068"}
                                 />
                               </div>
@@ -4977,110 +6291,358 @@ export default function CampaignCard(props) {
                             {/* 3. Screenshot / Receipt Upload & Preview */}
                             <div style={{ marginBottom: '16px' }}>
                               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                                <label style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary, #cbd5e1)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                                <label style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                                   3. Payment Screenshot / Proof
                                 </label>
-                                {receiptBase64 && (
-                                  <button
-                                    type="button"
-                                    onClick={() => setReceiptBase64('')}
-                                    style={{ background: 'transparent', border: 'none', color: '#ef4444', fontSize: '0.72rem', cursor: 'pointer', fontWeight: 600 }}
-                                  >
-                                    Remove
-                                  </button>
-                                )}
                               </div>
 
                               {receiptBase64 ? (
                                 <>
-                                  <div style={{ position: 'relative', borderRadius: '12px', overflow: 'hidden', border: `1.5px solid ${railColor}`, background: 'var(--bg-subcard, var(--bg-hover))', padding: '8px', textAlign: 'center' }}>
-                                  <img
-                                    src={receiptBase64}
-                                    alt="Payment Proof"
-                                    style={{ maxHeight: '140px', maxWidth: '100%', objectFit: 'contain', borderRadius: '8px' }}
-                                  />
-                                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', marginTop: '6px', fontSize: '0.72rem', color: railColor, fontWeight: 700 }}>
-                                    <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>check_circle</span>
-                                    Verified Payment Receipt Attached
+                                  <div style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '14px',
+                                    padding: '12px 14px',
+                                    borderRadius: '12px',
+                                    background: 'var(--bg-subcard, rgba(255, 255, 255, 0.03))',
+                                    border: '1px solid var(--border, rgba(255, 255, 255, 0.08))',
+                                    position: 'relative'
+                                  }}>
+                                    {/* Thumbnail with Click-to-Enlarge Overlay */}
+                                    <div
+                                      onClick={() => setPreviewReceiptModal(true)}
+                                      style={{
+                                        position: 'relative',
+                                        width: '64px',
+                                        height: '84px',
+                                        borderRadius: '8px',
+                                        overflow: 'hidden',
+                                        flexShrink: 0,
+                                        border: '1px solid var(--border)',
+                                        background: '#000',
+                                        cursor: 'pointer'
+                                      }}
+                                      title="Click to view full receipt"
+                                    >
+                                      <img
+                                        src={receiptBase64}
+                                        alt="Payment Proof"
+                                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                      />
+                                      <div
+                                        style={{
+                                          position: 'absolute',
+                                          inset: 0,
+                                          background: 'rgba(0, 0, 0, 0.4)',
+                                          display: 'flex',
+                                          alignItems: 'center',
+                                          justifyContent: 'center',
+                                          opacity: 0,
+                                          transition: 'opacity 0.2s ease'
+                                        }}
+                                        onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; }}
+                                        onMouseLeave={(e) => { e.currentTarget.style.opacity = '0'; }}
+                                      >
+                                        <span className="material-symbols-outlined" style={{ fontSize: '20px', color: '#fff' }}>zoom_in</span>
+                                      </div>
+                                    </div>
+
+                                    {/* Receipt Meta & Verification Status */}
+                                    <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                                        <span className="material-symbols-outlined" style={{
+                                          fontSize: '16px',
+                                          color: (activeAiResult && (activeAiResult.isPaymentReceipt === false || activeAiResult.confidenceScore === 0))
+                                            ? 'var(--danger, #e00000)'
+                                            : (activeAiResult && activeAiResult.isAiVerified
+                                                ? 'var(--accent-green, #10b981)'
+                                                : (aiScanLoading ? '#38bdf8' : 'var(--text-muted, #94a3b8)'))
+                                        }}>
+                                          {aiScanLoading ? 'hourglass_top' : (activeAiResult && (activeAiResult.isPaymentReceipt === false || activeAiResult.confidenceScore === 0) ? 'error' : (activeAiResult && activeAiResult.isAiVerified ? 'check_circle' : 'receipt_long'))}
+                                        </span>
+                                        <span style={{ fontSize: '0.84rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                                          {aiScanLoading
+                                            ? 'Scanning Receipt with AI...'
+                                            : (activeAiResult && (activeAiResult.isPaymentReceipt === false || activeAiResult.confidenceScore === 0)
+                                                ? (activeAiResult.fraudFlags?.some(f => f.includes('EXPIRED'))
+                                                    ? 'Expired Receipt Slip'
+                                                    : (activeAiResult.fraudFlags?.some(f => f.includes('TAMPERED') || f.includes('INVALID_RECEIPT'))
+                                                        ? 'Tampered / Edited Slip Detected'
+                                                        : (activeAiResult.fraudFlags?.some(f => f.includes('RECIPIENT'))
+                                                            ? 'Wrong Recipient Account'
+                                                            : 'Non-Receipt / Invalid Image')))
+                                                : (activeAiResult && activeAiResult.isAiVerified
+                                                    ? 'Verified Payment Receipt'
+                                                    : (activeAiResult?.fraudFlags?.some(f => f.includes('HIGH_VALUE'))
+                                                        ? 'High-Value Donation (Secondary Audit Required)'
+                                                        : 'Official Payment Slip Attached')))}
+                                        </span>
+                                        {activeAiResult && activeAiResult.confidenceScore > 0 && !aiScanLoading && (
+                                          <span style={{
+                                            fontSize: '0.66rem',
+                                            fontWeight: 700,
+                                            padding: '2px 8px',
+                                            borderRadius: '6px',
+                                            background: activeAiResult.isAiVerified
+                                              ? 'rgba(16, 185, 129, 0.15)'
+                                              : (activeAiResult.fraudFlags?.some(f => f.includes('HIGH_VALUE'))
+                                                  ? 'rgba(239, 68, 68, 0.15)'
+                                                  : 'rgba(245, 158, 11, 0.15)'),
+                                            color: activeAiResult.isAiVerified
+                                              ? '#10b981'
+                                              : (activeAiResult.fraudFlags?.some(f => f.includes('HIGH_VALUE'))
+                                                  ? '#ef4444'
+                                                  : '#f59e0b')
+                                          }}>
+                                            {activeAiResult.isAiVerified
+                                              ? `✓ AI Verified (${activeAiResult.confidenceScore}%)`
+                                              : (activeAiResult.fraudFlags?.some(f => f.includes('HIGH_VALUE'))
+                                                  ? 'Secondary Audit Required'
+                                                  : 'Review Needed')}
+                                          </span>
+                                        )}
+                                      </div>
+
+                                      <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                                        {aiScanLoading ? (
+                                          <span style={{ color: '#38bdf8' }}>Gemini AI inspecting transaction details...</span>
+                                        ) : activeAiResult?.receiptDate ? (
+                                          <span>
+                                            Transferred on <strong style={{ color: 'var(--text-primary)' }}>{activeAiResult.receiptDate}</strong> • {activeAiResult.isAiVerified
+                                              ? 'Verified by Gemini AI'
+                                              : (activeAiResult.fraudFlags?.some(f => f.includes('EXPIRED'))
+                                                  ? 'Flagged by Gemini AI (Expired)'
+                                                  : (activeAiResult.fraudFlags?.some(f => f.includes('TAMPERED') || f.includes('INVALID_RECEIPT'))
+                                                      ? 'Flagged by Gemini AI (Tampered / Altered)'
+                                                      : (activeAiResult.fraudFlags?.some(f => f.includes('HIGH_VALUE'))
+                                                          ? 'High-Value Guardrail Enforced'
+                                                          : (activeAiResult.fraudFlags?.some(f => f.includes('RECIPIENT'))
+                                                              ? 'Flagged by Gemini AI (Wrong Recipient)'
+                                                              : 'Flagged by Gemini AI'))))}
+                                          </span>
+                                        ) : (
+                                          <span>Official {gatewayMethod || 'payment'} slip attached • {activeAiResult?.isAiVerified ? 'Auto-verified' : 'Under Review'}</span>
+                                        )}
+                                      </div>
+
+                                      {/* Quick Action Pills */}
+                                      <div style={{ display: 'flex', gap: '8px', marginTop: '6px', alignItems: 'center' }}>
+                                        <button
+                                          type="button"
+                                          onClick={() => setPreviewReceiptModal(true)}
+                                          style={{
+                                            background: 'var(--bg-card)',
+                                            border: '1px solid var(--border)',
+                                            borderRadius: '6px',
+                                            padding: '3px 9px',
+                                            fontSize: '0.7rem',
+                                            color: 'var(--text-secondary)',
+                                            cursor: 'pointer',
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            gap: '4px',
+                                            fontWeight: 600
+                                          }}
+                                        >
+                                          <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>zoom_in</span>
+                                          View Full
+                                        </button>
+
+                                        <label style={{
+                                          background: 'var(--bg-card)',
+                                          border: '1px solid var(--border)',
+                                          borderRadius: '6px',
+                                          padding: '3px 9px',
+                                          fontSize: '0.7rem',
+                                          color: 'var(--text-secondary)',
+                                          cursor: 'pointer',
+                                          display: 'inline-flex',
+                                          alignItems: 'center',
+                                          gap: '4px',
+                                          fontWeight: 600
+                                        }}>
+                                          <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>sync</span>
+                                          Replace
+                                          <input
+                                            type="file"
+                                            accept="image/*"
+                                            onChange={handleReceiptUpload}
+                                            style={{ display: 'none' }}
+                                          />
+                                        </label>
+                                      </div>
+                                    </div>
                                   </div>
-                                </div>
 
                                 {/* AI Receipt Vision Inspection Card (Module A) */}
                                 {aiScanLoading && (
-                                  <div style={{
-                                    marginTop: '8px',
-                                    padding: '10px 14px',
-                                    borderRadius: '10px',
-                                    background: 'rgba(2, 132, 199, 0.12)',
-                                    border: '1px solid rgba(56, 189, 248, 0.3)',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '10px',
-                                    color: '#38bdf8',
-                                    fontSize: '0.78rem',
-                                    fontWeight: 600
-                                  }}>
-                                    <span className="material-symbols-outlined spin" style={{ fontSize: '18px' }}>progress_activity</span>
-                                    <span>Gemini AI Vision scanning payment slip & validating reference...</span>
+                                  <div className="ai-scanner-shimmer-box" style={{ marginTop: '10px' }}>
+                                    <div className="ai-scanner-shimmer-line" />
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                      <div style={{
+                                        width: '32px',
+                                        height: '32px',
+                                        borderRadius: '8px',
+                                        background: 'rgba(56, 189, 248, 0.18)',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        flexShrink: 0
+                                      }}>
+                                        <span className="material-symbols-outlined spin" style={{ fontSize: '20px', color: '#38bdf8' }}>
+                                          progress_activity
+                                        </span>
+                                      </div>
+                                      <div style={{ flex: 1 }}>
+                                        <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#38bdf8', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                          <span>Gemini AI Vision Scanning...</span>
+                                          <span className="ai-scanning-pulse-dot" />
+                                        </div>
+                                        <div style={{ fontSize: '0.7rem', color: '#94a3b8', marginTop: '2px' }}>
+                                          Extracting reference number & validating declared amount
+                                        </div>
+                                      </div>
+                                    </div>
                                   </div>
                                 )}
 
-                                {aiScanResult && !aiScanLoading && (
-                                  <div style={{
-                                    marginTop: '8px',
-                                    padding: '10px 14px',
-                                    borderRadius: '12px',
-                                    background: aiScanResult.isAiVerified !== false ? 'rgba(34, 197, 94, 0.08)' : 'rgba(239, 68, 68, 0.12)',
-                                    border: `1.5px solid ${aiScanResult.isAiVerified !== false ? 'rgba(34, 197, 94, 0.35)' : 'rgba(239, 68, 68, 0.45)'}`,
-                                    display: 'flex',
-                                    flexDirection: 'column',
-                                    gap: '8px'
-                                  }}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                        <span className="material-symbols-outlined" style={{
-                                          fontSize: '17px',
-                                          color: aiScanResult.isAiVerified !== false ? '#4ade80' : '#ef4444'
-                                        }}>
-                                          {aiScanResult.isAiVerified !== false ? 'verified' : 'warning'}
-                                        </span>
-                                        <span style={{
-                                          fontWeight: 800,
-                                          fontSize: '0.78rem',
-                                          color: aiScanResult.isAiVerified !== false ? '#4ade80' : '#f87171'
-                                        }}>
-                                          {aiScanResult.isAiVerified !== false ? `AI Verified (${aiScanResult.confidenceScore || 98}% Match)` : `AI Verification Alert (${aiScanResult.confidenceScore || 35}%)`}
+                                {activeAiResult && !aiScanLoading && (() => {
+                                  const hasEnteredRef = Boolean((refNumber || gatewayRefNo || '').trim());
+                                  const isInvalidDoc = activeAiResult.isPaymentReceipt === false || activeAiResult.confidenceScore === 0;
+
+                                  // Hard fraud violations that strictly CANNOT be bypassed by manual typing
+                                  const isExpiredReceipt = Boolean(activeAiResult.fraudFlags?.some(f => f.includes('EXPIRED_RECEIPT')));
+                                  const isTamperedReceipt = Boolean(activeAiResult.fraudFlags?.some(f => f.includes('TAMPERED')));
+                                  const isRecipientMismatch = Boolean(activeAiResult.fraudFlags?.some(f => f.includes('RECIPIENT_MISMATCH') || f.includes('RECIPIENT_NAME_MISMATCH') || f.includes('RECIPIENT_PHONE_MISMATCH')));
+                                  const isSuspiciousRef = Boolean(activeAiResult.fraudFlags?.some(f => f.includes('SUSPICIOUS_REFERENCE_SEQUENCE')));
+                                  const hasHardFraud = Boolean(
+                                    railMismatchWarning || 
+                                    duplicateRefWarning || 
+                                    isExpiredReceipt || 
+                                    isTamperedReceipt || 
+                                    isRecipientMismatch || 
+                                    isSuspiciousRef ||
+                                    activeAiResult.fraudFlags?.some(f => f.includes('PAYMENT_RAIL_MISMATCH') || f.includes('RAIL_MISMATCH') || f.includes('DUPLICATE'))
+                                  );
+
+                                  const isVerifiedCard = !hasHardFraud && !isInvalidDoc && (Boolean(activeAiResult.isAiVerified) || activeAiResult.confidenceScore >= 60);
+
+                                  // If cleanly verified and no hard fraud, suppress the redundant duplicate box (all details are displayed in form & receipt header)
+                                  if (isVerifiedCard && (!activeAiResult.fraudFlags || activeAiResult.fraudFlags.every(f => !f.includes('REJECTION') && !f.includes('MISMATCH') && !f.includes('EXPIRED') && !f.includes('TAMPERED') && !f.includes('SUSPICIOUS')))) {
+                                    return null;
+                                  }
+
+                                  // Clean digits check: for GCash, manual ref must be 13 digits
+                                  const cleanDigits = (refNumber || gatewayRefNo || '').replace(/\D/g, '');
+                                  const isValidManualRef = gatewayMethod === 'GCash' ? cleanDigits.length === 13 : hasEnteredRef && (refNumber || gatewayRefNo || '').trim().length >= 8;
+
+                                  // Manual audit pending is ONLY allowed if there is NO hard fraud (not expired, not tampered, not mismatched rail)
+                                  // and user provided a validly formatted reference number
+                                  const isManualAuditPending = !isVerifiedCard && !hasHardFraud && isInvalidDoc && isValidManualRef;
+                                  const isSoftNotice = !hasHardFraud && !isInvalidDoc && activeAiResult.confidenceScore >= 60;
+
+                                  const cardBg = isVerifiedCard
+                                    ? 'rgba(16, 185, 129, 0.08)'
+                                    : (isSoftNotice ? 'rgba(56, 189, 248, 0.08)' : (isManualAuditPending ? 'rgba(245, 158, 11, 0.08)' : 'rgba(224, 0, 0, 0.08)'));
+                                  const cardBorder = isVerifiedCard
+                                    ? 'rgba(16, 185, 129, 0.35)'
+                                    : (isSoftNotice ? 'rgba(56, 189, 248, 0.35)' : (isManualAuditPending ? 'rgba(245, 158, 11, 0.35)' : 'rgba(224, 0, 0, 0.35)'));
+                                  const cardColor = isVerifiedCard
+                                    ? 'var(--accent-green, #10b981)'
+                                    : (isSoftNotice ? '#38bdf8' : (isManualAuditPending ? '#f59e0b' : 'var(--danger, #e00000)'));
+                                  const cardIcon = isVerifiedCard
+                                    ? 'verified'
+                                    : (isSoftNotice ? 'info' : (isManualAuditPending ? 'pending_actions' : (isInvalidDoc ? 'cancel' : 'warning')));
+
+                                  let cardTitle = '';
+                                  if (isVerifiedCard) {
+                                    cardTitle = `AI Verified (${activeAiResult.confidenceScore || 95}%)`;
+                                  } else if (isSoftNotice) {
+                                    cardTitle = `AI Verification Notice (${activeAiResult.confidenceScore}%)`;
+                                  } else if (isManualAuditPending) {
+                                    cardTitle = 'Manual NGO Audit Queued';
+                                  } else if (isExpiredReceipt) {
+                                    cardTitle = 'AI Rejection: Expired Receipt (0%)';
+                                  } else if (isTamperedReceipt) {
+                                    cardTitle = 'AI Rejection: Tampered Image (0%)';
+                                  } else if (isRecipientMismatch) {
+                                    cardTitle = 'AI Rejection: Wrong Recipient / Account (0%)';
+                                  } else if (isSuspiciousRef) {
+                                    cardTitle = 'AI Rejection: Artificial Ref Number (0%)';
+                                  } else if (isInvalidDoc) {
+                                    cardTitle = 'AI Rejection: Invalid Receipt Image (0%)';
+                                  } else {
+                                    cardTitle = `AI Verification Alert (${activeAiResult.confidenceScore || 35}%)`;
+                                  }
+
+                                  return (
+                                    <div style={{
+                                      marginTop: '8px',
+                                      padding: '12px 14px',
+                                      borderRadius: 'var(--radius-lg, 12px)',
+                                      background: cardBg,
+                                      border: `1px solid ${cardBorder}`,
+                                      display: 'flex',
+                                      flexDirection: 'column',
+                                      gap: '8px'
+                                    }}>
+                                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                          <span className="material-symbols-outlined" style={{
+                                            fontSize: '18px',
+                                            color: cardColor
+                                          }}>
+                                            {cardIcon}
+                                          </span>
+                                          <span style={{
+                                            fontWeight: 700,
+                                            fontSize: '0.80rem',
+                                            color: cardColor,
+                                            fontFamily: 'var(--font-sans)'
+                                          }}>
+                                            {cardTitle}
+                                          </span>
+                                        </div>
+                                        <span style={{ fontSize: '0.66rem', background: 'var(--bg-hover)', border: '1px solid var(--border)', padding: '2px 8px', borderRadius: 'var(--radius-pill)', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                                          Gemini AI + OCR
                                         </span>
                                       </div>
-                                      <span style={{ fontSize: '0.65rem', background: 'rgba(255,255,255,0.06)', padding: '2px 6px', borderRadius: '4px', color: '#94a3b8' }}>
-                                        Gemini 1.5 Flash + Tesseract
-                                      </span>
-                                    </div>
 
-                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '6px', fontSize: '0.74rem' }}>
-                                      {aiScanResult.extractedRef && (
-                                        <div style={{ background: 'var(--bg-subcard, var(--bg-hover))', border: '1px solid var(--border)', padding: '5px 8px', borderRadius: '6px' }}>
-                                          <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '0.64rem' }}>EXTRACTED REF:</span>
-                                          <span style={{ color: '#38bdf8', fontWeight: 700 }}>#{aiScanResult.extractedRef}</span>
-                                        </div>
-                                      )}
-                                      {aiScanResult.extractedAmountPhp && (
-                                        <div style={{ background: 'var(--bg-subcard, var(--bg-hover))', border: '1px solid var(--border)', padding: '5px 8px', borderRadius: '6px' }}>
-                                          <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '0.64rem' }}>EXTRACTED AMOUNT:</span>
-                                          <span style={{ color: '#4ade80', fontWeight: 700 }}>₱{Number(aiScanResult.extractedAmountPhp).toLocaleString()} PHP</span>
-                                        </div>
-                                      )}
-                                    </div>
-
-                                    {aiScanResult.fraudFlags && aiScanResult.fraudFlags.length > 0 && (
-                                      <div style={{ fontSize: '0.7rem', color: '#fca5a5', marginTop: '2px', lineHeight: '1.4' }}>
-                                        {aiScanResult.fraudFlags.map((flag, fIdx) => (
-                                          <div key={fIdx}>• {flag}</div>
-                                        ))}
+                                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '6px', fontSize: '0.74rem' }}>
+                                        {(activeAiResult.extractedRef || (hasEnteredRef && isManualAuditPending)) && (
+                                          <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', padding: '6px 10px', borderRadius: 'var(--radius-sm, 6px)' }}>
+                                            <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '0.64rem', fontWeight: 600 }}>{activeAiResult.extractedRef ? 'EXTRACTED REF:' : 'MANUAL REF:'}</span>
+                                            <span style={{ color: 'var(--text-primary)', fontWeight: 700, fontFamily: 'var(--font-mono)' }}>#{activeAiResult.extractedRef || refNumber || gatewayRefNo}</span>
+                                          </div>
+                                        )}
+                                        {Boolean(activeAiResult.extractedAmountPhp && Number(activeAiResult.extractedAmountPhp) > 0) && (
+                                          <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', padding: '6px 10px', borderRadius: 'var(--radius-sm, 6px)' }}>
+                                            <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '0.64rem', fontWeight: 600 }}>EXTRACTED AMOUNT:</span>
+                                            <span style={{ color: 'var(--accent-green, #10b981)', fontWeight: 700, fontFamily: 'var(--font-mono)' }}>₱{Number(activeAiResult.extractedAmountPhp).toLocaleString()} PHP</span>
+                                          </div>
+                                        )}
                                       </div>
-                                    )}
-                                  </div>
-                                )}
+
+                                      {Boolean(activeAiResult.fraudFlags && activeAiResult.fraudFlags.length > 0) && (
+                                        <div style={{ fontSize: '0.72rem', color: isManualAuditPending ? '#f59e0b' : 'var(--danger, #e00000)', marginTop: '2px', lineHeight: '1.4' }}>
+                                          {activeAiResult.fraudFlags.map((flag, fIdx) => (
+                                            <div key={fIdx}>• {flag}</div>
+                                          ))}
+                                          {isManualAuditPending && (
+                                            <div style={{ marginTop: '4px', color: 'var(--text-secondary)' }}>
+                                              ℹ️ Don't worry, your donation will be submitted for manual NGO review using the reference number you provided.
+                                            </div>
+                                          )}
+                                          {hasHardFraud && (
+                                            <div style={{ marginTop: '4px', color: 'var(--danger, #fca5a5)', fontWeight: 600 }}>
+                                              ⚠️ This receipt cannot be accepted. Please upload an authentic, recent payment slip to proceed with your donation.
+                                            </div>
+                                          )}
+                                        </div>
+                                      )}
+                                    </div>
+                                  );
+                                })()}
                               </>
                             ) : (
                                 <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '16px', border: `1.5px dashed ${railBorder}`, borderRadius: '12px', cursor: 'pointer', background: railBgLight, transition: '0.2s' }}>
@@ -5091,9 +6653,10 @@ export default function CampaignCard(props) {
                                     Upload Receipt Screenshot
                                   </span>
                                   <span style={{ fontSize: '0.68rem', color: 'var(--text-muted, #94a3b8)', marginTop: '2px' }}>
-                                    PNG, JPG or WebP (Or click Demo Autofill above)
+                                    PNG, JPG or WebP confirmation screenshot from your payment app
                                   </span>
                                   <input
+                                    ref={receiptFileInputRef}
                                     type="file"
                                     accept="image/*"
                                     onChange={handleReceiptUpload}
@@ -5128,7 +6691,7 @@ export default function CampaignCard(props) {
                                     {isAnonymous ? `Anonymous ${gatewayMethod} Donation` : 'Donate Anonymously'}
                                   </span>
                                   <span style={{ fontSize: '0.7rem', color: 'var(--text-muted, #94a3b8)' }}>
-                                    {isAnonymous ? 'Mask your account name & details on public ledger' : 'Cloak donor identity on the public transparency ledger'}
+                                    {isAnonymous ? 'Name hidden from public list' : 'Hide name on public donor list'}
                                   </span>
                                 </div>
                               </div>
@@ -5188,37 +6751,93 @@ export default function CampaignCard(props) {
                               <button
                                 className="btn btn-outline"
                                 style={{ flex: 1 }}
-                                onClick={() => setDonateStep(0)}
+                                onClick={() => {
+                                  handleRemoveProof();
+                                  setDonateStep(0);
+                                }}
                                 disabled={gatewayLoading}
                               >
                                 Back
                               </button>
-                              <button
-                                className="btn"
-                                style={{
-                                  flex: 2, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '0.92rem', padding: '12px',
-                                  background: (duplicateRefWarning || railMismatchWarning) ? 'rgba(239, 68, 68, 0.2)' : railGradient,
-                                  color: (duplicateRefWarning || railMismatchWarning) ? '#ef4444' : (isMaya ? '#000000' : '#ffffff'),
-                                  fontWeight: 800, borderRadius: '10px', border: (duplicateRefWarning || railMismatchWarning) ? '1px solid #ef4444' : 'none',
-                                  boxShadow: (duplicateRefWarning || railMismatchWarning) ? 'none' : railShadow,
-                                  cursor: (gatewayLoading || !amount || parseFloat(amount) <= 0 || (!refNumber && !gatewayRefNo) || !receiptBase64 || Boolean(duplicateRefWarning) || Boolean(railMismatchWarning)) ? 'not-allowed' : 'pointer',
-                                  opacity: (gatewayLoading || !amount || parseFloat(amount) <= 0 || (!refNumber && !gatewayRefNo) || !receiptBase64 || Boolean(duplicateRefWarning) || Boolean(railMismatchWarning)) ? 0.6 : 1
-                                }}
-                                onClick={verifyGatewayPayment}
-                                disabled={gatewayLoading || !amount || parseFloat(amount) <= 0 || (!refNumber && !gatewayRefNo) || !receiptBase64 || Boolean(duplicateRefWarning) || Boolean(railMismatchWarning)}
-                              >
-                                {gatewayLoading ? (
-                                  <>
-                                    <div className="spinner" style={{ width: '16px', height: '16px', borderWidth: '2px', borderColor: '#ffffff', borderTopColor: 'transparent' }} />
-                                    <span>Verifying & Recording...</span>
-                                  </>
-                                ) : (
-                                  <>
-                                    <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>{(duplicateRefWarning || railMismatchWarning) ? 'block' : 'check'}</span>
-                                    <span>{duplicateRefWarning ? 'Duplicate Receipt Blocked' : (railMismatchWarning ? 'Rail Mismatch Blocked' : `Confirm & Submit (₱${Number(amount || 500).toLocaleString()})`)}</span>
-                                  </>
-                                )}
-                              </button>
+                              {(() => {
+                                const hasEnteredRef = Boolean((refNumber || gatewayRefNo || '').trim());
+                                const isReceiptInvalid = activeAiResult && (activeAiResult.isPaymentReceipt === false || activeAiResult.confidenceScore === 0 || activeAiResult.fraudFlags?.some(f => f.includes('INVALID_RECEIPT')));
+                                const isExpiredReceipt = Boolean(activeAiResult?.fraudFlags?.some(f => f.includes('EXPIRED_RECEIPT')));
+                                const isTamperedReceipt = Boolean(activeAiResult?.fraudFlags?.some(f => f.includes('TAMPERED')));
+                                const isRecipientMismatch = Boolean(activeAiResult?.fraudFlags?.some(f => f.includes('RECIPIENT_MISMATCH') || f.includes('RECIPIENT_NAME_MISMATCH') || f.includes('RECIPIENT_PHONE_MISMATCH')));
+                                const isSuspiciousRef = Boolean(activeAiResult?.fraudFlags?.some(f => f.includes('SUSPICIOUS_REFERENCE_SEQUENCE')));
+                                const hasHardFraud = Boolean(
+                                  duplicateRefWarning || 
+                                  railMismatchWarning || 
+                                  isExpiredReceipt || 
+                                  isTamperedReceipt ||
+                                  isRecipientMismatch ||
+                                  isSuspiciousRef ||
+                                  activeAiResult?.fraudFlags?.some(f => f.includes('PAYMENT_RAIL_MISMATCH') || f.includes('RAIL_MISMATCH') || f.includes('DUPLICATE'))
+                                );
+
+                                const cleanDigits = (refNumber || gatewayRefNo || '').replace(/\D/g, '');
+                                const isValidManualRef = gatewayMethod === 'GCash' ? cleanDigits.length === 13 : hasEnteredRef && (refNumber || gatewayRefNo || '').trim().length >= 8;
+
+                                const isManualAuditPending = !hasHardFraud && isReceiptInvalid && isValidManualRef;
+                                const isBlocked = hasHardFraud || (isReceiptInvalid && !isValidManualRef);
+                                const isSubmitDisabled = gatewayLoading || !amount || parseFloat(amount) <= 0 || !hasEnteredRef || !receiptBase64 || isBlocked;
+
+                                return (
+                                  <div style={{ flex: 2, display: 'flex', width: '100%', cursor: isSubmitDisabled ? 'not-allowed' : 'default' }}>
+                                    <button
+                                      type="button"
+                                      className="btn"
+                                      style={{
+                                        width: '100%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '0.90rem', padding: '12px',
+                                        background: isBlocked ? 'rgba(224, 0, 0, 0.12)' : (isManualAuditPending ? '#f59e0b' : 'var(--text-primary)'),
+                                        color: isBlocked ? 'var(--danger, #e00000)' : (isManualAuditPending ? '#000000' : 'var(--bg-base)'),
+                                        fontWeight: 700, borderRadius: 'var(--radius-md, 8px)',
+                                        border: isBlocked ? '1px solid var(--danger, #e00000)' : (isManualAuditPending ? '1px solid #f59e0b' : '1px solid var(--text-primary)'),
+                                        boxShadow: 'var(--shadow-sm)',
+                                        cursor: isSubmitDisabled ? 'not-allowed' : 'pointer',
+                                        opacity: isSubmitDisabled ? 0.6 : 1
+                                      }}
+                                      onClick={isSubmitDisabled ? undefined : verifyGatewayPayment}
+                                      aria-disabled={isSubmitDisabled}
+                                    >
+                                      {gatewayLoading ? (
+                                        <>
+                                          <div className="spinner" style={{ width: '16px', height: '16px', borderWidth: '2px', borderColor: '#ffffff', borderTopColor: 'transparent' }} />
+                                          <span>Verifying & Recording...</span>
+                                        </>
+                                      ) : (
+                                        <>
+                                          <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>
+                                            {isBlocked ? 'block' : (isManualAuditPending ? 'assignment_turned_in' : 'check')}
+                                          </span>
+                                          <span>
+                                            {duplicateRefWarning
+                                              ? 'Duplicate Receipt Blocked'
+                                              : (railMismatchWarning
+                                                  ? 'Rail Mismatch Blocked'
+                                                  : (isExpiredReceipt
+                                                      ? 'Expired Receipt Blocked'
+                                                      : (isTamperedReceipt
+                                                          ? 'Tampered Image Blocked'
+                                                          : (isRecipientMismatch
+                                                              ? 'Recipient Mismatch Blocked'
+                                                              : (isSuspiciousRef
+                                                                  ? 'Artificial Ref Blocked'
+                                                                  : (isReceiptInvalid && !isValidManualRef
+                                                              ? (gatewayMethod === 'GCash' ? 'Enter 13-Digit Ref Number' : 'Enter Valid Reference Number')
+                                                              : (amount && parseFloat(amount) > 0
+                                                                  ? (isManualAuditPending
+                                                                      ? `Submit for Manual NGO Review (₱${Number(amount).toLocaleString()})`
+                                                                      : `Confirm & Submit (₱${Number(amount).toLocaleString()})`)
+                                                                  : 'Confirm & Submit')))))))}
+                                          </span>
+                                        </>
+                                      )}
+                                    </button>
+                                  </div>
+                                );
+                              })()}
                             </div>
 
                           </div>
@@ -5252,7 +6871,7 @@ export default function CampaignCard(props) {
             </div>
 
             {/* Floating Magnifying Glass Button (Truly Outside the Main Container to the Right) */}
-            {modalOpen && (
+            {modalOpen && !isPaymentProcessing && (
               <button
                 ref={outsideButtonRef}
                 type="button"
@@ -5326,6 +6945,83 @@ export default function CampaignCard(props) {
               >
                 <div className="magnifier-lens-rim-ring" />
                 <div className="magnifier-zoom-badge">1.5x</div>
+              </div>
+            </div>,
+            document.body
+          )}
+
+          {/* High-Resolution Attached Receipt Proof Lightbox */}
+          {previewReceiptModal && receiptBase64 && createPortal(
+            <div
+              style={{
+                position: 'fixed',
+                inset: 0,
+                zIndex: 9999999,
+                background: 'rgba(0, 0, 0, 0.88)',
+                backdropFilter: 'blur(10px)',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '24px'
+              }}
+              onClick={() => setPreviewReceiptModal(false)}
+            >
+              <div
+                style={{
+                  position: 'relative',
+                  maxWidth: '92vw',
+                  maxHeight: '90vh',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center'
+                }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  width: '100%',
+                  marginBottom: '12px',
+                  color: '#fff'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.95rem', fontWeight: 700 }}>
+                    <span className="material-symbols-outlined" style={{ fontSize: '20px', color: '#10b981' }}>verified</span>
+                    Official Payment Confirmation Slip
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setPreviewReceiptModal(false)}
+                    style={{
+                      background: 'rgba(255, 255, 255, 0.1)',
+                      border: 'none',
+                      color: '#fff',
+                      width: '32px',
+                      height: '32px',
+                      borderRadius: '50%',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}
+                    title="Close preview"
+                  >
+                    <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>close</span>
+                  </button>
+                </div>
+                <img
+                  src={receiptBase64}
+                  alt="Full Payment Proof"
+                  style={{
+                    maxWidth: '100%',
+                    maxHeight: '80vh',
+                    objectFit: 'contain',
+                    borderRadius: '12px',
+                    border: '1.5px solid rgba(255, 255, 255, 0.15)',
+                    boxShadow: '0 24px 60px rgba(0, 0, 0, 0.85)'
+                  }}
+                />
               </div>
             </div>,
             document.body
@@ -5425,9 +7121,23 @@ export default function CampaignCard(props) {
         const orgDisplayName = getOrgDisplayName(camp.orgAddress, camp.orgName, camp.id);
         const displayTitle = formatCampaignTitle(camp.title, camp.id);
         const catInfo = getCampaignCategoryInfo(camp);
-        const targetPhp = (parseFloat(camp.targetAmount || 0) * 170000).toLocaleString('en-US', { maximumFractionDigits: 0 });
+        const targetPhp = (camp.targetAmountPhp || camp.target_amount_php || Math.round(parseFloat(camp.targetAmount || 0) * 170000)).toLocaleString('en-US', { maximumFractionDigits: 0 });
         const currentPhp = (displayCurrentEth * 170000).toLocaleString('en-US', { maximumFractionDigits: 0 });
         const progressPercent = pct;
+
+        let modalDisasterPhotos = camp.disasterImages;
+        if (!modalDisasterPhotos && (camp.disaster_images_json || camp.disasterImagesJson)) {
+          try {
+            const parsed = typeof (camp.disaster_images_json || camp.disasterImagesJson) === 'string'
+              ? JSON.parse(camp.disaster_images_json || camp.disasterImagesJson)
+              : (camp.disaster_images_json || camp.disasterImagesJson);
+            if (Array.isArray(parsed) && parsed.length > 0) modalDisasterPhotos = parsed;
+          } catch (_) {}
+        }
+        if (!Array.isArray(modalDisasterPhotos) || modalDisasterPhotos.length === 0) {
+          modalDisasterPhotos = getCategoryEvidencePhotos(`${camp.title || camp.Campaign_Title || ''} ${camp.description || ''}`);
+        }
+        const allModalPhotos = Array.from(new Set([coverData?.imageUrl, ...modalDisasterPhotos].filter(Boolean)));
 
         return createPortal(
           <div
@@ -5438,138 +7148,157 @@ export default function CampaignCard(props) {
               className="bbdrts-details-modal"
               onClick={(e) => e.stopPropagation()}
             >
-              {/* ── Top Cover Photo Hero Banner ── */}
-              <div className="bbdrts-details-hero">
-                <img
-                  src={coverData.imageUrl}
-                  alt={camp.title}
-                  className="bbdrts-details-hero-img"
-                  onError={(e) => {
-                    e.target.onerror = null;
-                    e.target.src = 'https://images.unsplash.com/photo-1532629345422-7515f3d16bb6?auto=format&fit=crop&w=600&q=80';
-                  }}
-                />
-                <div className="bbdrts-details-hero-scrim" />
-
-                {/* Top Badges */}
-                <div className="bbdrts-details-hero-badges">
-                  <span className={`bbdrts-details-pill ${catInfo.prefix === 'DR' ? 'cat-dr' : 'cat-cd'}`}>
-                    <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>{catInfo.icon}</span>
-                    <span>{catInfo.prefix}-00{camp.id} • {catInfo.label}</span>
-                  </span>
-                  <span className="bbdrts-details-pill urgency">
-                    {audit.urgency}
-                  </span>
-                  <span className="bbdrts-details-pill status-active">
-                    <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>verified</span>
-                    <span>Active On-Chain</span>
-                  </span>
-                </div>
-
-                {/* Close Button */}
-                <button
-                  type="button"
-                  className="bbdrts-details-close-btn"
-                  onClick={() => setDetailsOpen(false)}
-                  title="Close Campaign Details"
-                  aria-label="Close Campaign Details"
-                >
-                  <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>close</span>
-                </button>
-
-                {/* Title & Organization Subtitle */}
-                <div className="bbdrts-details-hero-text">
-                  <h2 className="bbdrts-details-title">
-                    {displayTitle}
-                  </h2>
-                  <div className="bbdrts-details-org-sub">
-                    <span style={{ opacity: 0.85 }}>Managed by</span>
-                    <button
-                      type="button"
-                      className="bbdrts-details-org-btn"
-                      onClick={() => {
-                        setDetailsOpen(false);
-                        if (onOpenNgoProfile) onOpenNgoProfile(camp.orgId || 3);
-                      }}
-                      title="View verified NGO profile & missions"
-                    >
-                      <span className="material-symbols-outlined" style={{ fontSize: '14px', color: '#22c55e' }}>domain</span>
-                      <span>{orgDisplayName}</span>
-                      <span className="material-symbols-outlined" style={{ fontSize: '13px', color: '#22c55e' }}>verified</span>
-                      <span className="material-symbols-outlined" style={{ fontSize: '13px', opacity: 0.7 }}>chevron_right</span>
-                    </button>
-                    <span style={{ opacity: 0.6 }}>•</span>
-                    <span style={{ color: '#22c55e', display: 'inline-flex', alignItems: 'center', gap: '4px', fontWeight: 600, fontSize: '0.8rem' }}>
-                      <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>verified_user</span> Smart Contract Verified
+              {/* ── 1. Clean Modal Header (Dedicated top section outside photo) ── */}
+              <div className="bbdrts-details-header">
+                <div className="bbdrts-details-header-top">
+                  <div className="bbdrts-details-badges">
+                    <span className="bbdrts-pill-mono">
+                      #{catInfo.prefix}-00{camp.id}
+                    </span>
+                    <span className="bbdrts-pill-subtle">
+                      <span className={`bbdrts-status-dot ${catInfo.prefix === 'DR' ? 'cat-dot-dr' : 'cat-dot-cd'}`} />
+                      <span>{catInfo.label}</span>
+                    </span>
+                    {audit.urgency && (
+                      <span className="bbdrts-pill-subtle urgency-pill">
+                        <span className="bbdrts-status-dot urgency-dot" />
+                        <span>{audit.urgency}</span>
+                      </span>
+                    )}
+                    <span className="bbdrts-pill-subtle active-pill">
+                      <span className="bbdrts-status-dot active-dot" />
+                      <span>Active On-Chain</span>
                     </span>
                   </div>
+
+                  {/* Minimalist Close Button */}
+                  <button
+                    type="button"
+                    className="bbdrts-modal-close-btn"
+                    onClick={() => setDetailsOpen(false)}
+                    title="Close Campaign Details"
+                    aria-label="Close Campaign Details"
+                  >
+                    <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>close</span>
+                  </button>
+                </div>
+
+                {/* Campaign Title */}
+                <h2 className="bbdrts-details-title">
+                  {displayTitle}
+                </h2>
+
+                {/* Organization & Verification Metadata Bar */}
+                <div className="bbdrts-details-org-bar">
+                  <span>Managed by</span>
+                  <button
+                    type="button"
+                    className="bbdrts-org-badge"
+                    onClick={() => {
+                      setDetailsOpen(false);
+                      if (onOpenNgoProfile) onOpenNgoProfile(camp.orgId || 3);
+                    }}
+                    title="View verified NGO profile & missions"
+                  >
+                    <span className="material-symbols-outlined" style={{ fontSize: '14px', color: '#10b981' }}>domain</span>
+                    <span>{orgDisplayName}</span>
+                    <span className="material-symbols-outlined" style={{ fontSize: '13px', color: '#10b981' }}>verified</span>
+                    <span className="material-symbols-outlined" style={{ fontSize: '13px', opacity: 0.6 }}>chevron_right</span>
+                  </button>
+                  <span className="bbdrts-meta-divider">•</span>
+                  <span className="bbdrts-verified-indicator">
+                    <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>verified_user</span>
+                    <span>Smart Contract Verified</span>
+                  </span>
+                  {camp.contractAddress && (
+                    <>
+                      <span className="bbdrts-meta-divider">•</span>
+                      <span className="bbdrts-pill-mono" style={{ fontSize: '0.7rem' }}>Sepolia EVM</span>
+                    </>
+                  )}
                 </div>
               </div>
 
-              {/* ── Modal Body Content ── */}
+              {/* ── 2. Modal Body Content ── */}
               <div className="bbdrts-details-body">
-                {/* Campaign Tags */}
+                {/* Minimalist Collapsible Tag Row */}
                 {campaignTags && campaignTags.length > 0 && (
-                  <div className="bbdrts-details-tags">
-                    {campaignTags.map((tag, idx) => (
-                      <span key={idx} className="bbdrts-details-tag-chip">
+                  <div className="bbdrts-tags-row">
+                    {(showAllDetailsTags ? campaignTags : campaignTags.slice(0, 5)).map((tag, idx) => (
+                      <span key={idx} className="bbdrts-tag-pill">
                         #{tag.replace(/^#/, '')}
                       </span>
                     ))}
+                    {campaignTags.length > 5 && (
+                      <button
+                        type="button"
+                        className="bbdrts-tag-more-btn"
+                        onClick={() => setShowAllDetailsTags(!showAllDetailsTags)}
+                      >
+                        {showAllDetailsTags ? 'Show less' : `+${campaignTags.length - 5} more`}
+                      </button>
+                    )}
                   </div>
                 )}
 
-                {/* Metric Strip (Target, Settled, Due Date, Backers) */}
-                <div className="bbdrts-details-metrics">
-                  <div className="bbdrts-details-metrics-row">
-                    <div className="bbdrts-details-metric-item">
-                      <span className="bbdrts-details-metric-label">Target Goal</span>
-                      <span className="bbdrts-details-metric-val">₱{targetPhp}</span>
-                    </div>
-
-                    <div className="bbdrts-details-metric-item">
-                      <span className="bbdrts-details-metric-label">Settled to Date</span>
-                      <span className="bbdrts-details-metric-val accent">
-                        ₱{currentPhp} <span style={{ fontSize: '0.74rem', fontWeight: 600 }}>({progressPercent}%)</span>
-                      </span>
-                    </div>
-
-                    <div className="bbdrts-details-metric-item">
-                      <span className="bbdrts-details-metric-label">Target Delivery</span>
-                      <span className="bbdrts-details-metric-val" style={{ fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <span className="material-symbols-outlined" style={{ fontSize: '15px', color: 'var(--text-muted)' }}>calendar_today</span>
-                        <span>{formattedDeliveryDate || audit.targetDate || 'Active'}</span>
-                      </span>
-                    </div>
-
-                    <div className="bbdrts-details-metric-item">
-                      <span className="bbdrts-details-metric-label">Community Backers</span>
-                      <span className="bbdrts-details-metric-val" style={{ fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                        <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#16a34a' }}>group</span>
-                        <span>{breakdown.totalBackers > 0 ? `${breakdown.totalBackers} ${breakdown.totalBackers === 1 ? 'Backer' : 'Backers'}` : '0 Backers'}</span>
-                      </span>
-                    </div>
+                {/* Bento 4-Tile Metric Grid */}
+                <div className="bbdrts-bento-grid">
+                  <div className="bbdrts-bento-card">
+                    <span className="bbdrts-bento-label">Target Goal</span>
+                    <span className="bbdrts-bento-value">₱{targetPhp}</span>
                   </div>
 
-                  {/* Visual Progress Bar */}
-                  <div className="bbdrts-details-progress-bar-wrap" title={`Funded: ${progressPercent}% of target`}>
-                    <div className="bbdrts-details-progress-fill" style={{ width: `${Math.min(100, Math.max(0, parseFloat(progressPercent) || 0))}%` }} />
+                  <div className="bbdrts-bento-card">
+                    <span className="bbdrts-bento-label">Settled to Date</span>
+                    <span className="bbdrts-bento-value is-accent">
+                      ₱{currentPhp} <span className="bbdrts-bento-sub">({progressPercent}%)</span>
+                    </span>
+                  </div>
+
+                  <div className="bbdrts-bento-card">
+                    <span className="bbdrts-bento-label">Target Delivery</span>
+                    <span className="bbdrts-bento-meta">
+                      <span className="material-symbols-outlined" style={{ fontSize: '15px', color: 'var(--text-muted)' }}>calendar_today</span>
+                      <span>{formattedDeliveryDate || audit.targetDate || 'Active'}</span>
+                    </span>
+                  </div>
+
+                  <div className="bbdrts-bento-card">
+                    <span className="bbdrts-bento-label">Community Backers</span>
+                    <span className="bbdrts-bento-meta">
+                      <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#10b981' }}>group</span>
+                      <span>{breakdown.totalBackers > 0 ? `${breakdown.totalBackers} ${breakdown.totalBackers === 1 ? 'Backer' : 'Backers'}` : '0 Backers'}</span>
+                    </span>
                   </div>
                 </div>
 
-                {/* 2-Column Responsive Layout */}
+                {/* Refined Progress Bar Strip */}
+                <div className="bbdrts-progress-strip">
+                  <div className="bbdrts-progress-track" title={`Funded: ${progressPercent}% of target`}>
+                    <div className="bbdrts-progress-bar" style={{ width: `${Math.min(100, Math.max(0, parseFloat(progressPercent) || 0))}%` }} />
+                  </div>
+                  <div className="bbdrts-progress-info">
+                    <span>Funding Progress: <strong>{progressPercent}%</strong> of target</span>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                      <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>shield</span>
+                      <span>100% On-Chain Escrow Security</span>
+                    </span>
+                  </div>
+                </div>
+
+                {/* 2-Column Responsive Layout (Balanced 50/50 Grid) */}
                 <div className="bbdrts-details-grid">
-                  {/* Left Column: Mission Overview & Budget Allocations */}
+                  {/* Left Column: Mission Overview & Visual Evidence */}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                     {/* Mission Purpose */}
-                    <div className="bbdrts-details-card">
-                      <div className="bbdrts-details-card-header">
-                        <h4 className="bbdrts-details-card-title">
-                          <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#16a34a' }}>description</span>
+                    <div className="bbdrts-section-card">
+                      <div className="bbdrts-section-card-header">
+                        <h4 className="bbdrts-section-card-title">
+                          <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#10b981' }}>article</span>
                           Mission & Humanitarian Scope
                         </h4>
                       </div>
-                      <p className="bbdrts-details-desc">
+                      <p className="bbdrts-desc-text">
                         {audit.description}
                       </p>
 
@@ -5592,26 +7321,205 @@ export default function CampaignCard(props) {
                       {/* Emergency Response Desk */}
                       {audit.contact && (
                         <div className="bbdrts-details-hotline-chip">
-                          <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#16a34a' }}>support_agent</span>
+                          <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#10b981' }}>support_agent</span>
                           <div>
                             <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>Emergency Contact: </span>
-                            <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{audit.contact}</span>
+                            <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{formatPhoneNumber(audit.contact)}</span>
                           </div>
                         </div>
                       )}
                     </div>
 
+                    {/* Dedicated Cover & Narrative Media Showcase (Positioned below the bio / mission) */}
+                    <div className="bbdrts-details-media" style={{ borderRadius: '14px', overflow: 'hidden' }}>
+                      <img
+                        src={coverData.imageUrl}
+                        alt={camp.title}
+                        className="bbdrts-details-media-img"
+                        onError={(e) => {
+                          e.target.onerror = null;
+                          e.target.src = 'https://images.unsplash.com/photo-1532629345422-7515f3d16bb6?auto=format&fit=crop&w=600&q=80';
+                        }}
+                      />
+                      <button
+                        type="button"
+                        className="bbdrts-media-expand-pill"
+                        onClick={() => setActiveEvidenceImg(coverData.imageUrl)}
+                        title="Click to view full photo"
+                      >
+                        <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>fullscreen</span>
+                        <span>View Cover Photo</span>
+                      </button>
+                    </div>
+
+                    {/* Official Disaster Impact & Damage Evidence */}
+                    {modalDisasterPhotos.length > 0 && (
+                      <div className="bbdrts-section-card">
+                        <div className="bbdrts-section-card-header">
+                          <h4 className="bbdrts-section-card-title">
+                            <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#f59e0b' }}>photo_library</span>
+                            Disaster Impact Evidence ({modalDisasterPhotos.length})
+                          </h4>
+                          <span className="bbdrts-section-card-badge" style={{ color: '#f59e0b', borderColor: 'rgba(245, 158, 11, 0.3)', background: 'rgba(245, 158, 11, 0.08)' }}>FIELD VERIFIED</span>
+                        </div>
+                        <p style={{ margin: '0 0 10px 0', fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: '1.45' }}>
+                          Ground-level photographic verification uploaded by {camp.orgName || 'the accredited NGO'} documenting disaster severity.
+                        </p>
+                        <div className="bbdrts-details-evidence-grid">
+                          {(() => {
+                            const maxGrid = 6;
+                            const hasOverflow = modalDisasterPhotos.length > maxGrid;
+                            const visiblePhotos = hasOverflow ? modalDisasterPhotos.slice(0, maxGrid) : modalDisasterPhotos;
+                            const overflowCount = modalDisasterPhotos.length - (maxGrid - 1);
+
+                            return visiblePhotos.map((imgUrl, pIdx) => {
+                              const isOverflow = hasOverflow && pIdx === (maxGrid - 1);
+                              return (
+                                <div
+                                  key={pIdx}
+                                  className={`bbdrts-evidence-thumb-container ${isOverflow ? 'is-overflow' : ''}`}
+                                  onClick={() => setActiveEvidenceImg(imgUrl)}
+                                  title={isOverflow ? `+${overflowCount} more photo${overflowCount > 1 ? 's' : ''}` : `Click to view field photo ${pIdx + 1}`}
+                                  style={{ position: 'relative' }}
+                                >
+                                  <img src={imgUrl} alt={`Field evidence ${pIdx + 1}`} className="bbdrts-evidence-thumb" />
+                                  <div className="bbdrts-evidence-thumb-overlay">
+                                    <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>zoom_in</span>
+                                  </div>
+                                  {isOverflow && (
+                                    <div className="beacon-thumb-overflow-overlay">
+                                      <span>+{overflowCount}</span>
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            });
+                          })()}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Right Column: Ground Deployment Audit & Proof of Fund Allocation */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    {/* Ground Deployment Audit */}
+                    <div className="bbdrts-section-card">
+                      <div className="bbdrts-section-card-header">
+                        <h4 className="bbdrts-section-card-title">
+                          <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#ef4444' }}>location_on</span>
+                          Ground Deployment Audit
+                        </h4>
+                        <span className="bbdrts-section-card-badge">GPS VERIFIED</span>
+                      </div>
+
+                      {/* Interactive Leaflet Map View with Layer Controls */}
+                      <div className="bbdrts-details-map-frame">
+                        <LocationMapPicker
+                          address={audit.region}
+                          gps={audit.gps}
+                          readOnly={true}
+                          allowLayerSwitch={true}
+                          height="230px"
+                          hideTip={true}
+                          theme={activeTheme}
+                        />
+                      </div>
+
+                      {/* Map Quick Action Buttons (Google Maps + Copy GPS + Etherscan) */}
+                      <div className="bbdrts-details-map-actions">
+                        <a
+                          href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(audit.gps || audit.region)}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="bbdrts-details-map-btn"
+                          title="Open location in Google Maps"
+                        >
+                          <span className="material-symbols-outlined" style={{ fontSize: '15px', color: '#ea4335' }}>open_in_new</span>
+                          <span>Google Maps</span>
+                        </a>
+
+                        {audit.gps && (
+                          <button
+                            type="button"
+                            className="bbdrts-details-map-btn"
+                            onClick={() => {
+                              if (navigator.clipboard) {
+                                navigator.clipboard.writeText(audit.gps);
+                                showSuccess(`Coordinates copied to clipboard: ${audit.gps}`, 'GPS Copied');
+                              }
+                            }}
+                            title="Copy GPS coordinates"
+                          >
+                            <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>content_copy</span>
+                            <span>Copy GPS</span>
+                          </button>
+                        )}
+
+                        {camp.contractAddress && (
+                          <a
+                            href={`https://sepolia.etherscan.io/address/${camp.contractAddress}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="bbdrts-details-map-btn"
+                            title="View Escrow on Sepolia Etherscan"
+                          >
+                            <span className="material-symbols-outlined" style={{ fontSize: '15px', color: '#10b981' }}>receipt_long</span>
+                            <span>Etherscan</span>
+                          </a>
+                        )}
+                      </div>
+
+                      {/* Logistics Key-Value Rows */}
+                      <div className="bbdrts-details-logistics">
+                        <div className="bbdrts-details-logistics-item">
+                          <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#ef4444', marginTop: '2px', flexShrink: 0 }}>pin_drop</span>
+                          <div className="bbdrts-details-logistics-text">
+                            {audit.region}
+                          </div>
+                        </div>
+
+                        {audit.gps && (
+                          <div className="bbdrts-details-logistics-item">
+                            <span className="material-symbols-outlined" style={{ fontSize: '16px', color: 'var(--text-muted)', flexShrink: 0 }}>radar</span>
+                            <div>
+                              <span style={{ color: '#10b981', fontWeight: 700, fontFamily: 'var(--font-mono, monospace)', fontSize: '0.8rem' }}>
+                                {audit.gps}
+                              </span>
+                            </div>
+                          </div>
+                        )}
+
+                        {audit.beneficiaries && (
+                          <div className="bbdrts-details-logistics-item">
+                            <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#10b981', marginTop: '2px', flexShrink: 0 }}>groups</span>
+                            <div style={{ color: 'var(--text-secondary)', lineHeight: 1.35 }}>
+                              <strong style={{ color: '#10b981' }}>{audit.beneficiaries}</strong>
+                            </div>
+                          </div>
+                        )}
+
+                        {audit.contact && (
+                          <div className="bbdrts-details-logistics-item">
+                            <span className="material-symbols-outlined" style={{ fontSize: '16px', color: 'var(--text-muted)', flexShrink: 0 }}>call</span>
+                            <div style={{ color: 'var(--text-muted)', fontSize: '0.78rem' }}>
+                              Response Desk: <strong style={{ color: 'var(--text-primary)' }}>{formatPhoneNumber(audit.contact)}</strong>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
                     {/* Proof of Fund Allocation */}
                     {audit.allocations && Array.isArray(audit.allocations) && audit.allocations.length > 0 && (() => {
-                      const totalAllocTarget = parseFloat(camp.targetAmount || 0) * 170000;
+                      const totalAllocTarget = camp.targetAmountPhp || camp.target_amount_php || (parseFloat(camp.targetAmount || 0) * 170000);
                       return (
-                        <div className="bbdrts-details-card">
-                          <div className="bbdrts-details-card-header">
-                            <h4 className="bbdrts-details-card-title">
-                              <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#16a34a' }}>pie_chart</span>
+                        <div className="bbdrts-section-card">
+                          <div className="bbdrts-section-card-header">
+                            <h4 className="bbdrts-section-card-title">
+                              <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#10b981' }}>pie_chart</span>
                               Proof of Fund Allocation
                             </h4>
-                            <span className="bbdrts-details-card-badge">TRANSPARENCY AUDIT</span>
+                            <span className="bbdrts-section-card-badge">TRANSPARENCY AUDIT</span>
                           </div>
 
                           <div className="bbdrts-details-allocations">
@@ -5642,7 +7550,7 @@ export default function CampaignCard(props) {
                                 <span>Surplus Reserve Policy</span>
                               </div>
                               <p className="bbdrts-details-policy-desc">
-                                Contributions exceeding 100% of the target roll over into the <strong>Calamity Response Reserve Fund</strong> for emergency relief and unbudgeted operations.
+                                Contributions exceeding 100% roll over into the <strong>Calamity Response Reserve Fund</strong> for emergency relief and unbudgeted operations.
                               </p>
                             </div>
 
@@ -5660,121 +7568,10 @@ export default function CampaignCard(props) {
                       );
                     })()}
                   </div>
-
-                  {/* Right Column: Ground Deployment Audit & Interactive Map */}
-                  <div className="bbdrts-details-card">
-                    <div className="bbdrts-details-card-header">
-                      <h4 className="bbdrts-details-card-title">
-                        <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#ef4444' }}>location_on</span>
-                        Ground Deployment Audit
-                      </h4>
-                      <span className="bbdrts-details-card-badge">GPS VERIFIED</span>
-                    </div>
-
-                    {/* Interactive Leaflet Map View with Layer Controls */}
-                    <div className="bbdrts-details-map-frame">
-                      <LocationMapPicker
-                        address={audit.region}
-                        gps={audit.gps}
-                        readOnly={true}
-                        allowLayerSwitch={true}
-                        height="230px"
-                        hideTip={true}
-                        theme={activeTheme}
-                      />
-                    </div>
-
-                    {/* Map Quick Action Buttons (Google Maps + Copy GPS + Etherscan) */}
-                    <div className="bbdrts-details-map-actions">
-                      <a
-                        href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(audit.gps || audit.region)}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="bbdrts-details-map-btn"
-                        title="Open location in Google Maps"
-                      >
-                        <span className="material-symbols-outlined" style={{ fontSize: '15px', color: '#ea4335' }}>open_in_new</span>
-                        <span>Google Maps</span>
-                      </a>
-
-                      {audit.gps && (
-                        <button
-                          type="button"
-                          className="bbdrts-details-map-btn"
-                          onClick={() => {
-                            if (navigator.clipboard) {
-                              navigator.clipboard.writeText(audit.gps);
-                              showSuccess(`Coordinates copied to clipboard: ${audit.gps}`, 'GPS Copied');
-                            }
-                          }}
-                          title="Copy GPS coordinates"
-                        >
-                          <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>content_copy</span>
-                          <span>Copy GPS</span>
-                        </button>
-                      )}
-
-                      {camp.contractAddress && (
-                        <a
-                          href={`https://sepolia.etherscan.io/address/${camp.contractAddress}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="bbdrts-details-map-btn"
-                          title="View Escrow on Sepolia Etherscan"
-                        >
-                          <span className="material-symbols-outlined" style={{ fontSize: '15px', color: '#16a34a' }}>receipt_long</span>
-                          <span>Etherscan</span>
-                        </a>
-                      )}
-                    </div>
-
-                    {/* Logistics Key-Value Rows */}
-                    <div className="bbdrts-details-logistics">
-                      {/* Target Location */}
-                      <div className="bbdrts-details-logistics-item">
-                        <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#ef4444', marginTop: '2px', flexShrink: 0 }}>pin_drop</span>
-                        <div className="bbdrts-details-logistics-text">
-                          {audit.region}
-                        </div>
-                      </div>
-
-                      {/* GPS Coordinates */}
-                      {audit.gps && (
-                        <div className="bbdrts-details-logistics-item">
-                          <span className="material-symbols-outlined" style={{ fontSize: '16px', color: 'var(--text-muted)', flexShrink: 0 }}>radar</span>
-                          <div>
-                            <span style={{ color: '#16a34a', fontWeight: 700, fontFamily: 'var(--font-mono, monospace)', fontSize: '0.8rem' }}>
-                              {audit.gps}
-                            </span>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Beneficiaries / Impact */}
-                      {audit.beneficiaries && (
-                        <div className="bbdrts-details-logistics-item">
-                          <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#16a34a', marginTop: '2px', flexShrink: 0 }}>groups</span>
-                          <div style={{ color: 'var(--text-secondary)', lineHeight: 1.35 }}>
-                            <strong style={{ color: '#16a34a' }}>{audit.beneficiaries}</strong>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Contact Response Desk */}
-                      {audit.contact && (
-                        <div className="bbdrts-details-logistics-item">
-                          <span className="material-symbols-outlined" style={{ fontSize: '16px', color: 'var(--text-muted)', flexShrink: 0 }}>call</span>
-                          <div style={{ color: 'var(--text-muted)', fontSize: '0.78rem' }}>
-                            Response Desk: <strong style={{ color: 'var(--text-primary)' }}>{audit.contact}</strong>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
                 </div>
               </div>
 
-              {/* Modal Actions Footer */}
+              {/* ── 3. Modal Actions Sticky Footer ── */}
               <div className="bbdrts-details-footer">
                 <button
                   type="button"
@@ -5785,27 +7582,74 @@ export default function CampaignCard(props) {
                   <span>Close Audit</span>
                 </button>
 
-                {isOwner ? (
+                {(camp.disbursementStatus === 'DISBURSED' || (camp.disbursedAmountPhp || 0) > 0) && (
                   <button
                     type="button"
-                    className="bbdrts-details-btn-primary"
+                    className="btn btn-outline"
                     onClick={() => {
                       setDetailsOpen(false);
-                      setEditModalOpen(true);
+                      setProofModalOpen(true);
+                    }}
+                    style={{
+                      borderColor: 'rgba(34, 197, 94, 0.4)',
+                      color: 'var(--accent, #22c55e)',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px'
                     }}
                   >
-                    <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>edit_note</span>
-                    <span>Edit Campaign Details</span>
+                    <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>verified</span>
+                    <span>View Relief Proof</span>
                   </button>
+                )}
+
+                {isOwner ? (
+                  <>
+                    <button
+                      type="button"
+                      className="bbdrts-details-btn-primary"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        if (isDisbursementsMaintenance) {
+                          showWarning(
+                            `Fund disbursement is temporarily paused for scheduled maintenance (${maintState?.title || 'System Maintenance'}). Escrow vault is safely locked.`,
+                            'Maintenance Active'
+                          );
+                          return;
+                        }
+                        setDetailsOpen(false);
+                        setDisburseModalOpen(true);
+                      }}
+                      style={{
+                        background: isDisbursementsMaintenance ? '#27272a' : 'var(--accent, #22c55e)',
+                        color: isDisbursementsMaintenance ? '#a1a1aa' : '#0a0a0a',
+                        cursor: isDisbursementsMaintenance ? 'not-allowed' : 'pointer'
+                      }}
+                      title={isDisbursementsMaintenance ? 'Disbursement paused for maintenance' : 'Disburse raised funds and upload distribution photos / official receipts'}
+                    >
+                      <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>
+                        {isDisbursementsMaintenance ? 'construction' : 'local_shipping'}
+                      </span>
+                      <span>{isDisbursementsMaintenance ? 'Disbursement (Maintenance)' : 'Disburse & Upload Relief Proof'}</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-outline"
+                      onClick={() => {
+                        setDetailsOpen(false);
+                        setEditModalOpen(true);
+                      }}
+                    >
+                      <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>edit_note</span>
+                      <span>Edit Details</span>
+                    </button>
+                  </>
                 ) : canDonate ? (
                   <button
                     type="button"
                     className="bbdrts-details-btn-primary"
                     onClick={() => {
-                      const parsed = parseFloat(amount);
-                      if (isNaN(parsed) || parsed <= 0) {
-                        return showWarning('Please enter a valid donation amount greater than ₱0.', 'Enter Amount');
-                      }
                       setDetailsOpen(false);
                       setDonateStep(0);
                       setCustomMsg('');
@@ -5820,6 +7664,107 @@ export default function CampaignCard(props) {
                   </button>
                 ) : null}
               </div>
+
+              {/* Evidence Lightbox Modal (Root Document Body Portal) */}
+              {activeEvidenceImg && typeof document !== 'undefined' && createPortal(
+                <div
+                  className="disaster-lightbox-backdrop"
+                  onClick={() => setActiveEvidenceImg(null)}
+                  role="dialog"
+                  aria-modal="true"
+                >
+                  <div className="disaster-lightbox-content" onClick={(e) => e.stopPropagation()}>
+                    {/* Top Bar: Counter & Close */}
+                    <div className="disaster-lightbox-top-bar">
+                      <div className="disaster-lightbox-pill">
+                        <span className="material-symbols-outlined" style={{ fontSize: '15px', color: '#10b981' }}>photo_library</span>
+                        <span>Photo {(() => {
+                          const idx = allModalPhotos.indexOf(activeEvidenceImg);
+                          return (idx >= 0 ? idx + 1 : 1);
+                        })()} of {allModalPhotos.length || 1}</span>
+                      </div>
+                      <button
+                        type="button"
+                        className="disaster-lightbox-close"
+                        onClick={() => setActiveEvidenceImg(null)}
+                        title="Close Preview (Esc)"
+                        aria-label="Close Preview"
+                      >
+                        <span className="material-symbols-outlined">close</span>
+                      </button>
+                    </div>
+
+                    {/* Middle Stage: Stationary Prev + Fixed Image Frame + Stationary Next */}
+                    <div className="disaster-lightbox-stage">
+                      {allModalPhotos.length > 1 && (
+                        <button
+                          type="button"
+                          className="disaster-lightbox-nav-btn prev"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const curr = allModalPhotos.indexOf(activeEvidenceImg);
+                            const prev = curr > 0 ? curr - 1 : allModalPhotos.length - 1;
+                            setActiveEvidenceImg(allModalPhotos[prev]);
+                          }}
+                          title="Previous Photo (Left Arrow)"
+                          aria-label="Previous Photo"
+                        >
+                          <span className="material-symbols-outlined">chevron_left</span>
+                        </button>
+                      )}
+
+                      <div className="disaster-lightbox-img-frame">
+                        <img
+                          src={activeEvidenceImg}
+                          alt="Disaster Aftermath Evidence"
+                          className="disaster-lightbox-img"
+                        />
+                      </div>
+
+                      {allModalPhotos.length > 1 && (
+                        <button
+                          type="button"
+                          className="disaster-lightbox-nav-btn next"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const curr = allModalPhotos.indexOf(activeEvidenceImg);
+                            const next = curr < allModalPhotos.length - 1 ? curr + 1 : 0;
+                            setActiveEvidenceImg(allModalPhotos[next]);
+                          }}
+                          title="Next Photo (Right Arrow)"
+                          aria-label="Next Photo"
+                        >
+                          <span className="material-symbols-outlined">chevron_right</span>
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="disaster-lightbox-caption">
+                      <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#10b981' }}>verified</span>
+                      <span>Disaster Impact & Aftermath Evidence • Ground Photographic Verification</span>
+                    </div>
+
+                    {/* Bottom Thumbnails Carousel */}
+                    {allModalPhotos.length > 1 && (
+                      <div className="disaster-lightbox-thumbs-strip" onClick={(e) => e.stopPropagation()}>
+                        {allModalPhotos.map((thumbUrl, tIdx) => (
+                          <button
+                            key={tIdx}
+                            type="button"
+                            className={`disaster-lightbox-strip-thumb ${thumbUrl === activeEvidenceImg ? 'is-active' : ''}`}
+                            onClick={() => setActiveEvidenceImg(thumbUrl)}
+                            title={`Switch to photo ${tIdx + 1}`}
+                          >
+                            <img src={thumbUrl} alt={`Thumbnail ${tIdx + 1}`} />
+                            <span className="disaster-lightbox-thumb-num">{tIdx + 1}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>,
+                document.body
+              )}
             </div>
           </div>,
           document.body
@@ -5835,6 +7780,24 @@ export default function CampaignCard(props) {
           onCampaignUpdated?.();
           onDonated?.();
         }}
+      />
+
+      {/* ── Disburse Funds to Beneficiaries Modal ── */}
+      <DisburseModal
+        camp={camp}
+        isOpen={disburseModalOpen}
+        onClose={() => setDisburseModalOpen(false)}
+        onDisbursed={() => {
+          onCampaignUpdated?.();
+          onDonated?.();
+        }}
+      />
+
+      {/* ── Verified Aid Distribution Proof & Receipts Modal ── */}
+      <DisbursementProofModal
+        camp={camp}
+        isOpen={proofModalOpen}
+        onClose={() => setProofModalOpen(false)}
       />
     </div>
   );

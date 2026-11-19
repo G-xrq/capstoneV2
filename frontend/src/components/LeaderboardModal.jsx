@@ -575,7 +575,7 @@ export default function LeaderboardModal({
                 <span>{activeTab === 'donors' ? 'Donor' : 'Organization'}</span>
               </div>
               <div className="bbdrts-roster-col-tier">
-                <span>{activeTab === 'donors' ? 'Giving Society' : 'Accreditation'}</span>
+                <span>{activeTab === 'donors' ? 'Donor Tier' : 'Accreditation'}</span>
               </div>
               <div className="bbdrts-roster-col-metrics">
                 <span>
@@ -677,7 +677,7 @@ export default function LeaderboardModal({
                                 type="button"
                                 className="bbdrts-roster-tier-btn"
                                 onClick={() => setSelectedDonorForModal({ ...item, totalDonatedEth: item.totalDonatedEth, totalDonatedPhp: item.totalDonatedPhp })}
-                                title="Click to view Giving Societies & Philanthropic Honor Roll"
+                                title="Click to view Donor Tiers & Certificate"
                               >
                                 <DonorBadge 
                                   tier={donorTier}
@@ -825,7 +825,7 @@ export default function LeaderboardModal({
                 </div>
               ) : (
                 <div className="bbdrts-user-banner-text">
-                  Log in or connect your wallet to verify your contributions and Giving Society standing.
+                  Log in or connect your wallet to verify your contributions and donor tier standing.
                 </div>
               )}
             </div>
@@ -847,10 +847,10 @@ export default function LeaderboardModal({
                   };
                   setSelectedDonorForModal(userAsDonor);
                 }}
-                title="View Giving Societies and Philanthropic Honor Roll"
+                title="View Donor Recognition Tiers and Certificate"
               >
                 <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>workspace_premium</span>
-                <span>View Giving Societies</span>
+                <span>View Donor Tiers</span>
               </button>
             ) : (
               <button

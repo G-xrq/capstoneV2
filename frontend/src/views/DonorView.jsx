@@ -10,7 +10,9 @@ import CampaignCard, {
   getCampaignAuditDetails,
   progressPct,
   formatEthAmt,
-  getCampaignTags
+  getCampaignTags,
+  isCampaignTracked,
+  getCategoryEvidencePhotos
 } from '../components/CampaignCard';
 import LocationMapPicker from '../components/LocationMapPicker';
 import { ROLES } from '../roleConfig';
@@ -18,43 +20,20 @@ import SettingsPanel from '../components/SettingsPanel';
 import DisasterRadarHeatmap from '../components/DisasterRadarHeatmap';
 import DonorBadge, { DonorTierModal, DonorProgressCard, BadgeUpgradeModal, getDonorTier, globalDonorRegistry } from '../components/DonorBadge';
 import GuidedTour from '../components/GuidedTour';
+import SidebarToggleIcon from '../components/SidebarToggleIcon';
+import DisbursementProofModal from '../components/DisbursementProofModal';
 import { useToast } from '../context/ToastContext';
 import { API_URL } from '../config';
 import { CONTRACT_ADDRESS } from '../contractConfig';
+import { getPaginationItems } from '../utils/pagination';
+import { getWorkspaceStrings } from '../data/workspaceTranslations';
 import './ReferenceDashboard.css';
 import '../components/CampaignDetailsModal.css';
 import './DashboardOverview.css';
+import CampaignSkeletonCard from '../components/CampaignSkeletonCard';
 
 /* ── Skeleton loading placeholders (shimmer; mirrors CampaignCard & db-camp-row geometry) ── */
-const DbSkeletonCard = () => (
-  <div className="db-skel-card" role="status" aria-busy="true" aria-label="Loading campaign">
-    <div className="db-skel-media db-skel" />
-    <div className="db-skel-info">
-      <div className="db-skel-pair">
-        <span className="db-skel-line db-skel" style={{ width: '26%' }} />
-        <span className="db-skel-badge db-skel" />
-      </div>
-      <span className="db-skel-line db-skel db-skel-line-t" style={{ width: '68%' }} />
-      <span className="db-skel-line db-skel" style={{ width: '42%' }} />
-      <span className="db-skel-line db-skel" style={{ width: '57%' }} />
-      <div className="db-skel-railtrack">
-        <span className="db-skel-railseg db-skel" style={{ width: '52%' }} />
-        <span className="db-skel-railseg db-skel" style={{ width: '26%' }} />
-        <span className="db-skel-railseg db-skel" style={{ width: '22%' }} />
-      </div>
-      <div className="db-skel-boxes">
-        <span className="db-skel-box db-skel" />
-        <span className="db-skel-box db-skel" />
-        <span className="db-skel-box db-skel" />
-      </div>
-      <div className="db-skel-actions">
-        <span className="db-skel-btn db-skel" style={{ width: '98px' }} />
-        <span className="db-skel-btn db-skel" style={{ width: '78px' }} />
-        <span className="db-skel-btn db-skel" style={{ width: '78px' }} />
-      </div>
-    </div>
-  </div>
-);
+const DbSkeletonCard = () => <CampaignSkeletonCard />;
 
 const DbSkeletonCampRow = ({ id }) => (
   <div className="db-skel-camprow" id={id} role="status" aria-busy="true" aria-label="Loading campaign">
@@ -74,9 +53,21 @@ const DbSkeletonCampRow = ({ id }) => (
   </div>
 );
 
-export default function DonorView({ contract, walletAddress, campaigns, fetchCampaigns, fetchingCampaigns, currentUser, handleConnectWallet, handleLogout, updateDbWallet, theme = 'default', setTheme, textSize, setTextSize, onOpenNgoProfile, onActiveTabChange }) {
+export default function DonorView({ contract, walletAddress, walletAlertBanner, campaigns = [], fetchCampaigns, fetchingCampaigns, currentUser, handleConnectWallet, handleLogout, updateDbWallet, theme = 'default', themeMode, setTheme, textSize, setTextSize, interfaceMode = 'standard', setInterfaceMode, language = 'en', setLanguage, reducedMotion = false, setReducedMotion, highContrast = false, setHighContrast, lowBandwidthMode = false, setLowBandwidthMode, onOpenNgoProfile, onActiveTabChange }) {
   const { showSuccess } = useToast();
+  const wt = useMemo(() => getWorkspaceStrings(language), [language]);
+  const [loadedThumbs, setLoadedThumbs] = useState({});
+  useEffect(() => {
+    if (!lowBandwidthMode) setLoadedThumbs({});
+  }, [lowBandwidthMode]);
   const [activeTab, setActiveTab] = useState('dashboard');
+
+  // Always reset scroll to top on tab switch or dashboard mount
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    const mainContent = document.querySelector('.ref-main-content');
+    if (mainContent) mainContent.scrollTop = 0;
+  }, [activeTab]);
   const [categoryFilter, setCategoryFilter] = useState('ALL');
   const [selectedTags, setSelectedTags] = useState([]);
   const [urgencyFilter, setUrgencyFilter] = useState('ALL');
@@ -84,17 +75,72 @@ export default function DonorView({ contract, walletAddress, campaigns, fetchCam
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [campaignSort, setCampaignSort] = useState('NEWEST');
   const [searchQuery, setSearchQuery] = useState('');
+  const [onlyTracked, setOnlyTracked] = useState(false);
+  const [trackRevision, setTrackRevision] = useState(0);
+
+  // Synchronize tracked campaign list live whenever any card is tracked or untracked
+  useEffect(() => {
+    const handleTrackUpdate = () => {
+      setTrackRevision(prev => prev + 1);
+    };
+    window.addEventListener('bbdrts_track_change', handleTrackUpdate);
+    window.addEventListener('storage', handleTrackUpdate);
+    return () => {
+      window.removeEventListener('bbdrts_track_change', handleTrackUpdate);
+      window.removeEventListener('storage', handleTrackUpdate);
+    };
+  }, []);
   const [receiptFilter, setReceiptFilter] = useState('ALL');
   const [receiptRailFilter, setReceiptRailFilter] = useState('ALL');
   const [receiptSort, setReceiptSort] = useState('NEWEST');
   const [searchQueryReceipts, setSearchQueryReceipts] = useState('');
   const [selectedCampaignForProof, setSelectedCampaignForProof] = useState(null);
+  const [selectedProofCamp, setSelectedProofCamp] = useState(null);
+  const [showAllProofTags, setShowAllProofTags] = useState(false);
+  const [activeProofEvidenceImg, setActiveProofEvidenceImg] = useState(null);
   const [selectedVoucherTx, setSelectedVoucherTx] = useState(null);
   const [showReceiptZoom, setShowReceiptZoom] = useState(false);
   const [showTierModal, setShowTierModal] = useState(false);
   const [unlockedTierModal, setUnlockedTierModal] = useState(null);
   const [showGuidedTour, setShowGuidedTour] = useState(false);
   const [showTechDetails, setShowTechDetails] = useState(false);
+
+  // Responsive Left-Flush Sidebar State
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
+    try { return localStorage.getItem('bbdrts_sidebar_collapsed') === 'true'; } catch (_) { return false; }
+  });
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+
+  const toggleSidebar = () => {
+    setIsSidebarCollapsed(prev => {
+      const next = !prev;
+      try {
+        localStorage.setItem('bbdrts_sidebar_collapsed', String(next));
+        document.body.setAttribute('data-sidebar-collapsed', String(next));
+      } catch (_) {}
+      window.dispatchEvent(new CustomEvent('bbdrts_sidebar_changed', { detail: { collapsed: next } }));
+      return next;
+    });
+  };
+
+  useEffect(() => {
+    try {
+      const isCollapsed = localStorage.getItem('bbdrts_sidebar_collapsed') === 'true';
+      document.body.setAttribute('data-sidebar-collapsed', String(isCollapsed));
+    } catch (_) {}
+  }, []);
+
+  useEffect(() => {
+    const handleToggle = () => {
+      if (typeof window !== 'undefined' && window.innerWidth <= 768) {
+        setMobileSidebarOpen(prev => !prev);
+      } else {
+        toggleSidebar();
+      }
+    };
+    window.addEventListener('bbdrts_toggle_sidebar', handleToggle);
+    return () => window.removeEventListener('bbdrts_toggle_sidebar', handleToggle);
+  }, []);
   const [showGuide, setShowGuide] = useState(() => {
     try { return localStorage.getItem('bbdrts_dismiss_donor_guide') !== 'true'; } catch (_) { return true; }
   });
@@ -116,17 +162,38 @@ export default function DonorView({ contract, walletAddress, campaigns, fetchCam
       ? `bbdrts_tour_donor_${currentUser.email}` 
       : 'bbdrts_tour_donor_done';
 
-  // Auto-launch Guided Tour ONLY for brand new donor registrations
+  // Auto-launch Guided Tour ONLY for brand new donor registrations, AFTER Workspace Setup closes
   useEffect(() => {
-    try {
-      const isNewSignup = localStorage.getItem('bbdrts_tour_force_launch') === 'true' || 
-                          localStorage.getItem('bbdrts_is_new_registration') === 'true';
-      const userTourDone = localStorage.getItem(userTourKey) === 'true';
+    let pollInterval = null;
+    let launchTimeout = null;
+    let cancelled = false;
 
-      if (isNewSignup && !userTourDone) {
+    const tryLaunchTour = () => {
+      if (cancelled) return;
+      try {
+        const isNewSignup = localStorage.getItem('bbdrts_tour_force_launch') === 'true' ||
+                            localStorage.getItem('bbdrts_is_new_registration') === 'true';
+        const userTourDone = localStorage.getItem(userTourKey) === 'true';
+        if (!isNewSignup || userTourDone) return;
+
         let attempts = 0;
-        const maxAttempts = 60; // 60 * 100ms = 6s max fallback
-        const pollInterval = setInterval(() => {
+        const maxAttempts = 60;
+        if (pollInterval) clearInterval(pollInterval);
+
+        pollInterval = setInterval(() => {
+          if (cancelled) {
+            clearInterval(pollInterval);
+            return;
+          }
+          const onboardingActive = Boolean(
+            document.querySelector('.onboarding-backdrop') ||
+            document.body.dataset.onboardingOpen === 'true' ||
+            localStorage.getItem('bbdrts_needs_onboarding') === 'true'
+          );
+          if (onboardingActive) {
+            return; // Pause while BBDRTS Workspace Setup is still open
+          }
+
           attempts++;
           const authBackdrop = document.querySelector('.auth-transition-backdrop');
           const targetEl = document.querySelector('#tour-donor-welcome') || document.querySelector('#tour-donor-profile');
@@ -135,18 +202,28 @@ export default function DonorView({ contract, walletAddress, campaigns, fetchCam
 
           if ((isAuthClear && isTargetReady) || attempts >= maxAttempts) {
             clearInterval(pollInterval);
-            setTimeout(() => {
+            pollInterval = null;
+            launchTimeout = setTimeout(() => {
+              if (cancelled) return;
               setActiveTab('dashboard');
               setShowGuidedTour(true);
               localStorage.removeItem('bbdrts_tour_force_launch');
               localStorage.removeItem('bbdrts_is_new_registration');
             }, 350);
           }
-        }, 100);
+        }, 120);
+      } catch (_) {}
+    };
 
-        return () => clearInterval(pollInterval);
-      }
-    } catch (_) {}
+    tryLaunchTour();
+    const onOnboardingDone = () => tryLaunchTour();
+    window.addEventListener('bbdrts_onboarding_finished', onOnboardingDone);
+    return () => {
+      cancelled = true;
+      window.removeEventListener('bbdrts_onboarding_finished', onOnboardingDone);
+      if (pollInterval) clearInterval(pollInterval);
+      if (launchTimeout) clearTimeout(launchTimeout);
+    };
   }, [userTourKey]);
 
   const handleStartTour = () => {
@@ -187,7 +264,7 @@ export default function DonorView({ contract, walletAddress, campaigns, fetchCam
       description: 'These four stat cards summarize your total contributions recorded on-chain, the number of active relief causes open for aid, the live Sepolia smart contract verification status, and your cumulative donation total in ETH and PHP.'
     },
     {
-      target: '#tour-donor-first-campaign',
+      target: '#tour-donor-first-campaign, #tour-donor-featured-causes',
       title: 'Featured Relief Campaign',
       icon: 'emergency',
       badge: 'Relief Causes',
@@ -223,7 +300,7 @@ export default function DonorView({ contract, walletAddress, campaigns, fetchCam
       description: 'Switch to this tab to view an interactive Philippine map with live PAGASA Doppler radar precipitation data and disaster campaign locations, helping you see where emergency relief is needed most.'
     },
     {
-      target: '#tour-donor-sepolia-node',
+      target: '#tour-donor-sepolia-node, .ref-sidebar-footer-group, .ref-nav-item-tutorial',
       title: 'Network Health & Replay Tour',
       icon: 'hub',
       badge: 'System Status',
@@ -245,16 +322,16 @@ export default function DonorView({ contract, walletAddress, campaigns, fetchCam
   const searchInputRef = useRef(null);
 
   const CAUSE_OPTIONS = [
-    { value: 'ALL', label: 'All Causes', icon: 'public', color: '#38bdf8' },
-    { value: 'DR', label: 'Disaster Relief', icon: 'flood', color: '#38bdf8' },
-    { value: 'CD', label: 'Charitable Aid', icon: 'volunteer_activism', color: '#38bdf8' }
+    { value: 'ALL', label: 'All Causes', icon: 'public' },
+    { value: 'DR', label: 'Disaster Relief', icon: 'flood' },
+    { value: 'CD', label: 'Charitable Aid', icon: 'volunteer_activism' }
   ];
 
   const PRIORITY_OPTIONS = [
-    { value: 'ALL', label: 'All Priorities', icon: 'bolt', color: '#f59e0b' },
-    { value: 'HIGH', label: 'High Priority', icon: 'priority_high', color: '#ef4444' },
-    { value: 'MEDIUM', label: 'Medium Priority', icon: 'bolt', color: '#f59e0b' },
-    { value: 'STABLE', label: 'Standard / Stable', icon: 'verified_user', color: '#10b981' }
+    { value: 'ALL', label: 'All Priorities', icon: 'bolt' },
+    { value: 'HIGH', label: 'High Priority', icon: 'priority_high' },
+    { value: 'MEDIUM', label: 'Medium Priority', icon: 'bolt' },
+    { value: 'STABLE', label: 'Standard / Stable', icon: 'verified_user' }
   ];
 
   const SORT_OPTIONS = [
@@ -397,7 +474,7 @@ export default function DonorView({ contract, walletAddress, campaigns, fetchCam
     if (!targetCampaignId || donorTargetScrolledRef.current) {
       setCurrentPage(1);
     }
-  }, [categoryFilter, selectedTags, urgencyFilter, progressFilter, statusFilter, campaignSort, searchQuery, viewMode, targetCampaignId]);
+  }, [categoryFilter, selectedTags, urgencyFilter, progressFilter, statusFilter, campaignSort, searchQuery, viewMode, targetCampaignId, onlyTracked, trackRevision]);
 
   // Dynamically extract all available tags and frequency counts across active campaigns
   const { availableTags, tagCounts } = useMemo(() => {
@@ -419,7 +496,7 @@ export default function DonorView({ contract, walletAddress, campaigns, fetchCam
     return { availableTags: tagsSorted, tagCounts: counts };
   }, [campaigns]);
 
-  const hasActiveFilters = categoryFilter !== 'ALL' || selectedTags.length > 0 || urgencyFilter !== 'ALL' || progressFilter !== 'ALL' || statusFilter !== 'ALL' || searchQuery.trim() !== '';
+  const hasActiveFilters = onlyTracked || categoryFilter !== 'ALL' || selectedTags.length > 0 || urgencyFilter !== 'ALL' || progressFilter !== 'ALL' || statusFilter !== 'ALL' || searchQuery.trim() !== '';
 
   const resetAllFilters = () => {
     setCategoryFilter('ALL');
@@ -428,6 +505,7 @@ export default function DonorView({ contract, walletAddress, campaigns, fetchCam
     setProgressFilter('ALL');
     setStatusFilter('ALL');
     setSearchQuery('');
+    setOnlyTracked(false);
   };
 
   // Global Header Navigation Listener
@@ -459,17 +537,53 @@ export default function DonorView({ contract, walletAddress, campaigns, fetchCam
       }, 50);
     };
 
+    const handleTabNav = (e) => {
+      const targetTab = e?.detail?.tab;
+      if (!targetTab) return;
+      const aliasMap = {
+        'ledger': 'my-donations',
+        'financial-ledger': 'my-donations',
+        'donations': 'my-donations',
+        'my-donations': 'my-donations',
+        'history': 'my-donations',
+        'receipts': 'my-donations',
+        'campaigns': 'campaigns',
+        'my-campaigns': 'campaigns',
+        'all-campaigns': 'campaigns',
+        'radar': 'radar-heatmap',
+        'radar-heatmap': 'radar-heatmap',
+        'settings': 'settings',
+        'dashboard': 'dashboard'
+      };
+      const resolved = aliasMap[targetTab] || targetTab;
+      setActiveTab(resolved);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    const handleProofModalNav = (e) => {
+      const { campaign, campaignId } = e?.detail || {};
+      if (campaign) {
+        setSelectedProofCamp(campaign);
+      } else if (campaignId) {
+        setSelectedProofCamp({ id: campaignId, Campaign_ID: campaignId });
+      }
+    };
+
     window.addEventListener('bbdrts_navigate_radar', handleRadarNav);
     window.addEventListener('bbdrts_navigate_campaigns', handleCampaignsNav);
     window.addEventListener('bbdrts_navigate_home', handleHomeNav);
     window.addEventListener('bbdrts_navigate_contributions', handleContributionsNav);
     window.addEventListener('bbdrts_filter_category', handleCategoryNav);
+    window.addEventListener('bbdrts_navigate_tab', handleTabNav);
+    window.addEventListener('bbdrts_open_proof_modal', handleProofModalNav);
     return () => {
       window.removeEventListener('bbdrts_navigate_radar', handleRadarNav);
       window.removeEventListener('bbdrts_navigate_campaigns', handleCampaignsNav);
       window.removeEventListener('bbdrts_navigate_home', handleHomeNav);
       window.removeEventListener('bbdrts_navigate_contributions', handleContributionsNav);
       window.removeEventListener('bbdrts_filter_category', handleCategoryNav);
+      window.removeEventListener('bbdrts_navigate_tab', handleTabNav);
+      window.removeEventListener('bbdrts_open_proof_modal', handleProofModalNav);
     };
   }, []);
 
@@ -524,7 +638,16 @@ export default function DonorView({ contract, walletAddress, campaigns, fetchCam
         const tags = getCampaignTags(c);
         const tagMatch = Array.isArray(tags) && tags.some(t => t.toLowerCase().includes(q));
         const idMatch = String(c.id).includes(q);
-        return displayTitle.includes(q) || rawTitle.includes(q) || desc.includes(q) || orgMatch || locationMatch || tagMatch || idMatch;
+        if (!(displayTitle.includes(q) || rawTitle.includes(q) || desc.includes(q) || orgMatch || locationMatch || tagMatch || idMatch)) {
+          return false;
+        }
+      }
+
+      // 7. Tracked Campaigns Filter (using unified tracking storage helper)
+      if (onlyTracked) {
+        if (!isCampaignTracked(c.id, currentUser, walletAddress)) {
+          return false;
+        }
       }
 
       return true;
@@ -658,11 +781,8 @@ export default function DonorView({ contract, walletAddress, campaigns, fetchCam
   const estimatedFamiliesAided = useMemo(() => {
     const php = totalDonatedPhp || 0;
     if (php > 0) return Math.max(1, Math.floor(php / 500));
-    return campaigns.reduce((acc, c) => {
-      const num = parseInt((c.audit?.beneficiaries || '').replace(/\D/g, ''), 10);
-      return acc + (isNaN(num) ? 50 : Math.min(num, 300));
-    }, 0);
-  }, [totalDonatedPhp, campaigns]);
+    return 0;
+  }, [totalDonatedPhp]);
 
   // Synchronize active donor's global cumulative contribution across the platform
   useEffect(() => {
@@ -812,401 +932,298 @@ export default function DonorView({ contract, walletAddress, campaigns, fetchCam
   }, [myDonations, receiptFilter, receiptRailFilter, searchQueryReceipts, receiptSort, campaigns]);
 
   return (
-    <main className="container" style={{ paddingBottom: '40px' }}>
-      <div className="ref-dashboard-grid">
+    <div className="ref-dashboard-container" data-interface-mode={interfaceMode}>
+      {/* Mobile Drawer Backdrop */}
+      <div
+        className={`ref-sidebar-backdrop ${mobileSidebarOpen ? 'active' : ''}`}
+        onClick={() => setMobileSidebarOpen(false)}
+        aria-hidden="true"
+      />
 
-        {/* ── Left Sidebar Navigation Panel ── */}
-        <aside className="ref-sidebar">
-          <div className="ref-sidebar-user" id="tour-donor-profile">
-            <div className="ref-sidebar-avatar" style={{ overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              {currentUser?.avatar_url && (currentUser.avatar_url.startsWith('data:') || currentUser.avatar_url.startsWith('http')) ? (
-                <img src={currentUser.avatar_url} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-              ) : currentUser?.avatar_url && currentUser.avatar_url.length < 30 ? (
-                <span className="material-symbols-outlined" style={{ fontSize: '20px', color: 'var(--accent)' }}>{currentUser.avatar_url}</span>
-              ) : (
-                userInitials
-              )}
+      {/* ── Left-Flush Sticky Sidebar Navigation (Zero gap on the left) ── */}
+      <aside className={`ref-sidebar ${isSidebarCollapsed ? 'collapsed' : ''} ${mobileSidebarOpen ? 'mobile-open' : ''}`}>
+        <div>
+          <div className="ref-sidebar-header-strip">
+            <div className="ref-sidebar-brand-group">
+              <span className="material-symbols-outlined ref-portal-icon" style={{ color: 'var(--text-primary)' }}>volunteer_activism</span>
+              <span className="ref-portal-title">{wt.donorPortal}</span>
             </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div className="ref-sidebar-name" title={userDisplayName}>{userDisplayName}</div>
-              <div className="ref-sidebar-id">
-                {currentUser?.system_id || `BBDRTS-DONOR-2026-${String(currentUser?.id || 1).padStart(4, '0')}`}
-              </div>
-            </div>
+            <button
+              type="button"
+              className="ref-sidebar-collapse-toggle"
+              onClick={toggleSidebar}
+              title={isSidebarCollapsed ? "Expand Sidebar ([ or Ctrl+\\ or Alt+S)" : "Collapse Sidebar ([ or Ctrl+\\ or Alt+S)"}
+              aria-label={isSidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+            >
+              <SidebarToggleIcon />
+            </button>
           </div>
 
           <div className="ref-sidebar-menu">
             <button 
               id="tour-donor-tab-dashboard"
               className={`ref-nav-item ${activeTab === 'dashboard' ? 'active' : ''}`}
-              onClick={() => setActiveTab('dashboard')}
+              onClick={() => { setActiveTab('dashboard'); setMobileSidebarOpen(false); }}
+              title={wt.dashboardOverview}
             >
               <span className="material-symbols-outlined">dashboard</span>
-              <span>Dashboard Overview</span>
+              <span>{wt.dashboardOverview}</span>
             </button>
 
             <button 
               id="tour-donor-tab-campaigns"
               className={`ref-nav-item ${activeTab === 'campaigns' ? 'active' : ''}`}
-              onClick={() => setActiveTab('campaigns')}
+              onClick={() => { setActiveTab('campaigns'); setMobileSidebarOpen(false); }}
+              title={wt.exploreCampaigns}
             >
-              <span className="material-symbols-outlined">campaign</span>
-              <span>Relief Campaigns</span>
+              <span className="material-symbols-outlined">explore</span>
+              <span>{wt.exploreCampaigns}</span>
             </button>
 
-            <button 
-              id="tour-donor-tab-donations"
-              className={`ref-nav-item ${activeTab === 'my-donations' ? 'active' : ''}`}
-              onClick={() => setActiveTab('my-donations')}
-            >
-              <span className="material-symbols-outlined">receipt_long</span>
-              <span>My Contributions</span>
-            </button>
+            {interfaceMode !== 'simplified' && (
+              <button 
+                id="tour-donor-tab-radar"
+                className={`ref-nav-item ${activeTab === 'radar-heatmap' ? 'active' : ''}`}
+                onClick={() => { setActiveTab('radar-heatmap'); setMobileSidebarOpen(false); }}
+                title={wt.reliefRadar}
+              >
+                <span className="material-symbols-outlined" style={{ color: activeTab === 'radar-heatmap' ? 'var(--accent, #22c55e)' : 'inherit' }}>radar</span>
+                <span>{wt.reliefRadar}</span>
+              </button>
+            )}
 
-            <button 
-              id="tour-donor-tab-radar"
-              className={`ref-nav-item ${activeTab === 'radar-heatmap' ? 'active' : ''}`}
-              onClick={() => setActiveTab('radar-heatmap')}
-            >
-              <span className="material-symbols-outlined" style={{ color: activeTab === 'radar-heatmap' ? 'var(--accent, #22c55e)' : 'inherit' }}>radar</span>
-              <span>Relief Radar</span>
-            </button>
+            {interfaceMode !== 'simplified' && (
+              <button 
+                id="tour-donor-tab-donations"
+                className={`ref-nav-item ${activeTab === 'my-donations' ? 'active' : ''}`}
+                onClick={() => { setActiveTab('my-donations'); setMobileSidebarOpen(false); }}
+                title={wt.myContributions}
+              >
+                <span className="material-symbols-outlined">receipt_long</span>
+                <span>{wt.myContributions}</span>
+              </button>
+            )}
 
             <button 
               id="tour-donor-tab-settings"
               className={`ref-nav-item ${activeTab === 'settings' ? 'active' : ''}`}
-              onClick={() => setActiveTab('settings')}
+              onClick={() => { setActiveTab('settings'); setMobileSidebarOpen(false); }}
+              title={wt.profileSettings}
             >
               <span className="material-symbols-outlined">settings</span>
-              <span>Profile & Settings</span>
-            </button>
-
-            <button 
-              type="button"
-              className="ref-nav-item"
-              onClick={handleStartTour}
-              style={{ marginTop: '10px', borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '10px', color: 'var(--accent, #22c55e)' }}
-              title="Take a guided walkthrough of the donor platform"
-            >
-              <span className="material-symbols-outlined" style={{ color: 'var(--accent, #22c55e)' }}>help</span>
-              <span style={{ fontWeight: 600 }}>Guided Tutorial</span>
+              <span>{wt.profileSettings}</span>
             </button>
           </div>
+        </div>
 
-          {/* ── Expandable System Status & Technical Information Accordion ── */}
-          <div className="ref-sidebar-widget ref-sidebar-accordion" id="tour-donor-sepolia-node">
-            <button
-              type="button"
-              className="ref-accordion-header"
-              onClick={() => setShowTechDetails(prev => !prev)}
-              aria-expanded={showTechDetails}
-              title={showTechDetails ? 'Collapse technical network details' : 'Expand technical network details'}
-            >
-              <div className="ref-accordion-title-group">
-                <span className="ref-status-dot"></span>
-                <span className="ref-widget-title">Audit Status</span>
-              </div>
-              <div className="ref-accordion-badge-group">
-                <span className="ref-status-live-chip">Synchronized</span>
-                <span className={`material-symbols-outlined ref-accordion-caret ${showTechDetails ? 'expanded' : ''}`}>
-                  expand_more
-                </span>
-              </div>
-            </button>
-
-            {showTechDetails && (
-              <div className="ref-widget-detail ref-accordion-content">
-                <div className="ref-widget-row">
-                  <span>Smart Contract</span>
-                  <span className="ref-widget-value green">● Active & Audited</span>
-                </div>
-                <div className="ref-widget-row">
-                  <span>Ledger Network</span>
-                  <span className="ref-widget-value">Ethereum Blockchain</span>
-                </div>
-                <div className="ref-widget-row">
-                  <span>Verification</span>
-                  <span className="ref-widget-value">Automated Escrow</span>
-                </div>
-                <div className="ref-widget-row" style={{ paddingTop: '6px', borderTop: '1px solid rgba(255,255,255,0.06)', marginTop: '2px' }}>
-                  <a
-                    href="https://sepolia.etherscan.io"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="ref-tech-ledger-link"
-                  >
-                    <span>Public Explorer</span>
-                    <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>open_in_new</span>
-                  </a>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* ── Compact Theme Switcher Strip ── */}
-          <div className="ref-sidebar-theme-strip">
-            <div className="ref-theme-strip-header">
-              <span className="ref-theme-strip-label">
-                <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>palette</span>
-                <span>Interface Theme</span>
-              </span>
-              <span className="ref-theme-active-tag">
-                {THEME_OPTIONS.find(t => t.id === theme)?.name || 'Dark'}
-              </span>
-            </div>
-            <div className="ref-theme-pill-group">
-              {THEME_OPTIONS.map(t => {
-                const isSelected = theme === t.id;
-                return (
-                  <button
-                    key={t.id}
-                    type="button"
-                    onClick={() => {
-                      if (setTheme) {
-                        setTheme(t.id);
-                        showSuccess(`${t.name} enabled`, 'Theme Updated');
-                      }
-                    }}
-                    className={`ref-theme-pill-btn ${isSelected ? 'active' : ''}`}
-                    title={`${t.name} Mode (${t.desc})`}
-                    aria-label={`${t.name} Mode`}
-                  >
-                    <span className="material-symbols-outlined" style={{ fontSize: '14px', color: isSelected ? t.color : 'inherit' }}>
-                      {t.icon}
-                    </span>
-                    <span className="ref-theme-pill-name">{t.name}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        </aside>
+        {/* ── Sidebar Bottom Footer Dock ── */}
+        <div className="ref-sidebar-footer-group" id="tour-donor-sepolia-node">
+          <button 
+            type="button"
+            className="ref-nav-item ref-nav-item-tutorial"
+            onClick={() => { handleStartTour(); setMobileSidebarOpen(false); }}
+            title={wt.guidedTutorial}
+            aria-label={wt.guidedTutorial}
+          >
+            <span className="material-symbols-outlined">help</span>
+            <span>{wt.guidedTutorial}</span>
+          </button>
+        </div>
+      </aside>
 
         {/* ── Main Content Area ── */}
         <section className="ref-main-content">
+          {walletAlertBanner}
 
           {/* ── 1. DASHBOARD OVERVIEW TAB ONLY (Shows Welcome Banner + 4 Metric Cards) ── */}
           {activeTab === 'dashboard' && (
             <>
-              {/* HCI First-Time User Experience & Getting Started Guide */}
-              {showGuide && (
-                <div className="db-welcome-guide" id="tour-donor-guide">
-                  <div className="db-guide-header">
-                    <div>
-                      <div className="db-guide-badge">
-                        <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>help</span>
-                        <span>First-Time Quick Guide</span>
-                      </div>
-                      <h2 className="db-guide-title">
-                        {totalDonatedPhp === 0
-                          ? `Welcome to BBDRTS, ${userDisplayName || 'Friend'}`
-                          : `Welcome back, ${userDisplayName || 'Donor'}`}
-                      </h2>
-                      <p className="db-guide-subtitle">
-                        Every peso and crypto donation is publicly verified and sent directly to accredited disaster relief teams across the Philippines with zero platform cuts.
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      className="db-guide-dismiss"
-                      onClick={() => {
-                        setShowGuide(false);
-                        try { localStorage.setItem('bbdrts_dismiss_donor_guide', 'true'); } catch (_) {}
-                      }}
-                      title="Dismiss this guide"
-                    >
-                      <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>check</span>
-                      <span>Hide guide</span>
-                    </button>
-                  </div>
-
-                  <div className="db-guide-steps">
-                    {/* Step 1 */}
-                    <div className="db-guide-step-card">
-                      <div className="db-guide-step-top">
-                        <span className="db-guide-step-num">Step 01</span>
-                        <span className="material-symbols-outlined db-guide-step-icon">travel_explore</span>
-                      </div>
-                      <div>
-                        <h3 className="db-guide-step-heading">Explore Relief Appeals</h3>
-                        <p className="db-guide-step-desc">
-                          Browse urgent disaster appeals filtered by region, typhoon severity, flood, or medical needs.
-                        </p>
-                      </div>
-                      <button
-                        type="button"
-                        className="db-guide-step-action"
-                        onClick={() => setActiveTab('campaigns')}
-                      >
-                        <span>Browse Appeals</span>
-                        <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>arrow_forward</span>
-                      </button>
-                    </div>
-
-                    {/* Step 2 */}
-                    <div className="db-guide-step-card">
-                      <div className="db-guide-step-top">
-                        <span className="db-guide-step-num">Step 02</span>
-                        <span className="material-symbols-outlined db-guide-step-icon">account_balance_wallet</span>
-                      </div>
-                      <div>
-                        <h3 className="db-guide-step-heading">Give via E-Wallets or Crypto</h3>
-                        <p className="db-guide-step-desc">
-                          Scan official GCash/Maya QR codes, transfer via bank, or send Sepolia ETH directly from MetaMask.
-                        </p>
-                      </div>
-                      <button
-                        type="button"
-                        className="db-guide-step-action"
-                        onClick={() => setActiveTab('radar-heatmap')}
-                      >
-                        <span>View Philippine Radar</span>
-                        <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>arrow_forward</span>
-                      </button>
-                    </div>
-
-                    {/* Step 3 */}
-                    <div className="db-guide-step-card">
-                      <div className="db-guide-step-top">
-                        <span className="db-guide-step-num">Step 03</span>
-                        <span className="material-symbols-outlined db-guide-step-icon">receipt_long</span>
-                      </div>
-                      <div>
-                        <h3 className="db-guide-step-heading">Track Your Digital Receipts</h3>
-                        <p className="db-guide-step-desc">
-                          Every contribution generates an immutable digital receipt verified on the public blockchain ledger.
-                        </p>
-                      </div>
-                      <button
-                        type="button"
-                        className="db-guide-step-action"
-                        onClick={() => setActiveTab('my-donations')}
-                      >
-                        <span>View My Contributions</span>
-                        <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>arrow_forward</span>
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* ── 1. Clean Profile & Impact Header ── */}
-              <div className="dbo-clean-hero" id="tour-donor-welcome">
-                <div className="dbo-clean-hero-left" id="tour-donor-identity">
-                  <div className="dbo-clean-avatar">
-                    {currentUser?.avatar_url && (currentUser.avatar_url.startsWith('data:') || currentUser.avatar_url.startsWith('http')) ? (
-                      <img src={currentUser.avatar_url} alt="Profile" />
-                    ) : currentUser?.avatar_url && currentUser.avatar_url.length < 30 ? (
-                      <span className="material-symbols-outlined" style={{ fontSize: '26px', color: 'var(--accent)' }}>{currentUser.avatar_url}</span>
-                    ) : (
-                      userInitials
-                    )}
-                  </div>
-                  <div className="dbo-clean-user-meta">
-                    <div className="dbo-clean-name-row">
-                      <h1 className="dbo-clean-title">{userDisplayName || 'Donor Dashboard'}</h1>
-                      <span className="dbo-clean-badge">
-                        <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>verified</span>
-                        <span>Verified Donor</span>
-                      </span>
-                    </div>
-                    <div className="dbo-clean-subtext">
-                      {walletAddress ? (
-                        <span
-                          className="dbo-clean-wallet-pill"
-                          onClick={() => {
-                            if (navigator.clipboard) {
-                              navigator.clipboard.writeText(walletAddress);
-                              showSuccess('Wallet address copied to clipboard', 'Address Copied');
-                            }
-                          }}
-                          title="Click to copy full Sepolia wallet address"
-                        >
-                          <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>account_balance_wallet</span>
-                          <span>{shortAddr(walletAddress)}</span>
-                          <span className="material-symbols-outlined" style={{ fontSize: '11px', opacity: 0.6 }}>content_copy</span>
-                        </span>
-                      ) : (
-                        <span style={{ color: 'var(--text-muted)' }}>Wallet not connected</span>
-                      )}
-                      <span>•</span>
-                      <span style={{ color: 'var(--text-muted)' }}>Sepolia Testnet</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="dbo-clean-hero-right" id="tour-donor-badge-card">
-                  <div className="dbo-clean-stat-box">
-                    <div className="dbo-clean-stat-label">Lifetime Giving</div>
-                    <div className="dbo-clean-stat-value">₱{Math.round(totalDonatedPhp).toLocaleString('en-US')}</div>
-                    <div 
-                      className="dbo-clean-stat-sub"
-                      onClick={() => setShowTierModal(true)}
-                      title="View Philanthropic Honor Roll"
-                    >
-                      <span className="material-symbols-outlined" style={{ fontSize: '14px', color: activeTierInfo?.tier?.color || '#16a34a' }}>workspace_premium</span>
-                      <span style={{ color: activeTierInfo?.tier?.color || '#16a34a' }}>
-                        {activeTierInfo?.tier ? activeTierInfo.tier.name : 'Community Supporter'}
-                      </span>
-                      <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>chevron_right</span>
-                    </div>
-                  </div>
+              {/* Institutional Vercel Page Header */}
+              <div className="admin-page-header" id="tour-donor-dashboard-header">
+                <div className="admin-page-title-wrap">
+                  <h2 className="admin-page-title">
+                    <span className="material-symbols-outlined icon text-emerald">space_dashboard</span>
+                    <span>{wt.donorOverviewTitle}</span>
+                  </h2>
+                  <p className="admin-page-sub">
+                    {wt.donorOverviewSub}
+                  </p>
                 </div>
               </div>
 
-              {/* ── 2. Clean 4-Card Metric Grid ── */}
-              <div className="dbo-metrics-row" id="tour-donor-metrics">
+              {/* ── 1. Clean Profile & Impact Header ── */}
+              <div className="dbo-clean-hero" id="tour-donor-welcome">
+                <div className="dbo-clean-hero-top">
+                  <div className="dbo-clean-hero-left" id="tour-donor-identity">
+                    <div className="dbo-clean-avatar">
+                      {currentUser?.avatar_url && (currentUser.avatar_url.startsWith('data:') || currentUser.avatar_url.startsWith('http')) ? (
+                        <img src={currentUser.avatar_url} alt="Profile" />
+                      ) : currentUser?.avatar_url && currentUser.avatar_url.length < 30 ? (
+                        <span className="material-symbols-outlined" style={{ fontSize: '26px', color: 'var(--accent)' }}>{currentUser.avatar_url}</span>
+                      ) : (
+                        userInitials
+                      )}
+                    </div>
+                    <div className="dbo-clean-user-meta">
+                      <div className="dbo-clean-name-row">
+                        <h1 className="dbo-clean-title">{userDisplayName || 'Donor Dashboard'}</h1>
+                        <span className="dbo-clean-badge">
+                          <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>verified</span>
+                          <span>{wt.verifiedWorkspace}</span>
+                        </span>
+                      </div>
+                      <div className="dbo-clean-subtext">
+                        {walletAddress ? (
+                          <span
+                            className="dbo-clean-wallet-pill"
+                            onClick={() => {
+                              if (navigator.clipboard) {
+                                navigator.clipboard.writeText(walletAddress);
+                                showSuccess('Wallet address copied to clipboard', 'Address Copied');
+                              }
+                            }}
+                            title="Click to copy full Sepolia wallet address"
+                          >
+                            <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>{interfaceMode === 'simplified' ? 'verified_user' : 'account_balance_wallet'}</span>
+                            <span>{interfaceMode === 'simplified' ? 'Sepolia Verified Contributor' : shortAddr(walletAddress)}</span>
+                            <span className="material-symbols-outlined" style={{ fontSize: '11px', opacity: 0.6 }}>content_copy</span>
+                          </span>
+                        ) : (
+                          <span style={{ color: 'var(--text-muted)' }}>Wallet not connected</span>
+                        )}
+                        <span>•</span>
+                        <span style={{ color: 'var(--text-muted)' }}>{interfaceMode === 'simplified' ? 'Active Relief Network' : 'Sepolia Testnet'}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="dbo-clean-hero-right" id="tour-donor-badge-card">
+                    <div className="dbo-clean-stat-box">
+                      <div className="dbo-clean-stat-label">Lifetime Giving</div>
+                      <div className="dbo-clean-stat-value">₱{Math.round(totalDonatedPhp).toLocaleString('en-US')}</div>
+                      <div 
+                        className="dbo-clean-stat-sub"
+                        onClick={() => setShowTierModal(true)}
+                        title="View Philanthropic Honor Roll"
+                      >
+                        <span className="material-symbols-outlined" style={{ fontSize: '14px', color: activeTierInfo?.tier?.color || 'var(--text-muted)' }}>
+                          {activeTierInfo?.tier ? 'workspace_premium' : 'military_tech'}
+                        </span>
+                        <span style={{ color: activeTierInfo?.tier?.color || 'var(--text-secondary)' }}>
+                          {activeTierInfo?.tier ? activeTierInfo.tier.name : 'New Contributor'}
+                        </span>
+                        <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>chevron_right</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Action Row - Mirrored from Command Center Hero Card */}
+                <div className="db-actions" id="tour-donor-actions">
+                  <button
+                    type="button"
+                    className="db-btn db-btn--primary"
+                    onClick={() => setActiveTab('campaigns')}
+                    title="Explore active disaster relief campaigns"
+                  >
+                    <span className="material-symbols-outlined">{interfaceMode === 'simplified' ? 'volunteer_activism' : 'campaign'}</span>
+                    <span>{interfaceMode === 'simplified' ? wt.donateRelief : wt.browseCampaigns}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    className="db-btn"
+                    onClick={() => setActiveTab('my-donations')}
+                    title="View your notarized contribution receipts"
+                  >
+                    <span className="material-symbols-outlined">receipt_long</span>
+                    <span>{wt.viewReceipts}</span>
+                  </button>
+
+                  {interfaceMode !== 'simplified' && (
+                    <button
+                      type="button"
+                      className="db-btn"
+                      onClick={() => setActiveTab('radar-heatmap')}
+                      title="Inspect Philippine disaster relief radar"
+                    >
+                      <span className="material-symbols-outlined">radar</span>
+                      <span>{wt.exploreMap}</span>
+                    </button>
+                  )}
+
+                  {interfaceMode !== 'simplified' && (
+                    <a
+                      href="https://sepolia.etherscan.io"
+                      target="_blank"
+                      rel="noreferrer"
+                      className="db-btn"
+                      style={{ marginLeft: 'auto' }}
+                      title="View Sepolia network explorer"
+                    >
+                      <span className="material-symbols-outlined">analytics</span>
+                      <span>{wt.publicLedger}</span>
+                      <span className="material-symbols-outlined" style={{ fontSize: '15px', marginLeft: '2px' }}>open_in_new</span>
+                    </a>
+                  )}
+                </div>
+              </div>
+
+              {/* ── 2. Clean Metric Grid (3 cards in Simplified, 4 in Standard) ── */}
+              <div className={`dbo-metrics-row ${interfaceMode === 'simplified' ? 'is-simplified-metrics' : ''}`} id="tour-donor-metrics">
                 <div className="dbo-metric-card interactive" onClick={() => setActiveTab('my-donations')} title="View donation history">
                   <div className="dbo-metric-head">
-                    <span className="dbo-metric-title">Total Donated</span>
+                    <span className="dbo-metric-title">{wt.metricTotalContributed}</span>
                     <span className="material-symbols-outlined dbo-metric-icon">payments</span>
                   </div>
                   <div className="dbo-metric-number accent">
                     ₱{Math.round(totalDonatedPhp).toLocaleString('en-US')}
                   </div>
                   <p className="dbo-metric-caption">
-                    <span>{totalDonated} ETH · On-chain verified</span>
+                    <span>{interfaceMode === 'simplified' ? wt.metricTotalContributedSub : `${totalDonated} ETH · ${wt.metricVerifiedRecordsSub}`}</span>
                   </p>
                 </div>
 
                 <div className="dbo-metric-card interactive" onClick={() => setActiveTab('campaigns')} title="Browse relief campaigns">
                   <div className="dbo-metric-head">
-                    <span className="dbo-metric-title">Relief Campaigns</span>
+                    <span className="dbo-metric-title">{wt.metricLiveAppeals}</span>
                     <span className="material-symbols-outlined dbo-metric-icon">campaign</span>
                   </div>
                   <div className="dbo-metric-number">
                     {activeCampaignsCount}
                   </div>
                   <p className="dbo-metric-caption">
-                    <span>{criticalUrgencyCount > 0 ? `${criticalUrgencyCount} critical priority` : 'Open for donations'}</span>
+                    <span>{interfaceMode === 'simplified' ? 'Open disaster relief operations' : (criticalUrgencyCount > 0 ? `${criticalUrgencyCount} critical priority` : 'Open for donations')}</span>
                   </p>
                 </div>
 
                 <div className="dbo-metric-card">
                   <div className="dbo-metric-head">
-                    <span className="dbo-metric-title">Families Reached</span>
+                    <span className="dbo-metric-title">{interfaceMode === 'simplified' ? 'People & Families Aided' : 'Families Reached'}</span>
                     <span className="material-symbols-outlined dbo-metric-icon">groups</span>
                   </div>
                   <div className="dbo-metric-number">
-                    ~{estimatedFamiliesAided.toLocaleString()}
+                    {estimatedFamiliesAided > 0 ? `~${estimatedFamiliesAided.toLocaleString()}` : '0'}
                   </div>
                   <p className="dbo-metric-caption">
-                    <span>Direct relief food & water packs</span>
+                    <span>{interfaceMode === 'simplified' ? 'Emergency food & clean water relief' : (estimatedFamiliesAided > 0 ? 'Direct relief food & water packs' : 'Awaiting first relief pledge')}</span>
                   </p>
                 </div>
 
-                <div className="dbo-metric-card interactive" onClick={() => setShowTierModal(true)} title="View Philanthropic Honor Roll">
-                  <div className="dbo-metric-head">
-                    <span className="dbo-metric-title">Honor Roll Standing</span>
-                    <span className="material-symbols-outlined dbo-metric-icon">workspace_premium</span>
+                {interfaceMode !== 'simplified' && (
+                  <div className="dbo-metric-card interactive" onClick={() => setShowTierModal(true)} title="View Philanthropic Honor Roll">
+                    <div className="dbo-metric-head">
+                      <span className="dbo-metric-title">Honor Roll Standing</span>
+                      <span className="material-symbols-outlined dbo-metric-icon">workspace_premium</span>
+                    </div>
+                    <div className="dbo-metric-number" style={{ fontSize: '1.2rem', color: activeTierInfo?.tier?.color || 'var(--text-secondary)' }}>
+                      {activeTierInfo?.tier ? activeTierInfo.tier.name : 'New Contributor'}
+                    </div>
+                    <p className="dbo-metric-caption">
+                      <span>{donorReceiptsCount > 0 ? `${donorReceiptsCount} verified receipt${donorReceiptsCount !== 1 ? 's' : ''}` : 'Pledge first donation'}</span>
+                    </p>
                   </div>
-                  <div className="dbo-metric-number" style={{ fontSize: '1.2rem', color: activeTierInfo?.tier?.color || 'var(--text-primary)' }}>
-                    {activeTierInfo?.tier ? activeTierInfo.tier.name : 'Community Supporter'}
-                  </div>
-                  <p className="dbo-metric-caption">
-                    <span>{donorReceiptsCount > 0 ? `${donorReceiptsCount} verified receipt${donorReceiptsCount !== 1 ? 's' : ''}` : 'Pledge first donation'}</span>
-                  </p>
-                </div>
+                )}
               </div>
 
               {/* ── 3. Active Relief Appeals Section ── */}
@@ -1214,10 +1231,10 @@ export default function DonorView({ contract, walletAddress, campaigns, fetchCam
                 <div className="dbo-clean-section-header">
                   <h2 className="dbo-clean-heading">
                     <span className="material-symbols-outlined" style={{ fontSize: '20px', color: '#ef4444' }}>emergency</span>
-                    <span>Active Disaster Relief Appeals</span>
+                    <span>{wt.activeAppeals}</span>
                   </h2>
                   <button type="button" className="dbo-clean-link" onClick={() => setActiveTab('campaigns')}>
-                    <span>View all {campaigns.length} campaigns</span>
+                    <span>{wt.viewAll} ({campaigns?.length || 0})</span>
                     <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>arrow_forward</span>
                   </button>
                 </div>
@@ -1228,7 +1245,7 @@ export default function DonorView({ contract, walletAddress, campaigns, fetchCam
                     <DbSkeletonCampRow />
                     <DbSkeletonCampRow />
                   </div>
-                ) : campaigns.length === 0 ? (
+                ) : (!campaigns || campaigns.length === 0) ? (
                   <div className="db-empty-state">
                     <div className="db-empty-icon"><span className="material-symbols-outlined">inbox</span></div>
                     <div className="db-empty-title">No active campaigns on the ledger yet</div>
@@ -1236,20 +1253,41 @@ export default function DonorView({ contract, walletAddress, campaigns, fetchCam
                   </div>
                 ) : (
                   <div className="dbo-campaigns-grid">
-                    {campaigns.slice(0, 3).map((camp) => {
+                    {campaigns.slice(0, 3).map((camp, idx) => {
                       const pct = progressPct(camp.currentAmount, camp.targetAmount);
                       const cover = getCampaignCoverData(camp);
                       const catInfo = getCampaignCategoryInfo(camp);
                       const isCritical = (camp.audit?.urgency || camp.urgency || '').toUpperCase().includes('CRITICAL') || (camp.audit?.urgency || camp.urgency || '').toUpperCase().includes('URGENT');
-                      const campPhpTarget = Math.round((parseFloat(camp.targetAmount) || 0) * 170000).toLocaleString('en-US');
+                      const campPhpTarget = (camp.targetAmountPhp || camp.target_amount_php || Math.round((parseFloat(camp.targetAmount) || 0) * 170000)).toLocaleString('en-US');
                       const campPhpCurrent = Math.round((parseFloat(camp.currentAmount) || 0) * 170000).toLocaleString('en-US');
 
                       return (
-                        <div className="dbo-clean-card" key={camp.id}>
+                        <div 
+                          className="dbo-clean-card" 
+                          key={camp.id}
+                          id={idx === 0 ? 'tour-donor-first-campaign' : undefined}
+                        >
                           <div
                             className="dbo-clean-card-thumb"
-                            style={cover.imageUrl ? { backgroundImage: `url(${cover.imageUrl})` } : undefined}
+                            style={!lowBandwidthMode || loadedThumbs[camp.id] ? (cover.imageUrl ? { backgroundImage: `url(${cover.imageUrl})` } : undefined) : undefined}
                           >
+                            {lowBandwidthMode && !loadedThumbs[camp.id] && (
+                              <div className="data-saver-media-placeholder" style={{ minHeight: '100%', borderRadius: 0 }}>
+                                <span className="material-symbols-outlined" style={{ fontSize: '20px', color: '#f59e0b' }}>signal_cellular_alt</span>
+                                <span style={{ fontSize: '0.7rem', fontWeight: 700 }}>{wt.dataSaverTitle}</span>
+                                <button
+                                  type="button"
+                                  className="data-saver-load-btn"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setLoadedThumbs(prev => ({ ...prev, [camp.id]: true }));
+                                  }}
+                                >
+                                  <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>image</span>
+                                  <span>{wt.loadPhoto}</span>
+                                </button>
+                              </div>
+                            )}
                             <div className="dbo-clean-card-badges">
                               {isCritical && <span className="dbo-pill-mini urgent">Critical</span>}
                               <span className="dbo-pill-mini">{catInfo.label}</span>
@@ -1271,7 +1309,7 @@ export default function DonorView({ contract, walletAddress, campaigns, fetchCam
                                 <div className="dbo-clean-progress-fill" style={{ width: `${Math.min(100, parseFloat(pct) || 0)}%` }} />
                               </div>
                               <div className="dbo-clean-progress-labels">
-                                <span><strong>₱{campPhpCurrent}</strong> of ₱{campPhpTarget}</span>
+                                <span><strong>₱{campPhpCurrent}</strong> {wt.ofGoal} ₱{campPhpTarget}</span>
                                 <span style={{ color: '#16a34a', fontWeight: 700 }}>{pct}%</span>
                               </div>
                             </div>
@@ -1280,22 +1318,25 @@ export default function DonorView({ contract, walletAddress, campaigns, fetchCam
                               <button
                                 type="button"
                                 className="dbo-card-btn primary"
+                                style={interfaceMode === 'simplified' ? { flex: 1, width: '100%', justifyContent: 'center' } : undefined}
                                 onClick={() => {
                                   setActiveTab('campaigns');
                                   setSearchQuery(camp.title || '');
                                 }}
                               >
-                                <span>Donate</span>
+                                <span>{interfaceMode === 'simplified' ? wt.donateRelief : wt.donate}</span>
                                 <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>arrow_forward</span>
                               </button>
-                              <button
-                                type="button"
-                                className="dbo-card-btn secondary"
-                                onClick={() => setSelectedCampaignForProof(camp)}
-                              >
-                                <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>map</span>
-                                <span>Details & Map</span>
-                              </button>
+                              {interfaceMode !== 'simplified' && (
+                                <button
+                                  type="button"
+                                  className="dbo-card-btn secondary"
+                                  onClick={() => setSelectedCampaignForProof(camp)}
+                                >
+                                  <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>map</span>
+                                  <span>{wt.detailsMap}</span>
+                                </button>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -1310,10 +1351,10 @@ export default function DonorView({ contract, walletAddress, campaigns, fetchCam
                 <div className="dbo-clean-section-header">
                   <h2 className="dbo-clean-heading">
                     <span className="material-symbols-outlined" style={{ fontSize: '20px', color: '#16a34a' }}>receipt_long</span>
-                    <span>Recent Contributions</span>
+                    <span>{wt.recentContributions}</span>
                   </h2>
                   <button type="button" className="dbo-clean-link" onClick={() => setActiveTab('my-donations')}>
-                    <span>View all receipts</span>
+                    <span>{wt.viewReceipts}</span>
                     <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>arrow_forward</span>
                   </button>
                 </div>
@@ -1321,7 +1362,7 @@ export default function DonorView({ contract, walletAddress, campaigns, fetchCam
                 <div className="dbo-feed-card">
                   {(!myDonations || myDonations.length === 0) ? (
                     <div style={{ padding: '24px 20px', textAlign: 'center' }}>
-                      <div style={{ fontSize: '0.88rem', fontWeight: 600, color: 'var(--text-secondary)' }}>No personal contributions recorded yet.</div>
+                      <div style={{ fontSize: '0.88rem', fontWeight: 600, color: 'var(--text-secondary)' }}>{wt.noContributions}</div>
                       <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: '4px 0 12px' }}>
                         Pledge relief via GCash, Maya, Bank Transfer, or Sepolia ETH to record your first on-chain proof.
                       </p>
@@ -1352,7 +1393,7 @@ export default function DonorView({ contract, walletAddress, campaigns, fetchCam
                               </span>
                               <div className="dbo-feed-text">
                                 <div className="dbo-feed-title" title={campTitle}>{campTitle}</div>
-                                <div className="dbo-feed-meta">Verified On-Chain</div>
+                                <div className="dbo-feed-meta">{interfaceMode === 'simplified' ? 'Verified Direct Relief' : 'Verified On-Chain'}</div>
                               </div>
                             </div>
                             <div className="dbo-feed-right">
@@ -1383,38 +1424,38 @@ export default function DonorView({ contract, walletAddress, campaigns, fetchCam
           {/* ── 2. DEDICATED RELIEF CAMPAIGNS TAB (Hides 4 boxes & welcome card) ── */}
           {activeTab === 'campaigns' && (
             <div style={{ marginTop: '8px' }} id="tour-campaigns-container">
-              <div className="section-header">
-                <div>
-                  <h2 className="section-title" style={{ fontSize: '1.4rem' }}>
-                    <span className="material-symbols-outlined section-title-icon" style={{marginRight: '8px', color: 'var(--accent)'}}>campaign</span> Active Disaster Relief Campaigns
+              <div className="admin-page-header" id="tour-campaigns-header">
+                <div className="admin-page-title-wrap">
+                  <h2 className="admin-page-title">
+                    <span className="material-symbols-outlined icon text-emerald">campaign</span>
+                    <span>{wt.allCampaignsTitle}</span>
                   </h2>
-                  <p style={{ fontSize: '0.82rem', color: '#94a3b8', marginTop: '4px' }}>
-                    Verified causes with transparent, on-chain relief funding — every donation is recorded on the Sepolia public ledger.
+                  <p className="admin-page-sub">
+                    {wt.allCampaignsSub}
                   </p>
                 </div>
-
-                {/* Aggregate impact snapshot — aggregates only, no per-card repeats */}
-                {(() => {
-                  const raisedPhp = campaigns.reduce((s, c) => s + (parseFloat(c.currentAmount) || 0), 0) * 170000;
-                  const fundedCount = campaigns.filter(c => parseFloat(c.targetAmount) > 0 && parseFloat(c.currentAmount) >= parseFloat(c.targetAmount)).length;
-                  const orgCount = new Set(campaigns.map(c => c.orgName || c.orgAddress).filter(Boolean)).size;
-                  return (
-                    <div className="campaign-head-stats">
-                      <div className="campaign-head-stat">
-                        <span className="campaign-head-stat-val">₱{Math.round(raisedPhp).toLocaleString('en-US', { maximumFractionDigits: 0 })}</span>
-                        <span className="campaign-head-stat-label">raised to date</span>
-                      </div>
-                      <div className="campaign-head-stat">
-                        <span className="campaign-head-stat-val">{fundedCount}</span>
-                        <span className="campaign-head-stat-label">fully funded</span>
-                      </div>
-                      <div className="campaign-head-stat">
-                        <span className="campaign-head-stat-val">{orgCount}</span>
-                        <span className="campaign-head-stat-label">partner NGOs</span>
-                      </div>
+              {/* Aggregate impact snapshot */}
+              {(() => {
+                const raisedPhp = campaigns.reduce((s, c) => s + (parseFloat(c.currentAmount) || 0), 0) * 170000;
+                const fundedCount = campaigns.filter(c => parseFloat(c.targetAmount) > 0 && parseFloat(c.currentAmount) >= parseFloat(c.targetAmount)).length;
+                const orgCount = new Set(campaigns.map(c => c.orgName || c.orgAddress).filter(Boolean)).size;
+                return (
+                  <div className="campaign-head-stats" style={{ marginBottom: '16px' }}>
+                    <div className="campaign-head-stat">
+                      <span className="campaign-head-stat-val">₱{Math.round(raisedPhp).toLocaleString('en-US', { maximumFractionDigits: 0 })}</span>
+                      <span className="campaign-head-stat-label">raised to date</span>
                     </div>
-                  );
-                })()}
+                    <div className="campaign-head-stat">
+                      <span className="campaign-head-stat-val">{fundedCount}</span>
+                      <span className="campaign-head-stat-label">fully funded</span>
+                    </div>
+                    <div className="campaign-head-stat">
+                      <span className="campaign-head-stat-val">{orgCount}</span>
+                      <span className="campaign-head-stat-label">partner NGOs</span>
+                    </div>
+                  </div>
+                );
+              })()}
               </div>
 
               {/* ── Unified Campaign Toolbar: Filters on Left, Search & Sort on Right ── */}
@@ -1454,7 +1495,7 @@ export default function DonorView({ contract, walletAddress, campaigns, fetchCam
                               }}
                               className={`filter-popover-option ${categoryFilter === opt.value ? 'selected' : ''}`}
                             >
-                              <span className="material-symbols-outlined filter-popover-option-icon" style={{ color: opt.color }}>{opt.icon}</span>
+                              <span className="material-symbols-outlined filter-popover-option-icon" style={{ color: 'var(--text-secondary)' }}>{opt.icon}</span>
                               <span>{opt.label}</span>
                               {categoryFilter === opt.value && (
                                 <span className="material-symbols-outlined filter-popover-check">check</span>
@@ -1497,7 +1538,7 @@ export default function DonorView({ contract, walletAddress, campaigns, fetchCam
                               }}
                               className={`filter-popover-option ${urgencyFilter === opt.value ? 'selected' : ''}`}
                             >
-                              <span className="material-symbols-outlined filter-popover-option-icon" style={{ color: opt.color }}>{opt.icon}</span>
+                              <span className="material-symbols-outlined filter-popover-option-icon" style={{ color: 'var(--text-secondary)' }}>{opt.icon}</span>
                               <span>{opt.label}</span>
                               {urgencyFilter === opt.value && (
                                 <span className="material-symbols-outlined filter-popover-check">check</span>
@@ -1558,7 +1599,7 @@ export default function DonorView({ contract, walletAddress, campaigns, fetchCam
                                 onChange={() => setSelectedTags([])}
                               />
                               <span className="tags-popover-tag-text">All Tags</span>
-                              <span className="tags-popover-count">{campaigns.length}</span>
+                              <span className="tags-popover-count">{campaigns?.length || 0}</span>
                             </label>
 
                             {/* Individual Tag Checkboxes */}
@@ -1581,6 +1622,20 @@ export default function DonorView({ contract, walletAddress, campaigns, fetchCam
                         </div>
                       )}
                     </div>
+
+                    {/* Tracked Campaigns Filter Pill */}
+                    <button
+                      type="button"
+                      onClick={() => setOnlyTracked(prev => !prev)}
+                      className={`filter-pill-btn ${onlyTracked ? 'active-filter' : ''}`}
+                      title={onlyTracked ? "Showing tracked campaigns. Click to show all" : "Filter by campaigns you are tracking"}
+                      style={onlyTracked ? { borderColor: 'var(--accent, #22c55e)', color: 'var(--accent, #22c55e)', background: 'rgba(34, 197, 94, 0.12)' } : {}}
+                    >
+                      <span className="material-symbols-outlined filter-pill-icon" style={{ color: onlyTracked ? 'var(--accent, #22c55e)' : 'var(--text-secondary)' }}>
+                        visibility
+                      </span>
+                      <span>Tracked</span>
+                    </button>
                   </div>
 
                   {/* Right: Search Box + Sort Pill */}
@@ -1679,7 +1734,7 @@ export default function DonorView({ contract, walletAddress, campaigns, fetchCam
                 <div className="substrip-left">
                   <div className="campaign-toolbar-count-tag">
                     <span className="count-indicator-dot" />
-                    <span>Showing <strong>{filteredCampaigns.length}</strong> of {campaigns.length} campaigns</span>
+                    <span>Showing <strong>{filteredCampaigns.length}</strong> of {campaigns?.length || 0} campaigns</span>
                   </div>
 
                   {hasActiveFilters && (
@@ -1722,6 +1777,17 @@ export default function DonorView({ contract, walletAddress, campaigns, fetchCam
                           <span className="material-symbols-outlined chip-icon" style={{ color: 'var(--text-secondary)' }}>search</span>
                           <span>"{searchQuery.trim()}"</span>
                           <button type="button" onClick={() => setSearchQuery('')} title="Clear search query">
+                            <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>close</span>
+                          </button>
+                        </div>
+                      )}
+
+                      {/* Tracked Chip */}
+                      {onlyTracked && (
+                        <div className="reference-active-chip">
+                          <span className="material-symbols-outlined chip-icon" style={{ color: 'var(--accent, #22c55e)' }}>visibility</span>
+                          <span>Tracked Operations</span>
+                          <button type="button" onClick={() => setOnlyTracked(false)} title="Show all campaigns">
                             <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>close</span>
                           </button>
                         </div>
@@ -1774,22 +1840,42 @@ export default function DonorView({ contract, walletAddress, campaigns, fetchCam
                   ))}
                 </div>
               ) : filteredCampaigns.length === 0 ? (
-                <div className="db-empty-state">
-                  <div className="db-empty-icon">
-                    <span className="material-symbols-outlined">search_off</span>
+                onlyTracked ? (
+                  <div className="db-empty-state">
+                    <div className="db-empty-icon">
+                      <span className="material-symbols-outlined" style={{ color: 'var(--accent, #22c55e)' }}>visibility</span>
+                    </div>
+                    <div className="db-empty-title">No Tracked Relief Operations Yet</div>
+                    <div className="db-empty-desc">
+                      You are not tracking any disaster relief campaigns yet. Click the <strong>Track</strong> button (eye icon) on any campaign card to add it to your personal watchlist and monitor its relief milestones & receipts.
+                    </div>
+                    <button
+                      type="button"
+                      className="db-btn"
+                      onClick={() => setOnlyTracked(false)}
+                      style={{ marginTop: '12px' }}
+                    >
+                      <span>Browse All Campaigns</span>
+                    </button>
                   </div>
-                  <div className="db-empty-title">No campaigns match your filter</div>
-                  <div className="db-empty-desc">
-                    Try selecting a different category or clearing your search keywords.
+                ) : (
+                  <div className="db-empty-state">
+                    <div className="db-empty-icon">
+                      <span className="material-symbols-outlined">search_off</span>
+                    </div>
+                    <div className="db-empty-title">No campaigns match your filter</div>
+                    <div className="db-empty-desc">
+                      Try selecting a different category or clearing your search keywords.
+                    </div>
+                    <button
+                      type="button"
+                      className="db-btn"
+                      onClick={resetAllFilters}
+                    >
+                      <span>Reset Filters</span>
+                    </button>
                   </div>
-                  <button
-                    type="button"
-                    className="db-btn"
-                    onClick={() => { setCategoryFilter('ALL'); setUrgencyFilter('ALL'); setSearchQuery(''); setSelectedTags([]); }}
-                  >
-                    <span>Reset Filters</span>
-                  </button>
-                </div>
+                )
               ) : (
                 <>
                   <div className={viewMode === 'grid' || viewMode === 'grid-3' || viewMode === 'grid-2' ? 'campaigns-grid' : 'campaigns-list'}>
@@ -1800,6 +1886,10 @@ export default function DonorView({ contract, walletAddress, campaigns, fetchCam
                         contract={contract}
                         role={ROLES.DONOR}
                         walletAddress={walletAddress}
+                        currentUser={currentUser}
+                        interfaceMode={interfaceMode}
+                        lowBandwidthMode={lowBandwidthMode}
+                        language={language}
                         onDonated={fetchCampaigns}
                         onOpenNgoProfile={onOpenNgoProfile}
                       />
@@ -1829,21 +1919,43 @@ export default function DonorView({ contract, walletAddress, campaigns, fetchCam
                       <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>chevron_left</span>
                     </button>
 
-                    {Array.from({ length: Math.max(1, totalPages) }, (_, i) => i + 1).map((pageNum) => (
-                      <button
-                        key={pageNum}
-                        className={`btn btn-sm ${currentPage === pageNum ? 'btn-primary' : 'btn-outline'}`}
-                        onClick={() => setCurrentPage(pageNum)}
-                        style={{ 
-                          minWidth: '36px', 
-                          height: '36px',
-                          borderRadius: '8px', 
-                          fontWeight: currentPage === pageNum ? 700 : 500 
-                        }}
-                      >
-                        {pageNum}
-                      </button>
-                    ))}
+                    {getPaginationItems(currentPage, totalPages, 7).map((item, idx) => {
+                      if (item === '...') {
+                        return (
+                          <span
+                            key={`ellipsis-${idx}`}
+                            style={{
+                              minWidth: '36px',
+                              height: '36px',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              color: 'var(--text-muted, #888888)',
+                              fontSize: '0.85rem',
+                              userSelect: 'none'
+                            }}
+                          >
+                            …
+                          </span>
+                        );
+                      }
+                      const pageNum = Number(item);
+                      return (
+                        <button
+                          key={pageNum}
+                          className={`btn btn-sm ${currentPage === pageNum ? 'btn-primary' : 'btn-outline'}`}
+                          onClick={() => setCurrentPage(pageNum)}
+                          style={{ 
+                            minWidth: '36px', 
+                            height: '36px',
+                            borderRadius: '8px', 
+                            fontWeight: currentPage === pageNum ? 700 : 500 
+                          }}
+                        >
+                          {pageNum}
+                        </button>
+                      );
+                    })}
 
                     <button
                       className="btn btn-outline btn-sm"
@@ -1863,28 +1975,22 @@ export default function DonorView({ contract, walletAddress, campaigns, fetchCam
           {/* ── 3. MY CONTRIBUTIONS TAB (Vercel-Standard Redesign) ── */}
           {activeTab === 'my-donations' && (
             <div className="bbdrts-contributions-tab fade-in">
-              {/* 1. Header & Live Network Status */}
-              <div className="bbdrts-tab-header" id="tour-donations-header">
-                <div className="bbdrts-tab-header-left">
-                  <div className="bbdrts-breadcrumb-tag">
-                    <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>verified</span>
-                    <span>Sepolia EVM Notarized Ledger</span>
-                  </div>
-                  <h2 className="bbdrts-tab-title">My Contributions</h2>
-                  <p className="bbdrts-tab-desc">
-                    Your personal donation receipts, payment rails, and immutable cryptographic proofs verified on the Ethereum Sepolia network.
+              {/* Institutional Vercel Page Header */}
+              <div className="admin-page-header" id="tour-donations-header">
+                <div className="admin-page-title-wrap">
+                  <h2 className="admin-page-title">
+                    <span className="material-symbols-outlined icon text-emerald">receipt_long</span>
+                    <span>{wt.contributionsTitle}</span>
+                  </h2>
+                  <p className="admin-page-sub">
+                    {wt.contributionsSub}
                   </p>
                 </div>
 
-                <div className="bbdrts-tab-header-actions">
-                  <div className="bbdrts-network-badge" title={`Sepolia Smart Contract: ${CONTRACT_ADDRESS ? `${CONTRACT_ADDRESS.slice(0, 6)}...${CONTRACT_ADDRESS.slice(-4)}` : 'Verified'}`}>
-                    <span className="bbdrts-live-pulse" />
-                    <span>Sepolia EVM Verified</span>
-                  </div>
-
+                <div className="admin-page-header-actions">
                   <button
                     type="button"
-                    className="bbdrts-btn bbdrts-btn-outline"
+                    className="admin-header-btn secondary"
                     onClick={() => window.print()}
                     title="Export or print tamper-proof audit report"
                   >
@@ -1894,12 +2000,12 @@ export default function DonorView({ contract, walletAddress, campaigns, fetchCam
 
                   <button
                     type="button"
-                    className="bbdrts-btn bbdrts-btn-outline"
+                    className="admin-header-btn secondary"
                     onClick={fetchMyDonations}
                     disabled={loadingMyDonations}
                     title="Sync receipts directly from smart contract and database"
                   >
-                    <span className={`material-symbols-outlined ${loadingMyDonations ? 'bbdrts-spin' : ''}`} style={{ fontSize: '15px' }}>
+                    <span className={`material-symbols-outlined ${loadingMyDonations ? 'spinning' : ''}`} style={{ fontSize: '15px' }}>
                       sync
                     </span>
                     <span>{loadingMyDonations ? 'Syncing...' : 'Sync Receipts'}</span>
@@ -2237,7 +2343,23 @@ export default function DonorView({ contract, walletAddress, campaigns, fetchCam
                               <span>{d.createdAt ? new Date(d.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Recent'}</span>
                             </span>
 
-                            {isShortage ? (
+                            {matchCamp.disbursementStatus === 'DISBURSED' || (matchCamp.disbursedAmountPhp || 0) > 0 ? (
+                              <button
+                                type="button"
+                                className="bbdrts-contrib-status-chip"
+                                onClick={() => setSelectedProofCamp(matchCamp)}
+                                title="Click to view verified beneficiary distribution receipts"
+                                style={{
+                                  background: 'rgba(34, 197, 94, 0.15)',
+                                  color: 'var(--accent, #22c55e)',
+                                  border: '1px solid rgba(34, 197, 94, 0.35)',
+                                  cursor: 'pointer'
+                                }}
+                              >
+                                <span className="bbdrts-status-dot" style={{ background: 'var(--accent, #22c55e)' }} />
+                                <span>Relief Disbursed to Beneficiaries</span>
+                              </button>
+                            ) : isShortage ? (
                               <span className="bbdrts-contrib-status-chip shortage">
                                 <span className="bbdrts-status-dot shortage" />
                                 <span>Shortage Detected</span>
@@ -2382,6 +2504,26 @@ export default function DonorView({ contract, walletAddress, campaigns, fetchCam
 
                           {/* Right: Consolidated Action Buttons */}
                           <div className="bbdrts-contrib-actions">
+                            {(matchCamp.disbursementStatus === 'DISBURSED' || (matchCamp.disbursedAmountPhp || 0) > 0) && (
+                              <button
+                                type="button"
+                                className="bbdrts-btn-sm"
+                                onClick={() => setSelectedProofCamp(matchCamp)}
+                                title="Inspect audited ground distribution receipts and proof"
+                                style={{
+                                  background: 'rgba(34, 197, 94, 0.15)',
+                                  color: 'var(--accent, #22c55e)',
+                                  border: '1px solid rgba(34, 197, 94, 0.35)',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '4px'
+                                }}
+                              >
+                                <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>verified</span>
+                                <span>Relief Proof</span>
+                              </button>
+                            )}
+
                             <button
                               type="button"
                               className="bbdrts-btn-sm bbdrts-btn-sec"
@@ -2433,9 +2575,23 @@ export default function DonorView({ contract, walletAddress, campaigns, fetchCam
                (parseFloat(camp.railBreakdown?.maya?.amount || 0)) +
                (parseFloat(camp.railBreakdown?.bank?.amount || 0)))
             );
-            const targetPhp = (parseFloat(camp.targetAmount || 0) * 170000).toLocaleString('en-US', { maximumFractionDigits: 0 });
+            const targetPhp = (camp.targetAmountPhp || camp.target_amount_php || Math.round(parseFloat(camp.targetAmount || 0) * 170000)).toLocaleString('en-US', { maximumFractionDigits: 0 });
             const currentPhp = (effectiveCurrent * 170000).toLocaleString('en-US', { maximumFractionDigits: 0 });
             const pct = progressPct(effectiveCurrent, camp.targetAmount);
+
+            let modalDisasterPhotos = camp.disasterImages;
+            if (!modalDisasterPhotos && (camp.disaster_images_json || camp.disasterImagesJson)) {
+              try {
+                const parsed = typeof (camp.disaster_images_json || camp.disasterImagesJson) === 'string'
+                  ? JSON.parse(camp.disaster_images_json || camp.disasterImagesJson)
+                  : (camp.disaster_images_json || camp.disasterImagesJson);
+                if (Array.isArray(parsed) && parsed.length > 0) modalDisasterPhotos = parsed;
+              } catch (_) {}
+            }
+            if (!Array.isArray(modalDisasterPhotos) || modalDisasterPhotos.length === 0) {
+              modalDisasterPhotos = getCategoryEvidencePhotos(`${camp.title || camp.Campaign_Title || ''} ${camp.description || ''}`);
+            }
+            const allModalPhotos = Array.from(new Set([coverData?.imageUrl, ...modalDisasterPhotos].filter(Boolean)));
 
             return createPortal(
               <div
@@ -2447,356 +2603,545 @@ export default function DonorView({ contract, walletAddress, campaigns, fetchCam
                   onClick={(e) => e.stopPropagation()}
                 >
 
-                  {/* ── Top Cover Photo Hero Banner ── */}
-                  <div className="bbdrts-details-hero">
-                    <img
-                      src={coverData.imageUrl}
-                      alt={camp.title}
-                      className="bbdrts-details-hero-img"
-                      onError={(e) => {
-                        e.target.onerror = null;
-                        e.target.src = 'https://images.unsplash.com/photo-1532629345422-7515f3d16bb6?auto=format&fit=crop&w=600&q=80';
-                      }}
-                    />
-                    <div className="bbdrts-details-hero-scrim" />
-
-                    {/* Top Badges */}
-                    <div className="bbdrts-details-hero-badges">
-                      <span className={`bbdrts-details-pill ${catInfo.prefix === 'DR' ? 'cat-dr' : 'cat-cd'}`}>
-                        <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>{catInfo.icon}</span>
-                        <span>{catInfo.prefix}-00{camp.id} • {catInfo.label}</span>
-                      </span>
-                      <span className="bbdrts-details-pill urgency">
-                        {audit.urgency}
-                      </span>
-                      <span className="bbdrts-details-pill status-active">
-                        <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>verified</span>
-                        <span>Active On-Chain</span>
-                      </span>
-                    </div>
-
-                    {/* Close Button */}
-                    <button
-                      type="button"
-                      className="bbdrts-details-close-btn"
-                      onClick={() => setSelectedCampaignForProof(null)}
-                      title="Close Campaign Details"
-                      aria-label="Close Campaign Details"
-                    >
-                      <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>close</span>
-                    </button>
-
-                    {/* Title & Organization Subtitle */}
-                    <div className="bbdrts-details-hero-text">
-                      <h2 className="bbdrts-details-title">
-                        {displayTitle}
-                      </h2>
-                      <div className="bbdrts-details-org-sub">
-                        <span style={{ opacity: 0.85 }}>Managed by</span>
-                        <button
-                          type="button"
-                          className="bbdrts-details-org-btn"
-                          onClick={() => {
-                            setSelectedCampaignForProof(null);
-                            if (onOpenNgoProfile) onOpenNgoProfile(camp.orgId || 3);
-                          }}
-                          title="View verified NGO profile & missions"
-                        >
-                          <span className="material-symbols-outlined" style={{ fontSize: '14px', color: '#22c55e' }}>domain</span>
-                          <span>{orgDisplayName}</span>
-                          <span className="material-symbols-outlined" style={{ fontSize: '13px', color: '#22c55e' }}>verified</span>
-                          <span className="material-symbols-outlined" style={{ fontSize: '13px', opacity: 0.7 }}>chevron_right</span>
-                        </button>
-                        <span style={{ opacity: 0.6 }}>•</span>
-                        <span style={{ color: '#22c55e', display: 'inline-flex', alignItems: 'center', gap: '4px', fontWeight: 600, fontSize: '0.8rem' }}>
-                          <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>verified_user</span> Smart Contract Verified
+                  {/* ── 1. Clean Modal Header (Dedicated top section outside photo) ── */}
+                  <div className="bbdrts-details-header">
+                    <div className="bbdrts-details-header-top">
+                      <div className="bbdrts-details-badges">
+                        <span className="bbdrts-pill-mono">
+                          #{catInfo.prefix}-00{camp.id}
+                        </span>
+                        <span className="bbdrts-pill-subtle">
+                          <span className={`bbdrts-status-dot ${catInfo.prefix === 'DR' ? 'cat-dot-dr' : 'cat-dot-cd'}`} />
+                          <span>{catInfo.label}</span>
+                        </span>
+                        {audit.urgency && (
+                          <span className="bbdrts-pill-subtle urgency-pill">
+                            <span className="bbdrts-status-dot urgency-dot" />
+                            <span>{audit.urgency}</span>
+                          </span>
+                        )}
+                        <span className="bbdrts-pill-subtle active-pill">
+                          <span className="bbdrts-status-dot active-dot" />
+                          <span>Active On-Chain</span>
                         </span>
                       </div>
+
+                      {/* Minimalist Close Button */}
+                      <button
+                        type="button"
+                        className="bbdrts-modal-close-btn"
+                        onClick={() => setSelectedCampaignForProof(null)}
+                        title="Close Campaign Details"
+                        aria-label="Close Campaign Details"
+                      >
+                        <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>close</span>
+                      </button>
+                    </div>
+
+                    {/* Campaign Title */}
+                    <h2 className="bbdrts-details-title">
+                      {displayTitle}
+                    </h2>
+
+                    {/* Organization & Verification Metadata Bar */}
+                    <div className="bbdrts-details-org-bar">
+                      <span>Managed by</span>
+                      <button
+                        type="button"
+                        className="bbdrts-org-badge"
+                        onClick={() => {
+                          setSelectedCampaignForProof(null);
+                          if (onOpenNgoProfile) onOpenNgoProfile(camp.orgId || 3);
+                        }}
+                        title="View verified NGO profile & missions"
+                      >
+                        <span className="material-symbols-outlined" style={{ fontSize: '14px', color: '#10b981' }}>domain</span>
+                        <span>{orgDisplayName}</span>
+                        <span className="material-symbols-outlined" style={{ fontSize: '13px', color: '#10b981' }}>verified</span>
+                        <span className="material-symbols-outlined" style={{ fontSize: '13px', opacity: 0.6 }}>chevron_right</span>
+                      </button>
+                      <span className="bbdrts-meta-divider">•</span>
+                      <span className="bbdrts-verified-indicator">
+                        <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>verified_user</span>
+                        <span>Smart Contract Verified</span>
+                      </span>
+                      {camp.contractAddress && (
+                        <>
+                          <span className="bbdrts-meta-divider">•</span>
+                          <span className="bbdrts-pill-mono" style={{ fontSize: '0.7rem' }}>Sepolia EVM</span>
+                        </>
+                      )}
                     </div>
                   </div>
 
-                  {/* ── Modal Body Content ── */}
+                  {/* ── 2. Modal Body Content ── */}
                   <div className="bbdrts-details-body">
-                    {/* Campaign Tags */}
+                    {/* Dedicated Unobstructed Media Showcase */}
+                    <div className="bbdrts-details-media">
+                      <img
+                        src={coverData.imageUrl}
+                        alt={camp.title}
+                        className="bbdrts-details-media-img"
+                        onError={(e) => {
+                          e.target.onerror = null;
+                          e.target.src = 'https://images.unsplash.com/photo-1532629345422-7515f3d16bb6?auto=format&fit=crop&w=600&q=80';
+                        }}
+                      />
+                      <button
+                        type="button"
+                        className="bbdrts-media-expand-pill"
+                        onClick={() => setActiveProofEvidenceImg(coverData.imageUrl)}
+                        title="Click to view full photo"
+                      >
+                        <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>fullscreen</span>
+                        <span>View Cover</span>
+                      </button>
+                    </div>
+
+                    {/* Minimalist Collapsible Tag Row */}
                     {campaignTags && campaignTags.length > 0 && (
-                      <div className="bbdrts-details-tags">
-                        {campaignTags.map((tag, idx) => (
-                          <span key={idx} className="bbdrts-details-tag-chip">
+                      <div className="bbdrts-tags-row">
+                        {(showAllProofTags ? campaignTags : campaignTags.slice(0, 5)).map((tag, idx) => (
+                          <span key={idx} className="bbdrts-tag-pill">
                             #{tag.replace(/^#/, '')}
                           </span>
                         ))}
+                        {campaignTags.length > 5 && (
+                          <button
+                            type="button"
+                            className="bbdrts-tag-more-btn"
+                            onClick={() => setShowAllProofTags(!showAllProofTags)}
+                          >
+                            {showAllProofTags ? 'Show less' : `+${campaignTags.length - 5} more`}
+                          </button>
+                        )}
                       </div>
                     )}
 
-                  {/* Metric Strip (Target, Settled, Due Date, Backers) */}
-                  <div className="bbdrts-details-metrics">
-                    <div className="bbdrts-details-metrics-row">
-                      <div className="bbdrts-details-metric-item">
-                        <span className="bbdrts-details-metric-label">Target Goal</span>
-                        <span className="bbdrts-details-metric-val">₱{targetPhp}</span>
+                    {/* Bento 4-Tile Metric Grid */}
+                    <div className="bbdrts-bento-grid">
+                      <div className="bbdrts-bento-card">
+                        <span className="bbdrts-bento-label">Target Goal</span>
+                        <span className="bbdrts-bento-value">₱{targetPhp}</span>
                       </div>
 
-                      <div className="bbdrts-details-metric-item">
-                        <span className="bbdrts-details-metric-label">Settled to Date</span>
-                        <span className="bbdrts-details-metric-val accent">
-                          ₱{currentPhp} <span style={{ fontSize: '0.74rem', fontWeight: 600 }}>({pct}%)</span>
+                      <div className="bbdrts-bento-card">
+                        <span className="bbdrts-bento-label">Settled to Date</span>
+                        <span className="bbdrts-bento-value is-accent">
+                          ₱{currentPhp} <span className="bbdrts-bento-sub">({pct}%)</span>
                         </span>
                       </div>
 
-                      <div className="bbdrts-details-metric-item">
-                        <span className="bbdrts-details-metric-label">Target Delivery</span>
-                        <span className="bbdrts-details-metric-val" style={{ fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <div className="bbdrts-bento-card">
+                        <span className="bbdrts-bento-label">Target Delivery</span>
+                        <span className="bbdrts-bento-meta">
                           <span className="material-symbols-outlined" style={{ fontSize: '15px', color: 'var(--text-muted)' }}>calendar_today</span>
                           <span>{audit.targetDate || 'Active'}</span>
                         </span>
                       </div>
 
-                      <div className="bbdrts-details-metric-item">
-                        <span className="bbdrts-details-metric-label">Audit Protocol</span>
-                        <span className="bbdrts-details-metric-val" style={{ fontSize: '0.88rem', display: 'flex', alignItems: 'center', gap: '4px', color: '#16a34a' }}>
+                      <div className="bbdrts-bento-card">
+                        <span className="bbdrts-bento-label">Audit Protocol</span>
+                        <span className="bbdrts-bento-meta" style={{ color: '#10b981' }}>
                           <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>verified_user</span>
                           <span>Sepolia EVM</span>
                         </span>
                       </div>
                     </div>
 
-                    {/* Visual Progress Bar */}
-                    <div className="bbdrts-details-progress-bar-wrap" title={`Funded: ${pct}% of target`}>
-                      <div className="bbdrts-details-progress-fill" style={{ width: `${Math.min(100, Math.max(0, parseFloat(pct) || 0))}%` }} />
+                    {/* Refined Progress Bar Strip */}
+                    <div className="bbdrts-progress-strip">
+                      <div className="bbdrts-progress-track" title={`Funded: ${pct}% of target`}>
+                        <div className="bbdrts-progress-bar" style={{ width: `${Math.min(100, Math.max(0, parseFloat(pct) || 0))}%` }} />
+                      </div>
+                      <div className="bbdrts-progress-info">
+                        <span>Funding Progress: <strong>{pct}%</strong> of target</span>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                          <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>shield</span>
+                          <span>100% On-Chain Escrow Security</span>
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* 2-Column Responsive Layout (Balanced 50/50 Grid) */}
+                    <div className="bbdrts-details-grid">
+                      {/* Left Column: Humanitarian Mission & Visual Evidence */}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                        {/* Mission Purpose */}
+                        <div className="bbdrts-section-card">
+                          <div className="bbdrts-section-card-header">
+                            <h4 className="bbdrts-section-card-title">
+                              <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#10b981' }}>article</span>
+                              Mission & Humanitarian Scope
+                            </h4>
+                          </div>
+                          <p className="bbdrts-desc-text">
+                            {audit.description}
+                          </p>
+
+                          {/* Official Verification Document / Press Release */}
+                          {audit.documentUrl && (
+                            <div style={{ marginTop: '4px' }}>
+                              <a
+                                href={audit.documentUrl.startsWith('http') ? audit.documentUrl : `https://${audit.documentUrl}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="bbdrts-details-doc-link"
+                              >
+                                <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>verified</span>
+                                <span>Official Verification Document / Press Release</span>
+                                <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>open_in_new</span>
+                              </a>
+                            </div>
+                          )}
+
+                          {/* Emergency Response Desk */}
+                          {audit.contact && (
+                            <div className="bbdrts-details-hotline-chip">
+                              <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#10b981' }}>support_agent</span>
+                              <div>
+                                <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>Emergency Contact: </span>
+                                <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{audit.contact}</span>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Official Disaster Impact & Evidence */}
+                        {modalDisasterPhotos.length > 0 && (
+                          <div className="bbdrts-section-card">
+                            <div className="bbdrts-section-card-header">
+                              <h4 className="bbdrts-section-card-title">
+                                <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#f59e0b' }}>photo_library</span>
+                                Disaster Impact Evidence ({modalDisasterPhotos.length})
+                              </h4>
+                              <span className="bbdrts-section-card-badge" style={{ color: '#f59e0b', borderColor: 'rgba(245, 158, 11, 0.3)', background: 'rgba(245, 158, 11, 0.08)' }}>FIELD VERIFIED</span>
+                            </div>
+                            <p style={{ margin: '0 0 10px 0', fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: '1.45' }}>
+                              Ground-level photographic verification uploaded by {camp.orgName || 'the accredited NGO'} documenting disaster severity.
+                            </p>
+                            <div className="bbdrts-details-evidence-grid">
+                              {(() => {
+                                const maxGrid = 6;
+                                const hasOverflow = modalDisasterPhotos.length > maxGrid;
+                                const visiblePhotos = hasOverflow ? modalDisasterPhotos.slice(0, maxGrid) : modalDisasterPhotos;
+                                const overflowCount = modalDisasterPhotos.length - (maxGrid - 1);
+
+                                return visiblePhotos.map((imgUrl, pIdx) => {
+                                  const isOverflow = hasOverflow && pIdx === (maxGrid - 1);
+                                  return (
+                                    <div
+                                      key={pIdx}
+                                      className={`bbdrts-evidence-thumb-container ${isOverflow ? 'is-overflow' : ''}`}
+                                      onClick={() => setActiveProofEvidenceImg(imgUrl)}
+                                      title={isOverflow ? `+${overflowCount} more photo${overflowCount > 1 ? 's' : ''}` : `Click to view field photo ${pIdx + 1}`}
+                                      style={{ position: 'relative' }}
+                                    >
+                                      <img src={imgUrl} alt={`Field evidence ${pIdx + 1}`} className="bbdrts-evidence-thumb" />
+                                      <div className="bbdrts-evidence-thumb-overlay">
+                                        <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>zoom_in</span>
+                                      </div>
+                                      {isOverflow && (
+                                        <div className="beacon-thumb-overflow-overlay">
+                                          <span>+{overflowCount}</span>
+                                        </div>
+                                      )}
+                                    </div>
+                                  );
+                                });
+                              })()}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Right Column: Ground Deployment Audit & Proof of Fund Allocation */}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                        {/* Ground Deployment Audit */}
+                        <div className="bbdrts-section-card">
+                          <div className="bbdrts-section-card-header">
+                            <h4 className="bbdrts-section-card-title">
+                              <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#ef4444' }}>location_on</span>
+                              Ground Deployment Audit
+                            </h4>
+                            <span className="bbdrts-section-card-badge">GPS VERIFIED</span>
+                          </div>
+
+                          {/* Interactive Leaflet Map View with Layer Controls */}
+                          <div className="bbdrts-details-map-frame">
+                            <LocationMapPicker
+                              address={audit.region}
+                              gps={audit.gps}
+                              readOnly={true}
+                              allowLayerSwitch={true}
+                              height="230px"
+                              hideTip={true}
+                              theme={theme}
+                            />
+                          </div>
+
+                          {/* Map Quick Action Buttons (Google Maps + Copy GPS + Etherscan) */}
+                          <div className="bbdrts-details-map-actions">
+                            <a
+                              href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(audit.gps || audit.region)}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="bbdrts-details-map-btn"
+                              title="Open location in Google Maps"
+                            >
+                              <span className="material-symbols-outlined" style={{ fontSize: '15px', color: '#ea4335' }}>open_in_new</span>
+                              <span>Google Maps</span>
+                            </a>
+
+                            {audit.gps && (
+                              <button
+                                type="button"
+                                className="bbdrts-details-map-btn"
+                                onClick={() => {
+                                  if (navigator.clipboard) {
+                                    navigator.clipboard.writeText(audit.gps);
+                                    showSuccess(`Coordinates copied to clipboard: ${audit.gps}`, 'GPS Copied');
+                                  }
+                                }}
+                                title="Copy GPS coordinates"
+                              >
+                                <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>content_copy</span>
+                                <span>Copy GPS</span>
+                              </button>
+                            )}
+
+                            {camp.contractAddress && (
+                              <a
+                                href={`https://sepolia.etherscan.io/address/${camp.contractAddress}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="bbdrts-details-map-btn"
+                                title="View Escrow on Sepolia Etherscan"
+                              >
+                                <span className="material-symbols-outlined" style={{ fontSize: '15px', color: '#10b981' }}>receipt_long</span>
+                                <span>Etherscan</span>
+                              </a>
+                            )}
+                          </div>
+
+                          {/* Logistics Key-Value Rows */}
+                          <div className="bbdrts-details-logistics">
+                            {/* Target Location */}
+                            <div className="bbdrts-details-logistics-item">
+                              <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#ef4444', marginTop: '2px', flexShrink: 0 }}>pin_drop</span>
+                              <div className="bbdrts-details-logistics-text">
+                                {audit.region}
+                              </div>
+                            </div>
+
+                            {/* GPS Coordinates */}
+                            {audit.gps && (
+                              <div className="bbdrts-details-logistics-item">
+                                <span className="material-symbols-outlined" style={{ fontSize: '16px', color: 'var(--text-muted)', flexShrink: 0 }}>radar</span>
+                                <div>
+                                  <span style={{ color: '#10b981', fontWeight: 700, fontFamily: 'var(--font-mono, monospace)', fontSize: '0.8rem' }}>
+                                    {audit.gps}
+                                  </span>
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Beneficiaries / Impact */}
+                            {audit.beneficiaries && (
+                              <div className="bbdrts-details-logistics-item">
+                                <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#10b981', marginTop: '2px', flexShrink: 0 }}>groups</span>
+                                <div style={{ color: 'var(--text-secondary)', lineHeight: 1.35 }}>
+                                  <strong style={{ color: '#10b981' }}>{audit.beneficiaries}</strong>
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Contact Response Desk */}
+                            {audit.contact && (
+                              <div className="bbdrts-details-logistics-item">
+                                <span className="material-symbols-outlined" style={{ fontSize: '16px', color: 'var(--text-muted)', flexShrink: 0 }}>call</span>
+                                <div style={{ color: 'var(--text-muted)', fontSize: '0.78rem' }}>
+                                  Response Desk: <strong style={{ color: 'var(--text-primary)' }}>{audit.contact}</strong>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Proof of Fund Allocation */}
+                        {audit.allocations && Array.isArray(audit.allocations) && audit.allocations.length > 0 && (() => {
+                          const totalAllocTarget = camp.targetAmountPhp || camp.target_amount_php || (parseFloat(camp.targetAmount || 0) * 170000);
+                          return (
+                            <div className="bbdrts-section-card">
+                              <div className="bbdrts-section-card-header">
+                                <h4 className="bbdrts-section-card-title">
+                                  <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#10b981' }}>pie_chart</span>
+                                  Proof of Fund Allocation
+                                </h4>
+                                <span className="bbdrts-section-card-badge">TRANSPARENCY AUDIT</span>
+                              </div>
+
+                              <div className="bbdrts-details-allocations">
+                                {audit.allocations.map((item, idx) => {
+                                  const cleanLabel = (item.label || '').replace(/[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu, '').trim();
+                                  const itemPhp = (totalAllocTarget * (item.pct / 100)).toLocaleString('en-US', { maximumFractionDigits: 0 });
+                                  return (
+                                    <div key={idx}>
+                                      <div className="bbdrts-details-alloc-row">
+                                        <span className="bbdrts-details-alloc-label">{cleanLabel}</span>
+                                        <span className="bbdrts-details-alloc-val">
+                                          <strong>₱{itemPhp}</strong> ({item.pct}%)
+                                        </span>
+                                      </div>
+                                      <div className="bbdrts-details-alloc-track">
+                                        <div className="bbdrts-details-alloc-fill" style={{ width: `${item.pct}%` }} />
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+
+                              {/* Operational Policy Disclosures */}
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '6px' }}>
+                                <div className="bbdrts-details-policy-box">
+                                  <div className="bbdrts-details-policy-title">
+                                    <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>savings</span>
+                                    <span>Surplus Reserve Policy</span>
+                                  </div>
+                                  <p className="bbdrts-details-policy-desc">
+                                    Contributions exceeding 100% of the target roll over into the <strong>Calamity Response Reserve Fund</strong> for emergency relief and unbudgeted operations.
+                                  </p>
+                                </div>
+
+                                <div className="bbdrts-details-policy-box">
+                                  <div className="bbdrts-details-policy-title" style={{ color: '#0ea5e9' }}>
+                                    <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>priority_high</span>
+                                    <span>Partial Funding Priority Rule</span>
+                                  </div>
+                                  <p className="bbdrts-details-policy-desc">
+                                    If the timeline concludes before reaching full target, accumulated funds are immediately disbursed to <strong>immediate survival necessities (food rations, drinking water & medical aid)</strong> first.
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })()}
+                      </div>
                     </div>
                   </div>
 
-                  {/* 2-Column Responsive Layout */}
-                  <div className="bbdrts-details-grid">
-                    {/* Left Column: Mission Overview & Budget Allocations */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                      {/* Mission Purpose */}
-                      <div className="bbdrts-details-card">
-                        <div className="bbdrts-details-card-header">
-                          <h4 className="bbdrts-details-card-title">
-                            <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#16a34a' }}>description</span>
-                            Mission & Humanitarian Scope
-                          </h4>
+                  {/* ── 3. Modal Actions Sticky Footer ── */}
+                  <div className="bbdrts-details-footer">
+                    <button
+                      type="button"
+                      className="bbdrts-details-btn-close"
+                      style={{ width: '100%', justifyContent: 'center' }}
+                      onClick={() => setSelectedCampaignForProof(null)}
+                    >
+                      <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>close</span>
+                      <span>Close Cause Audit & Proof</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Evidence Lightbox Modal (Root Document Body Portal) */}
+                {activeProofEvidenceImg && typeof document !== 'undefined' && createPortal(
+                  <div
+                    className="disaster-lightbox-backdrop"
+                    onClick={() => setActiveProofEvidenceImg(null)}
+                    role="dialog"
+                    aria-modal="true"
+                  >
+                    <div className="disaster-lightbox-content" onClick={(e) => e.stopPropagation()}>
+                      <div className="disaster-lightbox-top-bar">
+                        <div className="disaster-lightbox-pill">
+                          <span className="material-symbols-outlined" style={{ fontSize: '15px', color: '#10b981' }}>photo_library</span>
+                          <span>Photo {(() => {
+                            const idx = allModalPhotos.indexOf(activeProofEvidenceImg);
+                            return (idx >= 0 ? idx + 1 : 1);
+                          })()} of {allModalPhotos.length || 1}</span>
                         </div>
-                        <p className="bbdrts-details-desc">
-                          {audit.description}
-                        </p>
-
-                        {/* Official Verification Document / Press Release */}
-                        {audit.documentUrl && (
-                          <div style={{ marginTop: '4px' }}>
-                            <a
-                              href={audit.documentUrl.startsWith('http') ? audit.documentUrl : `https://${audit.documentUrl}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="bbdrts-details-doc-link"
-                            >
-                              <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>verified</span>
-                              <span>Official Verification Document / Press Release</span>
-                              <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>open_in_new</span>
-                            </a>
-                          </div>
-                        )}
-
-                        {/* Emergency Response Desk */}
-                        {audit.contact && (
-                          <div className="bbdrts-details-hotline-chip">
-                            <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#16a34a' }}>support_agent</span>
-                            <div>
-                              <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>Emergency Contact: </span>
-                              <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{audit.contact}</span>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Proof of Fund Allocation */}
-                      {audit.allocations && Array.isArray(audit.allocations) && audit.allocations.length > 0 && (() => {
-                        const totalAllocTarget = parseFloat(camp.targetAmount || 0) * 170000;
-                        return (
-                          <div className="bbdrts-details-card">
-                            <div className="bbdrts-details-card-header">
-                              <h4 className="bbdrts-details-card-title">
-                                <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#16a34a' }}>pie_chart</span>
-                                Proof of Fund Allocation
-                              </h4>
-                              <span className="bbdrts-details-card-badge">TRANSPARENCY AUDIT</span>
-                            </div>
-
-                            <div className="bbdrts-details-allocations">
-                              {audit.allocations.map((item, idx) => {
-                                const cleanLabel = (item.label || '').replace(/[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu, '').trim();
-                                const itemPhp = (totalAllocTarget * (item.pct / 100)).toLocaleString('en-US', { maximumFractionDigits: 0 });
-                                return (
-                                  <div key={idx}>
-                                    <div className="bbdrts-details-alloc-row">
-                                      <span className="bbdrts-details-alloc-label">{cleanLabel}</span>
-                                      <span className="bbdrts-details-alloc-val">
-                                        <strong>₱{itemPhp}</strong> ({item.pct}%)
-                                      </span>
-                                    </div>
-                                    <div className="bbdrts-details-alloc-track">
-                                      <div className="bbdrts-details-alloc-fill" style={{ width: `${item.pct}%` }} />
-                                    </div>
-                                  </div>
-                                );
-                              })}
-                            </div>
-
-                            {/* Operational Policy Disclosures */}
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '6px' }}>
-                              <div className="bbdrts-details-policy-box">
-                                <div className="bbdrts-details-policy-title">
-                                  <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>savings</span>
-                                  <span>Surplus Reserve Policy</span>
-                                </div>
-                                <p className="bbdrts-details-policy-desc">
-                                  Contributions exceeding 100% of the target roll over into the <strong>Calamity Response Reserve Fund</strong> for emergency relief and unbudgeted operations.
-                                </p>
-                              </div>
-
-                              <div className="bbdrts-details-policy-box">
-                                <div className="bbdrts-details-policy-title" style={{ color: '#0ea5e9' }}>
-                                  <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>priority_high</span>
-                                  <span>Partial Funding Priority Rule</span>
-                                </div>
-                                <p className="bbdrts-details-policy-desc">
-                                  If the timeline concludes before reaching full target, accumulated funds are immediately disbursed to <strong>immediate survival necessities (food rations, drinking water & medical aid)</strong> first.
-                                </p>
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })()}
-                    </div>
-
-                    {/* Right Column: Ground Deployment Audit & Interactive Map */}
-                    <div className="bbdrts-details-card">
-                      <div className="bbdrts-details-card-header">
-                        <h4 className="bbdrts-details-card-title">
-                          <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#ef4444' }}>location_on</span>
-                          Ground Deployment Audit
-                        </h4>
-                        <span className="bbdrts-details-card-badge">GPS VERIFIED</span>
-                      </div>
-
-                      {/* Interactive Leaflet Map View with Layer Controls */}
-                      <div className="bbdrts-details-map-frame">
-                        <LocationMapPicker
-                          address={audit.region}
-                          gps={audit.gps}
-                          readOnly={true}
-                          allowLayerSwitch={true}
-                          height="230px"
-                          hideTip={true}
-                          theme={theme}
-                        />
-                      </div>
-
-                      {/* Map Quick Action Buttons (Google Maps + Copy GPS + Etherscan) */}
-                      <div className="bbdrts-details-map-actions">
-                        <a
-                          href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(audit.gps || audit.region)}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="bbdrts-details-map-btn"
-                          title="Open location in Google Maps"
+                        <button
+                          type="button"
+                          className="disaster-lightbox-close"
+                          onClick={() => setActiveProofEvidenceImg(null)}
+                          title="Close Preview (Esc)"
+                          aria-label="Close Preview"
                         >
-                          <span className="material-symbols-outlined" style={{ fontSize: '15px', color: '#ea4335' }}>open_in_new</span>
-                          <span>Google Maps</span>
-                        </a>
+                          <span className="material-symbols-outlined">close</span>
+                        </button>
+                      </div>
 
-                        {audit.gps && (
+                      {/* Middle Stage: Stationary Prev + Fixed Image Frame + Stationary Next */}
+                      <div className="disaster-lightbox-stage">
+                        {allModalPhotos.length > 1 && (
                           <button
                             type="button"
-                            className="bbdrts-details-map-btn"
-                            onClick={() => {
-                              if (navigator.clipboard) {
-                                navigator.clipboard.writeText(audit.gps);
-                                showSuccess(`Coordinates copied to clipboard: ${audit.gps}`, 'GPS Copied');
-                              }
+                            className="disaster-lightbox-nav-btn prev"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const curr = allModalPhotos.indexOf(activeProofEvidenceImg);
+                              const prev = curr > 0 ? curr - 1 : allModalPhotos.length - 1;
+                              setActiveProofEvidenceImg(allModalPhotos[prev]);
                             }}
-                            title="Copy GPS coordinates"
+                            title="Previous Photo (Left Arrow)"
+                            aria-label="Previous Photo"
                           >
-                            <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>content_copy</span>
-                            <span>Copy GPS</span>
+                            <span className="material-symbols-outlined">chevron_left</span>
                           </button>
                         )}
 
-                        {camp.contractAddress && (
-                          <a
-                            href={`https://sepolia.etherscan.io/address/${camp.contractAddress}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="bbdrts-details-map-btn"
-                            title="View Escrow on Sepolia Etherscan"
-                          >
-                            <span className="material-symbols-outlined" style={{ fontSize: '15px', color: '#16a34a' }}>receipt_long</span>
-                            <span>Etherscan</span>
-                          </a>
-                        )}
-                      </div>
-
-                      {/* Logistics Key-Value Rows */}
-                      <div className="bbdrts-details-logistics">
-                        {/* Target Location */}
-                        <div className="bbdrts-details-logistics-item">
-                          <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#ef4444', marginTop: '2px', flexShrink: 0 }}>pin_drop</span>
-                          <div className="bbdrts-details-logistics-text">
-                            {audit.region}
-                          </div>
+                        <div className="disaster-lightbox-img-frame">
+                          <img
+                            src={activeProofEvidenceImg}
+                            alt="Disaster Aftermath Evidence"
+                            className="disaster-lightbox-img"
+                          />
                         </div>
 
-                        {/* GPS Coordinates */}
-                        {audit.gps && (
-                          <div className="bbdrts-details-logistics-item">
-                            <span className="material-symbols-outlined" style={{ fontSize: '16px', color: 'var(--text-muted)', flexShrink: 0 }}>radar</span>
-                            <div>
-                              <span style={{ color: '#16a34a', fontWeight: 700, fontFamily: 'var(--font-mono, monospace)', fontSize: '0.8rem' }}>
-                                {audit.gps}
-                              </span>
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Beneficiaries / Impact */}
-                        {audit.beneficiaries && (
-                          <div className="bbdrts-details-logistics-item">
-                            <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#16a34a', marginTop: '2px', flexShrink: 0 }}>groups</span>
-                            <div style={{ color: 'var(--text-secondary)', lineHeight: 1.35 }}>
-                              <strong style={{ color: '#16a34a' }}>{audit.beneficiaries}</strong>
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Contact Response Desk */}
-                        {audit.contact && (
-                          <div className="bbdrts-details-logistics-item">
-                            <span className="material-symbols-outlined" style={{ fontSize: '16px', color: 'var(--text-muted)', flexShrink: 0 }}>call</span>
-                            <div style={{ color: 'var(--text-muted)', fontSize: '0.78rem' }}>
-                              Response Desk: <strong style={{ color: 'var(--text-primary)' }}>{audit.contact}</strong>
-                            </div>
-                          </div>
+                        {allModalPhotos.length > 1 && (
+                          <button
+                            type="button"
+                            className="disaster-lightbox-nav-btn next"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const curr = allModalPhotos.indexOf(activeProofEvidenceImg);
+                              const next = curr < allModalPhotos.length - 1 ? curr + 1 : 0;
+                              setActiveProofEvidenceImg(allModalPhotos[next]);
+                            }}
+                            title="Next Photo (Right Arrow)"
+                            aria-label="Next Photo"
+                          >
+                            <span className="material-symbols-outlined">chevron_right</span>
+                          </button>
                         )}
                       </div>
+
+                      <div className="disaster-lightbox-caption">
+                        <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#10b981' }}>verified</span>
+                        <span>Disaster Impact & Aftermath Evidence • Ground Photographic Verification</span>
+                      </div>
+
+                      {allModalPhotos.length > 1 && (
+                        <div className="disaster-lightbox-thumbs-strip" onClick={(e) => e.stopPropagation()}>
+                          {allModalPhotos.map((thumbUrl, tIdx) => (
+                            <button
+                              key={tIdx}
+                              type="button"
+                              className={`disaster-lightbox-strip-thumb ${thumbUrl === activeProofEvidenceImg ? 'is-active' : ''}`}
+                              onClick={() => setActiveProofEvidenceImg(thumbUrl)}
+                              title={`Switch to photo ${tIdx + 1}`}
+                            >
+                              <img src={thumbUrl} alt={`Thumbnail ${tIdx + 1}`} />
+                              <span className="disaster-lightbox-thumb-num">{tIdx + 1}</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </div>
-                  </div>
-                </div>
-
-                {/* Modal Actions Footer */}
-                <div className="bbdrts-details-footer">
-                  <button
-                    type="button"
-                    className="bbdrts-details-btn-close"
-                    style={{ width: '100%', justifyContent: 'center' }}
-                    onClick={() => setSelectedCampaignForProof(null)}
-                  >
-                    <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>close</span>
-                    <span>Close Cause Audit & Proof</span>
-                  </button>
-                </div>
-
-                </div>
+                  </div>,
+                  document.body
+                )}
               </div>,
               document.body
             );
@@ -2805,14 +3150,14 @@ export default function DonorView({ contract, walletAddress, campaigns, fetchCam
           {/* ── 3.5. DISASTER RELIEF RADAR HEATMAP TAB ── */}
           {activeTab === 'radar-heatmap' && (
             <div style={{ marginTop: '8px' }}>
-              <div className="section-header" id="tour-radar-header" style={{ borderBottom: '1px solid var(--border)', paddingBottom: '12px', marginBottom: '16px' }}>
-                <div>
-                  <h2 className="section-title" style={{ fontSize: '1.4rem' }}>
-                    <span className="material-symbols-outlined section-title-icon" style={{ marginRight: '8px', color: 'var(--accent)' }}>radar</span>
-                    Disaster Relief Radar Heatmap
+              <div className="admin-page-header" id="tour-radar-header">
+                <div className="admin-page-title-wrap">
+                  <h2 className="admin-page-title">
+                    <span className="material-symbols-outlined icon text-emerald">radar</span>
+                    <span>{wt.radarTitle}</span>
                   </h2>
-                  <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginTop: '4px' }}>
-                    Meteorological Doppler precipitation density map tracking humanitarian relief concentration across Philippine disaster zones.
+                  <p className="admin-page-sub">
+                    {wt.radarSub}
                   </p>
                 </div>
               </div>
@@ -2821,7 +3166,10 @@ export default function DonorView({ contract, walletAddress, campaigns, fetchCam
                 campaigns={campaigns}
                 height="620px"
                 theme={theme}
-                defaultLayer="tactical"
+                defaultLayer="terrain"
+                lowBandwidthMode={lowBandwidthMode}
+                reducedMotion={reducedMotion}
+                language={language}
                 onSelectCampaign={(c) => {
                   setActiveTab('campaigns');
                   setSearchQuery(c.title || '');
@@ -2841,9 +3189,20 @@ export default function DonorView({ contract, walletAddress, campaigns, fetchCam
                 handleLogout={handleLogout} 
                 updateDbWallet={updateDbWallet}
                 theme={theme}
+                themeMode={themeMode}
                 setTheme={setTheme}
                 textSize={textSize}
                 setTextSize={setTextSize}
+                interfaceMode={interfaceMode}
+                setInterfaceMode={setInterfaceMode}
+                language={language}
+                setLanguage={setLanguage}
+                reducedMotion={reducedMotion}
+                setReducedMotion={setReducedMotion}
+                highContrast={highContrast}
+                setHighContrast={setHighContrast}
+                lowBandwidthMode={lowBandwidthMode}
+                setLowBandwidthMode={setLowBandwidthMode}
                 totalDonatedEth={totalDonated}
                 totalDonatedPhp={totalDonatedPhp}
                 onOpenHonorsLadder={() => setShowTierModal(true)}
@@ -2853,7 +3212,6 @@ export default function DonorView({ contract, walletAddress, campaigns, fetchCam
           )}
 
         </section>
-      </div>
 
       {/* Humanitarian Honors Ladder Modal */}
       <DonorTierModal
@@ -3270,6 +3628,13 @@ export default function DonorView({ contract, walletAddress, campaigns, fetchCam
           </div>
         );
       })(), document.body)}
-    </main>
+
+      {/* ── Verified Aid Distribution Proof & Receipts Modal ── */}
+      <DisbursementProofModal
+        camp={selectedProofCamp}
+        isOpen={Boolean(selectedProofCamp)}
+        onClose={() => setSelectedProofCamp(null)}
+      />
+    </div>
   );
 }

@@ -10,9 +10,13 @@ import SettingsPanel from '../components/SettingsPanel';
 import DisasterRadarHeatmap from '../components/DisasterRadarHeatmap';
 import SecCertificateModal, { normalizeSecDocUrl, isPdfDocument } from '../components/SecCertificateModal';
 import GuidedTour from '../components/GuidedTour';
+import SidebarToggleIcon from '../components/SidebarToggleIcon';
 import { useToast } from '../context/ToastContext';
 import { getRegions, getRegionForProvince } from '../data/philippineGeoData';
 import { CONTRACT_ADDRESS } from '../contractConfig';
+import { autoCropQrScreenshot, extractQrVoucherText } from '../utils/qrCropper';
+import { formatPhoneNumber } from '../utils/formatters';
+import { getWorkspaceStrings } from '../data/workspaceTranslations';
 import './ReferenceDashboard.css';
 import './DashboardOverview.css';
 
@@ -57,7 +61,8 @@ export const formatImageSrc = (rawSrc) => {
 export default function OrganizationView({
   contract,
   walletAddress,
-  campaigns,
+  walletAlertBanner,
+  campaigns = [],
   fetchCampaigns,
   fetchingCampaigns,
   currentUser,
@@ -65,12 +70,24 @@ export default function OrganizationView({
   handleLogout,
   updateDbWallet,
   theme,
+  themeMode,
   setTheme,
   textSize,
   setTextSize,
+  interfaceMode = 'standard',
+  setInterfaceMode,
+  language = 'en',
+  setLanguage,
+  reducedMotion = false,
+  setReducedMotion,
+  highContrast = false,
+  setHighContrast,
+  lowBandwidthMode = false,
+  setLowBandwidthMode,
   onActiveTabChange
 }) {
   const { showSuccess, showWarning, showError } = useToast();
+  const wt = useMemo(() => getWorkspaceStrings(language), [language]);
   const [activeTab, setActiveTab] = useState('dashboard');
   const [showNgoGuide, setShowNgoGuide] = useState(() => {
     try { return localStorage.getItem('bbdrts_dismiss_ngo_guide') !== 'true'; } catch (_) { return true; }
@@ -151,7 +168,7 @@ export default function OrganizationView({
   const [ledgerSort, setLedgerSort] = useState('NEWEST');
   const [searchQueryLedger, setSearchQueryLedger] = useState('');
   const [currentPageLedger, setCurrentPageLedger] = useState(1);
-  const [ledgerViewMode, setLedgerViewMode] = useState('cards');
+  const [ledgerViewMode, setLedgerViewMode] = useState('table');
   const [selectedVoucherTx, setSelectedVoucherTx] = useState(null);
   const [proofPreviewModalImg, setProofPreviewModalImg] = useState(null);
 
@@ -187,6 +204,43 @@ export default function OrganizationView({
 
   const campaignsPerPage = viewModeOrg === 'list' ? 4 : 6;
 
+  // Responsive Left-Flush Sidebar State
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
+    try { return localStorage.getItem('bbdrts_sidebar_collapsed') === 'true'; } catch (_) { return false; }
+  });
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+
+  const toggleSidebar = () => {
+    setIsSidebarCollapsed(prev => {
+      const next = !prev;
+      try {
+        localStorage.setItem('bbdrts_sidebar_collapsed', String(next));
+        document.body.setAttribute('data-sidebar-collapsed', String(next));
+      } catch (_) {}
+      window.dispatchEvent(new CustomEvent('bbdrts_sidebar_changed', { detail: { collapsed: next } }));
+      return next;
+    });
+  };
+
+  useEffect(() => {
+    try {
+      const isCollapsed = localStorage.getItem('bbdrts_sidebar_collapsed') === 'true';
+      document.body.setAttribute('data-sidebar-collapsed', String(isCollapsed));
+    } catch (_) {}
+  }, []);
+
+  useEffect(() => {
+    const handleToggle = () => {
+      if (typeof window !== 'undefined' && window.innerWidth <= 768) {
+        setMobileSidebarOpen(prev => !prev);
+      } else {
+        toggleSidebar();
+      }
+    };
+    window.addEventListener('bbdrts_toggle_sidebar', handleToggle);
+    return () => window.removeEventListener('bbdrts_toggle_sidebar', handleToggle);
+  }, []);
+
   // Global Header Navigation Listener
   useEffect(() => {
     const handleRadarNav = () => {
@@ -213,6 +267,29 @@ export default function OrganizationView({
   }, []);
 
   // Create campaign form state
+  const DISASTER_TAGS = [
+    'Flood Relief',
+    'Emergency Food',
+    'Medical Aid',
+    'Shelter Recovery',
+    'Water Sanitation',
+    'Urgent Response',
+    'Evacuation Support',
+    'First Aid Kits',
+    'Disaster Recovery'
+  ];
+
+  const CHARITY_TAGS = [
+    'Children Support',
+    'Elderly Care',
+    'Community Rebuilding',
+    'Livelihood Assistance',
+    'Blood Donation',
+    'Emergency Food',
+    'Medical Aid',
+    'Water Sanitation'
+  ];
+
   const PRESET_CAMPAIGN_TAGS = [
     'Flood Relief',
     'Emergency Food',
@@ -595,15 +672,30 @@ export default function OrganizationView({
   const [calViewDate, setCalViewDate] = useState(() => new Date());
   const deliveryDateContainerRef = useRef(null);
 
+  // Custom Dropdowns for Category & Urgency (matching Web3 Calendar UI)
+  const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
+  const categoryDropdownRef = useRef(null);
+  const [showUrgencyDropdown, setShowUrgencyDropdown] = useState(false);
+  const urgencyDropdownRef = useRef(null);
+
   useEffect(() => {
-    if (!deliveryDatePickerOpen) return;
     const handleOutside = (e) => {
       if (deliveryDateContainerRef.current && !deliveryDateContainerRef.current.contains(e.target)) {
         setDeliveryDatePickerOpen(false);
       }
+      if (categoryDropdownRef.current && !categoryDropdownRef.current.contains(e.target)) {
+        setShowCategoryDropdown(false);
+      }
+      if (urgencyDropdownRef.current && !urgencyDropdownRef.current.contains(e.target)) {
+        setShowUrgencyDropdown(false);
+      }
     };
     const handleKey = (e) => {
-      if (e.key === 'Escape') setDeliveryDatePickerOpen(false);
+      if (e.key === 'Escape') {
+        setDeliveryDatePickerOpen(false);
+        setShowCategoryDropdown(false);
+        setShowUrgencyDropdown(false);
+      }
     };
     document.addEventListener('mousedown', handleOutside);
     document.addEventListener('keydown', handleKey);
@@ -611,7 +703,7 @@ export default function OrganizationView({
       document.removeEventListener('mousedown', handleOutside);
       document.removeEventListener('keydown', handleKey);
     };
-  }, [deliveryDatePickerOpen]);
+  }, []);
 
   // Sync calendar month when targetDate changes
   useEffect(() => {
@@ -668,7 +760,7 @@ export default function OrganizationView({
     try {
       const d = new Date(dateStr + 'T00:00:00');
       if (isNaN(d.getTime())) return dateStr;
-      return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      return d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
     } catch {
       return dateStr;
     }
@@ -698,6 +790,44 @@ export default function OrganizationView({
 
   const [documentUrl, setDocumentUrl] = useState('');
   const [contactInfo, setContactInfo] = useState('');
+  const [contactList, setContactList] = useState(['']);
+  const [showAllTags, setShowAllTags] = useState(false);
+
+  const handleAddContact = () => {
+    if (contactList.length >= 5) return;
+    setContactList(prev => [...prev, '']);
+  };
+
+  const handleContactChange = (index, value) => {
+    const formatted = /^[0-9\s]+$/.test(value) ? formatPhoneNumber(value) : value;
+    setContactList(prev => {
+      const updated = [...prev];
+      updated[index] = formatted;
+      setContactInfo(updated.map(c => c.trim()).filter(Boolean).join(' • '));
+      return updated;
+    });
+  };
+
+  const handleRemoveContact = (index) => {
+    setContactList(prev => {
+      if (prev.length <= 1) {
+        setContactInfo('');
+        return [''];
+      }
+      const updated = prev.filter((_, i) => i !== index);
+      setContactInfo(updated.map(c => c.trim()).filter(Boolean).join(' • '));
+      return updated;
+    });
+  };
+
+  const formatUrgencyDisplay = (urg) => {
+    if (!urg) return '';
+    const u = String(urg).toUpperCase();
+    if (u.includes('HIGH') || u.includes('CRITICAL')) return 'Critical Emergency (≤ 5 Days)';
+    if (u.includes('MEDIUM') || u.includes('URGENT') || u.includes('REHAB')) return 'Urgent Relief (6–14 Days)';
+    if (u.includes('STABLE') || u.includes('STANDARD') || u.includes('CHARITABLE')) return 'Standard Operations (> 14 Days)';
+    return urg;
+  };
 
   // Multi-Channel Payment Settings State
   const [activePaymentChannelTab, setActivePaymentChannelTab] = useState('gcash');
@@ -715,6 +845,101 @@ export default function OrganizationView({
   const [creating, setCreating] = useState(false);
   const [bypassMetaMaskLocal, setBypassMetaMaskLocal] = useState(true);
   const [txModal, setTxModal] = useState({ show: false, step: 0, hash: '', type: '', error: '', isLocal: false });
+
+  // ── Reusable Payment QR Codes from NGO Settings Library ──
+  const [savedQrList, setSavedQrList] = useState([]);
+  const [showSelectQrModal, setShowSelectQrModal] = useState(null); // 'GCash' | 'Maya' | 'Bank' | null
+  const [saveToLibraryChecked, setSaveToLibraryChecked] = useState(false);
+  const [selectedGcashQrId, setSelectedGcashQrId] = useState(null);
+  const [selectedMayaQrId, setSelectedMayaQrId] = useState(null);
+  const [selectedBankQrId, setSelectedBankQrId] = useState(null);
+
+  const fetchSavedQrCodes = async () => {
+    try {
+      const token = localStorage.getItem('bbdrts_token') || localStorage.getItem('token');
+      const res = await fetch(`${API_URL}/api/organization/qr-codes`, {
+        headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const list = Array.isArray(data) ? data : [];
+        setSavedQrList(list);
+
+        // Pre-select default GCash QR if not already set
+        const defaultGcash = list.find(q => q.payment_method === 'GCash' && q.is_default);
+        if (defaultGcash && !gcashQrUrl) {
+          setSelectedGcashQrId(defaultGcash.id);
+          setGcashQrUrl(defaultGcash.qr_image_url);
+          if (defaultGcash.account_name && !gcashName) setGcashName(defaultGcash.account_name);
+          if (defaultGcash.account_number && !gcashNumber) setGcashNumber(formatPhoneNumber(defaultGcash.account_number));
+        }
+
+        // Pre-select default Maya QR if not already set
+        const defaultMaya = list.find(q => q.payment_method === 'Maya' && q.is_default);
+        if (defaultMaya && !mayaQrUrl) {
+          setSelectedMayaQrId(defaultMaya.id);
+          setMayaQrUrl(defaultMaya.qr_image_url);
+          if (defaultMaya.account_name && !mayaName) setMayaName(defaultMaya.account_name);
+          if (defaultMaya.account_number && !mayaNumber) setMayaNumber(formatPhoneNumber(defaultMaya.account_number));
+        }
+
+        // Pre-select default Bank QR if not already set
+        const defaultBank = list.find(q => q.payment_method === 'Bank' && q.is_default);
+        if (defaultBank && !bankQrUrl) {
+          setSelectedBankQrId(defaultBank.id);
+          setBankQrUrl(defaultBank.qr_image_url);
+          if (defaultBank.account_name && !bankAccountName) setBankAccountName(defaultBank.account_name);
+          if (defaultBank.account_number && !bankAccountNumber) setBankAccountNumber(formatPhoneNumber(defaultBank.account_number));
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to fetch saved QR codes:', e);
+    }
+  };
+
+  useEffect(() => {
+    fetchSavedQrCodes();
+  }, []);
+
+  const handleSelectSavedQr = (qr) => {
+    if (qr.payment_method === 'GCash') {
+      setSelectedGcashQrId(qr.id);
+      setGcashQrUrl(qr.qr_image_url);
+      if (qr.account_name) setGcashName(qr.account_name);
+      if (qr.account_number) setGcashNumber(formatPhoneNumber(qr.account_number));
+      showSuccess(`Assigned "${qr.custom_name}" GCash QR to this campaign!`, 'QR Code Assigned');
+    } else if (qr.payment_method === 'Maya') {
+      setSelectedMayaQrId(qr.id);
+      setMayaQrUrl(qr.qr_image_url);
+      if (qr.account_name) setMayaName(qr.account_name);
+      if (qr.account_number) setMayaNumber(formatPhoneNumber(qr.account_number));
+      showSuccess(`Assigned "${qr.custom_name}" Maya QR to this campaign!`, 'QR Code Assigned');
+    } else if (qr.payment_method === 'Bank') {
+      setSelectedBankQrId(qr.id);
+      setBankQrUrl(qr.qr_image_url);
+      if (qr.account_name) setBankAccountName(qr.account_name);
+      if (qr.account_number) setBankAccountNumber(formatPhoneNumber(qr.account_number));
+      showSuccess(`Assigned "${qr.custom_name}" Bank QR to this campaign!`, 'QR Code Assigned');
+    }
+    setShowSelectQrModal(null);
+  };
+
+  const handleDeleteSavedQr = async (qrId, e) => {
+    if (e) e.stopPropagation();
+    try {
+      const token = localStorage.getItem('bbdrts_token') || localStorage.getItem('token');
+      const res = await fetch(`${API_URL}/api/organization/qr-codes/${qrId}`, {
+        method: 'DELETE',
+        headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) }
+      });
+      if (res.ok) {
+        showSuccess('QR code removed from reusable library.', 'Deleted');
+        fetchSavedQrCodes();
+      }
+    } catch (err) {
+      console.warn('Failed to delete QR:', err);
+    }
+  };
 
   // ── Module B: AI Smart Budget & Campaign Generator State ──
   const [showAiBudgetModal, setShowAiBudgetModal] = useState(false);
@@ -753,13 +978,13 @@ export default function OrganizationView({
         totalBudgetPhp: Math.round(aiBeneficiariesCount * 1250 * 1.25),
         totalBudgetEth: Number(((aiBeneficiariesCount * 1250 * 1.25) / 170000).toFixed(4)),
         unitCostPerFamily: 1563,
-        unitDescription: '₱1,563 per family (NDRRMC Sphere Standard: 7-day food pack, clean water, shelter tarps, first-aid)',
+        unitDescription: '₱1,563 per family (Sphere Humanitarian Standard: 7-day food pack, clean water, shelter tarps, first-aid)',
         primaryNeeds: ['Potable Drinking Water', 'Rice & Ready-to-Eat Food Packs', 'Tarpaulins & Roofing Materials', 'Emergency First-Aid Kits'],
         allocations: { foodWater: 45, shelter: 25, medical: 20, logistics: 10 },
         campaignTitle: `Emergency ${aiDisasterType} Relief Drive: ${aiRegion}`,
-        campaignDescription: `In response to the ${aiDisasterType} affecting ${aiRegion} (${aiSeverityRating}), this campaign mobilizes immediate humanitarian aid for ${Number(aiBeneficiariesCount).toLocaleString()} families. Funds are allocated according to NDRRMC standards: 45% Food & Water, 25% Emergency Shelter, 20% Medical Care, and 10% Logistics. All donations are permanently audited on the blockchain ledger.`,
+        campaignDescription: `In response to the ${aiDisasterType} affecting ${aiRegion} (${aiSeverityRating}), this campaign mobilizes immediate humanitarian aid for ${Number(aiBeneficiariesCount).toLocaleString()} families. Funds are allocated according to international Sphere Humanitarian standards: 45% Food & Water, 25% Emergency Shelter, 20% Medical Care, and 10% Logistics. All donations are permanently audited on the blockchain ledger.`,
         beneficiariesImpact: `${Number(aiBeneficiariesCount).toLocaleString()} families across high-risk barangays in ${aiRegion}`,
-        generatedBy: 'NDRRMC_BENCHMARK_MATRIX'
+        generatedBy: 'SPHERE_HUMANITARIAN_MATRIX'
       });
     } finally {
       setAiBudgetLoading(false);
@@ -776,37 +1001,72 @@ export default function OrganizationView({
     setBeneficiariesImpact(aiBudgetResult.beneficiariesImpact || '');
     setLocationRegion(aiRegion);
     setShowAiBudgetModal(false);
-    showSuccess?.('AI Smart Budget & NDRRMC Allocations applied to campaign!', 'AI Budget Applied');
+    showSuccess?.('AI Smart Budget & Humanitarian Allocations applied to campaign!', 'AI Budget Applied');
   };
 
-  const handleGcashQrUpload = (e) => {
+  const handleGcashQrUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
     if (!file.type.startsWith('image/')) {
       showWarning('Please upload a valid image file (PNG, JPG, WebP).', 'Invalid File');
       return;
     }
-    const reader = new FileReader();
-    reader.onload = (uploadEvent) => {
-      setGcashQrUrl(uploadEvent.target.result);
-      showSuccess('GCash QR Code uploaded successfully!', 'QR Code Attached');
-    };
-    reader.readAsDataURL(file);
+
+    try {
+      showSuccess('Analyzing QR screenshot & cropping card...', 'Processing QR');
+      const { croppedUrl, wasCropped } = await autoCropQrScreenshot(file);
+      setGcashQrUrl(croppedUrl);
+
+      if (wasCropped) {
+        showSuccess('Clean GCash QR card extracted without outer blue background!', 'QR Cropped Cleanly');
+        // Extract Name and Number from the cropped QR card
+        try {
+          const { detectedName, detectedNumber } = await extractQrVoucherText(croppedUrl);
+          if (detectedName && !gcashName) {
+            setGcashName(detectedName);
+          }
+          if (detectedNumber && !gcashNumber) {
+            setGcashNumber(formatPhoneNumber(detectedNumber));
+          }
+        } catch (_) { }
+      } else {
+        showSuccess('GCash QR Code uploaded successfully!', 'QR Code Attached');
+      }
+    } catch (err) {
+      console.warn('QR upload error:', err);
+      const reader = new FileReader();
+      reader.onload = (uploadEvent) => setGcashQrUrl(uploadEvent.target.result);
+      reader.readAsDataURL(file);
+    }
   };
 
-  const handleMayaQrUpload = (e) => {
+  const handleMayaQrUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
     if (!file.type.startsWith('image/')) {
       showWarning('Please upload a valid image file (PNG, JPG, WebP).', 'Invalid File');
       return;
     }
-    const reader = new FileReader();
-    reader.onload = (uploadEvent) => {
-      setMayaQrUrl(uploadEvent.target.result);
-      showSuccess('Maya QR Code uploaded successfully!', 'QR Code Attached');
-    };
-    reader.readAsDataURL(file);
+
+    try {
+      const { croppedUrl, wasCropped } = await autoCropQrScreenshot(file);
+      setMayaQrUrl(croppedUrl);
+      if (wasCropped) {
+        showSuccess('Clean Maya QR card extracted without outer screenshot background!', 'QR Cropped Cleanly');
+        try {
+          const { detectedName, detectedNumber } = await extractQrVoucherText(croppedUrl);
+          if (detectedName && !mayaName) setMayaName(detectedName);
+          if (detectedNumber && !mayaNumber) setMayaNumber(formatPhoneNumber(detectedNumber));
+        } catch (_) { }
+      } else {
+        showSuccess('Maya QR Code uploaded successfully!', 'QR Code Attached');
+      }
+    } catch (err) {
+      console.warn('Maya QR upload error:', err);
+      const reader = new FileReader();
+      reader.onload = (uploadEvent) => setMayaQrUrl(uploadEvent.target.result);
+      reader.readAsDataURL(file);
+    }
   };
 
   const handleBankQrUpload = (e) => {
@@ -822,6 +1082,106 @@ export default function OrganizationView({
       showSuccess('Bank Transfer QR Code uploaded successfully!', 'QR Code Attached');
     };
     reader.readAsDataURL(file);
+  };
+
+  // ── Disaster Aftermath & Ground Evidence Photos State ──
+  const [disasterImages, setDisasterImages] = useState([]);
+  const [isProcessingDisasterImages, setIsProcessingDisasterImages] = useState(false);
+  const [draggedPhotoIdx, setDraggedPhotoIdx] = useState(null);
+  const [dragOverPhotoIdx, setDragOverPhotoIdx] = useState(null);
+  const disasterFileInputRef = useRef(null);
+  const [deployStep, setDeployStep] = useState(1);
+
+  const moveDisasterImage = (fromIdx, toIdx) => {
+    if (fromIdx === toIdx || fromIdx < 0 || toIdx < 0) return;
+    setDisasterImages(prev => {
+      if (fromIdx >= prev.length || toIdx >= prev.length) return prev;
+      const copy = [...prev];
+      const [moved] = copy.splice(fromIdx, 1);
+      copy.splice(toIdx, 0, moved);
+      return copy;
+    });
+  };
+
+  const processAndCompressImage = (file) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const maxDim = 1200;
+          let width = img.width;
+          let height = img.height;
+          if (width > maxDim || height > maxDim) {
+            if (width > height) {
+              height = Math.round((height * maxDim) / width);
+              width = maxDim;
+            } else {
+              width = Math.round((width * maxDim) / height);
+              height = maxDim;
+            }
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, width, height);
+          const compressed = canvas.toDataURL('image/jpeg', 0.82);
+          resolve(compressed);
+        };
+        img.onerror = reject;
+        img.src = e.target.result;
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleDisasterImagesUpload = async (e) => {
+    const files = Array.from(e.target.files || []);
+    if (!files || files.length === 0) return;
+
+    const remainingSlots = 10 - disasterImages.length;
+    if (remainingSlots <= 0) {
+      showWarning('Maximum of 10 disaster aftermath photos allowed per campaign.', 'Limit Reached');
+      if (disasterFileInputRef.current) disasterFileInputRef.current.value = '';
+      return;
+    }
+
+    const filesToProcess = files.slice(0, remainingSlots);
+    if (files.length > remainingSlots) {
+      showWarning(`Only the first ${remainingSlots} photo(s) were added (max 10 photos).`, 'Upload Limit');
+    }
+
+    setIsProcessingDisasterImages(true);
+    try {
+      const processed = [];
+      for (const file of filesToProcess) {
+        if (!file.type.startsWith('image/')) {
+          showWarning(`Skipped "${file.name}": not an image.`, 'Invalid File');
+          continue;
+        }
+        const dataUrl = await processAndCompressImage(file);
+        processed.push(dataUrl);
+      }
+
+      if (processed.length > 0) {
+        setDisasterImages(prev => [...prev, ...processed]);
+        showSuccess(`${processed.length} disaster aftermath photo(s) attached successfully!`, 'Photos Attached');
+      }
+    } catch (err) {
+      console.error('Failed to process disaster images:', err);
+      showWarning('Could not process some image files.', 'Processing Error');
+    } finally {
+      setIsProcessingDisasterImages(false);
+      if (disasterFileInputRef.current) disasterFileInputRef.current.value = '';
+    }
+  };
+
+  const removeDisasterImage = (indexToRemove) => {
+    setDraggedPhotoIdx(null);
+    setDragOverPhotoIdx(null);
+    setDisasterImages(prev => prev.filter((_, idx) => idx !== indexToRemove));
   };
 
   // Helper: Extract profile relief channel details from currentUser / preferences
@@ -924,33 +1284,33 @@ export default function OrganizationView({
 
 
   // Organization Ledger / Donations State
-  const [orgDonations, setOrgDonations] = useState(null);
+  const [orgDonations, setOrgDonations] = useState([]);
   const [loadingOrgDonations, setLoadingOrgDonations] = useState(false);
 
   const [pendingDonations, setPendingDonations] = useState([]);
   const [loadingPending, setLoadingPending] = useState(false);
 
-  const myCampaigns = campaigns.filter((c) => {
+  const myCampaigns = (campaigns || []).filter((c) => {
     if (currentUser?.id && c.orgId) {
       return Number(c.orgId) === Number(currentUser.id);
     }
     return Boolean(walletAddress) && c.orgAddress?.toLowerCase() === walletAddress?.toLowerCase();
   });
 
-  const totalRaisedByMe = myCampaigns
+  const totalRaisedByMe = (myCampaigns || [])
     .reduce((s, c) => s + parseFloat(c.currentAmount || 0), 0);
 
   const CAUSE_OPTIONS = [
-    { value: 'ALL', label: 'All Causes', icon: 'public', color: '#38bdf8' },
-    { value: 'DR', label: 'Disaster Relief', icon: 'flood', color: '#38bdf8' },
-    { value: 'CD', label: 'Charitable Aid', icon: 'volunteer_activism', color: '#38bdf8' }
+    { value: 'ALL', label: 'All Causes', icon: 'public' },
+    { value: 'DR', label: 'Disaster Relief', icon: 'flood' },
+    { value: 'CD', label: 'Charitable Aid', icon: 'volunteer_activism' }
   ];
 
   const PRIORITY_OPTIONS = [
-    { value: 'ALL', label: 'All Priorities', icon: 'bolt', color: '#f59e0b' },
-    { value: 'HIGH', label: 'High Priority', icon: 'priority_high', color: '#ef4444' },
-    { value: 'MEDIUM', label: 'Medium Priority', icon: 'bolt', color: '#f59e0b' },
-    { value: 'STABLE', label: 'Standard / Stable', icon: 'verified_user', color: '#10b981' }
+    { value: 'ALL', label: 'All Priorities', icon: 'bolt' },
+    { value: 'HIGH', label: 'High Priority', icon: 'priority_high' },
+    { value: 'MEDIUM', label: 'Medium Priority', icon: 'bolt' },
+    { value: 'STABLE', label: 'Standard / Stable', icon: 'verified_user' }
   ];
 
   const SORT_OPTIONS = [
@@ -1079,7 +1439,7 @@ export default function OrganizationView({
       });
       if (res.ok) {
         const data = await res.json();
-        setOrgDonations(data);
+        setOrgDonations(Array.isArray(data) ? data : []);
       }
     } catch (err) {
       console.error('Failed to fetch org donations:', err);
@@ -1099,7 +1459,7 @@ export default function OrganizationView({
       });
       if (res.ok) {
         const data = await res.json();
-        setPendingDonations(data);
+        setPendingDonations(Array.isArray(data) ? data : []);
       }
     } catch (err) {
       console.error('Failed to fetch pending donations:', err);
@@ -1221,6 +1581,20 @@ export default function OrganizationView({
   const [secRegNo, setSecRegNo] = useState('');
   const [dswdNo, setDswdNo] = useState('');
   const [boardMembersText, setBoardMembersText] = useState('');
+  const [tinNo, setTinNo] = useState('');
+  const [registeredAddress, setRegisteredAddress] = useState('');
+  const [repName, setRepName] = useState('');
+  const [repPosition, setRepPosition] = useState('');
+  const [repIdType, setRepIdType] = useState('Philippine Passport');
+  const [repIdNo, setRepIdNo] = useState('');
+  const [primaryIdType, setPrimaryIdType] = useState('Philippine Passport');
+  const [primaryIdNumber, setPrimaryIdNumber] = useState('');
+  const [primaryIdUrl, setPrimaryIdUrl] = useState('');
+  const [secondaryIdType, setSecondaryIdType] = useState('LTO Driver\'s License');
+  const [secondaryIdNumber, setSecondaryIdNumber] = useState('');
+  const [secondaryIdUrl, setSecondaryIdUrl] = useState('');
+  const [previewDocModal, setPreviewDocModal] = useState({ open: false, title: '', url: '', regNo: '' });
+  const [affirmationChecked, setAffirmationChecked] = useState(false);
   const [secCertUrl, setSecCertUrl] = useState('');
   const [kycLoading, setKycLoading] = useState(false);
   const [kycSaving, setKycSaving] = useState(false);
@@ -1236,17 +1610,38 @@ export default function OrganizationView({
       ? `bbdrts_tour_ngo_${currentUser.email}`
       : 'bbdrts_tour_ngo_done';
 
-  // Auto-launch Guided Tour ONLY for brand new NGO registrations
+  // Auto-launch Guided Tour ONLY for brand new NGO registrations, AFTER Workspace Setup closes
   useEffect(() => {
-    try {
-      const isNewSignup = localStorage.getItem('bbdrts_tour_force_launch') === 'true' ||
-        localStorage.getItem('bbdrts_is_new_registration') === 'true';
-      const userTourDone = localStorage.getItem(userTourKey) === 'true';
+    let pollInterval = null;
+    let launchTimeout = null;
+    let cancelled = false;
 
-      if (isNewSignup && !userTourDone) {
+    const tryLaunchTour = () => {
+      if (cancelled) return;
+      try {
+        const isNewSignup = localStorage.getItem('bbdrts_tour_force_launch') === 'true' ||
+          localStorage.getItem('bbdrts_is_new_registration') === 'true';
+        const userTourDone = localStorage.getItem(userTourKey) === 'true';
+        if (!isNewSignup || userTourDone) return;
+
         let attempts = 0;
         const maxAttempts = 60;
-        const pollInterval = setInterval(() => {
+        if (pollInterval) clearInterval(pollInterval);
+
+        pollInterval = setInterval(() => {
+          if (cancelled) {
+            clearInterval(pollInterval);
+            return;
+          }
+          const onboardingActive = Boolean(
+            document.querySelector('.onboarding-backdrop') ||
+            document.body.dataset.onboardingOpen === 'true' ||
+            localStorage.getItem('bbdrts_needs_onboarding') === 'true'
+          );
+          if (onboardingActive) {
+            return; // Pause while BBDRTS Workspace Setup is still open
+          }
+
           attempts++;
           const authBackdrop = document.querySelector('.auth-transition-backdrop');
           const targetEl = document.querySelector('#tour-ngo-welcome') || document.querySelector('#tour-ngo-profile');
@@ -1255,18 +1650,28 @@ export default function OrganizationView({
 
           if ((isAuthClear && isTargetReady) || attempts >= maxAttempts) {
             clearInterval(pollInterval);
-            setTimeout(() => {
+            pollInterval = null;
+            launchTimeout = setTimeout(() => {
+              if (cancelled) return;
               setActiveTab('dashboard');
               setShowGuidedTour(true);
               localStorage.removeItem('bbdrts_tour_force_launch');
               localStorage.removeItem('bbdrts_is_new_registration');
             }, 350);
           }
-        }, 100);
+        }, 120);
+      } catch (_) {}
+    };
 
-        return () => clearInterval(pollInterval);
-      }
-    } catch (_) { }
+    tryLaunchTour();
+    const onOnboardingDone = () => tryLaunchTour();
+    window.addEventListener('bbdrts_onboarding_finished', onOnboardingDone);
+    return () => {
+      cancelled = true;
+      window.removeEventListener('bbdrts_onboarding_finished', onOnboardingDone);
+      if (pollInterval) clearInterval(pollInterval);
+      if (launchTimeout) clearTimeout(launchTimeout);
+    };
   }, [userTourKey]);
 
   const handleStartTour = () => {
@@ -1368,6 +1773,18 @@ export default function OrganizationView({
         if (data.secRegistrationNo) setSecRegNo(data.secRegistrationNo);
         if (data.dswdAccreditationNo) setDswdNo(data.dswdAccreditationNo);
         if (data.boardMembers) setBoardMembersText(data.boardMembers);
+        if (data.tinNumber) setTinNo(data.tinNumber);
+        if (data.registeredAddress) setRegisteredAddress(data.registeredAddress);
+        if (data.authorizedRepName) setRepName(data.authorizedRepName);
+        if (data.authorizedRepPosition) setRepPosition(data.authorizedRepPosition);
+        if (data.authorizedRepIdType) setRepIdType(data.authorizedRepIdType);
+        if (data.authorizedRepIdNo) setRepIdNo(data.authorizedRepIdNo);
+        if (data.primaryIdType) setPrimaryIdType(data.primaryIdType);
+        if (data.primaryIdNumber) setPrimaryIdNumber(data.primaryIdNumber);
+        if (data.primaryIdUrl) setPrimaryIdUrl(normalizeSecDocUrl(data.primaryIdUrl));
+        if (data.secondaryIdType) setSecondaryIdType(data.secondaryIdType);
+        if (data.secondaryIdNumber) setSecondaryIdNumber(data.secondaryIdNumber);
+        if (data.secondaryIdUrl) setSecondaryIdUrl(normalizeSecDocUrl(data.secondaryIdUrl));
         if (data.secCertificateUrl) setSecCertUrl(normalizeSecDocUrl(data.secCertificateUrl));
       }
     } catch (err) {
@@ -1392,22 +1809,93 @@ export default function OrganizationView({
     reader.readAsDataURL(file);
   };
 
+  const handlePrimaryIdUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/') && !file.type.includes('pdf')) {
+      showWarning('Please upload a valid image or PDF document.', 'Invalid File');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (uploadEvent) => {
+      setPrimaryIdUrl(normalizeSecDocUrl(uploadEvent.target.result));
+      showSuccess(`${primaryIdType} document attached!`, 'Primary ID Attached');
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleSecondaryIdUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/') && !file.type.includes('pdf')) {
+      showWarning('Please upload a valid image or PDF document.', 'Invalid File');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (uploadEvent) => {
+      setSecondaryIdUrl(normalizeSecDocUrl(uploadEvent.target.result));
+      showSuccess(`${secondaryIdType} document attached!`, 'Secondary ID Attached');
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // Live Dossier Readiness Evaluation (5 Core Institutional Checkpoints)
+  const dossierCompletion = useMemo(() => {
+    let score = 0;
+    const total = 5;
+    const items = [
+      { id: 1, label: 'Entity Profile', desc: 'SEC Number, TIN & Registered Address', done: Boolean(secRegNo?.trim() && tinNo?.trim() && registeredAddress?.trim()) },
+      { id: 2, label: 'Authorized Signatory', desc: 'Representative Name, Position & Trustees', done: Boolean(repName?.trim() && repPosition?.trim() && boardMembersText?.trim()) },
+      { id: 3, label: 'Dual Government IDs', desc: 'Primary & Secondary ID Files Attached', done: Boolean(primaryIdNumber?.trim() && primaryIdUrl && secondaryIdNumber?.trim() && secondaryIdUrl) },
+      { id: 4, label: 'SEC Certificate Vault', desc: 'Certificate of Incorporation Uploaded', done: Boolean(secCertUrl) },
+      { id: 5, label: 'Legal Affirmation', desc: 'RA 11232 Perjury & Authority Declaration', done: Boolean(affirmationChecked) }
+    ];
+    items.forEach(it => { if (it.done) score++; });
+    const percent = Math.round((score / total) * 100);
+    return { score, total, percent, items };
+  }, [secRegNo, tinNo, registeredAddress, repName, repPosition, boardMembersText, primaryIdNumber, primaryIdUrl, secondaryIdNumber, secondaryIdUrl, secCertUrl, affirmationChecked]);
+
   const handleAutofillDemoSec = () => {
     setSecRegNo('SEC-CN2021-08492');
+    setTinNo('000-842-192-000');
+    setRegisteredAddress('Philippine Red Cross National HQ, 37 EDSA cor. Boni Ave., Mandaluyong City, Metro Manila');
     setDswdNo('DSWD-SB-A-2024-0193');
+    setRepName('Gwendolyn Pang');
+    setRepPosition('Secretary General & Authorized Trustee');
+    setRepIdType('Philippine Passport');
+    setRepIdNo('P8942103B');
     setBoardMembersText('Chairman: Richard Gordon | SecGen: Gwendolyn Pang | Trustee: Dr. Benjamin Go');
+    setAffirmationChecked(true);
 
-    // Generate realistic Philippine SEC Certificate SVG
+    // 1. Generate realistic Philippine Passport SVG (Primary ID)
+    const passportSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 380" width="600" height="380"><rect width="600" height="380" fill="#0f172a" rx="12"/><rect x="12" y="12" width="576" height="356" fill="#1e293b" stroke="#38bdf8" stroke-width="2" rx="8"/><text x="300" y="45" font-family="sans-serif" font-size="12" font-weight="700" fill="#94a3b8" text-anchor="middle" letter-spacing="2">REPUBLIC OF THE PHILIPPINES / REPUBLIKA NG PILIPINAS</text><text x="300" y="70" font-family="sans-serif" font-size="18" font-weight="800" fill="#f8fafc" text-anchor="middle">PASAPORTE / PASSPORT</text><rect x="40" y="100" width="130" height="170" fill="#0f172a" stroke="#38bdf8" stroke-width="1.5" rx="6"/><circle cx="105" cy="165" r="40" fill="#334155"/><path d="M65,245 Q105,200 145,245" fill="#475569"/><text x="105" y="260" font-family="sans-serif" font-size="9" fill="#94a3b8" text-anchor="middle">GOVERNMENT OFFICIAL</text><text x="200" y="125" font-family="sans-serif" font-size="10" fill="#94a3b8">PASSPORT NO. / NUMERO NG PASAPORTE</text><text x="200" y="145" font-family="monospace" font-size="16" font-weight="700" fill="#38bdf8">P8942103B</text><text x="200" y="175" font-family="sans-serif" font-size="10" fill="#94a3b8">SURNAME / APELYIDO</text><text x="200" y="195" font-family="sans-serif" font-size="15" font-weight="700" fill="#ffffff">PANG</text><text x="200" y="225" font-family="sans-serif" font-size="10" fill="#94a3b8">GIVEN NAMES / MGA PANGALAN</text><text x="200" y="245" font-family="sans-serif" font-size="14" font-weight="700" fill="#ffffff">GWENDOLYN TSANG</text><text x="200" y="275" font-family="sans-serif" font-size="10" fill="#94a3b8">NATIONALITY / PAGKAMAMAMAYAN</text><text x="200" y="295" font-family="sans-serif" font-size="13" font-weight="600" fill="#ffffff">FILIPINO (PHL)</text><rect x="40" y="315" width="520" height="36" fill="#0f172a" rx="4"/><text x="55" y="338" font-family="monospace" font-size="12" fill="#38bdf8" letter-spacing="3">P&lt;PHLPANG&lt;&lt;GWENDOLYN&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;&lt;</text></svg>`;
+    const passB64 = window.btoa(unescape(encodeURIComponent(passportSvg)));
+    setPrimaryIdType('Philippine Passport');
+    setPrimaryIdNumber('P8942103B');
+    setPrimaryIdUrl(`data:image/svg+xml;base64,${passB64}`);
+
+    // 2. Generate realistic Philippine Driver's License SVG (Secondary ID)
+    const dlSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 380" width="600" height="380"><rect width="600" height="380" fill="#042f2e" rx="12"/><rect x="12" y="12" width="576" height="356" fill="#064e3b" stroke="#10b981" stroke-width="2" rx="8"/><text x="300" y="45" font-family="sans-serif" font-size="11" font-weight="700" fill="#6ee7b7" text-anchor="middle" letter-spacing="1.5">REPUBLIC OF THE PHILIPPINES • DEPARTMENT OF TRANSPORTATION</text><text x="300" y="70" font-family="sans-serif" font-size="17" font-weight="800" fill="#ffffff" text-anchor="middle">LAND TRANSPORTATION OFFICE • DRIVER'S LICENSE</text><rect x="40" y="100" width="130" height="165" fill="#022c22" stroke="#10b981" stroke-width="1.5" rx="6"/><circle cx="105" cy="165" r="40" fill="#065f46"/><path d="M65,245 Q105,205 145,245" fill="#047857"/><text x="200" y="125" font-family="sans-serif" font-size="10" fill="#a7f3d0">LICENSE NO.</text><text x="200" y="145" font-family="monospace" font-size="16" font-weight="700" fill="#34d399">N02-18-938210</text><text x="200" y="175" font-family="sans-serif" font-size="10" fill="#a7f3d0">NAME (LAST, FIRST, MIDDLE)</text><text x="200" y="195" font-family="sans-serif" font-size="15" font-weight="700" fill="#ffffff">PANG, GWENDOLYN TSANG</text><text x="200" y="225" font-family="sans-serif" font-size="10" fill="#a7f3d0">ADDRESS</text><text x="200" y="245" font-family="sans-serif" font-size="13" font-weight="600" fill="#ffffff">MANDALUYONG CITY, METRO MANILA</text><text x="200" y="275" font-family="sans-serif" font-size="10" fill="#a7f3d0">EXPIRATION DATE</text><text x="200" y="295" font-family="monospace" font-size="13" font-weight="600" fill="#34d399">2032-10-18</text><rect x="40" y="315" width="520" height="32" fill="#022c22" rx="4"/><text x="55" y="335" font-family="monospace" font-size="11" fill="#6ee7b7">LTO SECURITY BARCODE &amp; BIOMETRICS VALIDATED</text></svg>`;
+    const dlB64 = window.btoa(unescape(encodeURIComponent(dlSvg)));
+    setSecondaryIdType('LTO Driver\'s License');
+    setSecondaryIdNumber('N02-18-938210');
+    setSecondaryIdUrl(`data:image/svg+xml;base64,${dlB64}`);
+
+    // 3. Generate realistic Philippine SEC Certificate SVG
     const secCertSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 400" width="600" height="400"><rect width="600" height="400" fill="#fdfbf7" stroke="#b45309" stroke-width="6" rx="8"/><rect x="15" y="15" width="570" height="370" fill="none" stroke="#d97706" stroke-width="2" stroke-dasharray="8 4"/><text x="300" y="60" font-family="Georgia, serif" font-size="16" font-weight="bold" fill="#78350f" text-anchor="middle">REPUBLIC OF THE PHILIPPINES</text><text x="300" y="85" font-family="Georgia, serif" font-size="20" font-weight="bold" fill="#b45309" text-anchor="middle">SECURITIES AND EXCHANGE COMMISSION</text><text x="300" y="110" font-family="sans-serif" font-size="12" fill="#92400e" text-anchor="middle">SEC Building, EDSA, Greenhills, Mandaluyong City</text><line x1="100" y1="125" x2="500" y2="125" stroke="#b45309" stroke-width="2"/><text x="300" y="160" font-family="Georgia, serif" font-size="22" font-style="italic" fill="#1e293b" text-anchor="middle">CERTIFICATE OF INCORPORATION</text><text x="300" y="195" font-family="sans-serif" font-size="14" fill="#334155" text-anchor="middle">This is to certify that</text><text x="300" y="230" font-family="Georgia, serif" font-size="20" font-weight="bold" fill="#0f172a" text-anchor="middle">PHILIPPINE RED CROSS - SOUTHERN LEYTE CHAPTER</text><text x="300" y="260" font-family="sans-serif" font-size="13" fill="#475569" text-anchor="middle">is registered as a Non-Stock, Non-Profit Humanitarian Corporation</text><text x="300" y="295" font-family="monospace" font-size="15" font-weight="bold" fill="#b45309" text-anchor="middle">COMPANY REG. NO. SEC-CN2021-08492</text><text x="300" y="355" font-family="sans-serif" font-size="11" fill="#64748b" text-anchor="middle">Issued under Republic Act 11232 • Duly Verified & Seal Affixed</text></svg>`;
     const b64 = window.btoa(unescape(encodeURIComponent(secCertSvg)));
     setSecCertUrl(`data:image/svg+xml;base64,${b64}`);
-    showSuccess('Verified Philippine SEC credentials populated!', 'Demo Credentials Ready');
+    showSuccess('Complete Philippine SEC, BIR & Dual Government IDs populated!', 'Demo Credentials Ready');
   };
 
   const handleSaveKyc = async (e) => {
     e?.preventDefault();
     if (!secRegNo.trim() && !secCertUrl) {
       showWarning('Please enter your SEC Registration Number or upload the Certificate.', 'Missing Requirements');
+      return;
+    }
+    if (!affirmationChecked) {
+      showWarning('Please accept the legal compliance affirmation to proceed with submission.', 'Affirmation Required');
       return;
     }
 
@@ -1419,7 +1907,7 @@ export default function OrganizationView({
       const apiUrl = API_URL;
 
       const stepTimer = setTimeout(() => {
-        setKycStepText('Validating SEC registration number against official records...');
+        setKycStepText('Validating SEC registration, BIR TIN, and AMLA dual government IDs...');
       }, 1400);
 
       const res = await fetch(`${apiUrl}/api/organization/kyc`, {
@@ -1433,7 +1921,19 @@ export default function OrganizationView({
           sec_registration_no: secRegNo.trim(),
           sec_certificate_url: secCertUrl,
           board_members: boardMembersText.trim(),
-          dswd_accreditation_no: dswdNo.trim()
+          dswd_accreditation_no: dswdNo.trim(),
+          tin_number: tinNo.trim(),
+          registered_address: registeredAddress.trim(),
+          authorized_rep_name: repName.trim(),
+          authorized_rep_position: repPosition.trim(),
+          authorized_rep_id_type: primaryIdType,
+          authorized_rep_id_no: primaryIdNumber,
+          primary_id_type: primaryIdType,
+          primary_id_number: primaryIdNumber.trim(),
+          primary_id_url: primaryIdUrl,
+          secondary_id_type: secondaryIdType,
+          secondary_id_number: secondaryIdNumber.trim(),
+          secondary_id_url: secondaryIdUrl
         })
       });
 
@@ -1596,7 +2096,7 @@ export default function OrganizationView({
       .filter(d => {
         // Category filter
         if (ledgerFilter !== 'ALL') {
-          const matchCamp = campaigns.find(c => String(c.id) === String(d.campaignId));
+          const matchCamp = (campaigns || []).find(c => String(c.id) === String(d.campaignId));
           const campTitle = matchCamp ? formatCampaignTitle(matchCamp.title, matchCamp.id) : '';
           const isCharity = /charity|school|orphan|food|feed|community|aid|blood|medical/i.test(campTitle);
           if (ledgerFilter === 'DR' && isCharity) return false;
@@ -1621,7 +2121,7 @@ export default function OrganizationView({
         if (searchQueryLedger.trim()) {
           const q = searchQueryLedger.toLowerCase().trim();
           const txHash = (d.txHash || '').toLowerCase();
-          const matchCamp = campaigns.find(c => String(c.id) === String(d.campaignId));
+          const matchCamp = (campaigns || []).find(c => String(c.id) === String(d.campaignId));
           const campTitle = matchCamp ? formatCampaignTitle(matchCamp.title, matchCamp.id).toLowerCase() : '';
           const donorName = (d.donorName || '').toLowerCase();
           const donorWallet = (d.donorWallet || '').toLowerCase();
@@ -1637,8 +2137,8 @@ export default function OrganizationView({
       });
   }, [orgDonations, ledgerFilter, ledgerRailFilter, ledgerCampaignFilter, searchQueryLedger, ledgerSort, campaigns]);
 
-  const totalPagesLedger = Math.ceil(filteredLedger.length / campaignsPerPage);
-  const paginatedLedger = filteredLedger.slice(
+  const totalPagesLedger = Math.ceil(((filteredLedger || []).length) / campaignsPerPage);
+  const paginatedLedger = (filteredLedger || []).slice(
     (currentPageLedger - 1) * campaignsPerPage,
     currentPageLedger * campaignsPerPage
   );
@@ -1702,12 +2202,33 @@ export default function OrganizationView({
 
   // Deploy Campaign Logic
   const handleCreateCampaign = async (e) => {
-    e.preventDefault();
+    if (e && e.preventDefault) e.preventDefault();
+    if (e && e.stopPropagation) e.stopPropagation();
 
-    if (!title.trim()) return setTxModal({ show: true, step: 0, error: 'Please enter a campaign title.' });
+    // STRICT CHECK: Never deploy unless the user is on the final step (Step 5)
+    if (deployStep < 5) {
+      setDeployStep(s => Math.min(5, s + 1));
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+
+    if (!title.trim()) {
+      setDeployStep(1);
+      return setTxModal({ show: true, step: 0, error: 'Please enter a campaign title in Step 1.' });
+    }
     const parsedPhp = parseFloat(targetAmount);
-    if (isNaN(parsedPhp) || parsedPhp <= 0)
-      return setTxModal({ show: true, step: 0, error: 'Please enter a valid target fundraising goal in PHP (greater than ₱0).' });
+    if (isNaN(parsedPhp) || parsedPhp <= 0) {
+      setDeployStep(1);
+      return setTxModal({ show: true, step: 0, error: 'Please enter a valid target fundraising goal in PHP (greater than ₱0) in Step 1.' });
+    }
+    if (!targetDate) {
+      setDeployStep(1);
+      return setTxModal({ show: true, step: 0, error: 'Please select a Target Due Date in Step 1.' });
+    }
+    if (!city.trim() || !province.trim()) {
+      setDeployStep(4);
+      return setTxModal({ show: true, step: 0, error: 'Please provide at least a Municipality/City and Province in Step 4.' });
+    }
 
     const ethEquivalent = (parsedPhp / 170000).toFixed(6);
 
@@ -1762,7 +2283,9 @@ export default function OrganizationView({
         const payload = {
           title: title.trim(),
           target_amount: ethEquivalent,
+          targetAmount: ethEquivalent,
           target_amount_php: parsedPhp,
+          targetAmountPhp: parsedPhp,
           contract_address: (contract && Object(contract).target) ? Object(contract).target : '0xLocalSimulatedContract',
           category: category,
           tags: selectedTags.join(', '),
@@ -1785,6 +2308,9 @@ export default function OrganizationView({
           bank_account_name: bankAccountName.trim(),
           bank_account_number: bankAccountNumber.trim(),
           bank_qr_url: bankQrUrl,
+          disaster_images_json: disasterImages,
+          disaster_images: disasterImages,
+          disasterImages: disasterImages,
           org_name: orgDisplayName
         };
 
@@ -1829,16 +2355,20 @@ export default function OrganizationView({
       setGpsCoordinates('');
       setBeneficiariesImpact('');
       setContactInfo('');
+      setDisasterImages([]);
       setGcashName('');
       setGcashNumber('');
       setGcashQrUrl('');
+      setSelectedGcashQrId(null);
       setMayaName('');
       setMayaNumber('');
       setMayaQrUrl('');
+      setSelectedMayaQrId(null);
       setBankName('BDO Unibank');
       setBankAccountName('');
       setBankAccountNumber('');
       setBankQrUrl('');
+      setSelectedBankQrId(null);
       setDescription('');
       setTargetDate('');
       setUrgency('');
@@ -1846,6 +2376,7 @@ export default function OrganizationView({
       autoDetectedTagsRef.current = [];
       manuallySelectedTagsRef.current.clear();
       manuallyDeselectedTagsRef.current.clear();
+      setDeployStep(1);
       fetchCampaigns();
       fetchOrgDonations();
       showSuccess(
@@ -1874,149 +2405,145 @@ export default function OrganizationView({
   const orgInitials = orgDisplayName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
 
   return (
-    <main className="dashboard container" style={{ paddingTop: '16px' }}>
-      {/* ── Reference Dashboard Grid Architecture (Matching DonorView Layout) ── */}
-      <div className="ref-dashboard-grid" style={{ marginTop: '0' }}>
+    <div className="ref-dashboard-container">
+      {/* Mobile Drawer Backdrop */}
+      <div
+        className={`ref-sidebar-backdrop ${mobileSidebarOpen ? 'active' : ''}`}
+        onClick={() => setMobileSidebarOpen(false)}
+        aria-hidden="true"
+      />
 
-        {/* ── Left Sidebar Navigation (Maasin Reference Style) ── */}
-        <aside className="ref-sidebar">
-          <div>
-            <div className="ref-sidebar-user" id="tour-ngo-profile">
-              <div className="ref-sidebar-avatar" style={{ overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                {currentUser?.avatar_url && (currentUser.avatar_url.startsWith('data:') || currentUser.avatar_url.startsWith('http')) ? (
-                  <img src={currentUser.avatar_url} alt="Profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                ) : currentUser?.avatar_url && currentUser.avatar_url.length < 30 ? (
-                  <span className="material-symbols-outlined" style={{ fontSize: '20px', color: 'var(--accent)' }}>{currentUser.avatar_url}</span>
-                ) : (
-                  orgInitials
-                )}
-              </div>
-              <div>
-                <div className="ref-sidebar-name">{orgDisplayName}</div>
-                <div className="ref-sidebar-id">
-                  {currentUser?.system_id || `BBDRTS-NGO-2026-${String(currentUser?.id || 1).padStart(4, '0')}`}
-                </div>
-              </div>
+      {/* ── Left-Flush Sticky Sidebar Navigation (Zero space on the left) ── */}
+      <aside className={`ref-sidebar ${isSidebarCollapsed ? 'collapsed' : ''} ${mobileSidebarOpen ? 'mobile-open' : ''}`}>
+        <div>
+          <div className="ref-sidebar-header-strip">
+            <div className="ref-sidebar-brand-group">
+              <span className="material-symbols-outlined ref-portal-icon" style={{ color: 'var(--accent, #10b981)' }}>corporate_fare</span>
+              <span className="ref-portal-title">NGO Portal</span>
             </div>
+            <button
+              type="button"
+              className="ref-sidebar-collapse-toggle"
+              onClick={toggleSidebar}
+              title={isSidebarCollapsed ? "Expand Sidebar ([ or Ctrl+\\ or Alt+S)" : "Collapse Sidebar ([ or Ctrl+\\ or Alt+S)"}
+              aria-label={isSidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+            >
+              <SidebarToggleIcon />
+            </button>
+          </div>
 
-            <nav className="ref-sidebar-menu" style={{ marginTop: '16px' }}>
-              <button
-                id="tour-ngo-tab-dashboard"
-                className={`ref-nav-item ${activeTab === 'dashboard' ? 'active' : ''}`}
-                onClick={() => setActiveTab('dashboard')}
-              >
-                <span className="material-symbols-outlined">space_dashboard</span>
-                <span>Dashboard Overview</span>
-              </button>
+          <nav className="ref-sidebar-menu">
+            <button
+              id="tour-ngo-tab-dashboard"
+              className={`ref-nav-item ${activeTab === 'dashboard' ? 'active' : ''}`}
+              onClick={() => { setActiveTab('dashboard'); setMobileSidebarOpen(false); }}
+              title={wt.dashboardOverview}
+            >
+              <span className="material-symbols-outlined">space_dashboard</span>
+              <span>{wt.dashboardOverview}</span>
+            </button>
 
-              <button
-                id="tour-ngo-tab-sec"
-                className={`ref-nav-item ${activeTab === 'sec-kyc' ? 'active' : ''}`}
-                onClick={() => { fetchKycData(); setActiveTab('sec-kyc'); }}
-              >
-                <span className="material-symbols-outlined">verified_user</span>
-                <span>SEC Accreditation & KYC</span>
-                {(currentUser?.verification_status !== 'Approved' && kycStatusData?.Verification_Status !== 'Approved') && (
-                  <span style={{ marginLeft: 'auto', background: 'rgba(234, 179, 8, 0.2)', color: '#facc15', border: '1px solid rgba(234, 179, 8, 0.4)', borderRadius: '4px', fontSize: '0.62rem', fontWeight: 800, padding: '1px 5px' }}>
-                    Required
-                  </span>
-                )}
-              </button>
+            <button
+              id="tour-ngo-tab-my-campaigns"
+              className={`ref-nav-item ${activeTab === 'my-campaigns' ? 'active' : ''}`}
+              onClick={() => { setActiveTab('my-campaigns'); setMobileSidebarOpen(false); }}
+              title={wt.myCampaigns}
+            >
+              <span className="material-symbols-outlined">campaign</span>
+              <span>{wt.myCampaigns}</span>
+            </button>
 
-              <button
-                id="tour-ngo-tab-all-campaigns"
-                className={`ref-nav-item ${activeTab === 'all-campaigns' ? 'active' : ''}`}
-                onClick={() => setActiveTab('all-campaigns')}
-              >
-                <span className="material-symbols-outlined">list_alt</span>
-                <span>All Campaigns</span>
-              </button>
+            <button
+              id="tour-ngo-tab-create"
+              className={`ref-nav-item ${activeTab === 'create' ? 'active' : ''}`}
+              onClick={() => { setActiveTab('create'); setMobileSidebarOpen(false); }}
+              title={wt.deployCampaign}
+            >
+              <span className="material-symbols-outlined">rocket_launch</span>
+              <span>{wt.deployCampaign}</span>
+            </button>
 
+            <button
+              id="tour-ngo-tab-ledger"
+              className={`ref-nav-item ${activeTab === 'ledger' ? 'active' : ''}`}
+              onClick={() => { setActiveTab('ledger'); setMobileSidebarOpen(false); }}
+              title="Donation Ledger"
+            >
+              <span className="material-symbols-outlined">receipt_long</span>
+              <span>Donation Ledger</span>
+            </button>
+
+            {interfaceMode !== 'simplified' && (
               <button
                 id="tour-ngo-tab-radar"
                 className={`ref-nav-item ${activeTab === 'radar-heatmap' ? 'active' : ''}`}
-                onClick={() => setActiveTab('radar-heatmap')}
+                onClick={() => { setActiveTab('radar-heatmap'); setMobileSidebarOpen(false); }}
+                title={wt.reliefRadar}
               >
                 <span className="material-symbols-outlined" style={{ color: activeTab === 'radar-heatmap' ? '#38bdf8' : 'inherit' }}>radar</span>
-                <span>Relief Radar</span>
+                <span>{wt.reliefRadar}</span>
               </button>
+            )}
 
+            {interfaceMode !== 'simplified' && (
               <button
-                id="tour-ngo-tab-my-campaigns"
-                className={`ref-nav-item ${activeTab === 'my-campaigns' ? 'active' : ''}`}
-                onClick={() => setActiveTab('my-campaigns')}
+                id="tour-ngo-tab-all-campaigns"
+                className={`ref-nav-item ${activeTab === 'all-campaigns' ? 'active' : ''}`}
+                onClick={() => { setActiveTab('all-campaigns'); setMobileSidebarOpen(false); }}
+                title={wt.allOrgCampaigns}
               >
-                <span className="material-symbols-outlined">account_balance</span>
-                <span>My Campaigns</span>
+                <span className="material-symbols-outlined">public</span>
+                <span>{wt.allOrgCampaigns}</span>
               </button>
+            )}
 
-              <button
-                id="tour-ngo-tab-create"
-                className={`ref-nav-item ${activeTab === 'create' ? 'active' : ''}`}
-                onClick={() => setActiveTab('create')}
-              >
-                <span className="material-symbols-outlined">rocket_launch</span>
-                <span>Deploy Campaign</span>
-              </button>
+            <button
+              id="tour-ngo-tab-sec"
+              className={`ref-nav-item ${activeTab === 'sec-kyc' ? 'active' : ''}`}
+              onClick={() => { fetchKycData(); setActiveTab('sec-kyc'); setMobileSidebarOpen(false); }}
+              title="SEC Accreditation & KYC"
+            >
+              <span className="material-symbols-outlined">verified_user</span>
+              <span>SEC Accreditation & KYC</span>
+              {(currentUser?.verification_status !== 'Approved' && kycStatusData?.Verification_Status !== 'Approved') && (
+                <span className="ref-nav-count" style={{ marginLeft: 'auto', background: 'rgba(234, 179, 8, 0.2)', color: '#facc15', border: '1px solid rgba(234, 179, 8, 0.4)', borderRadius: '4px', fontSize: '0.62rem', fontWeight: 800, padding: '1px 5px' }}>
+                  Required
+                </span>
+              )}
+            </button>
 
-              <button
-                id="tour-ngo-tab-ledger"
-                className={`ref-nav-item ${activeTab === 'ledger' ? 'active' : ''}`}
-                onClick={() => setActiveTab('ledger')}
-              >
-                <span className="material-symbols-outlined">receipt_long</span>
-                <span>Donation Ledger</span>
-              </button>
+            <button
+              id="tour-ngo-tab-settings"
+              className={`ref-nav-item ${activeTab === 'settings' ? 'active' : ''}`}
+              onClick={() => { setActiveTab('settings'); setMobileSidebarOpen(false); }}
+              title={wt.profileSettings}
+            >
+              <span className="material-symbols-outlined">account_circle</span>
+              <span>{wt.profileSettings}</span>
+            </button>
+          </nav>
+        </div>
 
-              <button
-                id="tour-ngo-tab-settings"
-                className={`ref-nav-item ${activeTab === 'settings' ? 'active' : ''}`}
-                onClick={() => setActiveTab('settings')}
-              >
-                <span className="material-symbols-outlined">account_circle</span>
-                <span>Profile & Settings</span>
-              </button>
+        {/* ── Sidebar Bottom Footer Dock ── */}
+        <div className="ref-sidebar-footer-group" id="tour-ngo-sepolia-node">
+          <button
+            type="button"
+            className="ref-nav-item ref-nav-item-tutorial"
+            onClick={() => { handleStartTour(); setMobileSidebarOpen(false); }}
+            title={wt.guidedTutorial}
+            aria-label={wt.guidedTutorial}
+          >
+            <span className="material-symbols-outlined">help</span>
+            <span>{wt.guidedTutorial}</span>
+          </button>
+        </div>
+      </aside>
 
-              <button
-                type="button"
-                className="ref-nav-item"
-                onClick={handleStartTour}
-                style={{ marginTop: '10px', borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '10px', color: 'var(--accent, #22c55e)' }}
-                title="Take a guided walkthrough of the NGO portal"
-              >
-                <span className="material-symbols-outlined" style={{ color: 'var(--accent, #22c55e)' }}>help</span>
-                <span style={{ fontWeight: 600 }}>Guided Tutorial</span>
-              </button>
-            </nav>
-          </div>
+      {/* ── Main Content Area ── */}
+      <section className="ref-main-content">
+        {walletAlertBanner}
 
-          {/* ── Web3 Sepolia Live Protocol Widget ── */}
-          <div className="ref-sidebar-widget" id="tour-ngo-sepolia-node" style={{ marginTop: '20px' }}>
-            <div className="ref-widget-header">
-              <span className="ref-status-dot"></span>
-              <span className="ref-widget-title">Network & Verification</span>
-            </div>
-            <div className="ref-widget-detail">
-              <div className="ref-widget-row">
-                <span>NGO Status</span>
-                {currentUser?.verification_status === 'Approved' ? (
-                  <span className="ref-widget-badge approved">✓ Verified</span>
-                ) : (
-                  <span className="ref-widget-badge pending">Pending</span>
-                )}
-              </div>
-              <div className="ref-widget-row">
-                <span>Blockchain</span>
-                <span className="ref-widget-value" style={{ color: '#38bdf8' }}>Sepolia EVM</span>
-              </div>
-            </div>
-          </div>
-        </aside>
-
-        {/* ── Main Content Area ── */}
-        <section className="ref-main-content">
-
-          {/* Sleek Inline Testnet Banner
+        {/* Sleek Inline Testnet Banner
           <div className="ref-inline-testnet-banner">
             <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>biotech</span>
             <span>
@@ -2028,123 +2555,34 @@ export default function OrganizationView({
           </div>
           */}
 
-          {/* ── 1. DASHBOARD OVERVIEW TAB ONLY ── */}
-          {activeTab === 'dashboard' && (() => {
-            /* true when a real image banner is set → dark overlay is active → need white text */
-            const heroBannerActive = !!(currentUser?.banner_url && (
-              currentUser.banner_url.startsWith('data:') ||
-              currentUser.banner_url.startsWith('http') ||
-              currentUser.banner_url.startsWith('/')
-            ));
-            const heroText  = heroBannerActive ? '#ffffff' : 'var(--text-primary)';
-            const heroSub   = heroBannerActive ? 'rgba(255,255,255,0.75)' : 'var(--text-secondary)';
-            const heroDot   = heroBannerActive ? 'rgba(255,255,255,0.3)' : 'var(--border)';
-            const heroBtnBg = heroBannerActive ? 'rgba(255,255,255,0.08)' : 'var(--bg-inset)';
-            const heroBtnBd = heroBannerActive ? 'rgba(255,255,255,0.18)' : 'var(--border)';
-            const heroDivider = heroBannerActive ? 'rgba(255,255,255,0.1)' : 'var(--border)';
-            return (
+        {/* ── 1. DASHBOARD OVERVIEW TAB ONLY ── */}
+        {activeTab === 'dashboard' && (() => {
+          /* true when a real image banner is set → dark overlay is active → need white text */
+          const heroBannerActive = !!(currentUser?.banner_url && (
+            currentUser.banner_url.startsWith('data:') ||
+            currentUser.banner_url.startsWith('http') ||
+            currentUser.banner_url.startsWith('/')
+          ));
+          const heroText = heroBannerActive ? '#ffffff' : 'var(--text-primary)';
+          const heroSub = heroBannerActive ? 'rgba(255,255,255,0.75)' : 'var(--text-secondary)';
+          const heroDot = heroBannerActive ? 'rgba(255,255,255,0.3)' : 'var(--border)';
+          const heroBtnBg = heroBannerActive ? 'rgba(255,255,255,0.08)' : 'var(--bg-inset)';
+          const heroBtnBd = heroBannerActive ? 'rgba(255,255,255,0.18)' : 'var(--border)';
+          const heroDivider = heroBannerActive ? 'rgba(255,255,255,0.1)' : 'var(--border)';
+          return (
             <>
-              {/* HCI First-Time User Experience & Quick Start Guide for NGOs */}
-              {showNgoGuide && (
-                <div className="db-welcome-guide" id="tour-ngo-guide">
-                  <div className="db-guide-header">
-                    <div>
-                      <div className="db-guide-badge">
-                        <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>verified_user</span>
-                        <span>Relief Organization Onboarding</span>
-                      </div>
-                      <h2 className="db-guide-title">
-                        Welcome to BBDRTS, {orgDisplayName || 'Organization Team'}
-                      </h2>
-                      <p className="db-guide-subtitle">
-                        Deploy transparent disaster appeals, verify incoming GCash/Maya donor slips with AI assistance, and disburse relief funds with zero intermediary fees.
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      className="db-guide-dismiss"
-                      onClick={() => {
-                        setShowNgoGuide(false);
-                        try { localStorage.setItem('bbdrts_dismiss_ngo_guide', 'true'); } catch (_) {}
-                      }}
-                      title="Dismiss this guide"
-                    >
-                      <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>check</span>
-                      <span>Hide guide</span>
-                    </button>
-                  </div>
-
-                  <div className="db-guide-steps">
-                    {/* Step 1 */}
-                    <div className="db-guide-step-card">
-                      <div className="db-guide-step-top">
-                        <span className="db-guide-step-num">Step 01</span>
-                        <span className="material-symbols-outlined db-guide-step-icon">badge</span>
-                      </div>
-                      <div>
-                        <h3 className="db-guide-step-heading">Complete SEC Verification</h3>
-                        <p className="db-guide-step-desc">
-                          {currentUser?.verification_status === 'Approved'
-                            ? 'Your institutional accreditation is active. You can deploy live on-chain relief appeals.'
-                            : 'Upload your SEC registration or local endorsement letter to unlock campaign deployment.'}
-                        </p>
-                      </div>
-                      <button
-                        type="button"
-                        className="db-guide-step-action"
-                        onClick={() => { fetchKycData(); setActiveTab('sec-kyc'); }}
-                      >
-                        <span>{currentUser?.verification_status === 'Approved' ? 'View Credentials' : 'Submit Documents'}</span>
-                        <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>arrow_forward</span>
-                      </button>
-                    </div>
-
-                    {/* Step 2 */}
-                    <div className="db-guide-step-card">
-                      <div className="db-guide-step-top">
-                        <span className="db-guide-step-num">Step 02</span>
-                        <span className="material-symbols-outlined db-guide-step-icon">add_circle</span>
-                      </div>
-                      <div>
-                        <h3 className="db-guide-step-heading">Launch a Relief Appeal</h3>
-                        <p className="db-guide-step-desc">
-                          Create an emergency response drive with itemized resource allocations and Philippine province mapping.
-                        </p>
-                      </div>
-                      <button
-                        type="button"
-                        className="db-guide-step-action"
-                        onClick={() => setActiveTab('create')}
-                      >
-                        <span>Create Appeal</span>
-                        <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>arrow_forward</span>
-                      </button>
-                    </div>
-
-                    {/* Step 3 */}
-                    <div className="db-guide-step-card">
-                      <div className="db-guide-step-top">
-                        <span className="db-guide-step-num">Step 03</span>
-                        <span className="material-symbols-outlined db-guide-step-icon">fact_check</span>
-                      </div>
-                      <div>
-                        <h3 className="db-guide-step-heading">Review Payment Slips</h3>
-                        <p className="db-guide-step-desc">
-                          Inspect uploaded donor e-wallet receipts with AI verification and notarize them onto the blockchain.
-                        </p>
-                      </div>
-                      <button
-                        type="button"
-                        className="db-guide-step-action"
-                        onClick={() => setActiveTab('ledger')}
-                      >
-                        <span>Donation Ledger</span>
-                        <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>arrow_forward</span>
-                      </button>
-                    </div>
-                  </div>
+              {/* Institutional Vercel Page Header */}
+              <div className="admin-page-header" id="tour-ngo-dashboard-header">
+                <div className="admin-page-title-wrap">
+                  <h2 className="admin-page-title">
+                    <span className="material-symbols-outlined" style={{ fontSize: '24px', color: '#16a34a' }}>space_dashboard</span>
+                    <span>{wt.orgOverviewTitle}</span>
+                  </h2>
+                  <p className="admin-page-sub">
+                    {wt.orgOverviewSub}
+                  </p>
                 </div>
-              )}
+              </div>
 
               {/* Compact Organization Hero */}
               <div
@@ -2199,7 +2637,7 @@ export default function OrganizationView({
                       <span className="db-impact-unit">PHP</span>
                     </div>
                     <div className="db-impact-sub">
-                      {totalRaisedByMe.toFixed(4)} ETH · {myCampaigns.length} operation{myCampaigns.length !== 1 ? 's' : ''}
+                      ≈ {totalRaisedByMe.toFixed(4)} ETH on-chain value · {myCampaigns.length} operation{myCampaigns.length !== 1 ? 's' : ''}
                     </div>
                   </div>
                 </div>
@@ -2212,7 +2650,7 @@ export default function OrganizationView({
                     onClick={() => setActiveTab('create')}
                   >
                     <span className="material-symbols-outlined">rocket_launch</span>
-                    <span>Deploy Campaign</span>
+                    <span>{wt.deployCampaign}</span>
                   </button>
 
                   <button
@@ -2225,42 +2663,31 @@ export default function OrganizationView({
                     <span>Donation Ledger</span>
                   </button>
 
-                  <button
-                    type="button"
-                    className="db-btn"
-                    style={heroBannerActive ? { background: heroBtnBg, borderColor: heroBtnBd, color: heroText } : undefined}
-                    onClick={() => setActiveTab('radar-heatmap')}
-                  >
-                    <span className="material-symbols-outlined">radar</span>
-                    <span>Relief Radar</span>
-                  </button>
-
-                  {!showNgoGuide && (
+                  {interfaceMode !== 'simplified' && (
                     <button
                       type="button"
                       className="db-btn"
                       style={heroBannerActive ? { background: heroBtnBg, borderColor: heroBtnBd, color: heroText } : undefined}
-                      onClick={() => {
-                        setShowNgoGuide(true);
-                        try { localStorage.removeItem('bbdrts_dismiss_ngo_guide'); } catch (_) {}
-                      }}
-                      title="Reopen Quick Start Guide"
+                      onClick={() => setActiveTab('radar-heatmap')}
                     >
-                      <span className="material-symbols-outlined">help_outline</span>
-                      <span>Quick Guide</span>
+                      <span className="material-symbols-outlined">radar</span>
+                      <span>{wt.openRadar}</span>
                     </button>
                   )}
 
-                  <a
-                    href="https://sepolia.etherscan.io"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="db-btn"
-                    style={heroBannerActive ? { background: heroBtnBg, borderColor: heroBtnBd, color: heroText, marginLeft: 'auto' } : { marginLeft: 'auto' }}
-                  >
-                    <span className="material-symbols-outlined">analytics</span>
-                    <span>Public Ledger ↗</span>
-                  </a>
+                  {interfaceMode !== 'simplified' && (
+                    <a
+                      href="https://sepolia.etherscan.io"
+                      target="_blank"
+                      rel="noreferrer"
+                      className="db-btn"
+                      style={heroBannerActive ? { background: heroBtnBg, borderColor: heroBtnBd, color: heroText, marginLeft: 'auto' } : { marginLeft: 'auto' }}
+                    >
+                      <span className="material-symbols-outlined">analytics</span>
+                      <span>{wt.publicLedger}</span>
+                      <span className="material-symbols-outlined" style={{ fontSize: '15px', marginLeft: '2px' }}>open_in_new</span>
+                    </a>
+                  )}
                 </div>
               </div>
 
@@ -2300,7 +2727,7 @@ export default function OrganizationView({
                     ₱{(totalRaisedByMe * 170000).toLocaleString('en-US', { maximumFractionDigits: 0 })}
                   </div>
                   <p className="dbo-metric-caption">
-                    <span>{totalRaisedByMe.toFixed(4)} ETH · On-chain verified</span>
+                    <span>Combined Multi-Rail Total (≈ {totalRaisedByMe.toFixed(4)} ETH)</span>
                   </p>
                 </div>
 
@@ -2385,7 +2812,7 @@ export default function OrganizationView({
                       const pct = progressPct(camp.currentAmount, camp.targetAmount);
                       const cover = getCampaignCoverData(camp);
                       const catInfo = getCampaignCategoryInfo(camp);
-                      const campPhpTarget = Math.round((parseFloat(camp.targetAmount) || 0) * 170000).toLocaleString('en-US');
+                      const campPhpTarget = (camp.targetAmountPhp || camp.target_amount_php || Math.round((parseFloat(camp.targetAmount) || 0) * 170000)).toLocaleString('en-US');
                       const campPhpCurrent = Math.round((parseFloat(camp.currentAmount) || 0) * 170000).toLocaleString('en-US');
 
                       return (
@@ -2514,3343 +2941,3822 @@ export default function OrganizationView({
                 </div>
               </div>
             </>
-            );
-          })()}
+          );
+        })()}
 
-          {/* ── 2. ALL CAMPAIGNS TAB ── */}
-          {activeTab === 'all-campaigns' && (
-            <div style={{ marginTop: '8px' }}>
-              <div className="section-header">
-                <div>
-                  <h2 className="section-title" style={{ fontSize: '1.4rem' }}>
-                    <span className="material-symbols-outlined section-title-icon" style={{ marginRight: '8px', color: '#0284c7' }}>list_alt</span> All Relief Campaigns
-                  </h2>
-                  <p style={{ fontSize: '0.82rem', color: '#94a3b8', marginTop: '4px' }}>
-                    Public ledger view of all active disaster relief and charitable aid campaigns across the network.
-                  </p>
-                </div>
+        {/* ── 2. ALL CAMPAIGNS TAB ── */}
+        {activeTab === 'all-campaigns' && (
+          <div style={{ marginTop: '8px' }}>
+            <div className="admin-page-header" id="tour-ngo-all-campaigns-header">
+              <div className="admin-page-title-wrap">
+                <h2 className="admin-page-title">
+                  <span className="material-symbols-outlined" style={{ fontSize: '24px', color: '#16a34a' }}>public</span>
+                  <span>All Relief Campaigns</span>
+                </h2>
+                <p className="admin-page-sub">
+                  Public ledger view of all active disaster relief and charitable aid campaigns across the network.
+                </p>
+              </div>
 
+              <div className="admin-page-header-actions">
                 <button
+                  type="button"
                   className="btn btn-ghost btn-sm"
                   onClick={fetchCampaigns}
                   disabled={fetchingCampaigns}
                 >
-                  {fetchingCampaigns
-                    ? <div className="spinner spinner-light" />
-                    : '↻ Refresh'}
+                  {fetchingCampaigns ? (
+                    <div className="spinner spinner-light" />
+                  ) : (
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                      <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>refresh</span>
+                      <span>Refresh</span>
+                    </span>
+                  )}
                 </button>
               </div>
+            </div>
 
-              {/* ── Unified Campaign Toolbar: Filters on Left, Search & Sort on Right (Matches DonorView) ── */}
-              <div className="campaign-toolbar-card">
-                <div className="campaign-toolbar-unified-row">
-                  {/* Left: Filters Header + Filter Pills (Causes, Priorities, Tags) */}
-                  <div className="toolbar-filters-left">
-                    <div className="toolbar-filters-header">
-                      <span className="material-symbols-outlined">filter_list</span>
-                      <span>Filters</span>
-                    </div>
-
-                    {/* Cause Filter Pill Popover */}
-                    <div style={{ position: 'relative' }} ref={causesDropdownRefAll}>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setShowCausesDropdownAll(prev => !prev);
-                          setShowPrioritiesDropdownAll(false);
-                          setShowTagsDropdownAll(false);
-                          setShowSortDropdownAll(false);
-                        }}
-                        className={`filter-pill-btn ${categoryFilterAll !== 'ALL' ? 'active-filter' : ''}`}
-                        title="Filter by cause category"
-                      >
-                        <span className="material-symbols-outlined filter-pill-icon" style={{ color: selectedCauseObjAll.color }}>{selectedCauseObjAll.icon}</span>
-                        <span>{selectedCauseObjAll.label}</span>
-                        <span className="material-symbols-outlined filter-pill-arrow" style={{ position: 'static', marginLeft: '4px' }}>
-                          {showCausesDropdownAll ? 'expand_less' : 'expand_more'}
-                        </span>
-                      </button>
-
-                      {showCausesDropdownAll && (
-                        <div className="filter-custom-popover">
-                          {CAUSE_OPTIONS.map(opt => (
-                            <button
-                              key={opt.value}
-                              type="button"
-                              onClick={() => {
-                                setCategoryFilterAll(opt.value);
-                                setShowCausesDropdownAll(false);
-                              }}
-                              className={`filter-popover-option ${categoryFilterAll === opt.value ? 'selected' : ''}`}
-                            >
-                              <span className="material-symbols-outlined filter-popover-option-icon" style={{ color: opt.color }}>{opt.icon}</span>
-                              <span>{opt.label}</span>
-                              {categoryFilterAll === opt.value && (
-                                <span className="material-symbols-outlined filter-popover-check">check</span>
-                              )}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Priority Filter Pill Popover */}
-                    <div style={{ position: 'relative' }} ref={prioritiesDropdownRefAll}>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setShowPrioritiesDropdownAll(prev => !prev);
-                          setShowCausesDropdownAll(false);
-                          setShowTagsDropdownAll(false);
-                          setShowSortDropdownAll(false);
-                        }}
-                        className={`filter-pill-btn ${urgencyFilterAll !== 'ALL' ? 'active-filter' : ''}`}
-                        title="Filter by urgency priority"
-                      >
-                        <span className="material-symbols-outlined filter-pill-icon" style={{ color: selectedPriorityObjAll.color }}>{selectedPriorityObjAll.icon}</span>
-                        <span>{selectedPriorityObjAll.label}</span>
-                        <span className="material-symbols-outlined filter-pill-arrow" style={{ position: 'static', marginLeft: '4px' }}>
-                          {showPrioritiesDropdownAll ? 'expand_less' : 'expand_more'}
-                        </span>
-                      </button>
-
-                      {showPrioritiesDropdownAll && (
-                        <div className="filter-custom-popover">
-                          {PRIORITY_OPTIONS.map(opt => (
-                            <button
-                              key={opt.value}
-                              type="button"
-                              onClick={() => {
-                                setUrgencyFilterAll(opt.value);
-                                setShowPrioritiesDropdownAll(false);
-                              }}
-                              className={`filter-popover-option ${urgencyFilterAll === opt.value ? 'selected' : ''}`}
-                            >
-                              <span className="material-symbols-outlined filter-popover-option-icon" style={{ color: opt.color }}>{opt.icon}</span>
-                              <span>{opt.label}</span>
-                              {urgencyFilterAll === opt.value && (
-                                <span className="material-symbols-outlined filter-popover-check">check</span>
-                              )}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Tags Dropdown Popover with Checkboxes */}
-                    <div style={{ position: 'relative' }} ref={tagsDropdownRefAll}>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setShowTagsDropdownAll(prev => !prev);
-                          setShowCausesDropdownAll(false);
-                          setShowPrioritiesDropdownAll(false);
-                          setShowSortDropdownAll(false);
-                        }}
-                        className={`filter-pill-btn ${selectedTagsAll.length > 0 ? 'active-filter' : ''}`}
-                        title="Filter by tags"
-                      >
-                        <span className="material-symbols-outlined filter-pill-icon" style={{ color: '#a855f7' }}>sell</span>
-                        <span>Tags</span>
-                        {selectedTagsAll.length > 0 && (
-                          <span className="tags-dropdown-badge-ref">{selectedTagsAll.length}</span>
-                        )}
-                        <span className="material-symbols-outlined filter-pill-arrow" style={{ position: 'static', marginLeft: '4px' }}>
-                          {showTagsDropdownAll ? 'expand_less' : 'expand_more'}
-                        </span>
-                      </button>
-
-                      {showTagsDropdownAll && (
-                        <div className="tags-popover-menu">
-                          <div className="tags-popover-header">
-                            <span className="tags-popover-title">
-                              <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>sell</span>
-                              Filter by Tags
-                            </span>
-                            {selectedTagsAll.length > 0 && (
-                              <button
-                                type="button"
-                                onClick={() => setSelectedTagsAll([])}
-                                className="tags-popover-clear-btn"
-                              >
-                                Clear ({selectedTagsAll.length})
-                              </button>
-                            )}
-                          </div>
-
-                          <div className="tags-popover-list">
-                            {/* "All Tags" Checkbox */}
-                            <label className={`tags-popover-item ${selectedTagsAll.length === 0 ? 'checked' : ''}`}>
-                              <input
-                                type="checkbox"
-                                checked={selectedTagsAll.length === 0}
-                                onChange={() => setSelectedTagsAll([])}
-                              />
-                              <span className="tags-popover-tag-text">All Tags</span>
-                              <span className="tags-popover-count">{campaigns.length}</span>
-                            </label>
-
-                            {/* Individual Tag Checkboxes */}
-                            {availableTagsAll.map((tag) => {
-                              const isChecked = selectedTagsAll.includes(tag);
-                              const count = tagCountsAll[tag] || 0;
-                              return (
-                                <label key={tag} className={`tags-popover-item ${isChecked ? 'checked' : ''}`}>
-                                  <input
-                                    type="checkbox"
-                                    checked={isChecked}
-                                    onChange={() => {
-                                      setSelectedTagsAll(prev =>
-                                        prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]
-                                      );
-                                    }}
-                                  />
-                                  <span className="tags-popover-tag-text">#{tag}</span>
-                                  {count > 0 && <span className="tags-popover-count">{count}</span>}
-                                </label>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      )}
-                    </div>
+            {/* ── Unified Campaign Toolbar: Filters on Left, Search & Sort on Right (Matches DonorView) ── */}
+            <div className="campaign-toolbar-card">
+              <div className="campaign-toolbar-unified-row">
+                {/* Left: Filters Header + Filter Pills (Causes, Priorities, Tags) */}
+                <div className="toolbar-filters-left">
+                  <div className="toolbar-filters-header">
+                    <span className="material-symbols-outlined">filter_list</span>
+                    <span>Filters</span>
                   </div>
 
-                  {/* Right: Search Box + Sort Pill */}
-                  <div className="toolbar-search-right">
-                    {/* Compact Search Box with ⌘ K and Animated Stretch on Focus */}
-                    <div className="campaign-toolbar-search-box">
-                      <span className="material-symbols-outlined filter-search-icon-ref">search</span>
-                      <input
-                        ref={searchInputRefAll}
-                        type="text"
-                        placeholder="Search campaign, NGO, or cause..."
-                        value={searchQueryAll}
-                        onChange={(e) => setSearchQueryAll(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Escape') e.target.blur();
-                        }}
-                        className="filter-search-input-ref"
-                      />
-                      {searchQueryAll && (
-                        <button
-                          type="button"
-                          onClick={() => setSearchQueryAll('')}
-                          className="filter-search-clear-btn-ref"
-                          title="Clear search"
-                        >
-                          <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>close</span>
-                        </button>
-                      )}
-                      <kbd className="filter-search-shortcut-badge" title="Press Ctrl+K or ⌘K to focus search">⌘ K</kbd>
-                    </div>
-
-                    {/* Sort Pill Popover */}
-                    <div style={{ position: 'relative' }} ref={sortDropdownRefAll}>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setShowSortDropdownAll(prev => !prev);
-                          setShowCausesDropdownAll(false);
-                          setShowPrioritiesDropdownAll(false);
-                          setShowTagsDropdownAll(false);
-                        }}
-                        className="filter-pill-btn"
-                        title="Sort campaigns"
-                      >
-                        <span className="material-symbols-outlined filter-pill-icon" style={{ color: '#94a3b8' }}>swap_vert</span>
-                        <span>{selectedSortObjAll.label}</span>
-                        <span className="material-symbols-outlined filter-pill-arrow" style={{ position: 'static', marginLeft: '4px' }}>
-                          {showSortDropdownAll ? 'expand_less' : 'expand_more'}
-                        </span>
-                      </button>
-
-                      {showSortDropdownAll && (
-                        <div className="filter-custom-popover align-right">
-                          {SORT_OPTIONS.map(opt => (
-                            <button
-                              key={opt.value}
-                              type="button"
-                              onClick={() => {
-                                setCampaignSortAll(opt.value);
-                                setShowSortDropdownAll(false);
-                              }}
-                              className={`filter-popover-option ${campaignSortAll === opt.value ? 'selected' : ''}`}
-                            >
-                              <span className="material-symbols-outlined filter-popover-option-icon" style={{ color: '#94a3b8' }}>{opt.icon}</span>
-                              <span>{opt.label}</span>
-                              {campaignSortAll === opt.value && (
-                                <span className="material-symbols-outlined filter-popover-check">check</span>
-                              )}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Active Filters Bar */}
-                {hasActiveFiltersAll && (
-                  <div className="campaign-active-filters-bar">
-                    <div className="active-filters-left">
-                      <span className="active-filters-label">Active filters:</span>
-
-                      {categoryFilterAll !== 'ALL' && (
-                        <div className="reference-active-chip">
-                          <span className="material-symbols-outlined chip-icon" style={{ color: '#38bdf8' }}>public</span>
-                          <span>{categoryFilterAll === 'DR' ? 'Disaster Relief' : 'Charitable Aid'}</span>
-                          <button type="button" onClick={() => setCategoryFilterAll('ALL')} title="Remove filter">
-                            <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>close</span>
-                          </button>
-                        </div>
-                      )}
-
-                      {urgencyFilterAll !== 'ALL' && (
-                        <div className="reference-active-chip">
-                          <span className="material-symbols-outlined chip-icon" style={{ color: '#f59e0b' }}>bolt</span>
-                          <span>{urgencyFilterAll === 'HIGH' ? 'High Priority' : urgencyFilterAll === 'MEDIUM' ? 'Medium Priority' : 'Standard Priority'}</span>
-                          <button type="button" onClick={() => setUrgencyFilterAll('ALL')} title="Remove filter">
-                            <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>close</span>
-                          </button>
-                        </div>
-                      )}
-
-                      {selectedTagsAll.map((tag) => (
-                        <div key={tag} className="reference-active-chip">
-                          <span className="material-symbols-outlined chip-icon" style={{ color: '#a855f7' }}>sell</span>
-                          <span>#{tag}</span>
-                          <button type="button" onClick={() => setSelectedTagsAll(prev => prev.filter(t => t !== tag))} title={`Remove tag #${tag}`}>
-                            <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>close</span>
-                          </button>
-                        </div>
-                      ))}
-
-                      {searchQueryAll.trim() && (
-                        <div className="reference-active-chip">
-                          <span className="material-symbols-outlined chip-icon" style={{ color: '#94a3b8' }}>search</span>
-                          <span>"{searchQueryAll.trim()}"</span>
-                          <button type="button" onClick={() => setSearchQueryAll('')} title="Clear search query">
-                            <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>close</span>
-                          </button>
-                        </div>
-                      )}
-                    </div>
-
+                  {/* Cause Filter Pill Popover */}
+                  <div style={{ position: 'relative' }} ref={causesDropdownRefAll}>
                     <button
                       type="button"
                       onClick={() => {
-                        setCategoryFilterAll('ALL');
-                        setUrgencyFilterAll('ALL');
-                        setSelectedTagsAll([]);
-                        setSearchQueryAll('');
+                        setShowCausesDropdownAll(prev => !prev);
+                        setShowPrioritiesDropdownAll(false);
+                        setShowTagsDropdownAll(false);
+                        setShowSortDropdownAll(false);
                       }}
-                      className="btn-clear-all-filters-ref"
-                      title="Reset all filters and search"
+                      className={`filter-pill-btn ${categoryFilterAll !== 'ALL' ? 'active-filter' : ''}`}
+                      title="Filter by cause category"
                     >
-                      <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>restart_alt</span>
-                      <span>Clear all</span>
+                      <span className="material-symbols-outlined filter-pill-icon" style={{ color: 'var(--text-secondary)' }}>{selectedCauseObjAll.icon}</span>
+                      <span>{selectedCauseObjAll.label}</span>
+                      <span className="material-symbols-outlined filter-pill-arrow" style={{ position: 'static', marginLeft: '4px' }}>
+                        {showCausesDropdownAll ? 'expand_less' : 'expand_more'}
+                      </span>
                     </button>
-                  </div>
-                )}
-              </div>
 
-              {/* ── Sub-strip Outside and Directly Below the Card: Count on Left, Layout Toggle on Right ── */}
-              <div className="campaign-toolbar-substrip">
-                <div className="campaign-toolbar-count-tag">
-                  <span className="count-indicator-dot" />
-                  <span>Showing <strong>{filteredAllCampaigns.length}</strong> of {campaigns.length} campaigns</span>
-                </div>
-
-                <div className="filter-layout-segmented-pill" role="group" aria-label="Layout view mode">
-                  <button
-                    type="button"
-                    onClick={() => handleViewModeChangeOrg('list')}
-                    className={`layout-seg-btn ${viewModeOrg === 'list' ? 'active' : ''}`}
-                    title="List View"
-                    aria-label="List View"
-                  >
-                    <span className="material-symbols-outlined">format_list_bulleted</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleViewModeChangeOrg('grid')}
-                    className={`layout-seg-btn ${viewModeOrg === 'grid' || viewModeOrg === 'grid-3' || viewModeOrg === 'grid-2' ? 'active' : ''}`}
-                    title="Grid View"
-                    aria-label="Grid View"
-                  >
-                    <span className="material-symbols-outlined">grid_view</span>
-                  </button>
-                </div>
-              </div>
-
-              {filteredAllCampaigns.length === 0 ? (
-                <div className="db-empty-state">
-                  <div className="db-empty-icon">
-                    <span className="material-symbols-outlined">search_off</span>
-                  </div>
-                  <div className="db-empty-title">No campaigns match your filter</div>
-                  <div className="db-empty-desc">
-                    Try selecting a different category or clearing your search query.
-                  </div>
-                  <button
-                    type="button"
-                    className="db-btn"
-                    onClick={() => { setCategoryFilterAll('ALL'); setSearchQueryAll(''); }}
-                  >
-                    <span>Reset Filters</span>
-                  </button>
-                </div>
-              ) : (
-                <>
-                  <div className={viewModeOrg === 'grid' || viewModeOrg === 'grid-3' || viewModeOrg === 'grid-2' ? 'campaigns-grid' : 'campaigns-list'}>
-                    {paginatedAllCampaigns.map((camp) => (
-                      <CampaignCard key={camp.id} camp={camp} contract={contract}
-                        role={ROLES.ORGANIZATION} walletAddress={walletAddress} currentUser={currentUser}
-                        onDonated={fetchCampaigns} onDeactivated={fetchCampaigns} onCampaignUpdated={fetchCampaigns} />
-                    ))}
-                  </div>
-
-                  {/* Centered Pagination Controls */}
-                  {totalPagesAll > 1 && (
-                    <div style={{
-                      display: 'flex',
-                      justifyContent: 'center',
-                      alignItems: 'center',
-                      gap: '8px',
-                      marginTop: '24px',
-                      padding: '12px 0'
-                    }}>
-                      <button
-                        className="btn btn-ghost btn-sm"
-                        onClick={() => setCurrentPageAll(p => Math.max(1, p - 1))}
-                        disabled={currentPageAll === 1}
-                        style={{ display: 'flex', alignItems: 'center', gap: '4px' }}
-                      >
-                        <span className="material-symbols-outlined" style={{ fontSize: '1.1rem' }}>chevron_left</span> Previous
-                      </button>
-
-                      {Array.from({ length: totalPagesAll }, (_, i) => i + 1).map((pageNum) => (
-                        <button
-                          key={pageNum}
-                          className={`btn btn-sm ${currentPageAll === pageNum ? 'btn-primary' : 'btn-ghost'}`}
-                          onClick={() => setCurrentPageAll(pageNum)}
-                          style={{ minWidth: '36px', height: '36px', borderRadius: '8px', fontWeight: currentPageAll === pageNum ? 700 : 400 }}
-                        >
-                          {pageNum}
-                        </button>
-                      ))}
-
-                      <button
-                        className="btn btn-ghost btn-sm"
-                        onClick={() => setCurrentPageAll(p => Math.min(totalPagesAll, p + 1))}
-                        disabled={currentPageAll === totalPagesAll}
-                        style={{ display: 'flex', alignItems: 'center', gap: '4px' }}
-                      >
-                        Next <span className="material-symbols-outlined" style={{ fontSize: '1.1rem' }}>chevron_right</span>
-                      </button>
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
-          )}
-
-          {/* ── 3. MY CAMPAIGNS TAB ── */}
-          {activeTab === 'my-campaigns' && (
-            <div style={{ marginTop: '8px' }}>
-              <div className="section-header" id="tour-ngo-my-campaigns-header">
-                <div>
-                  <h2 className="section-title" style={{ fontSize: '1.4rem' }}>
-                    <span className="material-symbols-outlined section-title-icon" style={{ marginRight: '8px', color: '#0284c7' }}>account_balance</span> My Campaigns
-                  </h2>
-                  <p style={{ fontSize: '0.82rem', color: '#94a3b8', marginTop: '4px' }}>
-                    Relief operations deployed under {orgDisplayName} ({shortAddr(walletAddress)}).
-                  </p>
-                </div>
-
-                <button
-                  className="btn btn-ghost btn-sm"
-                  onClick={fetchCampaigns}
-                  disabled={fetchingCampaigns}
-                >
-                  {fetchingCampaigns
-                    ? <div className="spinner spinner-light" />
-                    : '↻ Refresh'}
-                </button>
-              </div>
-
-              {/* ── Unified Filter, Search & Sort Toolbar ── */}
-              <div className="campaign-toolbar-card">
-                <div className="campaign-toolbar-unified-row">
-                  {/* Left: Section Label & Quick Filter Pills */}
-                  <div className="toolbar-filters-left">
-                    <div className="toolbar-section-badge">
-                      <span className="material-symbols-outlined">filter_list</span>
-                      <span>Filters</span>
-                    </div>
-
-                    {/* Causes Dropdown Popover */}
-                    <div style={{ position: 'relative' }} ref={causesDropdownRefMy}>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setShowCausesDropdownMy(prev => !prev);
-                          setShowPrioritiesDropdownMy(false);
-                          setShowTagsDropdownMy(false);
-                          setShowSortDropdownMy(false);
-                        }}
-                        className={`filter-pill-btn ${categoryFilterMy !== 'ALL' ? 'active-filter' : ''}`}
-                        title="Filter by cause type"
-                      >
-                        <span className="material-symbols-outlined filter-pill-icon" style={{ color: selectedCauseObjMy.color }}>
-                          {selectedCauseObjMy.icon}
-                        </span>
-                        <span>{selectedCauseObjMy.label}</span>
-                        <span className="material-symbols-outlined filter-pill-arrow" style={{ position: 'static', marginLeft: '4px' }}>
-                          {showCausesDropdownMy ? 'expand_less' : 'expand_more'}
-                        </span>
-                      </button>
-
-                      {showCausesDropdownMy && (
-                        <div className="filter-custom-popover">
-                          {CAUSE_OPTIONS.map(opt => (
-                            <button
-                              key={opt.value}
-                              type="button"
-                              onClick={() => {
-                                setCategoryFilterMy(opt.value);
-                                setShowCausesDropdownMy(false);
-                              }}
-                              className={`filter-popover-option ${categoryFilterMy === opt.value ? 'selected' : ''}`}
-                            >
-                              <span className="material-symbols-outlined filter-popover-option-icon" style={{ color: opt.color }}>{opt.icon}</span>
-                              <span>{opt.label}</span>
-                              {categoryFilterMy === opt.value && (
-                                <span className="material-symbols-outlined filter-popover-check">check</span>
-                              )}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Priorities Dropdown Popover */}
-                    <div style={{ position: 'relative' }} ref={prioritiesDropdownRefMy}>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setShowPrioritiesDropdownMy(prev => !prev);
-                          setShowCausesDropdownMy(false);
-                          setShowTagsDropdownMy(false);
-                          setShowSortDropdownMy(false);
-                        }}
-                        className={`filter-pill-btn ${urgencyFilterMy !== 'ALL' ? 'active-filter' : ''}`}
-                        title="Filter by urgency level"
-                      >
-                        <span className="material-symbols-outlined filter-pill-icon" style={{ color: selectedPriorityObjMy.color }}>
-                          {selectedPriorityObjMy.icon}
-                        </span>
-                        <span>{selectedPriorityObjMy.label}</span>
-                        <span className="material-symbols-outlined filter-pill-arrow" style={{ position: 'static', marginLeft: '4px' }}>
-                          {showPrioritiesDropdownMy ? 'expand_less' : 'expand_more'}
-                        </span>
-                      </button>
-
-                      {showPrioritiesDropdownMy && (
-                        <div className="filter-custom-popover">
-                          {PRIORITY_OPTIONS.map(opt => (
-                            <button
-                              key={opt.value}
-                              type="button"
-                              onClick={() => {
-                                setUrgencyFilterMy(opt.value);
-                                setShowPrioritiesDropdownMy(false);
-                              }}
-                              className={`filter-popover-option ${urgencyFilterMy === opt.value ? 'selected' : ''}`}
-                            >
-                              <span className="material-symbols-outlined filter-popover-option-icon" style={{ color: opt.color }}>{opt.icon}</span>
-                              <span>{opt.label}</span>
-                              {urgencyFilterMy === opt.value && (
-                                <span className="material-symbols-outlined filter-popover-check">check</span>
-                              )}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Tags Dropdown Popover with Checkboxes */}
-                    <div style={{ position: 'relative' }} ref={tagsDropdownRefMy}>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setShowTagsDropdownMy(prev => !prev);
-                          setShowCausesDropdownMy(false);
-                          setShowPrioritiesDropdownMy(false);
-                          setShowSortDropdownMy(false);
-                        }}
-                        className={`filter-pill-btn ${selectedTagsMy.length > 0 ? 'active-filter' : ''}`}
-                        title="Filter by tags"
-                      >
-                        <span className="material-symbols-outlined filter-pill-icon" style={{ color: '#a855f7' }}>sell</span>
-                        <span>Tags</span>
-                        {selectedTagsMy.length > 0 && (
-                          <span className="tags-dropdown-badge-ref">{selectedTagsMy.length}</span>
-                        )}
-                        <span className="material-symbols-outlined filter-pill-arrow" style={{ position: 'static', marginLeft: '4px' }}>
-                          {showTagsDropdownMy ? 'expand_less' : 'expand_more'}
-                        </span>
-                      </button>
-
-                      {showTagsDropdownMy && (
-                        <div className="tags-popover-menu">
-                          <div className="tags-popover-header">
-                            <span className="tags-popover-title">
-                              <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>sell</span>
-                              Filter by Tags
-                            </span>
-                            {selectedTagsMy.length > 0 && (
-                              <button
-                                type="button"
-                                onClick={() => setSelectedTagsMy([])}
-                                className="tags-popover-clear-btn"
-                              >
-                                Clear ({selectedTagsMy.length})
-                              </button>
-                            )}
-                          </div>
-
-                          <div className="tags-popover-list">
-                            {/* "All Tags" Checkbox */}
-                            <label className={`tags-popover-item ${selectedTagsMy.length === 0 ? 'checked' : ''}`}>
-                              <input
-                                type="checkbox"
-                                checked={selectedTagsMy.length === 0}
-                                onChange={() => setSelectedTagsMy([])}
-                              />
-                              <span className="tags-popover-tag-text">All Tags</span>
-                              <span className="tags-popover-count">{myCampaigns.length}</span>
-                            </label>
-
-                            {/* Individual Tag Checkboxes */}
-                            {availableTagsMy.map((tag) => {
-                              const isChecked = selectedTagsMy.includes(tag);
-                              const count = tagCountsMy[tag] || 0;
-                              return (
-                                <label key={tag} className={`tags-popover-item ${isChecked ? 'checked' : ''}`}>
-                                  <input
-                                    type="checkbox"
-                                    checked={isChecked}
-                                    onChange={() => {
-                                      setSelectedTagsMy(prev =>
-                                        prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]
-                                      );
-                                    }}
-                                  />
-                                  <span className="tags-popover-tag-text">#{tag}</span>
-                                  {count > 0 && <span className="tags-popover-count">{count}</span>}
-                                </label>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Right: Search Box + Sort Pill */}
-                  <div className="toolbar-search-right">
-                    {/* Compact Search Box with ⌘ K and Animated Stretch on Focus */}
-                    <div className="campaign-toolbar-search-box">
-                      <span className="material-symbols-outlined filter-search-icon-ref">search</span>
-                      <input
-                        ref={searchInputRefMy}
-                        type="text"
-                        placeholder="Search my campaigns..."
-                        value={searchQueryMy}
-                        onChange={(e) => setSearchQueryMy(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Escape') e.target.blur();
-                        }}
-                        className="filter-search-input-ref"
-                      />
-                      {searchQueryMy && (
-                        <button
-                          type="button"
-                          onClick={() => setSearchQueryMy('')}
-                          className="filter-search-clear-btn-ref"
-                          title="Clear search"
-                        >
-                          <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>close</span>
-                        </button>
-                      )}
-                      <kbd className="filter-search-shortcut-badge" title="Press Ctrl+K or ⌘K to focus search">⌘ K</kbd>
-                    </div>
-
-                    {/* Sort Pill Popover */}
-                    <div style={{ position: 'relative' }} ref={sortDropdownRefMy}>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setShowSortDropdownMy(prev => !prev);
-                          setShowCausesDropdownMy(false);
-                          setShowPrioritiesDropdownMy(false);
-                          setShowTagsDropdownMy(false);
-                        }}
-                        className="filter-pill-btn"
-                        title="Sort campaigns"
-                      >
-                        <span className="material-symbols-outlined filter-pill-icon" style={{ color: '#94a3b8' }}>swap_vert</span>
-                        <span>{selectedSortObjMy.label}</span>
-                        <span className="material-symbols-outlined filter-pill-arrow" style={{ position: 'static', marginLeft: '4px' }}>
-                          {showSortDropdownMy ? 'expand_less' : 'expand_more'}
-                        </span>
-                      </button>
-
-                      {showSortDropdownMy && (
-                        <div className="filter-custom-popover align-right">
-                          {SORT_OPTIONS.map(opt => (
-                            <button
-                              key={opt.value}
-                              type="button"
-                              onClick={() => {
-                                setCampaignSortMy(opt.value);
-                                setShowSortDropdownMy(false);
-                              }}
-                              className={`filter-popover-option ${campaignSortMy === opt.value ? 'selected' : ''}`}
-                            >
-                              <span className="material-symbols-outlined filter-popover-option-icon" style={{ color: '#94a3b8' }}>{opt.icon}</span>
-                              <span>{opt.label}</span>
-                              {campaignSortMy === opt.value && (
-                                <span className="material-symbols-outlined filter-popover-check">check</span>
-                              )}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Active Filters Bar */}
-                {hasActiveFiltersMy && (
-                  <div className="campaign-active-filters-bar">
-                    <div className="active-filters-left">
-                      <span className="active-filters-label">Active filters:</span>
-
-                      {categoryFilterMy !== 'ALL' && (
-                        <div className="reference-active-chip">
-                          <span className="material-symbols-outlined chip-icon" style={{ color: '#38bdf8' }}>public</span>
-                          <span>{categoryFilterMy === 'DR' ? 'Disaster Relief' : 'Charitable Aid'}</span>
-                          <button type="button" onClick={() => setCategoryFilterMy('ALL')} title="Remove filter">
-                            <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>close</span>
-                          </button>
-                        </div>
-                      )}
-
-                      {urgencyFilterMy !== 'ALL' && (
-                        <div className="reference-active-chip">
-                          <span className="material-symbols-outlined chip-icon" style={{ color: '#f59e0b' }}>bolt</span>
-                          <span>{urgencyFilterMy === 'HIGH' ? 'High Priority' : urgencyFilterMy === 'MEDIUM' ? 'Medium Priority' : 'Standard Priority'}</span>
-                          <button type="button" onClick={() => setUrgencyFilterMy('ALL')} title="Remove filter">
-                            <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>close</span>
-                          </button>
-                        </div>
-                      )}
-
-                      {selectedTagsMy.map((tag) => (
-                        <div key={tag} className="reference-active-chip">
-                          <span className="material-symbols-outlined chip-icon" style={{ color: '#a855f7' }}>sell</span>
-                          <span>#{tag}</span>
-                          <button type="button" onClick={() => setSelectedTagsMy(prev => prev.filter(t => t !== tag))} title={`Remove tag #${tag}`}>
-                            <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>close</span>
-                          </button>
-                        </div>
-                      ))}
-
-                      {searchQueryMy.trim() && (
-                        <div className="reference-active-chip">
-                          <span className="material-symbols-outlined chip-icon" style={{ color: '#94a3b8' }}>search</span>
-                          <span>"{searchQueryMy.trim()}"</span>
-                          <button type="button" onClick={() => setSearchQueryMy('')} title="Clear search query">
-                            <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>close</span>
-                          </button>
-                        </div>
-                      )}
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setCategoryFilterMy('ALL');
-                        setUrgencyFilterMy('ALL');
-                        setSelectedTagsMy([]);
-                        setSearchQueryMy('');
-                      }}
-                      className="btn-clear-all-filters-ref"
-                      title="Reset all filters and search"
-                    >
-                      <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>restart_alt</span>
-                      <span>Clear all</span>
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              {/* ── Sub-strip Outside and Directly Below the Card: Count on Left, Layout Toggle on Right ── */}
-              <div className="campaign-toolbar-substrip">
-                <div className="campaign-toolbar-count-tag">
-                  <span className="count-indicator-dot" />
-                  <span>Showing <strong>{filteredMyCampaigns.length}</strong> of {myCampaigns.length} campaigns</span>
-                </div>
-
-                <div className="filter-layout-segmented-pill" role="group" aria-label="Layout view mode">
-                  <button
-                    type="button"
-                    onClick={() => handleViewModeChangeOrg('list')}
-                    className={`layout-seg-btn ${viewModeOrg === 'list' ? 'active' : ''}`}
-                    title="List View"
-                    aria-label="List View"
-                  >
-                    <span className="material-symbols-outlined">format_list_bulleted</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleViewModeChangeOrg('grid')}
-                    className={`layout-seg-btn ${viewModeOrg === 'grid' || viewModeOrg === 'grid-3' || viewModeOrg === 'grid-2' ? 'active' : ''}`}
-                    title="Grid View"
-                    aria-label="Grid View"
-                  >
-                    <span className="material-symbols-outlined">grid_view</span>
-                  </button>
-                </div>
-              </div>
-
-              {myCampaigns.length === 0 ? (
-                <div className="db-empty-state">
-                  <div className="db-empty-icon">
-                    <span className="material-symbols-outlined">campaign</span>
-                  </div>
-                  <div className="db-empty-title">You haven't created any campaigns yet</div>
-                  <div className="db-empty-desc">
-                    Publish your first relief operation onto the blockchain to start receiving contributions.
-                  </div>
-                  <button
-                    type="button"
-                    className="db-btn db-btn--primary"
-                    onClick={() => setActiveTab('create')}
-                  >
-                    <span className="material-symbols-outlined">add</span>
-                    <span>Create First Campaign</span>
-                  </button>
-                </div>
-              ) : filteredMyCampaigns.length === 0 ? (
-                <div className="db-empty-state">
-                  <div className="db-empty-icon">
-                    <span className="material-symbols-outlined">filter_alt_off</span>
-                  </div>
-                  <div className="db-empty-title">No campaigns match your search</div>
-                  <div className="db-empty-desc">
-                    Try adjusting your category, urgency, or keyword filter.
-                  </div>
-                  <button
-                    type="button"
-                    className="db-btn"
-                    onClick={() => { setCategoryFilterMy('ALL'); setUrgencyFilterMy('ALL'); setSearchQueryMy(''); }}
-                  >
-                    <span>Reset Filters</span>
-                  </button>
-                </div>
-              ) : (
-                <>
-                  <div className={viewModeOrg === 'grid' || viewModeOrg === 'grid-3' || viewModeOrg === 'grid-2' ? 'campaigns-grid' : 'campaigns-list'}>
-                    {paginatedMyCampaigns.map((camp) => (
-                      <CampaignCard key={camp.id} camp={camp} contract={contract}
-                        role={ROLES.ORGANIZATION} walletAddress={walletAddress} currentUser={currentUser}
-                        onDonated={fetchCampaigns} onDeactivated={fetchCampaigns} onCampaignUpdated={fetchCampaigns} />
-                    ))}
-                  </div>
-
-                  {/* Centered Pagination Controls */}
-                  {totalPagesMy > 1 && (
-                    <div style={{
-                      display: 'flex',
-                      justifyContent: 'center',
-                      alignItems: 'center',
-                      gap: '8px',
-                      marginTop: '24px',
-                      padding: '12px 0'
-                    }}>
-                      <button
-                        className="btn btn-ghost btn-sm"
-                        onClick={() => setCurrentPageMy(p => Math.max(1, p - 1))}
-                        disabled={currentPageMy === 1}
-                        style={{ display: 'flex', alignItems: 'center', gap: '4px' }}
-                      >
-                        <span className="material-symbols-outlined" style={{ fontSize: '1.1rem' }}>chevron_left</span> Previous
-                      </button>
-
-                      {Array.from({ length: totalPagesMy }, (_, i) => i + 1).map((pageNum) => (
-                        <button
-                          key={pageNum}
-                          className={`btn btn-sm ${currentPageMy === pageNum ? 'btn-primary' : 'btn-ghost'}`}
-                          onClick={() => setCurrentPageMy(pageNum)}
-                          style={{ minWidth: '36px', height: '36px', borderRadius: '8px', fontWeight: currentPageMy === pageNum ? 700 : 400 }}
-                        >
-                          {pageNum}
-                        </button>
-                      ))}
-
-                      <button
-                        className="btn btn-ghost btn-sm"
-                        onClick={() => setCurrentPageMy(p => Math.min(totalPagesMy, p + 1))}
-                        disabled={currentPageMy === totalPagesMy}
-                        style={{ display: 'flex', alignItems: 'center', gap: '4px' }}
-                      >
-                        Next <span className="material-symbols-outlined" style={{ fontSize: '1.1rem' }}>chevron_right</span>
-                      </button>
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
-          )}
-
-          {/* ── 4. DEPLOY CAMPAIGN TAB ── */}
-          {activeTab === 'create' && (
-            <div style={{ marginTop: '8px' }} id="tour-ngo-create-form">
-              {currentUser?.verification_status !== 'Approved' ? (
-                <div className="card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '60px 40px', textAlign: 'center', border: '1px solid rgba(255, 60, 60, 0.4)', background: 'linear-gradient(180deg, rgba(255,255,255,0.02) 0%, rgba(255, 60, 60, 0.05) 100%)' }}>
-                  <span className="material-symbols-outlined" style={{ fontSize: '56px', color: 'var(--danger)', marginBottom: '16px' }}>gpp_bad</span>
-                  <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold', color: 'var(--danger)', marginBottom: '12px' }}>Action Blocked: Pending Verification</h2>
-                  <p style={{ color: 'var(--text-secondary)', maxWidth: '550px', lineHeight: '1.6', fontSize: '1.05rem' }}>
-                    Your Organization account must be manually verified and <strong>Approved by an Admin</strong> before you are allowed to deploy relief campaigns permanently onto the blockchain.
-                  </p>
-                  <div style={{ marginTop: '24px', padding: '12px 24px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)' }}>
-                    <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: 0 }}>
-                      Please check back later or contact the system administrator to expedite your approval.
-                    </p>
-                  </div>
-                </div>
-              ) : (
-                <div className="card glow fade-in deploy-campaign-card">
-                  <div className="section-header" style={{ marginBottom: '16px' }}>
-                    <h2 className="section-title">
-                      <span className="material-symbols-outlined section-title-icon" style={{ marginRight: '8px' }}>rocket_launch</span> Deploy Monetary Relief Campaign
-                    </h2>
-                    <span className="badge badge-info">NGO Organization Portal</span>
-                  </div>
-                  <p style={{ fontSize: '0.88rem', color: 'var(--text-muted)', marginBottom: '18px', lineHeight: 1.5 }}>
-                    Deploy a new monetary calamity relief operation under your official organization name (<strong>{orgDisplayName}</strong>).{' '}
-                    BBDRTS processes digital financial contributions (Philippine e-wallets, cards, bank transfer & crypto) directly to accredited field operations. Physical in-kind goods collections are not accepted by this protocol.{' '}
-                    {walletAddress ? (
-                      <>Linked to authorized wallet (<code style={{ fontSize: '0.82rem', color: 'var(--accent)' }}>{shortAddr(walletAddress)}</code>).</>
-                    ) : (
-                      <>Relief operation details will be published directly to the public humanitarian ledger.</>
-                    )}
-                  </p>
-
-
-                  <form className="create-form" onSubmit={handleCreateCampaign} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                    {/* AI Smart Budget & Allocation Generator Action Card (Module B) */}
-                    <div style={{
-                      background: 'linear-gradient(135deg, rgba(34, 197, 94, 0.08) 0%, rgba(34, 197, 94, 0.02) 100%)',
-                      border: '1px solid var(--border-strong, rgba(255, 255, 255, 0.16))',
-                      borderRadius: '16px',
-                      padding: '16px 20px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      flexWrap: 'wrap',
-                      gap: '14px',
-                      boxShadow: '0 4px 20px rgba(0, 0, 0, 0.25)'
-                    }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-                        <div style={{
-                          width: '42px',
-                          height: '42px',
-                          borderRadius: '12px',
-                          background: 'var(--accent-dim, rgba(34, 197, 94, 0.12))',
-                          border: '1px solid var(--border-focus, rgba(34, 197, 94, 0.4))',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          color: 'var(--accent, #22c55e)',
-                          boxShadow: '0 2px 10px var(--accent-glow, rgba(34, 197, 94, 0.2))',
-                          flexShrink: 0
-                        }}>
-                          <span className="material-symbols-outlined" style={{ fontSize: '22px' }}>smart_toy</span>
-                        </div>
-                        <div>
-                          <div style={{ fontWeight: 800, fontSize: '0.98rem', color: 'var(--text-primary, #ffffff)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <span>AI Smart Budget & Allocation Generator</span>
-                            <span style={{ fontSize: '0.65rem', background: 'var(--accent-dim, rgba(34, 197, 94, 0.15))', color: 'var(--accent, #22c55e)', padding: '2px 8px', borderRadius: '6px', border: '1px solid rgba(34, 197, 94, 0.3)', fontWeight: 700 }}>
-                              Sphere / NDRRMC
-                            </span>
-                          </div>
-                          <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary, #a3a3a3)', marginTop: '2px' }}>
-                            Automatically compute defensible fundraising goals, disaster narrative, and standard humanitarian resource allocations.
-                          </div>
-                        </div>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setShowAiBudgetModal(true)}
-                        className="btn btn-primary"
-                        style={{
-                          padding: '9px 18px',
-                          fontSize: '0.84rem',
-                          fontWeight: 700,
-                          borderRadius: '10px',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '8px',
-                          background: 'var(--accent, #22c55e)',
-                          border: 'none',
-                          color: '#052e16',
-                          cursor: 'pointer',
-                          boxShadow: '0 2px 10px var(--accent-glow, rgba(34, 197, 94, 0.25))'
-                        }}
-                      >
-                        <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>magic_button</span>
-                        <span>Auto-Generate Smart Allocations</span>
-                      </button>
-                    </div>
-
-                    {/* Section 1: Campaign Identity & Mission Details (Merged Step 1 & Step 3 per instructor guidance) */}
-                    <div className="deploy-section-card">
-                      <div className="deploy-section-header">
-                        <div className="deploy-section-title">
-                          <span className="material-symbols-outlined deploy-section-icon">campaign</span>
-                          <span>1. Campaign Identity & Mission Details</span>
-                        </div>
-                        <span className="deploy-step-pill">Step 1 of 3</span>
-                      </div>
-
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
-                        {/* Campaign Title (Full Width) */}
-                        <div style={{ gridColumn: '1 / -1' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <label className="deploy-input-label" style={{ margin: 0 }}>
-                              Campaign Title *
-                            </label>
-                            {autoDetectedTagsRef.current.length > 0 && (
-                              <span style={{ fontSize: '0.72rem', color: 'var(--accent, #22c55e)', fontWeight: 600 }}>
-                                {autoDetectedTagsRef.current.length} tags auto-selected based on relief context
-                              </span>
-                            )}
-                          </div>
-                          <input className="input deploy-field-input" type="text" required
-                            placeholder="e.g., Flash Flood Relief Operation or Bagyo Odette Tabang"
-                            value={title} onChange={(e) => handleTitleChange(e.target.value)} disabled={creating} />
-                        </div>
-
-                        {/* Relief Category (Auto-chooses based on title, or manually selectable) */}
-                        <div>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px' }}>
-                            <label className="deploy-input-label" style={{ margin: 0 }}>
-                              Relief Category *
-                            </label>
-                            {isCategoryAuto && (
-                              <span style={{ fontSize: '0.68rem', color: 'var(--accent, #22c55e)', fontWeight: 600 }}>
-                                Auto-set from title
-                              </span>
-                            )}
-                          </div>
-                          <select
-                            className="input deploy-field-input"
-                            value={category}
-                            onChange={(e) => {
-                              setCategory(e.target.value);
-                              manuallySelectedCategoryRef.current = true;
-                              setIsCategoryAuto(false);
+                    {showCausesDropdownAll && (
+                      <div className="filter-custom-popover">
+                        {CAUSE_OPTIONS.map(opt => (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            onClick={() => {
+                              setCategoryFilterAll(opt.value);
+                              setShowCausesDropdownAll(false);
                             }}
-                            disabled={creating}
+                            className={`filter-popover-option ${categoryFilterAll === opt.value ? 'selected' : ''}`}
                           >
-                            <option value="DR">Disaster Relief (DR)</option>
-                            <option value="CD">Charitable Aid (CD)</option>
-                          </select>
-                        </div>
+                            <span className="material-symbols-outlined filter-popover-option-icon" style={{ color: 'var(--text-secondary)' }}>{opt.icon}</span>
+                            <span>{opt.label}</span>
+                            {categoryFilterAll === opt.value && (
+                              <span className="material-symbols-outlined filter-popover-check">check</span>
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
 
-                        {/* Fundraising Target (PHP / ₱) */}
-                        <div>
-                          <label className="deploy-input-label">
-                            Fundraising Target (PHP / ₱) *
-                          </label>
-                          <div className="deploy-currency-wrap">
-                            <span className="deploy-currency-prefix">₱</span>
-                            <input
-                              className="input deploy-field-input deploy-currency-input"
-                              type="number"
-                              min="100"
-                              step="100"
-                              required
-                              placeholder="e.g., 100,000"
-                              value={targetAmount}
-                              onChange={(e) => setTargetAmount(e.target.value)}
-                              disabled={creating}
-                            />
-                          </div>
-                          {targetAmount && !isNaN(parseFloat(targetAmount)) && parseFloat(targetAmount) > 0 && (
-                            <div style={{ marginTop: '4px', fontSize: '0.74rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                              <span>≈ {(parseFloat(targetAmount) / 170000).toFixed(5)} ETH</span>
-                              <span>(Crypto Protocol Equivalent)</span>
-                            </div>
+                  {/* Priority Filter Pill Popover */}
+                  <div style={{ position: 'relative' }} ref={prioritiesDropdownRefAll}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowPrioritiesDropdownAll(prev => !prev);
+                        setShowCausesDropdownAll(false);
+                        setShowTagsDropdownAll(false);
+                        setShowSortDropdownAll(false);
+                      }}
+                      className={`filter-pill-btn ${urgencyFilterAll !== 'ALL' ? 'active-filter' : ''}`}
+                      title="Filter by urgency priority"
+                    >
+                      <span className="material-symbols-outlined filter-pill-icon" style={{ color: 'var(--text-secondary)' }}>{selectedPriorityObjAll.icon}</span>
+                      <span>{selectedPriorityObjAll.label}</span>
+                      <span className="material-symbols-outlined filter-pill-arrow" style={{ position: 'static', marginLeft: '4px' }}>
+                        {showPrioritiesDropdownAll ? 'expand_less' : 'expand_more'}
+                      </span>
+                    </button>
+
+                    {showPrioritiesDropdownAll && (
+                      <div className="filter-custom-popover">
+                        {PRIORITY_OPTIONS.map(opt => (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            onClick={() => {
+                              setUrgencyFilterAll(opt.value);
+                              setShowPrioritiesDropdownAll(false);
+                            }}
+                            className={`filter-popover-option ${urgencyFilterAll === opt.value ? 'selected' : ''}`}
+                          >
+                            <span className="material-symbols-outlined filter-popover-option-icon" style={{ color: 'var(--text-secondary)' }}>{opt.icon}</span>
+                            <span>{opt.label}</span>
+                            {urgencyFilterAll === opt.value && (
+                              <span className="material-symbols-outlined filter-popover-check">check</span>
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Tags Dropdown Popover with Checkboxes */}
+                  <div style={{ position: 'relative' }} ref={tagsDropdownRefAll}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowTagsDropdownAll(prev => !prev);
+                        setShowCausesDropdownAll(false);
+                        setShowPrioritiesDropdownAll(false);
+                        setShowSortDropdownAll(false);
+                      }}
+                      className={`filter-pill-btn ${selectedTagsAll.length > 0 ? 'active-filter' : ''}`}
+                      title="Filter by tags"
+                    >
+                      <span className="material-symbols-outlined filter-pill-icon" style={{ color: 'var(--text-secondary)' }}>sell</span>
+                      <span>Tags</span>
+                      {selectedTagsAll.length > 0 && (
+                        <span className="tags-dropdown-badge-ref">{selectedTagsAll.length}</span>
+                      )}
+                      <span className="material-symbols-outlined filter-pill-arrow" style={{ position: 'static', marginLeft: '4px' }}>
+                        {showTagsDropdownAll ? 'expand_less' : 'expand_more'}
+                      </span>
+                    </button>
+
+                    {showTagsDropdownAll && (
+                      <div className="tags-popover-menu">
+                        <div className="tags-popover-header">
+                          <span className="tags-popover-title">
+                            <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>sell</span>
+                            Filter by Tags
+                          </span>
+                          {selectedTagsAll.length > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => setSelectedTagsAll([])}
+                              className="tags-popover-clear-btn"
+                            >
+                              Clear ({selectedTagsAll.length})
+                            </button>
                           )}
                         </div>
 
-                        {/* SWAPPED INPUT ORDER: 1. Target Relief Delivery Date (Custom Web3 Calendar Popover) */}
-                        <div style={{ position: 'relative' }} ref={deliveryDateContainerRef}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px' }}>
-                            <label className="deploy-input-label" style={{ margin: 0 }}>
-                              Target Relief Delivery Date
-                            </label>
-                            {targetDate && (
-                              <span style={{ fontSize: '0.68rem', color: 'var(--accent, #22c55e)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
-                                <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>check</span>
-                                Date set
-                              </span>
+                        <div className="tags-popover-list">
+                          {/* "All Tags" Checkbox */}
+                          <label className={`tags-popover-item ${selectedTagsAll.length === 0 ? 'checked' : ''}`}>
+                            <input
+                              type="checkbox"
+                              checked={selectedTagsAll.length === 0}
+                              onChange={() => setSelectedTagsAll([])}
+                            />
+                            <span className="tags-popover-tag-text">All Tags</span>
+                            <span className="tags-popover-count">{campaigns?.length || 0}</span>
+                          </label>
+
+                          {/* Individual Tag Checkboxes */}
+                          {availableTagsAll.map((tag) => {
+                            const isChecked = selectedTagsAll.includes(tag);
+                            const count = tagCountsAll[tag] || 0;
+                            return (
+                              <label key={tag} className={`tags-popover-item ${isChecked ? 'checked' : ''}`}>
+                                <input
+                                  type="checkbox"
+                                  checked={isChecked}
+                                  onChange={() => {
+                                    setSelectedTagsAll(prev =>
+                                      prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]
+                                    );
+                                  }}
+                                />
+                                <span className="tags-popover-tag-text">#{tag}</span>
+                                {count > 0 && <span className="tags-popover-count">{count}</span>}
+                              </label>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Right: Search Box + Sort Pill */}
+                <div className="toolbar-search-right">
+                  {/* Compact Search Box with ⌘ K and Animated Stretch on Focus */}
+                  <div className="campaign-toolbar-search-box">
+                    <span className="material-symbols-outlined filter-search-icon-ref">search</span>
+                    <input
+                      ref={searchInputRefAll}
+                      type="text"
+                      placeholder="Search campaign, NGO, or cause..."
+                      value={searchQueryAll}
+                      onChange={(e) => setSearchQueryAll(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Escape') e.target.blur();
+                      }}
+                      className="filter-search-input-ref"
+                    />
+                    {searchQueryAll && (
+                      <button
+                        type="button"
+                        onClick={() => setSearchQueryAll('')}
+                        className="filter-search-clear-btn-ref"
+                        title="Clear search"
+                      >
+                        <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>close</span>
+                      </button>
+                    )}
+                    <kbd className="filter-search-shortcut-badge" title="Press Ctrl+K or ⌘K to focus search">⌘ K</kbd>
+                  </div>
+
+                  {/* Sort Pill Popover */}
+                  <div style={{ position: 'relative' }} ref={sortDropdownRefAll}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowSortDropdownAll(prev => !prev);
+                        setShowCausesDropdownAll(false);
+                        setShowPrioritiesDropdownAll(false);
+                        setShowTagsDropdownAll(false);
+                      }}
+                      className="filter-pill-btn"
+                      title="Sort campaigns"
+                    >
+                      <span className="material-symbols-outlined filter-pill-icon" style={{ color: '#94a3b8' }}>swap_vert</span>
+                      <span>{selectedSortObjAll.label}</span>
+                      <span className="material-symbols-outlined filter-pill-arrow" style={{ position: 'static', marginLeft: '4px' }}>
+                        {showSortDropdownAll ? 'expand_less' : 'expand_more'}
+                      </span>
+                    </button>
+
+                    {showSortDropdownAll && (
+                      <div className="filter-custom-popover align-right">
+                        {SORT_OPTIONS.map(opt => (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            onClick={() => {
+                              setCampaignSortAll(opt.value);
+                              setShowSortDropdownAll(false);
+                            }}
+                            className={`filter-popover-option ${campaignSortAll === opt.value ? 'selected' : ''}`}
+                          >
+                            <span className="material-symbols-outlined filter-popover-option-icon" style={{ color: '#94a3b8' }}>{opt.icon}</span>
+                            <span>{opt.label}</span>
+                            {campaignSortAll === opt.value && (
+                              <span className="material-symbols-outlined filter-popover-check">check</span>
                             )}
-                          </div>
-                          <div style={{ position: 'relative' }}>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Active Filters Bar */}
+              {hasActiveFiltersAll && (
+                <div className="campaign-active-filters-bar">
+                  <div className="active-filters-left">
+                    <span className="active-filters-label">Active filters:</span>
+
+                    {categoryFilterAll !== 'ALL' && (
+                      <div className="reference-active-chip">
+                        <span className="material-symbols-outlined chip-icon" style={{ color: '#38bdf8' }}>public</span>
+                        <span>{categoryFilterAll === 'DR' ? 'Disaster Relief' : 'Charitable Aid'}</span>
+                        <button type="button" onClick={() => setCategoryFilterAll('ALL')} title="Remove filter">
+                          <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>close</span>
+                        </button>
+                      </div>
+                    )}
+
+                    {urgencyFilterAll !== 'ALL' && (
+                      <div className="reference-active-chip">
+                        <span className="material-symbols-outlined chip-icon" style={{ color: '#f59e0b' }}>bolt</span>
+                        <span>{urgencyFilterAll === 'HIGH' ? 'High Priority' : urgencyFilterAll === 'MEDIUM' ? 'Medium Priority' : 'Standard Priority'}</span>
+                        <button type="button" onClick={() => setUrgencyFilterAll('ALL')} title="Remove filter">
+                          <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>close</span>
+                        </button>
+                      </div>
+                    )}
+
+                    {selectedTagsAll.map((tag) => (
+                      <div key={tag} className="reference-active-chip">
+                        <span className="material-symbols-outlined chip-icon" style={{ color: '#a855f7' }}>sell</span>
+                        <span>#{tag}</span>
+                        <button type="button" onClick={() => setSelectedTagsAll(prev => prev.filter(t => t !== tag))} title={`Remove tag #${tag}`}>
+                          <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>close</span>
+                        </button>
+                      </div>
+                    ))}
+
+                    {searchQueryAll.trim() && (
+                      <div className="reference-active-chip">
+                        <span className="material-symbols-outlined chip-icon" style={{ color: '#94a3b8' }}>search</span>
+                        <span>"{searchQueryAll.trim()}"</span>
+                        <button type="button" onClick={() => setSearchQueryAll('')} title="Clear search query">
+                          <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>close</span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCategoryFilterAll('ALL');
+                      setUrgencyFilterAll('ALL');
+                      setSelectedTagsAll([]);
+                      setSearchQueryAll('');
+                    }}
+                    className="btn-clear-all-filters-ref"
+                    title="Reset all filters and search"
+                  >
+                    <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>restart_alt</span>
+                    <span>Clear all</span>
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* ── Sub-strip Outside and Directly Below the Card: Count on Left, Layout Toggle on Right ── */}
+            <div className="campaign-toolbar-substrip">
+              <div className="campaign-toolbar-count-tag">
+                <span className="count-indicator-dot" />
+                <span>Showing <strong>{(filteredAllCampaigns || []).length}</strong> of {campaigns?.length || 0} campaigns</span>
+              </div>
+
+              <div className="filter-layout-segmented-pill" role="group" aria-label="Layout view mode">
+                <button
+                  type="button"
+                  onClick={() => handleViewModeChangeOrg('list')}
+                  className={`layout-seg-btn ${viewModeOrg === 'list' ? 'active' : ''}`}
+                  title="List View"
+                  aria-label="List View"
+                >
+                  <span className="material-symbols-outlined">format_list_bulleted</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleViewModeChangeOrg('grid')}
+                  className={`layout-seg-btn ${viewModeOrg === 'grid' || viewModeOrg === 'grid-3' || viewModeOrg === 'grid-2' ? 'active' : ''}`}
+                  title="Grid View"
+                  aria-label="Grid View"
+                >
+                  <span className="material-symbols-outlined">grid_view</span>
+                </button>
+              </div>
+            </div>
+
+            {(filteredAllCampaigns || []).length === 0 ? (
+              <div className="db-empty-state">
+                <div className="db-empty-icon">
+                  <span className="material-symbols-outlined">search_off</span>
+                </div>
+                <div className="db-empty-title">No campaigns match your filter</div>
+                <div className="db-empty-desc">
+                  Try selecting a different category or clearing your search query.
+                </div>
+                <button
+                  type="button"
+                  className="db-btn"
+                  onClick={() => { setCategoryFilterAll('ALL'); setSearchQueryAll(''); }}
+                >
+                  <span>Reset Filters</span>
+                </button>
+              </div>
+            ) : (
+              <>
+                <div className={viewModeOrg === 'grid' || viewModeOrg === 'grid-3' || viewModeOrg === 'grid-2' ? 'campaigns-grid' : 'campaigns-list'}>
+                  {paginatedAllCampaigns.map((camp) => (
+                    <CampaignCard key={camp.id} camp={camp} contract={contract}
+                      role={ROLES.ORGANIZATION} walletAddress={walletAddress} currentUser={currentUser}
+                      interfaceMode={interfaceMode} lowBandwidthMode={lowBandwidthMode} language={language}
+                      onDonated={fetchCampaigns} onDeactivated={fetchCampaigns} onCampaignUpdated={fetchCampaigns} />
+                  ))}
+                </div>
+
+                {/* Centered Pagination Controls */}
+                {totalPagesAll > 1 && (
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    gap: '8px',
+                    marginTop: '24px',
+                    padding: '12px 0'
+                  }}>
+                    <button
+                      className="btn btn-ghost btn-sm"
+                      onClick={() => setCurrentPageAll(p => Math.max(1, p - 1))}
+                      disabled={currentPageAll === 1}
+                      style={{ display: 'flex', alignItems: 'center', gap: '4px' }}
+                    >
+                      <span className="material-symbols-outlined" style={{ fontSize: '1.1rem' }}>chevron_left</span> Previous
+                    </button>
+
+                    {Array.from({ length: totalPagesAll }, (_, i) => i + 1).map((pageNum) => (
+                      <button
+                        key={pageNum}
+                        className={`btn btn-sm ${currentPageAll === pageNum ? 'btn-primary' : 'btn-ghost'}`}
+                        onClick={() => setCurrentPageAll(pageNum)}
+                        style={{ minWidth: '36px', height: '36px', borderRadius: '8px', fontWeight: currentPageAll === pageNum ? 700 : 400 }}
+                      >
+                        {pageNum}
+                      </button>
+                    ))}
+
+                    <button
+                      className="btn btn-ghost btn-sm"
+                      onClick={() => setCurrentPageAll(p => Math.min(totalPagesAll, p + 1))}
+                      disabled={currentPageAll === totalPagesAll}
+                      style={{ display: 'flex', alignItems: 'center', gap: '4px' }}
+                    >
+                      Next <span className="material-symbols-outlined" style={{ fontSize: '1.1rem' }}>chevron_right</span>
+                    </button>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        )}
+
+        {/* ── 3. MY CAMPAIGNS TAB ── */}
+        {activeTab === 'my-campaigns' && (
+          <div style={{ marginTop: '8px' }}>
+            <div className="admin-page-header" id="tour-ngo-my-campaigns-header">
+              <div className="admin-page-title-wrap">
+                <h2 className="admin-page-title">
+                  <span className="material-symbols-outlined" style={{ fontSize: '24px', color: '#16a34a' }}>campaign</span>
+                  <span>My Campaigns</span>
+                </h2>
+                <p className="admin-page-sub">
+                  Relief operations deployed under {orgDisplayName || 'your organization'} ({shortAddr(walletAddress)}).
+                </p>
+              </div>
+
+              <div className="admin-page-header-actions">
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  onClick={fetchCampaigns}
+                  disabled={fetchingCampaigns}
+                >
+                  {fetchingCampaigns ? (
+                    <div className="spinner spinner-light" />
+                  ) : (
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                      <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>refresh</span>
+                      <span>Refresh</span>
+                    </span>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {/* ── Unified Filter, Search & Sort Toolbar ── */}
+            <div className="campaign-toolbar-card">
+              <div className="campaign-toolbar-unified-row">
+                {/* Left: Section Label & Quick Filter Pills */}
+                <div className="toolbar-filters-left">
+                  <div className="toolbar-section-badge">
+                    <span className="material-symbols-outlined">filter_list</span>
+                    <span>Filters</span>
+                  </div>
+
+                  {/* Causes Dropdown Popover */}
+                  <div style={{ position: 'relative' }} ref={causesDropdownRefMy}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowCausesDropdownMy(prev => !prev);
+                        setShowPrioritiesDropdownMy(false);
+                        setShowTagsDropdownMy(false);
+                        setShowSortDropdownMy(false);
+                      }}
+                      className={`filter-pill-btn ${categoryFilterMy !== 'ALL' ? 'active-filter' : ''}`}
+                      title="Filter by cause type"
+                    >
+                      <span className="material-symbols-outlined filter-pill-icon" style={{ color: 'var(--text-secondary)' }}>
+                        {selectedCauseObjMy.icon}
+                      </span>
+                      <span>{selectedCauseObjMy.label}</span>
+                      <span className="material-symbols-outlined filter-pill-arrow" style={{ position: 'static', marginLeft: '4px' }}>
+                        {showCausesDropdownMy ? 'expand_less' : 'expand_more'}
+                      </span>
+                    </button>
+
+                    {showCausesDropdownMy && (
+                      <div className="filter-custom-popover">
+                        {CAUSE_OPTIONS.map(opt => (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            onClick={() => {
+                              setCategoryFilterMy(opt.value);
+                              setShowCausesDropdownMy(false);
+                            }}
+                            className={`filter-popover-option ${categoryFilterMy === opt.value ? 'selected' : ''}`}
+                          >
+                            <span className="material-symbols-outlined filter-popover-option-icon" style={{ color: 'var(--text-secondary)' }}>{opt.icon}</span>
+                            <span>{opt.label}</span>
+                            {categoryFilterMy === opt.value && (
+                              <span className="material-symbols-outlined filter-popover-check">check</span>
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Priorities Dropdown Popover */}
+                  <div style={{ position: 'relative' }} ref={prioritiesDropdownRefMy}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowPrioritiesDropdownMy(prev => !prev);
+                        setShowCausesDropdownMy(false);
+                        setShowTagsDropdownMy(false);
+                        setShowSortDropdownMy(false);
+                      }}
+                      className={`filter-pill-btn ${urgencyFilterMy !== 'ALL' ? 'active-filter' : ''}`}
+                      title="Filter by urgency level"
+                    >
+                      <span className="material-symbols-outlined filter-pill-icon" style={{ color: 'var(--text-secondary)' }}>
+                        {selectedPriorityObjMy.icon}
+                      </span>
+                      <span>{selectedPriorityObjMy.label}</span>
+                      <span className="material-symbols-outlined filter-pill-arrow" style={{ position: 'static', marginLeft: '4px' }}>
+                        {showPrioritiesDropdownMy ? 'expand_less' : 'expand_more'}
+                      </span>
+                    </button>
+
+                    {showPrioritiesDropdownMy && (
+                      <div className="filter-custom-popover">
+                        {PRIORITY_OPTIONS.map(opt => (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            onClick={() => {
+                              setUrgencyFilterMy(opt.value);
+                              setShowPrioritiesDropdownMy(false);
+                            }}
+                            className={`filter-popover-option ${urgencyFilterMy === opt.value ? 'selected' : ''}`}
+                          >
+                            <span className="material-symbols-outlined filter-popover-option-icon" style={{ color: 'var(--text-secondary)' }}>{opt.icon}</span>
+                            <span>{opt.label}</span>
+                            {urgencyFilterMy === opt.value && (
+                              <span className="material-symbols-outlined filter-popover-check">check</span>
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Tags Dropdown Popover with Checkboxes */}
+                  <div style={{ position: 'relative' }} ref={tagsDropdownRefMy}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowTagsDropdownMy(prev => !prev);
+                        setShowCausesDropdownMy(false);
+                        setShowPrioritiesDropdownMy(false);
+                        setShowSortDropdownMy(false);
+                      }}
+                      className={`filter-pill-btn ${selectedTagsMy.length > 0 ? 'active-filter' : ''}`}
+                      title="Filter by tags"
+                    >
+                      <span className="material-symbols-outlined filter-pill-icon" style={{ color: 'var(--text-secondary)' }}>sell</span>
+                      <span>Tags</span>
+                      {selectedTagsMy.length > 0 && (
+                        <span className="tags-dropdown-badge-ref">{selectedTagsMy.length}</span>
+                      )}
+                      <span className="material-symbols-outlined filter-pill-arrow" style={{ position: 'static', marginLeft: '4px' }}>
+                        {showTagsDropdownMy ? 'expand_less' : 'expand_more'}
+                      </span>
+                    </button>
+
+                    {showTagsDropdownMy && (
+                      <div className="tags-popover-menu">
+                        <div className="tags-popover-header">
+                          <span className="tags-popover-title">
+                            <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>sell</span>
+                            Filter by Tags
+                          </span>
+                          {selectedTagsMy.length > 0 && (
                             <button
                               type="button"
-                              onClick={() => !creating && setDeliveryDatePickerOpen(prev => !prev)}
-                              disabled={creating}
-                              className="input deploy-field-input"
-                              style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'space-between',
-                                width: '100%',
-                                cursor: creating ? 'not-allowed' : 'pointer',
-                                textAlign: 'left',
-                                padding: '9px 12px',
-                                background: 'var(--bg-input, rgba(255,255,255,0.03))',
-                                border: targetDate ? '1.5px solid var(--accent, #22c55e)' : '1px solid var(--border)',
-                                borderRadius: '10px'
-                              }}
-                              title="Click to open calendar and select delivery target date"
+                              onClick={() => setSelectedTagsMy([])}
+                              className="tags-popover-clear-btn"
                             >
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden' }}>
-                                <span className="material-symbols-outlined" style={{ fontSize: '1.15rem', color: targetDate ? 'var(--accent)' : 'var(--text-muted)' }}>
-                                  calendar_month
-                                </span>
-                                <span style={{ fontSize: '0.84rem', fontWeight: targetDate ? 700 : 500, color: targetDate ? 'var(--text-primary)' : 'var(--text-muted)' }}>
-                                  {targetDate ? formatSelectedDeliveryDate(targetDate) : 'Select Delivery Date...'}
-                                </span>
+                              Clear ({selectedTagsMy.length})
+                            </button>
+                          )}
+                        </div>
+
+                        <div className="tags-popover-list">
+                          {/* "All Tags" Checkbox */}
+                          <label className={`tags-popover-item ${selectedTagsMy.length === 0 ? 'checked' : ''}`}>
+                            <input
+                              type="checkbox"
+                              checked={selectedTagsMy.length === 0}
+                              onChange={() => setSelectedTagsMy([])}
+                            />
+                            <span className="tags-popover-tag-text">All Tags</span>
+                            <span className="tags-popover-count">{myCampaigns?.length || 0}</span>
+                          </label>
+
+                          {/* Individual Tag Checkboxes */}
+                          {availableTagsMy.map((tag) => {
+                            const isChecked = selectedTagsMy.includes(tag);
+                            const count = tagCountsMy[tag] || 0;
+                            return (
+                              <label key={tag} className={`tags-popover-item ${isChecked ? 'checked' : ''}`}>
+                                <input
+                                  type="checkbox"
+                                  checked={isChecked}
+                                  onChange={() => {
+                                    setSelectedTagsMy(prev =>
+                                      prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]
+                                    );
+                                  }}
+                                />
+                                <span className="tags-popover-tag-text">#{tag}</span>
+                                {count > 0 && <span className="tags-popover-count">{count}</span>}
+                              </label>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Right: Search Box + Sort Pill */}
+                <div className="toolbar-search-right">
+                  {/* Compact Search Box with ⌘ K and Animated Stretch on Focus */}
+                  <div className="campaign-toolbar-search-box">
+                    <span className="material-symbols-outlined filter-search-icon-ref">search</span>
+                    <input
+                      ref={searchInputRefMy}
+                      type="text"
+                      placeholder="Search my campaigns..."
+                      value={searchQueryMy}
+                      onChange={(e) => setSearchQueryMy(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Escape') e.target.blur();
+                      }}
+                      className="filter-search-input-ref"
+                    />
+                    {searchQueryMy && (
+                      <button
+                        type="button"
+                        onClick={() => setSearchQueryMy('')}
+                        className="filter-search-clear-btn-ref"
+                        title="Clear search"
+                      >
+                        <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>close</span>
+                      </button>
+                    )}
+                    <kbd className="filter-search-shortcut-badge" title="Press Ctrl+K or ⌘K to focus search">⌘ K</kbd>
+                  </div>
+
+                  {/* Sort Pill Popover */}
+                  <div style={{ position: 'relative' }} ref={sortDropdownRefMy}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowSortDropdownMy(prev => !prev);
+                        setShowCausesDropdownMy(false);
+                        setShowPrioritiesDropdownMy(false);
+                        setShowTagsDropdownMy(false);
+                      }}
+                      className="filter-pill-btn"
+                      title="Sort campaigns"
+                    >
+                      <span className="material-symbols-outlined filter-pill-icon" style={{ color: '#94a3b8' }}>swap_vert</span>
+                      <span>{selectedSortObjMy.label}</span>
+                      <span className="material-symbols-outlined filter-pill-arrow" style={{ position: 'static', marginLeft: '4px' }}>
+                        {showSortDropdownMy ? 'expand_less' : 'expand_more'}
+                      </span>
+                    </button>
+
+                    {showSortDropdownMy && (
+                      <div className="filter-custom-popover align-right">
+                        {SORT_OPTIONS.map(opt => (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            onClick={() => {
+                              setCampaignSortMy(opt.value);
+                              setShowSortDropdownMy(false);
+                            }}
+                            className={`filter-popover-option ${campaignSortMy === opt.value ? 'selected' : ''}`}
+                          >
+                            <span className="material-symbols-outlined filter-popover-option-icon" style={{ color: '#94a3b8' }}>{opt.icon}</span>
+                            <span>{opt.label}</span>
+                            {campaignSortMy === opt.value && (
+                              <span className="material-symbols-outlined filter-popover-check">check</span>
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Active Filters Bar */}
+              {hasActiveFiltersMy && (
+                <div className="campaign-active-filters-bar">
+                  <div className="active-filters-left">
+                    <span className="active-filters-label">Active filters:</span>
+
+                    {categoryFilterMy !== 'ALL' && (
+                      <div className="reference-active-chip">
+                        <span className="material-symbols-outlined chip-icon" style={{ color: '#38bdf8' }}>public</span>
+                        <span>{categoryFilterMy === 'DR' ? 'Disaster Relief' : 'Charitable Aid'}</span>
+                        <button type="button" onClick={() => setCategoryFilterMy('ALL')} title="Remove filter">
+                          <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>close</span>
+                        </button>
+                      </div>
+                    )}
+
+                    {urgencyFilterMy !== 'ALL' && (
+                      <div className="reference-active-chip">
+                        <span className="material-symbols-outlined chip-icon" style={{ color: '#f59e0b' }}>bolt</span>
+                        <span>{urgencyFilterMy === 'HIGH' ? 'High Priority' : urgencyFilterMy === 'MEDIUM' ? 'Medium Priority' : 'Standard Priority'}</span>
+                        <button type="button" onClick={() => setUrgencyFilterMy('ALL')} title="Remove filter">
+                          <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>close</span>
+                        </button>
+                      </div>
+                    )}
+
+                    {selectedTagsMy.map((tag) => (
+                      <div key={tag} className="reference-active-chip">
+                        <span className="material-symbols-outlined chip-icon" style={{ color: '#a855f7' }}>sell</span>
+                        <span>#{tag}</span>
+                        <button type="button" onClick={() => setSelectedTagsMy(prev => prev.filter(t => t !== tag))} title={`Remove tag #${tag}`}>
+                          <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>close</span>
+                        </button>
+                      </div>
+                    ))}
+
+                    {searchQueryMy.trim() && (
+                      <div className="reference-active-chip">
+                        <span className="material-symbols-outlined chip-icon" style={{ color: '#94a3b8' }}>search</span>
+                        <span>"{searchQueryMy.trim()}"</span>
+                        <button type="button" onClick={() => setSearchQueryMy('')} title="Clear search query">
+                          <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>close</span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCategoryFilterMy('ALL');
+                      setUrgencyFilterMy('ALL');
+                      setSelectedTagsMy([]);
+                      setSearchQueryMy('');
+                    }}
+                    className="btn-clear-all-filters-ref"
+                    title="Reset all filters and search"
+                  >
+                    <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>restart_alt</span>
+                    <span>Clear all</span>
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* ── Sub-strip Outside and Directly Below the Card: Count on Left, Layout Toggle on Right ── */}
+            <div className="campaign-toolbar-substrip">
+              <div className="campaign-toolbar-count-tag">
+                <span className="count-indicator-dot" />
+                <span>Showing <strong>{(filteredMyCampaigns || []).length}</strong> of {myCampaigns?.length || 0} campaigns</span>
+              </div>
+
+              <div className="filter-layout-segmented-pill" role="group" aria-label="Layout view mode">
+                <button
+                  type="button"
+                  onClick={() => handleViewModeChangeOrg('list')}
+                  className={`layout-seg-btn ${viewModeOrg === 'list' ? 'active' : ''}`}
+                  title="List View"
+                  aria-label="List View"
+                >
+                  <span className="material-symbols-outlined">format_list_bulleted</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleViewModeChangeOrg('grid')}
+                  className={`layout-seg-btn ${viewModeOrg === 'grid' || viewModeOrg === 'grid-3' || viewModeOrg === 'grid-2' ? 'active' : ''}`}
+                  title="Grid View"
+                  aria-label="Grid View"
+                >
+                  <span className="material-symbols-outlined">grid_view</span>
+                </button>
+              </div>
+            </div>
+
+            {(myCampaigns?.length || 0) === 0 ? (
+              <div className="db-empty-state">
+                <div className="db-empty-icon">
+                  <span className="material-symbols-outlined">campaign</span>
+                </div>
+                <div className="db-empty-title">You haven't created any campaigns yet</div>
+                <div className="db-empty-desc">
+                  Publish your first relief operation onto the blockchain to start receiving contributions.
+                </div>
+                <button
+                  type="button"
+                  className="db-btn db-btn--primary"
+                  onClick={() => setActiveTab('create')}
+                >
+                  <span className="material-symbols-outlined">add</span>
+                  <span>Create First Campaign</span>
+                </button>
+              </div>
+            ) : (filteredMyCampaigns || []).length === 0 ? (
+              <div className="db-empty-state">
+                <div className="db-empty-icon">
+                  <span className="material-symbols-outlined">filter_alt_off</span>
+                </div>
+                <div className="db-empty-title">No campaigns match your search</div>
+                <div className="db-empty-desc">
+                  Try adjusting your category, urgency, or keyword filter.
+                </div>
+                <button
+                  type="button"
+                  className="db-btn"
+                  onClick={() => { setCategoryFilterMy('ALL'); setUrgencyFilterMy('ALL'); setSearchQueryMy(''); }}
+                >
+                  <span>Reset Filters</span>
+                </button>
+              </div>
+            ) : (
+              <>
+                <div className={viewModeOrg === 'grid' || viewModeOrg === 'grid-3' || viewModeOrg === 'grid-2' ? 'campaigns-grid' : 'campaigns-list'}>
+                  {paginatedMyCampaigns.map((camp) => (
+                    <CampaignCard key={camp.id} camp={camp} contract={contract}
+                      role={ROLES.ORGANIZATION} walletAddress={walletAddress} currentUser={currentUser}
+                      interfaceMode={interfaceMode} lowBandwidthMode={lowBandwidthMode} language={language}
+                      onDonated={fetchCampaigns} onDeactivated={fetchCampaigns} onCampaignUpdated={fetchCampaigns} />
+                  ))}
+                </div>
+
+                {/* Centered Pagination Controls */}
+                {totalPagesMy > 1 && (
+                  <div style={{
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    gap: '8px',
+                    marginTop: '24px',
+                    padding: '12px 0'
+                  }}>
+                    <button
+                      className="btn btn-ghost btn-sm"
+                      onClick={() => setCurrentPageMy(p => Math.max(1, p - 1))}
+                      disabled={currentPageMy === 1}
+                      style={{ display: 'flex', alignItems: 'center', gap: '4px' }}
+                    >
+                      <span className="material-symbols-outlined" style={{ fontSize: '1.1rem' }}>chevron_left</span> Previous
+                    </button>
+
+                    {Array.from({ length: totalPagesMy }, (_, i) => i + 1).map((pageNum) => (
+                      <button
+                        key={pageNum}
+                        className={`btn btn-sm ${currentPageMy === pageNum ? 'btn-primary' : 'btn-ghost'}`}
+                        onClick={() => setCurrentPageMy(pageNum)}
+                        style={{ minWidth: '36px', height: '36px', borderRadius: '8px', fontWeight: currentPageMy === pageNum ? 700 : 400 }}
+                      >
+                        {pageNum}
+                      </button>
+                    ))}
+
+                    <button
+                      className="btn btn-ghost btn-sm"
+                      onClick={() => setCurrentPageMy(p => Math.min(totalPagesMy, p + 1))}
+                      disabled={currentPageMy === totalPagesMy}
+                      style={{ display: 'flex', alignItems: 'center', gap: '4px' }}
+                    >
+                      Next <span className="material-symbols-outlined" style={{ fontSize: '1.1rem' }}>chevron_right</span>
+                    </button>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        )}
+
+        {/* ── 4. DEPLOY CAMPAIGN TAB ── */}
+        {activeTab === 'create' && (
+          <div style={{ marginTop: '8px' }} id="tour-ngo-create-form">
+            {/* Institutional Vercel Page Header */}
+            <div className="admin-page-header" id="tour-ngo-create-header">
+              <div className="admin-page-title-wrap">
+                <h2 className="admin-page-title">
+                  <span className="material-symbols-outlined" style={{ fontSize: '24px', color: '#16a34a' }}>rocket_launch</span>
+                  <span>Deploy Campaign</span>
+                </h2>
+                <p className="admin-page-sub">
+                  Launch an accredited disaster relief campaign under your verified organization identity (<strong>{orgDisplayName || 'your organization'}</strong>).
+                </p>
+              </div>
+
+              <div className="admin-page-header-actions">
+                <span className="admin-header-badge" style={{ color: '#16a34a' }}>
+                  <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>verified</span>
+                  <span>Accredited Protocol</span>
+                </span>
+                {walletAddress && (
+                  <span className="admin-header-badge">
+                    <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>account_balance_wallet</span>
+                    <span>{shortAddr(walletAddress)}</span>
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {currentUser?.verification_status !== 'Approved' ? (
+              <div className="card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '60px 40px', textAlign: 'center', border: '1px solid rgba(255, 60, 60, 0.4)', background: 'linear-gradient(180deg, rgba(255,255,255,0.02) 0%, rgba(255, 60, 60, 0.05) 100%)' }}>
+                <span className="material-symbols-outlined" style={{ fontSize: '56px', color: 'var(--danger)', marginBottom: '16px' }}>gpp_bad</span>
+                <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold', color: 'var(--danger)', marginBottom: '12px' }}>Action Blocked: Pending Verification</h2>
+                <p style={{ color: 'var(--text-secondary)', maxWidth: '550px', lineHeight: '1.6', fontSize: '1.05rem' }}>
+                  Your Organization account must be manually verified and <strong>Approved by an Admin</strong> before you are allowed to deploy relief campaigns permanently onto the blockchain.
+                </p>
+                <div style={{ marginTop: '24px', padding: '12px 24px', background: 'rgba(255,255,255,0.05)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.1)' }}>
+                  <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', margin: 0 }}>
+                    Please check back later or contact the system administrator to expedite your approval.
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="card glow fade-in deploy-campaign-card">
+                {/* Interactive Multi-Step Stepper Bar */}
+                <div className="deploy-stepper-bar">
+                  {[
+                    { num: 1, label: 'Overview' },
+                    { num: 2, label: 'Story & Media' },
+                    { num: 3, label: 'Relief Focus' },
+                    { num: 4, label: 'Location' },
+                    { num: 5, label: 'Payment & Deploy' }
+                  ].map(st => {
+                    const isActive = deployStep === st.num;
+                    const isCompleted = deployStep > st.num;
+                    return (
+                      <button
+                        key={st.num}
+                        type="button"
+                        onClick={() => setDeployStep(st.num)}
+                        className={`deploy-step-indicator ${isActive ? 'active' : ''} ${isCompleted ? 'completed' : ''}`}
+                        title={`Click to jump to Step ${st.num}: ${st.label}`}
+                      >
+                        <span className="deploy-step-indicator-num">
+                          {isCompleted ? <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>check</span> : `0${st.num}`}
+                        </span>
+                        <span>{st.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Slim Progress Bar */}
+                <div className="deploy-wizard-progress-track">
+                  <div className="deploy-wizard-progress-bar" style={{ width: `${deployStep * 20}%` }} />
+                </div>
+
+                <form className="create-form" onSubmit={handleCreateCampaign} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                  {/* ── Step 1: Campaign Overview & Target ── */}
+                  {deployStep === 1 && (
+                    <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+                      {/* Card 1: Overview */}
+                      <div className="deploy-section-card">
+                        <div className="deploy-section-header">
+                          <div className="deploy-section-title-wrap">
+                            <div className="deploy-section-icon-badge">
+                              <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>campaign</span>
+                            </div>
+                            <div>
+                              <h3 className="deploy-section-title">1. Campaign Overview</h3>
+                              <div className="deploy-section-subtitle">
+                                {category === 'CD'
+                                  ? 'Define the community initiative name, category, fundraising target, and schedule.'
+                                  : 'Define the emergency relief mission name, category, fundraising target, and delivery schedule.'}
                               </div>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                {targetDate ? (
+                            </div>
+                          </div>
+                          <span className="deploy-step-pill">Step 1 of 5</span>
+                        </div>
+
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
+                          {/* Campaign Title (Full Width) */}
+                          <div style={{ gridColumn: '1 / -1' }}>
+                            <label className="deploy-input-label">
+                              <span>Campaign Title <span className="deploy-required-star">*</span></span>
+                              {Array.isArray(autoDetectedTagsRef.current) && autoDetectedTagsRef.current.length > 0 && (
+                                <span style={{ fontSize: '0.72rem', color: 'var(--accent)', fontWeight: 600 }}>
+                                  {autoDetectedTagsRef.current.length} tags auto-selected from keywords
+                                </span>
+                              )}
+                            </label>
+                            <input className="input deploy-field-input" type="text" required
+                              placeholder={category === 'CD' ? "e.g., Community Feeding Program & School Supplies Drive" : "e.g., Flash Flood Relief Operation or Bagyo Odette Tabang"}
+                              value={title} onChange={(e) => handleTitleChange(e.target.value)} disabled={creating} />
+                          </div>
+
+                          {/* Campaign Category (Custom Web3 Dropdown Popover) */}
+                          <div ref={categoryDropdownRef}>
+                            <div className="deploy-input-label" style={{ margin: '0 0 6px 0' }}>
+                              <span>Campaign Category <span className="deploy-required-star">*</span></span>
+                              {isCategoryAuto && (
+                                <span style={{ fontSize: '0.68rem', color: 'var(--accent, #22c55e)', fontWeight: 600 }}>
+                                  Auto-set from title
+                                </span>
+                              )}
+                            </div>
+                            <div style={{ position: 'relative', width: '100%', zIndex: showCategoryDropdown ? 100 : 1 }}>
+                              <button
+                                type="button"
+                                onClick={() => !creating && setShowCategoryDropdown(prev => !prev)}
+                                disabled={creating}
+                                className="input deploy-field-input"
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'space-between',
+                                  width: '100%',
+                                  height: '42px',
+                                  minHeight: '42px',
+                                  maxHeight: '42px',
+                                  boxSizing: 'border-box',
+                                  cursor: creating ? 'not-allowed' : 'pointer',
+                                  textAlign: 'left',
+                                  padding: '0 12px',
+                                  background: 'var(--bg-input, rgba(255,255,255,0.03))',
+                                  border: showCategoryDropdown ? '1.5px solid var(--accent, #22c55e)' : '1px solid var(--border)',
+                                  borderRadius: '10px',
+                                  outline: 'none'
+                                }}
+                                title="Click to select campaign category"
+                              >
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden' }}>
+                                  <span className="material-symbols-outlined" style={{ fontSize: '1.15rem', color: 'var(--accent)', flexShrink: 0 }}>
+                                    {category === 'CD' ? 'volunteer_activism' : 'flood'}
+                                  </span>
+                                  <span style={{ fontSize: '0.84rem', fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                    {category === 'CD' ? 'Charitable Aid & Community Outreach (CD)' : 'Disaster Relief & Emergency Response (DR)'}
+                                  </span>
+                                </div>
+                                <span
+                                  className="material-symbols-outlined"
+                                  style={{
+                                    fontSize: '1.1rem',
+                                    color: 'var(--text-muted)',
+                                    flexShrink: 0,
+                                    transition: 'transform 0.15s ease',
+                                    transform: showCategoryDropdown ? 'rotate(180deg)' : 'none'
+                                  }}
+                                >
+                                  expand_more
+                                </span>
+                              </button>
+
+                              {/* Custom Dropdown Popover matching Web3 Calendar Popover */}
+                              {showCategoryDropdown && (
+                                <div
+                                  className="deploy-custom-dropdown-popover"
+                                  onClick={(e) => e.stopPropagation()}
+                                  style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 'auto', minWidth: '100%', width: 'max-content', maxWidth: '380px', zIndex: 1050 }}
+                                >
+                                  <div style={{ padding: '6px 10px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                    <span style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', whiteSpace: 'nowrap' }}>
+                                      Select Campaign Category
+                                    </span>
+                                  </div>
+
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', padding: '4px 0' }}>
+                                    <button
+                                      type="button"
+                                      className={`deploy-dropdown-option ${category === 'DR' ? 'active' : ''}`}
+                                      onClick={() => {
+                                        setCategory('DR');
+                                        manuallySelectedCategoryRef.current = true;
+                                        setIsCategoryAuto(false);
+                                        setShowCategoryDropdown(false);
+                                      }}
+                                    >
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <span className="material-symbols-outlined" style={{ fontSize: '18px', color: 'var(--accent)', flexShrink: 0 }}>flood</span>
+                                        <div style={{ display: 'flex', flexDirection: 'column', textAlign: 'left' }}>
+                                          <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
+                                            Disaster Relief &amp; Emergency Response (DR)
+                                          </span>
+                                          <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>
+                                            Typhoons, floods, earthquakes, volcanic eruptions, fire emergencies
+                                          </span>
+                                        </div>
+                                      </div>
+                                      {category === 'DR' && (
+                                        <span className="material-symbols-outlined" style={{ color: 'var(--accent)', fontSize: '17px', flexShrink: 0, marginLeft: '8px' }}>
+                                          check
+                                        </span>
+                                      )}
+                                    </button>
+
+                                    <button
+                                      type="button"
+                                      className={`deploy-dropdown-option ${category === 'CD' ? 'active' : ''}`}
+                                      onClick={() => {
+                                        setCategory('CD');
+                                        manuallySelectedCategoryRef.current = true;
+                                        setIsCategoryAuto(false);
+                                        setShowCategoryDropdown(false);
+                                      }}
+                                    >
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <span className="material-symbols-outlined" style={{ fontSize: '18px', color: 'var(--accent)', flexShrink: 0 }}>volunteer_activism</span>
+                                        <div style={{ display: 'flex', flexDirection: 'column', textAlign: 'left' }}>
+                                          <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
+                                            Charitable Aid &amp; Community Outreach (CD)
+                                          </span>
+                                          <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>
+                                            Feeding programs, medical missions, education, livelihood assistance
+                                          </span>
+                                        </div>
+                                      </div>
+                                      {category === 'CD' && (
+                                        <span className="material-symbols-outlined" style={{ color: 'var(--accent)', fontSize: '17px', flexShrink: 0, marginLeft: '8px' }}>
+                                          check
+                                        </span>
+                                      )}
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Fundraising Target (PHP / ₱) */}
+                          <div>
+                            <div className="deploy-input-label" style={{ margin: '0 0 6px 0' }}>
+                              <span>Fundraising Target (PHP / ₱) <span className="deploy-required-star">*</span></span>
+                            </div>
+                            <div className="deploy-currency-wrap" style={{ height: '42px', minHeight: '42px' }}>
+                              <span className="deploy-currency-prefix">₱</span>
+                              <input
+                                className="input deploy-field-input deploy-currency-input"
+                                type="number"
+                                min="100"
+                                step="100"
+                                required
+                                placeholder="e.g., 100,000"
+                                value={targetAmount}
+                                onChange={(e) => setTargetAmount(e.target.value)}
+                                disabled={creating}
+                                style={{
+                                  height: '42px',
+                                  minHeight: '42px',
+                                  maxHeight: '42px',
+                                  boxSizing: 'border-box',
+                                  width: '100%',
+                                  borderRadius: '10px',
+                                  outline: 'none'
+                                }}
+                              />
+                            </div>
+                            {targetAmount && !isNaN(parseFloat(targetAmount)) && parseFloat(targetAmount) > 0 && (
+                              <div style={{ marginTop: '4px', fontSize: '0.74rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                <span>≈ {(parseFloat(targetAmount) / 170000).toFixed(5)} ETH</span>
+                                <span>(Crypto Protocol Equivalent)</span>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* SWAPPED INPUT ORDER: 1. Target Due Date * (Custom Web3 Calendar Popover) */}
+                          <div style={{ position: 'relative' }} ref={deliveryDateContainerRef}>
+                            <div className="deploy-input-label" style={{ margin: '0 0 6px 0' }}>
+                              <span>Target Due Date <span className="deploy-required-star">*</span></span>
+                              {targetDate && (
+                                <span style={{ fontSize: '0.68rem', color: 'var(--accent, #22c55e)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                                  <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>check</span>
+                                  Deadline set
+                                </span>
+                              )}
+                            </div>
+                            <div style={{ position: 'relative' }}>
+                              <button
+                                type="button"
+                                onClick={() => !creating && setDeliveryDatePickerOpen(prev => !prev)}
+                                disabled={creating}
+                                className="input deploy-field-input"
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'space-between',
+                                  width: '100%',
+                                  height: '42px',
+                                  minHeight: '42px',
+                                  maxHeight: '42px',
+                                  boxSizing: 'border-box',
+                                  cursor: creating ? 'not-allowed' : 'pointer',
+                                  textAlign: 'left',
+                                  padding: '0 12px',
+                                  background: 'var(--bg-input, rgba(255,255,255,0.03))',
+                                  border: (deliveryDatePickerOpen || targetDate) ? '1.5px solid var(--accent, #22c55e)' : '1px solid var(--border)',
+                                  borderRadius: '10px',
+                                  outline: 'none'
+                                }}
+                                title="Click to open calendar and select target due date"
+                              >
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden' }}>
+                                  <span className="material-symbols-outlined" style={{ fontSize: '1.15rem', color: targetDate ? 'var(--accent)' : 'var(--text-muted)', flexShrink: 0 }}>
+                                    calendar_month
+                                  </span>
+                                  <span style={{ fontSize: '0.84rem', fontWeight: targetDate ? 700 : 500, color: targetDate ? 'var(--text-primary)' : 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                    {targetDate ? formatSelectedDeliveryDate(targetDate) : 'Select Due Date...'}
+                                  </span>
+                                </div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                                  {targetDate ? (
+                                    <span
+                                      role="button"
+                                      tabIndex={0}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleTargetDateChange('');
+                                      }}
+                                      style={{
+                                        padding: '2px 6px',
+                                        borderRadius: '6px',
+                                        fontSize: '0.72rem',
+                                        color: 'var(--text-muted)',
+                                        background: 'rgba(255,255,255,0.08)',
+                                        cursor: 'pointer'
+                                      }}
+                                      title="Clear date"
+                                    >
+                                      <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>close</span>
+                                    </span>
+                                  ) : (
+                                    <span
+                                      className="material-symbols-outlined"
+                                      style={{
+                                        fontSize: '1.1rem',
+                                        color: 'var(--text-muted)',
+                                        transition: 'transform 0.15s ease',
+                                        transform: deliveryDatePickerOpen ? 'rotate(180deg)' : 'none'
+                                      }}
+                                    >
+                                      expand_more
+                                    </span>
+                                  )}
+                                </div>
+                              </button>
+
+                              {/* Custom Calendar Popover matching CampaignCard ledger calendar */}
+                              {deliveryDatePickerOpen && (
+                                <div
+                                  className="ledger-custom-calendar-popover"
+                                  onClick={(e) => e.stopPropagation()}
+                                  style={{
+                                    position: 'absolute',
+                                    top: 'calc(100% + 6px)',
+                                    left: 0,
+                                    right: 'auto',
+                                    width: '300px',
+                                    zIndex: 100
+                                  }}
+                                >
+                                  {/* Month Header */}
+                                  <div className="cal-header">
+                                    <button
+                                      type="button"
+                                      className="cal-nav-btn"
+                                      onClick={handlePrevCalMonth}
+                                      title="Previous Month"
+                                    >
+                                      <span className="material-symbols-outlined">chevron_left</span>
+                                    </button>
+                                    <div className="cal-month-title">
+                                      {calViewDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                                    </div>
+                                    <button
+                                      type="button"
+                                      className="cal-nav-btn"
+                                      onClick={handleNextCalMonth}
+                                      title="Next Month"
+                                    >
+                                      <span className="material-symbols-outlined">chevron_right</span>
+                                    </button>
+                                  </div>
+
+                                  {/* Urgency Helper Banner */}
+                                  <div className="cal-lifecycle-banner" style={{ fontSize: '0.66rem', padding: '3px 8px' }}>
+                                    <span className="cal-pulse-dot" />
+                                    <span className="cal-lifecycle-text">
+                                      Auto Urgency: ≤5d Critical • 6–14d Urgent • &gt;14d Standard
+                                    </span>
+                                  </div>
+
+                                  {/* Weekday Labels */}
+                                  <div className="cal-weekdays">
+                                    <span>Su</span>
+                                    <span>Mo</span>
+                                    <span>Tu</span>
+                                    <span>We</span>
+                                    <span>Th</span>
+                                    <span>Fr</span>
+                                    <span>Sa</span>
+                                  </div>
+
+                                  {/* Days Grid */}
+                                  <div className="cal-grid">
+                                    {calMonthCells.map((cell) => {
+                                      const isSelected = targetDate === cell.iso;
+                                      let cellClass = 'cal-day';
+                                      if (!cell.isCurrentMonth) cellClass += ' cal-day-outside';
+                                      if (cell.isPast) cellClass += ' cal-day-past';
+                                      if (isSelected) cellClass += ' cal-day-selected';
+
+                                      const today = new Date();
+                                      today.setHours(0, 0, 0, 0);
+                                      const cellDate = new Date(cell.iso + 'T00:00:00');
+                                      const diffDays = Math.ceil((cellDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+
+                                      let dotColor = null;
+                                      if (!cell.isPast && cell.isCurrentMonth) {
+                                        if (diffDays <= 5) dotColor = '#ef4444';
+                                        else if (diffDays <= 14) dotColor = '#eab308';
+                                        else dotColor = '#22c55e';
+                                      }
+
+                                      return (
+                                        <button
+                                          key={cell.iso}
+                                          type="button"
+                                          className={cellClass}
+                                          disabled={cell.isPast}
+                                          onClick={() => {
+                                            handleTargetDateChange(cell.iso);
+                                            setDeliveryDatePickerOpen(false);
+                                          }}
+                                          style={{
+                                            opacity: cell.isPast ? 0.35 : 1,
+                                            cursor: cell.isPast ? 'not-allowed' : 'pointer',
+                                            border: cell.isToday ? '1px dashed var(--accent, #22c55e)' : 'none',
+                                            background: isSelected ? 'var(--accent, #22c55e)' : (cell.isToday ? 'rgba(34,197,94,0.08)' : 'transparent'),
+                                            color: isSelected ? '#000000' : 'inherit',
+                                            fontWeight: isSelected || cell.isToday ? 700 : 500,
+                                            position: 'relative'
+                                          }}
+                                          title={cell.isPast ? 'Past date unavailable' : `${cell.iso} (${diffDays === 0 ? 'Today' : `${diffDays} days from now`})`}
+                                        >
+                                          <span className="cal-day-num">{cell.dayNum}</span>
+                                          {dotColor && !isSelected && (
+                                            <span
+                                              style={{
+                                                width: '4px',
+                                                height: '4px',
+                                                borderRadius: '50%',
+                                                background: dotColor,
+                                                position: 'absolute',
+                                                bottom: '3px'
+                                              }}
+                                            />
+                                          )}
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                            <div style={{ marginTop: '4px', fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                              {category === 'CD' ? 'Estimated campaign completion or outreach project deadline.' : 'Target date for ground relief delivery to affected evacuees.'}
+                            </div>
+                          </div>
+
+                          {/* SWAPPED INPUT ORDER: 2. Urgency Status (Custom Web3 Dropdown Popover) */}
+                          <div ref={urgencyDropdownRef}>
+                            <div className="deploy-input-label" style={{ margin: '0 0 6px 0' }}>
+                              <span>Urgency Status</span>
+                              {urgency && targetDate && (
+                                <span style={{ fontSize: '0.68rem', color: 'var(--accent, #22c55e)', fontWeight: 600 }}>
+                                  Auto-suggested from date
+                                </span>
+                              )}
+                            </div>
+                            <div style={{ position: 'relative', width: '100%', zIndex: showUrgencyDropdown ? 100 : 1 }}>
+                              <button
+                                type="button"
+                                onClick={() => !creating && setShowUrgencyDropdown(prev => !prev)}
+                                disabled={creating}
+                                className="input deploy-field-input"
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'space-between',
+                                  width: '100%',
+                                  height: '42px',
+                                  minHeight: '42px',
+                                  maxHeight: '42px',
+                                  boxSizing: 'border-box',
+                                  cursor: creating ? 'not-allowed' : 'pointer',
+                                  textAlign: 'left',
+                                  padding: '0 12px',
+                                  background: 'var(--bg-input, rgba(255,255,255,0.03))',
+                                  border: showUrgencyDropdown ? '1.5px solid var(--accent, #22c55e)' : '1px solid var(--border)',
+                                  borderRadius: '10px',
+                                  outline: 'none'
+                                }}
+                                title="Click to select urgency status (auto-suggested from date, can be manually adjusted)"
+                              >
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden' }}>
                                   <span
-                                    role="button"
-                                    tabIndex={0}
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleTargetDateChange('');
-                                    }}
                                     style={{
-                                      padding: '2px 6px',
-                                      borderRadius: '6px',
-                                      fontSize: '0.72rem',
-                                      color: 'var(--text-muted)',
-                                      background: 'rgba(255,255,255,0.08)',
-                                      cursor: 'pointer'
+                                      width: '8px',
+                                      height: '8px',
+                                      borderRadius: '50%',
+                                      background: (urgency.includes('HIGH') || urgency.includes('CRITICAL')) ? '#ef4444' : ((urgency.includes('MEDIUM') || urgency.includes('URGENT') || urgency.includes('REHAB')) ? '#f59e0b' : (urgency ? '#22c55e' : 'var(--text-muted)')),
+                                      flexShrink: 0
                                     }}
-                                    title="Clear date"
+                                  />
+                                  <span style={{ fontSize: '0.84rem', fontWeight: urgency ? 600 : 500, color: urgency ? 'var(--text-primary)' : 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                    {formatUrgencyDisplay(urgency) || (targetDate ? 'Auto-suggested from Target Date' : 'Select Urgency Status...')}
+                                  </span>
+                                </div>
+                                <span
+                                  className="material-symbols-outlined"
+                                  style={{
+                                    fontSize: '1.1rem',
+                                    color: 'var(--text-muted)',
+                                    flexShrink: 0,
+                                    transition: 'transform 0.15s ease',
+                                    transform: showUrgencyDropdown ? 'rotate(180deg)' : 'none'
+                                  }}
+                                >
+                                  expand_more
+                                </span>
+                              </button>
+
+                              {/* Custom Dropdown Popover matching Web3 Calendar Popover */}
+                              {showUrgencyDropdown && (
+                                <div
+                                  className="deploy-custom-dropdown-popover"
+                                  onClick={(e) => e.stopPropagation()}
+                                  style={{ position: 'absolute', top: 'calc(100% + 4px)', right: 0, left: 'auto', minWidth: '320px', width: 'max-content', zIndex: 1050 }}
+                                >
+                                  <div style={{ padding: '6px 10px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                    <span style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', whiteSpace: 'nowrap' }}>
+                                      Operational Urgency Status
+                                    </span>
+                                  </div>
+
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', padding: '4px 0' }}>
+                                    {/* Option: Auto-fill placeholder / reset */}
+                                    <button
+                                      type="button"
+                                      className={`deploy-dropdown-option ${!urgency ? 'active' : ''}`}
+                                      onClick={() => {
+                                        if (targetDate) {
+                                          handleTargetDateChange(targetDate);
+                                        } else {
+                                          setUrgency('');
+                                        }
+                                        setShowUrgencyDropdown(false);
+                                      }}
+                                    >
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <span className="material-symbols-outlined" style={{ fontSize: '16px', color: 'var(--text-muted)', flexShrink: 0 }}>
+                                          autorenew
+                                        </span>
+                                        <span style={{ fontSize: '0.82rem', fontWeight: 550, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
+                                          Auto-calculate from Target Due Date
+                                        </span>
+                                      </div>
+                                      {!urgency && (
+                                        <span className="material-symbols-outlined" style={{ color: 'var(--accent)', fontSize: '17px', flexShrink: 0 }}>
+                                          check
+                                        </span>
+                                      )}
+                                    </button>
+
+                                    {/* Option 1: Critical Emergency */}
+                                    <button
+                                      type="button"
+                                      className={`deploy-dropdown-option ${(urgency.includes('HIGH') || urgency.includes('CRITICAL')) ? 'active' : ''}`}
+                                      onClick={() => {
+                                        setUrgency('HIGH (EMERGENCY AID)');
+                                        setShowUrgencyDropdown(false);
+                                      }}
+                                    >
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#ef4444', flexShrink: 0 }} />
+                                        <div style={{ display: 'flex', flexDirection: 'column', textAlign: 'left' }}>
+                                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                            <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
+                                              Critical Emergency
+                                            </span>
+                                            <span style={{ fontSize: '0.66rem', padding: '1px 6px', borderRadius: '4px', background: 'rgba(239, 68, 68, 0.16)', color: '#ef4444', fontWeight: 700, whiteSpace: 'nowrap' }}>
+                                              ≤ 5 Days
+                                            </span>
+                                          </div>
+                                          <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>
+                                            Immediate response needed for life-saving assistance
+                                          </span>
+                                        </div>
+                                      </div>
+                                      {(urgency.includes('HIGH') || urgency.includes('CRITICAL')) && (
+                                        <span className="material-symbols-outlined" style={{ color: '#ef4444', fontSize: '17px', flexShrink: 0, marginLeft: '8px' }}>
+                                          check
+                                        </span>
+                                      )}
+                                    </button>
+
+                                    {/* Option 2: Urgent Relief */}
+                                    <button
+                                      type="button"
+                                      className={`deploy-dropdown-option ${(urgency.includes('MEDIUM') || urgency.includes('URGENT') || urgency.includes('REHAB')) ? 'active' : ''}`}
+                                      onClick={() => {
+                                        setUrgency('MEDIUM (URGENT REHABILITATION)');
+                                        setShowUrgencyDropdown(false);
+                                      }}
+                                    >
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#f59e0b', flexShrink: 0 }} />
+                                        <div style={{ display: 'flex', flexDirection: 'column', textAlign: 'left' }}>
+                                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                            <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
+                                              Urgent Relief
+                                            </span>
+                                            <span style={{ fontSize: '0.66rem', padding: '1px 6px', borderRadius: '4px', background: 'rgba(245, 158, 11, 0.16)', color: '#f59e0b', fontWeight: 700, whiteSpace: 'nowrap' }}>
+                                              6–14 Days
+                                            </span>
+                                          </div>
+                                          <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>
+                                            Rapid deployment for community displacement & provisions
+                                          </span>
+                                        </div>
+                                      </div>
+                                      {(urgency.includes('MEDIUM') || urgency.includes('URGENT') || urgency.includes('REHAB')) && (
+                                        <span className="material-symbols-outlined" style={{ color: '#f59e0b', fontSize: '17px', flexShrink: 0, marginLeft: '8px' }}>
+                                          check
+                                        </span>
+                                      )}
+                                    </button>
+
+                                    {/* Option 3: Standard Operations */}
+                                    <button
+                                      type="button"
+                                      className={`deploy-dropdown-option ${(urgency.includes('STABLE') || urgency.includes('STANDARD') || urgency.includes('CHARITABLE')) ? 'active' : ''}`}
+                                      onClick={() => {
+                                        setUrgency('STABLE (CHARITABLE AID)');
+                                        setShowUrgencyDropdown(false);
+                                      }}
+                                    >
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                        <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#22c55e', flexShrink: 0 }} />
+                                        <div style={{ display: 'flex', flexDirection: 'column', textAlign: 'left' }}>
+                                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                            <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
+                                              Standard Operations
+                                            </span>
+                                            <span style={{ fontSize: '0.66rem', padding: '1px 6px', borderRadius: '4px', background: 'rgba(34, 197, 94, 0.16)', color: '#22c55e', fontWeight: 700, whiteSpace: 'nowrap' }}>
+                                              &gt; 14 Days
+                                            </span>
+                                          </div>
+                                          <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>
+                                            Scheduled distribution, rebuilding, or sustained charitable drive
+                                          </span>
+                                        </div>
+                                      </div>
+                                      {(urgency.includes('STABLE') || urgency.includes('STANDARD') || urgency.includes('CHARITABLE')) && (
+                                        <span className="material-symbols-outlined" style={{ color: '#22c55e', fontSize: '17px', flexShrink: 0, marginLeft: '8px' }}>
+                                          check
+                                        </span>
+                                      )}
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Estimated Beneficiaries (Full Width) */}
+                          <div style={{ gridColumn: '1 / -1' }}>
+                            <label className="deploy-input-label">
+                              <span>{category === 'CD' ? 'Estimated Beneficiaries / Community Impact' : 'Estimated Beneficiaries / Displaced Families'}</span>
+                            </label>
+                            <input className="input deploy-field-input" type="text"
+                              placeholder={category === 'CD' ? "e.g., ~500 Underserved Children & 120 Local Families" : "e.g., ~3,500 Displaced Families across 12 Barangays"}
+                              value={beneficiariesImpact} onChange={(e) => setBeneficiariesImpact(e.target.value)} disabled={creating} />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ── Step 2: Mission Narrative & Ground Evidence Photos ── */}
+                  {deployStep === 2 && (
+                    <div className="fade-in">
+                      <div className="deploy-section-card">
+                        <div className="deploy-section-header">
+                          <div className="deploy-section-title-wrap">
+                            <div className="deploy-section-icon-badge">
+                              <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>
+                                {category === 'CD' ? 'volunteer_activism' : 'photo_library'}
+                              </span>
+                            </div>
+                            <div>
+                              <h3 className="deploy-section-title">
+                                {category === 'CD' ? '2. Initiative Story & Beneficiary Photos' : '2. Mission Story & Field Photos'}
+                              </h3>
+                              <div className="deploy-section-subtitle">
+                                {category === 'CD'
+                                  ? 'Describe the community need and upload authentic photos of the beneficiaries or project activities.'
+                                  : 'Describe the on-ground reality and upload real photos of the disaster damage to show donors the urgent need.'}
+                              </div>
+                            </div>
+                          </div>
+                          <span className="deploy-step-pill">Step 2 of 5</span>
+                        </div>
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                          <div>
+                            <label className="deploy-input-label">
+                              <span>
+                                {category === 'CD'
+                                  ? 'Community Initiative Background & Objectives'
+                                  : 'Emergency Mission Narrative & Ground Situation'}
+                              </span>
+                            </label>
+                            <textarea
+                              className="input deploy-field-input"
+                              rows="4"
+                              placeholder={category === 'CD'
+                                ? "Describe the beneficiary community, project goals, planned resource distribution, and long-term community impact..."
+                                : "Provide mission background, emergency relief scope, on-ground displacement, and immediate response plan..."}
+                              value={description}
+                              onChange={(e) => setDescription(e.target.value)}
+                              disabled={creating}
+                              style={{ width: '100%', resize: 'vertical' }}
+                            />
+                          </div>
+
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
+                            {/* Dynamic Multiple Contacts Support */}
+                            <div>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                                <label className="deploy-input-label" style={{ margin: 0 }}>
+                                  <span>
+                                    {category === 'CD'
+                                      ? 'Project Coordinators / Contact Inquiries'
+                                      : 'Emergency Contact Hotlines / Dispatch'}
+                                  </span>
+                                </label>
+                                {contactList.length < 5 && (
+                                  <button
+                                    type="button"
+                                    className="btn btn-ghost btn-xs"
+                                    onClick={handleAddContact}
+                                    disabled={creating}
+                                    style={{ fontSize: '0.72rem', display: 'inline-flex', alignItems: 'center', gap: '3px', color: 'var(--accent, #22c55e)', padding: '2px 6px' }}
+                                    title="Add another contact hotline or email"
                                   >
-                                    <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>close</span>
-                                  </span>
-                                ) : (
-                                  <span className="material-symbols-outlined" style={{ fontSize: '1.1rem', color: 'var(--text-muted)' }}>
-                                    {deliveryDatePickerOpen ? 'expand_less' : 'expand_more'}
-                                  </span>
+                                    <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>add</span>
+                                    <span>Add Contact</span>
+                                  </button>
                                 )}
                               </div>
-                            </button>
 
-                            {/* Custom Calendar Popover matching CampaignCard ledger calendar */}
-                            {deliveryDatePickerOpen && (
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                {contactList.map((contact, idx) => (
+                                  <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <div style={{ position: 'relative', flex: 1 }}>
+                                      <input
+                                        className="input deploy-field-input"
+                                        type="text"
+                                        placeholder={idx === 0
+                                          ? (category === 'CD' ? "e.g., 0992 982 4615 or outreach@ngo.org" : "e.g., 0992 982 4615 or relief@redcross.org.ph")
+                                          : "e.g., Secondary hotline, field captain, or email"}
+                                        value={contact}
+                                        onChange={(e) => handleContactChange(idx, e.target.value)}
+                                        disabled={creating}
+                                        style={{ width: '100%', paddingRight: '32px', height: '40px', minHeight: '40px' }}
+                                      />
+                                      <span
+                                        className="material-symbols-outlined"
+                                        style={{
+                                          position: 'absolute',
+                                          right: '10px',
+                                          top: '50%',
+                                          transform: 'translateY(-50%)',
+                                          fontSize: '15px',
+                                          color: 'var(--text-muted)',
+                                          pointerEvents: 'none'
+                                        }}
+                                      >
+                                        {contact.includes('@') ? 'mail' : 'call'}
+                                      </span>
+                                    </div>
+                                    {contactList.length > 1 && (
+                                      <button
+                                        type="button"
+                                        className="btn btn-ghost btn-xs"
+                                        onClick={() => handleRemoveContact(idx)}
+                                        disabled={creating}
+                                        title="Remove contact"
+                                        style={{ color: '#ef4444', padding: '6px', borderRadius: '8px' }}
+                                      >
+                                        <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>delete</span>
+                                      </button>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                              <div style={{ marginTop: '4px', fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                                {category === 'CD'
+                                  ? 'Add direct phone numbers, email addresses, or lead coordinator contacts for public inquiries.'
+                                  : 'Add emergency hotlines, field dispatch lines, or local barangay relief coordinator numbers.'}
+                              </div>
+                            </div>
+
+                            {/* Official Verification URL / Calamity Report */}
+                            <div>
+                              <label className="deploy-input-label" style={{ marginBottom: '6px' }}>
+                                <span>
+                                  {category === 'CD'
+                                    ? 'Project Proposal / Official Initiative URL (Optional)'
+                                    : 'Official Calamity Report / NDRRMC SitRep URL (Optional)'}
+                                </span>
+                              </label>
+                              <input
+                                className="input deploy-field-input"
+                                type="url"
+                                placeholder={category === 'CD'
+                                  ? "e.g., https://our-ngo.org.ph/community-drive-2026 or proposal link"
+                                  : "e.g., https://ndrrmc.gov.ph/sitrep-102 or bulletin link"}
+                                value={documentUrl}
+                                onChange={(e) => setDocumentUrl(e.target.value)}
+                                disabled={creating}
+                                style={{ width: '100%', height: '40px', minHeight: '40px' }}
+                              />
+                              <div style={{ marginTop: '4px', fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                                {category === 'CD'
+                                  ? 'Official organization website, project brief, or local council endorsement link.'
+                                  : 'Official NDRRMC situation bulletin, local news report, or government advisory.'}
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Dynamic Photos Section: Field Damage for DR vs Beneficiary/Activity for CD */}
+                          <div style={{ marginTop: '8px', paddingTop: '16px', borderTop: '1px solid var(--border)' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', flexWrap: 'wrap', gap: '8px' }}>
+                              <label className="deploy-input-label" style={{ margin: 0 }}>
+                                <span>
+                                  {category === 'CD'
+                                    ? 'Beneficiary & Community Initiative Photos'
+                                    : 'Field Damage & Disaster Aftermath Photos'}
+                                </span>
+                              </label>
+                              <span style={{
+                                fontSize: '0.72rem',
+                                color: disasterImages.length >= 10 ? '#ef4444' : (disasterImages.length > 0 ? 'var(--accent)' : 'var(--text-muted)'),
+                                fontWeight: 700,
+                                background: 'var(--bg-inset)',
+                                padding: '2px 8px',
+                                borderRadius: '6px',
+                                border: '1px solid var(--border)'
+                              }}>
+                                {disasterImages.length} / 10 Photos Attached
+                              </span>
+                            </div>
+
+                            <input
+                              ref={disasterFileInputRef}
+                              type="file"
+                              multiple
+                              accept="image/png, image/jpeg, image/webp"
+                              onChange={handleDisasterImagesUpload}
+                              style={{ display: 'none' }}
+                              disabled={creating || isProcessingDisasterImages || disasterImages.length >= 10}
+                            />
+
+                            {disasterImages.length < 10 && (
                               <div
-                                className="ledger-custom-calendar-popover"
-                                onClick={(e) => e.stopPropagation()}
-                                style={{
-                                  position: 'absolute',
-                                  top: 'calc(100% + 6px)',
-                                  left: 0,
-                                  right: 'auto',
-                                  width: '300px',
-                                  zIndex: 100
+                                className="deploy-dropzone"
+                                onClick={() => {
+                                  if (!creating && !isProcessingDisasterImages && disasterFileInputRef.current) {
+                                    disasterFileInputRef.current.click();
+                                  }
                                 }}
                               >
-                                {/* Month Header */}
-                                <div className="cal-header">
-                                  <button
-                                    type="button"
-                                    className="cal-nav-btn"
-                                    onClick={handlePrevCalMonth}
-                                    title="Previous Month"
-                                  >
-                                    <span className="material-symbols-outlined">chevron_left</span>
-                                  </button>
-                                  <div className="cal-month-title">
-                                    {calViewDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
-                                  </div>
-                                  <button
-                                    type="button"
-                                    className="cal-nav-btn"
-                                    onClick={handleNextCalMonth}
-                                    title="Next Month"
-                                  >
-                                    <span className="material-symbols-outlined">chevron_right</span>
-                                  </button>
-                                </div>
+                                {isProcessingDisasterImages ? (
+                                  <>
+                                    <span className="material-symbols-outlined spin" style={{ fontSize: '26px', color: 'var(--accent)' }}>progress_activity</span>
+                                    <span style={{ fontSize: '0.84rem', color: 'var(--text-primary)', fontWeight: 600 }}>Optimizing & Compressing Photos...</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <div className="deploy-section-icon-badge" style={{ width: '42px', height: '42px', borderRadius: '50%' }}>
+                                      <span className="material-symbols-outlined" style={{ fontSize: '22px' }}>
+                                        {category === 'CD' ? 'add_a_photo' : 'add_photo_alternate'}
+                                      </span>
+                                    </div>
+                                    <div style={{ fontSize: '0.86rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                                      {category === 'CD'
+                                        ? 'Click or Drag to Upload Community / Beneficiary Photos'
+                                        : 'Click or Drag to Upload Disaster Photos'}
+                                    </div>
+                                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                                      {category === 'CD'
+                                        ? 'Photos of community activities, beneficiaries, or initiative activities • PNG, JPG, WebP (Max 10)'
+                                        : 'Featured on the Tactical Radar Info Card and Dossier • PNG, JPG, WebP (Max 10)'}
+                                    </div>
+                                  </>
+                                )}
+                              </div>
+                            )}
 
-                                {/* Urgency Helper Banner */}
-                                <div className="cal-lifecycle-banner" style={{ fontSize: '0.66rem', padding: '3px 8px' }}>
-                                  <span className="cal-pulse-dot" />
-                                  <span className="cal-lifecycle-text">
-                                    Auto Urgency: ≤5d High • 6–14d Medium • &gt;14d Stable
+                            {/* Photos Thumbnails Preview Grid with Drag-and-Drop Reordering */}
+                            {disasterImages.length > 0 && (
+                              <div>
+                                <div style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'space-between',
+                                  gap: '8px',
+                                  margin: '14px 0 10px',
+                                  padding: '8px 12px',
+                                  borderRadius: '8px',
+                                  background: 'rgba(255, 255, 255, 0.03)',
+                                  border: '1px dashed var(--border)',
+                                  fontSize: '0.78rem',
+                                  color: 'var(--text-muted)'
+                                }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                    <span className="material-symbols-outlined" style={{ fontSize: '16px', color: 'var(--accent)' }}>drag_pan</span>
+                                    <span>
+                                      <strong>Drag photos</strong> to change their order. <strong>Photo #1</strong> will always serve as the campaign Cover Photo.
+                                    </span>
+                                  </div>
+                                  <span style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', fontWeight: 700 }}>
+                                    {disasterImages.length} / 10 Photos
                                   </span>
                                 </div>
 
-                                {/* Weekday Labels */}
-                                <div className="cal-weekdays">
-                                  <span>Su</span>
-                                  <span>Mo</span>
-                                  <span>Tu</span>
-                                  <span>We</span>
-                                  <span>Th</span>
-                                  <span>Fr</span>
-                                  <span>Sa</span>
-                                </div>
-
-                                {/* Days Grid */}
-                                <div className="cal-grid">
-                                  {calMonthCells.map((cell) => {
-                                    const isSelected = targetDate === cell.iso;
-                                    let cellClass = 'cal-day';
-                                    if (!cell.isCurrentMonth) cellClass += ' cal-day-outside';
-                                    if (cell.isPast) cellClass += ' cal-day-past';
-                                    if (isSelected) cellClass += ' cal-day-selected';
-
-                                    const today = new Date();
-                                    today.setHours(0, 0, 0, 0);
-                                    const cellDate = new Date(cell.iso + 'T00:00:00');
-                                    const diffDays = Math.ceil((cellDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-
-                                    let dotColor = null;
-                                    if (!cell.isPast && cell.isCurrentMonth) {
-                                      if (diffDays <= 5) dotColor = '#ef4444';
-                                      else if (diffDays <= 14) dotColor = '#eab308';
-                                      else dotColor = '#22c55e';
-                                    }
+                                <div style={{
+                                  display: 'grid',
+                                  gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))',
+                                  gap: '12px',
+                                  marginTop: '10px'
+                                }}>
+                                  {disasterImages.map((imgSrc, idx) => {
+                                    const isCover = idx === 0;
+                                    const isDragging = draggedPhotoIdx === idx;
+                                    const isDragOver = dragOverPhotoIdx === idx && draggedPhotoIdx !== idx;
 
                                     return (
-                                      <button
-                                        key={cell.iso}
-                                        type="button"
-                                        className={cellClass}
-                                        disabled={cell.isPast}
-                                        onClick={() => {
-                                          handleTargetDateChange(cell.iso);
-                                          setDeliveryDatePickerOpen(false);
+                                      <div
+                                        key={imgSrc ? imgSrc.slice(0, 32) + idx : idx}
+                                        className={`deploy-photo-card ${isCover ? 'cover' : ''} ${isDragging ? 'dragging' : ''} ${isDragOver ? 'drag-over' : ''}`}
+                                        draggable={!creating && !isProcessingDisasterImages}
+                                        onDragStart={(e) => {
+                                          setDraggedPhotoIdx(idx);
+                                          e.dataTransfer.effectAllowed = 'move';
+                                          e.dataTransfer.setData('text/plain', String(idx));
+                                        }}
+                                        onDragOver={(e) => {
+                                          e.preventDefault();
+                                          e.dataTransfer.dropEffect = 'move';
+                                          if (dragOverPhotoIdx !== idx) {
+                                            setDragOverPhotoIdx(idx);
+                                          }
+                                        }}
+                                        onDragEnter={(e) => {
+                                          e.preventDefault();
+                                          if (dragOverPhotoIdx !== idx) {
+                                            setDragOverPhotoIdx(idx);
+                                          }
+                                        }}
+                                        onDragLeave={(e) => {
+                                          if (e.currentTarget.contains(e.relatedTarget)) return;
+                                          if (dragOverPhotoIdx === idx) {
+                                            setDragOverPhotoIdx(null);
+                                          }
+                                        }}
+                                        onDrop={(e) => {
+                                          e.preventDefault();
+                                          setDragOverPhotoIdx(null);
+                                          const sourceIdx = draggedPhotoIdx !== null ? draggedPhotoIdx : parseInt(e.dataTransfer.getData('text/plain'), 10);
+                                          if (!isNaN(sourceIdx) && sourceIdx !== idx) {
+                                            moveDisasterImage(sourceIdx, idx);
+                                          }
+                                          setDraggedPhotoIdx(null);
+                                        }}
+                                        onDragEnd={() => {
+                                          setDraggedPhotoIdx(null);
+                                          setDragOverPhotoIdx(null);
                                         }}
                                         style={{
-                                          opacity: cell.isPast ? 0.35 : 1,
-                                          cursor: cell.isPast ? 'not-allowed' : 'pointer',
-                                          border: cell.isToday ? '1px dashed var(--accent, #22c55e)' : 'none',
-                                          background: isSelected ? 'var(--accent, #22c55e)' : (cell.isToday ? 'rgba(34,197,94,0.08)' : 'transparent'),
-                                          color: isSelected ? '#000000' : 'inherit',
-                                          fontWeight: isSelected || cell.isToday ? 700 : 500,
-                                          position: 'relative'
+                                          cursor: isDragging ? 'grabbing' : 'grab',
+                                          opacity: isDragging ? 0.35 : 1,
+                                          transform: isDragging ? 'scale(0.95)' : isDragOver ? 'scale(1.03)' : 'scale(1)',
+                                          borderColor: isDragOver ? 'var(--accent)' : isCover ? 'var(--accent)' : undefined,
+                                          boxShadow: isDragOver ? '0 0 14px var(--accent-dim)' : undefined,
+                                          transition: 'transform 0.15s ease, opacity 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease'
                                         }}
-                                        title={cell.isPast ? 'Past date unavailable' : `${cell.iso} (${diffDays === 0 ? 'Today' : `${diffDays} days from now`})`}
+                                        title="Click and drag to reorder photos"
                                       >
-                                        <span className="cal-day-num">{cell.dayNum}</span>
-                                        {dotColor && !isSelected && (
-                                          <span
-                                            style={{
-                                              width: '4px',
-                                              height: '4px',
-                                              borderRadius: '50%',
-                                              background: dotColor,
-                                              position: 'absolute',
-                                              bottom: '3px'
+                                        <img
+                                          src={imgSrc}
+                                          alt={`Disaster aftermath evidence ${idx + 1}`}
+                                          style={{ width: '100%', height: '100%', objectFit: 'cover', pointerEvents: 'none', userSelect: 'none' }}
+                                          draggable={false}
+                                        />
+
+                                        {/* Drag Handle Indicator with Order Number */}
+                                        <div
+                                          className="deploy-photo-drag-handle"
+                                          title="Drag to reorder position"
+                                        >
+                                          <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>drag_indicator</span>
+                                          <span>#{idx + 1}</span>
+                                        </div>
+
+                                        {/* Cover Photo Badge or Quick "Set Cover" Button */}
+                                        {isCover ? (
+                                          <span style={{
+                                            position: 'absolute',
+                                            bottom: '4px',
+                                            left: '4px',
+                                            background: 'var(--accent)',
+                                            color: '#000000',
+                                            fontSize: '9px',
+                                            fontWeight: 800,
+                                            padding: '2px 6px',
+                                            borderRadius: '4px',
+                                            letterSpacing: '0.3px',
+                                            textTransform: 'uppercase',
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            gap: '3px',
+                                            boxShadow: '0 2px 4px rgba(0,0,0,0.4)',
+                                            zIndex: 2
+                                          }}>
+                                            <span className="material-symbols-outlined" style={{ fontSize: '11px' }}>star</span>
+                                            Cover Photo
+                                          </span>
+                                        ) : (
+                                          <button
+                                            type="button"
+                                            className="deploy-photo-cover-btn"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              moveDisasterImage(idx, 0);
                                             }}
-                                          />
+                                            title="Quickly make this photo the Cover Photo (Slot 1)"
+                                          >
+                                            <span className="material-symbols-outlined" style={{ fontSize: '11px' }}>star_border</span>
+                                            Make Cover
+                                          </button>
                                         )}
-                                      </button>
+
+                                        {/* Remove photo button */}
+                                        <button
+                                          type="button"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            removeDisasterImage(idx);
+                                          }}
+                                          style={{
+                                            position: 'absolute',
+                                            top: '4px',
+                                            right: '4px',
+                                            width: '22px',
+                                            height: '22px',
+                                            borderRadius: '50%',
+                                            background: 'rgba(0, 0, 0, 0.75)',
+                                            border: '1px solid rgba(255, 255, 255, 0.3)',
+                                            color: '#ffffff',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            cursor: 'pointer',
+                                            transition: 'background 0.15s ease',
+                                            zIndex: 3
+                                          }}
+                                          onMouseEnter={(e) => e.currentTarget.style.background = '#ef4444'}
+                                          onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(0, 0, 0, 0.75)'}
+                                          title="Remove photo"
+                                        >
+                                          <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>close</span>
+                                        </button>
+                                      </div>
                                     );
                                   })}
                                 </div>
                               </div>
                             )}
                           </div>
-                          <div style={{ marginTop: '4px', fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                            Selecting a date will auto-fill the Urgency Status below.
-                          </div>
                         </div>
+                      </div>
+                    </div>
+                  )}
 
-                        {/* SWAPPED INPUT ORDER: 2. Urgency Status (Auto-filled once date is selected, or manually adjustable) */}
-                        <div>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px' }}>
-                            <label className="deploy-input-label" style={{ margin: 0 }}>
-                              Urgency Status
-                            </label>
-                            {urgency && (
-                              <span style={{ fontSize: '0.68rem', color: 'var(--accent, #22c55e)', fontWeight: 600 }}>
-                                Auto-set from target date
+                  {/* ── Step 3: Humanitarian Operation Tags ── */}
+                  {deployStep === 3 && (
+                    <div className="fade-in">
+                      <div className="deploy-section-card">
+                        <div className="deploy-section-header">
+                          <div className="deploy-section-title-wrap">
+                            <div className="deploy-section-icon-badge">
+                              <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>
+                                {category === 'CD' ? 'volunteer_activism' : 'sell'}
                               </span>
-                            )}
+                            </div>
+                            <div>
+                              <h3 className="deploy-section-title">
+                                {category === 'CD' ? '3. Community Aid & Initiative Tags' : '3. Disaster Response & Relief Tags'}
+                              </h3>
+                              <div className="deploy-section-subtitle">
+                                {category === 'CD'
+                                  ? 'Keywords in title auto-detect relevant project tags. Click chips to toggle tags.'
+                                  : 'Keywords in title auto-detect relevant disaster relief tags. Click chips to toggle tags.'}
+                              </div>
+                            </div>
                           </div>
-                          <select className="input deploy-field-input" value={urgency} onChange={(e) => setUrgency(e.target.value)} disabled={creating}>
-                            <option value="">-- Select or Auto-filled by Delivery Date --</option>
-                            <option value="HIGH (EMERGENCY AID)">High Emergency Aid (≤ 5 Days)</option>
-                            <option value="MEDIUM (URGENT REHABILITATION)">Urgent Rehabilitation (6–14 Days)</option>
-                            <option value="STABLE (CHARITABLE AID)">Standard Aid Operation (&gt; 14 Days)</option>
-                          </select>
-                        </div>
-
-                        {/* Estimated Beneficiaries (Full Width) */}
-                        <div style={{ gridColumn: '1 / -1' }}>
-                          <label className="deploy-input-label">
-                            Estimated Beneficiaries / Impact Scope
-                          </label>
-                          <input className="input deploy-field-input" type="text"
-                            placeholder="e.g., ~3,500 Displaced Families across 12 Barangays"
-                            value={beneficiariesImpact} onChange={(e) => setBeneficiariesImpact(e.target.value)} disabled={creating} />
-                        </div>
-
-                        {/* Campaign Focus Tags (No 4-tag limit, auto-detects from title keywords) */}
-                        <div style={{ gridColumn: '1 / -1', marginTop: '4px' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-                            <label className="deploy-input-label" style={{ margin: 0 }}>
-                              Campaign Operation Tags (Select appropriate tags for this relief campaign)
-                            </label>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <button
+                              type="button"
+                              className="btn btn-ghost btn-xs"
+                              onClick={() => setShowAllTags(prev => !prev)}
+                              style={{ fontSize: '0.72rem', color: 'var(--accent, #22c55e)' }}
+                            >
+                              {showAllTags ? 'Show Category Tags' : 'Show All Tags'}
+                            </button>
                             <span style={{ fontSize: '0.74rem', color: selectedTags.length > 0 ? 'var(--accent)' : 'var(--text-muted)', fontWeight: 600 }}>
                               {selectedTags.length} Selected
                             </span>
-                          </div>
-                          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted, #94a3b8)', marginBottom: '8px' }}>
-                            Disaster keywords in your title (English, Bisaya, or Tagalog) automatically select all necessary operation tags. You can also manually select or deselect any tags as appropriate.
-                          </div>
-                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-                            {PRESET_CAMPAIGN_TAGS.map((tag) => {
-                              const isSelected = selectedTags.includes(tag);
-                              const isAuto = autoDetectedTagsRef.current.includes(tag) && isSelected;
-                              return (
-                                <button
-                                  key={tag}
-                                  type="button"
-                                  onClick={() => handleTagToggle(tag)}
-                                  className={`deploy-tag-chip ${isSelected ? 'active' : ''}`}
-                                  title={isAuto ? 'Auto-detected from campaign title keyword. Click to toggle.' : `Click to toggle ${tag}`}
-                                >
-                                  <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>{isSelected ? 'check' : 'add'}</span>
-                                  <span>{tag}</span>
-                                  {isAuto && (
-                                    <span style={{ fontSize: '9px', opacity: 0.85, marginLeft: '3px', background: 'rgba(34, 197, 94, 0.25)', border: '1px solid rgba(34, 197, 94, 0.4)', padding: '1px 4px', borderRadius: '3px' }}>
-                                      auto
-                                    </span>
-                                  )}
-                                </button>
-                              );
-                            })}
+                            <span className="deploy-step-pill">Step 3 of 5</span>
                           </div>
                         </div>
 
-                        {/* Mission Purpose, Narrative & Emergency Contact (Integrated into Step 1 as requested) */}
-                        <div style={{ gridColumn: '1 / -1', marginTop: '14px', paddingTop: '16px', borderTop: '1px solid var(--border)' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '14px' }}>
-                            <span className="material-symbols-outlined" style={{ fontSize: '1.2rem', color: 'var(--accent, #22c55e)' }}>contact_support</span>
-                            <span style={{ fontSize: '0.84rem', fontWeight: 700, color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                              Mission Narrative & Verification Details
-                            </span>
-                          </div>
-
-                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '16px', marginBottom: '14px' }}>
-                            <div>
-                              <label className="deploy-input-label">
-                                Emergency Contact Hotline / Email
-                              </label>
-                              <input className="input deploy-field-input" type="text"
-                                placeholder="e.g., relief@redcross.org.ph • (053) 570-8899"
-                                value={contactInfo} onChange={(e) => setContactInfo(e.target.value)} disabled={creating} />
-                            </div>
-
-                            <div>
-                              <label className="deploy-input-label">
-                                Official Document / Verification Link (Optional)
-                              </label>
-                              <input className="input deploy-field-input" type="url"
-                                placeholder="e.g., https://redcross.org.ph/press-release-102"
-                                value={documentUrl} onChange={(e) => setDocumentUrl(e.target.value)} disabled={creating} />
-                            </div>
-                          </div>
-
-                          <div>
-                            <label className="deploy-input-label">
-                              Mission & Campaign Description
-                            </label>
-                            <textarea
-                              className="input deploy-field-input"
-                              rows="3"
-                              placeholder="Provide mission background, emergency relief scope, and on-ground deployment plan..."
-                              value={description}
-                              onChange={(e) => setDescription(e.target.value)}
-                              disabled={creating}
-                              style={{ width: '100%', resize: 'none' }}
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Section 2: Target Relief Ground & Interactive Topographic Pin Map */}
-                    <div className="deploy-section-card">
-                      <div className="deploy-section-header">
-                        <div>
-                          <div className="deploy-section-title">
-                            <span className="material-symbols-outlined deploy-section-icon">explore</span>
-                            <span>2. Target Location & Interactive Pin Map</span>
-                          </div>
-                          <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '4px' }}>
-                            Click anywhere on the map to set the relief area. Address fields will fill in automatically.
-                          </div>
-                        </div>
-                        <span className="deploy-step-pill">Step 2 of 3</span>
-                      </div>
-
-                      {/* 2-Column Responsive Layout: Granular Address Details (Left) & Stable Map View (Right) */}
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '22px', alignItems: 'start' }}>
-
-                        {/* ── Left Column: Granular Address Details ── */}
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px' }}>
-                            <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                              <span className="material-symbols-outlined" style={{ fontSize: '1.1rem', color: '#ef4444' }}>location_on</span>
-                              Complete Address Details
-                            </div>
-                            {(street || barangay || city || province || region || zipCode || landmark || locationRegion || gpsCoordinates) && (
-                              <button
-                                type="button"
-                                className="btn btn-ghost btn-xs"
-                                onClick={() => {
-                                  setStreet('');
-                                  setBarangay('');
-                                  setCity('');
-                                  setProvince('');
-                                  setRegion('');
-                                  setZipCode('');
-                                  setLandmark('');
-                                  setCountry('Philippines');
-                                  setLocationRegion('');
-                                  setGpsCoordinates('');
-                                }}
-                                disabled={creating}
-                                style={{ fontSize: '0.72rem', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.3)', padding: '2px 8px', borderRadius: '6px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
-                                title="Clear all address fields"
-                              >
-                                <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>clear_all</span>
-                                <span>Clear</span>
-                              </button>
-                            )}
-                          </div>
-
-                          {/* 1. Street / Building / House No. */}
-                          <div>
-                            <label className="deploy-input-label">Street / Building / House No.</label>
-                            <input
-                              className="input deploy-field-input"
-                              type="text"
-                              placeholder="e.g., Rizal Street, Block 4"
-                              value={street}
-                              onChange={(e) => {
-                                setStreet(e.target.value);
-                                setLocationRegion([e.target.value, barangay, city, province, region ? `(${region})` : '', zipCode, country, landmark ? `(Landmark: ${landmark})` : ''].filter(Boolean).join(', '));
-                              }}
-                              disabled={creating}
-                            />
-                          </div>
-
-                          {/* 2. Barangay & Municipality / City */}
-                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                            <div>
-                              <label className="deploy-input-label">Barangay</label>
-                              <input
-                                className="input deploy-field-input"
-                                type="text"
-                                placeholder="e.g., Barangay Abgao"
-                                value={barangay}
-                                onChange={(e) => {
-                                  setBarangay(e.target.value);
-                                  setLocationRegion([street, e.target.value, city, province, region ? `(${region})` : '', zipCode, country, landmark ? `(Landmark: ${landmark})` : ''].filter(Boolean).join(', '));
-                                }}
-                                disabled={creating}
-                              />
-                            </div>
-                            <div>
-                              <label className="deploy-input-label">Municipality / City *</label>
-                              <input
-                                className="input deploy-field-input"
-                                type="text"
-                                required
-                                placeholder="e.g., Maasin City"
-                                value={city}
-                                onChange={(e) => {
-                                  setCity(e.target.value);
-                                  setLocationRegion([street, barangay, e.target.value, province, region ? `(${region})` : '', zipCode, country, landmark ? `(Landmark: ${landmark})` : ''].filter(Boolean).join(', '));
-                                }}
-                                disabled={creating}
-                              />
-                            </div>
-                          </div>
-
-                          {/* 3. Province / State beside and left of Zip / Postal Code */}
-                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                            <div>
-                              <label className="deploy-input-label">Province / State *</label>
-                              <input
-                                className="input deploy-field-input"
-                                type="text"
-                                required
-                                placeholder="e.g., Southern Leyte"
-                                value={province}
-                                onChange={(e) => {
-                                  const provVal = e.target.value;
-                                  setProvince(provVal);
-                                  const autoReg = getRegionForProvince(provVal);
-                                  if (autoReg) setRegion(autoReg);
-                                  setLocationRegion([street, barangay, city, provVal, (autoReg || region) ? `(${autoReg || region})` : '', zipCode, country, landmark ? `(Landmark: ${landmark})` : ''].filter(Boolean).join(', '));
-                                }}
-                                disabled={creating}
-                              />
-                            </div>
-                            <div>
-                              <label className="deploy-input-label">Zip / Postal Code</label>
-                              <input
-                                className="input deploy-field-input"
-                                type="text"
-                                placeholder="e.g., 6600"
-                                value={zipCode}
-                                onChange={(e) => {
-                                  setZipCode(e.target.value);
-                                  setLocationRegion([street, barangay, city, province, region ? `(${region})` : '', e.target.value, country, landmark ? `(Landmark: ${landmark})` : ''].filter(Boolean).join(', '));
-                                }}
-                                disabled={creating}
-                              />
-                            </div>
-                          </div>
-
-                          {/* 4. Region & Country */}
-                          <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '12px' }}>
-                            <div>
-                              <label className="deploy-input-label">Region *</label>
-                              <input
-                                className="input deploy-field-input"
-                                type="text"
-                                required
-                                list="ph-region-options"
-                                placeholder="e.g., Region VIII (Eastern Visayas)"
-                                value={region}
-                                onChange={(e) => {
-                                  const regVal = e.target.value;
-                                  setRegion(regVal);
-                                  setLocationRegion([street, barangay, city, province, regVal ? `(${regVal})` : '', zipCode, country, landmark ? `(Landmark: ${landmark})` : ''].filter(Boolean).join(', '));
-                                }}
-                                disabled={creating}
-                              />
-                              <datalist id="ph-region-options">
-                                {getRegions().map((r) => (
-                                  <option key={r} value={r} />
-                                ))}
-                              </datalist>
-                            </div>
-                            <div>
-                              <label className="deploy-input-label">Country</label>
-                              <input
-                                className="input deploy-field-input"
-                                type="text"
-                                placeholder="e.g., Philippines"
-                                value={country}
-                                onChange={(e) => {
-                                  setCountry(e.target.value);
-                                  setLocationRegion([street, barangay, city, province, region ? `(${region})` : '', zipCode, e.target.value, landmark ? `(Landmark: ${landmark})` : ''].filter(Boolean).join(', '));
-                                }}
-                                disabled={creating}
-                              />
-                            </div>
-                          </div>
-
-                          {/* 5. Landmark / Evacuation Site */}
-                          <div>
-                            <label className="deploy-input-label">Landmark / Evacuation Site (Optional)</label>
-                            <input
-                              className="input deploy-field-input"
-                              type="text"
-                              placeholder="e.g., Near City Port, Rizal Park, Evacuation Center"
-                              value={landmark}
-                              onChange={(e) => {
-                                setLandmark(e.target.value);
-                                setLocationRegion([street, barangay, city, province, region ? `(${region})` : '', zipCode, country, e.target.value ? `(Landmark: ${e.target.value})` : ''].filter(Boolean).join(', '));
-                              }}
-                              disabled={creating}
-                            />
-                          </div>
-
-                          {/* 5. Find Location button below the address input form */}
-                          <button
-                            type="button"
-                            className="btn"
-                            onClick={() => {
-                              const searchAddress = [street, barangay, city, province, region, country].filter(Boolean).join(', ');
-                              if (!city && !province && !searchAddress) {
-                                return showWarning('Please enter at least a Municipality/City or Province to locate on map.', 'Location Required');
-                              }
-                              setIsFindingLocation(true);
-                              setMapSearchTrigger({
-                                structured: { street, barangay, city, province, region, country, landmark },
-                                query: searchAddress,
-                                ts: Date.now()
-                              });
-                            }}
-                            disabled={creating || isFindingLocation}
-                            style={{
-                              width: '100%',
-                              padding: '11px 18px',
-                              fontSize: '0.9rem',
-                              fontWeight: 700,
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              gap: '8px',
-                              borderRadius: '10px',
-                              marginTop: '2px',
-                              background: '#ffffff',
-                              color: '#0f172a',
-                              border: '1.5px solid #cbd5e1',
-                              cursor: isFindingLocation ? 'wait' : 'pointer',
-                              transition: 'all 0.2s ease',
-                              boxShadow: '0 2px 8px rgba(0,0,0,0.18)'
-                            }}
-                            title="Search and pin location on map"
-                          >
-                            {isFindingLocation ? (
-                              <>
-                                <span className="material-symbols-outlined spin" style={{ fontSize: '1.25rem', color: '#16a34a' }}>progress_activity</span>
-                                <span style={{ color: '#0f172a' }}>Finding Location on Map...</span>
-                              </>
-                            ) : (
-                              <>
-                                <span className="material-symbols-outlined" style={{ fontSize: '1.25rem', color: '#16a34a' }}>explore</span>
-                                <span style={{ color: '#0f172a' }}>Find Location</span>
-                              </>
-                            )}
-                          </button>
-
-                          {/* Formatted Full Address & GPS Badge */}
-                          <div style={{
-                            background: 'var(--bg-subcard)',
-                            border: '1px solid var(--border)',
-                            borderRadius: '10px',
-                            padding: '12px 14px',
-                            marginTop: '6px',
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            alignItems: 'center',
-                            flexWrap: 'wrap',
-                            gap: '10px'
-                          }}>
-                            <div style={{ flex: 1, minWidth: '180px' }}>
-                              <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                <span className="material-symbols-outlined" style={{ fontSize: '14px', color: 'var(--accent)' }}>location_on</span>
-                                <span>Confirmed Deployment Address:</span>
-                              </div>
-                              <div style={{ fontSize: '0.84rem', fontWeight: 700, color: locationRegion ? 'var(--text-primary)' : 'var(--text-muted)', marginTop: '2px', wordBreak: 'break-word' }}>
-                                {locationRegion || 'Fill inputs above or select a point on the map →'}
-                              </div>
-                            </div>
-                            <div style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '6px',
-                              background: 'var(--accent-dim)',
-                              color: 'var(--accent)',
-                              padding: '4px 10px',
-                              borderRadius: '8px',
-                              fontSize: '0.76rem',
-                              fontWeight: 700,
-                              border: '1px solid var(--accent-glow, rgba(34,197,94,0.3))',
-                              whiteSpace: 'nowrap'
-                            }}>
-                              <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>my_location</span>
-                              <span>GPS: {gpsCoordinates || '10.1333° N, 124.8667° E'}</span>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* ── Right Column: Square Leaflet Map View ── */}
-                        <div style={{ display: 'flex', flexDirection: 'column' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                            <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                              <span className="material-symbols-outlined" style={{ fontSize: '1.1rem', color: 'var(--accent)' }}>pin_drop</span>
-                              Deployment Topo Map
-                            </span>
-                            <span
-                              style={{
-                                fontSize: '0.7rem',
-                                color: 'var(--accent)',
-                                background: 'var(--accent-dim)',
-                                border: '1px solid var(--accent-glow, rgba(34,197,94,0.25))',
-                                padding: '2px 8px',
-                                borderRadius: '10px',
-                                fontWeight: 700,
-                                textTransform: 'uppercase',
-                                letterSpacing: '0.5px',
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '4px'
-                              }}
-                            >
-                              <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>sync</span>
-                              Auto-Sync Pin
-                            </span>
-                          </div>
-
-                          <div style={{
-                            height: '470px',
-                            minHeight: '470px',
-                            maxHeight: '470px',
-                            borderRadius: '12px',
-                            overflow: 'hidden',
-                            border: '1px solid var(--border)',
-                            boxShadow: '0 4px 16px rgba(0,0,0,0.25)',
-                            background: 'var(--bg-subcard)',
-                            position: 'relative',
-                            display: 'flex',
-                            flexDirection: 'column'
-                          }}>
-                            <LocationMapPicker
-                              address={locationRegion}
-                              gps={gpsCoordinates}
-                              onChangeAddress={(addr) => setLocationRegion(addr)}
-                              onChangeGranularAddress={handleGranularAddressFromMap}
-                              onChangeGps={(coords) => setGpsCoordinates(coords)}
-                              onLocationFound={(res) => {
-                                setIsFindingLocation(false);
-                                showSuccess(
-                                  `Location found: ${res.name || res.display_name?.split(',')[0] || 'Map pinned successfully'}.`,
-                                  'Map Location Set'
-                                );
-                                if (!zipCode && res.address?.postcode) {
-                                  setZipCode(res.address.postcode);
-                                }
-                              }}
-                              onSearchStatus={(status) => {
-                                setIsFindingLocation(false);
-                                if (!status.success) {
-                                  showWarning(
-                                    'Could not find the address on the map. Please check the City / Province or click directly on the map.',
-                                    'Location Search'
-                                  );
-                                }
-                              }}
-                              height="470px"
-                              hideTip={true}
-                              hideSearch={true}
-                              searchTrigger={mapSearchTrigger}
-                              theme={theme}
-                              markerShape="redPin"
-                              defaultLayer="street"
-                            />
-                          </div>
-                        </div>
-
-                      </div>
-                    </div>
-
-                    {/* Section 3: Official Multi-Channel E-Wallet & Bank Settings */}
-                    {(() => {
-                      const profileReliefData = getProfileReliefChannels();
-                      return (
-                        <div className="deploy-section-card">
-                          <div className="deploy-section-header" style={{ marginBottom: '14px' }}>
-                            <div>
-                              <div className="deploy-section-title">
-                                <span className="material-symbols-outlined deploy-section-icon">account_balance_wallet</span>
-                                <span>3. Official Multi-Channel Payment Settings</span>
-                              </div>
-                              <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '3px' }}>
-                                Configure receiving channels for donors contributing via GCash, Maya, or direct Bank Transfer.
-                              </div>
-                            </div>
-                            <span className="deploy-step-pill">Step 3 of 3</span>
-                          </div>
-
-                          {/* Payment Channel Switcher & Actions Toolbar */}
-                          <div style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'space-between',
-                            gap: '12px',
-                            marginBottom: '16px',
-                            flexWrap: 'wrap'
-                          }}>
-                            {/* Segmented Pill Tab Selector */}
-                            <div style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              background: 'var(--bg-subcard, rgba(255, 255, 255, 0.05))',
-                              padding: '4px',
-                              borderRadius: '12px',
-                              border: '1px solid var(--border, rgba(255, 255, 255, 0.1))',
-                              gap: '4px',
-                              maxWidth: '100%',
-                              overflowX: 'auto'
-                            }}>
-                              <button
-                                type="button"
-                                onClick={() => setActivePaymentChannelTab('gcash')}
-                                style={{
-                                  padding: '7px 18px',
-                                  borderRadius: '8px',
-                                  border: 'none',
-                                  background: activePaymentChannelTab === 'gcash' ? '#007DFE' : 'transparent',
-                                  color: activePaymentChannelTab === 'gcash' ? '#ffffff' : 'var(--text-secondary)',
-                                  fontSize: '0.82rem',
-                                  fontWeight: 700,
-                                  cursor: 'pointer',
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: '8px',
-                                  transition: 'all 0.15s ease',
-                                  whiteSpace: 'nowrap'
-                                }}
-                              >
-                                <span style={{
-                                  width: '8px',
-                                  height: '8px',
-                                  borderRadius: '50%',
-                                  background: (gcashNumber || gcashQrUrl || gcashName) ? (activePaymentChannelTab === 'gcash' ? '#ffffff' : '#22c55e') : 'rgba(255,255,255,0.3)'
-                                }} />
-                                <span>GCash</span>
-                                {(gcashNumber || gcashQrUrl || gcashName) && <span className="material-symbols-outlined" style={{ fontSize: '13px', opacity: 0.9 }}>check</span>}
-                              </button>
-
-                              <button
-                                type="button"
-                                onClick={() => setActivePaymentChannelTab('maya')}
-                                style={{
-                                  padding: '7px 18px',
-                                  borderRadius: '8px',
-                                  border: 'none',
-                                  background: activePaymentChannelTab === 'maya' ? '#00b87c' : 'transparent',
-                                  color: activePaymentChannelTab === 'maya' ? '#ffffff' : 'var(--text-secondary)',
-                                  fontSize: '0.82rem',
-                                  fontWeight: 700,
-                                  cursor: 'pointer',
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: '8px',
-                                  transition: 'all 0.15s ease',
-                                  whiteSpace: 'nowrap'
-                                }}
-                              >
-                                <span style={{
-                                  width: '8px',
-                                  height: '8px',
-                                  borderRadius: '50%',
-                                  background: (mayaNumber || mayaQrUrl || mayaName) ? (activePaymentChannelTab === 'maya' ? '#ffffff' : '#22c55e') : 'rgba(255,255,255,0.3)'
-                                }} />
-                                <span>Maya</span>
-                                {(mayaNumber || mayaQrUrl || mayaName) && <span className="material-symbols-outlined" style={{ fontSize: '13px', opacity: 0.9 }}>check</span>}
-                              </button>
-
-                              <button
-                                type="button"
-                                onClick={() => setActivePaymentChannelTab('bank')}
-                                style={{
-                                  padding: '7px 18px',
-                                  borderRadius: '8px',
-                                  border: 'none',
-                                  background: activePaymentChannelTab === 'bank' ? '#16a34a' : 'transparent',
-                                  color: activePaymentChannelTab === 'bank' ? '#ffffff' : 'var(--text-secondary)',
-                                  fontSize: '0.82rem',
-                                  fontWeight: 700,
-                                  cursor: 'pointer',
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: '8px',
-                                  transition: 'all 0.15s ease',
-                                  whiteSpace: 'nowrap'
-                                }}
-                              >
-                                <span style={{
-                                  width: '8px',
-                                  height: '8px',
-                                  borderRadius: '50%',
-                                  background: (bankAccountNumber || bankQrUrl) ? (activePaymentChannelTab === 'bank' ? '#ffffff' : '#22c55e') : 'rgba(255,255,255,0.3)'
-                                }} />
-                                <span>Direct Bank Deposit</span>
-                                {(bankAccountNumber || bankQrUrl) && <span className="material-symbols-outlined" style={{ fontSize: '13px', opacity: 0.9 }}>check</span>}
-                              </button>
-                            </div>
-
-                            {/* Import Verified Channels from Profile */}
-                            {profileReliefData.hasAny && (
-                              <button
-                                type="button"
-                                className="btn btn-secondary btn-sm"
-                                onClick={handleAutofillFromProfile}
-                                style={{
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: '6px',
-                                  fontSize: '0.78rem',
-                                  fontWeight: 600,
-                                  padding: '7px 14px',
-                                  borderRadius: '8px'
-                                }}
-                                title="Import verified payment channels and QR codes from your Organization Profile"
-                              >
-                                <span className="material-symbols-outlined" style={{ fontSize: '16px', color: 'var(--accent)' }}>
-                                  sync
-                                </span>
-                                Import Channels from Profile
-                              </button>
-                            )}
-                          </div>
-
-                          {/* ── 1. GCASH CHANNEL ── */}
-                          {activePaymentChannelTab === 'gcash' && (
-                            <div
-                              className="fade-in"
-                              style={{
-                                background: 'rgba(0, 125, 254, 0.04)',
-                                padding: '18px 20px',
-                                borderRadius: '12px',
-                                border: '1px solid rgba(0, 125, 254, 0.28)'
-                              }}
-                            >
-                              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: '20px', alignItems: 'stretch' }}>
-                                {/* Left Column: GCash Account Details */}
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                                  <div>
-                                    <label className="deploy-input-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
-                                      <span className="material-symbols-outlined" style={{ color: '#007DFE', fontSize: '18px' }}>badge</span>
-                                      Official GCash Account Name
-                                    </label>
-                                    <input
-                                      className="input deploy-field-input"
-                                      type="text"
-                                      placeholder="e.g., Philippine Red Cross - Southern Leyte"
-                                      value={gcashName}
-                                      onChange={(e) => setGcashName(e.target.value)}
-                                      disabled={creating}
-                                    />
-                                    <span style={{ fontSize: '0.73rem', color: 'var(--text-muted)', marginTop: '4px', display: 'block' }}>
-                                      Registered name displayed on GCash app confirmation.
-                                    </span>
-                                  </div>
-
-                                  <div>
-                                    <label className="deploy-input-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
-                                      <span className="material-symbols-outlined" style={{ color: '#007DFE', fontSize: '18px' }}>smartphone</span>
-                                      Official GCash Receiving Number
-                                    </label>
-                                    <input
-                                      className="input deploy-field-input"
-                                      type="text"
-                                      placeholder="e.g., 0917 890 1234"
-                                      value={gcashNumber}
-                                      onChange={(e) => setGcashNumber(e.target.value)}
-                                      disabled={creating}
-                                      style={{ fontFamily: 'monospace', fontWeight: 700 }}
-                                    />
-                                    <span style={{ fontSize: '0.73rem', color: 'var(--text-muted)', marginTop: '4px', display: 'block' }}>
-                                      Donors can copy and send funds directly to this GCash account.
-                                    </span>
-                                  </div>
-                                </div>
-
-                                {/* Right Column: GCash QR Code */}
-                                <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                                    <label className="deploy-input-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', margin: 0 }}>
-                                      <span className="material-symbols-outlined" style={{ color: '#007DFE', fontSize: '18px' }}>qr_code</span>
-                                      GCash QR Code Image
-                                    </label>
-                                    {gcashQrUrl && (
-                                      <button
-                                        type="button"
-                                        onClick={() => setGcashQrUrl('')}
-                                        style={{ background: 'transparent', border: 'none', color: '#ef4444', fontSize: '0.73rem', cursor: 'pointer', fontWeight: 600 }}
-                                      >
-                                        Remove QR
-                                      </button>
-                                    )}
-                                  </div>
-
-                                  {gcashQrUrl ? (
-                                    <div style={{
-                                      flex: 1,
-                                      minHeight: '140px',
-                                      position: 'relative',
-                                      borderRadius: '10px',
-                                      overflow: 'hidden',
-                                      border: '1.5px solid rgba(0, 125, 254, 0.45)',
-                                      background: 'var(--bg-subcard)',
-                                      padding: '12px',
-                                      display: 'flex',
-                                      flexDirection: 'column',
-                                      alignItems: 'center',
-                                      justifyContent: 'center',
-                                      textAlign: 'center'
-                                    }}>
-                                      <img
-                                        src={gcashQrUrl}
-                                        alt="Organization GCash QR"
-                                        style={{ maxHeight: '110px', maxWidth: '100%', objectFit: 'contain', borderRadius: '8px' }}
-                                      />
-                                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', marginTop: '6px', fontSize: '0.74rem', color: '#007DFE', fontWeight: 700 }}>
-                                        <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>verified</span>
-                                        GCash QR Attached
-                                      </div>
-                                    </div>
-                                  ) : (
-                                    <label style={{
-                                      flex: 1,
-                                      minHeight: '140px',
-                                      display: 'flex',
-                                      flexDirection: 'column',
-                                      alignItems: 'center',
-                                      justifyContent: 'center',
-                                      padding: '16px',
-                                      border: '1.5px dashed rgba(0, 125, 254, 0.4)',
-                                      borderRadius: '10px',
-                                      cursor: 'pointer',
-                                      background: 'rgba(0, 125, 254, 0.03)',
-                                      transition: 'all 0.2s ease',
-                                      textAlign: 'center'
-                                    }}>
-                                      <span className="material-symbols-outlined" style={{ fontSize: '32px', color: '#007DFE', marginBottom: '6px' }}>
-                                        qr_code_scanner
-                                      </span>
-                                      <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                                        Upload GCash QR
-                                      </span>
-                                      <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-                                        PNG, JPG or WebP image
-                                      </span>
-                                      <input
-                                        type="file"
-                                        accept="image/*"
-                                        onChange={handleGcashQrUpload}
-                                        style={{ display: 'none' }}
-                                        disabled={creating}
-                                      />
-                                    </label>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                          )}
-
-                          {/* ── 2. MAYA CHANNEL ── */}
-                          {activePaymentChannelTab === 'maya' && (
-                            <div
-                              className="fade-in"
-                              style={{
-                                background: 'rgba(0, 214, 143, 0.04)',
-                                padding: '18px 20px',
-                                borderRadius: '12px',
-                                border: '1px solid rgba(0, 214, 143, 0.28)'
-                              }}
-                            >
-                              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: '20px', alignItems: 'stretch' }}>
-                                {/* Left Column: Maya Account Details */}
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                                  <div>
-                                    <label className="deploy-input-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
-                                      <span className="material-symbols-outlined" style={{ color: '#00d68f', fontSize: '18px' }}>badge</span>
-                                      Official Maya Account Name
-                                    </label>
-                                    <input
-                                      className="input deploy-field-input"
-                                      type="text"
-                                      placeholder="e.g., Philippine Red Cross or Official Merchant"
-                                      value={mayaName}
-                                      onChange={(e) => setMayaName(e.target.value)}
-                                      disabled={creating}
-                                    />
-                                    <span style={{ fontSize: '0.73rem', color: 'var(--text-muted)', marginTop: '4px', display: 'block' }}>
-                                      Registered merchant or account name inside Maya.
-                                    </span>
-                                  </div>
-
-                                  <div>
-                                    <label className="deploy-input-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
-                                      <span className="material-symbols-outlined" style={{ color: '#00d68f', fontSize: '18px' }}>account_circle</span>
-                                      Official Maya Number or @Username
-                                    </label>
-                                    <input
-                                      className="input deploy-field-input"
-                                      type="text"
-                                      placeholder="e.g., 0918 765 4321 or @reliefph"
-                                      value={mayaNumber}
-                                      onChange={(e) => setMayaNumber(e.target.value)}
-                                      disabled={creating}
-                                      style={{ fontFamily: 'monospace', fontWeight: 700 }}
-                                    />
-                                    <span style={{ fontSize: '0.73rem', color: 'var(--text-muted)', marginTop: '4px', display: 'block' }}>
-                                      Donors using Maya can transfer directly to this number or username.
-                                    </span>
-                                  </div>
-                                </div>
-
-                                {/* Right Column: Maya QR Code */}
-                                <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                                    <label className="deploy-input-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', margin: 0 }}>
-                                      <span className="material-symbols-outlined" style={{ color: '#00d68f', fontSize: '18px' }}>qr_code</span>
-                                      Maya QR Code Image
-                                    </label>
-                                    {mayaQrUrl && (
-                                      <button
-                                        type="button"
-                                        onClick={() => setMayaQrUrl('')}
-                                        style={{ background: 'transparent', border: 'none', color: '#ef4444', fontSize: '0.73rem', cursor: 'pointer', fontWeight: 600 }}
-                                      >
-                                        Remove QR
-                                      </button>
-                                    )}
-                                  </div>
-
-                                  {mayaQrUrl ? (
-                                    <div style={{
-                                      flex: 1,
-                                      minHeight: '140px',
-                                      position: 'relative',
-                                      borderRadius: '10px',
-                                      overflow: 'hidden',
-                                      border: '1.5px solid rgba(0, 214, 143, 0.45)',
-                                      background: 'var(--bg-subcard)',
-                                      padding: '12px',
-                                      display: 'flex',
-                                      flexDirection: 'column',
-                                      alignItems: 'center',
-                                      justifyContent: 'center',
-                                      textAlign: 'center'
-                                    }}>
-                                      <img
-                                        src={mayaQrUrl}
-                                        alt="Organization Maya QR"
-                                        style={{ maxHeight: '110px', maxWidth: '100%', objectFit: 'contain', borderRadius: '8px' }}
-                                      />
-                                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', marginTop: '6px', fontSize: '0.74rem', color: '#00d68f', fontWeight: 700 }}>
-                                        <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>verified</span>
-                                        Maya QR Attached
-                                      </div>
-                                    </div>
-                                  ) : (
-                                    <label style={{
-                                      flex: 1,
-                                      minHeight: '140px',
-                                      display: 'flex',
-                                      flexDirection: 'column',
-                                      alignItems: 'center',
-                                      justifyContent: 'center',
-                                      padding: '16px',
-                                      border: '1.5px dashed rgba(0, 214, 143, 0.4)',
-                                      borderRadius: '10px',
-                                      cursor: 'pointer',
-                                      background: 'rgba(0, 214, 143, 0.03)',
-                                      transition: 'all 0.2s ease',
-                                      textAlign: 'center'
-                                    }}>
-                                      <span className="material-symbols-outlined" style={{ fontSize: '32px', color: '#00d68f', marginBottom: '6px' }}>
-                                        qr_code_scanner
-                                      </span>
-                                      <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                                        Upload Maya QR
-                                      </span>
-                                      <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-                                        PNG, JPG or WebP image
-                                      </span>
-                                      <input
-                                        type="file"
-                                        accept="image/*"
-                                        onChange={handleMayaQrUpload}
-                                        style={{ display: 'none' }}
-                                        disabled={creating}
-                                      />
-                                    </label>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                          )}
-
-                          {/* ── 3. DIRECT BANK DEPOSIT CHANNEL ── */}
-                          {activePaymentChannelTab === 'bank' && (
-                            <div
-                              className="fade-in"
-                              style={{
-                                background: 'rgba(22, 163, 74, 0.04)',
-                                padding: '18px 20px',
-                                borderRadius: '12px',
-                                border: '1px solid rgba(22, 163, 74, 0.28)'
-                              }}
-                            >
-                              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: '20px', alignItems: 'stretch' }}>
-                                {/* Left Column: Bank Account Details */}
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                                  <div>
-                                    <label className="deploy-input-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
-                                      <span className="material-symbols-outlined" style={{ color: 'var(--accent)', fontSize: '18px' }}>account_balance</span>
-                                      Bank Name
-                                    </label>
-                                    <input
-                                      className="input deploy-field-input"
-                                      list="ph-bank-options"
-                                      placeholder="e.g., BDO Unibank, BPI, Landbank"
-                                      value={bankName}
-                                      onChange={(e) => setBankName(e.target.value)}
-                                      disabled={creating}
-                                    />
-                                    <datalist id="ph-bank-options">
-                                      <option value="BDO Unibank" />
-                                      <option value="BPI (Bank of the Philippine Islands)" />
-                                      <option value="Land Bank of the Philippines (LBP)" />
-                                      <option value="UnionBank of the Philippines" />
-                                      <option value="Metrobank" />
-                                      <option value="Security Bank" />
-                                      <option value="RCBC" />
-                                      <option value="PNB (Philippine National Bank)" />
-                                      <option value="China Bank" />
-                                      <option value="Development Bank of the Philippines (DBP)" />
-                                    </datalist>
-                                  </div>
-
-                                  <div>
-                                    <label className="deploy-input-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
-                                      <span className="material-symbols-outlined" style={{ color: 'var(--accent)', fontSize: '18px' }}>person</span>
-                                      Account Beneficiary Name
-                                    </label>
-                                    <input
-                                      className="input deploy-field-input"
-                                      type="text"
-                                      placeholder="e.g., Philippine Red Cross or BBDRTS Relief Partner"
-                                      value={bankAccountName}
-                                      onChange={(e) => setBankAccountName(e.target.value)}
-                                      disabled={creating}
-                                    />
-                                  </div>
-
-                                  <div>
-                                    <label className="deploy-input-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
-                                      <span className="material-symbols-outlined" style={{ color: 'var(--accent)', fontSize: '18px' }}>numbers</span>
-                                      Account Number
-                                    </label>
-                                    <input
-                                      className="input deploy-field-input"
-                                      type="text"
-                                      placeholder="e.g., 0012 3456 7890"
-                                      value={bankAccountNumber}
-                                      onChange={(e) => setBankAccountNumber(e.target.value)}
-                                      disabled={creating}
-                                      style={{ fontFamily: 'monospace', fontWeight: 700 }}
-                                    />
-                                  </div>
-                                </div>
-
-                                {/* Right Column: Bank QR / InstaPay */}
-                                <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                                    <label className="deploy-input-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', margin: 0 }}>
-                                      <span className="material-symbols-outlined" style={{ color: 'var(--accent)', fontSize: '18px' }}>qr_code</span>
-                                      Bank Transfer QR / InstaPay QR (Optional)
-                                    </label>
-                                    {bankQrUrl && (
-                                      <button
-                                        type="button"
-                                        onClick={() => setBankQrUrl('')}
-                                        style={{ background: 'transparent', border: 'none', color: '#ef4444', fontSize: '0.73rem', cursor: 'pointer', fontWeight: 600 }}
-                                      >
-                                        Remove QR
-                                      </button>
-                                    )}
-                                  </div>
-
-                                  {bankQrUrl ? (
-                                    <div style={{
-                                      flex: 1,
-                                      minHeight: '140px',
-                                      position: 'relative',
-                                      borderRadius: '10px',
-                                      overflow: 'hidden',
-                                      border: '1.5px solid var(--accent)',
-                                      background: 'var(--bg-subcard)',
-                                      padding: '12px',
-                                      display: 'flex',
-                                      flexDirection: 'column',
-                                      alignItems: 'center',
-                                      justifyContent: 'center',
-                                      textAlign: 'center'
-                                    }}>
-                                      <img
-                                        src={bankQrUrl}
-                                        alt="Organization Bank QR"
-                                        style={{ maxHeight: '110px', maxWidth: '100%', objectFit: 'contain', borderRadius: '8px' }}
-                                      />
-                                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', marginTop: '6px', fontSize: '0.74rem', color: 'var(--accent)', fontWeight: 700 }}>
-                                        <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>verified</span>
-                                        Bank QR Attached
-                                      </div>
-                                    </div>
-                                  ) : (
-                                    <label style={{
-                                      flex: 1,
-                                      minHeight: '140px',
-                                      display: 'flex',
-                                      flexDirection: 'column',
-                                      alignItems: 'center',
-                                      justifyContent: 'center',
-                                      padding: '16px',
-                                      border: '1.5px dashed rgba(22, 163, 74, 0.4)',
-                                      borderRadius: '10px',
-                                      cursor: 'pointer',
-                                      background: 'rgba(22, 163, 74, 0.03)',
-                                      transition: 'all 0.2s ease',
-                                      textAlign: 'center'
-                                    }}>
-                                      <span className="material-symbols-outlined" style={{ fontSize: '32px', color: 'var(--accent)', marginBottom: '6px' }}>
-                                        account_balance
-                                      </span>
-                                      <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                                        Upload Bank / InstaPay QR
-                                      </span>
-                                      <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-                                        PNG, JPG or WebP image
-                                      </span>
-                                      <input
-                                        type="file"
-                                        accept="image/*"
-                                        onChange={handleBankQrUpload}
-                                        style={{ display: 'none' }}
-                                        disabled={creating}
-                                      />
-                                    </label>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                          )}
-
-                        </div>
-                      );
-                    })()}
-
-                    {/* Submit Bar */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
-                      <button type="submit" className="btn btn-primary pulse" disabled={creating} style={{ padding: '12px 28px', fontSize: '0.95rem' }}>
-                        {creating ? (
-                          <><div className="spinner" /> Deploying Campaign…</>
-                        ) : (
-                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
-                            <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>rocket_launch</span>
-                            <span>Confirm & Deploy Campaign</span>
-                          </span>
-                        )}
-                      </button>
-
-                      <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', background: 'var(--bg-subcard)', padding: '8px 14px', borderRadius: '8px', border: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#10b981' }}>verified_user</span>
-                        <span>Official NGO Release: Verified relief deployment recorded on disaster ledger.</span>
-                      </div>
-                    </div>
-                  </form>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* ── 5. DONATION LEDGER TAB ── */}
-          {activeTab === 'ledger' && (
-            <div style={{ marginTop: '8px' }}>
-              <div className="section-header" id="tour-ngo-ledger-header" style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.08)', paddingBottom: '12px', marginBottom: '16px' }}>
-                <div>
-                  <h2 className="section-title" style={{ fontSize: '1.4rem' }}>
-                    <span className="material-symbols-outlined section-title-icon" style={{ marginRight: '8px', color: '#0284c7' }}>receipt_long</span>
-                    Organization Financial Ledger & Audit Receipts
-                  </h2>
-                  <p style={{ fontSize: '0.82rem', color: '#94a3b8', marginTop: '4px' }}>
-                    Immutable, tamper-proof real-time transaction receipts for contributions received by {orgDisplayName}.
-                  </p>
-                </div>
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                  <button
-                    type="button"
-                    className="btn btn-outline btn-sm"
-                    onClick={handleExportLedgerCsv}
-                    title="Export filtered ledger records to a standard CSV spreadsheet"
-                    style={{ borderRadius: '8px', padding: '6px 14px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-                  >
-                    <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>file_download</span>
-                    <span>Export CSV</span>
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-outline btn-sm"
-                    onClick={() => window.print()}
-                    title="Print formal audit report"
-                    style={{ borderRadius: '8px', padding: '6px 14px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-                  >
-                    <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>print</span>
-                    <span>Audit Report</span>
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-ghost btn-sm"
-                    onClick={fetchOrgDonations}
-                    disabled={loadingOrgDonations}
-                    title="Re-query the blockchain and database for latest transactions"
-                  >
-                    {loadingOrgDonations ? <div className="spinner spinner-light" /> : '↻ Sync Ledger'}
-                  </button>
-                </div>
-              </div>
-
-              {/* ── 4-Stat Metric Cards Grid for Ledger — Premium Redesign ── */}
-              <div className="ref-metrics-grid" style={{ marginBottom: '22px', gap: '16px' }}>
-
-                {/* 1. Green: Total Funds Received */}
-                <div className="ref-metric-card" style={{
-                  padding: '20px 22px', textAlign: 'left',
-                  borderLeft: '3px solid #22c55e',
-                  background: 'linear-gradient(135deg, rgba(34,197,94,0.06) 0%, var(--bg-card,#212121) 60%)',
-                  display: 'flex', flexDirection: 'column', gap: '10px'
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <span style={{ fontSize: '0.74rem', fontWeight: 700, color: '#22c55e', textTransform: 'uppercase', letterSpacing: '0.6px' }}>Total Funds Received</span>
-                    <div style={{ width: '34px', height: '34px', borderRadius: '10px', background: 'rgba(34,197,94,0.15)', border: '1px solid rgba(34,197,94,0.25)', color: '#22c55e', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>account_balance_wallet</span>
-                    </div>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: '1.9rem', fontWeight: 850, color: 'var(--text-primary)', letterSpacing: '-0.03em', lineHeight: 1 }}>
-                      {totalRaisedByMe.toFixed(4)}
-                      <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-secondary)', marginLeft: '5px' }}>ETH</span>
-                    </div>
-                    <div style={{ fontSize: '0.78rem', color: '#22c55e', fontWeight: 600, marginTop: '4px' }}>
-                      ≈ ₱{(totalRaisedByMe * 170000).toLocaleString('en-US', { maximumFractionDigits: 0 })} PHP Total
-                    </div>
-                  </div>
-                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted,#64748b)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>verified_user</span>
-                    <span>Blockchain-audited total</span>
-                  </div>
-                </div>
-
-                {/* 2. Blue: Verified Audit Receipts */}
-                <div className="ref-metric-card" style={{
-                  padding: '20px 22px', textAlign: 'left',
-                  borderLeft: '3px solid #38bdf8',
-                  background: 'linear-gradient(135deg, rgba(2,132,199,0.06) 0%, var(--bg-card,#212121) 60%)',
-                  display: 'flex', flexDirection: 'column', gap: '10px'
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <span style={{ fontSize: '0.74rem', fontWeight: 700, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.6px' }}>Verified Transactions</span>
-                    <div style={{ width: '34px', height: '34px', borderRadius: '10px', background: 'rgba(2,132,199,0.15)', border: '1px solid rgba(56,189,248,0.25)', color: '#38bdf8', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>receipt_long</span>
-                    </div>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: '1.9rem', fontWeight: 850, color: 'var(--text-primary)', letterSpacing: '-0.03em', lineHeight: 1 }}>
-                      {ledgerTelemetry.totalCount}
-                      <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-secondary)', marginLeft: '5px' }}>Recorded</span>
-                    </div>
-                    <div style={{ fontSize: '0.78rem', color: '#38bdf8', fontWeight: 600, marginTop: '4px' }}>
-                      100% Sepolia EVM Audited
-                    </div>
-                  </div>
-                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted,#64748b)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>open_in_new</span>
-                    <span>Click to view full ledger</span>
-                  </div>
-                </div>
-
-                {/* 3. Purple: Multi-Rail Distribution */}
-                <div className="ref-metric-card" style={{
-                  padding: '20px 22px', textAlign: 'left',
-                  borderLeft: '3px solid #a78bfa',
-                  background: 'linear-gradient(135deg, rgba(139,92,246,0.06) 0%, var(--bg-card,#212121) 60%)',
-                  display: 'flex', flexDirection: 'column', gap: '10px'
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <span style={{ fontSize: '0.74rem', fontWeight: 700, color: '#a78bfa', textTransform: 'uppercase', letterSpacing: '0.6px' }}>Payment Rails Breakdown</span>
-                    <div style={{ width: '34px', height: '34px', borderRadius: '10px', background: 'rgba(139,92,246,0.15)', border: '1px solid rgba(167,139,250,0.25)', color: '#a78bfa', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>payments</span>
-                    </div>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: '1.35rem', fontWeight: 850, color: 'var(--text-primary)', letterSpacing: '-0.02em', lineHeight: 1 }}>
-                      {ledgerTelemetry.railCounts.eth} Crypto
-                      <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-secondary)', marginLeft: '6px' }}>· {ledgerTelemetry.railCounts.gcash + ledgerTelemetry.railCounts.maya + ledgerTelemetry.railCounts.bank} Fiat Rails</span>
-                    </div>
-                    <div style={{ fontSize: '0.78rem', color: '#a78bfa', fontWeight: 600, marginTop: '4px' }}>
-                      GCash ({ledgerTelemetry.railCounts.gcash}) · Maya ({ledgerTelemetry.railCounts.maya}) · Bank ({ledgerTelemetry.railCounts.bank})
-                    </div>
-                  </div>
-                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted,#64748b)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>account_tree</span>
-                    <span>Multi-rail payment routing</span>
-                  </div>
-                </div>
-
-                {/* 4. Orange/Green: Pending Verifications */}
-                <div className="ref-metric-card" style={{
-                  padding: '20px 22px', textAlign: 'left',
-                  borderLeft: `3px solid ${pendingDonations.length > 0 ? '#f59e0b' : '#22c55e'}`,
-                  background: pendingDonations.length > 0
-                    ? 'linear-gradient(135deg, rgba(245,158,11,0.06) 0%, var(--bg-card,#212121) 60%)'
-                    : 'linear-gradient(135deg, rgba(34,197,94,0.06) 0%, var(--bg-card,#212121) 60%)',
-                  display: 'flex', flexDirection: 'column', gap: '10px'
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <span style={{ fontSize: '0.74rem', fontWeight: 700, color: pendingDonations.length > 0 ? '#f59e0b' : '#22c55e', textTransform: 'uppercase', letterSpacing: '0.6px' }}>Offline Verifications</span>
-                    <div style={{ width: '34px', height: '34px', borderRadius: '10px', background: pendingDonations.length > 0 ? 'rgba(245,158,11,0.15)' : 'rgba(34,197,94,0.15)', border: `1px solid ${pendingDonations.length > 0 ? 'rgba(245,158,11,0.25)' : 'rgba(34,197,94,0.25)'}`, color: pendingDonations.length > 0 ? '#f59e0b' : '#22c55e', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>pending_actions</span>
-                    </div>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: '1.9rem', fontWeight: 850, color: pendingDonations.length > 0 ? '#f59e0b' : 'var(--text-primary)', letterSpacing: '-0.03em', lineHeight: 1 }}>
-                      {pendingDonations.length}
-                      <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-secondary)', marginLeft: '5px' }}>Pending</span>
-                    </div>
-                    <div style={{ fontSize: '0.78rem', color: pendingDonations.length > 0 ? '#f59e0b' : '#22c55e', fontWeight: 600, marginTop: '4px' }}>
-                      {pendingDonations.length > 0 ? 'Action required in review table below' : 'All payment slips verified'}
-                    </div>
-                  </div>
-                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted,#64748b)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>task_alt</span>
-                    <span>E-wallet & bank slip status</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* ── Pending Manual Donations Section (E-Wallets & Banks) — Premium Redesign + AI Audit & Batch Verification ── */}
-              {pendingDonations.length > 0 && (
-                <div style={{
-                  marginBottom: '28px',
-                  background: 'var(--bg-card)',
-                  border: '1px solid var(--border)',
-                  padding: '22px 26px',
-                  borderRadius: '16px',
-                  boxShadow: 'var(--shadow-card)'
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '18px', flexWrap: 'wrap', gap: '12px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <div style={{
-                        width: '38px',
-                        height: '38px',
-                        borderRadius: '10px',
-                        background: 'rgba(56, 189, 248, 0.15)',
-                        border: '1px solid rgba(56, 189, 248, 0.3)',
-                        color: '#38bdf8',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center'
-                      }}>
-                        <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>pending_actions</span>
-                      </div>
-                      <div>
-                        <h3 style={{ margin: 0, fontSize: '1.12rem', color: 'var(--text-primary)', fontWeight: 800, letterSpacing: '-0.01em' }}>
-                          Pending E-Wallet &amp; Bank Slip Verifications ({pendingDonations.length})
-                        </h3>
-                        <p style={{ margin: '2px 0 0 0', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                          AI Receipt Audit Engine automatically verifies reference patterns and amounts to protect NGOs from fraud.
-                        </p>
-                      </div>
-                    </div>
-
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <button
-                        type="button"
-                        onClick={async () => {
-                          const allIds = pendingDonations.map(d => d.Manual_ID);
-                          if (!window.confirm(`Fast-Approve ALL ${allIds.length} pending donation slips with AI Verification?`)) return;
-                          try {
-                            const res = await fetch(`${API_BASE_URL}/manual-donations/batch-verify`, {
-                              method: 'POST',
-                              headers: { 'Content-Type': 'application/json' },
-                              body: JSON.stringify({ manualIds: allIds })
-                            });
-                            const data = await res.json();
-                            if (res.ok && data.success) {
-                              alert(`Successfully batch-verified ${data.verifiedCount} donation slip(s)!`);
-                              fetchPendingDonations();
-                              fetchOrgDashboardData();
-                            } else {
-                              alert(`Batch verification failed: ${data.error || 'Unknown error'}`);
-                            }
-                          } catch (err) {
-                            alert('Failed to connect to server for batch verification.');
-                          }
-                        }}
-                        style={{
-                          background: '#16a34a',
-                          color: '#fff',
-                          border: 'none',
-                          padding: '8px 16px',
-                          borderRadius: '8px',
-                          fontWeight: 700,
-                          fontSize: '0.8rem',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '6px',
-                          cursor: 'pointer',
-                          boxShadow: '0 2px 8px rgba(22, 163, 74, 0.25)'
-                        }}
-                        title="Batch approve all pending slips with AI OCR Verification"
-                      >
-                        <span className="material-symbols-outlined" style={{ fontSize: '17px' }}>bolt</span>
-                        <span>1-Click Approve All AI-Verified Slips</span>
-                      </button>
-
-                      <span className="ref-status-live-chip" style={{ background: 'rgba(245, 158, 11, 0.15)', color: '#f59e0b', border: '1px solid rgba(245, 158, 11, 0.3)', padding: '5px 12px', borderRadius: '8px', fontSize: '0.72rem', fontWeight: 800, letterSpacing: '0.5px' }}>
-                        ACTION REQUIRED ({pendingDonations.length})
-                      </span>
-                    </div>
-                  </div>
-
-                  {loadingPending ? (
-                    <div style={{ textAlign: 'center', padding: '30px' }}><div className="spinner spinner-light" /></div>
-                  ) : (
-                    <div style={{ overflowX: 'auto', borderRadius: '12px' }}>
-                      <table style={{
-                        width: '100%',
-                        minWidth: '960px',
-                        borderCollapse: 'separate',
-                        borderSpacing: '0 8px',
-                        fontSize: '0.85rem'
-                      }}>
-                        <thead>
-                          <tr style={{ color: '#94a3b8', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.6px', fontWeight: 700 }}>
-                            <th style={{ padding: '8px 16px', textAlign: 'left', width: '20%' }}>Donor Identity</th>
-                            <th style={{ padding: '8px 16px', textAlign: 'left', width: '24%' }}>Relief Campaign</th>
-                            <th style={{ padding: '8px 16px', textAlign: 'left', width: '14%' }}>Payment Rail</th>
-                            <th style={{ padding: '8px 16px', textAlign: 'left', width: '15%' }}>Amount (ETH / PHP)</th>
-                            <th style={{ padding: '8px 16px', textAlign: 'center', width: '15%' }}>AI OCR Status</th>
-                            <th style={{ padding: '8px 16px', textAlign: 'right', width: '12%' }}>Review Action</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {pendingDonations.map((d) => {
-                            const pm = String(d.Payment_Method || 'Fiat').toUpperCase();
-                            const isGcash = pm.includes('GCASH');
-                            const isMaya = pm.includes('MAYA') || pm.includes('PAYMAYA');
-
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                          {(showAllTags ? PRESET_CAMPAIGN_TAGS : (category === 'CD' ? CHARITY_TAGS : DISASTER_TAGS)).map((tag) => {
+                            const isSelected = selectedTags.includes(tag);
+                            const isAuto = autoDetectedTagsRef.current.includes(tag) && isSelected;
                             return (
-                              <tr
-                                key={d.Manual_ID}
-                                style={{
-                                  background: 'var(--bg-subcard, var(--bg-card))',
-                                  border: '1px solid var(--border)',
-                                  boxShadow: 'var(--shadow-sm)',
-                                  transition: 'all 0.2s ease'
-                                }}
+                              <button
+                                key={tag}
+                                type="button"
+                                onClick={() => handleTagToggle(tag)}
+                                className={`deploy-tag-chip ${isSelected ? 'active' : ''}`}
+                                title={isAuto ? 'Auto-detected from campaign title keyword. Click to toggle.' : `Click to toggle ${tag}`}
                               >
-                                {/* 1. Donor Name / Badge */}
-                                <td style={{ padding: '14px 16px', borderRadius: '10px 0 0 10px', verticalAlign: 'middle' }}>
-                                  {d.Donor_Name && d.Donor_Name !== 'Anonymous Donor' ? (
-                                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', background: 'rgba(56, 189, 248, 0.1)', border: '1px solid rgba(56, 189, 248, 0.25)', padding: '5px 12px', borderRadius: '8px', color: 'var(--text-primary)', fontWeight: 700, fontSize: '0.82rem' }}>
-                                      <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#38bdf8' }}>account_circle</span>
-                                      <span>{d.Donor_Name}</span>
-                                    </div>
-                                  ) : (
-                                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', background: 'var(--bg-input, rgba(255, 255, 255, 0.06))', border: '1px solid var(--border)', padding: '5px 12px', borderRadius: '8px', color: 'var(--text-muted)', fontWeight: 600, fontSize: '0.81rem' }}>
-                                      <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>visibility_off</span>
-                                      <span>Anonymous Donor</span>
-                                    </div>
-                                  )}
-                                </td>
-
-                                {/* 2. Relief Campaign */}
-                                <td style={{ padding: '14px 16px', verticalAlign: 'middle' }}>
-                                  <div style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '0.86rem', lineHeight: 1.4, paddingRight: '8px' }}>
-                                    {d.Campaign_Title}
-                                  </div>
-                                </td>
-
-                                {/* 3. Payment Rail Badge */}
-                                <td style={{ padding: '14px 16px', verticalAlign: 'middle' }}>
-                                  <span style={{
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    gap: '5px',
-                                    padding: '4px 10px',
-                                    borderRadius: '6px',
-                                    fontSize: '0.74rem',
-                                    fontWeight: 700,
-                                    background: isGcash ? 'rgba(56, 189, 248, 0.15)' : isMaya ? 'rgba(34, 197, 94, 0.15)' : 'rgba(168, 85, 247, 0.15)',
-                                    color: isGcash ? '#0284c7' : isMaya ? '#16a34a' : '#9333ea',
-                                    border: `1px solid ${isGcash ? 'rgba(56, 189, 248, 0.35)' : isMaya ? 'rgba(34, 197, 94, 0.35)' : 'rgba(168, 85, 247, 0.35)'}`
-                                  }}>
-                                    <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>
-                                      {isGcash ? 'smartphone' : isMaya ? 'credit_card' : 'account_balance'}
-                                    </span>
-                                    <span>{pm}</span>
+                                <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>{isSelected ? 'check' : 'add'}</span>
+                                <span>{tag}</span>
+                                {isAuto && (
+                                  <span style={{ fontSize: '9px', opacity: 0.85, marginLeft: '3px', background: 'var(--accent-dim)', border: '1px solid var(--accent)', padding: '1px 4px', borderRadius: '3px' }}>
+                                    auto
                                   </span>
-                                </td>
-
-                                {/* 4. Amount ETH + PHP */}
-                                <td style={{ padding: '14px 16px', verticalAlign: 'middle' }}>
-                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                                    <span style={{ color: '#16a34a', fontWeight: 850, fontSize: '0.94rem', letterSpacing: '-0.01em' }}>
-                                      {parseFloat(d.Amount).toFixed(4)} <span style={{ fontSize: '0.76rem' }}>ETH</span>
-                                    </span>
-                                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600 }}>
-                                      ≈ ₱{(parseFloat(d.Amount) * 170000).toLocaleString('en-US')} PHP
-                                    </span>
-                                  </div>
-                                </td>
-
-                                {/* 5. AI OCR Status & Proof Slip */}
-                                <td style={{ padding: '14px 16px', textAlign: 'center', verticalAlign: 'middle' }}>
-                                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
-                                    {(() => {
-                                       const ai = d.ai_result || {};
-                                       const refNo = d.Reference_Number || ai.extractedRef || '';
-                                       const hasRef = Boolean(refNo && refNo.trim().length >= 8);
-                                       const hasImage = Boolean(d.Receipt_Base64);
-                                       const flags = ai.fraudFlags || [];
-                                       const isInvalidImg = flags.some(f => String(f).includes('INVALID_RECEIPT_IMAGE'));
-                                       const isDup = flags.some(f => String(f).includes('DUPLICATE'));
-                                       
-                                        const isRailMismatch = flags.some(f => String(f).includes('PAYMENT_RAIL_MISMATCH'));
-                                        const isAmtMismatch = flags.some(f => String(f).includes('AMOUNT_MISMATCH'));
-                                        const isVerified = Boolean(ai.isAiVerified !== false && (hasRef || ai.isAiVerified) && !isInvalidImg && !isDup && !isRailMismatch && !isAmtMismatch);
-                                        const score = (ai.confidenceScore && ai.confidenceScore > 50 && isVerified) ? ai.confidenceScore : (isVerified ? 98 : (ai.confidenceScore || 35));
-
-                                        if (isVerified) {
-                                          return (
-                                            <span
-                                              style={{
-                                                display: 'inline-flex',
-                                                alignItems: 'center',
-                                                gap: '4px',
-                                                padding: '3px 8px',
-                                                borderRadius: '6px',
-                                                fontSize: '0.71rem',
-                                                fontWeight: 800,
-                                                background: 'rgba(34, 197, 94, 0.12)',
-                                                color: '#16a34a',
-                                                border: '1px solid rgba(34, 197, 94, 0.3)'
-                                              }}
-                                              title={ai.summary || 'Receipt verified by Gemini AI Vision & Tesseract OCR'}
-                                            >
-                                              <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>verified</span>
-                                              <span>AI Verified ({score}%)</span>
-                                            </span>
-                                          );
-                                        } else if (isInvalidImg) {
-                                          return (
-                                            <span
-                                              style={{
-                                                display: 'inline-flex',
-                                                alignItems: 'center',
-                                                gap: '4px',
-                                                padding: '3px 8px',
-                                                borderRadius: '6px',
-                                                fontSize: '0.71rem',
-                                                fontWeight: 800,
-                                                background: 'rgba(239, 68, 68, 0.15)',
-                                                color: '#ef4444',
-                                                border: '1px solid rgba(239, 68, 68, 0.35)'
-                                              }}
-                                              title={ai.summary || 'Not a valid payment receipt screenshot'}
-                                            >
-                                              <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>gpp_bad</span>
-                                              <span>Not a Receipt ({score}%)</span>
-                                            </span>
-                                          );
-                                        } else if (isDup) {
-                                          return (
-                                            <span
-                                              style={{
-                                                display: 'inline-flex',
-                                                alignItems: 'center',
-                                                gap: '4px',
-                                                padding: '3px 8px',
-                                                borderRadius: '6px',
-                                                fontSize: '0.71rem',
-                                                fontWeight: 800,
-                                                background: 'rgba(245, 158, 11, 0.18)',
-                                                color: '#d97706',
-                                                border: '1px solid rgba(245, 158, 11, 0.4)'
-                                              }}
-                                              title={flags.join('\n')}
-                                            >
-                                              <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>warning</span>
-                                              <span>Duplicate Ref ({score}%)</span>
-                                            </span>
-                                          );
-                                        } else {
-                                          return (
-                                            <span
-                                              style={{
-                                                display: 'inline-flex',
-                                                alignItems: 'center',
-                                                gap: '4px',
-                                                padding: '3px 8px',
-                                                borderRadius: '6px',
-                                                fontSize: '0.71rem',
-                                                fontWeight: 800,
-                                                background: 'rgba(245, 158, 11, 0.12)',
-                                                color: '#d97706',
-                                                border: '1px solid rgba(245, 158, 11, 0.3)'
-                                              }}
-                                              title={ai.summary || 'Requires manual NGO verification'}
-                                            >
-                                              <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>help_outline</span>
-                                              <span>Manual Audit ({score}%)</span>
-                                            </span>
-                                          );
-                                        }
-                                      })()}
-
-                                     {d.Receipt_Base64 ? (
-                                       <button
-                                         type="button"
-                                         onClick={() => setProofPreviewModalImg({ img: d.Receipt_Base64, donation: d })}
-                                         style={{
-                                           background: 'rgba(56, 189, 248, 0.15)',
-                                           border: '1px solid rgba(56, 189, 248, 0.35)',
-                                           color: '#38bdf8',
-                                           padding: '4px 10px',
-                                           borderRadius: '6px',
-                                           fontSize: '0.73rem',
-                                           fontWeight: 700,
-                                           cursor: 'pointer',
-                                           display: 'inline-flex',
-                                           alignItems: 'center',
-                                           gap: '4px'
-                                         }}
-                                       >
-                                         <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>image</span>
-                                         <span>Preview Slip</span>
-                                       </button>
-                                     ) : (
-                                      <span style={{ color: '#64748b', fontSize: '0.73rem', fontStyle: 'italic' }}>No Slip Uploaded</span>
-                                    )}
-                                  </div>
-                                </td>
-
-                                {/* 6. Review Actions */}
-                                <td style={{ padding: '14px 16px', borderRadius: '0 10px 10px 0', verticalAlign: 'middle' }}>
-                                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '8px' }}>
-                                    <button
-                                      type="button"
-                                      className="btn btn-sm"
-                                      style={{
-                                        background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-                                        color: '#fff',
-                                        border: 'none',
-                                        padding: '7px 14px',
-                                        borderRadius: '8px',
-                                        display: 'inline-flex',
-                                        alignItems: 'center',
-                                        gap: '5px',
-                                        fontWeight: 700,
-                                        fontSize: '0.78rem',
-                                        boxShadow: '0 2px 8px rgba(16, 185, 129, 0.25)',
-                                        cursor: 'pointer'
-                                      }}
-                                      onClick={() => handleOpenVerification(d)}
-                                      title="Review donor slip and cross-reference with account statement"
-                                    >
-                                      <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>fact_check</span>
-                                      <span>Verify</span>
-                                    </button>
-
-                                    <button
-                                      type="button"
-                                      className="btn btn-sm"
-                                      style={{
-                                        background: 'rgba(239, 68, 68, 0.12)',
-                                        color: '#ef4444',
-                                        border: '1px solid rgba(239, 68, 68, 0.35)',
-                                        padding: '7px 12px',
-                                        borderRadius: '8px',
-                                        display: 'inline-flex',
-                                        alignItems: 'center',
-                                        gap: '4px',
-                                        fontWeight: 600,
-                                        fontSize: '0.78rem',
-                                        cursor: 'pointer'
-                                      }}
-                                      onClick={() => handleOpenRejection(d)}
-                                      title="Reject unverified or mismatched payment slip"
-                                    >
-                                      <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>cancel</span>
-                                      <span>Reject</span>
-                                    </button>
-                                  </div>
-                                </td>
-                              </tr>
+                                )}
+                              </button>
                             );
                           })}
-                        </tbody>
-                      </table>
+                        </div>
+                      </div>
                     </div>
                   )}
-                </div>
-              )}
 
-              {/* ── Interactive Filter & Sort Toolbar ── */}
-              <div style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                gap: '12px',
-                marginBottom: '20px',
-                flexWrap: 'wrap',
-                background: 'var(--bg-subcard, rgba(15, 23, 42, 0.5))',
-                padding: '12px 18px',
-                borderRadius: '12px',
-                border: '1px solid var(--border, rgba(255, 255, 255, 0.08))'
-              }}>
-                {/* Search Input */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: '1 1 240px', minWidth: '220px' }}>
-                  <div style={{ position: 'relative', width: '100%' }}>
-                    <span className="material-symbols-outlined" style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', fontSize: '1rem', pointerEvents: 'none' }}>
-                      search
-                    </span>
-                    <input
-                      type="text"
-                      placeholder="Search tx hash, campaign, or donor..."
-                      value={searchQueryLedger}
-                      onChange={(e) => setSearchQueryLedger(e.target.value)}
-                      style={{
-                        width: '100%',
-                        background: 'var(--bg-input, rgba(30, 41, 59, 0.9))',
-                        color: 'var(--text-primary, #fff)',
-                        border: '1px solid var(--border, rgba(255, 255, 255, 0.15))',
-                        borderRadius: '8px',
-                        padding: '7px 28px 7px 32px',
-                        fontSize: '0.82rem',
-                        outline: 'none',
-                        boxSizing: 'border-box'
-                      }}
-                    />
-                    {searchQueryLedger && (
-                      <button
-                        type="button"
-                        onClick={() => setSearchQueryLedger('')}
-                        style={{ position: 'absolute', right: '8px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: 0 }}
-                        title="Clear search"
-                      >
-                        <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>close</span>
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                {/* Category Filter */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 600 }}>Category:</span>
-                  <select
-                    value={ledgerFilter}
-                    onChange={(e) => { setLedgerFilter(e.target.value); setCurrentPageLedger(1); }}
-                    style={{
-                      background: 'var(--bg-input, rgba(30, 41, 59, 0.9))',
-                      color: 'var(--text-primary, #fff)',
-                      border: '1px solid var(--border, rgba(255, 255, 255, 0.15))',
-                      borderRadius: '8px',
-                      padding: '6px 12px',
-                      fontSize: '0.82rem',
-                      outline: 'none',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    <option value="ALL">All Categories ({orgDonations ? orgDonations.length : 0})</option>
-                    <option value="DR">Disaster Relief (DR)</option>
-                    <option value="CD">Charitable Aid (CD)</option>
-                  </select>
-                </div>
-
-                {/* Payment Rail Filter */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 600 }}>Rail:</span>
-                  <select
-                    value={ledgerRailFilter}
-                    onChange={(e) => { setLedgerRailFilter(e.target.value); setCurrentPageLedger(1); }}
-                    style={{
-                      background: 'var(--bg-input, rgba(30, 41, 59, 0.9))',
-                      color: 'var(--text-primary, #fff)',
-                      border: '1px solid var(--border, rgba(255, 255, 255, 0.15))',
-                      borderRadius: '8px',
-                      padding: '6px 12px',
-                      fontSize: '0.82rem',
-                      outline: 'none',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    <option value="ALL">All Rails ({orgDonations ? orgDonations.length : 0})</option>
-                    <option value="ETH">Crypto (Sepolia ETH)</option>
-                    <option value="GCASH">GCash E-Wallet</option>
-                    <option value="MAYA">Maya E-Wallet</option>
-                    <option value="BANK">Bank Transfer</option>
-                  </select>
-                </div>
-
-                {/* Specific Campaign Filter */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 600 }}>Campaign:</span>
-                  <select
-                    value={ledgerCampaignFilter}
-                    onChange={(e) => { setLedgerCampaignFilter(e.target.value); setCurrentPageLedger(1); }}
-                    style={{
-                      background: 'var(--bg-input, rgba(30, 41, 59, 0.9))',
-                      color: 'var(--text-primary, #fff)',
-                      border: '1px solid var(--border, rgba(255, 255, 255, 0.15))',
-                      borderRadius: '8px',
-                      padding: '6px 12px',
-                      fontSize: '0.82rem',
-                      outline: 'none',
-                      cursor: 'pointer',
-                      maxWidth: '180px'
-                    }}
-                  >
-                    <option value="ALL">All Campaigns</option>
-                    {myCampaigns.map(c => (
-                      <option key={c.id} value={c.id}>#{c.id} - {c.title.slice(0, 22)}...</option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Sort Order */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontWeight: 600 }}>Sort:</span>
-                  <select
-                    value={ledgerSort}
-                    onChange={(e) => setLedgerSort(e.target.value)}
-                    style={{
-                      background: 'var(--bg-input, rgba(30, 41, 59, 0.9))',
-                      color: 'var(--text-primary, #fff)',
-                      border: '1px solid var(--border, rgba(255, 255, 255, 0.15))',
-                      borderRadius: '8px',
-                      padding: '6px 12px',
-                      fontSize: '0.82rem',
-                      outline: 'none',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    <option value="NEWEST">Newest First</option>
-                    <option value="AMOUNT_HIGH">Highest Amount</option>
-                    <option value="AMOUNT_LOW">Lowest Amount</option>
-                    <option value="OLDEST">Oldest First</option>
-                  </select>
-                </div>
-
-                {/* View Mode Toggle */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'var(--bg-inset, rgba(0, 0, 0, 0.25))', padding: '3px', borderRadius: '8px', border: '1px solid var(--border-subtle)' }}>
-                  <button
-                    type="button"
-                    onClick={() => setLedgerViewMode('cards')}
-                    className={`btn btn-xs ${ledgerViewMode === 'cards' ? 'btn-primary' : 'btn-ghost'}`}
-                    style={{ padding: '4px 8px', fontSize: '0.74rem', display: 'flex', alignItems: 'center', gap: '4px' }}
-                    title="Card View"
-                  >
-                    <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>view_agenda</span>
-                    <span>Cards</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setLedgerViewMode('table')}
-                    className={`btn btn-xs ${ledgerViewMode === 'table' ? 'btn-primary' : 'btn-ghost'}`}
-                    style={{ padding: '4px 8px', fontSize: '0.74rem', display: 'flex', alignItems: 'center', gap: '4px' }}
-                    title="Audit Table View"
-                  >
-                    <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>table_rows</span>
-                    <span>Table</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* ── Main Ledger Content ── */}
-              {loadingOrgDonations ? (
-                <div className="empty-state">
-                  <div className="spinner spinner-light" style={{ width: 28, height: 28 }} />
-                  <div className="empty-title">Synchronizing on-chain ledger entries…</div>
-                </div>
-              ) : !orgDonations || orgDonations.length === 0 ? (
-                <div className="db-empty-state">
-                  <div className="db-empty-icon">
-                    <span className="material-symbols-outlined">receipt_long</span>
-                  </div>
-                  <div className="db-empty-title">No transactions recorded yet</div>
-                  <div className="db-empty-desc">
-                    When donors contribute to your relief campaigns, immutable cryptographic receipts will appear here in real time.
-                  </div>
-                </div>
-              ) : filteredLedger.length === 0 ? (
-                <div className="db-empty-state">
-                  <div className="db-empty-icon">
-                    <span className="material-symbols-outlined">search_off</span>
-                  </div>
-                  <div className="db-empty-title">No transactions match these filter criteria</div>
-                  <div className="db-empty-desc">
-                    Try adjusting the search keyword, category, or payment rail filter above.
-                  </div>
-                  <button
-                    type="button"
-                    className="db-btn"
-                    onClick={() => { setSearchQueryLedger(''); setLedgerFilter('ALL'); setLedgerRailFilter('ALL'); setLedgerCampaignFilter('ALL'); }}
-                  >
-                    <span>Reset Filters</span>
-                  </button>
-                </div>
-              ) : ledgerViewMode === 'cards' ? (
-                /* ── CARDS VIEW ── */
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                  {paginatedLedger.map((d, idx) => {
-                    const matchCamp = campaigns.find(c => String(c.id) === String(d.campaignId)) || { id: d.campaignId, title: `Relief Campaign #${d.campaignId}` };
-                    const rawTitle = matchCamp ? matchCamp.title : `Disaster Relief Campaign #${d.campaignId}`;
-                    const campTitle = formatCampaignTitle(rawTitle, d.campaignId);
-                    const catInfo = getCampaignCategoryInfo(matchCamp);
-                    const coverData = getCampaignCoverData(matchCamp);
-                    const method = String(d.paymentMethod || 'ETH').toUpperCase();
-                    const isCrypto = method.includes('ETH') || method.includes('CRYPTO') || method.includes('SEPOLIA');
-                    const donorDisplay = d.isAnonymous ? 'Anonymous Supporter' : (d.donorName || 'Public Philanthropist');
-
-                    return (
-                      <div
-                        key={idx}
-                        className="contribution-receipt-card fade-in"
-                        style={{
-                          background: 'var(--bg-card, rgba(15, 23, 42, 0.65))',
-                          border: '1px solid var(--border, rgba(255, 255, 255, 0.08))',
-                          borderRadius: '16px',
-                          overflow: 'hidden',
-                          boxShadow: 'var(--shadow-card, 0 4px 16px rgba(0,0,0,0.35))'
-                        }}
-                      >
-                        <div className="receipt-card-body" style={{ padding: '18px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap' }}>
-                          {/* Left: Thumbnail */}
-                          <div className="receipt-media-thumb" style={{ width: '90px', height: '90px', borderRadius: '12px', overflow: 'hidden', position: 'relative', flexShrink: 0 }}>
-                            <img src={coverData.imageUrl} alt={campTitle} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                            <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, transparent 40%, rgba(0,0,0,0.8) 100%)' }} />
-                            <div style={{ position: 'absolute', bottom: '4px', left: '6px', fontSize: '0.62rem', color: '#fff', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '2px' }}>
-                              <span className="material-symbols-outlined" style={{ fontSize: '10px' }}>location_on</span>
-                              <span>{coverData.locationTag || 'PH'}</span>
+                  {/* ── Step 4: Operation Ground Zero & Interactive Map ── */}
+                  {deployStep === 4 && (
+                    <div className="fade-in">
+                      <div className="deploy-section-card">
+                        <div className="deploy-section-header">
+                          <div className="deploy-section-title-wrap">
+                            <div className="deploy-section-icon-badge">
+                              <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>explore</span>
                             </div>
-                          </div>
-
-                          {/* Center: Metadata */}
-                          <div style={{ flex: '1 1 300px', minWidth: '240px' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px', flexWrap: 'wrap' }}>
-                              <span className={`campaign-category-pill ${catInfo.colorClass}`} style={{ fontSize: '0.68rem', padding: '2px 8px' }}>
-                                <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>{catInfo.icon}</span>
-                                <span>{catInfo.prefix}-00{d.campaignId} • {catInfo.label}</span>
-                              </span>
-
-                              <span className="receipt-verified-tag" style={{ fontSize: '0.68rem', color: 'var(--success, #22c55e)', display: 'inline-flex', alignItems: 'center', gap: '3px', fontWeight: 600 }}>
-                                <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>verified</span>
-                                <span>Verified On-Chain</span>
-                              </span>
-
-                              {d.isAnonymous ? (
-                                <span className="badge" style={{ background: 'rgba(255,255,255,0.08)', color: 'var(--text-muted)', fontSize: '0.68rem', padding: '2px 8px', borderRadius: '4px' }}>
-                                  <span className="material-symbols-outlined" style={{ fontSize: '11px', verticalAlign: 'middle', marginRight: '2px' }}>visibility_off</span>
-                                  Anonymous Donor
-                                </span>
-                              ) : (
-                                <span className="badge badge-active" style={{ fontSize: '0.68rem', padding: '2px 8px', borderRadius: '4px' }}>
-                                  Public Donor
-                                </span>
-                              )}
-
-                              <span style={{
-                                fontSize: '0.68rem',
-                                fontWeight: 700,
-                                padding: '2px 8px',
-                                borderRadius: '4px',
-                                background: isCrypto ? 'rgba(168, 85, 247, 0.15)' : method.includes('GCASH') ? 'rgba(56, 189, 248, 0.15)' : 'rgba(16, 185, 129, 0.15)',
-                                color: isCrypto ? '#c084fc' : method.includes('GCASH') ? '#38bdf8' : '#34d399',
-                                border: `1px solid ${isCrypto ? 'rgba(168, 85, 247, 0.3)' : method.includes('GCASH') ? 'rgba(56, 189, 248, 0.3)' : 'rgba(16, 185, 129, 0.3)'}`
-                              }}>
-                                {method}
-                              </span>
-                            </div>
-
-                            <h3 style={{ margin: '0 0 6px 0', fontSize: '1.05rem', color: 'var(--text-primary)', fontWeight: 700 }}>
-                              {campTitle}
-                            </h3>
-
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.78rem', color: 'var(--text-secondary)', flexWrap: 'wrap' }}>
-                              <span>Donor: <strong style={{ color: 'var(--text-primary)' }}>{donorDisplay}</strong></span>
-                              {d.donorWallet && (
-                                <span>Wallet: <code className="ref-hero-code" style={{ fontSize: '0.72rem' }}>{shortAddr(d.donorWallet)}</code></span>
-                              )}
-                              <span style={{ color: 'var(--text-muted)' }}>•</span>
-                              <span>{d.createdAt ? new Date(d.createdAt).toLocaleString() : 'Audited On-Chain'}</span>
-                            </div>
-                          </div>
-
-                          {/* Right: Amount & Actions */}
-                          <div style={{ textAlign: 'right', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px', flexShrink: 0 }}>
                             <div>
-                              <div style={{ fontSize: '1.3rem', fontWeight: 850, color: 'var(--accent, #22c55e)', letterSpacing: '-0.01em' }}>
-                                +{parseFloat(d.amount).toFixed(4)} <span style={{ fontSize: '0.85rem' }}>ETH</span>
-                              </div>
-                              <div style={{ fontSize: '0.82rem', color: 'var(--accent-blue, #38bdf8)', fontWeight: 600 }}>
-                                ≈ ₱{Math.round(parseFloat(d.amount) * 170000).toLocaleString('en-US')} PHP
+                              <h3 className="deploy-section-title">
+                                {category === 'CD' ? '4. Beneficiary Community Location & Map Pin' : '4. Disaster Location & Ground Pin'}
+                              </h3>
+                              <div className="deploy-section-subtitle">
+                                {category === 'CD'
+                                  ? 'Enter the beneficiary community location or click anywhere on the map to pin project coordinates.'
+                                  : 'Enter the disaster ground location or click anywhere on the map to pin exact coordinates.'}
                               </div>
                             </div>
+                          </div>
+                          <span className="deploy-step-pill">Step 4 of 5</span>
+                        </div>
 
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                              <button
-                                type="button"
-                                className="btn btn-outline btn-xs"
-                                onClick={() => setSelectedVoucherTx(d)}
-                                style={{ padding: '4px 10px', fontSize: '0.72rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
-                                title="Inspect official cryptographic receipt voucher"
-                              >
-                                <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>verified</span>
-                                <span>Voucher</span>
-                              </button>
+                        {/* 2-Column Responsive Layout: Granular Address Details (Left) & Stable Map View (Right) */}
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '22px', alignItems: 'start' }}>
 
-                              <button
-                                type="button"
-                                className="btn btn-ghost btn-xs"
-                                onClick={() => {
-                                  navigator.clipboard.writeText(d.txHash);
-                                  showSuccess('Transaction hash copied to clipboard!', 'Hash Copied');
-                                }}
-                                style={{ padding: '4px 8px', fontSize: '0.72rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
-                                title="Copy Transaction Hash"
-                              >
-                                <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>content_copy</span>
-                                <span>Copy</span>
-                              </button>
-
-                              {d.txHash && !d.txHash.startsWith('MOCK') && (
-                                <a
-                                  href={`https://sepolia.etherscan.io/tx/${d.txHash}`}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="btn btn-outline btn-xs"
-                                  style={{ padding: '4px 8px', fontSize: '0.72rem' }}
-                                  title="View on Sepolia Etherscan Block Explorer"
+                          {/* ── Left Column: Granular Address Details ── */}
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px' }}>
+                              <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <span className="material-symbols-outlined" style={{ fontSize: '1.1rem', color: '#ef4444' }}>location_on</span>
+                                Complete Address Details
+                              </div>
+                              {(street || barangay || city || province || region || zipCode || landmark || locationRegion || gpsCoordinates) && (
+                                <button
+                                  type="button"
+                                  className="btn btn-ghost btn-xs"
+                                  onClick={() => {
+                                    setStreet('');
+                                    setBarangay('');
+                                    setCity('');
+                                    setProvince('');
+                                    setRegion('');
+                                    setZipCode('');
+                                    setLandmark('');
+                                    setCountry('Philippines');
+                                    setLocationRegion('');
+                                    setGpsCoordinates('');
+                                  }}
+                                  disabled={creating}
+                                  style={{ fontSize: '0.72rem', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.3)', padding: '2px 8px', borderRadius: '6px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                                  title="Clear all address fields"
                                 >
-                                  ↗ Etherscan
-                                </a>
+                                  <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>clear_all</span>
+                                  <span>Clear</span>
+                                </button>
                               )}
                             </div>
+
+                            {/* 1. Street / Building / House No. */}
+                            <div>
+                              <label className="deploy-input-label">Street / Building / House No.</label>
+                              <input
+                                className="input deploy-field-input"
+                                type="text"
+                                placeholder="e.g., Rizal Street, Block 4"
+                                value={street}
+                                onChange={(e) => {
+                                  setStreet(e.target.value);
+                                  setLocationRegion([e.target.value, barangay, city, province, region ? `(${region})` : '', zipCode, country, landmark ? `(Landmark: ${landmark})` : ''].filter(Boolean).join(', '));
+                                }}
+                                disabled={creating}
+                              />
+                            </div>
+
+                            {/* 2. Barangay & Municipality / City */}
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                              <div>
+                                <label className="deploy-input-label">Barangay</label>
+                                <input
+                                  className="input deploy-field-input"
+                                  type="text"
+                                  placeholder="e.g., Barangay Abgao"
+                                  value={barangay}
+                                  onChange={(e) => {
+                                    setBarangay(e.target.value);
+                                    setLocationRegion([street, e.target.value, city, province, region ? `(${region})` : '', zipCode, country, landmark ? `(Landmark: ${landmark})` : ''].filter(Boolean).join(', '));
+                                  }}
+                                  disabled={creating}
+                                />
+                              </div>
+                              <div>
+                                <label className="deploy-input-label">Municipality / City <span className="deploy-required-star">*</span></label>
+                                <input
+                                  className="input deploy-field-input"
+                                  type="text"
+                                  required
+                                  placeholder="e.g., Maasin City"
+                                  value={city}
+                                  onChange={(e) => {
+                                    setCity(e.target.value);
+                                    setLocationRegion([street, barangay, e.target.value, province, region ? `(${region})` : '', zipCode, country, landmark ? `(Landmark: ${landmark})` : ''].filter(Boolean).join(', '));
+                                  }}
+                                  disabled={creating}
+                                />
+                              </div>
+                            </div>
+
+                            {/* 3. Province / State beside and left of Zip / Postal Code */}
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                              <div>
+                                <label className="deploy-input-label">Province / State <span className="deploy-required-star">*</span></label>
+                                <input
+                                  className="input deploy-field-input"
+                                  type="text"
+                                  required
+                                  placeholder="e.g., Southern Leyte"
+                                  value={province}
+                                  onChange={(e) => {
+                                    const provVal = e.target.value;
+                                    setProvince(provVal);
+                                    const autoReg = getRegionForProvince(provVal);
+                                    if (autoReg) setRegion(autoReg);
+                                    setLocationRegion([street, barangay, city, provVal, (autoReg || region) ? `(${autoReg || region})` : '', zipCode, country, landmark ? `(Landmark: ${landmark})` : ''].filter(Boolean).join(', '));
+                                  }}
+                                  disabled={creating}
+                                />
+                              </div>
+                              <div>
+                                <label className="deploy-input-label">Zip / Postal Code</label>
+                                <input
+                                  className="input deploy-field-input"
+                                  type="text"
+                                  placeholder="e.g., 6600"
+                                  value={zipCode}
+                                  onChange={(e) => {
+                                    setZipCode(e.target.value);
+                                    setLocationRegion([street, barangay, city, province, region ? `(${region})` : '', e.target.value, country, landmark ? `(Landmark: ${landmark})` : ''].filter(Boolean).join(', '));
+                                  }}
+                                  disabled={creating}
+                                />
+                              </div>
+                            </div>
+
+                            {/* 4. Region & Country */}
+                            <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '12px' }}>
+                              <div>
+                                <label className="deploy-input-label">Region <span className="deploy-required-star">*</span></label>
+                                <input
+                                  className="input deploy-field-input"
+                                  type="text"
+                                  required
+                                  list="ph-region-options"
+                                  placeholder="e.g., Region VIII (Eastern Visayas)"
+                                  value={region}
+                                  onChange={(e) => {
+                                    const regVal = e.target.value;
+                                    setRegion(regVal);
+                                    setLocationRegion([street, barangay, city, province, regVal ? `(${regVal})` : '', zipCode, country, landmark ? `(Landmark: ${landmark})` : ''].filter(Boolean).join(', '));
+                                  }}
+                                  disabled={creating}
+                                />
+                                <datalist id="ph-region-options">
+                                  {getRegions().map((r) => (
+                                    <option key={r} value={r} />
+                                  ))}
+                                </datalist>
+                              </div>
+                              <div>
+                                <label className="deploy-input-label">Country</label>
+                                <input
+                                  className="input deploy-field-input"
+                                  type="text"
+                                  placeholder="e.g., Philippines"
+                                  value={country}
+                                  onChange={(e) => {
+                                    setCountry(e.target.value);
+                                    setLocationRegion([street, barangay, city, province, region ? `(${region})` : '', zipCode, e.target.value, landmark ? `(Landmark: ${landmark})` : ''].filter(Boolean).join(', '));
+                                  }}
+                                  disabled={creating}
+                                />
+                              </div>
+                            </div>
+
+                            {/* 5. Landmark / Evacuation Site */}
+                            <div>
+                              <label className="deploy-input-label">
+                                {category === 'CD' ? 'Landmark / Community Center / School (Optional)' : 'Landmark / Evacuation Site (Optional)'}
+                              </label>
+                              <input
+                                className="input deploy-field-input"
+                                type="text"
+                                placeholder={category === 'CD' ? "e.g., Near Barangay Covered Court, Elementary School, Health Center" : "e.g., Near City Port, Rizal Park, Evacuation Center"}
+                                value={landmark}
+                                onChange={(e) => {
+                                  setLandmark(e.target.value);
+                                  setLocationRegion([street, barangay, city, province, region ? `(${region})` : '', zipCode, country, e.target.value ? `(Landmark: ${e.target.value})` : ''].filter(Boolean).join(', '));
+                                }}
+                                disabled={creating}
+                              />
+                            </div>
+
+                            {/* Find Location Button */}
+                            <button
+                              type="button"
+                              className="deploy-locate-btn"
+                              onClick={() => {
+                                const searchAddress = [street, barangay, city, province, region, country].filter(Boolean).join(', ');
+                                if (!city && !province && !searchAddress) {
+                                  return showWarning('Please enter at least a Municipality/City or Province to locate on map.', 'Location Required');
+                                }
+                                setIsFindingLocation(true);
+                                setMapSearchTrigger({
+                                  structured: { street, barangay, city, province, region, country, landmark },
+                                  query: searchAddress,
+                                  ts: Date.now()
+                                });
+                              }}
+                              disabled={creating || isFindingLocation}
+                              title="Search and pin location on map"
+                            >
+                              {isFindingLocation ? (
+                                <>
+                                  <span className="material-symbols-outlined spin" style={{ fontSize: '18px', color: 'var(--accent)' }}>progress_activity</span>
+                                  <span>Finding Location on Map...</span>
+                                </>
+                              ) : (
+                                <>
+                                  <span className="material-symbols-outlined" style={{ fontSize: '18px', color: 'var(--accent)' }}>explore</span>
+                                  <span>Find Location & Pin on Map</span>
+                                </>
+                              )}
+                            </button>
+
+                            {/* Formatted Full Address & GPS Badge */}
+                            <div style={{
+                              background: 'var(--bg-inset)',
+                              border: '1px solid var(--border)',
+                              borderRadius: '10px',
+                              padding: '12px 14px',
+                              marginTop: '4px',
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              alignItems: 'center',
+                              flexWrap: 'wrap',
+                              gap: '10px'
+                            }}>
+                              <div style={{ flex: 1, minWidth: '180px' }}>
+                                <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                  <span className="material-symbols-outlined" style={{ fontSize: '14px', color: 'var(--accent)' }}>location_on</span>
+                                  <span>Confirmed Target Area:</span>
+                                </div>
+                                <div style={{ fontSize: '0.84rem', fontWeight: 600, color: locationRegion ? 'var(--text-primary)' : 'var(--text-muted)', marginTop: '2px', wordBreak: 'break-word' }}>
+                                  {locationRegion || 'Fill inputs above or select a point on the map →'}
+                                </div>
+                              </div>
+                              <div style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                background: 'var(--accent-dim)',
+                                color: 'var(--accent)',
+                                padding: '4px 10px',
+                                borderRadius: '8px',
+                                fontSize: '0.74rem',
+                                fontWeight: 700,
+                                border: '1px solid var(--accent-glow, rgba(34,197,94,0.3))',
+                                whiteSpace: 'nowrap'
+                              }}>
+                                <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>my_location</span>
+                                <span>GPS: {gpsCoordinates || '10.1333° N, 124.8667° E'}</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* ── Right Column: Square Leaflet Map View ── */}
+                          <div style={{ display: 'flex', flexDirection: 'column' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                              <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <span className="material-symbols-outlined" style={{ fontSize: '1.1rem', color: 'var(--accent)' }}>pin_drop</span>
+                                Deployment Topo Map
+                              </span>
+                              <span
+                                style={{
+                                  fontSize: '0.7rem',
+                                  color: 'var(--accent)',
+                                  background: 'var(--accent-dim)',
+                                  border: '1px solid var(--accent-glow, rgba(34,197,94,0.25))',
+                                  padding: '2px 8px',
+                                  borderRadius: '10px',
+                                  fontWeight: 700,
+                                  textTransform: 'uppercase',
+                                  letterSpacing: '0.5px',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '4px'
+                                }}
+                              >
+                                <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>sync</span>
+                                Auto-Sync Pin
+                              </span>
+                            </div>
+
+                            <div style={{
+                              height: '470px',
+                              minHeight: '470px',
+                              maxHeight: '470px',
+                              borderRadius: '12px',
+                              overflow: 'hidden',
+                              border: '1px solid var(--border)',
+                              boxShadow: '0 4px 16px rgba(0,0,0,0.25)',
+                              background: 'var(--bg-subcard)',
+                              position: 'relative',
+                              display: 'flex',
+                              flexDirection: 'column'
+                            }}>
+                              <LocationMapPicker
+                                address={locationRegion}
+                                gps={gpsCoordinates}
+                                onChangeAddress={(addr) => setLocationRegion(addr)}
+                                onChangeGranularAddress={handleGranularAddressFromMap}
+                                onChangeGps={(coords) => setGpsCoordinates(coords)}
+                                onLocationFound={(res) => {
+                                  setIsFindingLocation(false);
+                                  showSuccess(
+                                    `Location found: ${res.name || res.display_name?.split(',')[0] || 'Map pinned successfully'}.`,
+                                    'Map Location Set'
+                                  );
+                                  if (!zipCode && res.address?.postcode) {
+                                    setZipCode(res.address.postcode);
+                                  }
+                                }}
+                                onSearchStatus={(status) => {
+                                  setIsFindingLocation(false);
+                                  if (!status.success) {
+                                    showWarning(
+                                      'Could not find the address on the map. Please check the City / Province or click directly on the map.',
+                                      'Location Search'
+                                    );
+                                  }
+                                }}
+                                height="470px"
+                                hideTip={true}
+                                hideSearch={true}
+                                searchTrigger={mapSearchTrigger}
+                                theme={theme}
+                                markerShape="redPin"
+                                defaultLayer="street"
+                              />
+                            </div>
+                          </div>
+
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ── Step 5: Official Receiving Channels & Review ── */}
+                  {deployStep === 5 && (
+                    <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+                      {/* Pre-Flight Executive Review Summary */}
+                      <div className="deploy-review-card">
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                          <span className="material-symbols-outlined" style={{ fontSize: '18px', color: 'var(--accent)' }}>fact_check</span>
+                          <span style={{ fontSize: '0.84rem', fontWeight: 700, color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                            Pre-Flight Operation Review
+                          </span>
+                        </div>
+                        <div className="deploy-review-grid">
+                          <div className="deploy-review-item">
+                            <span className="deploy-review-label">Campaign Title</span>
+                            <span className="deploy-review-val">{title || 'Untitled Campaign'}</span>
+                          </div>
+                          <div className="deploy-review-item">
+                            <span className="deploy-review-label">Category & Target</span>
+                            <span className="deploy-review-val">
+                              {category === 'DR' ? 'Disaster Relief' : 'Charitable Aid'} • ₱{Number(targetAmount || 0).toLocaleString()}
+                            </span>
+                          </div>
+                          <div className="deploy-review-item">
+                            <span className="deploy-review-label">{category === 'CD' ? 'Project Location' : 'Ground Location'}</span>
+                            <span className="deploy-review-val">
+                              {[city, province].filter(Boolean).join(', ') || 'Not pinned'}
+                            </span>
+                          </div>
+                          <div className="deploy-review-item">
+                            <span className="deploy-review-label">{category === 'CD' ? 'Timeline & Evidence' : 'Timeline & Evidence'}</span>
+                            <span className="deploy-review-val">
+                              {formatUrgencyDisplay(urgency).split('(')[0].trim() || 'Standard'} • {disasterImages.length} Photos Attached
+                            </span>
                           </div>
                         </div>
                       </div>
-                    );
-                  })}
+
+                      {/* Section 3: Official Multi-Channel E-Wallet & Bank Settings */}
+                      {(() => {
+                        const profileReliefData = getProfileReliefChannels();
+                        return (
+                          <div className="deploy-section-card">
+                            <div className="deploy-section-header" style={{ marginBottom: '14px' }}>
+                              <div className="deploy-section-title-wrap">
+                                <div className="deploy-section-icon-badge">
+                                  <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>account_balance_wallet</span>
+                                </div>
+                                <div>
+                                  <h3 className="deploy-section-title">5. Official Donation Receiving Methods</h3>
+                                  <div className="deploy-section-subtitle">
+                                    Configure receiving channels for donors contributing via GCash, Maya, or direct Bank Transfer.
+                                  </div>
+                                </div>
+                              </div>
+                              <span className="deploy-step-pill">Step 5 of 5</span>
+                            </div>
+
+                            {/* Payment Channel Switcher & Actions Toolbar */}
+                            <div style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              gap: '12px',
+                              marginBottom: '16px',
+                              flexWrap: 'wrap'
+                            }}>
+                              {/* Segmented Pill Tab Selector */}
+                              <div style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                background: 'var(--bg-subcard, rgba(255, 255, 255, 0.05))',
+                                padding: '4px',
+                                borderRadius: '12px',
+                                border: '1px solid var(--border, rgba(255, 255, 255, 0.1))',
+                                gap: '4px',
+                                maxWidth: '100%',
+                                overflowX: 'auto'
+                              }}>
+                                <button
+                                  type="button"
+                                  onClick={() => setActivePaymentChannelTab('gcash')}
+                                  style={{
+                                    padding: '7px 18px',
+                                    borderRadius: '8px',
+                                    border: 'none',
+                                    background: activePaymentChannelTab === 'gcash' ? '#007DFE' : 'transparent',
+                                    color: activePaymentChannelTab === 'gcash' ? '#ffffff' : 'var(--text-secondary)',
+                                    fontSize: '0.82rem',
+                                    fontWeight: 700,
+                                    cursor: 'pointer',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '8px',
+                                    transition: 'all 0.15s ease',
+                                    whiteSpace: 'nowrap'
+                                  }}
+                                >
+                                  <span style={{
+                                    width: '8px',
+                                    height: '8px',
+                                    borderRadius: '50%',
+                                    background: (gcashNumber || gcashQrUrl || gcashName) ? (activePaymentChannelTab === 'gcash' ? '#ffffff' : '#22c55e') : 'rgba(255,255,255,0.3)'
+                                  }} />
+                                  <span>GCash</span>
+                                  {(gcashNumber || gcashQrUrl || gcashName) && <span className="material-symbols-outlined" style={{ fontSize: '13px', opacity: 0.9 }}>check</span>}
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => setActivePaymentChannelTab('maya')}
+                                  style={{
+                                    padding: '7px 18px',
+                                    borderRadius: '8px',
+                                    border: 'none',
+                                    background: activePaymentChannelTab === 'maya' ? '#00b87c' : 'transparent',
+                                    color: activePaymentChannelTab === 'maya' ? '#ffffff' : 'var(--text-secondary)',
+                                    fontSize: '0.82rem',
+                                    fontWeight: 700,
+                                    cursor: 'pointer',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '8px',
+                                    transition: 'all 0.15s ease',
+                                    whiteSpace: 'nowrap'
+                                  }}
+                                >
+                                  <span style={{
+                                    width: '8px',
+                                    height: '8px',
+                                    borderRadius: '50%',
+                                    background: (mayaNumber || mayaQrUrl || mayaName) ? (activePaymentChannelTab === 'maya' ? '#ffffff' : '#22c55e') : 'rgba(255,255,255,0.3)'
+                                  }} />
+                                  <span>Maya</span>
+                                  {(mayaNumber || mayaQrUrl || mayaName) && <span className="material-symbols-outlined" style={{ fontSize: '13px', opacity: 0.9 }}>check</span>}
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => setActivePaymentChannelTab('bank')}
+                                  style={{
+                                    padding: '7px 18px',
+                                    borderRadius: '8px',
+                                    border: 'none',
+                                    background: activePaymentChannelTab === 'bank' ? '#16a34a' : 'transparent',
+                                    color: activePaymentChannelTab === 'bank' ? '#ffffff' : 'var(--text-secondary)',
+                                    fontSize: '0.82rem',
+                                    fontWeight: 700,
+                                    cursor: 'pointer',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '8px',
+                                    transition: 'all 0.15s ease',
+                                    whiteSpace: 'nowrap'
+                                  }}
+                                >
+                                  <span style={{
+                                    width: '8px',
+                                    height: '8px',
+                                    borderRadius: '50%',
+                                    background: (bankAccountNumber || bankQrUrl) ? (activePaymentChannelTab === 'bank' ? '#ffffff' : '#22c55e') : 'rgba(255,255,255,0.3)'
+                                  }} />
+                                  <span>Direct Bank Deposit</span>
+                                  {(bankAccountNumber || bankQrUrl) && <span className="material-symbols-outlined" style={{ fontSize: '13px', opacity: 0.9 }}>check</span>}
+                                </button>
+                              </div>
+
+                              {/* Import Verified Channels from Profile */}
+                              {profileReliefData.hasAny && (
+                                <button
+                                  type="button"
+                                  className="btn btn-secondary btn-sm"
+                                  onClick={handleAutofillFromProfile}
+                                  style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '6px',
+                                    fontSize: '0.78rem',
+                                    fontWeight: 600,
+                                    padding: '7px 14px',
+                                    borderRadius: '8px'
+                                  }}
+                                  title="Import verified payment channels and QR codes from your Organization Profile"
+                                >
+                                  <span className="material-symbols-outlined" style={{ fontSize: '16px', color: 'var(--accent)' }}>
+                                    sync
+                                  </span>
+                                  Import Channels from Profile
+                                </button>
+                              )}
+                            </div>
+
+                            {/* ── 1. GCASH CHANNEL ── */}
+                            {activePaymentChannelTab === 'gcash' && (
+                              <div
+                                className="fade-in"
+                                style={{
+                                  background: 'rgba(0, 125, 254, 0.04)',
+                                  padding: '18px 20px',
+                                  borderRadius: '12px',
+                                  border: '1px solid rgba(0, 125, 254, 0.28)'
+                                }}
+                              >
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: '20px', alignItems: 'stretch' }}>
+                                  {/* Left Column: GCash Account Details */}
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                                    <div>
+                                      <label className="deploy-input-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
+                                        <span className="material-symbols-outlined" style={{ color: '#007DFE', fontSize: '18px' }}>badge</span>
+                                        Official GCash Account Name
+                                      </label>
+                                      <input
+                                        className="input deploy-field-input"
+                                        type="text"
+                                        placeholder="e.g., Philippine Red Cross - Southern Leyte"
+                                        value={gcashName}
+                                        onChange={(e) => setGcashName(e.target.value)}
+                                        disabled={creating}
+                                      />
+                                      <span style={{ fontSize: '0.73rem', color: 'var(--text-muted)', marginTop: '4px', display: 'block' }}>
+                                        Registered name displayed on GCash app confirmation.
+                                      </span>
+                                    </div>
+
+                                    <div>
+                                      <label className="deploy-input-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
+                                        <span className="material-symbols-outlined" style={{ color: '#007DFE', fontSize: '18px' }}>smartphone</span>
+                                        Official GCash Receiving Number
+                                      </label>
+                                      <input
+                                        className="input deploy-field-input"
+                                        type="text"
+                                        placeholder="0992 982 4615"
+                                        value={gcashNumber}
+                                        onChange={(e) => setGcashNumber(formatPhoneNumber(e.target.value))}
+                                        disabled={creating}
+                                        style={{ fontFamily: 'monospace', fontWeight: 700 }}
+                                      />
+                                      <span style={{ fontSize: '0.73rem', color: 'var(--text-muted)', marginTop: '4px', display: 'block' }}>
+                                        Donors can copy and send funds directly to this GCash account.
+                                      </span>
+                                    </div>
+                                  </div>
+
+                                  {/* Right Column: GCash QR Code */}
+                                  <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                                      <label className="deploy-input-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', margin: 0 }}>
+                                        <span className="material-symbols-outlined" style={{ color: '#007DFE', fontSize: '18px' }}>qr_code</span>
+                                        GCash QR Code Image
+                                      </label>
+
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                        <button
+                                          type="button"
+                                          onClick={() => setShowSelectQrModal('GCash')}
+                                          style={{
+                                            background: 'rgba(0, 125, 254, 0.1)',
+                                            border: '1px solid rgba(0, 125, 254, 0.3)',
+                                            color: '#007DFE',
+                                            fontSize: '0.72rem',
+                                            padding: '2px 8px',
+                                            borderRadius: '6px',
+                                            cursor: 'pointer',
+                                            fontWeight: 700,
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            gap: '4px'
+                                          }}
+                                          title="Pick from reusable QR library"
+                                        >
+                                          <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>qr_code_2</span>
+                                          <span>Select QR Code ({savedQrList.filter(q => q.payment_method === 'GCash').length})</span>
+                                        </button>
+
+                                        {gcashQrUrl && (
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              setGcashQrUrl('');
+                                              setSelectedGcashQrId(null);
+                                            }}
+                                            style={{ background: 'transparent', border: 'none', color: '#ef4444', fontSize: '0.73rem', cursor: 'pointer', fontWeight: 600 }}
+                                          >
+                                            Remove
+                                          </button>
+                                        )}
+                                      </div>
+                                    </div>
+
+                                    {gcashQrUrl ? (
+                                      <div style={{
+                                        flex: 1,
+                                        minHeight: '140px',
+                                        position: 'relative',
+                                        borderRadius: '10px',
+                                        overflow: 'hidden',
+                                        border: '1.5px solid rgba(0, 125, 254, 0.45)',
+                                        background: 'var(--bg-subcard)',
+                                        padding: '12px',
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        textAlign: 'center'
+                                      }}>
+                                        <img
+                                          src={gcashQrUrl}
+                                          alt="Organization GCash QR"
+                                          style={{ maxHeight: '110px', maxWidth: '100%', objectFit: 'contain', borderRadius: '8px' }}
+                                        />
+                                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', marginTop: '6px', fontSize: '0.74rem', color: '#007DFE', fontWeight: 700 }}>
+                                          <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>verified</span>
+                                          GCash QR Attached
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      <label style={{
+                                        flex: 1,
+                                        minHeight: '140px',
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        padding: '16px',
+                                        border: '1.5px dashed rgba(0, 125, 254, 0.4)',
+                                        borderRadius: '10px',
+                                        cursor: 'pointer',
+                                        background: 'rgba(0, 125, 254, 0.03)',
+                                        transition: 'all 0.2s ease',
+                                        textAlign: 'center'
+                                      }}>
+                                        <span className="material-symbols-outlined" style={{ fontSize: '32px', color: '#007DFE', marginBottom: '6px' }}>
+                                          qr_code_scanner
+                                        </span>
+                                        <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                                          Upload GCash QR
+                                        </span>
+                                        <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                                          PNG, JPG or WebP image
+                                        </span>
+                                        <input
+                                          type="file"
+                                          accept="image/*"
+                                          onChange={handleGcashQrUpload}
+                                          style={{ display: 'none' }}
+                                          disabled={creating}
+                                        />
+                                      </label>
+                                    )}
+
+                                    <label style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '6px', fontSize: '0.72rem', color: 'var(--text-muted)', cursor: 'pointer' }}>
+                                      <input
+                                        type="checkbox"
+                                        checked={saveToLibraryChecked}
+                                        onChange={e => setSaveToLibraryChecked(e.target.checked)}
+                                      />
+                                      <span>Save uploaded QR codes to Reusable Settings Library</span>
+                                    </label>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+
+                            {/* ── 2. MAYA CHANNEL ── */}
+                            {activePaymentChannelTab === 'maya' && (
+                              <div
+                                className="fade-in"
+                                style={{
+                                  background: 'rgba(0, 214, 143, 0.04)',
+                                  padding: '18px 20px',
+                                  borderRadius: '12px',
+                                  border: '1px solid rgba(0, 214, 143, 0.28)'
+                                }}
+                              >
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: '20px', alignItems: 'stretch' }}>
+                                  {/* Left Column: Maya Account Details */}
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                                    <div>
+                                      <label className="deploy-input-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
+                                        <span className="material-symbols-outlined" style={{ color: '#00d68f', fontSize: '18px' }}>badge</span>
+                                        Official Maya Account Name
+                                      </label>
+                                      <input
+                                        className="input deploy-field-input"
+                                        type="text"
+                                        placeholder="e.g., Philippine Red Cross or Official Merchant"
+                                        value={mayaName}
+                                        onChange={(e) => setMayaName(e.target.value)}
+                                        disabled={creating}
+                                      />
+                                      <span style={{ fontSize: '0.73rem', color: 'var(--text-muted)', marginTop: '4px', display: 'block' }}>
+                                        Registered merchant or account name inside Maya.
+                                      </span>
+                                    </div>
+
+                                    <div>
+                                      <label className="deploy-input-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
+                                        <span className="material-symbols-outlined" style={{ color: '#00d68f', fontSize: '18px' }}>account_circle</span>
+                                        Official Maya Number or @Username
+                                      </label>
+                                      <input
+                                        className="input deploy-field-input"
+                                        type="text"
+                                        placeholder="0992 982 4615"
+                                        value={mayaNumber}
+                                        onChange={(e) => setMayaNumber(formatPhoneNumber(e.target.value))}
+                                        disabled={creating}
+                                        style={{ fontFamily: 'monospace', fontWeight: 700 }}
+                                      />
+                                      <span style={{ fontSize: '0.73rem', color: 'var(--text-muted)', marginTop: '4px', display: 'block' }}>
+                                        Donors using Maya can transfer directly to this number or username.
+                                      </span>
+                                    </div>
+                                  </div>
+
+                                  {/* Right Column: Maya QR Code */}
+                                  <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                                      <label className="deploy-input-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', margin: 0 }}>
+                                        <span className="material-symbols-outlined" style={{ color: '#00d68f', fontSize: '18px' }}>qr_code</span>
+                                        Maya QR Code Image
+                                      </label>
+
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                        <button
+                                          type="button"
+                                          onClick={() => setShowSelectQrModal('Maya')}
+                                          style={{
+                                            background: 'rgba(0, 214, 143, 0.1)',
+                                            border: '1px solid rgba(0, 214, 143, 0.3)',
+                                            color: '#00d68f',
+                                            fontSize: '0.72rem',
+                                            padding: '2px 8px',
+                                            borderRadius: '6px',
+                                            cursor: 'pointer',
+                                            fontWeight: 700,
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            gap: '4px'
+                                          }}
+                                          title="Pick from reusable QR library"
+                                        >
+                                          <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>qr_code_2</span>
+                                          <span>Select QR Code ({savedQrList.filter(q => q.payment_method === 'Maya').length})</span>
+                                        </button>
+
+                                        {mayaQrUrl && (
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              setMayaQrUrl('');
+                                              setSelectedMayaQrId(null);
+                                            }}
+                                            style={{ background: 'transparent', border: 'none', color: '#ef4444', fontSize: '0.73rem', cursor: 'pointer', fontWeight: 600 }}
+                                          >
+                                            Remove
+                                          </button>
+                                        )}
+                                      </div>
+                                    </div>
+
+                                    {mayaQrUrl ? (
+                                      <div style={{
+                                        flex: 1,
+                                        minHeight: '140px',
+                                        position: 'relative',
+                                        borderRadius: '10px',
+                                        overflow: 'hidden',
+                                        border: '1.5px solid rgba(0, 214, 143, 0.45)',
+                                        background: 'var(--bg-subcard)',
+                                        padding: '12px',
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        textAlign: 'center'
+                                      }}>
+                                        <img
+                                          src={mayaQrUrl}
+                                          alt="Organization Maya QR"
+                                          style={{ maxHeight: '110px', maxWidth: '100%', objectFit: 'contain', borderRadius: '8px' }}
+                                        />
+                                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', marginTop: '6px', fontSize: '0.74rem', color: '#00d68f', fontWeight: 700 }}>
+                                          <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>verified</span>
+                                          Maya QR Attached
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      <label style={{
+                                        flex: 1,
+                                        minHeight: '140px',
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        padding: '16px',
+                                        border: '1.5px dashed rgba(0, 214, 143, 0.4)',
+                                        borderRadius: '10px',
+                                        cursor: 'pointer',
+                                        background: 'rgba(0, 214, 143, 0.03)',
+                                        transition: 'all 0.2s ease',
+                                        textAlign: 'center'
+                                      }}>
+                                        <span className="material-symbols-outlined" style={{ fontSize: '32px', color: '#00d68f', marginBottom: '6px' }}>
+                                          qr_code_scanner
+                                        </span>
+                                        <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                                          Upload Maya QR
+                                        </span>
+                                        <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                                          PNG, JPG or WebP image
+                                        </span>
+                                        <input
+                                          type="file"
+                                          accept="image/*"
+                                          onChange={handleMayaQrUpload}
+                                          style={{ display: 'none' }}
+                                          disabled={creating}
+                                        />
+                                      </label>
+                                    )}
+
+                                    <label style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '6px', fontSize: '0.72rem', color: 'var(--text-muted)', cursor: 'pointer' }}>
+                                      <input
+                                        type="checkbox"
+                                        checked={saveToLibraryChecked}
+                                        onChange={e => setSaveToLibraryChecked(e.target.checked)}
+                                      />
+                                      <span>Save uploaded QR codes to Reusable Settings Library</span>
+                                    </label>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+
+                            {/* ── 3. DIRECT BANK DEPOSIT CHANNEL ── */}
+                            {activePaymentChannelTab === 'bank' && (
+                              <div
+                                className="fade-in"
+                                style={{
+                                  background: 'rgba(22, 163, 74, 0.04)',
+                                  padding: '18px 20px',
+                                  borderRadius: '12px',
+                                  border: '1px solid rgba(22, 163, 74, 0.28)'
+                                }}
+                              >
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: '20px', alignItems: 'stretch' }}>
+                                  {/* Left Column: Bank Account Details */}
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                                    <div>
+                                      <label className="deploy-input-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
+                                        <span className="material-symbols-outlined" style={{ color: 'var(--accent)', fontSize: '18px' }}>account_balance</span>
+                                        Bank Name
+                                      </label>
+                                      <input
+                                        className="input deploy-field-input"
+                                        list="ph-bank-options"
+                                        placeholder="e.g., BDO Unibank, BPI, Landbank"
+                                        value={bankName}
+                                        onChange={(e) => setBankName(e.target.value)}
+                                        disabled={creating}
+                                      />
+                                      <datalist id="ph-bank-options">
+                                        <option value="BDO Unibank" />
+                                        <option value="BPI (Bank of the Philippine Islands)" />
+                                        <option value="Land Bank of the Philippines (LBP)" />
+                                        <option value="UnionBank of the Philippines" />
+                                        <option value="Metrobank" />
+                                        <option value="Security Bank" />
+                                        <option value="RCBC" />
+                                        <option value="PNB (Philippine National Bank)" />
+                                        <option value="China Bank" />
+                                        <option value="Development Bank of the Philippines (DBP)" />
+                                      </datalist>
+                                    </div>
+
+                                    <div>
+                                      <label className="deploy-input-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
+                                        <span className="material-symbols-outlined" style={{ color: 'var(--accent)', fontSize: '18px' }}>person</span>
+                                        Account Beneficiary Name
+                                      </label>
+                                      <input
+                                        className="input deploy-field-input"
+                                        type="text"
+                                        placeholder="e.g., Philippine Red Cross or BBDRTS Relief Partner"
+                                        value={bankAccountName}
+                                        onChange={(e) => setBankAccountName(e.target.value)}
+                                        disabled={creating}
+                                      />
+                                    </div>
+
+                                    <div>
+                                      <label className="deploy-input-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
+                                        <span className="material-symbols-outlined" style={{ color: 'var(--accent)', fontSize: '18px' }}>numbers</span>
+                                        Account Number
+                                      </label>
+                                      <input
+                                        className="input deploy-field-input"
+                                        type="text"
+                                        placeholder="e.g., 0012 3456 7890"
+                                        value={bankAccountNumber}
+                                        onChange={(e) => setBankAccountNumber(e.target.value)}
+                                        disabled={creating}
+                                        style={{ fontFamily: 'monospace', fontWeight: 700 }}
+                                      />
+                                    </div>
+                                  </div>
+
+                                  {/* Right Column: Bank QR / InstaPay */}
+                                  <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                                      <label className="deploy-input-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', margin: 0 }}>
+                                        <span className="material-symbols-outlined" style={{ color: 'var(--accent)', fontSize: '18px' }}>qr_code</span>
+                                        Bank Transfer QR / InstaPay QR (Optional)
+                                      </label>
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                        {savedQrList.filter(q => q.payment_method === 'Bank').length > 0 && (
+                                          <button
+                                            type="button"
+                                            onClick={() => setShowSelectQrModal('Bank')}
+                                            style={{
+                                              background: 'rgba(34, 197, 94, 0.1)',
+                                              border: '1px solid rgba(34, 197, 94, 0.3)',
+                                              color: '#22c55e',
+                                              fontSize: '0.72rem',
+                                              padding: '2px 8px',
+                                              borderRadius: '6px',
+                                              cursor: 'pointer',
+                                              fontWeight: 700,
+                                              display: 'inline-flex',
+                                              alignItems: 'center',
+                                              gap: '4px'
+                                            }}
+                                            title="Pick from reusable QR library"
+                                          >
+                                            <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>qr_code_2</span>
+                                            <span>Select QR Code ({savedQrList.filter(q => q.payment_method === 'Bank').length})</span>
+                                          </button>
+                                        )}
+
+                                        {bankQrUrl && (
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              setBankQrUrl('');
+                                              setSelectedBankQrId(null);
+                                            }}
+                                            style={{ background: 'transparent', border: 'none', color: '#ef4444', fontSize: '0.73rem', cursor: 'pointer', fontWeight: 600 }}
+                                          >
+                                            Remove QR
+                                          </button>
+                                        )}
+                                      </div>
+                                    </div>
+
+                                    {bankQrUrl ? (
+                                      <div style={{
+                                        flex: 1,
+                                        minHeight: '140px',
+                                        position: 'relative',
+                                        borderRadius: '10px',
+                                        overflow: 'hidden',
+                                        border: '1.5px solid var(--accent)',
+                                        background: 'var(--bg-subcard)',
+                                        padding: '12px',
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        textAlign: 'center'
+                                      }}>
+                                        <img
+                                          src={bankQrUrl}
+                                          alt="Organization Bank QR"
+                                          style={{ maxHeight: '110px', maxWidth: '100%', objectFit: 'contain', borderRadius: '8px' }}
+                                        />
+                                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', marginTop: '6px', fontSize: '0.74rem', color: 'var(--accent)', fontWeight: 700 }}>
+                                          <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>verified</span>
+                                          Bank QR Attached
+                                        </div>
+                                      </div>
+                                    ) : (
+                                      <label style={{
+                                        flex: 1,
+                                        minHeight: '140px',
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        padding: '16px',
+                                        border: '1.5px dashed rgba(22, 163, 74, 0.4)',
+                                        borderRadius: '10px',
+                                        cursor: 'pointer',
+                                        background: 'rgba(22, 163, 74, 0.03)',
+                                        transition: 'all 0.2s ease',
+                                        textAlign: 'center'
+                                      }}>
+                                        <span className="material-symbols-outlined" style={{ fontSize: '32px', color: 'var(--accent)', marginBottom: '6px' }}>
+                                          account_balance
+                                        </span>
+                                        <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                                          Upload Bank / InstaPay QR
+                                        </span>
+                                        <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                                          PNG, JPG or WebP image
+                                        </span>
+                                        <input
+                                          type="file"
+                                          accept="image/*"
+                                          onChange={handleBankQrUpload}
+                                          style={{ display: 'none' }}
+                                          disabled={creating}
+                                        />
+                                      </label>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  )}
+
+                  {/* Multi-Step Wizard Navigation Controls */}
+                  <div className="deploy-wizard-actions">
+                    <div>
+                      {deployStep > 1 && (
+                        <button
+                          type="button"
+                          className="btn btn-secondary"
+                          onClick={() => {
+                            setDeployStep(s => Math.max(1, s - 1));
+                            window.scrollTo({ top: 0, behavior: 'smooth' });
+                          }}
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '10px 18px', borderRadius: '8px' }}
+                        >
+                          <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>arrow_back</span>
+                          <span>Back</span>
+                        </button>
+                      )}
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                        Step {deployStep} of 5
+                      </span>
+                    </div>
+
+                    <div>
+                      {deployStep < 5 ? (
+                        <button
+                          key="wizard-continue-step-btn"
+                          type="button"
+                          className="btn btn-primary"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            if (deployStep === 1) {
+                              if (!title.trim()) {
+                                showWarning('Please provide a campaign title before continuing.');
+                                return;
+                              }
+                              const parsedPhp = parseFloat(targetAmount);
+                              if (isNaN(parsedPhp) || parsedPhp <= 0) {
+                                showWarning('Please provide a valid fundraising target goal (greater than ₱0).');
+                                return;
+                              }
+                              if (!targetDate) {
+                                showWarning('Please select a Target Due Date to continue.');
+                                return;
+                              }
+                            } else if (deployStep === 4) {
+                              if (!city.trim() || !province.trim()) {
+                                showWarning('Please specify at least a Municipality/City and Province.');
+                                return;
+                              }
+                            }
+                            setDeployStep(s => Math.min(5, s + 1));
+                            window.scrollTo({ top: 0, behavior: 'smooth' });
+                          }}
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '10px 22px', borderRadius: '8px', fontWeight: 700 }}
+                        >
+                          <span>Continue to Step {deployStep + 1}</span>
+                          <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>arrow_forward</span>
+                        </button>
+                      ) : (
+                        <button
+                          key="wizard-submit-deploy-btn"
+                          type="button"
+                          className="btn btn-primary"
+                          onClick={handleCreateCampaign}
+                          disabled={creating}
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '12px 32px', borderRadius: '8px', fontWeight: 700 }}
+                        >
+                          {creating ? (
+                            <><div className="spinner" /> Deploying Campaign to Ledger…</>
+                          ) : (
+                            <>
+                              <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>rocket_launch</span>
+                              <span>Deploy Relief Operation to Ledger</span>
+                            </>
+                          )}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </form>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── 5. DONATION LEDGER TAB ── */}
+        {activeTab === 'ledger' && (
+          <div style={{ marginTop: '8px', paddingBottom: '130px' }}>
+            <div className="admin-page-header" id="tour-ngo-ledger-header">
+              <div className="admin-page-title-wrap">
+                <h2 className="admin-page-title">
+                  <span className="material-symbols-outlined" style={{ fontSize: '24px', color: '#16a34a' }}>receipt_long</span>
+                  <span>Donation Ledger</span>
+                </h2>
+                <p className="admin-page-sub">
+                  Immutable, tamper-proof real-time transaction receipts and audit trail for contributions received by {orgDisplayName || 'your organization'}.
+                </p>
+              </div>
+
+              <div className="admin-page-header-actions">
+                <button
+                  type="button"
+                  className="btn btn-ghost btn-sm"
+                  onClick={fetchOrgDonations}
+                  disabled={loadingOrgDonations}
+                  title="Re-query the blockchain and database for latest transactions"
+                  style={{ borderRadius: '8px', padding: '6px 12px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                >
+                  {loadingOrgDonations ? (
+                    <div className="spinner spinner-light" />
+                  ) : (
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                      <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>sync</span>
+                      <span>Sync Ledger</span>
+                    </span>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-outline btn-sm"
+                  onClick={() => window.print()}
+                  title="Print formal audit report"
+                  style={{ borderRadius: '8px', padding: '6px 14px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>print</span>
+                  <span>Audit Report</span>
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-primary btn-sm"
+                  onClick={handleExportLedgerCsv}
+                  title="Export filtered ledger records to a standard CSV spreadsheet"
+                  style={{ borderRadius: '8px', padding: '6px 14px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>file_download</span>
+                  <span>Export CSV</span>
+                </button>
+              </div>
+            </div>
+
+            {/* ── Unified Executive Metrics Strip — Vercel Design System (Zero Card-Ception) ── */}
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+              background: '#0a0a0a',
+              border: '1px solid #222222',
+              borderRadius: '10px',
+              overflow: 'hidden',
+              marginBottom: '20px'
+            }}>
+              {/* Stat 1: Total Funds Received */}
+              <div style={{ padding: '16px 20px', borderRight: '1px solid #222222', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '0.68rem', fontWeight: 600, color: '#888888', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                    Total Funds Received
+                  </span>
+                  <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#10b981' }}>payments</span>
                 </div>
-              ) : (
-                /* ── AUDIT TABLE VIEW ── */
-                <div style={{
-                  background: 'var(--bg-card, rgba(15, 23, 42, 0.65))',
-                  borderRadius: '16px',
-                  border: '1px solid var(--border)',
-                  overflow: 'hidden',
-                  boxShadow: 'var(--shadow-card)'
-                }}>
-                  <div style={{ overflowX: 'auto' }}>
-                    <table className="table" style={{ width: '100%', minWidth: '920px', fontSize: '0.84rem' }}>
+                <div style={{ fontSize: '1.45rem', fontWeight: 800, color: '#ededed', fontFamily: 'var(--font-mono, monospace)', letterSpacing: '-0.02em' }}>
+                  {totalRaisedByMe.toFixed(4)} <span style={{ fontSize: '0.80rem', color: '#888888' }}>ETH</span>
+                </div>
+                <div style={{ fontSize: '0.74rem', color: '#10b981', fontWeight: 500 }}>
+                  ≈ ₱{(totalRaisedByMe * 170000).toLocaleString('en-US', { maximumFractionDigits: 0 })} PHP Total
+                </div>
+              </div>
+
+              {/* Stat 2: Verified Transactions */}
+              <div style={{ padding: '16px 20px', borderRight: '1px solid #222222', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '0.68rem', fontWeight: 600, color: '#888888', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                    Verified Transactions
+                  </span>
+                  <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#38bdf8' }}>receipt_long</span>
+                </div>
+                <div style={{ fontSize: '1.45rem', fontWeight: 800, color: '#ededed', fontFamily: 'var(--font-mono, monospace)', letterSpacing: '-0.02em' }}>
+                  {ledgerTelemetry.totalCount} <span style={{ fontSize: '0.80rem', color: '#888888' }}>Recorded</span>
+                </div>
+                <div style={{ fontSize: '0.74rem', color: '#38bdf8', fontWeight: 500 }}>
+                  100% Sepolia EVM Audited
+                </div>
+              </div>
+
+              {/* Stat 3: Payment Rails Breakdown */}
+              <div style={{ padding: '16px 20px', borderRight: '1px solid #222222', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '0.68rem', fontWeight: 600, color: '#888888', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                    Payment Rails
+                  </span>
+                  <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#a78bfa' }}>account_balance_wallet</span>
+                </div>
+                <div style={{ fontSize: '1.45rem', fontWeight: 800, color: '#ededed', fontFamily: 'var(--font-mono, monospace)', letterSpacing: '-0.02em' }}>
+                  {ledgerTelemetry.railCounts.eth} Crypto · {ledgerTelemetry.railCounts.gcash + ledgerTelemetry.railCounts.maya + ledgerTelemetry.railCounts.bank} Fiat
+                </div>
+                <div style={{ fontSize: '0.74rem', color: '#888888' }}>
+                  GCash ({ledgerTelemetry.railCounts.gcash}) · Maya ({ledgerTelemetry.railCounts.maya}) · Bank ({ledgerTelemetry.railCounts.bank})
+                </div>
+              </div>
+
+              {/* Stat 4: Offline Verifications */}
+              {(() => {
+                const pendingCount = (pendingDonations || []).length;
+                return (
+                  <div style={{
+                    padding: '16px 20px',
+                    display: 'flex', flexDirection: 'column', gap: '4px',
+                    background: pendingCount > 0 ? 'rgba(245, 158, 11, 0.04)' : 'transparent'
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: '0.68rem', fontWeight: 600, color: pendingCount > 0 ? '#f59e0b' : '#888888', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                        Offline Verifications
+                      </span>
+                      <span className="material-symbols-outlined" style={{ fontSize: '18px', color: pendingCount > 0 ? '#f59e0b' : '#10b981' }}>
+                        {pendingCount > 0 ? 'hourglass_top' : 'task_alt'}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: '1.45rem', fontWeight: 800, color: pendingCount > 0 ? '#f59e0b' : '#ededed', fontFamily: 'var(--font-mono, monospace)' }}>
+                      {pendingCount} <span style={{ fontSize: '0.80rem', color: '#888888' }}>Pending</span>
+                    </div>
+                    <div style={{ fontSize: '0.74rem', color: pendingCount > 0 ? '#f59e0b' : '#10b981', fontWeight: 500 }}>
+                      {pendingCount > 0 ? 'Action required in review table' : 'All payment slips verified'}
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+
+            {/* ── Pending Manual Donations Section (E-Wallets & Banks) — Premium Redesign + AI Audit & Batch Verification ── */}
+            {Boolean((pendingDonations || []).length > 0) && (
+              <div style={{
+                marginBottom: '28px',
+                background: 'var(--bg-card)',
+                border: '1px solid var(--border)',
+                padding: '22px 26px',
+                borderRadius: '16px',
+                boxShadow: 'var(--shadow-card)'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '18px', flexWrap: 'wrap', gap: '12px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <div style={{
+                      width: '38px',
+                      height: '38px',
+                      borderRadius: '10px',
+                      background: 'rgba(56, 189, 248, 0.15)',
+                      border: '1px solid rgba(56, 189, 248, 0.3)',
+                      color: '#38bdf8',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}>
+                      <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>pending_actions</span>
+                    </div>
+                    <div>
+                      <h3 style={{ margin: 0, fontSize: '1.12rem', color: 'var(--text-primary)', fontWeight: 800, letterSpacing: '-0.01em' }}>
+                        Pending E-Wallet &amp; Bank Slip Verifications ({(pendingDonations || []).length})
+                      </h3>
+                      <p style={{ margin: '2px 0 0 0', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                        AI Receipt Audit Engine automatically verifies reference patterns and amounts to protect NGOs from fraud.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        const allIds = (pendingDonations || []).map(d => d.Manual_ID);
+                        if (!window.confirm(`Fast-Approve ALL ${allIds.length} pending donation slips with AI Verification?`)) return;
+                        try {
+                          const res = await fetch(`${API_BASE_URL}/manual-donations/batch-verify`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ manualIds: allIds })
+                          });
+                          const data = await res.json();
+                          if (res.ok && data.success) {
+                            alert(`Successfully batch-verified ${data.verifiedCount} donation slip(s)!`);
+                            fetchPendingDonations();
+                            fetchOrgDashboardData();
+                          } else {
+                            alert(`Batch verification failed: ${data.error || 'Unknown error'}`);
+                          }
+                        } catch (err) {
+                          alert('Failed to connect to server for batch verification.');
+                        }
+                      }}
+                      style={{
+                        background: '#16a34a',
+                        color: '#fff',
+                        border: 'none',
+                        padding: '8px 16px',
+                        borderRadius: '8px',
+                        fontWeight: 700,
+                        fontSize: '0.8rem',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        cursor: 'pointer',
+                        boxShadow: '0 2px 8px rgba(22, 163, 74, 0.25)'
+                      }}
+                      title="Batch approve all pending slips with AI OCR Verification"
+                    >
+                      <span className="material-symbols-outlined" style={{ fontSize: '17px' }}>bolt</span>
+                      <span>1-Click Approve All AI-Verified Slips</span>
+                    </button>
+
+                    <span className="ref-status-live-chip" style={{ background: 'rgba(245, 158, 11, 0.15)', color: '#f59e0b', border: '1px solid rgba(245, 158, 11, 0.3)', padding: '5px 12px', borderRadius: '8px', fontSize: '0.72rem', fontWeight: 800, letterSpacing: '0.5px' }}>
+                      ACTION REQUIRED ({(pendingDonations || []).length})
+                    </span>
+                  </div>
+                </div>
+
+                {loadingPending ? (
+                  <div style={{ textAlign: 'center', padding: '30px' }}><div className="spinner spinner-light" /></div>
+                ) : (
+                  <div style={{ overflowX: 'auto', borderRadius: '12px' }}>
+                    <table style={{
+                      width: '100%',
+                      minWidth: '960px',
+                      borderCollapse: 'separate',
+                      borderSpacing: '0 8px',
+                      fontSize: '0.85rem'
+                    }}>
                       <thead>
-                        <tr style={{ background: 'var(--bg-subcard)' }}>
-                          <th style={{ padding: '12px 16px' }}>Tx Hash</th>
-                          <th style={{ padding: '12px 16px' }}>Date / Timestamp</th>
-                          <th style={{ padding: '12px 16px' }}>Campaign</th>
-                          <th style={{ padding: '12px 16px' }}>Donor</th>
-                          <th style={{ padding: '12px 16px' }}>Payment Rail</th>
-                          <th style={{ padding: '12px 16px' }}>Amount (ETH)</th>
-                          <th style={{ padding: '12px 16px' }}>Peso Value (PHP)</th>
-                          <th style={{ padding: '12px 16px', textAlign: 'right' }}>Audit Action</th>
+                        <tr style={{ color: '#94a3b8', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.6px', fontWeight: 700 }}>
+                          <th style={{ padding: '8px 16px', textAlign: 'left', width: '20%' }}>Donor Identity</th>
+                          <th style={{ padding: '8px 16px', textAlign: 'left', width: '24%' }}>Relief Campaign</th>
+                          <th style={{ padding: '8px 16px', textAlign: 'left', width: '14%' }}>Payment Rail</th>
+                          <th style={{ padding: '8px 16px', textAlign: 'left', width: '15%' }}>Amount (ETH / PHP)</th>
+                          <th style={{ padding: '8px 16px', textAlign: 'center', width: '15%' }}>AI OCR Status</th>
+                          <th style={{ padding: '8px 16px', textAlign: 'right', width: '12%' }}>Review Action</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {paginatedLedger.map((d, idx) => {
-                          const matchCamp = campaigns.find(c => String(c.id) === String(d.campaignId));
-                          const rawTitle = matchCamp ? matchCamp.title : `Campaign #${d.campaignId}`;
-                          const campTitle = formatCampaignTitle(rawTitle, d.campaignId);
-                          const donor = d.isAnonymous ? 'Anonymous Donor' : (d.donorName || 'Public Supporter');
+                        {pendingDonations.map((d) => {
+                          const pm = String(d.Payment_Method || 'Fiat').toUpperCase();
+                          const isGcash = pm.includes('GCASH');
+                          const isMaya = pm.includes('MAYA') || pm.includes('PAYMAYA');
 
                           return (
-                            <tr key={idx} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
-                              <td style={{ padding: '12px 16px', fontFamily: 'var(--font-mono)' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                  <span style={{ color: 'var(--accent, #22c55e)' }}>
-                                    {d.txHash ? `${d.txHash.slice(0, 8)}…${d.txHash.slice(-6)}` : 'N/A'}
-                                  </span>
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      navigator.clipboard.writeText(d.txHash);
-                                      showSuccess('Transaction hash copied!', 'Copied');
-                                    }}
-                                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 0, display: 'inline-flex', alignItems: 'center' }}
-                                    title="Copy Hash"
-                                  >
-                                    <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>content_copy</span>
-                                  </button>
+                            <tr
+                              key={d.Manual_ID}
+                              style={{
+                                background: 'var(--bg-subcard, var(--bg-card))',
+                                border: '1px solid var(--border)',
+                                boxShadow: 'var(--shadow-sm)',
+                                transition: 'all 0.2s ease'
+                              }}
+                            >
+                              {/* 1. Donor Name / Badge */}
+                              <td style={{ padding: '14px 16px', borderRadius: '10px 0 0 10px', verticalAlign: 'middle' }}>
+                                {d.Donor_Name && d.Donor_Name !== 'Anonymous Donor' ? (
+                                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', background: 'rgba(56, 189, 248, 0.1)', border: '1px solid rgba(56, 189, 248, 0.25)', padding: '5px 12px', borderRadius: '8px', color: 'var(--text-primary)', fontWeight: 700, fontSize: '0.82rem' }}>
+                                    <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#38bdf8' }}>account_circle</span>
+                                    <span>{d.Donor_Name}</span>
+                                  </div>
+                                ) : (
+                                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', background: 'var(--bg-input, rgba(255, 255, 255, 0.06))', border: '1px solid var(--border)', padding: '5px 12px', borderRadius: '8px', color: 'var(--text-muted)', fontWeight: 600, fontSize: '0.81rem' }}>
+                                    <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>visibility_off</span>
+                                    <span>Anonymous Donor</span>
+                                  </div>
+                                )}
+                              </td>
+
+                              {/* 2. Relief Campaign */}
+                              <td style={{ padding: '14px 16px', verticalAlign: 'middle' }}>
+                                <div style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '0.86rem', lineHeight: 1.4, paddingRight: '8px' }}>
+                                  {d.Campaign_Title}
                                 </div>
                               </td>
-                              <td style={{ padding: '12px 16px', color: 'var(--text-secondary)' }}>
-                                {d.createdAt ? new Date(d.createdAt).toLocaleString() : 'Audited'}
-                              </td>
-                              <td style={{ padding: '12px 16px', fontWeight: 600, color: 'var(--text-primary)', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                {campTitle}
-                              </td>
-                              <td style={{ padding: '12px 16px' }}>
-                                <span style={{ color: d.isAnonymous ? 'var(--text-muted)' : 'var(--text-primary)', fontWeight: d.isAnonymous ? 400 : 700 }}>
-                                  {donor}
+
+                              {/* 3. Payment Rail Badge */}
+                              <td style={{ padding: '14px 16px', verticalAlign: 'middle' }}>
+                                <span style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '5px',
+                                  padding: '4px 10px',
+                                  borderRadius: '6px',
+                                  fontSize: '0.74rem',
+                                  fontWeight: 700,
+                                  background: isGcash ? 'rgba(56, 189, 248, 0.15)' : isMaya ? 'rgba(34, 197, 94, 0.15)' : 'rgba(168, 85, 247, 0.15)',
+                                  color: isGcash ? '#0284c7' : isMaya ? '#16a34a' : '#9333ea',
+                                  border: `1px solid ${isGcash ? 'rgba(56, 189, 248, 0.35)' : isMaya ? 'rgba(34, 197, 94, 0.35)' : 'rgba(168, 85, 247, 0.35)'}`
+                                }}>
+                                  <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>
+                                    {isGcash ? 'smartphone' : isMaya ? 'credit_card' : 'account_balance'}
+                                  </span>
+                                  <span>{pm}</span>
                                 </span>
                               </td>
-                              <td style={{ padding: '12px 16px' }}>
-                                <span style={{ padding: '2px 8px', borderRadius: '4px', background: 'rgba(255,255,255,0.08)', fontSize: '0.74rem', fontWeight: 700 }}>
-                                  {d.paymentMethod || 'ETH'}
-                                </span>
+
+                              {/* 4. Amount ETH + PHP */}
+                              <td style={{ padding: '14px 16px', verticalAlign: 'middle' }}>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                  <span style={{ color: '#16a34a', fontWeight: 850, fontSize: '0.94rem', letterSpacing: '-0.01em' }}>
+                                    {parseFloat(d.Amount).toFixed(4)} <span style={{ fontSize: '0.76rem' }}>ETH</span>
+                                  </span>
+                                  <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600 }}>
+                                    ≈ ₱{(parseFloat(d.Amount) * 170000).toLocaleString('en-US')} PHP
+                                  </span>
+                                </div>
                               </td>
-                              <td style={{ padding: '12px 16px', color: 'var(--accent, #22c55e)', fontWeight: 800 }}>
-                                +{parseFloat(d.amount).toFixed(4)} ETH
+
+                              {/* 5. AI OCR Status & Proof Slip */}
+                              <td style={{ padding: '14px 16px', textAlign: 'center', verticalAlign: 'middle' }}>
+                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
+                                  {(() => {
+                                    const ai = d.ai_result || {};
+                                    const refNo = d.Reference_Number || ai.extractedRef || '';
+                                    const hasRef = Boolean(refNo && refNo.trim().length >= 8);
+                                    const hasImage = Boolean(d.Receipt_Base64);
+                                    const flags = ai.fraudFlags || [];
+                                    const isInvalidImg = flags.some(f => String(f).includes('INVALID_RECEIPT_IMAGE'));
+                                    const isDup = flags.some(f => String(f).includes('DUPLICATE'));
+
+                                    const isRailMismatch = flags.some(f => String(f).includes('PAYMENT_RAIL_MISMATCH'));
+                                    const isAmtMismatch = flags.some(f => String(f).includes('AMOUNT_MISMATCH'));
+                                    const isVerified = Boolean(ai.isAiVerified !== false && (hasRef || ai.isAiVerified) && !isInvalidImg && !isDup && !isRailMismatch && !isAmtMismatch);
+                                    const score = (ai.confidenceScore && ai.confidenceScore > 50 && isVerified) ? ai.confidenceScore : (isVerified ? 98 : (ai.confidenceScore || 35));
+
+                                    if (isVerified) {
+                                      return (
+                                        <span
+                                          style={{
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            gap: '4px',
+                                            padding: '3px 8px',
+                                            borderRadius: '6px',
+                                            fontSize: '0.71rem',
+                                            fontWeight: 800,
+                                            background: 'rgba(34, 197, 94, 0.12)',
+                                            color: '#16a34a',
+                                            border: '1px solid rgba(34, 197, 94, 0.3)'
+                                          }}
+                                          title={ai.summary || 'Receipt verified by Gemini AI Vision & Tesseract OCR'}
+                                        >
+                                          <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>verified</span>
+                                          <span>AI Verified ({score}%)</span>
+                                        </span>
+                                      );
+                                    } else if (isInvalidImg) {
+                                      return (
+                                        <span
+                                          style={{
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            gap: '4px',
+                                            padding: '3px 8px',
+                                            borderRadius: '6px',
+                                            fontSize: '0.71rem',
+                                            fontWeight: 800,
+                                            background: 'rgba(239, 68, 68, 0.15)',
+                                            color: '#ef4444',
+                                            border: '1px solid rgba(239, 68, 68, 0.35)'
+                                          }}
+                                          title={ai.summary || 'Not a valid payment receipt screenshot'}
+                                        >
+                                          <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>gpp_bad</span>
+                                          <span>Not a Receipt ({score}%)</span>
+                                        </span>
+                                      );
+                                    } else if (isDup) {
+                                      return (
+                                        <span
+                                          style={{
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            gap: '4px',
+                                            padding: '3px 8px',
+                                            borderRadius: '6px',
+                                            fontSize: '0.71rem',
+                                            fontWeight: 800,
+                                            background: 'rgba(245, 158, 11, 0.18)',
+                                            color: '#d97706',
+                                            border: '1px solid rgba(245, 158, 11, 0.4)'
+                                          }}
+                                          title={flags.join('\n')}
+                                        >
+                                          <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>warning</span>
+                                          <span>Duplicate Ref ({score}%)</span>
+                                        </span>
+                                      );
+                                    } else if (isAmtMismatch) {
+                                      return (
+                                        <span
+                                          style={{
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            gap: '4px',
+                                            padding: '3px 8px',
+                                            borderRadius: '6px',
+                                            fontSize: '0.71rem',
+                                            fontWeight: 800,
+                                            background: 'rgba(239, 68, 68, 0.15)',
+                                            color: '#ef4444',
+                                            border: '1px solid rgba(239, 68, 68, 0.35)'
+                                          }}
+                                          title={flags.find(f => String(f).includes('AMOUNT_MISMATCH')) || 'Extracted receipt amount differs from declared amount'}
+                                        >
+                                          <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>error</span>
+                                          <span>Amount Mismatch ({score}%)</span>
+                                        </span>
+                                      );
+                                    } else if (isRailMismatch) {
+                                      return (
+                                        <span
+                                          style={{
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            gap: '4px',
+                                            padding: '3px 8px',
+                                            borderRadius: '6px',
+                                            fontSize: '0.71rem',
+                                            fontWeight: 800,
+                                            background: 'rgba(239, 68, 68, 0.15)',
+                                            color: '#ef4444',
+                                            border: '1px solid rgba(239, 68, 68, 0.35)'
+                                          }}
+                                          title={flags.find(f => String(f).includes('PAYMENT_RAIL_MISMATCH')) || 'Declared rail differs from receipt image'}
+                                        >
+                                          <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>gpp_bad</span>
+                                          <span>Rail Mismatch ({score}%)</span>
+                                        </span>
+                                      );
+                                    } else {
+                                      return (
+                                        <span
+                                          style={{
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            gap: '4px',
+                                            padding: '3px 8px',
+                                            borderRadius: '6px',
+                                            fontSize: '0.71rem',
+                                            fontWeight: 800,
+                                            background: 'rgba(245, 158, 11, 0.12)',
+                                            color: '#d97706',
+                                            border: '1px solid rgba(245, 158, 11, 0.3)'
+                                          }}
+                                          title={ai.summary || 'Requires manual NGO verification'}
+                                        >
+                                          <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>help_outline</span>
+                                          <span>Manual Audit ({score}%)</span>
+                                        </span>
+                                      );
+                                    }
+                                  })()}
+
+                                  {d.Receipt_Base64 ? (
+                                    <button
+                                      type="button"
+                                      onClick={() => setProofPreviewModalImg({ img: d.Receipt_Base64, donation: d })}
+                                      style={{
+                                        background: 'rgba(56, 189, 248, 0.15)',
+                                        border: '1px solid rgba(56, 189, 248, 0.35)',
+                                        color: '#38bdf8',
+                                        padding: '4px 10px',
+                                        borderRadius: '6px',
+                                        fontSize: '0.73rem',
+                                        fontWeight: 700,
+                                        cursor: 'pointer',
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: '4px'
+                                      }}
+                                    >
+                                      <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>image</span>
+                                      <span>Preview Slip</span>
+                                    </button>
+                                  ) : (
+                                    <span style={{ color: '#64748b', fontSize: '0.73rem', fontStyle: 'italic' }}>No Slip Uploaded</span>
+                                  )}
+                                </div>
                               </td>
-                              <td style={{ padding: '12px 16px', color: '#38bdf8', fontWeight: 600 }}>
-                                ≈ ₱{Math.round(parseFloat(d.amount) * 170000).toLocaleString('en-US')}
-                              </td>
-                              <td style={{ padding: '12px 16px', textAlign: 'right' }}>
-                                <div style={{ display: 'inline-flex', gap: '6px' }}>
+
+                              {/* 6. Review Actions */}
+                              <td style={{ padding: '14px 16px', borderRadius: '0 10px 10px 0', verticalAlign: 'middle' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '8px' }}>
                                   <button
                                     type="button"
-                                    className="btn btn-xs btn-outline"
-                                    onClick={() => setSelectedVoucherTx(d)}
-                                    style={{ padding: '3px 8px', fontSize: '0.72rem' }}
+                                    className="btn btn-sm"
+                                    style={{
+                                      background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                                      color: '#fff',
+                                      border: 'none',
+                                      padding: '7px 14px',
+                                      borderRadius: '8px',
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '5px',
+                                      fontWeight: 700,
+                                      fontSize: '0.78rem',
+                                      boxShadow: '0 2px 8px rgba(16, 185, 129, 0.25)',
+                                      cursor: 'pointer'
+                                    }}
+                                    onClick={() => handleOpenVerification(d)}
+                                    title="Review donor slip and cross-reference with account statement"
                                   >
-                                    Voucher
+                                    <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>fact_check</span>
+                                    <span>Verify</span>
                                   </button>
-                                  {d.txHash && !d.txHash.startsWith('MOCK') && (
-                                    <a
-                                      href={`https://sepolia.etherscan.io/tx/${d.txHash}`}
-                                      target="_blank"
-                                      rel="noreferrer"
-                                      className="btn btn-xs btn-ghost"
-                                      style={{ padding: '3px 8px', fontSize: '0.72rem' }}
-                                    >
-                                      ↗
-                                    </a>
-                                  )}
+
+                                  <button
+                                    type="button"
+                                    className="btn btn-sm"
+                                    style={{
+                                      background: 'rgba(239, 68, 68, 0.12)',
+                                      color: '#ef4444',
+                                      border: '1px solid rgba(239, 68, 68, 0.35)',
+                                      padding: '7px 12px',
+                                      borderRadius: '8px',
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '4px',
+                                      fontWeight: 600,
+                                      fontSize: '0.78rem',
+                                      cursor: 'pointer'
+                                    }}
+                                    onClick={() => handleOpenRejection(d)}
+                                    title="Reject unverified or mismatched payment slip"
+                                  >
+                                    <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>cancel</span>
+                                    <span>Reject</span>
+                                  </button>
                                 </div>
                               </td>
                             </tr>
@@ -5859,401 +6765,1290 @@ export default function OrganizationView({
                       </tbody>
                     </table>
                   </div>
-                </div>
-              )}
+                )}
+              </div>
+            )}
 
-              {/* ── Centered Pagination Controls ── */}
-              {totalPagesLedger > 1 && (
-                <div style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  marginTop: '24px',
-                  padding: '12px 0',
-                  flexWrap: 'wrap',
-                  gap: '12px'
-                }}>
-                  <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                    Showing {(currentPageLedger - 1) * campaignsPerPage + 1}–{Math.min(currentPageLedger * campaignsPerPage, filteredLedger.length)} of {filteredLedger.length} verified transactions
-                  </div>
-
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <button
-                      type="button"
-                      className="btn btn-ghost btn-sm"
-                      onClick={() => setCurrentPageLedger(p => Math.max(1, p - 1))}
-                      disabled={currentPageLedger === 1}
-                      style={{ display: 'flex', alignItems: 'center', gap: '4px' }}
-                    >
-                      <span className="material-symbols-outlined" style={{ fontSize: '1.1rem' }}>chevron_left</span> Previous
-                    </button>
-
-                    {Array.from({ length: totalPagesLedger }, (_, i) => i + 1).map((pageNum) => (
-                      <button
-                        key={pageNum}
-                        type="button"
-                        className={`btn btn-sm ${currentPageLedger === pageNum ? 'btn-primary' : 'btn-ghost'}`}
-                        onClick={() => setCurrentPageLedger(pageNum)}
-                        style={{ minWidth: '34px', height: '34px', borderRadius: '8px', fontWeight: currentPageLedger === pageNum ? 700 : 400 }}
-                      >
-                        {pageNum}
-                      </button>
-                    ))}
-
-                    <button
-                      type="button"
-                      className="btn btn-ghost btn-sm"
-                      onClick={() => setCurrentPageLedger(p => Math.min(totalPagesLedger, p + 1))}
-                      disabled={currentPageLedger === totalPagesLedger}
-                      style={{ display: 'flex', alignItems: 'center', gap: '4px' }}
-                    >
-                      Next <span className="material-symbols-outlined" style={{ fontSize: '1.1rem' }}>chevron_right</span>
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* ── 5.5. NGO LEGAL VERIFICATION & SEC ACCREDITATION ── */}
-          {activeTab === 'sec-kyc' && (() => {
-            const isKycApproved = currentUser?.verification_status === 'Approved' || kycStatusData?.Verification_Status === 'Approved';
-            const isKycRejected = kycStatusData?.Verification_Status === 'Rejected';
-            const hasSubmittedDocs = Boolean((secRegNo && secRegNo.trim()) || secCertUrl);
-
-            return (
-              <div className="sec-v2-wrap">
-                {/* ── Section Header ── */}
-                <div className="section-header" id="tour-ngo-sec-header" style={{ marginBottom: 0 }}>
-                  <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                      <span style={{
-                        fontSize: '0.68rem',
-                        fontWeight: 800,
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.06em',
-                        padding: '2px 8px',
-                        borderRadius: '4px',
-                        background: 'var(--bg-subcard)',
-                        border: '1px solid var(--border)',
-                        color: 'var(--text-muted)'
-                      }}>
-                        NGO Legal Compliance
-                      </span>
-                      {isKycApproved ? (
-                        <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#16a34a', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                          <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>verified</span>
-                          Verified Relief NGO
-                        </span>
-                      ) : (
-                        <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#f59e0b', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                          <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>pending</span>
-                          Verification Required
-                        </span>
-                      )}
-                    </div>
-                    <h2 className="section-title" style={{ fontSize: '1.35rem', margin: 0 }}>
-                      <span className="material-symbols-outlined section-title-icon" style={{ marginRight: '8px', color: '#0284c7' }}>verified_user</span>
-                      Organization Legal Verification
-                    </h2>
-                    <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
-                      Submit official Philippine non-profit registration (SEC Non-Stock / DSWD) to verify your NGO identity and unlock relief campaign creation.
-                    </p>
-                  </div>
-
-                  <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
-                    <button
-                      type="button"
-                      className="btn btn-ghost btn-sm"
-                      onClick={fetchKycData}
-                      disabled={kycLoading}
-                      title="Reload verification status from server"
-                    >
-                      {kycLoading ? <div className="spinner spinner-light" /> : '↻ Refresh Status'}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleAutofillDemoSec}
-                      title="Populate authentic Philippine Red Cross sample credentials for thesis defense"
-                      style={{
-                        background: 'rgba(56, 189, 248, 0.10)',
-                        border: '1px solid rgba(56, 189, 248, 0.35)',
-                        color: '#38bdf8',
-                        fontSize: '0.78rem',
-                        fontWeight: 700,
-                        padding: '6px 14px',
-                        borderRadius: '8px',
-                        cursor: 'pointer',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                        transition: 'all 0.15s ease'
-                      }}
-                    >
-                      <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>bolt</span>
-                      ⚡ Demo SEC Credentials
-                    </button>
-                  </div>
-                </div>
-
-                {/* ── Why Verification Is Required (3 Plain Pillars) ── */}
-                <div className="sec-why-grid">
-                  <div className="sec-why-card">
-                    <div className="sec-why-head">
-                      <div className="sec-why-icon-badge green">
-                        <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>shield</span>
-                      </div>
-                      <div className="sec-why-title">Donor Protection</div>
-                    </div>
-                    <p className="sec-why-text">
-                      Disaster relief often attracts fake charities. Verifying official SEC non-stock registration ensures donors that all relief drives are legally legitimate.
-                    </p>
-                  </div>
-
-                  <div className="sec-why-card">
-                    <div className="sec-why-head">
-                      <div className="sec-why-icon-badge sky">
-                        <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>lock</span>
-                      </div>
-                      <div className="sec-why-title">Escrow Accountability</div>
-                    </div>
-                    <p className="sec-why-text">
-                      Relief funds are held in Solidity smart contracts. Legal verification binds the NGO's on-chain wallet to verified trustees before aid disbursements occur.
-                    </p>
-                  </div>
-
-                  <div className="sec-why-card">
-                    <div className="sec-why-head">
-                      <div className="sec-why-icon-badge amber">
-                        <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>campaign</span>
-                      </div>
-                      <div className="sec-why-title">Unlock Campaign Creation</div>
-                    </div>
-                    <p className="sec-why-text">
-                      Unverified accounts are restricted to monitoring radar missions. Approval immediately unlocks campaign creation and awards the Verified NGO badge.
-                    </p>
-                  </div>
-                </div>
-
-                {/* ── 4-Step Connected Progress Workflow ── */}
-                <div className="sec-stepper-card">
-                  <div className="sec-stepper-header">
-                    <div className="sec-stepper-kicker">Verification Workflow</div>
-                    <div className="sec-stepper-status-pill" style={{
-                      background: isKycApproved ? 'rgba(34, 197, 94, 0.12)' : (isKycRejected ? 'rgba(239, 68, 68, 0.12)' : hasSubmittedDocs ? 'rgba(56, 189, 248, 0.12)' : 'var(--bg-subcard)'),
-                      color: isKycApproved ? '#16a34a' : (isKycRejected ? '#ef4444' : hasSubmittedDocs ? '#0284c7' : 'var(--text-muted)'),
-                      border: `1px solid ${isKycApproved ? 'rgba(34, 197, 94, 0.3)' : (isKycRejected ? 'rgba(239, 68, 68, 0.3)' : hasSubmittedDocs ? 'rgba(56, 189, 248, 0.3)' : 'var(--border)')}`
+            {/* ── Vercel Navigation Underline Tabs (Payment Rails) ── */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '24px',
+              borderBottom: '1px solid #222222',
+              marginBottom: '16px',
+              overflowX: 'auto',
+              scrollbarWidth: 'none'
+            }}>
+              {[
+                { key: 'ALL', label: 'All Receipts', count: (orgDonations || []).length },
+                { key: 'GCASH', label: 'GCash', count: ledgerTelemetry?.railCounts?.gcash || 0 },
+                { key: 'MAYA', label: 'Maya', count: ledgerTelemetry?.railCounts?.maya || 0 },
+                { key: 'BANK', label: 'Card & Bank', count: ledgerTelemetry?.railCounts?.bank || 0 },
+                { key: 'ETH', label: 'Sepolia ETH', count: ledgerTelemetry?.railCounts?.eth || 0 }
+              ].map(rail => {
+                const isActive = ledgerRailFilter === rail.key;
+                return (
+                  <button
+                    key={rail.key}
+                    type="button"
+                    onClick={() => { setLedgerRailFilter(rail.key); setCurrentPageLedger(1); }}
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      borderBottom: isActive ? '2px solid #ededed' : '2px solid transparent',
+                      color: isActive ? '#ededed' : '#888888',
+                      padding: '10px 2px',
+                      marginBottom: '-1px',
+                      fontSize: '0.82rem',
+                      fontWeight: isActive ? 600 : 500,
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      whiteSpace: 'nowrap',
+                      transition: 'all 0.15s ease'
+                    }}
+                  >
+                    <span>{rail.label}</span>
+                    <span style={{
+                      background: isActive ? '#262626' : '#181818',
+                      color: isActive ? '#ededed' : '#777777',
+                      padding: '1px 7px',
+                      borderRadius: '10px',
+                      fontSize: '0.70rem',
+                      fontWeight: 600
                     }}>
-                      <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>
-                        {isKycApproved ? 'check_circle' : isKycRejected ? 'error' : hasSubmittedDocs ? 'hourglass_top' : 'radio_button_unchecked'}
-                      </span>
-                      <span>{isKycApproved ? 'Accreditation Approved' : isKycRejected ? 'Action Required' : hasSubmittedDocs ? 'Under Verification' : 'Pending Submission'}</span>
-                    </div>
-                  </div>
+                      {rail.count}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
 
-                  <div className="sec-stepper-flow">
-                    {/* Step 1 */}
-                    <div className="sec-step-item is-done">
-                      <div className="sec-step-top">
-                        <div className="sec-step-circle">
-                          <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>check</span>
-                        </div>
-                      </div>
-                      <div className="sec-step-info">
-                        <div className="sec-step-name">1. Account Registered</div>
-                        <div className="sec-step-desc">NGO Email &amp; Profile Created</div>
-                      </div>
-                    </div>
+            {/* ── Unified Single-Row Vercel Toolbar ── */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '12px',
+              flexWrap: 'wrap',
+              marginBottom: '16px'
+            }}>
+              {/* Search input with sleek Vercel input styling */}
+              <div style={{ position: 'relative', width: '320px', maxWidth: '100%' }}>
+                <span className="material-symbols-outlined" style={{
+                  position: 'absolute',
+                  left: '10px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  color: '#666666',
+                  fontSize: '16px',
+                  pointerEvents: 'none'
+                }}>
+                  search
+                </span>
+                <input
+                  type="text"
+                  placeholder="Search hash, campaign, donor..."
+                  value={searchQueryLedger}
+                  onChange={(e) => { setSearchQueryLedger(e.target.value); setCurrentPageLedger(1); }}
+                  style={{
+                    width: '100%',
+                    height: '36px',
+                    background: '#0a0a0a',
+                    color: '#ededed',
+                    border: '1px solid #222222',
+                    borderRadius: '8px',
+                    padding: '0 30px 0 32px',
+                    fontSize: '0.82rem',
+                    outline: 'none',
+                    boxSizing: 'border-box'
+                  }}
+                />
+                {searchQueryLedger && (
+                  <button
+                    type="button"
+                    onClick={() => { setSearchQueryLedger(''); setCurrentPageLedger(1); }}
+                    style={{
+                      position: 'absolute',
+                      right: '8px',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      background: 'none',
+                      border: 'none',
+                      color: '#888888',
+                      cursor: 'pointer',
+                      padding: 0
+                    }}
+                  >
+                    <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>close</span>
+                  </button>
+                )}
+              </div>
 
-                    {/* Step 2 */}
-                    <div className={`sec-step-item ${(hasSubmittedDocs || isKycApproved) ? 'is-done' : 'is-current'}`}>
-                      <div className="sec-step-top">
-                        <div className="sec-step-circle">
-                          {(hasSubmittedDocs || isKycApproved) ? (
-                            <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>check</span>
-                          ) : '2'}
-                        </div>
-                      </div>
-                      <div className="sec-step-info">
-                        <div className="sec-step-name">2. Submit Registration</div>
-                        <div className="sec-step-desc">
-                          {(hasSubmittedDocs || isKycApproved) ? 'SEC Certificate Attached' : 'Awaiting Submission'}
-                        </div>
-                      </div>
-                    </div>
+              {/* Right: Dropdowns + Segmented Mode Switcher */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                {/* Category Dropdown */}
+                <select
+                  value={ledgerFilter}
+                  onChange={(e) => { setLedgerFilter(e.target.value); setCurrentPageLedger(1); }}
+                  style={{
+                    height: '36px',
+                    background: '#0a0a0a',
+                    color: '#ededed',
+                    border: '1px solid #222222',
+                    borderRadius: '8px',
+                    padding: '0 10px',
+                    fontSize: '0.78rem',
+                    outline: 'none',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <option value="ALL">All Categories</option>
+                  <option value="DR">Disaster Relief (DR)</option>
+                  <option value="CD">Charitable Aid (CD)</option>
+                </select>
 
-                    {/* Step 3 */}
-                    <div className={`sec-step-item ${isKycApproved ? 'is-done' : (isKycRejected ? 'is-warning' : (hasSubmittedDocs ? 'is-current' : ''))}`}>
-                      <div className="sec-step-top">
-                        <div className="sec-step-circle">
-                          {isKycApproved ? (
-                            <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>check</span>
-                          ) : isKycRejected ? (
-                            <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>priority_high</span>
-                          ) : '3'}
-                        </div>
-                      </div>
-                      <div className="sec-step-info">
-                        <div className="sec-step-name">3. Document Check</div>
-                        <div className="sec-step-desc">
-                          {isKycApproved ? 'SEC Seal &amp; Reg Validated' : (isKycRejected ? 'Needs Correction' : (hasSubmittedDocs ? 'Validation In Progress' : 'Pending Step 2'))}
-                        </div>
-                      </div>
-                    </div>
+                {/* Campaign Dropdown */}
+                <select
+                  value={ledgerCampaignFilter}
+                  onChange={(e) => { setLedgerCampaignFilter(e.target.value); setCurrentPageLedger(1); }}
+                  style={{
+                    height: '36px',
+                    background: '#0a0a0a',
+                    color: '#ededed',
+                    border: '1px solid #222222',
+                    borderRadius: '8px',
+                    padding: '0 10px',
+                    fontSize: '0.78rem',
+                    outline: 'none',
+                    cursor: 'pointer',
+                    maxWidth: '180px'
+                  }}
+                >
+                  <option value="ALL">All Campaigns</option>
+                  {(myCampaigns || []).map(c => (
+                    <option key={c.id} value={c.id}>#{c.id} - {c.title?.slice(0, 20)}...</option>
+                  ))}
+                </select>
 
-                    {/* Step 4 */}
-                    <div className={`sec-step-item ${isKycApproved ? 'is-done' : ''}`}>
-                      <div className="sec-step-top">
-                        <div className="sec-step-circle">
-                          {isKycApproved ? (
-                            <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>lock_open</span>
+                {/* Sort Dropdown */}
+                <select
+                  value={ledgerSort}
+                  onChange={(e) => setLedgerSort(e.target.value)}
+                  style={{
+                    height: '36px',
+                    background: '#0a0a0a',
+                    color: '#ededed',
+                    border: '1px solid #222222',
+                    borderRadius: '8px',
+                    padding: '0 10px',
+                    fontSize: '0.78rem',
+                    outline: 'none',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <option value="NEWEST">Newest First</option>
+                  <option value="AMOUNT_HIGH">Highest Amount</option>
+                  <option value="AMOUNT_LOW">Lowest Amount</option>
+                  <option value="OLDEST">Oldest First</option>
+                </select>
+
+                {/* Reset button if active filters */}
+                {(ledgerFilter !== 'ALL' || ledgerCampaignFilter !== 'ALL' || searchQueryLedger.trim()) && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSearchQueryLedger('');
+                      setLedgerFilter('ALL');
+                      setLedgerCampaignFilter('ALL');
+                      setCurrentPageLedger(1);
+                    }}
+                    style={{
+                      height: '36px',
+                      background: 'rgba(239, 68, 68, 0.1)',
+                      color: '#ef4444',
+                      border: '1px solid rgba(239, 68, 68, 0.25)',
+                      borderRadius: '8px',
+                      padding: '0 10px',
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    Reset
+                  </button>
+                )}
+
+                {/* Vercel Segmented Switcher: Cards vs Table */}
+                <div style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  background: '#0a0a0a',
+                  border: '1px solid #222222',
+                  borderRadius: '8px',
+                  padding: '2px',
+                  height: '36px',
+                  boxSizing: 'border-box'
+                }}>
+                  <button
+                    type="button"
+                    onClick={() => setLedgerViewMode('cards')}
+                    style={{
+                      background: ledgerViewMode === 'cards' ? '#222222' : 'transparent',
+                      color: ledgerViewMode === 'cards' ? '#ededed' : '#888888',
+                      border: 'none',
+                      borderRadius: '6px',
+                      padding: '0 10px',
+                      height: '30px',
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '5px'
+                    }}
+                  >
+                    <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>view_agenda</span>
+                    <span>Cards</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setLedgerViewMode('table')}
+                    style={{
+                      background: ledgerViewMode === 'table' ? '#222222' : 'transparent',
+                      color: ledgerViewMode === 'table' ? '#ededed' : '#888888',
+                      border: 'none',
+                      borderRadius: '6px',
+                      padding: '0 10px',
+                      height: '30px',
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '5px'
+                    }}
+                  >
+                    <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>table_rows</span>
+                    <span>Table</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* ── Main Ledger Content ── */}
+            {loadingOrgDonations ? (
+              <div className="empty-state">
+                <div className="spinner spinner-light" style={{ width: 28, height: 28 }} />
+                <div className="empty-title">Synchronizing on-chain ledger entries…</div>
+              </div>
+            ) : !orgDonations || orgDonations.length === 0 ? (
+              <div className="db-empty-state">
+                <div className="db-empty-icon">
+                  <span className="material-symbols-outlined">receipt_long</span>
+                </div>
+                <div className="db-empty-title">No transactions recorded yet</div>
+                <div className="db-empty-desc">
+                  When donors contribute to your relief campaigns, immutable cryptographic receipts will appear here in real time.
+                </div>
+              </div>
+            ) : (filteredLedger || []).length === 0 ? (
+              <div className="db-empty-state">
+                <div className="db-empty-icon">
+                  <span className="material-symbols-outlined">search_off</span>
+                </div>
+                <div className="db-empty-title">No transactions match these filter criteria</div>
+                <div className="db-empty-desc">
+                  Try adjusting the search keyword, category, or payment rail filter above.
+                </div>
+                <button
+                  type="button"
+                  className="db-btn"
+                  onClick={() => { setSearchQueryLedger(''); setLedgerFilter('ALL'); setLedgerRailFilter('ALL'); setLedgerCampaignFilter('ALL'); }}
+                >
+                  <span>Reset Filters</span>
+                </button>
+              </div>
+            ) : ledgerViewMode === 'cards' ? (
+              /* ── CARDS VIEW: Vercel Geist 4-Column Grid ── */
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {paginatedLedger.map((d, idx) => {
+                  const matchCamp = (campaigns || []).find(c => String(c.id) === String(d.campaignId)) || { id: d.campaignId, title: `Relief Campaign #${d.campaignId}` };
+                  const rawTitle = matchCamp ? matchCamp.title : `Disaster Relief Campaign #${d.campaignId}`;
+                  const campTitle = formatCampaignTitle(rawTitle, d.campaignId);
+                  const catInfo = getCampaignCategoryInfo(matchCamp);
+                  const method = String(d.paymentMethod || 'ETH').toUpperCase();
+                  const isCrypto = method.includes('ETH') || method.includes('CRYPTO') || method.includes('SEPOLIA');
+                  const isGcash = method.includes('GCASH');
+                  const isMaya = method.includes('MAYA');
+                  const donorDisplay = d.isAnonymous ? 'Anonymous Supporter' : (d.donorName || 'Public Philanthropist');
+                  const pm = String(d.paymentMethod || 'ETH').toUpperCase();
+                  const isFiat = pm.includes('GCASH') || pm.includes('MAYA') || pm.includes('BANK') || pm.includes('CARD') || String(d.txHash || '').startsWith('FIAT-');
+                  const phpVal = Math.round(parseFloat(d.amount || 0) * 170000);
+                  const ethVal = parseFloat(d.amount || 0).toFixed(4);
+
+                  const variancePhp = d.variancePhp !== undefined && d.variancePhp !== null ? Number(d.variancePhp) : 0;
+                  const declaredPhp = d.declaredPhp !== undefined && d.declaredPhp !== null ? Number(d.declaredPhp) : (variancePhp !== 0 ? (phpVal - variancePhp) : phpVal);
+                  const isShortage = d.auditStatus === 'SHORTAGE' || variancePhp < -20;
+                  const isOverCredit = d.auditStatus === 'OVER_CREDIT' || variancePhp > 20;
+                  const hasVariance = isShortage || isOverCredit;
+
+                  return (
+                    <div
+                      key={idx}
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: '44px 1fr auto auto',
+                        alignItems: 'center',
+                        gap: '16px',
+                        padding: '14px 18px',
+                        background: isShortage ? 'linear-gradient(135deg, rgba(239, 68, 68, 0.05) 0%, #0a0a0a 100%)' : '#0a0a0a',
+                        border: isShortage ? '1px solid rgba(239, 68, 68, 0.45)' : (isOverCredit ? '1px solid rgba(245, 158, 11, 0.4)' : '1px solid #222222'),
+                        borderRadius: '10px',
+                        transition: 'border-color 0.15s ease, background-color 0.15s ease'
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.borderColor = isShortage ? '#ef4444' : '#333333'; e.currentTarget.style.background = isShortage ? 'rgba(239, 68, 68, 0.08)' : '#0e0e0e'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.borderColor = isShortage ? 'rgba(239, 68, 68, 0.45)' : (isOverCredit ? 'rgba(245, 158, 11, 0.4)' : '#222222'); e.currentTarget.style.background = isShortage ? 'linear-gradient(135deg, rgba(239, 68, 68, 0.05) 0%, #0a0a0a 100%)' : '#0a0a0a'; }}
+                    >
+                      {/* Col 1: Payment Rail Avatar */}
+                      <div style={{
+                        width: '44px',
+                        height: '44px',
+                        borderRadius: '10px',
+                        background: isShortage ? 'rgba(239, 68, 68, 0.12)' : '#141414',
+                        border: isShortage ? '1px solid rgba(239, 68, 68, 0.3)' : '1px solid #262626',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexShrink: 0
+                      }}>
+                        <span className="material-symbols-outlined" style={{
+                          fontSize: '20px',
+                          color: isShortage ? '#ef4444' : (isCrypto ? '#c084fc' : isGcash ? '#38bdf8' : isMaya ? '#00d68f' : '#f59e0b')
+                        }}>
+                          {isShortage ? 'warning' : (isCrypto ? 'token' : isGcash ? 'payments' : isMaya ? 'account_balance_wallet' : 'credit_card')}
+                        </span>
+                        <span style={{
+                          fontSize: '0.52rem',
+                          fontWeight: 700,
+                          color: isShortage ? '#ef4444' : (isCrypto ? '#c084fc' : isGcash ? '#38bdf8' : isMaya ? '#00d68f' : '#f59e0b'),
+                          letterSpacing: '0.04em',
+                          marginTop: '1px'
+                        }}>
+                          {isCrypto ? 'ETH' : isGcash ? 'GCASH' : isMaya ? 'MAYA' : 'CARD'}
+                        </span>
+                      </div>
+
+                      {/* Col 2: Metadata */}
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px', flexWrap: 'wrap' }}>
+                          <span className={`campaign-category-pill ${catInfo.colorClass}`} style={{ fontSize: '0.66rem', padding: '1px 6px', borderRadius: '4px' }}>
+                            <span>{catInfo.prefix}-00{d.campaignId} • {catInfo.label}</span>
+                          </span>
+
+                          {isShortage ? (
+                            <span style={{
+                              fontSize: '0.66rem',
+                              color: '#ef4444',
+                              background: 'rgba(239, 68, 68, 0.12)',
+                              border: '1px solid rgba(239, 68, 68, 0.35)',
+                              padding: '1px 6px',
+                              borderRadius: '4px',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '3px',
+                              fontWeight: 700
+                            }}>
+                              <span className="material-symbols-outlined" style={{ fontSize: '11px' }}>warning</span>
+                              <span>Amount Altered / Shortage ({variancePhp < 0 ? `-₱${Math.abs(variancePhp).toLocaleString()} PHP` : `+₱${variancePhp.toLocaleString()} PHP`})</span>
+                            </span>
+                          ) : isOverCredit ? (
+                            <span style={{
+                              fontSize: '0.66rem',
+                              color: '#f59e0b',
+                              background: 'rgba(245, 158, 11, 0.12)',
+                              border: '1px solid rgba(245, 158, 11, 0.35)',
+                              padding: '1px 6px',
+                              borderRadius: '4px',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '3px',
+                              fontWeight: 700
+                            }}>
+                              <span className="material-symbols-outlined" style={{ fontSize: '11px' }}>info</span>
+                              <span>Over-Credited (+₱{variancePhp.toLocaleString()} PHP)</span>
+                            </span>
                           ) : (
-                            <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>lock</span>
+                            <span style={{
+                              fontSize: '0.66rem',
+                              color: '#10b981',
+                              background: 'rgba(16, 185, 129, 0.1)',
+                              border: '1px solid rgba(16, 185, 129, 0.25)',
+                              padding: '1px 6px',
+                              borderRadius: '4px',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '3px',
+                              fontWeight: 600
+                            }}>
+                              <span className="material-symbols-outlined" style={{ fontSize: '11px' }}>verified</span>
+                              <span>Verified On-Chain</span>
+                            </span>
+                          )}
+
+                          {d.isAnonymous ? (
+                            <span style={{ background: '#1c1c1c', color: '#888888', fontSize: '0.66rem', padding: '1px 6px', borderRadius: '4px' }}>
+                              Anonymous
+                            </span>
+                          ) : (
+                            <span style={{ background: 'rgba(56, 189, 248, 0.1)', color: '#38bdf8', border: '1px solid rgba(56, 189, 248, 0.2)', fontSize: '0.66rem', padding: '1px 6px', borderRadius: '4px', fontWeight: 600 }}>
+                              Public Donor
+                            </span>
+                          )}
+
+                          <span style={{
+                            fontSize: '0.66rem',
+                            fontWeight: 600,
+                            padding: '1px 6px',
+                            borderRadius: '4px',
+                            background: '#181818',
+                            color: '#888888',
+                            border: '1px solid #262626'
+                          }}>
+                            {method}
+                          </span>
+                        </div>
+
+                        <h4 style={{ margin: '0 0 4px 0', fontSize: '0.94rem', color: '#ededed', fontWeight: 600, lineHeight: 1.3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {campTitle}
+                        </h4>
+
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.75rem', color: '#888888', flexWrap: 'wrap' }}>
+                          <span>Donor: <strong style={{ color: '#cccccc' }}>{donorDisplay}</strong></span>
+                          {d.donorWallet && (
+                            <span>Wallet: <code style={{ fontSize: '0.70rem', background: '#181818', padding: '1px 5px', borderRadius: '4px', color: '#aaaaaa' }}>{shortAddr(d.donorWallet)}</code></span>
+                          )}
+                          <span style={{ color: '#444444' }}>•</span>
+                          <span>{d.createdAt ? new Date(d.createdAt).toLocaleString() : 'Audited On-Chain'}</span>
+                          {d.txHash && (
+                            <>
+                              <span style={{ color: '#444444' }}>•</span>
+                              <span style={{ fontFamily: 'monospace', color: '#777777', fontSize: '0.70rem' }}>
+                                Tx: {d.txHash.slice(0, 10)}...{d.txHash.slice(-6)}
+                              </span>
+                            </>
                           )}
                         </div>
                       </div>
-                      <div className="sec-step-info">
-                        <div className="sec-step-name">4. Campaign Access</div>
-                        <div className="sec-step-desc">
-                          {isKycApproved ? 'Campaign Creation Unlocked' : 'Unlocked on Approval'}
+
+                      {/* Col 3: Amount Credited */}
+                      <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                        <div style={{
+                          fontSize: '1.25rem',
+                          fontWeight: 700,
+                          color: isShortage ? '#ef4444' : (isOverCredit ? '#f59e0b' : '#10b981'),
+                          letterSpacing: '-0.02em',
+                          fontFamily: 'var(--font-mono)'
+                        }}>
+                          {isFiat ? `+₱${phpVal.toLocaleString('en-US')}` : `+${ethVal} ETH`}
                         </div>
+                        <div style={{ fontSize: '0.74rem', color: '#888888', fontWeight: 500, marginTop: '2px' }}>
+                          {isFiat ? `≈ ${ethVal} ETH on-chain` : `≈ ₱${phpVal.toLocaleString('en-US')} PHP`}
+                        </div>
+                        {hasVariance && (
+                          <div style={{
+                            fontSize: '0.68rem',
+                            fontWeight: 600,
+                            color: isShortage ? '#ef4444' : '#f59e0b',
+                            marginTop: '2px',
+                            fontFamily: 'var(--font-mono)'
+                          }}>
+                            Claimed: ₱{declaredPhp.toLocaleString()} ({variancePhp < 0 ? `-₱${Math.abs(variancePhp).toLocaleString()}` : `+₱${variancePhp.toLocaleString()}`})
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Col 4: Vercel Buttons */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedVoucherTx(d)}
+                          style={{
+                            background: '#141414',
+                            border: '1px solid #262626',
+                            color: '#ededed',
+                            borderRadius: '6px',
+                            padding: '6px 10px',
+                            fontSize: '0.72rem',
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            transition: 'all 0.15s ease'
+                          }}
+                          title="Inspect official cryptographic receipt voucher"
+                        >
+                          <span className="material-symbols-outlined" style={{ fontSize: '13px', color: '#10b981' }}>verified</span>
+                          <span>Voucher</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => {
+                            navigator.clipboard.writeText(d.txHash);
+                            showSuccess('Transaction hash copied to clipboard!', 'Hash Copied');
+                          }}
+                          style={{
+                            background: 'transparent',
+                            border: '1px solid #222222',
+                            color: '#888888',
+                            borderRadius: '6px',
+                            padding: '6px 8px',
+                            fontSize: '0.72rem',
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '3px'
+                          }}
+                          title="Copy Transaction Hash"
+                        >
+                          <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>content_copy</span>
+                          <span>Copy</span>
+                        </button>
+
+                        {d.txHash && !d.txHash.startsWith('MOCK') && (
+                          <a
+                            href={`https://sepolia.etherscan.io/tx/${d.txHash}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            style={{
+                              background: 'transparent',
+                              border: '1px solid #222222',
+                              color: '#888888',
+                              borderRadius: '6px',
+                              padding: '6px 8px',
+                              fontSize: '0.72rem',
+                              textDecoration: 'none',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '3px'
+                            }}
+                            title="View on Sepolia Etherscan Block Explorer"
+                          >
+                            <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>open_in_new</span>
+                            <span>Etherscan</span>
+                          </a>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              /* ── AUDIT TABLE VIEW: Vercel Dark Theme ── */
+              <div style={{
+                background: '#0a0a0a',
+                borderRadius: '10px',
+                border: '1px solid #222222',
+                overflow: 'hidden'
+              }}>
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', minWidth: '920px', fontSize: '0.82rem', borderCollapse: 'collapse' }}>
+                    <thead>
+                      <tr style={{ background: '#111111', borderBottom: '1px solid #222222' }}>
+                        <th style={{ padding: '10px 14px', color: '#888888', fontSize: '0.70rem', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'left' }}>Tx Hash</th>
+                        <th style={{ padding: '10px 14px', color: '#888888', fontSize: '0.70rem', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'left' }}>Timestamp</th>
+                        <th style={{ padding: '10px 14px', color: '#888888', fontSize: '0.70rem', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'left' }}>Campaign</th>
+                        <th style={{ padding: '10px 14px', color: '#888888', fontSize: '0.70rem', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'left' }}>Donor</th>
+                        <th style={{ padding: '10px 14px', color: '#888888', fontSize: '0.70rem', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'left' }}>Rail</th>
+                        <th style={{ padding: '10px 14px', color: '#888888', fontSize: '0.70rem', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'left' }}>Amount Credited</th>
+                        <th style={{ padding: '10px 14px', color: '#888888', fontSize: '0.70rem', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'left' }}>Audit Status</th>
+                        <th style={{ padding: '10px 14px', color: '#888888', fontSize: '0.70rem', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'left' }}>On-Chain Equivalent</th>
+                        <th style={{ padding: '10px 14px', color: '#888888', fontSize: '0.70rem', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'right' }}>Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {paginatedLedger.map((d, idx) => {
+                        const matchCamp = (campaigns || []).find(c => String(c.id) === String(d.campaignId));
+                        const rawTitle = matchCamp ? matchCamp.title : `Campaign #${d.campaignId}`;
+                        const campTitle = formatCampaignTitle(rawTitle, d.campaignId);
+                        const donor = d.isAnonymous ? 'Anonymous' : (d.donorName || 'Public Supporter');
+                        const pm = String(d.paymentMethod || 'ETH').toUpperCase();
+                        const isFiat = pm.includes('GCASH') || pm.includes('MAYA') || pm.includes('BANK') || pm.includes('CARD') || String(d.txHash || '').startsWith('FIAT-');
+                        const phpVal = Math.round(parseFloat(d.amount || 0) * 170000);
+                        const ethVal = parseFloat(d.amount || 0).toFixed(4);
+
+                        const variancePhp = d.variancePhp !== undefined && d.variancePhp !== null ? Number(d.variancePhp) : 0;
+                        const declaredPhp = d.declaredPhp !== undefined && d.declaredPhp !== null ? Number(d.declaredPhp) : (variancePhp !== 0 ? (phpVal - variancePhp) : phpVal);
+                        const isShortage = d.auditStatus === 'SHORTAGE' || variancePhp < -20;
+                        const isOverCredit = d.auditStatus === 'OVER_CREDIT' || variancePhp > 20;
+                        const hasVariance = isShortage || isOverCredit;
+
+                        return (
+                          <tr key={idx} style={{ borderBottom: '1px solid #1a1a1a', background: isShortage ? 'rgba(239, 68, 68, 0.03)' : 'transparent', transition: 'background-color 0.15s ease' }}
+                            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = isShortage ? 'rgba(239, 68, 68, 0.08)' : '#111111'; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = isShortage ? 'rgba(239, 68, 68, 0.03)' : 'transparent'; }}
+                          >
+                            <td style={{ padding: '12px 14px', fontFamily: 'monospace', fontSize: '0.75rem' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <span style={{ color: isShortage ? '#ef4444' : '#10b981' }}>
+                                  {d.txHash ? `${d.txHash.slice(0, 8)}…${d.txHash.slice(-6)}` : 'N/A'}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    navigator.clipboard.writeText(d.txHash);
+                                    showSuccess('Transaction hash copied!', 'Copied');
+                                  }}
+                                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#666666', padding: 0 }}
+                                  title="Copy Hash"
+                                >
+                                  <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>content_copy</span>
+                                </button>
+                              </div>
+                            </td>
+                            <td style={{ padding: '12px 14px', color: '#888888', fontSize: '0.76rem' }}>
+                              {d.createdAt ? new Date(d.createdAt).toLocaleString() : 'Audited'}
+                            </td>
+                            <td style={{ padding: '12px 14px', fontWeight: 500, color: '#ededed', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {campTitle}
+                            </td>
+                            <td style={{ padding: '12px 14px' }}>
+                              <span style={{ color: d.isAnonymous ? '#777777' : '#ededed', fontWeight: d.isAnonymous ? 400 : 600 }}>
+                                {donor}
+                              </span>
+                            </td>
+                            <td style={{ padding: '12px 14px' }}>
+                              <span style={{ padding: '2px 7px', borderRadius: '4px', background: '#181818', border: '1px solid #262626', fontSize: '0.70rem', color: '#cccccc', fontWeight: 600 }}>
+                                {d.paymentMethod || 'ETH'}
+                              </span>
+                            </td>
+                            <td style={{ padding: '12px 14px', fontFamily: 'monospace' }}>
+                              <div style={{ color: isShortage ? '#ef4444' : (isOverCredit ? '#f59e0b' : '#10b981'), fontWeight: 750 }}>
+                                {isFiat ? `+₱${phpVal.toLocaleString('en-US')}` : `+${ethVal} ETH`}
+                              </div>
+                              {hasVariance && (
+                                <div style={{ fontSize: '0.68rem', color: isShortage ? '#ef4444' : '#f59e0b', fontWeight: 600, marginTop: '2px' }}>
+                                  Claimed: ₱{declaredPhp.toLocaleString()} ({variancePhp < 0 ? `-₱${Math.abs(variancePhp).toLocaleString()}` : `+₱${variancePhp.toLocaleString()}`})
+                                </div>
+                              )}
+                            </td>
+                            <td style={{ padding: '12px 14px' }}>
+                              {isShortage ? (
+                                <span style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '3px',
+                                  padding: '2px 8px',
+                                  borderRadius: '4px',
+                                  background: 'rgba(239, 68, 68, 0.12)',
+                                  border: '1px solid rgba(239, 68, 68, 0.3)',
+                                  color: '#ef4444',
+                                  fontSize: '0.68rem',
+                                  fontWeight: 700
+                                }}>
+                                  <span className="material-symbols-outlined" style={{ fontSize: '11px' }}>warning</span>
+                                  <span>Shortage ({variancePhp < 0 ? `-₱${Math.abs(variancePhp).toLocaleString()}` : `+₱${variancePhp}`})</span>
+                                </span>
+                              ) : isOverCredit ? (
+                                <span style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '3px',
+                                  padding: '2px 8px',
+                                  borderRadius: '4px',
+                                  background: 'rgba(245, 158, 11, 0.12)',
+                                  border: '1px solid rgba(245, 158, 11, 0.3)',
+                                  color: '#f59e0b',
+                                  fontSize: '0.68rem',
+                                  fontWeight: 700
+                                }}>
+                                  <span className="material-symbols-outlined" style={{ fontSize: '11px' }}>info</span>
+                                  <span>Over-Credit</span>
+                                </span>
+                              ) : (
+                                <span style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '3px',
+                                  padding: '2px 8px',
+                                  borderRadius: '4px',
+                                  background: 'rgba(16, 185, 129, 0.1)',
+                                  border: '1px solid rgba(16, 185, 129, 0.25)',
+                                  color: '#10b981',
+                                  fontSize: '0.68rem',
+                                  fontWeight: 600
+                                }}>
+                                  <span className="material-symbols-outlined" style={{ fontSize: '11px' }}>verified</span>
+                                  <span>Clean Match</span>
+                                </span>
+                              )}
+                            </td>
+                            <td style={{ padding: '12px 14px', color: '#888888', fontSize: '0.75rem' }}>
+                              {isFiat ? `≈ ${ethVal} ETH on-chain` : `≈ ₱${phpVal.toLocaleString('en-US')} PHP`}
+                            </td>
+                            <td style={{ padding: '12px 14px', textAlign: 'right' }}>
+                              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                                <button
+                                  type="button"
+                                  onClick={() => setSelectedVoucherTx(d)}
+                                  style={{
+                                    background: '#141414',
+                                    border: '1px solid #262626',
+                                    color: '#ededed',
+                                    borderRadius: '4px',
+                                    padding: '4px 8px',
+                                    fontSize: '0.70rem',
+                                    fontWeight: 600,
+                                    cursor: 'pointer'
+                                  }}
+                                >
+                                  Voucher
+                                </button>
+                                {d.txHash && !d.txHash.startsWith('MOCK') && (
+                                  <a
+                                    href={`https://sepolia.etherscan.io/tx/${d.txHash}`}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    style={{
+                                      color: '#888888',
+                                      fontSize: '0.70rem',
+                                      textDecoration: 'none',
+                                      display: 'inline-flex',
+                                      alignItems: 'center'
+                                    }}
+                                    title="Sepolia Explorer"
+                                  >
+                                    <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>open_in_new</span>
+                                  </a>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* ── Centered Pagination Controls ── */}
+            {totalPagesLedger > 1 && (
+              <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginTop: '24px',
+                padding: '12px 0',
+                flexWrap: 'wrap',
+                gap: '12px'
+              }}>
+                <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                  Showing {(currentPageLedger - 1) * campaignsPerPage + 1}–{Math.min(currentPageLedger * campaignsPerPage, (filteredLedger || []).length)} of {(filteredLedger || []).length} verified transactions
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm"
+                    onClick={() => setCurrentPageLedger(p => Math.max(1, p - 1))}
+                    disabled={currentPageLedger === 1}
+                    style={{ display: 'flex', alignItems: 'center', gap: '4px' }}
+                  >
+                    <span className="material-symbols-outlined" style={{ fontSize: '1.1rem' }}>chevron_left</span> Previous
+                  </button>
+
+                  {Array.from({ length: totalPagesLedger }, (_, i) => i + 1).map((pageNum) => (
+                    <button
+                      key={pageNum}
+                      type="button"
+                      className={`btn btn-sm ${currentPageLedger === pageNum ? 'btn-primary' : 'btn-ghost'}`}
+                      onClick={() => setCurrentPageLedger(pageNum)}
+                      style={{ minWidth: '34px', height: '34px', borderRadius: '8px', fontWeight: currentPageLedger === pageNum ? 700 : 400 }}
+                    >
+                      {pageNum}
+                    </button>
+                  ))}
+
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm"
+                    onClick={() => setCurrentPageLedger(p => Math.min(totalPagesLedger, p + 1))}
+                    disabled={currentPageLedger === totalPagesLedger}
+                    style={{ display: 'flex', alignItems: 'center', gap: '4px' }}
+                  >
+                    Next <span className="material-symbols-outlined" style={{ fontSize: '1.1rem' }}>chevron_right</span>
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── 5.5. NGO LEGAL VERIFICATION & SEC ACCREDITATION ── */}
+        {activeTab === 'sec-kyc' && (() => {
+          const isKycApproved = currentUser?.verification_status === 'Approved' || kycStatusData?.Verification_Status === 'Approved';
+          const isKycRejected = kycStatusData?.Verification_Status === 'Rejected';
+          const hasSubmittedDocs = Boolean((secRegNo && secRegNo.trim()) || secCertUrl);
+
+          return (
+            <div className="sec-v2-wrap">
+              {/* ── Institutional Vercel Page Header ── */}
+              <div className="admin-page-header" id="tour-ngo-sec-header">
+                <div className="admin-page-title-wrap">
+                  <h2 className="admin-page-title">
+                    <span className="material-symbols-outlined" style={{ fontSize: '24px', color: '#16a34a' }}>verified_user</span>
+                    <span>SEC Accreditation & KYC</span>
+                  </h2>
+                  <p className="admin-page-sub">
+                    Submit official Philippine non-profit registration (SEC Non-Stock / DSWD) to verify your NGO identity and unlock relief campaign creation.
+                  </p>
+                </div>
+
+                <div className="admin-page-header-actions">
+                  <span className="admin-header-badge" style={{ color: isKycApproved ? '#16a34a' : (isKycRejected ? '#ef4444' : '#f59e0b') }}>
+                    <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>
+                      {isKycApproved ? 'verified' : (isKycRejected ? 'cancel' : 'pending')}
+                    </span>
+                    <span>{isKycApproved ? 'Verified Relief NGO' : (isKycRejected ? 'Verification Rejected' : 'Verification Required')}</span>
+                  </span>
+
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm"
+                    onClick={fetchKycData}
+                    disabled={kycLoading}
+                    title="Reload verification status from server"
+                  >
+                    {kycLoading ? (
+                      <div className="spinner spinner-light" />
+                    ) : (
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                        <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>refresh</span>
+                        <span>Refresh Status</span>
+                      </span>
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleAutofillDemoSec}
+                    title="Populate authentic Philippine Red Cross sample credentials for thesis defense"
+                    style={{
+                      background: 'rgba(56, 189, 248, 0.10)',
+                      border: '1px solid rgba(56, 189, 248, 0.35)',
+                      color: '#38bdf8',
+                      fontSize: '0.78rem',
+                      fontWeight: 700,
+                      padding: '6px 14px',
+                      borderRadius: '8px',
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      transition: 'all 0.15s ease'
+                    }}
+                  >
+                    <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>bolt</span>
+                    <span>Demo SEC Credentials</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* ── 4-Step Connected Progress Workflow ── */}
+              <div className="sec-stepper-card">
+                <div className="sec-stepper-header">
+                  <div className="sec-stepper-kicker">Verification Workflow</div>
+                  <div className="sec-stepper-status-pill" style={{
+                    background: isKycApproved ? 'rgba(34, 197, 94, 0.12)' : (isKycRejected ? 'rgba(239, 68, 68, 0.12)' : hasSubmittedDocs ? 'rgba(56, 189, 248, 0.12)' : 'var(--bg-subcard)'),
+                    color: isKycApproved ? '#16a34a' : (isKycRejected ? '#ef4444' : hasSubmittedDocs ? '#0284c7' : 'var(--text-muted)'),
+                    border: `1px solid ${isKycApproved ? 'rgba(34, 197, 94, 0.3)' : (isKycRejected ? 'rgba(239, 68, 68, 0.3)' : hasSubmittedDocs ? 'rgba(56, 189, 248, 0.3)' : 'var(--border)')}`
+                  }}>
+                    <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>
+                      {isKycApproved ? 'check_circle' : isKycRejected ? 'error' : hasSubmittedDocs ? 'hourglass_top' : 'radio_button_unchecked'}
+                    </span>
+                    <span>{isKycApproved ? 'Accreditation Approved' : isKycRejected ? 'Action Required' : hasSubmittedDocs ? 'Under Verification' : 'Pending Submission'}</span>
+                  </div>
+                </div>
+
+                <div className="sec-stepper-flow">
+                  {/* Step 1 */}
+                  <div className="sec-step-item is-done">
+                    <div className="sec-step-top">
+                      <div className="sec-step-circle">
+                        <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>check</span>
+                      </div>
+                    </div>
+                    <div className="sec-step-info">
+                      <div className="sec-step-name">1. Account Registered</div>
+                      <div className="sec-step-desc">NGO Email &amp; Profile Created</div>
+                    </div>
+                  </div>
+
+                  {/* Step 2 */}
+                  <div className={`sec-step-item ${(hasSubmittedDocs || isKycApproved) ? 'is-done' : 'is-current'}`}>
+                    <div className="sec-step-top">
+                      <div className="sec-step-circle">
+                        {(hasSubmittedDocs || isKycApproved) ? (
+                          <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>check</span>
+                        ) : '2'}
+                      </div>
+                    </div>
+                    <div className="sec-step-info">
+                      <div className="sec-step-name">2. Submit Registration</div>
+                      <div className="sec-step-desc">
+                        {(hasSubmittedDocs || isKycApproved) ? 'SEC Certificate Attached' : 'Awaiting Submission'}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Step 3 */}
+                  <div className={`sec-step-item ${isKycApproved ? 'is-done' : (isKycRejected ? 'is-warning' : (hasSubmittedDocs ? 'is-current' : ''))}`}>
+                    <div className="sec-step-top">
+                      <div className="sec-step-circle">
+                        {isKycApproved ? (
+                          <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>check</span>
+                        ) : isKycRejected ? (
+                          <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>priority_high</span>
+                        ) : '3'}
+                      </div>
+                    </div>
+                    <div className="sec-step-info">
+                      <div className="sec-step-name">3. Document Check</div>
+                      <div className="sec-step-desc">
+                        {isKycApproved ? 'SEC Seal &amp; Reg Validated' : (isKycRejected ? 'Needs Correction' : (hasSubmittedDocs ? 'Validation In Progress' : 'Pending Step 2'))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Step 4 */}
+                  <div className={`sec-step-item ${isKycApproved ? 'is-done' : ''}`}>
+                    <div className="sec-step-top">
+                      <div className="sec-step-circle">
+                        {isKycApproved ? (
+                          <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>lock_open</span>
+                        ) : (
+                          <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>lock</span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="sec-step-info">
+                      <div className="sec-step-name">4. Campaign Access</div>
+                      <div className="sec-step-desc">
+                        {isKycApproved ? 'Campaign Creation Unlocked' : 'Unlocked on Approval'}
                       </div>
                     </div>
                   </div>
                 </div>
+              </div>
 
-                {/* ── Approved Certificate Banner (If Approved) ── */}
-                {isKycApproved && (
-                  <div className="sec-approved-hero">
-                    <div className="sec-approved-header">
-                      <div className="sec-approved-shield">
-                        <span className="material-symbols-outlined" style={{ fontSize: '28px' }}>verified</span>
-                      </div>
-                      <div style={{ flex: 1 }}>
-                        <h3 className="sec-approved-title">
-                          Officially Accredited Non-Profit Organization
-                        </h3>
-                        <p className="sec-approved-sub">
-                          This organization is verified under Philippine Securities and Exchange Commission (SEC) guidelines. Campaign deployment is unlocked.
-                        </p>
-                      </div>
+              {/* ── Approved Certificate Banner (If Approved) ── */}
+              {isKycApproved && (
+                <div className="sec-approved-hero">
+                  <div className="sec-approved-header">
+                    <div className="sec-approved-shield">
+                      <span className="material-symbols-outlined" style={{ fontSize: '28px' }}>verified</span>
                     </div>
-
-                    <div className="sec-approved-grid">
-                      <div>
-                        <div className="sec-approved-metric-label">SEC Registration No</div>
-                        <div className="sec-approved-metric-val" style={{ color: '#0284c7' }}>
-                          {secRegNo || kycStatusData?.secRegistrationNo || 'SEC-CN2021-08492'}
-                        </div>
-                      </div>
-                      <div>
-                        <div className="sec-approved-metric-label">DSWD / LGU Permit</div>
-                        <div className="sec-approved-metric-val">
-                          {dswdNo || kycStatusData?.dswdAccreditationNo || 'DSWD-SB-A-2024-0193'}
-                        </div>
-                      </div>
-                      <div>
-                        <div className="sec-approved-metric-label">Verification Date</div>
-                        <div className="sec-approved-metric-val" style={{ color: '#16a34a' }}>
-                          {kycStatusData?.verifiedAt ? new Date(kycStatusData.verifiedAt).toLocaleDateString() : 'Active'}
-                        </div>
-                      </div>
-                      <div>
-                        <div className="sec-approved-metric-label">Campaign Access</div>
-                        <div className="sec-approved-metric-val" style={{ color: '#16a34a' }}>
-                          ✓ Unlocked
-                        </div>
-                      </div>
-                    </div>
-
-                    <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
-                      <button
-                        type="button"
-                        className="btn btn-primary"
-                        onClick={() => setActiveTab('create')}
-                        style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '9px 18px' }}
-                      >
-                        <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>add_circle</span>
-                        Deploy Relief Campaign →
-                      </button>
-
-                      {secCertUrl && (
-                        <button
-                          type="button"
-                          className="btn btn-outline"
-                          onClick={() => setViewingKycCert(true)}
-                          style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '9px 16px' }}
-                        >
-                          <span className="material-symbols-outlined" style={{ fontSize: '17px' }}>visibility</span>
-                          Inspect Official SEC Certificate
-                        </button>
-                      )}
-
-                      <button
-                        type="button"
-                        className="btn btn-ghost"
-                        onClick={() => setShowKycFormOverride(!showKycFormOverride)}
-                        style={{ fontSize: '0.80rem', marginLeft: 'auto' }}
-                      >
-                        {showKycFormOverride ? 'Hide Document Form ▲' : 'Update Registration Details ✎'}
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {/* ── Rejection Notice Banner (If Rejected) ── */}
-                {isKycRejected && (
-                  <div style={{
-                    background: 'rgba(239, 68, 68, 0.08)',
-                    border: '1.5px solid rgba(239, 68, 68, 0.35)',
-                    borderRadius: '12px',
-                    padding: '16px 20px',
-                    display: 'flex',
-                    alignItems: 'flex-start',
-                    gap: '12px'
-                  }}>
-                    <span className="material-symbols-outlined" style={{ color: '#ef4444', fontSize: '26px', marginTop: '2px' }}>error</span>
-                    <div>
-                      <div style={{ color: '#ef4444', fontWeight: 800, fontSize: '0.92rem' }}>
-                        Verification Incomplete: Correction Required
-                      </div>
-                      <p style={{ color: 'var(--text-secondary)', fontSize: '0.82rem', margin: '4px 0 0 0', lineHeight: 1.5 }}>
-                        {kycStatusData?.auditNotes || 'Your submitted registration details or certificate could not be validated. Please confirm your SEC registration number and upload a clear, legible certificate document.'}
+                    <div style={{ flex: 1 }}>
+                      <h3 className="sec-approved-title">
+                        Officially Accredited Non-Profit Organization
+                      </h3>
+                      <p className="sec-approved-sub">
+                        This organization is verified under Philippine Securities and Exchange Commission (SEC) guidelines. Campaign deployment is unlocked.
                       </p>
                     </div>
                   </div>
-                )}
 
-                {/* ── Verification Form (Visible when not approved, or when updating) ── */}
-                {(!isKycApproved || showKycFormOverride) && (
-                  <div className="sec-form-card">
-                    <div className="sec-form-head">
-                      <h3 className="sec-form-title">
-                        <span className="material-symbols-outlined" style={{ color: '#0284c7' }}>badge</span>
-                        Submit Organization Documents
-                      </h3>
-                      <span style={{
-                        fontSize: '0.70rem',
-                        fontWeight: 700,
-                        color: 'var(--text-muted)',
-                        background: 'var(--bg-subcard)',
-                        border: '1px solid var(--border)',
-                        padding: '3px 8px',
-                        borderRadius: '6px'
+                  <div className="sec-approved-grid">
+                    <div>
+                      <div className="sec-approved-metric-label">SEC Registration Number</div>
+                      <div className="sec-approved-metric-val" style={{ color: '#0284c7' }}>
+                        {secRegNo || kycStatusData?.secRegistrationNo || 'SEC-CN2021-08492'}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="sec-approved-metric-label">BIR Tax Identification (TIN)</div>
+                      <div className="sec-approved-metric-val">
+                        {tinNo || kycStatusData?.tinNumber || '000-842-192-000'}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="sec-approved-metric-label">DSWD Solicitation Permit</div>
+                      <div className="sec-approved-metric-val">
+                        {dswdNo || kycStatusData?.dswdAccreditationNo || 'DSWD-SB-A-2024-0193'}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="sec-approved-metric-label">Authorized Liaison Trustee</div>
+                      <div className="sec-approved-metric-val">
+                        {repName || kycStatusData?.authorizedRepName || 'Gwendolyn Pang'} ({repPosition || kycStatusData?.authorizedRepPosition || 'SecGen'})
+                      </div>
+                    </div>
+                    <div>
+                      <div className="sec-approved-metric-label">Primary Government ID</div>
+                      <div className="sec-approved-metric-val" style={{ fontSize: '0.78rem', color: '#c084fc' }}>
+                        {primaryIdType || kycStatusData?.primaryIdType || 'Passport'} • {primaryIdNumber || kycStatusData?.primaryIdNumber || 'P8942103B'}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="sec-approved-metric-label">Secondary Government ID</div>
+                      <div className="sec-approved-metric-val" style={{ fontSize: '0.78rem', color: '#34d399' }}>
+                        {secondaryIdType || kycStatusData?.secondaryIdType || 'Driver\'s License'} • {secondaryIdNumber || kycStatusData?.secondaryIdNumber || 'N02-18-938210'}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="sec-approved-metric-label">Registered Office</div>
+                      <div className="sec-approved-metric-val" style={{ fontSize: '0.78rem' }}>
+                        {registeredAddress || kycStatusData?.registeredAddress || 'Mandaluyong City, Metro Manila'}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="sec-approved-metric-label">Smart Vault Access</div>
+                      <div className="sec-approved-metric-val" style={{ color: '#16a34a', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                        <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>lock_open</span>
+                        <span>Unlocked</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      onClick={() => setActiveTab('create')}
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '9px 18px' }}
+                    >
+                      <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>add_circle</span>
+                      <span>Deploy Relief Campaign</span>
+                      <span className="material-symbols-outlined" style={{ fontSize: '17px' }}>arrow_forward</span>
+                    </button>
+
+                    {(secCertUrl || kycStatusData?.secCertificateUrl) && (
+                      <button
+                        type="button"
+                        className="btn btn-outline"
+                        onClick={() => setViewingKycCert(true)}
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '9px 16px' }}
+                      >
+                        <span className="material-symbols-outlined" style={{ fontSize: '17px' }}>visibility</span>
+                        Inspect SEC Certificate
+                      </button>
+                    )}
+
+                    {(primaryIdUrl || kycStatusData?.primaryIdUrl) && (
+                      <button
+                        type="button"
+                        className="btn btn-outline"
+                        onClick={() => setPreviewDocModal({
+                          open: true,
+                          title: `Primary Government ID (${primaryIdType || kycStatusData?.primaryIdType || 'Passport'})`,
+                          url: primaryIdUrl || kycStatusData?.primaryIdUrl,
+                          regNo: primaryIdNumber || kycStatusData?.primaryIdNumber || ''
+                        })}
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '9px 16px' }}
+                      >
+                        <span className="material-symbols-outlined" style={{ fontSize: '17px' }}>contact_page</span>
+                        Inspect Primary ID
+                      </button>
+                    )}
+
+                    {(secondaryIdUrl || kycStatusData?.secondaryIdUrl) && (
+                      <button
+                        type="button"
+                        className="btn btn-outline"
+                        onClick={() => setPreviewDocModal({
+                          open: true,
+                          title: `Secondary Government ID (${secondaryIdType || kycStatusData?.secondaryIdType || 'Driver\'s License'})`,
+                          url: secondaryIdUrl || kycStatusData?.secondaryIdUrl,
+                          regNo: secondaryIdNumber || kycStatusData?.secondaryIdNumber || ''
+                        })}
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '9px 16px' }}
+                      >
+                        <span className="material-symbols-outlined" style={{ fontSize: '17px' }}>badge</span>
+                        Inspect Secondary ID
+                      </button>
+                    )}
+
+                    <button
+                      type="button"
+                      className="btn btn-ghost"
+                      onClick={() => setShowKycFormOverride(!showKycFormOverride)}
+                      style={{ fontSize: '0.80rem', marginLeft: 'auto' }}
+                    >
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                        <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>
+                          {showKycFormOverride ? 'expand_less' : 'edit'}
+                        </span>
+                        <span>{showKycFormOverride ? 'Hide Document Dossier' : 'Update Registration & IDs'}</span>
+                      </span>
+                    </button>
+                  </div>
+
+                  <div className="sec-reference-footer">
+                    <span className="sec-reference-label">Official Regulatory Portals:</span>
+                    <a href="https://esparc.sec.gov.ph" target="_blank" rel="noopener noreferrer" className="sec-reference-link">
+                      <span>SEC eSPARC Portal</span>
+                      <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>open_in_new</span>
+                    </a>
+                    <span className="sec-reference-dot">•</span>
+                    <a href="https://standards.dswd.gov.ph" target="_blank" rel="noopener noreferrer" className="sec-reference-link">
+                      <span>DSWD Standards Bureau</span>
+                      <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>open_in_new</span>
+                    </a>
+                  </div>
+                </div>
+              )}
+
+              {/* ── Philippine Non-Profit Compliance Notice (If Not Approved) ── */}
+              {!isKycApproved && (
+                <div className="sec-compliance-banner">
+                  <div className="sec-compliance-icon">
+                    <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>verified_user</span>
+                  </div>
+                  <div className="sec-compliance-content">
+                    <div className="sec-compliance-title">Philippine Non-Profit Registration Requirements</div>
+                    <p className="sec-compliance-desc">
+                      Philippine non-profit organizations and foundations must be registered as a Non-Stock Corporation (RA 11232) to deploy relief campaigns and access milestone smart vaults.
+                    </p>
+                  </div>
+                  <div className="sec-compliance-actions">
+                    <a
+                      href="https://esparc.sec.gov.ph"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="sec-compliance-btn"
+                      title="Open SEC eSPARC Portal in new tab"
+                    >
+                      <span>SEC eSPARC</span>
+                      <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>open_in_new</span>
+                    </a>
+                    <a
+                      href="https://standards.dswd.gov.ph"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="sec-compliance-btn"
+                      title="Open DSWD Standards Bureau in new tab"
+                    >
+                      <span>DSWD Standards</span>
+                      <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>open_in_new</span>
+                    </a>
+                  </div>
+                </div>
+              )}
+
+              {/* ── Rejection Notice Banner (If Rejected) ── */}
+              {isKycRejected && (
+                <div style={{
+                  background: 'rgba(239, 68, 68, 0.08)',
+                  border: '1.5px solid rgba(239, 68, 68, 0.35)',
+                  borderRadius: '12px',
+                  padding: '16px 20px',
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '12px'
+                }}>
+                  <span className="material-symbols-outlined" style={{ color: '#ef4444', fontSize: '26px', marginTop: '2px' }}>error</span>
+                  <div>
+                    <div style={{ color: '#ef4444', fontWeight: 800, fontSize: '0.92rem' }}>
+                      Verification Incomplete: Correction Required
+                    </div>
+                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.82rem', margin: '4px 0 0 0', lineHeight: 1.5 }}>
+                      {kycStatusData?.auditNotes || 'Your submitted registration details or certificate could not be validated. Please confirm your SEC registration number and upload a clear, legible certificate document.'}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* ── Institutional Accreditation Terminal (Visible when not approved, or when updating) ── */}
+              {(!isKycApproved || showKycFormOverride) && (
+                <form onSubmit={handleSaveKyc} className="sec-terminal-layout">
+                  {/* ── Left Pane: Live Dossier Status & Compliance Sidebar ── */}
+                  <aside className="sec-dossier-sidebar">
+                    <div className="sec-dossier-top">
+                      <div className="sec-dossier-title-group">
+                        <span className="material-symbols-outlined" style={{ fontSize: '20px', color: '#0284c7' }}>folder_shared</span>
+                        <h3 className="sec-dossier-title">Accreditation Dossier</h3>
+                      </div>
+                      <span className="sec-dossier-status-pill" style={{
+                        background: dossierCompletion.percent === 100 ? 'rgba(34, 197, 94, 0.12)' : 'rgba(56, 189, 248, 0.12)',
+                        color: dossierCompletion.percent === 100 ? '#16a34a' : '#0284c7',
+                        border: `1px solid ${dossierCompletion.percent === 100 ? 'rgba(34, 197, 94, 0.3)' : 'rgba(56, 189, 248, 0.3)'}`
                       }}>
-                        Philippine RA 11232 (Non-Stock Corp)
+                        {dossierCompletion.percent === 100 ? 'Ready to Submit' : 'In Progress'}
                       </span>
                     </div>
 
-                    <p className="sec-form-desc">
-                      Enter your official Securities and Exchange Commission (SEC) registration details and attach your Certificate of Incorporation.
-                    </p>
+                    <div className="sec-dossier-progress-box">
+                      <div className="sec-dossier-progress-header">
+                        <span>Requirements Met</span>
+                        <span>{dossierCompletion.score} / {dossierCompletion.total} ({dossierCompletion.percent}%)</span>
+                      </div>
+                      <div className="sec-dossier-progress-track">
+                        <div className="sec-dossier-progress-fill" style={{ width: `${dossierCompletion.percent}%` }} />
+                      </div>
+                    </div>
 
-                    <form onSubmit={handleSaveKyc}>
+                    {/* Interactive 5-Point Dossier Checklist */}
+                    <div className="sec-dossier-checklist">
+                      {dossierCompletion.items.map((it) => (
+                        <div key={it.id} className={`sec-dossier-item ${it.done ? 'is-ready' : 'is-pending'}`}>
+                          <div className="sec-dossier-item-left">
+                            <span className="material-symbols-outlined" style={{
+                              fontSize: '16px',
+                              color: it.done ? '#10b981' : 'var(--text-muted)'
+                            }}>
+                              {it.done ? 'check_circle' : 'radio_button_unchecked'}
+                            </span>
+                            <span>{it.label}</span>
+                          </div>
+                          <span className={`sec-dossier-item-badge ${it.done ? 'done' : 'wait'}`}>
+                            {it.done ? 'Ready' : 'Pending'}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Regulatory Trust Badges */}
+                    <div className="sec-dossier-trust-badges">
+                      <div className="sec-dossier-trust-row">
+                        <span className="material-symbols-outlined" style={{ fontSize: '15px', color: '#10b981' }}>verified_user</span>
+                        <span>SEC RA 11232 Non-Profit Standard</span>
+                      </div>
+                      <div className="sec-dossier-trust-row">
+                        <span className="material-symbols-outlined" style={{ fontSize: '15px', color: '#0284c7' }}>gavel</span>
+                        <span>AMLA RA 9160 Dual-ID Policy</span>
+                      </div>
+                      <div className="sec-dossier-trust-row">
+                        <span className="material-symbols-outlined" style={{ fontSize: '15px', color: '#a855f7' }}>lock</span>
+                        <span>256-Bit Encrypted Storage</span>
+                      </div>
+                    </div>
+                  </aside>
+
+                  {/* ── Right Pane: Modular Workstation Cards ── */}
+                  <div className="sec-terminal-main">
+                    {/* Card 1: Corporate & Tax Identity */}
+                    <div className="sec-workstation-card">
+                      <div className="sec-workstation-header">
+                        <div className="sec-workstation-title-group">
+                          <div className="sec-workstation-icon sky">
+                            <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>domain</span>
+                          </div>
+                          <div>
+                            <h4 className="sec-workstation-title">1. Corporate &amp; Tax Identity</h4>
+                            <p className="sec-workstation-subtitle">Philippine Securities &amp; Exchange Commission (SEC) and BIR registration</p>
+                          </div>
+                        </div>
+                        <span className="sec-workstation-badge">SEC &amp; BIR Statutory</span>
+                      </div>
+
                       <div className="sec-form-row-2">
                         <div className="sec-field">
                           <label>
-                            SEC REGISTRATION NUMBER <span style={{ color: '#ef4444' }}>*</span>
+                            SEC Registration Number <span style={{ color: '#ef4444' }}>*</span>
                           </label>
                           <input
                             type="text"
@@ -6265,13 +8060,50 @@ export default function OrganizationView({
                             required
                           />
                           <span className="sec-field-hint">
-                            Registration number found on your official SEC Certificate of Incorporation.
+                            Official non-stock registration from your SEC Certificate of Incorporation.
                           </span>
                         </div>
 
                         <div className="sec-field">
                           <label>
-                            DSWD / LGU PERMIT NUMBER (OPTIONAL)
+                            BIR Tax Identification Number (TIN) <span style={{ color: '#ef4444' }}>*</span>
+                          </label>
+                          <input
+                            type="text"
+                            className="input"
+                            placeholder="e.g., 000-842-192-000"
+                            value={tinNo}
+                            onChange={e => setTinNo(e.target.value)}
+                            style={{ fontFamily: 'monospace' }}
+                            required
+                          />
+                          <span className="sec-field-hint">
+                            Bureau of Internal Revenue (BIR Form 2303) non-profit tax identification.
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="sec-form-row-2">
+                        <div className="sec-field">
+                          <label>
+                            Official Registered Office Address <span style={{ color: '#ef4444' }}>*</span>
+                          </label>
+                          <input
+                            type="text"
+                            className="input"
+                            placeholder="e.g., 37 EDSA cor. Boni Ave., Mandaluyong City, Metro Manila"
+                            value={registeredAddress}
+                            onChange={e => setRegisteredAddress(e.target.value)}
+                            required
+                          />
+                          <span className="sec-field-hint">
+                            Principal headquarters address as stated in the Articles of Incorporation.
+                          </span>
+                        </div>
+
+                        <div className="sec-field">
+                          <label>
+                            DSWD / LGU Solicitation Permit (Optional)
                           </label>
                           <input
                             type="text"
@@ -6282,14 +8114,66 @@ export default function OrganizationView({
                             style={{ fontFamily: 'monospace' }}
                           />
                           <span className="sec-field-hint">
-                            DSWD public solicitation authorization or LGU disaster endorsement, if issued.
+                            DSWD public solicitation permit (PD 1564) or LGU disaster relief endorsement.
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Card 2: Authorized Signatory & Legal Liaison */}
+                    <div className="sec-workstation-card">
+                      <div className="sec-workstation-header">
+                        <div className="sec-workstation-title-group">
+                          <div className="sec-workstation-icon green">
+                            <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>badge</span>
+                          </div>
+                          <div>
+                            <h4 className="sec-workstation-title">2. Authorized Signatory &amp; Legal Liaison</h4>
+                            <p className="sec-workstation-subtitle">Smart vault escrow disbursements are bound to authorized natural persons</p>
+                          </div>
+                        </div>
+                        <span className="sec-workstation-badge">AMLA &amp; BSP Standard</span>
+                      </div>
+
+                      <div className="sec-form-row-2">
+                        <div className="sec-field">
+                          <label>
+                            Authorized Representative Full Name <span style={{ color: '#ef4444' }}>*</span>
+                          </label>
+                          <input
+                            type="text"
+                            className="input"
+                            placeholder="e.g., Gwendolyn Pang"
+                            value={repName}
+                            onChange={e => setRepName(e.target.value)}
+                            required
+                          />
+                          <span className="sec-field-hint">
+                            Primary liaison officer authorized to manage relief escrows and bind wallet.
+                          </span>
+                        </div>
+
+                        <div className="sec-field">
+                          <label>
+                            Official Designation / Title <span style={{ color: '#ef4444' }}>*</span>
+                          </label>
+                          <input
+                            type="text"
+                            className="input"
+                            placeholder="e.g., Secretary General &amp; Authorized Trustee"
+                            value={repPosition}
+                            onChange={e => setRepPosition(e.target.value)}
+                            required
+                          />
+                          <span className="sec-field-hint">
+                            Corporate position (e.g. Executive Director, President, Corporate Secretary).
                           </span>
                         </div>
                       </div>
 
                       <div className="sec-field">
                         <label>
-                          BOARD OF TRUSTEES / AUTHORIZED OFFICERS <span style={{ color: '#ef4444' }}>*</span>
+                          Governing Board of Trustees &amp; Officers <span style={{ color: '#ef4444' }}>*</span>
                         </label>
                         <input
                           type="text"
@@ -6300,15 +8184,223 @@ export default function OrganizationView({
                           required
                         />
                         <span className="sec-field-hint">
-                          Names and official roles of authorized officers responsible for relief campaigns and aid operations.
+                          Names and official roles of current trustees as submitted in the General Information Sheet (GIS).
                         </span>
+                      </div>
+                    </div>
+
+                    {/* Card 3: Dual Government ID Verification (2 Valid Government IDs) */}
+                    <div className="sec-workstation-card">
+                      <div className="sec-workstation-header">
+                        <div className="sec-workstation-title-group">
+                          <div className="sec-workstation-icon purple">
+                            <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>id_card</span>
+                          </div>
+                          <div>
+                            <h4 className="sec-workstation-title">3. Dual Government ID Verification</h4>
+                            <p className="sec-workstation-subtitle">Philippine AMLA requires two (2) valid government-issued photo IDs for the authorized signatory</p>
+                          </div>
+                        </div>
+                        <span className="sec-workstation-badge">Two (2) Valid IDs Required</span>
+                      </div>
+
+                      <div className="sec-dual-id-grid">
+                        {/* Primary ID Card */}
+                        <div className="sec-id-upload-card">
+                          <div className="sec-id-card-head">
+                            <div className="sec-id-card-head-title">
+                              <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#a855f7' }}>contact_page</span>
+                              <span>Primary Government ID</span>
+                            </div>
+                            <span className="sec-id-card-pill">Primary • Photo ID</span>
+                          </div>
+
+                          <div className="sec-field" style={{ marginBottom: 0 }}>
+                            <label style={{ fontSize: '0.74rem' }}>ID Type</label>
+                            <select
+                              className="input"
+                              value={primaryIdType}
+                              onChange={e => setPrimaryIdType(e.target.value)}
+                              style={{ height: '38px', fontSize: '0.78rem' }}
+                              required
+                            >
+                              <option value="Philippine Passport">Philippine Passport</option>
+                              <option value="PhilID (National ID)">PhilID (Philippine National ID)</option>
+                              <option value="UMID (Unified Multi-Purpose ID)">UMID (Unified Multi-Purpose ID)</option>
+                              <option value="LTO Driver's License">LTO Driver's License</option>
+                              <option value="PRC Professional ID">PRC Professional ID</option>
+                            </select>
+                          </div>
+
+                          <div className="sec-field" style={{ marginBottom: 0 }}>
+                            <label style={{ fontSize: '0.74rem' }}>ID Document Number</label>
+                            <input
+                              type="text"
+                              className="input"
+                              placeholder="e.g., P8942103B"
+                              value={primaryIdNumber}
+                              onChange={e => setPrimaryIdNumber(e.target.value)}
+                              style={{ fontFamily: 'monospace', height: '38px', fontSize: '0.78rem' }}
+                              required
+                            />
+                          </div>
+
+                          {/* Primary ID Upload / Preview */}
+                          {primaryIdUrl ? (
+                            <div className="sec-id-attached">
+                              <div className="sec-id-attached-info">
+                                <div className="sec-id-attached-icon">
+                                  <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>
+                                    {isPdfDocument(primaryIdUrl) ? 'picture_as_pdf' : 'badge'}
+                                  </span>
+                                </div>
+                                <div className="sec-id-attached-details">
+                                  <div className="sec-id-attached-name">{primaryIdType} Attached</div>
+                                  <div className="sec-id-attached-meta">No. {primaryIdNumber || 'Verified'} • Front Scan Attached</div>
+                                </div>
+                              </div>
+                              <div className="sec-id-attached-actions">
+                                <button
+                                  type="button"
+                                  className="btn btn-outline btn-sm"
+                                  onClick={() => setPreviewDocModal({ open: true, title: `Primary Government ID (${primaryIdType})`, url: primaryIdUrl, regNo: primaryIdNumber })}
+                                  style={{ fontSize: '0.74rem', padding: '4px 10px' }}
+                                >
+                                  Inspect Full Size
+                                </button>
+                                <label className="btn btn-ghost btn-sm" style={{ fontSize: '0.74rem', padding: '4px 10px', cursor: 'pointer', margin: 0 }}>
+                                  Replace
+                                  <input type="file" accept="image/*,application/pdf" onChange={handlePrimaryIdUpload} style={{ display: 'none' }} />
+                                </label>
+                              </div>
+                            </div>
+                          ) : (
+                            <label className="sec-id-dropzone">
+                              <span className="material-symbols-outlined" style={{ fontSize: '26px', color: '#a855f7', marginBottom: '4px' }}>
+                                upload_file
+                              </span>
+                              <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                                Upload Primary ID (Front)
+                              </span>
+                              <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                                PNG, JPG or PDF • Valid government issued ID
+                              </span>
+                              <input type="file" accept="image/*,application/pdf" onChange={handlePrimaryIdUpload} style={{ display: 'none' }} />
+                            </label>
+                          )}
+                        </div>
+
+                        {/* Secondary ID Card */}
+                        <div className="sec-id-upload-card">
+                          <div className="sec-id-card-head">
+                            <div className="sec-id-card-head-title">
+                              <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#10b981' }}>badge</span>
+                              <span>Secondary Government ID</span>
+                            </div>
+                            <span className="sec-id-card-pill" style={{ background: 'rgba(16, 185, 129, 0.12)', color: '#34d399', borderColor: 'rgba(16, 185, 129, 0.25)' }}>
+                              Secondary • Verified ID
+                            </span>
+                          </div>
+
+                          <div className="sec-field" style={{ marginBottom: 0 }}>
+                            <label style={{ fontSize: '0.74rem' }}>ID Type</label>
+                            <select
+                              className="input"
+                              value={secondaryIdType}
+                              onChange={e => setSecondaryIdType(e.target.value)}
+                              style={{ height: '38px', fontSize: '0.78rem' }}
+                              required
+                            >
+                              <option value="LTO Driver's License">LTO Driver's License</option>
+                              <option value="PhilID (National ID)">PhilID (Philippine National ID)</option>
+                              <option value="PRC Professional ID">PRC Professional ID</option>
+                              <option value="SSS / GSIS E-Card">SSS / GSIS E-Card</option>
+                              <option value="Postal ID (Biometric)">Postal ID (Biometric)</option>
+                              <option value="Voter's ID / Comelec">Voter's ID / Comelec Certificate</option>
+                              <option value="TIN Card (BIR)">TIN Card (BIR)</option>
+                            </select>
+                          </div>
+
+                          <div className="sec-field" style={{ marginBottom: 0 }}>
+                            <label style={{ fontSize: '0.74rem' }}>ID Document Number</label>
+                            <input
+                              type="text"
+                              className="input"
+                              placeholder="e.g., N02-18-938210"
+                              value={secondaryIdNumber}
+                              onChange={e => setSecondaryIdNumber(e.target.value)}
+                              style={{ fontFamily: 'monospace', height: '38px', fontSize: '0.78rem' }}
+                              required
+                            />
+                          </div>
+
+                          {/* Secondary ID Upload / Preview */}
+                          {secondaryIdUrl ? (
+                            <div className="sec-id-attached" style={{ borderColor: 'rgba(16, 185, 129, 0.35)' }}>
+                              <div className="sec-id-attached-info">
+                                <div className="sec-id-attached-icon" style={{ background: 'rgba(16, 185, 129, 0.12)', color: '#10b981' }}>
+                                  <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>
+                                    {isPdfDocument(secondaryIdUrl) ? 'picture_as_pdf' : 'badge'}
+                                  </span>
+                                </div>
+                                <div className="sec-id-attached-details">
+                                  <div className="sec-id-attached-name">{secondaryIdType} Attached</div>
+                                  <div className="sec-id-attached-meta">No. {secondaryIdNumber || 'Verified'} • Secondary ID Attached</div>
+                                </div>
+                              </div>
+                              <div className="sec-id-attached-actions">
+                                <button
+                                  type="button"
+                                  className="btn btn-outline btn-sm"
+                                  onClick={() => setPreviewDocModal({ open: true, title: `Secondary Government ID (${secondaryIdType})`, url: secondaryIdUrl, regNo: secondaryIdNumber })}
+                                  style={{ fontSize: '0.74rem', padding: '4px 10px' }}
+                                >
+                                  Inspect Full Size
+                                </button>
+                                <label className="btn btn-ghost btn-sm" style={{ fontSize: '0.74rem', padding: '4px 10px', cursor: 'pointer', margin: 0 }}>
+                                  Replace
+                                  <input type="file" accept="image/*,application/pdf" onChange={handleSecondaryIdUpload} style={{ display: 'none' }} />
+                                </label>
+                              </div>
+                            </div>
+                          ) : (
+                            <label className="sec-id-dropzone" style={{ borderColor: 'rgba(16, 185, 129, 0.35)', background: 'rgba(16, 185, 129, 0.02)' }}>
+                              <span className="material-symbols-outlined" style={{ fontSize: '26px', color: '#10b981', marginBottom: '4px' }}>
+                                upload_file
+                              </span>
+                              <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                                Upload Secondary ID (Front)
+                              </span>
+                              <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                                PNG, JPG or PDF • Supporting valid Philippine ID
+                              </span>
+                              <input type="file" accept="image/*,application/pdf" onChange={handleSecondaryIdUpload} style={{ display: 'none' }} />
+                            </label>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Card 4: Official SEC Certificate of Incorporation */}
+                    <div className="sec-workstation-card">
+                      <div className="sec-workstation-header">
+                        <div className="sec-workstation-title-group">
+                          <div className="sec-workstation-icon amber">
+                            <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>verified</span>
+                          </div>
+                          <div>
+                            <h4 className="sec-workstation-title">4. Official SEC Certificate of Incorporation</h4>
+                            <p className="sec-workstation-subtitle">Autonomous validation powered by Google Gemini Vision OCR</p>
+                          </div>
+                        </div>
+                        <span className="sec-workstation-badge">Gemini AI OCR Verifier</span>
                       </div>
 
                       {/* Certificate Upload Zone */}
-                      <div className="sec-upload-box">
+                      <div className="sec-upload-box" style={{ marginBottom: 0 }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                          <label style={{ fontSize: '0.80rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                            OFFICIAL SEC CERTIFICATE OF INCORPORATION <span style={{ color: '#ef4444' }}>*</span>
+                          <label style={{ fontSize: '0.80rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                            Official SEC Certificate of Incorporation <span style={{ color: '#ef4444' }}>*</span>
                           </label>
                           {secCertUrl && (
                             <button
@@ -6332,7 +8424,7 @@ export default function OrganizationView({
                               <div>
                                 <div className="sec-doc-filename">Official SEC Certificate Attached</div>
                                 <div className="sec-doc-meta">
-                                  {isPdfDocument(secCertUrl) ? 'PDF Document' : 'Official Certificate Document'} • Verified Seal
+                                  {isPdfDocument(secCertUrl) ? 'PDF Document' : 'Official Certificate Document'} • Duly Signed &amp; Sealed
                                 </div>
                               </div>
                             </div>
@@ -6341,7 +8433,7 @@ export default function OrganizationView({
                               <button
                                 type="button"
                                 className="btn btn-outline btn-sm"
-                                onClick={() => setViewingKycCert(true)}
+                                onClick={() => setPreviewDocModal({ open: true, title: 'Official SEC Certificate of Incorporation', url: secCertUrl, regNo: secRegNo })}
                                 style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '0.76rem' }}
                               >
                                 <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>visibility</span>
@@ -6382,6 +8474,21 @@ export default function OrganizationView({
                           </label>
                         )}
                       </div>
+                    </div>
+
+                    {/* Card 5: Legal Affirmation & Submission Action Bar */}
+                    <div className="sec-workstation-card" style={{ background: 'var(--bg-card)' }}>
+                      <label className="sec-affirmation-box" style={{ marginBottom: '16px' }}>
+                        <input
+                          type="checkbox"
+                          checked={affirmationChecked}
+                          onChange={e => setAffirmationChecked(e.target.checked)}
+                          required
+                        />
+                        <span className="sec-affirmation-text">
+                          I solemnly affirm under penalty of perjury and Republic Act No. 11232 (Revised Corporation Code of the Philippines) that this entity is a bona fide Non-Stock, Non-Profit Humanitarian Organization, and that the two (2) government IDs and credentials submitted belong to the authorized officers legally permitted to bind this wallet and administer disaster relief escrows on BBDRTS.
+                        </span>
+                      </label>
 
                       {/* Real-time verification scanning state */}
                       {kycSaving && kycStepText && (
@@ -6390,7 +8497,7 @@ export default function OrganizationView({
                           border: '1px solid rgba(56, 189, 248, 0.3)',
                           borderRadius: '10px',
                           padding: '12px 16px',
-                          marginBottom: '18px',
+                          marginBottom: '16px',
                           fontSize: '0.82rem',
                           color: '#0284c7',
                           display: 'flex',
@@ -6403,96 +8510,114 @@ export default function OrganizationView({
                       )}
 
                       {/* Submit Action Bar */}
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '14px', paddingTop: '8px', borderTop: '1px solid var(--border)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '14px', paddingTop: '10px', borderTop: '1px solid var(--border)' }}>
                         <button
                           type="submit"
                           className="btn btn-primary"
-                          disabled={kycSaving || (!secRegNo.trim() && !secCertUrl)}
+                          disabled={kycSaving || (!secRegNo.trim() && !secCertUrl) || (!affirmationChecked && !isKycApproved)}
                           style={{ padding: '10px 24px', fontSize: '0.90rem', display: 'inline-flex', alignItems: 'center', gap: '8px' }}
                         >
                           {kycSaving ? (
                             <>
                               <div className="spinner" />
-                              <span>Verifying Documents...</span>
+                              <span>Verifying Dossier...</span>
                             </>
                           ) : (
                             <>
                               <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>verified</span>
-                              <span>Submit Documents for Verification</span>
+                              <span>Submit Dossier for Regulatory Accreditation</span>
                             </>
                           )}
                         </button>
 
                         <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '6px' }}>
                           <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#16a34a' }}>shield</span>
-                          <span>Secure verification • Prevents fake relief drives • SEC RA 11232 compliant</span>
+                          <span>Anti-Fraud Escrow Binding • RA 11232 &amp; AMLA Compliant</span>
                         </div>
                       </div>
-                    </form>
+                    </div>
                   </div>
-                )}
-              </div>
-            );
-          })()}
-
-          {/* ── SEC Certificate Viewer Modal ── */}
-          <SecCertificateModal
-            isOpen={viewingKycCert && !!secCertUrl}
-            onClose={() => setViewingKycCert(false)}
-            url={secCertUrl}
-            orgName={currentUser?.name || kycStatusData?.Org_Name || ''}
-            regNo={secRegNo || kycStatusData?.secRegistrationNo || ''}
-          />
-
-          {/* ── 5.8. DISASTER RELIEF RADAR HEATMAP TAB (NGO STRATEGIC DISPATCH) ── */}
-          {activeTab === 'radar-heatmap' && (
-            <div style={{ marginTop: '8px' }}>
-              <div className="section-header" id="tour-ngo-radar-header" style={{ borderBottom: '1px solid var(--border)', paddingBottom: '12px', marginBottom: '16px' }}>
-                <div>
-                  <h2 className="section-title" style={{ fontSize: '1.4rem' }}>
-                    <span className="material-symbols-outlined section-title-icon" style={{ marginRight: '8px', color: 'var(--accent)' }}>radar</span>
-                    Disaster Relief Radar Heatmap · NGO Strategic Dispatch
-                  </h2>
-                  <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginTop: '4px' }}>
-                    Monitor meteorological Doppler relief concentration across the Philippines to identify high-density disaster zones and mobilize field missions.
-                  </p>
-                </div>
-              </div>
-
-              <DisasterRadarHeatmap
-                campaigns={campaigns}
-                height="620px"
-                theme={theme}
-                defaultLayer="tactical"
-                onSelectCampaign={(c) => {
-                  setActiveTab('all-campaigns');
-                  setSearchQueryAll(c.title || '');
-                }}
-              />
+                </form>
+              )}
             </div>
-          )}
+          );
+        })()}
 
-          {/* ── 6. PROFILE & SETTINGS TAB ── */}
-          {activeTab === 'settings' && (
-            <div style={{ marginTop: '8px' }}>
-              <SettingsPanel
-                contract={contract}
-                currentUser={currentUser}
-                walletAddress={walletAddress}
-                handleConnectWallet={handleConnectWallet}
-                handleLogout={handleLogout}
-                updateDbWallet={updateDbWallet}
-                theme={theme}
-                setTheme={setTheme}
-                textSize={textSize}
-                setTextSize={setTextSize}
-                onStartTour={handleStartTour}
-              />
+        {/* ── Universal Document Viewer Modal (SEC Cert, Primary ID, & Secondary ID) ── */}
+        <SecCertificateModal
+          isOpen={(viewingKycCert && !!secCertUrl) || previewDocModal.open}
+          onClose={() => {
+            setViewingKycCert(false);
+            setPreviewDocModal({ open: false, title: '', url: '', regNo: '' });
+          }}
+          url={previewDocModal.open ? previewDocModal.url : secCertUrl}
+          orgName={currentUser?.name || kycStatusData?.Org_Name || ''}
+          regNo={previewDocModal.open ? previewDocModal.regNo : (secRegNo || kycStatusData?.secRegistrationNo || '')}
+          title={previewDocModal.open ? previewDocModal.title : 'Official SEC Certificate of Incorporation Document'}
+        />
+
+        {/* ── 5.8. DISASTER RELIEF RADAR HEATMAP TAB (NGO STRATEGIC DISPATCH) ── */}
+        {activeTab === 'radar-heatmap' && (
+          <div style={{ marginTop: '8px' }}>
+            <div className="admin-page-header" id="tour-ngo-radar-header">
+              <div className="admin-page-title-wrap">
+                <h2 className="admin-page-title">
+                  <span className="material-symbols-outlined" style={{ fontSize: '24px', color: '#16a34a' }}>radar</span>
+                  <span>{wt.reliefRadar}</span>
+                </h2>
+                <p className="admin-page-sub">
+                  {wt.radarSub}
+                </p>
+              </div>
             </div>
-          )}
 
-        </section>
-      </div>
+            <DisasterRadarHeatmap
+              campaigns={campaigns}
+              height="620px"
+              theme={theme}
+              defaultLayer="terrain"
+              lowBandwidthMode={lowBandwidthMode}
+              reducedMotion={reducedMotion}
+              language={language}
+              onSelectCampaign={(c) => {
+                setActiveTab('all-campaigns');
+                setSearchQueryAll(c.title || '');
+              }}
+            />
+          </div>
+        )}
+
+        {/* ── 6. PROFILE & SETTINGS TAB ── */}
+        {activeTab === 'settings' && (
+          <div style={{ marginTop: '8px' }}>
+            <SettingsPanel
+              contract={contract}
+              currentUser={currentUser}
+              walletAddress={walletAddress}
+              handleConnectWallet={handleConnectWallet}
+              handleLogout={handleLogout}
+              updateDbWallet={updateDbWallet}
+              theme={theme}
+              themeMode={themeMode}
+              setTheme={setTheme}
+              textSize={textSize}
+              setTextSize={setTextSize}
+              interfaceMode={interfaceMode}
+              setInterfaceMode={setInterfaceMode}
+              language={language}
+              setLanguage={setLanguage}
+              reducedMotion={reducedMotion}
+              setReducedMotion={setReducedMotion}
+              highContrast={highContrast}
+              setHighContrast={setHighContrast}
+              lowBandwidthMode={lowBandwidthMode}
+              setLowBandwidthMode={setLowBandwidthMode}
+              onStartTour={handleStartTour}
+            />
+          </div>
+        )}
+
+      </section>
 
       {/* ── AI Smart Budget & Allocation Generator Modal (Module B) ── */}
       {showAiBudgetModal && (
@@ -6515,7 +8640,7 @@ export default function OrganizationView({
                 </div>
                 <div>
                   <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-primary, #fff)' }}>AI Smart Budget & Allocation Generator</h3>
-                  <div style={{ fontSize: '0.74rem', color: 'var(--text-secondary, #94a3b8)' }}>Powered by NDRRMC Guidelines & UN Sphere Project Standards</div>
+                  <div style={{ fontSize: '0.74rem', color: 'var(--text-secondary, #94a3b8)' }}>Powered by UN Sphere Project Standards & Humanitarian Relief Guidelines</div>
                 </div>
               </div>
               <button
@@ -6609,7 +8734,7 @@ export default function OrganizationView({
               {aiBudgetLoading ? (
                 <>
                   <span className="material-symbols-outlined spin" style={{ fontSize: '20px' }}>progress_activity</span>
-                  <span>Computing Sphere Standards & NDRRMC Metrics...</span>
+                  <span>Computing Sphere Standards & Humanitarian Metrics...</span>
                 </>
               ) : (
                 <>
@@ -6628,7 +8753,7 @@ export default function OrganizationView({
                   </span>
                   <span style={{ fontSize: '0.68rem', background: 'var(--accent-dim, rgba(34, 197, 94, 0.15))', color: 'var(--accent, #22c55e)', padding: '2px 8px', borderRadius: '6px', border: '1px solid rgba(34, 197, 94, 0.3)', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
                     <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>check</span>
-                    {aiBudgetResult.generatedBy === 'AI_GEMINI_1.5_FLASH' ? 'Gemini 1.5 Flash Verified' : 'NDRRMC Sphere Matrix'}
+                    {aiBudgetResult.generatedBy === 'AI_GEMINI_1.5_FLASH' ? 'Gemini 1.5 Flash Verified' : 'Sphere Humanitarian Matrix'}
                   </span>
                 </div>
 
@@ -6874,6 +8999,12 @@ export default function OrganizationView({
         const amtEth = parseFloat(selectedVoucherTx.amount || 0).toFixed(4);
         const amtPhp = Math.round(parseFloat(selectedVoucherTx.amount || 0) * 170000);
 
+        const variancePhp = selectedVoucherTx.variancePhp !== undefined && selectedVoucherTx.variancePhp !== null ? Number(selectedVoucherTx.variancePhp) : 0;
+        const declaredPhp = selectedVoucherTx.declaredPhp !== undefined && selectedVoucherTx.declaredPhp !== null ? Number(selectedVoucherTx.declaredPhp) : (variancePhp !== 0 ? (amtPhp - variancePhp) : amtPhp);
+        const isShortage = selectedVoucherTx.auditStatus === 'SHORTAGE' || variancePhp < -20;
+        const isOverCredit = selectedVoucherTx.auditStatus === 'OVER_CREDIT' || variancePhp > 20;
+        const hasVariance = isShortage || isOverCredit;
+
         return (
           <div
             className="bbdrts-edit-profile-backdrop"
@@ -6900,10 +9031,10 @@ export default function OrganizationView({
                 width: '100%',
                 maxWidth: '600px',
                 background: 'var(--bg-card, #1c1c1c)',
-                border: '1px solid var(--border-strong, rgba(255, 255, 255, 0.16))',
+                border: isShortage ? '1px solid rgba(239, 68, 68, 0.45)' : (isOverCredit ? '1px solid rgba(245, 158, 11, 0.4)' : '1px solid var(--border-strong, rgba(255, 255, 255, 0.16))'),
                 borderRadius: '18px',
                 overflow: 'hidden',
-                boxShadow: '0 24px 60px rgba(0, 0, 0, 0.65)'
+                boxShadow: isShortage ? '0 24px 60px rgba(239, 68, 68, 0.25)' : '0 24px 60px rgba(0, 0, 0, 0.65)'
               }}
             >
               {/* Voucher Header */}
@@ -6920,21 +9051,23 @@ export default function OrganizationView({
                     width: '40px',
                     height: '40px',
                     borderRadius: '12px',
-                    background: 'rgba(34, 197, 94, 0.15)',
+                    background: isShortage ? 'rgba(239, 68, 68, 0.15)' : (isOverCredit ? 'rgba(245, 158, 11, 0.15)' : 'rgba(34, 197, 94, 0.15)'),
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    color: '#22c55e',
-                    border: '1px solid rgba(34, 197, 94, 0.3)'
+                    color: isShortage ? '#ef4444' : (isOverCredit ? '#f59e0b' : '#22c55e'),
+                    border: `1px solid ${isShortage ? 'rgba(239, 68, 68, 0.35)' : (isOverCredit ? 'rgba(245, 158, 11, 0.35)' : 'rgba(34, 197, 94, 0.3)')}`
                   }}>
-                    <span className="material-symbols-outlined" style={{ fontSize: '22px' }}>verified</span>
+                    <span className="material-symbols-outlined" style={{ fontSize: '22px' }}>
+                      {isShortage ? 'warning' : (isOverCredit ? 'info' : 'verified')}
+                    </span>
                   </div>
                   <div>
                     <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-                      Official Audit Voucher
+                      {isShortage ? 'Official Audit Voucher · Discrepancy Flagged' : 'Official Audit Voucher'}
                     </h3>
-                    <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>
-                      BBDRTS Humanitarian Protocol · Blockchain Audited
+                    <div style={{ fontSize: '0.76rem', color: isShortage ? '#fca5a5' : 'var(--text-muted)' }}>
+                      {isShortage ? 'Variance Recorded in Immutable Public Ledger' : 'BBDRTS Humanitarian Protocol · Blockchain Audited'}
                     </div>
                   </div>
                 </div>
@@ -6950,27 +9083,101 @@ export default function OrganizationView({
                 </button>
               </div>
 
-              {/* Verified Ribbon */}
-              <div style={{
-                padding: '10px 24px',
-                background: 'linear-gradient(90deg, rgba(34, 197, 94, 0.15), transparent)',
-                borderBottom: '1px solid var(--border-subtle)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                fontSize: '0.78rem'
-              }}>
-                <span style={{ color: '#22c55e', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
-                  <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>check_circle</span>
-                  Verified On-Chain Transaction
-                </span>
-                <span style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
-                  ID #{selectedVoucherTx.id || 'ON-CHAIN'}
-                </span>
-              </div>
+              {/* Verified / Discrepancy Ribbon */}
+              {isShortage ? (
+                <div style={{
+                  padding: '11px 24px',
+                  background: 'rgba(239, 68, 68, 0.12)',
+                  borderBottom: '1px solid rgba(239, 68, 68, 0.28)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  fontSize: '0.78rem'
+                }}>
+                  <span style={{ color: '#ef4444', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                    <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>gpp_bad</span>
+                    Audit Shortage Flagged · Credited Amount Altered by NGO
+                  </span>
+                  <span style={{ color: '#fca5a5', fontFamily: 'var(--font-mono)', fontWeight: 700 }}>
+                    Variance: {variancePhp < 0 ? `-₱${Math.abs(variancePhp).toLocaleString()} PHP` : `+₱${variancePhp.toLocaleString()} PHP`}
+                  </span>
+                </div>
+              ) : isOverCredit ? (
+                <div style={{
+                  padding: '11px 24px',
+                  background: 'rgba(245, 158, 11, 0.12)',
+                  borderBottom: '1px solid rgba(245, 158, 11, 0.28)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  fontSize: '0.78rem'
+                }}>
+                  <span style={{ color: '#f59e0b', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                    <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>info</span>
+                    Over-Credited Transaction (+₱{variancePhp.toLocaleString()} PHP)
+                  </span>
+                  <span style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                    ID #{selectedVoucherTx.id || 'ON-CHAIN'}
+                  </span>
+                </div>
+              ) : (
+                <div style={{
+                  padding: '10px 24px',
+                  background: 'linear-gradient(90deg, rgba(34, 197, 94, 0.15), transparent)',
+                  borderBottom: '1px solid var(--border-subtle)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  fontSize: '0.78rem'
+                }}>
+                  <span style={{ color: '#22c55e', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+                    <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>check_circle</span>
+                    Verified On-Chain Transaction
+                  </span>
+                  <span style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                    ID #{selectedVoucherTx.id || 'ON-CHAIN'}
+                  </span>
+                </div>
+              )}
 
               {/* Voucher Details Body */}
               <div style={{ padding: '22px 24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                {/* Variance Breakdown Box */}
+                {hasVariance && (
+                  <div style={{
+                    background: isShortage ? 'rgba(239, 68, 68, 0.08)' : 'rgba(245, 158, 11, 0.08)',
+                    border: `1px solid ${isShortage ? 'rgba(239, 68, 68, 0.3)' : 'rgba(245, 158, 11, 0.3)'}`,
+                    borderRadius: '10px',
+                    padding: '12px 16px'
+                  }}>
+                    <div style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', color: isShortage ? '#ef4444' : '#f59e0b', letterSpacing: '0.04em', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                      <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>rule</span>
+                      <span>Tamper-Proof Audit Discrepancy Breakdown</span>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', fontSize: '0.78rem' }}>
+                      <div>
+                        <div style={{ color: '#888888', fontSize: '0.70rem' }}>Declared by Contributor</div>
+                        <div style={{ fontWeight: 700, color: '#ededed', marginTop: '2px', fontFamily: 'var(--font-mono)' }}>₱{declaredPhp.toLocaleString()} PHP</div>
+                      </div>
+                      <div>
+                        <div style={{ color: '#888888', fontSize: '0.70rem' }}>Credited by NGO</div>
+                        <div style={{ fontWeight: 700, color: isShortage ? '#ef4444' : '#f59e0b', marginTop: '2px', fontFamily: 'var(--font-mono)' }}>₱{amtPhp.toLocaleString()} PHP</div>
+                      </div>
+                      <div>
+                        <div style={{ color: '#888888', fontSize: '0.70rem' }}>On-Chain Variance</div>
+                        <div style={{ fontWeight: 800, color: isShortage ? '#ef4444' : '#f59e0b', marginTop: '2px', fontFamily: 'var(--font-mono)' }}>
+                          {variancePhp < 0 ? `-₱${Math.abs(variancePhp).toLocaleString()} PHP` : `+₱${variancePhp.toLocaleString()} PHP`}
+                        </div>
+                      </div>
+                    </div>
+                    <div style={{ fontSize: '0.70rem', color: isShortage ? '#fca5a5' : '#fde68a', marginTop: '8px', lineHeight: 1.4 }}>
+                      {isShortage
+                        ? '⚠️ Warning: The beneficiary organization modified and verified this transaction with a shortage compared to the contributor\'s declared payment slip. This discrepancy has been permanently sealed on Ethereum Sepolia.'
+                        : 'Notice: Contributor was credited with additional funds beyond the initial declaration.'}
+                    </div>
+                  </div>
+                )}
+
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
                   <div>
                     <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 700, marginBottom: '3px' }}>
@@ -7021,25 +9228,35 @@ export default function OrganizationView({
                 {/* Amount Highlight Box */}
                 <div style={{
                   background: 'var(--bg-subcard)',
-                  border: '1px solid var(--border)',
+                  border: isShortage ? '1px solid rgba(239, 68, 68, 0.35)' : '1px solid var(--border)',
                   borderRadius: '12px',
                   padding: '14px 18px',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between'
                 }}>
-                  <div>
-                    <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', fontWeight: 600 }}>Amount Transferred</div>
-                    <div style={{ fontSize: '1.45rem', fontWeight: 850, color: 'var(--accent, #22c55e)' }}>
-                      +{amtEth} ETH
-                    </div>
-                  </div>
-                  <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', fontWeight: 600 }}>Fiat Equivalent (PHP)</div>
-                    <div style={{ fontSize: '1.2rem', fontWeight: 800, color: '#38bdf8' }}>
-                      ≈ ₱{amtPhp.toLocaleString('en-US')}
-                    </div>
-                  </div>
+                  {(() => {
+                    const pm = String(selectedVoucherTx.paymentMethod || 'ETH').toUpperCase();
+                    const isFiat = pm.includes('GCASH') || pm.includes('MAYA') || pm.includes('BANK') || pm.includes('CARD') || String(selectedVoucherTx.txHash || '').startsWith('FIAT-');
+                    return (
+                      <>
+                        <div>
+                          <div style={{ fontSize: '0.74rem', color: isShortage ? '#ef4444' : 'var(--text-muted)', fontWeight: 600 }}>
+                            {isShortage ? 'Amount Credited (Altered)' : 'Amount Transferred'}
+                          </div>
+                          <div style={{ fontSize: '1.45rem', fontWeight: 850, color: isShortage ? '#ef4444' : 'var(--accent, #22c55e)' }}>
+                            {isFiat ? `+₱${amtPhp.toLocaleString('en-US')}` : `+${amtEth} ETH`}
+                          </div>
+                        </div>
+                        <div style={{ textAlign: 'right' }}>
+                          <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', fontWeight: 600 }}>{isFiat ? 'On-Chain Ledger Value' : 'Fiat Value (PHP)'}</div>
+                          <div style={{ fontSize: '1.2rem', fontWeight: 800, color: '#38bdf8' }}>
+                            {isFiat ? `≈ ${amtEth} ETH on Sepolia` : `≈ ₱${amtPhp.toLocaleString('en-US')}`}
+                          </div>
+                        </div>
+                      </>
+                    );
+                  })()}
                 </div>
 
                 {/* Tx Hash Box */}
@@ -7105,7 +9322,8 @@ export default function OrganizationView({
                     className="btn btn-outline btn-sm"
                     style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', textDecoration: 'none' }}
                   >
-                    <span>Etherscan ↗</span>
+                    <span>Etherscan</span>
+                    <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>open_in_new</span>
                   </a>
                 )}
                 <button
@@ -7149,14 +9367,14 @@ export default function OrganizationView({
             className="card bounce-in"
             onClick={e => e.stopPropagation()}
             style={{
-              width: '860px',
+              width: '880px',
               maxWidth: '96vw',
               maxHeight: '92vh',
-              background: 'var(--bg-card, #131622)',
-              border: '1px solid var(--border, rgba(255, 255, 255, 0.14))',
-              borderRadius: '20px',
-              boxShadow: '0 25px 60px -12px rgba(0, 0, 0, 0.85)',
-              color: 'var(--text-primary, #ffffff)',
+              background: '#0a0a0a',
+              border: '1px solid #222222',
+              borderRadius: '14px',
+              boxShadow: '0 25px 65px rgba(0, 0, 0, 0.9)',
+              color: '#ededed',
               display: 'flex',
               flexDirection: 'column',
               overflow: 'hidden'
@@ -7164,394 +9382,557 @@ export default function OrganizationView({
           >
             {/* Modal Header */}
             <div style={{
-              padding: '18px 24px',
-              borderBottom: '1px solid var(--border, rgba(255, 255, 255, 0.08))',
+              padding: '16px 22px',
+              borderBottom: '1px solid #222222',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
-              background: 'rgba(255, 255, 255, 0.02)'
+              background: '#0a0a0a'
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                 <div style={{
-                  width: '42px',
-                  height: '42px',
-                  borderRadius: '12px',
-                  background: 'rgba(56, 189, 248, 0.15)',
-                  border: '1px solid rgba(56, 189, 248, 0.3)',
+                  width: '38px',
+                  height: '38px',
+                  borderRadius: '10px',
+                  background: '#141414',
+                  border: '1px solid #262626',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  color: '#38bdf8'
+                  color: '#ededed',
+                  flexShrink: 0
                 }}>
-                  <span className="material-symbols-outlined" style={{ fontSize: '24px' }}>fact_check</span>
+                  <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>fact_check</span>
                 </div>
                 <div>
-                  <div style={{ fontWeight: 800, fontSize: '1.12rem', letterSpacing: '-0.01em', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <div style={{ fontWeight: 700, fontSize: '1.05rem', letterSpacing: '-0.01em', display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <span>Confirm Received Donation</span>
                     <span style={{
-                      fontSize: '0.7rem',
-                      fontWeight: 700,
+                      fontSize: '0.66rem',
+                      fontWeight: 600,
                       padding: '2px 8px',
                       borderRadius: '6px',
-                      background: 'rgba(56, 189, 248, 0.15)',
-                      color: '#38bdf8',
-                      border: '1px solid rgba(56, 189, 248, 0.3)',
-                      textTransform: 'uppercase'
+                      background: '#181818',
+                      color: '#ededed',
+                      border: '1px solid #282828',
+                      textTransform: 'uppercase',
+                      fontFamily: 'monospace'
                     }}>
                       {verifyingDonation.Payment_Method || 'E-Wallet'}
                     </span>
                   </div>
-                  <div style={{ fontSize: '0.8rem', color: 'var(--text-muted, #94a3b8)', marginTop: '2px' }}>
+                  <div style={{ fontSize: '0.76rem', color: '#888888', marginTop: '2px' }}>
                     Cross-reference incoming funds with your actual account statement before on-chain recording
                   </div>
                 </div>
               </div>
-              <button
-                type="button"
-                onClick={() => !verifyingSubmitting && setVerifyingDonation(null)}
-                disabled={verifyingSubmitting}
-                className="btn btn-ghost btn-sm"
-                style={{ padding: '4px 8px', color: 'var(--text-muted)' }}
-                title="Close"
-              >
-                <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>close</span>
-              </button>
+              {!verifyingSubmitting && (
+                <button
+                  type="button"
+                  onClick={() => setVerifyingDonation(null)}
+                  className="btn btn-ghost btn-sm"
+                  style={{ padding: '6px', color: '#888888', background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                  title="Close"
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>close</span>
+                </button>
+              )}
             </div>
 
-            {/* Modal Scrollable Body */}
-            <div style={{
-              padding: '22px 26px',
-              overflowY: 'auto',
-              display: 'grid',
-              gridTemplateColumns: 'minmax(280px, 360px) 1fr',
-              gap: '24px'
-            }}>
-              {/* Left Column: Uploaded Receipt Preview */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                <div style={{ fontSize: '0.78rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.6px', color: 'var(--text-muted)' }}>
-                  Donor's Uploaded Transfer Receipt
-                </div>
-                
+            {/* Modal Body: Switch between Loading State and Form */}
+            {verifyingSubmitting ? (
+              /* ── Task 2: Dedicated Blockchain Recording Screen ── */
+              <div style={{
+                padding: '48px 24px',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                textAlign: 'center',
+                minHeight: '440px',
+                background: '#0a0a0a'
+              }}>
+                {/* Animated Pulsing Ring & Node Icon */}
                 <div style={{
-                  background: '#07090e',
-                  border: '1px solid var(--border, rgba(255, 255, 255, 0.1))',
-                  borderRadius: '14px',
-                  overflow: 'hidden',
+                  position: 'relative',
+                  width: '84px',
+                  height: '84px',
                   display: 'flex',
-                  flexDirection: 'column',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  position: 'relative',
-                  minHeight: '260px',
-                  maxHeight: '380px'
+                  marginBottom: '22px'
                 }}>
-                  {verifyingDonation.Receipt_Base64 ? (
-                    <>
-                      <img
-                        src={formatImageSrc(verifyingDonation.Receipt_Base64)}
-                        alt="Receipt slip"
-                        style={{
-                          maxWidth: '100%',
-                          maxHeight: '320px',
-                          objectFit: 'contain',
-                          cursor: 'zoom-in'
-                        }}
-                        onClick={() => setProofPreviewModalImg(verifyingDonation.Receipt_Base64)}
-                        title="Click to view full size"
-                      />
-                      <div style={{
-                        position: 'absolute',
-                        bottom: '10px',
-                        display: 'flex',
-                        gap: '8px'
-                      }}>
-                        <button
-                          type="button"
-                          onClick={() => setProofPreviewModalImg(verifyingDonation.Receipt_Base64)}
-                          style={{
-                            background: 'rgba(0, 0, 0, 0.75)',
-                            backdropFilter: 'blur(6px)',
-                            border: '1px solid rgba(255, 255, 255, 0.2)',
-                            color: '#fff',
-                            borderRadius: '6px',
-                            padding: '4px 10px',
-                            fontSize: '0.75rem',
-                            cursor: 'pointer',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '4px'
-                          }}
-                        >
-                          <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>zoom_in</span>
-                          <span>Full Size</span>
-                        </button>
-                        <a
-                          href={formatImageSrc(verifyingDonation.Receipt_Base64)}
-                          download={`receipt_${verifyingDonation.Manual_ID}.png`}
-                          style={{
-                            background: 'rgba(0, 0, 0, 0.75)',
-                            backdropFilter: 'blur(6px)',
-                            border: '1px solid rgba(255, 255, 255, 0.2)',
-                            color: '#fff',
-                            borderRadius: '6px',
-                            padding: '4px 10px',
-                            fontSize: '0.75rem',
-                            cursor: 'pointer',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '4px',
-                            textDecoration: 'none'
-                          }}
-                        >
-                          <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>download</span>
-                          <span>Save</span>
-                        </a>
-                      </div>
-                    </>
-                  ) : (
-                    <div style={{ padding: '30px', textAlign: 'center', color: 'var(--text-muted)' }}>
-                      <span className="material-symbols-outlined" style={{ fontSize: '36px', opacity: 0.5, marginBottom: '8px', display: 'block' }}>receipt_long</span>
-                      <span>No slip image was attached by donor</span>
-                    </div>
-                  )}
+                  <div style={{
+                    position: 'absolute',
+                    width: '100%',
+                    height: '100%',
+                    borderRadius: '50%',
+                    border: '2px solid rgba(16, 185, 129, 0.4)',
+                    animation: 'ping 1.8s cubic-bezier(0, 0, 0.2, 1) infinite'
+                  }} />
+                  <div style={{
+                    width: '64px',
+                    height: '64px',
+                    borderRadius: '50%',
+                    background: '#111111',
+                    border: '1px solid #222222',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    boxShadow: '0 0 35px rgba(16, 185, 129, 0.25)'
+                  }}>
+                    <span className="material-symbols-outlined" style={{ fontSize: '30px', color: '#10b981' }}>
+                      account_balance
+                    </span>
+                  </div>
                 </div>
 
-                {/* Donor claim metadata card */}
+                <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#ededed', margin: '0 0 8px 0', letterSpacing: '-0.02em' }}>
+                  Recording to Blockchain Ledger
+                </h3>
+                <p style={{ fontSize: '0.82rem', color: '#888888', maxWidth: '420px', margin: '0 0 24px 0', lineHeight: 1.5 }}>
+                  Minting immutable cryptographic donation record onto Sepolia EVM and crediting funds to campaign balance.
+                </p>
+
+                {/* Transaction Summary Card */}
                 <div style={{
-                  background: 'rgba(255, 255, 255, 0.03)',
-                  border: '1px solid var(--border, rgba(255, 255, 255, 0.06))',
-                  borderRadius: '12px',
-                  padding: '12px 14px',
-                  fontSize: '0.78rem',
+                  width: '100%',
+                  maxWidth: '460px',
+                  background: '#0e0e0e',
+                  border: '1px solid #222222',
+                  borderRadius: '10px',
+                  padding: '14px 18px',
+                  marginBottom: '20px',
+                  textAlign: 'left',
                   display: 'flex',
                   flexDirection: 'column',
-                  gap: '6px'
+                  gap: '8px'
                 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: 'var(--text-muted)' }}>Donor:</span>
-                    <span style={{ fontWeight: 600 }}>{verifyingDonation.Donor_Name || 'Anonymous'}</span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: '0.72rem', color: '#888888', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Confirmed Value</span>
+                    <span style={{ fontSize: '1.05rem', fontWeight: 700, color: '#10b981', fontFamily: 'var(--font-mono, monospace)' }}>
+                      ₱{parseFloat(confirmedAmountPhp || 0).toLocaleString()} PHP
+                      <span style={{ fontSize: '0.75rem', color: '#888888', fontWeight: 500, marginLeft: '6px' }}>
+                        (≈ {((parseFloat(confirmedAmountPhp) || 0) / 170000).toFixed(6)} ETH)
+                      </span>
+                    </span>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: 'var(--text-muted)' }}>Relief Campaign:</span>
-                    <span style={{ fontWeight: 600, textAlign: 'right', maxWidth: '180px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={verifyingDonation.Campaign_Title}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: '0.72rem', color: '#888888', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Reference / Trace</span>
+                    <span style={{ fontSize: '0.78rem', color: '#ededed', fontFamily: 'var(--font-mono, monospace)', fontWeight: 600 }}>
+                      #{confirmedRefNo || verifyingDonation.Reference_Number || 'Manual Attestation'}
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: '0.72rem', color: '#888888', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Beneficiary Campaign</span>
+                    <span style={{ fontSize: '0.78rem', color: '#ededed', fontWeight: 500, maxWidth: '240px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {verifyingDonation.Campaign_Title}
                     </span>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: 'var(--text-muted)' }}>Claimed Amount:</span>
-                    <span style={{ fontWeight: 700, color: '#38bdf8' }}>
-                      ₱{Math.round(parseFloat(verifyingDonation.Amount || 0) * 170000).toLocaleString()} ({parseFloat(verifyingDonation.Amount || 0).toFixed(4)} ETH)
-                    </span>
+                </div>
+
+                {/* Live Step Progression */}
+                <div style={{ width: '100%', maxWidth: '460px', display: 'flex', flexDirection: 'column', gap: '8px', textAlign: 'left' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.76rem', color: '#10b981' }}>
+                    <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>check_circle</span>
+                    <span>NGO financial officer attestation verified</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.76rem', color: '#ededed' }}>
+                    <div className="spinner" style={{ width: '14px', height: '14px', borderWidth: '2px', borderColor: '#38bdf8', borderTopColor: 'transparent' }} />
+                    <span>Broadcasting state transition to Ethereum Sepolia EVM...</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.76rem', color: '#666666' }}>
+                    <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>radio_button_unchecked</span>
+                    <span>Awaiting block confirmation & issuing immutable digital receipt</span>
                   </div>
                 </div>
               </div>
-
-              {/* Right Column: NGO Verification Controls */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                
-                {/* Audit Callout Banner */}
-                <div style={{
-                  background: 'linear-gradient(90deg, rgba(245, 158, 11, 0.08) 0%, rgba(245, 158, 11, 0.02) 100%)',
-                  border: '1px solid rgba(245, 158, 11, 0.25)',
-                  borderRadius: '12px',
-                  padding: '12px 16px',
-                  display: 'flex',
-                  gap: '12px',
-                  alignItems: 'flex-start'
-                }}>
-                  <span className="material-symbols-outlined" style={{ color: '#f59e0b', fontSize: '20px', marginTop: '2px', flexShrink: 0 }}>security</span>
-                  <div style={{ fontSize: '0.8rem', lineHeight: '1.45', color: 'var(--text-secondary)' }}>
-                    <strong style={{ color: '#f59e0b' }}>Account Check Required:</strong> Confirm that the money has physically arrived in your official <strong>{verifyingDonation.Payment_Method}</strong> account or merchant statement. If transaction fees were deducted, adjust the confirmed amount below.
+            ) : (
+              /* ── Task 1: Improved Modal Body ── */
+              <div style={{
+                padding: '22px 24px',
+                overflowY: 'auto',
+                display: 'grid',
+                gridTemplateColumns: 'minmax(280px, 350px) 1fr',
+                gap: '24px',
+                background: '#0a0a0a'
+              }}>
+                {/* Left Column: Uploaded Receipt Preview */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <div style={{ fontSize: '0.72rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#888888' }}>
+                    Donor's Uploaded Transfer Receipt
                   </div>
-                </div>
 
-                {/* Confirmed Received Amount Input */}
-                {(() => {
-                  const claimedAmountPhp = Math.round(parseFloat(verifyingDonation.Amount || 0) * 170000);
-                  const enteredAmountNum = parseFloat(confirmedAmountPhp) || 0;
-                  const variancePhp = claimedAmountPhp - enteredAmountNum;
-                  const isLargeVariance = claimedAmountPhp > 0 && variancePhp > 30 && (variancePhp / claimedAmountPhp > 0.05);
-
-                  return (
-                    <div>
-                      <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, marginBottom: '6px', color: 'var(--text-primary)' }}>
-                        Actual Amount Received by NGO (₱ PHP) <span style={{ color: '#ef4444' }}>*</span>
-                      </label>
-                      <div style={{ position: 'relative' }}>
-                        <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', fontWeight: 800, color: 'var(--text-muted)', fontSize: '0.95rem' }}>₱</span>
-                        <input
-                          type="number"
-                          step="any"
-                          min="1"
-                          value={confirmedAmountPhp}
-                          onChange={e => setConfirmedAmountPhp(e.target.value)}
-                          placeholder="e.g. 1700"
+                  <div style={{
+                    background: '#000000',
+                    border: '1px solid #222222',
+                    borderRadius: '10px',
+                    overflow: 'hidden',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    position: 'relative',
+                    minHeight: '260px',
+                    maxHeight: '380px'
+                  }}>
+                    {verifyingDonation.Receipt_Base64 ? (
+                      <>
+                        <img
+                          src={formatImageSrc(verifyingDonation.Receipt_Base64)}
+                          alt="Receipt slip"
                           style={{
-                            width: '100%',
-                            background: 'var(--bg-input, rgba(30, 41, 59, 0.8))',
-                            border: isLargeVariance ? '1px solid #ef4444' : '1px solid var(--border, rgba(255, 255, 255, 0.15))',
-                            borderRadius: '10px',
-                            padding: '10px 14px 10px 32px',
-                            color: 'var(--text-primary, #ffffff)',
-                            fontSize: '1rem',
-                            fontWeight: 800,
-                            outline: 'none',
-                            boxSizing: 'border-box'
+                            maxWidth: '100%',
+                            maxHeight: '320px',
+                            objectFit: 'contain',
+                            cursor: 'zoom-in'
                           }}
+                          onClick={() => setProofPreviewModalImg(verifyingDonation.Receipt_Base64)}
+                          title="Click to view full size"
                         />
-                      </div>
-
-                      {/* Real-time Variance Warning */}
-                      {isLargeVariance && (
                         <div style={{
-                          marginTop: '8px',
-                          padding: '10px 12px',
-                          borderRadius: '10px',
-                          background: 'rgba(239, 68, 68, 0.12)',
-                          border: '1px solid rgba(239, 68, 68, 0.35)',
+                          position: 'absolute',
+                          bottom: '10px',
                           display: 'flex',
-                          gap: '8px',
-                          alignItems: 'flex-start'
+                          gap: '8px'
                         }}>
-                          <span className="material-symbols-outlined" style={{ color: '#ef4444', fontSize: '18px', marginTop: '1px', flexShrink: 0 }}>warning</span>
-                          <div style={{ fontSize: '0.74rem', color: '#fca5a5', lineHeight: 1.4 }}>
-                            <strong style={{ color: '#fff' }}>Amount Variance Detected (-₱{variancePhp.toLocaleString()} PHP):</strong> You are recording ₱{enteredAmountNum.toLocaleString()} instead of the donor's declared ₱{claimedAmountPhp.toLocaleString()}. This variance will be logged on the public audit ledger and displayed on the donor's digital voucher.
-                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setProofPreviewModalImg(verifyingDonation.Receipt_Base64)}
+                            style={{
+                              background: '#141414',
+                              border: '1px solid #2a2a2a',
+                              color: '#ededed',
+                              borderRadius: '6px',
+                              padding: '4px 10px',
+                              fontSize: '0.72rem',
+                              fontWeight: 500,
+                              cursor: 'pointer',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px'
+                            }}
+                          >
+                            <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>zoom_in</span>
+                            <span>Full Size</span>
+                          </button>
+                          <a
+                            href={formatImageSrc(verifyingDonation.Receipt_Base64)}
+                            download={`receipt_${verifyingDonation.Manual_ID}.png`}
+                            style={{
+                              background: '#141414',
+                              border: '1px solid #2a2a2a',
+                              color: '#ededed',
+                              borderRadius: '6px',
+                              padding: '4px 10px',
+                              fontSize: '0.72rem',
+                              fontWeight: 500,
+                              cursor: 'pointer',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '4px',
+                              textDecoration: 'none'
+                            }}
+                          >
+                            <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>download</span>
+                            <span>Save</span>
+                          </a>
                         </div>
-                      )}
-
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '6px', fontSize: '0.75rem' }}>
-                        <span style={{ color: 'var(--text-muted)' }}>
-                          Minted to Campaign: <strong style={{ color: isLargeVariance ? '#f59e0b' : 'var(--accent, #22c55e)' }}>{((parseFloat(confirmedAmountPhp) || 0) / 170000).toFixed(6)} ETH</strong>
-                        </span>
-                        <span style={{ color: 'var(--text-muted)' }}>Rate: 1 ETH = ₱170,000</span>
+                      </>
+                    ) : (
+                      <div style={{ padding: '30px', textAlign: 'center', color: '#666666' }}>
+                        <span className="material-symbols-outlined" style={{ fontSize: '36px', opacity: 0.5, marginBottom: '8px', display: 'block' }}>receipt_long</span>
+                        <span style={{ fontSize: '0.78rem' }}>No slip image was attached by donor</span>
                       </div>
+                    )}
+                  </div>
+
+                  {/* Donor claim metadata card */}
+                  <div style={{
+                    background: '#0e0e0e',
+                    border: '1px solid #1f1f1f',
+                    borderRadius: '10px',
+                    padding: '12px 14px',
+                    fontSize: '0.78rem',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '8px'
+                  }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ color: '#888888', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Donor</span>
+                      <span style={{ fontWeight: 600, color: '#ededed', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                        <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10b981', display: 'inline-block' }} />
+                        {verifyingDonation.Donor_Name || 'Anonymous Supporter'}
+                      </span>
                     </div>
-                  );
-                })()}
-
-                {/* Reference / Transaction Trace Number */}
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, marginBottom: '6px', color: 'var(--text-primary)' }}>
-                    Transaction Reference / Trace No. <span style={{ color: 'var(--text-muted)', fontWeight: 500 }}>(Cross-reference code)</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={confirmedRefNo}
-                    onChange={e => setConfirmedRefNo(e.target.value)}
-                    placeholder="e.g. GCash Ref # 100293847529 or Maya Trace ID"
-                    style={{
-                      width: '100%',
-                      background: 'var(--bg-input, rgba(30, 41, 59, 0.8))',
-                      border: '1px solid var(--border, rgba(255, 255, 255, 0.15))',
-                      borderRadius: '10px',
-                      padding: '9px 12px',
-                      color: 'var(--text-primary, #ffffff)',
-                      fontSize: '0.85rem',
-                      outline: 'none',
-                      boxSizing: 'border-box'
-                    }}
-                  />
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ color: '#888888', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Relief Campaign</span>
+                      <span style={{ fontWeight: 500, color: '#ededed', textAlign: 'right', maxWidth: '180px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={verifyingDonation.Campaign_Title}>
+                        {verifyingDonation.Campaign_Title}
+                      </span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ color: '#888888', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Claimed Amount</span>
+                      <span style={{ fontWeight: 700, color: '#10b981', fontFamily: 'var(--font-mono, monospace)' }}>
+                        ₱{Math.round(parseFloat(verifyingDonation.Amount || 0) * 170000).toLocaleString()} PHP
+                        <span style={{ fontSize: '0.70rem', color: '#888888', fontWeight: 500, marginLeft: '5px' }}>
+                          ({parseFloat(verifyingDonation.Amount || 0).toFixed(4)} ETH)
+                        </span>
+                      </span>
+                    </div>
+                  </div>
                 </div>
 
-                {/* Audit Attestation Checklist */}
-                <div style={{
-                  background: 'rgba(255, 255, 255, 0.02)',
-                  border: '1px solid var(--border, rgba(255, 255, 255, 0.08))',
-                  borderRadius: '12px',
-                  padding: '12px 14px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '10px'
-                }}>
-                  <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', cursor: 'pointer', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                    <input
-                      type="checkbox"
-                      checked={checkAccountVerified}
-                      onChange={e => setCheckAccountVerified(e.target.checked)}
-                      style={{ marginTop: '3px', cursor: 'pointer', accentColor: '#22c55e' }}
-                    />
-                    <span>I have opened our official <strong>{verifyingDonation.Payment_Method}</strong> balance and confirmed receipt of these funds.</span>
-                  </label>
+                {/* Right Column: NGO Verification Controls */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
-                  <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', cursor: 'pointer', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                  {/* Audit Callout Banner */}
+                  <div style={{
+                    background: 'rgba(245, 158, 11, 0.04)',
+                    border: '1px solid rgba(245, 158, 11, 0.22)',
+                    borderRadius: '10px',
+                    padding: '12px 14px',
+                    display: 'flex',
+                    gap: '10px',
+                    alignItems: 'flex-start'
+                  }}>
+                    <span className="material-symbols-outlined" style={{ color: '#f59e0b', fontSize: '18px', marginTop: '1px', flexShrink: 0 }}>security</span>
+                    <div style={{ fontSize: '0.76rem', lineHeight: '1.45', color: '#cbd5e1' }}>
+                      <strong style={{ color: '#f59e0b' }}>Account Check Required:</strong> Confirm that the funds have physically settled in your official <strong>{verifyingDonation.Payment_Method}</strong> account or merchant statement before minting to the blockchain ledger.
+                    </div>
+                  </div>
+
+                  {/* Confirmed Received Amount Input */}
+                  {(() => {
+                    const claimedAmountPhp = Math.round(parseFloat(verifyingDonation.Amount || 0) * 170000);
+                    const enteredAmountNum = parseFloat(confirmedAmountPhp) || 0;
+                    const variancePhp = claimedAmountPhp - enteredAmountNum;
+                    const isLargeVariance = claimedAmountPhp > 0 && variancePhp > 30 && (variancePhp / claimedAmountPhp > 0.05);
+
+                    return (
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.74rem', fontWeight: 600, marginBottom: '6px', color: '#888888', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                          Actual Amount Received by NGO (PHP) <span style={{ color: '#ef4444' }}>*</span>
+                        </label>
+                        <div style={{ position: 'relative' }}>
+                          <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', fontWeight: 700, color: '#888888', fontSize: '0.95rem' }}>₱</span>
+                          <input
+                            type="number"
+                            step="any"
+                            min="1"
+                            value={confirmedAmountPhp}
+                            onChange={e => setConfirmedAmountPhp(e.target.value)}
+                            placeholder="e.g. 6500"
+                            style={{
+                              width: '100%',
+                              background: '#0e0e0e',
+                              border: isLargeVariance ? '1px solid #ef4444' : '1px solid #222222',
+                              borderRadius: '8px',
+                              padding: '10px 14px 10px 30px',
+                              color: '#ededed',
+                              fontSize: '1.10rem',
+                              fontWeight: 700,
+                              fontFamily: 'var(--font-mono, monospace)',
+                              outline: 'none',
+                              boxSizing: 'border-box'
+                            }}
+                          />
+                        </div>
+
+                        {/* Real-time Variance Warning */}
+                        {isLargeVariance && (
+                          <div style={{
+                            marginTop: '8px',
+                            padding: '10px 12px',
+                            borderRadius: '8px',
+                            background: 'rgba(239, 68, 68, 0.08)',
+                            border: '1px solid rgba(239, 68, 68, 0.28)',
+                            display: 'flex',
+                            gap: '8px',
+                            alignItems: 'flex-start'
+                          }}>
+                            <span className="material-symbols-outlined" style={{ color: '#ef4444', fontSize: '16px', marginTop: '1px', flexShrink: 0 }}>warning</span>
+                            <div style={{ fontSize: '0.72rem', color: '#fca5a5', lineHeight: 1.4 }}>
+                              <strong style={{ color: '#fff' }}>Amount Variance Detected (-₱{variancePhp.toLocaleString()} PHP):</strong> Recording ₱{enteredAmountNum.toLocaleString()} instead of claimed ₱{claimedAmountPhp.toLocaleString()}. This variance will be permanently recorded in the immutable public audit trail.
+                            </div>
+                          </div>
+                        )}
+
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '6px', fontSize: '0.72rem', color: '#888888', fontFamily: 'var(--font-mono, monospace)' }}>
+                          <span>
+                            Minted to Campaign: <strong style={{ color: isLargeVariance ? '#f59e0b' : '#10b981' }}>{((parseFloat(confirmedAmountPhp) || 0) / 170000).toFixed(6)} ETH</strong>
+                          </span>
+                          <span>Rate: 1 ETH = ₱170,000</span>
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  {/* Reference / Transaction Trace Number */}
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.74rem', fontWeight: 600, marginBottom: '6px', color: '#888888', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                      Transaction Reference / Trace No. <span style={{ color: '#666666', fontWeight: 400 }}>(Cross-reference code)</span>
+                    </label>
                     <input
-                      type="checkbox"
-                      checked={checkAmountMatched}
-                      onChange={e => setCheckAmountMatched(e.target.checked)}
-                      style={{ marginTop: '3px', cursor: 'pointer', accentColor: '#22c55e' }}
+                      type="text"
+                      value={confirmedRefNo}
+                      onChange={e => setConfirmedRefNo(e.target.value)}
+                      placeholder="e.g. 1045 655 683789"
+                      style={{
+                        width: '100%',
+                        background: '#0e0e0e',
+                        border: '1px solid #222222',
+                        borderRadius: '8px',
+                        padding: '9px 12px',
+                        color: '#ededed',
+                        fontSize: '0.85rem',
+                        fontFamily: 'var(--font-mono, monospace)',
+                        fontWeight: 600,
+                        outline: 'none',
+                        boxSizing: 'border-box'
+                      }}
                     />
-                    <span>The confirmed amount of <strong>₱{(parseFloat(confirmedAmountPhp) || 0).toLocaleString()}</strong> accurately reflects what was credited to our organization.</span>
-                  </label>
+                  </div>
+
+                  {/* Audit Attestation Interactive Tiles */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <label style={{
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      gap: '10px',
+                      cursor: 'pointer',
+                      fontSize: '0.78rem',
+                      color: checkAccountVerified ? '#ededed' : '#888888',
+                      background: checkAccountVerified ? '#141414' : '#0e0e0e',
+                      border: checkAccountVerified ? '1px solid #333333' : '1px solid #222222',
+                      borderRadius: '8px',
+                      padding: '10px 12px',
+                      transition: 'all 0.15s ease'
+                    }}>
+                      <input
+                        type="checkbox"
+                        checked={checkAccountVerified}
+                        onChange={e => setCheckAccountVerified(e.target.checked)}
+                        style={{ marginTop: '2px', cursor: 'pointer', accentColor: '#10b981' }}
+                      />
+                      <span>I have opened our official <strong>{verifyingDonation.Payment_Method}</strong> balance and confirmed receipt of these funds.</span>
+                    </label>
+
+                    <label style={{
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      gap: '10px',
+                      cursor: 'pointer',
+                      fontSize: '0.78rem',
+                      color: checkAmountMatched ? '#ededed' : '#888888',
+                      background: checkAmountMatched ? '#141414' : '#0e0e0e',
+                      border: checkAmountMatched ? '1px solid #333333' : '1px solid #222222',
+                      borderRadius: '8px',
+                      padding: '10px 12px',
+                      transition: 'all 0.15s ease'
+                    }}>
+                      <input
+                        type="checkbox"
+                        checked={checkAmountMatched}
+                        onChange={e => setCheckAmountMatched(e.target.checked)}
+                        style={{ marginTop: '2px', cursor: 'pointer', accentColor: '#10b981' }}
+                      />
+                      <span>The confirmed amount of <strong>₱{(parseFloat(confirmedAmountPhp) || 0).toLocaleString()}</strong> accurately reflects what was credited to our organization.</span>
+                    </label>
+                  </div>
+
                 </div>
-
               </div>
-            </div>
+            )}
 
             {/* Modal Footer Actions */}
             <div style={{
-              padding: '16px 24px',
-              borderTop: '1px solid var(--border, rgba(255, 255, 255, 0.08))',
-              background: 'rgba(255, 255, 255, 0.02)',
+              padding: '14px 22px',
+              borderTop: '1px solid #222222',
+              background: '#0a0a0a',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
               flexWrap: 'wrap',
               gap: '12px'
             }}>
-              <button
-                type="button"
-                className="btn btn-sm"
-                style={{ background: 'rgba(239, 68, 68, 0.12)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.35)', padding: '7px 14px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
-                onClick={() => {
-                  const cur = verifyingDonation;
-                  setVerifyingDonation(null);
-                  handleOpenRejection(cur);
-                }}
-                disabled={verifyingSubmitting}
-              >
-                <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>cancel</span>
-                <span>Reject Slip</span>
-              </button>
+              {verifyingSubmitting ? (
+                <div style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '6px 0', color: '#888888', fontSize: '0.78rem' }}>
+                  <div className="spinner" style={{ width: '14px', height: '14px', borderWidth: '2px', borderColor: '#10b981', borderTopColor: 'transparent' }} />
+                  <span style={{ fontFamily: 'var(--font-mono, monospace)', letterSpacing: '0.04em' }}>IMMUTABLE CRYPTOGRAPHIC CONSENSUS IN PROGRESS... PLEASE WAIT</span>
+                </div>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    className="btn btn-sm"
+                    style={{
+                      background: 'rgba(239, 68, 68, 0.08)',
+                      color: '#ef4444',
+                      border: '1px solid rgba(239, 68, 68, 0.25)',
+                      padding: '7px 14px',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '5px',
+                      borderRadius: '8px',
+                      fontWeight: 600,
+                      fontSize: '0.78rem',
+                      cursor: 'pointer'
+                    }}
+                    onClick={() => {
+                      const cur = verifyingDonation;
+                      setVerifyingDonation(null);
+                      handleOpenRejection(cur);
+                    }}
+                  >
+                    <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>cancel</span>
+                    <span>Reject Slip</span>
+                  </button>
 
-              <div style={{ display: 'flex', gap: '10px' }}>
-                <button
-                  type="button"
-                  className="btn btn-ghost btn-sm"
-                  onClick={() => setVerifyingDonation(null)}
-                  disabled={verifyingSubmitting}
-                >
-                  Cancel
-                </button>
-                
-                <button
-                  type="button"
-                  className="btn btn-primary btn-sm"
-                  style={{
-                    padding: '8px 20px',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    fontWeight: 700,
-                    opacity: (!checkAccountVerified || !checkAmountMatched || !(parseFloat(confirmedAmountPhp) > 0) || verifyingSubmitting) ? 0.5 : 1,
-                    cursor: (!checkAccountVerified || !checkAmountMatched || !(parseFloat(confirmedAmountPhp) > 0) || verifyingSubmitting) ? 'not-allowed' : 'pointer'
-                  }}
-                  onClick={handleConfirmApproval}
-                  disabled={!checkAccountVerified || !checkAmountMatched || !(parseFloat(confirmedAmountPhp) > 0) || verifyingSubmitting}
-                >
-                  {verifyingSubmitting ? (
-                    <>
-                      <div className="spinner spinner-light" style={{ width: 14, height: 14 }} />
-                      <span>Recording to Blockchain...</span>
-                    </>
-                  ) : (
-                    <>
+                  <div style={{ display: 'flex', gap: '10px' }}>
+                    <button
+                      type="button"
+                      style={{
+                        background: 'transparent',
+                        border: '1px solid #262626',
+                        color: '#888888',
+                        padding: '8px 16px',
+                        borderRadius: '8px',
+                        fontSize: '0.80rem',
+                        fontWeight: 600,
+                        cursor: 'pointer'
+                      }}
+                      onClick={() => setVerifyingDonation(null)}
+                    >
+                      Cancel
+                    </button>
+
+                    <button
+                      type="button"
+                      style={{
+                        padding: '8px 20px',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '6px',
+                        fontWeight: 600,
+                        fontSize: '0.82rem',
+                        background: (!checkAccountVerified || !checkAmountMatched || !(parseFloat(confirmedAmountPhp) > 0)) ? '#222222' : '#ededed',
+                        color: (!checkAccountVerified || !checkAmountMatched || !(parseFloat(confirmedAmountPhp) > 0)) ? '#666666' : '#000000',
+                        border: 'none',
+                        borderRadius: '8px',
+                        opacity: (!checkAccountVerified || !checkAmountMatched || !(parseFloat(confirmedAmountPhp) > 0)) ? 0.6 : 1,
+                        cursor: (!checkAccountVerified || !checkAmountMatched || !(parseFloat(confirmedAmountPhp) > 0)) ? 'not-allowed' : 'pointer',
+                        transition: 'all 0.15s ease'
+                      }}
+                      onClick={handleConfirmApproval}
+                      disabled={!checkAccountVerified || !checkAmountMatched || !(parseFloat(confirmedAmountPhp) > 0)}
+                    >
                       <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>verified</span>
                       <span>Confirm &amp; Record to Ledger</span>
-                    </>
-                  )}
-                </button>
-              </div>
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>,
@@ -7720,7 +10101,200 @@ export default function OrganizationView({
         roleName="NGO Partner"
         theme={theme}
       />
-    </main>
+
+      {/* ── SELECT REUSABLE QR CODE MODAL ── */}
+      {showSelectQrModal && typeof document !== 'undefined' && createPortal(
+        <div style={{
+          position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
+          background: 'rgba(0, 0, 0, 0.78)', backdropFilter: 'blur(8px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 999999
+        }} onClick={() => setShowSelectQrModal(null)}>
+          <div
+            style={{
+              width: '90%', maxWidth: '520px', maxHeight: '85vh',
+              background: 'var(--bg-card, #121212)', border: '1.5px solid var(--border)',
+              borderRadius: '16px', padding: '24px', display: 'flex', flexDirection: 'column',
+              boxShadow: '0 25px 50px rgba(0,0,0,0.5)', overflow: 'hidden'
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span className="material-symbols-outlined" style={{
+                  fontSize: '22px',
+                  color: showSelectQrModal === 'Maya' ? '#00d68f' : showSelectQrModal === 'Bank' ? '#10b981' : '#007dfe'
+                }}>
+                  qr_code_2
+                </span>
+                <h4 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                  Select {showSelectQrModal} QR Code
+                </h4>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowSelectQrModal(null)}
+                style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 0 }}
+              >
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+
+            <p style={{ margin: '0 0 14px 0', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+              Choose from your previously saved reusable QR codes in NGO Settings, or upload a new one:
+            </p>
+
+            {/* List of matching saved QR codes */}
+            <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '10px', paddingRight: '4px' }}>
+              {savedQrList.filter(q => q.payment_method === showSelectQrModal).length === 0 ? (
+                <div style={{
+                  padding: '24px', textAlign: 'center', background: 'var(--bg-subcard)',
+                  borderRadius: '10px', border: '1px dashed var(--border)', color: 'var(--text-muted)'
+                }}>
+                  <span className="material-symbols-outlined" style={{ fontSize: '32px', marginBottom: '6px' }}>qr_code_scanner</span>
+                  <div style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                    No saved {showSelectQrModal} QR codes found
+                  </div>
+                  <p style={{ fontSize: '0.72rem', margin: '4px 0 0 0' }}>
+                    Upload a new QR code in the campaign creation form or in Profile &amp; Settings &gt; Relief Channels.
+                  </p>
+                </div>
+              ) : (
+                (() => {
+                  let activeSelectedId = null;
+                  if (showSelectQrModal === 'GCash') {
+                    activeSelectedId = selectedGcashQrId || (savedQrList.find(q => q.payment_method === 'GCash' && (q.id === selectedGcashQrId || (gcashQrUrl && q.qr_image_url === gcashQrUrl)))?.id);
+                  } else if (showSelectQrModal === 'Maya') {
+                    activeSelectedId = selectedMayaQrId || (savedQrList.find(q => q.payment_method === 'Maya' && (q.id === selectedMayaQrId || (mayaQrUrl && q.qr_image_url === mayaQrUrl)))?.id);
+                  } else if (showSelectQrModal === 'Bank') {
+                    activeSelectedId = selectedBankQrId || (savedQrList.find(q => q.payment_method === 'Bank' && (q.id === selectedBankQrId || (bankQrUrl && q.qr_image_url === bankQrUrl)))?.id);
+                  }
+
+                  return savedQrList
+                    .filter(q => q.payment_method === showSelectQrModal)
+                    .map(qr => {
+                      const isSelected = Boolean(activeSelectedId && qr.id === activeSelectedId);
+                      return (
+                        <div
+                          key={qr.id}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            padding: '12px 14px',
+                            borderRadius: '12px',
+                            background: isSelected ? 'rgba(16, 185, 129, 0.08)' : 'var(--bg-subcard)',
+                            border: `1.5px solid ${isSelected ? '#10b981' : 'var(--border)'}`,
+                            gap: '12px'
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1, minWidth: 0 }}>
+                            <img
+                              src={qr.qr_image_url}
+                              alt={qr.custom_name}
+                              style={{
+                                width: '50px', height: '50px', objectFit: 'contain',
+                                borderRadius: '6px', background: '#fff', border: '1px solid var(--border)', flexShrink: 0
+                              }}
+                            />
+                            <div style={{ overflow: 'hidden' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                <span style={{ fontSize: '0.84rem', fontWeight: 800, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                  {qr.custom_name}
+                                </span>
+                                {qr.is_default ? (
+                                  <span style={{ fontSize: '0.62rem', fontWeight: 800, padding: '1px 6px', borderRadius: '8px', background: 'rgba(16, 185, 129, 0.15)', color: '#10b981' }}>
+                                    DEFAULT
+                                  </span>
+                                ) : null}
+                              </div>
+                              {qr.account_name && (
+                                <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                  {qr.account_name}
+                                </div>
+                              )}
+                              {qr.account_number && (
+                                <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                                  {formatPhoneNumber(qr.account_number)}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                            <button
+                              type="button"
+                              onClick={() => handleSelectSavedQr(qr)}
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '5px',
+                                padding: '7px 14px',
+                                borderRadius: '8px',
+                                fontSize: '0.76rem',
+                                fontWeight: 700,
+                                background: isSelected ? 'rgba(34, 197, 94, 0.18)' : 'var(--bg-card)',
+                                border: `1.5px solid ${isSelected ? '#22c55e' : 'var(--border)'}`,
+                                color: isSelected ? '#22c55e' : 'var(--text-primary)',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              {isSelected ? (
+                                <>
+                                  <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>check_circle</span>
+                                  <span>Selected</span>
+                                </>
+                              ) : (
+                                <span>Select</span>
+                              )}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => handleDeleteSavedQr(qr.id, e)}
+                              title="Delete this QR code from library"
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                padding: '7px 8px',
+                                borderRadius: '8px',
+                                background: 'rgba(239, 68, 68, 0.1)',
+                                border: '1px solid rgba(239, 68, 68, 0.3)',
+                                color: '#ef4444',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>delete</span>
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    });
+                })()
+              )}
+            </div>
+
+            <div style={{ marginTop: '16px', paddingTop: '12px', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'flex-end' }}>
+              <button
+                type="button"
+                onClick={() => setShowSelectQrModal(null)}
+                style={{
+                  padding: '8px 16px',
+                  borderRadius: '8px',
+                  background: 'var(--bg-subcard)',
+                  border: '1px solid var(--border)',
+                  color: 'var(--text-secondary)',
+                  fontWeight: 600,
+                  cursor: 'pointer'
+                }}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+    </div>
   );
 }
 
@@ -7765,8 +10339,8 @@ function ProofPreviewModal({ proofPreviewModalImg, setProofPreviewModalImg }) {
         // Extract 13-digit GCash Ref No e.g. "0044 315 497640" or "0044315497640"
         let ref = null;
         const gcashMatch = text.match(/\b(\d{4}[\s\.\-]+\d{3}[\s\.\-]+\d{6})\b/) ||
-                           text.match(/(?:Ref|Ret|Rel|No|ID)[\s\.\:\#]*([0-9\s\.\-]{11,20})/i) ||
-                           text.match(/\b(00\d{11}|\d{13})\b/);
+          text.match(/(?:Ref|Ret|Rel|No|ID)[\s\.\:\#]*([0-9\s\.\-]{11,20})/i) ||
+          text.match(/\b(00\d{11}|\d{13})\b/);
         if (gcashMatch) {
           ref = (gcashMatch[1] || gcashMatch[0]).trim().replace(/\s+/g, ' ');
         } else {
@@ -7783,7 +10357,7 @@ function ProofPreviewModal({ proofPreviewModalImg, setProofPreviewModalImg }) {
         // Extract PHP Amount e.g. "460.00"
         let amt = null;
         const amtMatch = text.match(/(?:Total\s*Amount\s*Sent|Total\s*Amount|Amount|Sent|Paid)[\s\S]{0,30}?[₱P]?\s*([\d,]+\.\d{2})/i) ||
-                         text.match(/([\d,]+\.\d{2})/);
+          text.match(/([\d,]+\.\d{2})/);
         if (amtMatch) {
           const parsedVal = parseFloat((amtMatch[1] || amtMatch[0]).replace(/,/g, ''));
           if (!isNaN(parsedVal) && parsedVal > 0 && parsedVal < 1000000) amt = parsedVal;
@@ -7890,9 +10464,9 @@ function ProofPreviewModal({ proofPreviewModalImg, setProofPreviewModalImg }) {
               <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>{isDup ? 'warning' : (isVerified ? 'verified' : 'help_outline')}</span>
               <span>{isDup ? `Duplicate Ref (${score}%)` : (isVerified ? `${score}% AI Verified` : (isScanning ? `Scanning OCR...` : `Manual Audit (${score}%)`))}</span>
             </span>
-            <button type="button" onClick={() => setProofPreviewModalImg(null)} className="btn btn-ghost btn-sm" style={{ color: 'var(--text-muted)' }} title="Close">
-              <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>close</span>
-            </button>
+              <button type="button" onClick={() => setProofPreviewModalImg(null)} className="btn btn-ghost btn-sm" style={{ color: 'var(--text-muted)' }} title="Close">
+                <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>close</span>
+              </button>
           </div>
         </div>
 
@@ -7911,7 +10485,7 @@ function ProofPreviewModal({ proofPreviewModalImg, setProofPreviewModalImg }) {
 
           {/* Right Pane: AI Audit Reasons & Verification Breakdown */}
           <div style={{ padding: '20px 24px', overflowY: 'auto', background: 'var(--bg-card)', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            
+
             {/* Title Section */}
             <div>
               <div style={{ fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', color: isDup ? '#ef4444' : (isVerified ? '#0284c7' : '#d97706'), marginBottom: '4px' }}>
@@ -7924,7 +10498,7 @@ function ProofPreviewModal({ proofPreviewModalImg, setProofPreviewModalImg }) {
 
             {/* Checklist of Reasons */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              
+
               {/* Checkmark 1: Genuine Slip & Rail Structure */}
               <div style={{ display: 'flex', gap: '12px', padding: '10px 14px', borderRadius: '10px', background: (isInvalidImg || isRailMismatch) ? 'rgba(239, 68, 68, 0.12)' : 'rgba(34, 197, 94, 0.08)', border: `1px solid ${(isInvalidImg || isRailMismatch) ? 'rgba(239, 68, 68, 0.35)' : 'rgba(34, 197, 94, 0.25)'}` }}>
                 <span className="material-symbols-outlined" style={{ color: (isInvalidImg || isRailMismatch) ? '#ef4444' : '#16a34a', fontSize: '18px', marginTop: '2px' }}>{(isInvalidImg || isRailMismatch) ? 'gpp_bad' : 'check_circle'}</span>

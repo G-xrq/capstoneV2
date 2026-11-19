@@ -42,3 +42,23 @@ Thumbs.db
 
 # Scratch & test scripts
 scratch/
+tools/temp_chrome_profile/
+temp_chrome_profile/
+
+# Tesseract OCR Traineddata Models
+*.traineddata
+backend/*.traineddata
+
+# Database backups & heavy dumps
+backend/backups/
+*.sql
+*.dump
+
+# Agents and buffer metadata
+.freebuff/
+.agents/
+skills-lock.json
+
+# Temporary Word / Office backups
+~$*.docx
+*_BACKUP.docx

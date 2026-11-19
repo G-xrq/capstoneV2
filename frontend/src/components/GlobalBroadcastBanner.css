@@ -1,0 +1,282 @@
+/* ── BBDRTS Global Broadcast Banner (Vercel Geist Standard) ── */
+
+.bbdrts-broadcast-banner {
+  position: relative;
+  z-index: 1000;
+  width: 100%;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  font-family: var(--font-sans, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif);
+  font-size: 0.76rem;
+  line-height: 1.4;
+  animation: broadcastSlideDown 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes broadcastSlideDown {
+  from {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+/* ── Severity Variations ── */
+.bbdrts-broadcast-banner.severity-emergency {
+  background: linear-gradient(90deg, #180507 0%, #100405 100%);
+  border-bottom-color: rgba(239, 68, 68, 0.35);
+  color: #fecaca;
+}
+
+.bbdrts-broadcast-banner.severity-emergency .bbdrts-broadcast-tag {
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  color: #ef4444;
+}
+
+.bbdrts-broadcast-banner.severity-operational {
+  background: linear-gradient(90deg, #181104 0%, #100c03 100%);
+  border-bottom-color: rgba(245, 158, 11, 0.35);
+  color: #fef3c7;
+}
+
+.bbdrts-broadcast-banner.severity-operational .bbdrts-broadcast-tag {
+  background: rgba(245, 158, 11, 0.15);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  color: #f59e0b;
+}
+
+.bbdrts-broadcast-banner.severity-general {
+  background: linear-gradient(90deg, #051411 0%, #030d0b 100%);
+  border-bottom-color: rgba(16, 185, 129, 0.3);
+  color: #d1fae5;
+}
+
+.bbdrts-broadcast-banner.severity-general .bbdrts-broadcast-tag {
+  background: rgba(16, 185, 129, 0.15);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  color: #10b981;
+}
+
+/* ── Inner Layout ── */
+.bbdrts-broadcast-inner {
+  max-width: 1320px;
+  margin: 0 auto;
+  padding: 8px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.bbdrts-broadcast-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+}
+
+.bbdrts-broadcast-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  padding: 2px 7px;
+  border-radius: 4px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.bbdrts-live-beacon {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  display: inline-block;
+  animation: liveBeaconPulse 1.4s ease-in-out infinite;
+  box-shadow: 0 0 6px currentColor;
+}
+
+@keyframes liveBeaconPulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.35; transform: scale(0.8); }
+}
+
+.bbdrts-broadcast-tag .icon {
+  font-size: 13px;
+}
+
+.bbdrts-broadcast-content {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  position: relative;
+  mask-image: linear-gradient(90deg, transparent 0%, #000 12px, #000 calc(100% - 24px), transparent 100%);
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 12px, #000 calc(100% - 24px), transparent 100%);
+}
+
+.bbdrts-broadcast-ticker-track {
+  display: flex;
+  align-items: center;
+  width: max-content;
+  white-space: nowrap;
+  animation: broadcastMarqueeScroll 65s linear infinite;
+  will-change: transform;
+}
+
+.bbdrts-broadcast-ticker-track:hover {
+  animation-play-state: paused;
+  cursor: pointer;
+}
+
+@keyframes broadcastMarqueeScroll {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.bbdrts-ticker-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding-right: 48px;
+}
+
+.bbdrts-broadcast-title {
+  font-weight: 600;
+  color: #ffffff;
+  flex-shrink: 0;
+}
+
+.bbdrts-broadcast-divider {
+  opacity: 0.4;
+  flex-shrink: 0;
+}
+
+.bbdrts-broadcast-msg {
+  opacity: 0.92;
+  white-space: nowrap;
+}
+
+/* ── Right Controls ── */
+.bbdrts-broadcast-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.bbdrts-broadcast-pagination {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: 4px;
+  padding: 1px 4px;
+}
+
+.bbdrts-broadcast-page-indicator {
+  font-size: 0.65rem;
+  color: #a1a1aa;
+  font-family: var(--font-mono, monospace);
+  padding: 0 4px;
+}
+
+.bbdrts-broadcast-nav-btn {
+  background: transparent;
+  border: none;
+  color: #a1a1aa;
+  cursor: pointer;
+  padding: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 3px;
+  transition: all 0.12s ease;
+}
+
+.bbdrts-broadcast-nav-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+}
+
+.bbdrts-broadcast-nav-btn .material-symbols-outlined {
+  font-size: 15px;
+}
+
+.bbdrts-broadcast-hide-btn {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  color: #ededed;
+  cursor: pointer;
+  padding: 3px 8px;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  transition: all 0.12s ease;
+  white-space: nowrap;
+}
+
+.bbdrts-broadcast-hide-btn:hover {
+  background: rgba(255, 255, 255, 0.18);
+  color: #ffffff;
+}
+
+[data-theme="light"] .bbdrts-broadcast-hide-btn {
+  background: rgba(0, 0, 0, 0.06);
+  border-color: rgba(0, 0, 0, 0.15);
+  color: #111827;
+}
+
+[data-theme="light"] .bbdrts-broadcast-hide-btn:hover {
+  background: rgba(0, 0, 0, 0.12);
+}
+
+.bbdrts-broadcast-dismiss-btn {
+  background: transparent;
+  border: none;
+  color: #a1a1aa;
+  cursor: pointer;
+  padding: 3px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.12s ease;
+}
+
+.bbdrts-broadcast-dismiss-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+}
+
+.bbdrts-broadcast-dismiss-btn .material-symbols-outlined {
+  font-size: 16px;
+}
+
+@media (max-width: 768px) {
+  .bbdrts-broadcast-content {
+    flex-direction: column;
+    align-items: flex-start;
+    white-space: normal;
+  }
+  .bbdrts-broadcast-divider {
+    display: none;
+  }
+  .bbdrts-broadcast-msg {
+    white-space: normal;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+  }
+}

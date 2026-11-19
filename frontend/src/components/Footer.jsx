@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { contractAddress } from '../contractConfig';
 import GovernanceModal from './GovernanceModal';
 import SmartContractModal from './SmartContractModal';
 import LiveTrackerModal from './LiveTrackerModal';
 import LeaderboardModal from './LeaderboardModal';
+import TermsPolicyModal from './TermsPolicyModal';
 import './Footer.css';
 
 const EMERGENCY_HOTLINES = [
@@ -65,6 +66,7 @@ const EMERGENCY_HOTLINES = [
 export default function Footer({ onNavigate, theme, toggleTheme }) {
   const [copied, setCopied] = useState(false);
   const [govModal, setGovModal] = useState({ open: false, tab: 'governance' });
+  const [legalModal, setLegalModal] = useState({ open: false, tab: 'agreement' });
   const [showContractModal, setShowContractModal] = useState(false);
   const [showLiveTracker, setShowLiveTracker] = useState(false);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
@@ -74,6 +76,19 @@ export default function Footer({ onNavigate, theme, toggleTheme }) {
   const openGov = (tab = 'governance') => {
     setGovModal({ open: true, tab });
   };
+
+  const openLegal = (tab = 'agreement') => {
+    setLegalModal({ open: true, tab });
+  };
+
+  useEffect(() => {
+    const handleOpenLegalEvent = (e) => {
+      const tab = e.detail?.tab || 'agreement';
+      openLegal(tab);
+    };
+    window.addEventListener('bbdrts_open_legal', handleOpenLegalEvent);
+    return () => window.removeEventListener('bbdrts_open_legal', handleOpenLegalEvent);
+  }, []);
 
   const handleCopyContract = (e) => {
     e.preventDefault();
@@ -267,31 +282,31 @@ export default function Footer({ onNavigate, theme, toggleTheme }) {
 
           {/* ── Column 4: Governance, Compliance & Aid ── */}
           <div className="bbdrts-footer-col">
-            <div className="bbdrts-footer-col-title">Governance & Aid</div>
+            <div className="bbdrts-footer-col-title">Governance & Legal</div>
             <ul className="bbdrts-footer-links">
               <li>
-                <button type="button" className="bbdrts-footer-link" onClick={() => openGov('governance')}>
-                  Humanitarian Charter
+                <button type="button" className="bbdrts-footer-link" onClick={() => openLegal('agreement')}>
+                  User Agreement
+                </button>
+              </li>
+              <li>
+                <button type="button" className="bbdrts-footer-link" onClick={() => openLegal('terms')}>
+                  Terms of Service
+                </button>
+              </li>
+              <li>
+                <button type="button" className="bbdrts-footer-link" onClick={() => openLegal('privacy')}>
+                  Privacy Policy (RA 10173)
+                </button>
+              </li>
+              <li>
+                <button type="button" className="bbdrts-footer-link" onClick={() => openLegal('integrity')}>
+                  Aid Integrity &amp; Anti-Fraud
                 </button>
               </li>
               <li>
                 <button type="button" className="bbdrts-footer-link" onClick={() => openGov('accreditation')}>
-                  SEC & DSWD Vetting Protocol
-                </button>
-              </li>
-              <li>
-                <button type="button" className="bbdrts-footer-link" onClick={() => openGov('allocation')}>
-                  Surplus Reserve Rollover Policy
-                </button>
-              </li>
-              <li>
-                <button type="button" className="bbdrts-footer-link" onClick={() => openGov('security')}>
-                  Anti-Fraud & Verification Rules
-                </button>
-              </li>
-              <li>
-                <button type="button" className="bbdrts-footer-link" onClick={() => openGov('academic')}>
-                  Institutional Background & Origin
+                  SEC &amp; DSWD Vetting Protocol
                 </button>
               </li>
               <li>
@@ -323,8 +338,10 @@ export default function Footer({ onNavigate, theme, toggleTheme }) {
 
           <div className="bbdrts-footer-controls">
             <div className="bbdrts-footer-legal-links">
+              <button type="button" className="bbdrts-footer-legal-btn" onClick={() => openLegal('agreement')}>User Agreement</button>
+              <button type="button" className="bbdrts-footer-legal-btn" onClick={() => openLegal('terms')}>Terms</button>
+              <button type="button" className="bbdrts-footer-legal-btn" onClick={() => openLegal('privacy')}>Privacy Policy</button>
               <button type="button" className="bbdrts-footer-legal-btn" onClick={() => openGov('security')}>Security</button>
-              <button type="button" className="bbdrts-footer-legal-btn" onClick={() => openGov('governance')}>Charter</button>
               <button type="button" className="bbdrts-footer-legal-btn" onClick={() => setShowContractModal(true)}>Contract Audit</button>
               <button
                 type="button"
@@ -358,6 +375,14 @@ export default function Footer({ onNavigate, theme, toggleTheme }) {
         isOpen={govModal.open}
         onClose={() => setGovModal({ ...govModal, open: false })}
         initialTab={govModal.tab}
+      />
+
+      {/* Statutory Legal Framework, User Agreement, Terms & Privacy (RA 10173) Modal */}
+      <TermsPolicyModal
+        isOpen={legalModal.open}
+        onClose={() => setLegalModal(prev => ({ ...prev, open: false }))}
+        initialTab={legalModal.tab}
+        theme={theme}
       />
 
       {/* Smart Contract Verification Modal */}

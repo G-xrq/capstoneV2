@@ -609,7 +609,7 @@ export default function LiveTrackerModal({ isOpen, onClose, theme }) {
                               },
                                 React.createElement("span", { className: "material-symbols-outlined" }, copiedHash === item.txHash ? "check" : "content_copy"),
                                 React.createElement("span", { className: "ltm-hash-mono" },
-                                  item.txHash.length > 14 ? `${item.txHash.substring(0, 8)}\u2026${item.txHash.slice(-4)}` : item.txHash
+                                  (item.txHash && item.txHash.length > 14) ? `${item.txHash.substring(0, 8)}\u2026${item.txHash.slice(-4)}` : (item.txHash || '')
                                 )
                               ),
                               item.txHash && React.createElement("a", {

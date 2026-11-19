@@ -1,6 +1,8 @@
 import React, { useEffect, useRef, useState, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import L from 'leaflet';
 import PH_PROVINCES_GEOJSON from '../data/philippines_provinces.json';
+import { getWorkspaceStrings } from '../data/workspaceTranslations';
 import './DisasterRadarHeatmap.css';
 
 // ── Philippine Geographical Centroids & Region Lookups (All 82 Official Provinces) ────
@@ -180,14 +182,14 @@ const PH_LOCATIONS = {
 const DOPPLER_TIERS = {
   1: {
     level: 1,
-    label: 'Emerging Need',
-    rainDesc: 'Level 1: Emerging Need (1 Cause)',
+    label: 'Low Need',
+    rainDesc: 'Level 1: Low Need (1 Cause)',
     rangeTag: '1 Cause',
     min: 1,
     max: 1,
-    color: '#0070f3', // Vercel Electric Blue
-    glowColor: 'rgba(0, 112, 243, 0.35)',
-    badgeBg: '#0070f3',
+    color: '#0284c7', // Rich Cerulean Blue
+    glowColor: 'rgba(2, 132, 199, 0.40)',
+    badgeBg: '#0284c7',
     badgeText: '#ffffff',
     pulseSpeed: '3.2s',
     cloudRadius: 9000,
@@ -201,79 +203,79 @@ const DOPPLER_TIERS = {
     rangeTag: '2–3 Causes',
     min: 2,
     max: 3,
-    color: '#f5a623', // Vercel Amber / Warning Gold
-    glowColor: 'rgba(245, 166, 35, 0.35)',
-    badgeBg: '#f5a623',
+    color: '#2563eb', // Rich Cobalt Blue
+    glowColor: 'rgba(37, 99, 235, 0.40)',
+    badgeBg: '#2563eb',
     badgeText: '#ffffff',
     pulseSpeed: '2.6s',
     cloudRadius: 12000,
     coreRadius: 4800,
-    badgeClass: 'tier-yellow'
+    badgeClass: 'tier-blue'
   },
   3: {
     level: 3,
-    label: 'High Relief Operations',
-    rainDesc: 'Level 3: High Relief Need (4–6 Causes)',
+    label: 'High Need',
+    rainDesc: 'Level 3: High Need (4–6 Causes)',
     rangeTag: '4–6 Causes',
     min: 4,
     max: 6,
-    color: '#ea580c', // Vibrant Orange
-    glowColor: 'rgba(234, 88, 12, 0.40)',
-    badgeBg: '#ea580c',
+    color: '#f59e0b', // Rich Radiant Golden Sun Amber (Warm & Visible)
+    glowColor: 'rgba(245, 158, 11, 0.45)',
+    badgeBg: '#d97706',
     badgeText: '#ffffff',
     pulseSpeed: '2.0s',
     cloudRadius: 15000,
     coreRadius: 6200,
-    badgeClass: 'tier-orange'
+    badgeClass: 'tier-yellow'
   },
   4: {
     level: 4,
-    label: 'Severe Emergency Zone',
-    rainDesc: 'Level 4: Severe Emergency (7–11 Causes)',
+    label: 'Severe Need',
+    rainDesc: 'Level 4: Severe Need (7–11 Causes)',
     rangeTag: '7–11 Causes',
     min: 7,
     max: 11,
-    color: '#e00000', // Vercel Danger Red
-    glowColor: 'rgba(224, 0, 0, 0.45)',
-    badgeBg: '#e00000',
+    color: '#ea580c', // Deep Vibrant Alert Fire Orange (Never Muddy Brown)
+    glowColor: 'rgba(234, 88, 12, 0.45)',
+    badgeBg: '#ea580c',
     badgeText: '#ffffff',
     pulseSpeed: '1.6s',
     cloudRadius: 19000,
     coreRadius: 7800,
-    badgeClass: 'tier-red'
+    badgeClass: 'tier-orange'
   },
   5: {
     level: 5,
-    label: 'Critical Multi-Sector Crisis',
-    rainDesc: 'Level 5: Critical Crisis (12–19 Causes)',
+    label: 'Critical Need',
+    rainDesc: 'Level 5: Critical Need (12–19 Causes)',
     rangeTag: '12–19 Causes',
     min: 12,
     max: 19,
-    color: '#dc2626', // Code Red / Vivid Red
+    color: '#dc2626', // Deep Emergency Crimson Red (Crisp & Pure)
     glowColor: 'rgba(220, 38, 38, 0.50)',
     badgeBg: '#dc2626',
     badgeText: '#ffffff',
     pulseSpeed: '1.2s',
     cloudRadius: 23000,
     coreRadius: 9500,
-    badgeClass: 'tier-purple'
+    badgeClass: 'tier-red'
   },
   6: {
     level: 6,
-    label: 'Catastrophic Epicenter',
-    rainDesc: 'Level 6: Maximum Catastrophe (20+ Causes)',
+    label: 'Maximum Urgency',
+    rainDesc: 'Level 6: Maximum Urgency (20+ Causes)',
     rangeTag: '20+ Causes',
     min: 20,
     max: Infinity,
-    color: '#881337', // Deep Maroon / Code Rose
-    glowColor: 'rgba(136, 19, 55, 0.60)',
-    badgeBg: '#881337',
+    color: '#7c3aed', // Deep Electric Royal Violet Purple
+    glowColor: 'rgba(124, 58, 237, 0.55)',
+    badgeBg: '#7c3aed',
     badgeText: '#ffffff',
     borderColor: 'rgba(255, 255, 255, 0.85)',
     pulseSpeed: '0.9s',
     cloudRadius: 28000,
     coreRadius: 11500,
-    badgeClass: 'tier-black'
+    badgeClass: 'tier-purple'
   }
 };
 
@@ -310,8 +312,20 @@ const resolveCampaignCoords = (campaign) => {
     }
   }
 
-  const text = `${campaign.locationRegion || ''} ${campaign.title || ''} ${campaign.description || ''}`.toLowerCase();
+  // Clean text for province/regional matching by stripping street names & infrastructure words
+  // so that "Rizal Street", "Rizal Ave", "Jose Rizal St", "Quezon Blvd", etc. are never mistaken for provinces!
+  const cleanLoc = stripStreetInfrastructure(campaign.locationRegion || '');
+  const cleanTitle = stripStreetInfrastructure(campaign.title || '');
+  const text = `${cleanLoc} ${cleanTitle}`.toLowerCase();
+
   for (const [key, val] of Object.entries(PH_LOCATIONS)) {
+    if (key === 'rizal') {
+      if (text.includes('albay') || text.includes('bicol') || text.includes('leyte') || text.includes('visayas') || text.includes('mindanao')) continue;
+      const hasRizalTown = /antipolo|cainta|taytay|binangonan|san mateo|tanay|morong|angono|baras|cardona|jalajala|jala-jala|pililla|teresa|montalban|\brodriguez\b/i.test(text);
+      const isRizalProvince = /\bprovince\s+of\s+rizal\b|\brizal\s+province\b/i.test(text) ||
+        (/\brizal\b/i.test(text) && (/calabarzon|region\s+iv-a/i.test(text) || !text.includes('street')));
+      if (!hasRizalTown && !isRizalProvince) continue;
+    }
     if (text.includes(key)) {
       return [val.lat, val.lng];
     }
@@ -320,14 +334,63 @@ const resolveCampaignCoords = (campaign) => {
   return [10.2500, 124.9500];
 };
 
+// Clean text for province/regional matching by stripping street names & infrastructure words
+export function stripStreetInfrastructure(str = '') {
+  if (!str) return '';
+  return String(str)
+    .replace(/\b(?:dr\.?\s*)?(?:jose\s*)?rizal\s+(?:street|st\.?|avenue|ave\.?|boulevard|blvd\.?|highway|hwy\.?|road|rd\.?|lane|ln\.?|drive|dr\.?|way|bridge|monument|memorial|park|center|hall)\b/gi, ' ')
+    .replace(/\b(?:street|st\.?|avenue|ave\.?|boulevard|blvd\.?|highway|hwy\.?|road|rd\.?|lane|ln\.?|drive|dr\.?|way)\s+(?:dr\.?\s*)?(?:jose\s*)?rizal\b/gi, ' ')
+    .replace(/\b(?:street|st\.?|avenue|ave\.?|boulevard|blvd\.?|highway|hwy\.?|road|rd\.?|lane|ln\.?|drive|dr\.?|way|expressway|corner|cor\.|building|bldg|floor|flr|room|rm|unit|block|blk|lot)\b/gi, ' ')
+    .replace(/\b(?:barangay|brgy\.?|purok|sitio|zone)\b/gi, ' ');
+}
+
+const reverseGeocodeApproxCoords = (coords) => {
+  if (!coords || !coords[0] || !coords[1]) return null;
+  const lat = Number(coords[0]);
+  const lng = Number(coords[1]);
+  // Southern Leyte bounds: lat 9.8 - 10.6, lng 124.7 - 125.4
+  if (lat >= 9.8 && lat <= 10.6 && lng >= 124.7 && lng <= 125.4) {
+    return { name: 'Southern Leyte', region: 'Region VIII (Eastern Visayas)' };
+  }
+  // Leyte bounds: lat 10.5 - 11.5, lng 124.3 - 125.1
+  if (lat >= 10.5 && lat <= 11.5 && lng >= 124.3 && lng <= 125.1) {
+    return { name: 'Leyte', region: 'Region VIII (Eastern Visayas)' };
+  }
+  // Albay / Bicol bounds: lat 13.0 - 13.4, lng 123.4 - 123.9
+  if (lat >= 13.0 && lat <= 13.4 && lng >= 123.4 && lng <= 123.9) {
+    return { name: 'Albay', region: 'Region V (Bicol)' };
+  }
+  // Metro Manila / NCR: lat 14.4 - 14.7, lng 120.9 - 121.1
+  if (lat >= 14.4 && lat <= 14.7 && lng >= 120.9 && lng <= 121.1) {
+    return { name: 'Metro Manila', region: 'National Capital Region (NCR)' };
+  }
+  return null;
+};
+
 const getClusterKey = (campaign, coords) => {
-  const text = `${campaign.locationRegion || ''} ${campaign.title || ''}`.toLowerCase();
+  const provMatch = getProvinceMatchForCampaign(campaign);
+  if (provMatch && provMatch.name) return provMatch.name;
+
+  const geoMatch = reverseGeocodeApproxCoords(coords);
+  if (geoMatch && geoMatch.name) return geoMatch.name;
+
+  const cleanLoc = stripStreetInfrastructure(campaign.locationRegion || '');
+  const cleanTitle = stripStreetInfrastructure(campaign.title || '');
+  const cleanDesc = stripStreetInfrastructure(campaign.description || '');
+  const text = `${cleanLoc} ${cleanTitle} ${cleanDesc}`.toLowerCase();
   for (const [key, val] of Object.entries(PH_LOCATIONS)) {
+    if (key === 'rizal') {
+      if (text.includes('albay') || text.includes('bicol') || text.includes('leyte') || text.includes('visayas') || text.includes('mindanao')) continue;
+      const hasRizalTown = /antipolo|cainta|taytay|binangonan|san mateo|tanay|morong|angono|baras|cardona|jalajala|jala-jala|pililla|teresa|montalban|\brodriguez\b/i.test(text);
+      const isRizalProvince = /\bprovince\s+of\s+rizal\b|\brizal\s+province\b/i.test(text) ||
+        (/\brizal\b/i.test(text) && (/calabarzon|region\s+iv-a/i.test(text) || !text.includes('street')));
+      if (!hasRizalTown && !isRizalProvince) continue;
+    }
     if (text.includes(key)) {
       return val.name;
     }
   }
-  return `${coords[0].toFixed(1)}°N, ${coords[1].toFixed(1)}°E`;
+  return coords && coords[0] ? `${coords[0].toFixed(1)}°N, ${coords[1].toFixed(1)}°E` : 'Philippines Disaster Zone';
 };
 
 // ── Province Centroids Computed from Official GeoJSON Boundaries ──
@@ -367,7 +430,9 @@ export const PROVINCE_CENTROIDS = (() => {
 })();
 
 export const getProvinceMatchForCampaign = (campaign) => {
-  const text = `${campaign?.locationRegion || ''} ${campaign?.title || ''} ${campaign?.description || ''}`.toLowerCase();
+  const cleanLoc = stripStreetInfrastructure(campaign?.locationRegion || '');
+  const cleanTitle = stripStreetInfrastructure(campaign?.title || '');
+  const text = `${cleanLoc} ${cleanTitle}`.toLowerCase();
 
   // 1. Direct match with GeoJSON province name (sorted descending by key length to match longest/most specific first)
   const sortedProvCentroids = Object.entries(PROVINCE_CENTROIDS).sort((a, b) => b[0].length - a[0].length);
@@ -375,6 +440,13 @@ export const getProvinceMatchForCampaign = (campaign) => {
     if (pKey === 'leyte' && text.includes('southern leyte')) continue;
     if (pKey === 'samar' && (text.includes('eastern samar') || text.includes('northern samar'))) continue;
     if (pKey === 'davao del sur' && text.includes('davao occidental')) continue;
+    if (pKey === 'rizal') {
+      if (text.includes('albay') || text.includes('bicol') || text.includes('leyte') || text.includes('visayas') || text.includes('mindanao')) continue;
+      const hasRizalTown = /antipolo|cainta|taytay|binangonan|san mateo|tanay|morong|angono|baras|cardona|jalajala|jala-jala|pililla|teresa|montalban|\brodriguez\b/i.test(text);
+      const isRizalProvince = /\bprovince\s+of\s+rizal\b|\brizal\s+province\b/i.test(text) ||
+        (/\brizal\b/i.test(text) && (/calabarzon|region\s+iv-a/i.test(text) || !text.includes('street')));
+      if (!hasRizalTown && !isRizalProvince) continue;
+    }
     if (text.includes(pKey)) {
       return pData;
     }
@@ -383,6 +455,13 @@ export const getProvinceMatchForCampaign = (campaign) => {
   // 2. City / Municipality lookup from PH_LOCATIONS (sorted descending by key length)
   const sortedLocations = Object.entries(PH_LOCATIONS).sort((a, b) => b[0].length - a[0].length);
   for (const [locKey, locVal] of sortedLocations) {
+    if (locKey === 'rizal') {
+      if (text.includes('albay') || text.includes('bicol') || text.includes('leyte') || text.includes('visayas') || text.includes('mindanao')) continue;
+      const hasRizalTown = /antipolo|cainta|taytay|binangonan|san mateo|tanay|morong|angono|baras|cardona|jalajala|jala-jala|pililla|teresa|montalban|\brodriguez\b/i.test(text);
+      const isRizalProvince = /\bprovince\s+of\s+rizal\b|\brizal\s+province\b/i.test(text) ||
+        (/\brizal\b/i.test(text) && (/calabarzon|region\s+iv-a/i.test(text) || !text.includes('street')));
+      if (!hasRizalTown && !isRizalProvince) continue;
+    }
     if (text.includes(locKey)) {
       const locName = locVal.name.toLowerCase();
       for (const [pKey, pData] of sortedProvCentroids) {
@@ -621,24 +700,76 @@ export const getCampaignCategoryMeta = (camp) => {
   };
 };
 
-const resolveCampaignSubLocation = (camp, defaultLoc) => {
-  const text = `${camp?.locationRegion || ''} ${camp?.title || ''} ${camp?.description || ''}`.toLowerCase();
-  for (const [key, val] of Object.entries(PH_LOCATIONS)) {
-    if (text.includes(key)) {
-      const parts = val.name.split(',');
-      return parts[0].trim();
+const SOUTHERN_LEYTE_MUNICIPALITIES = [
+  'Maasin City', 'Maasin', 'Macrohon', 'Padre Burgos', 'Malitbog', 'Tomas Oppus',
+  'Bontoc', 'Sogod', 'Libagon', 'Liloan', 'San Francisco', 'Pintuyan',
+  'San Ricardo', 'Saint Bernard', 'San Juan', 'Anahawan', 'Hinundayan',
+  'Hinunangan', 'Silago', 'Limasawa'
+];
+
+const resolveCampaignSubLocation = (camp, focusedProvince = '') => {
+  if (!camp) return focusedProvince || 'Disaster Zone';
+  const rawLoc = String(camp.locationRegion || '').trim();
+  const title = String(camp.title || '').trim();
+  const desc = String(camp.description || '').trim();
+  const provNorm = (focusedProvince || '').toLowerCase().trim();
+
+  // 1. If comma-separated address exists (e.g. from Nominatim/DB like "A. Mabini Street, Santa Cruz, Macrohon, Southern Leyte, 6601, Philippines")
+  if (rawLoc.includes(',')) {
+    const rawParts = rawLoc.split(',').map(s => s.trim()).filter(Boolean);
+    const filtered = rawParts.filter(p => {
+      const pNorm = p.toLowerCase();
+      if (pNorm === 'philippines' || pNorm === 'ph') return false;
+      if (!isNaN(Number(pNorm))) return false; // postal code / numeric
+      if (provNorm && (pNorm === provNorm || pNorm.includes(provNorm))) return false;
+      // Filter out general province names from sublocation to avoid "Southern Leyte, Southern Leyte"
+      if (['southern leyte', 'leyte', 'bohol', 'cebu', 'eastern samar', 'northern samar', 'samar'].includes(pNorm)) return false;
+      return true;
+    });
+    if (filtered.length > 0) {
+      // Pick the most specific local parts (e.g. "Santa Cruz, Macrohon" or "Javier, Sogod" or "Poblacion, Libagon")
+      return filtered.slice(-2).join(', ');
     }
   }
-  return camp?.locationRegion || defaultLoc || 'Disaster Zone';
+
+  // 2. Scan for specific municipality/city in text
+  const fullText = `${rawLoc} ${title} ${desc}`.toLowerCase();
+  for (const mun of SOUTHERN_LEYTE_MUNICIPALITIES) {
+    if (new RegExp(`\\b${mun.toLowerCase()}\\b`).test(fullText)) {
+      if (fullText.includes('combado')) return `Barangay Combado, ${mun}`;
+      if (fullText.includes('tagnipa')) return `Tagnipa, ${mun}`;
+      if (fullText.includes('santa cruz')) return `Santa Cruz, ${mun}`;
+      if (fullText.includes('san bernardo')) return `San Bernardo, ${mun}`;
+      if (fullText.includes('poblacion ubos')) return `Poblacion Ubos, ${mun}`;
+      if (fullText.includes('poblacion')) return `Poblacion, ${mun}`;
+      return mun;
+    }
+  }
+
+  // 3. Fallback: if rawLoc is not empty and not identical to province
+  if (rawLoc && rawLoc.toLowerCase() !== provNorm && rawLoc.toLowerCase() !== 'philippines') {
+    return rawLoc;
+  }
+  return focusedProvince || 'Disaster Zone';
 };
 
 const getProvinceCampaigns = (provinceName, allCampaigns) => {
   if (!provinceName || !allCampaigns || !allCampaigns.length) return [];
   const norm = provinceName.toLowerCase().trim();
   return allCampaigns.filter(c => {
-    const text = `${c.locationRegion || ''} ${c.title || ''} ${c.description || ''}`.toLowerCase();
+    // Strip street names and infrastructure before checking province keywords to prevent false matches
+    const cleanLoc = stripStreetInfrastructure(c.locationRegion || '');
+    const cleanTitle = stripStreetInfrastructure(c.title || '');
+    // Only search locationRegion and title (never description) to avoid false positives from donor/historical text
+    const text = `${cleanLoc} ${cleanTitle}`.toLowerCase();
+
     if (norm === 'southern leyte') {
-      return text.includes('southern leyte') || text.includes('maasin') || text.includes('macrohon') || text.includes('sogod') || text.includes('combado') || text.includes('limasawa') || text.includes('padre burgos') || text.includes('bontoc') || text.includes('malitbog');
+      return text.includes('southern leyte') || text.includes('maasin') || text.includes('macrohon') ||
+        text.includes('sogod') || text.includes('combado') || text.includes('limasawa') ||
+        text.includes('padre burgos') || text.includes('bontoc') || text.includes('malitbog') ||
+        text.includes('libagon') || text.includes('pintuyan') || text.includes('san juan') ||
+        text.includes('saint bernard') || text.includes('san ricardo') || text.includes('liloan') ||
+        text.includes('silago') || text.includes('tagnipa');
     }
     if (norm === 'leyte') {
       return text.replace(/southern\s+leyte/g, '').includes('leyte') || text.includes('tacloban') || text.includes('ormoc') || text.includes('palo') || text.includes('baybay') || text.includes('tanauan');
@@ -654,15 +785,15 @@ const getProvinceCampaigns = (provinceName, allCampaigns) => {
       return clean.includes('samar') || text.includes('catbalogan');
     }
     if (norm === 'bohol') return text.includes('bohol') || text.includes('tagbilaran') || text.includes('tubigon') || text.includes('loay') || text.includes('panglao');
-    if (norm === 'cebu') return text.includes('cebu') || text.includes('mandaue') || text.includes('lapu-lapu') || text.includes('talisay');
-    if (norm === 'albay') return text.includes('albay') || text.includes('legazpi') || text.includes('mayon') || text.includes('daraga') || text.includes('tabaco');
+    if (norm === 'cebu') return text.includes('cebu') || text.includes('mandaue') || text.includes('lapu-lapu') || text.includes('talisay') || text.includes('danao');
+    if (norm === 'albay') return text.includes('albay') || text.includes('legazpi') || text.includes('mayon') || text.includes('daraga') || text.includes('tabaco') || text.includes('bacacay');
     if (norm === 'camarines sur') return text.includes('camarines sur') || text.includes('naga city') || text.includes('pili');
     if (norm === 'camarines norte') return text.includes('camarines norte') || text.includes('daet');
     if (norm === 'catanduanes') return text.includes('catanduanes') || text.includes('virac');
     if (norm === 'sorsogon') return text.includes('sorsogon');
     if (norm === 'masbate') return text.includes('masbate');
-    if (norm === 'isabela') return text.includes('isabela') || text.includes('ilagan');
-    if (norm === 'cagayan') return text.includes('cagayan') || text.includes('tuguegarao');
+    if (norm === 'isabela') return (text.includes('isabela') && !text.includes('basilan') && !text.includes('isabela city')) || text.includes('ilagan');
+    if (norm === 'cagayan') return (text.includes('cagayan') && !text.includes('cagayan de oro')) || text.includes('tuguegarao');
     if (norm === 'benguet') return text.includes('benguet') || text.includes('baguio');
     if (norm === 'pangasinan') return text.includes('pangasinan') || text.includes('dagupan');
     if (norm === 'pampanga') return text.includes('pampanga') || text.includes('san fernando') || text.includes('angeles');
@@ -670,8 +801,18 @@ const getProvinceCampaigns = (provinceName, allCampaigns) => {
     if (norm === 'cavite') return text.includes('cavite') || text.includes('tagaytay') || text.includes('dasmarinas');
     if (norm === 'laguna') return text.includes('laguna') || text.includes('calamba') || text.includes('santa rosa');
     if (norm === 'batangas') return text.includes('batangas') || text.includes('lipa');
-    if (norm === 'rizal') return text.includes('rizal') || text.includes('antipolo');
-    if (norm === 'quezon') return text.includes('quezon province') || text.includes('lucena');
+    if (norm === 'rizal') {
+      // Strict anti-imposter check: must NOT match Albay, Bicol, Leyte, Visayas, or Mindanao
+      if (text.includes('albay') || text.includes('bicol') || text.includes('leyte') || text.includes('visayas') || text.includes('mindanao')) return false;
+      const hasRizalTown = /antipolo|cainta|taytay|binangonan|san mateo|tanay|morong|angono|baras|cardona|jalajala|jala-jala|pililla|teresa|montalban|\brodriguez\b/i.test(text);
+      const isRizalProvince = /\bprovince\s+of\s+rizal\b|\brizal\s+province\b/i.test(text) ||
+        (/\brizal\b/i.test(text) && (/calabarzon|region\s+iv-a/i.test(text) || !text.includes('street')));
+      return hasRizalTown || isRizalProvince;
+    }
+    if (norm === 'quezon') {
+      const clean = text.replace(/quezon\s+city/g, '').replace(/\bqc\b/g, '');
+      return (clean.includes('quezon') && (text.includes('calabarzon') || text.includes('region iv-a') || clean.includes('province'))) || text.includes('lucena') || text.includes('tayabas');
+    }
     if (norm === 'metropolitan manila' || norm.includes('manila')) {
       return text.includes('metro manila') || text.includes('manila') || text.includes('quezon city') || text.includes('ncr') || text.includes('makati') || text.includes('taguig');
     }
@@ -774,6 +915,17 @@ export function generateSimulatedMissions(seed = 1, realCampaigns = []) {
       const pinLat = centroid.lat + Math.sin(angle) * dist;
       const pinLng = centroid.lng + Math.cos(angle) * dist;
 
+      const SIMULATED_AFTERMATH_SAMPLES = [
+        'https://images.unsplash.com/photo-1544551763-46a013bb70d5?auto=format&fit=crop&w=800&q=80',
+        'https://images.unsplash.com/photo-1532629345422-7515f3d16bb6?auto=format&fit=crop&w=800&q=80',
+        'https://images.unsplash.com/photo-1584515979956-d9f6e5d09982?auto=format&fit=crop&w=800&q=80',
+        'https://images.unsplash.com/photo-1509099836639-18ba1795216d?auto=format&fit=crop&w=800&q=80',
+        'https://images.unsplash.com/photo-1469571486292-0ba58a3f068b?auto=format&fit=crop&w=800&q=80'
+      ];
+      const pIdx1 = Math.floor(rand() * SIMULATED_AFTERMATH_SAMPLES.length);
+      const pIdx2 = (pIdx1 + 1) % SIMULATED_AFTERMATH_SAMPLES.length;
+      const simDisasterPhotos = [SIMULATED_AFTERMATH_SAMPLES[pIdx1], SIMULATED_AFTERMATH_SAMPLES[pIdx2]];
+
       simulated.push({
         id: `sim-${provKey}-${seed}-${i + 1}`,
         title: `${provName} ${template.title}`,
@@ -787,7 +939,9 @@ export function generateSimulatedMissions(seed = 1, realCampaigns = []) {
         raised_eth: raisedEth,
         target_eth: targetEth,
         gpsCoordinates: `${pinLat.toFixed(4)}, ${pinLng.toFixed(4)}`,
-        isSimulated: true
+        isSimulated: true,
+        disasterImages: simDisasterPhotos,
+        disaster_images_json: JSON.stringify(simDisasterPhotos)
       });
     }
   });
@@ -851,6 +1005,12 @@ const resolveBasemapLayers = (themeMode, activeLayer) => {
 // As the user zooms in, hubs automatically split into individual provinces, and then municipal relief stations.
 function aggregateClustersByScreenDistance(clusterList, currentZoom, map) {
   if (!map || !clusterList || clusterList.length === 0) return [];
+  // If map container layout is not yet ready, return clusterList directly
+  try {
+    const size = map.getSize ? map.getSize() : null;
+    if (size && (size.x <= 0 || size.y <= 0)) return clusterList;
+  } catch (_) { }
+
   // At zoom >= 8.5, provincial nodes have plenty of screen room
   if (currentZoom >= 8.5) return clusterList;
 
@@ -874,13 +1034,15 @@ function aggregateClustersByScreenDistance(clusterList, currentZoom, map) {
       ptPrimary = { x: 0, y: 0 };
     }
 
-    const mergedCampaigns = [...primary.campaigns];
-    let totalRaised = primary.totalRaised;
-    let totalTarget = primary.totalTarget;
-    const members = [{ name: primary.name, count: primary.campaigns.length, tier: primary.tier, lat: primary.lat, lng: primary.lng }];
-    let sumLat = primary.lat * primary.campaigns.length;
-    let sumLng = primary.lng * primary.campaigns.length;
-    let totalWeight = primary.campaigns.length;
+    const primCamps = Array.isArray(primary.campaigns) ? primary.campaigns : [];
+    const primCount = primCamps.length;
+    const mergedCampaigns = [...primCamps];
+    let totalRaised = primary.totalRaised || 0;
+    let totalTarget = primary.totalTarget || 0;
+    const members = [{ name: primary.name, count: primCount, tier: primary.tier, lat: primary.lat, lng: primary.lng }];
+    let sumLat = primary.lat * primCount;
+    let sumLng = primary.lng * primCount;
+    let totalWeight = primCount;
 
     for (let j = i + 1; j < clusterList.length; j++) {
       if (processed.has(j)) continue;
@@ -896,13 +1058,15 @@ function aggregateClustersByScreenDistance(clusterList, currentZoom, map) {
       const distPx = Math.hypot(ptPrimary.x - ptCandidate.x, ptPrimary.y - ptCandidate.y);
       if (distPx < thresholdPx) {
         processed.add(j);
-        mergedCampaigns.push(...candidate.campaigns);
-        totalRaised += candidate.totalRaised;
-        totalTarget += candidate.totalTarget;
-        members.push({ name: candidate.name, count: candidate.campaigns.length, tier: candidate.tier, lat: candidate.lat, lng: candidate.lng });
-        sumLat += candidate.lat * candidate.campaigns.length;
-        sumLng += candidate.lng * candidate.campaigns.length;
-        totalWeight += candidate.campaigns.length;
+        const candCamps = Array.isArray(candidate.campaigns) ? candidate.campaigns : [];
+        const candCount = candCamps.length;
+        mergedCampaigns.push(...candCamps);
+        totalRaised += candidate.totalRaised || 0;
+        totalTarget += candidate.totalTarget || 0;
+        members.push({ name: candidate.name, count: candCount, tier: candidate.tier, lat: candidate.lat, lng: candidate.lng });
+        sumLat += candidate.lat * candCount;
+        sumLng += candidate.lng * candCount;
+        totalWeight += candCount;
       }
     }
 
@@ -943,8 +1107,12 @@ function DisasterRadarHeatmapInner({
   height = '620px',
   allowFullscreen = true,
   theme: propTheme,
-  defaultLayer = 'terrain'
+  defaultLayer = 'terrain',
+  lowBandwidthMode = false,
+  reducedMotion = false,
+  language = 'en'
 }) {
+  const wt = useMemo(() => getWorkspaceStrings(language), [language]);
   const containerRef = useRef(null);
   const mapRef = useRef(null);
   const baseLayerRef = useRef(null);
@@ -964,9 +1132,12 @@ function DisasterRadarHeatmapInner({
     return propTheme || document.documentElement.getAttribute('data-theme') || 'dark';
   });
 
-  const [activeLayer, setActiveLayer] = useState(defaultLayer); // 'provinces' | 'satellite' | 'terrain' | 'tactical' | 'osm'
-  const [radarDisplayMode, setRadarDisplayMode] = useState('choropleth'); // 'choropleth' (pure choropleth + Command HUD) | 'nodes' (tactical node badges)
-  const [isCommandHudCollapsed, setIsCommandHudCollapsed] = useState(false);
+  const [activeLayer, setActiveLayer] = useState(() => (lowBandwidthMode ? 'provinces' : defaultLayer)); // 'provinces' | 'satellite' | 'terrain' | 'tactical' | 'osm'
+  useEffect(() => {
+    setActiveLayer(lowBandwidthMode ? 'provinces' : defaultLayer);
+  }, [lowBandwidthMode, defaultLayer]);
+  // Command HUD collapsed state (defaults to true for clean view)
+  const [isCommandHudCollapsed, setIsCommandHudCollapsed] = useState(true);
   const [hudSearchQuery, setHudSearchQuery] = useState('');
   const [hoveredCorridorName, setHoveredCorridorName] = useState(null);
   const [currentZoomLevel, setCurrentZoomLevel] = useState(6);
@@ -975,8 +1146,26 @@ function DisasterRadarHeatmapInner({
   const focusedProvinceRef = useRef(null);
   const isProvinceClickRef = useRef(false);
   const lastFocusCenterRef = useRef([11.2, 123.8]);
+  // Preserves exact camera zoom & center before clicking a province so disclicking outside smoothly returns
+  const preFocusViewRef = useRef(null);
   const [simulateDensity, setSimulateDensity] = useState(false);
   const [simSeed, setSimSeed] = useState(1);
+
+  // ── Interactive Beacon Focus Experience State ──
+  const [selectedBeaconCampaign, setSelectedBeaconCampaign] = useState(null);
+  const [selectedBeaconCoords, setSelectedBeaconCoords] = useState(null);
+  const [isOverviewExpanded, setIsOverviewExpanded] = useState(false);
+  const [lightboxPhotos, setLightboxPhotos] = useState([]);
+  const [activeLightboxIdx, setActiveLightboxIdx] = useState(null);
+  const openLightbox = (photos = [], idx = 0) => {
+    if (!photos || photos.length === 0) return;
+    setLightboxPhotos(photos);
+    setActiveLightboxIdx(idx);
+  };
+  const [activeDossierPhotoIdx, setActiveDossierPhotoIdx] = useState(0);
+  const selectedBeaconRef = useRef(null);
+  const preBeaconViewRef = useRef(null);
+  const pinCoordsByCampIdRef = useRef(new Map());
 
   // Active campaigns combining real on-chain campaigns with simulated density missions
   const activeCampaigns = useMemo(() => {
@@ -987,9 +1176,12 @@ function DisasterRadarHeatmapInner({
 
   const activeLayerRef = useRef(activeLayer);
   activeLayerRef.current = activeLayer;
+  const currentThemeRef = useRef(currentTheme);
+  currentThemeRef.current = currentTheme;
   const campaignsRef = useRef(activeCampaigns);
   campaignsRef.current = activeCampaigns;
   const isMapMovingRef = useRef(false);
+  const hoveredProvinceLayersRef = useRef(new Set());
 
   // Smooth linear camera transition (avoids flyTo's parabolic scale warp that corrupts SVG layer coordinates)
   const smoothNavigateTo = (targetCenter, targetZoom) => {
@@ -1006,6 +1198,159 @@ function DisasterRadarHeatmapInner({
     } else {
       map.setView(targetCenter, targetZ, { animate: true, duration: 0.6 });
     }
+  };
+
+  // Dynamically calculate camera zoom tailored to the exact geographical dimensions & size of any province
+  const getProvinceOptimalZoom = (bounds, map) => {
+    if (!bounds || !bounds.isValid() || !map) return 9;
+    const boundsZoom = map.getBoundsZoom(bounds, false, [70, 70]);
+    const latSpan = Math.abs(bounds.getNorth() - bounds.getSouth());
+    const lngSpan = Math.abs(bounds.getEast() - bounds.getWest());
+    const maxSpan = Math.max(latSpan, lngSpan);
+
+    // Large provinces (Palawan, Isabela, Cagayan, Bukidnon): span > 1.8 deg -> zoom 7.5 to 8
+    if (maxSpan > 2.0) {
+      return Math.min(boundsZoom, 7.5);
+    }
+    if (maxSpan > 1.2) {
+      return Math.min(Math.max(boundsZoom, 8), 8.5);
+    }
+    // Small island provinces & compact territories (Guimaras, Siquijor, Camiguin, Batanes, Biliran): span < 0.45 deg -> zoom 10.5
+    if (maxSpan < 0.45) {
+      return Math.max(boundsZoom, 10.5);
+    }
+    // Standard medium provinces (Southern Leyte, Cebu, Bohol, Albay, Batangas): zoom 9 to 9.5
+    return Math.min(Math.max(boundsZoom, 8.5), 10);
+  };
+
+  // ── Reposition Selected Beacon Toward the Left Side of the Screen at Zoom ──
+  const computeOffsetCenter = (lat, lng, targetZoom, map) => {
+    if (!map) return [lat, lng];
+    const size = map.getSize();
+    const isMobile = size.x < 768;
+
+    const targetPt = map.project([lat, lng], targetZoom);
+    // Desktop: shift camera center right by 22% of container width so beacon sits at ~28% from the left edge
+    const offsetPxX = isMobile ? 0 : (size.x * 0.22);
+    // Mobile: shift camera center down so beacon sits in the upper portion above the bottom drawer
+    const offsetPxY = isMobile ? (size.y * 0.18) : 0;
+
+    const cameraCenterPt = L.point(targetPt.x + offsetPxX, targetPt.y + offsetPxY);
+    return map.unproject(cameraCenterPt, targetZoom);
+  };
+
+  // ── Update CSS classes on pin markers for isolation & highlight ──
+  const updatePinIsolationStyles = (selectedCampId) => {
+    if (!campaignPinsGroupRef.current) return;
+    campaignPinsGroupRef.current.eachLayer(pinMarker => {
+      const el = pinMarker.getElement();
+      if (!el) return;
+      const inner = el.querySelector('.exact-campaign-tactical-pin');
+      const markerCampId = pinMarker._campaignId;
+
+      if (selectedCampId) {
+        if (markerCampId === selectedCampId) {
+          pinMarker.setZIndexOffset(100000);
+          el.classList.add('is-beacon-selected');
+          el.classList.remove('is-beacon-dimmed');
+          if (inner) {
+            inner.classList.add('is-beacon-selected');
+            inner.classList.remove('is-beacon-dimmed');
+          }
+        } else {
+          pinMarker.setZIndexOffset(0);
+          el.classList.remove('is-beacon-selected');
+          el.classList.add('is-beacon-dimmed');
+          if (inner) {
+            inner.classList.remove('is-beacon-selected');
+            inner.classList.add('is-beacon-dimmed');
+          }
+        }
+      } else {
+        pinMarker.setZIndexOffset(0);
+        el.classList.remove('is-beacon-selected', 'is-beacon-dimmed');
+        if (inner) {
+          inner.classList.remove('is-beacon-selected', 'is-beacon-dimmed');
+        }
+      }
+    });
+  };
+
+  // ── Beacon Selection & Repositioning Handler ──
+  const handleSelectBeacon = (camp, coords) => {
+    if (!mapRef.current) return;
+    const map = mapRef.current;
+
+    // Record previous camera zoom & center before entering beacon focus
+    if (!selectedBeaconRef.current) {
+      preBeaconViewRef.current = {
+        zoom: map.getZoom(),
+        center: map.getCenter()
+      };
+    }
+
+    const campId = String(camp.id || camp.title);
+    selectedBeaconRef.current = campId;
+    setSelectedBeaconCampaign(camp);
+    setSelectedBeaconCoords(coords);
+    setIsOverviewExpanded(false);
+    setActiveDossierPhotoIdx(0);
+
+    // Auto-collapse the left operations corridor HUD so the left screen is clean for the beacon
+    setIsCommandHudCollapsed(true);
+    setIsDossierOpen(false);
+
+    const targetZoom = 13.5;
+    const offsetCenter = computeOffsetCenter(coords[0], coords[1], targetZoom, map);
+
+    isMapMovingRef.current = true;
+    map.flyTo(offsetCenter, targetZoom, {
+      animate: true,
+      duration: 0.85,
+      easeLinearity: 0.25
+    });
+
+    updatePinIsolationStyles(campId);
+  };
+
+  // ── Close Beacon Focus & Smoothly Return to Previous Map State ──
+  const handleCloseBeaconFocus = () => {
+    setSelectedBeaconCampaign(null);
+    setSelectedBeaconCoords(null);
+    selectedBeaconRef.current = null;
+    setIsOverviewExpanded(false);
+    updatePinIsolationStyles(null);
+
+    // Smoothly restore previous map zoom and viewport
+    if (preBeaconViewRef.current && mapRef.current) {
+      const { zoom: returnZoom, center: returnCenter } = preBeaconViewRef.current;
+      isMapMovingRef.current = true;
+      mapRef.current.flyTo(returnCenter, returnZoom, {
+        animate: true,
+        duration: 0.75,
+        easeLinearity: 0.25
+      });
+      preBeaconViewRef.current = null;
+    }
+  };
+
+  // ── Step Through Campaigns Within the Focused Sector ──
+  const handleStepBeacon = (direction) => {
+    if (!focusedProvince || !selectedBeaconCampaign) return;
+    const provCamps = getProvinceCampaigns(focusedProvince, activeCampaigns);
+    if (provCamps.length <= 1) return;
+
+    const currentId = String(selectedBeaconCampaign.id || selectedBeaconCampaign.title);
+    const currentIndex = provCamps.findIndex(c => String(c.id || c.title) === currentId);
+    let nextIndex = currentIndex + direction;
+    if (nextIndex < 0) nextIndex = provCamps.length - 1;
+    if (nextIndex >= provCamps.length) nextIndex = 0;
+
+    const nextCamp = provCamps[nextIndex];
+    const nextId = String(nextCamp.id || nextCamp.title);
+    const nextCoords = pinCoordsByCampIdRef.current.get(nextId) || resolveCampaignCoords(nextCamp);
+
+    handleSelectBeacon(nextCamp, nextCoords);
   };
   const [isDossierOpen, setIsDossierOpen] = useState(false);
   const [isLegendExpanded, setIsLegendExpanded] = useState(false);
@@ -1195,6 +1540,9 @@ function DisasterRadarHeatmapInner({
         maxZoom: 17,
         zoomControl: false,
         attributionControl: false,
+        fadeAnimation: !reducedMotion,
+        zoomAnimation: !reducedMotion,
+        markerZoomAnimation: !reducedMotion,
         renderer: provRenderer,
         maxBounds: [
           [3.0, 114.0],
@@ -1244,6 +1592,14 @@ function DisasterRadarHeatmapInner({
       // User requirement: "I changed my mind, unfocusing on a country doesn't zoom out even a little"
       // Clicking outside deactivates the focus immediately with zero camera zoom out
       map.on('click', () => {
+        if (isProvinceClickRef.current) return;
+
+        // 1. If a beacon is focused, deselect the beacon and restore province camera view
+        if (selectedBeaconRef.current) {
+          handleCloseBeaconFocus();
+          return;
+        }
+
         if (campaignPinsGroupRef.current) {
           campaignPinsGroupRef.current.eachLayer(otherMarker => {
             otherMarker.setZIndexOffset(0);
@@ -1263,13 +1619,59 @@ function DisasterRadarHeatmapInner({
           focusedProvinceRef.current = null;
           setSelectedCluster(null);
           setIsDossierOpen(false);
-          // Camera remains completely steady at current zoom and center
+
+          // Disclicking outside returns the zoom to the exact zoom height it was at before clicking the province
+          if (preFocusViewRef.current && mapRef.current) {
+            const { zoom: returnZoom, center: returnCenter } = preFocusViewRef.current;
+            smoothNavigateTo(returnCenter, returnZoom);
+            preFocusViewRef.current = null;
+          }
         }
       });
 
       // Track movement states to prevent mid-flight hover recalculations that offset vector paths
       map.on('movestart zoomstart', () => {
         isMapMovingRef.current = true;
+        clearAllHoveredProvinces();
+      });
+
+      // Clear any stuck hover highlight whenever the mouse enters ocean or empty map canvas
+      map.on('mousemove', (e) => {
+        if (!hoveredProvinceLayersRef.current || hoveredProvinceLayersRef.current.size === 0) return;
+        const origTarget = e.originalEvent && e.originalEvent.target;
+        if (!origTarget) return;
+
+        // If cursor is over any pin, marker, beacon, or tooltip card, user is interacting with it
+        if (origTarget.closest && origTarget.closest('.leaflet-marker-icon, .tactical-radar-node-wrapper, .tactical-radar-node, .province-leaflet-tooltip, .leaflet-tooltip, .exact-tactical-pin-wrapper')) {
+          return;
+        }
+
+        // If cursor is over one of the currently hovered province vector paths, keep it highlighted
+        let isOverHoveredLayer = false;
+        hoveredProvinceLayersRef.current.forEach(hl => {
+          if (hl._path && hl._path === origTarget) {
+            isOverHoveredLayer = true;
+          }
+          if (typeof hl.eachLayer === 'function') {
+            hl.eachLayer(sub => {
+              if (sub._path && sub._path === origTarget) isOverHoveredLayer = true;
+            });
+          }
+        });
+        if (isOverHoveredLayer) return;
+
+        // If cursor is over ANY other province path in GeoJSON, let that province's mouseover handle it
+        if (origTarget.tagName === 'path' && origTarget.classList && origTarget.classList.contains('leaflet-interactive')) {
+          return;
+        }
+
+        // Cursor is over ocean, map canvas, or unassociated tiles: clear all hover outlines
+        clearAllHoveredProvinces();
+      });
+
+      // Clear any stuck hover highlight if the cursor leaves the map stage
+      map.on('mouseout', () => {
+        clearAllHoveredProvinces();
       });
 
       // Real-time progressive opacity fade while zooming
@@ -1304,7 +1706,11 @@ function DisasterRadarHeatmapInner({
         }
       };
 
-      map.on('zoom', syncProvinceZoomStyles);
+      map.on('zoom', () => {
+        const currentZ = map.getZoom();
+        setCurrentZoomLevel(currentZ);
+        syncProvinceZoomStyles();
+      });
 
       // Automatic vector synchronization on motion end (guarantees zero coordinate drift)
       map.on('moveend zoomend', () => {
@@ -1312,6 +1718,16 @@ function DisasterRadarHeatmapInner({
         const currentZ = map.getZoom();
         setCurrentZoomLevel(currentZ);
         syncProvinceZoomStyles();
+      });
+
+      // Barrier: Close any sector overview card immediately if a province is focused
+      map.on('tooltipopen', (e) => {
+        if (focusedProvinceRef.current) {
+          const el = e.tooltip?.getElement();
+          if (el && el.querySelector('.province-tooltip-card')) {
+            e.tooltip.close();
+          }
+        }
       });
 
       if (containerRef.current) {
@@ -1399,20 +1815,28 @@ function DisasterRadarHeatmapInner({
   }) {
     const safeTier = tier || getTier(count);
     const causesLabel = count === 1 ? 'Cause' : 'Causes';
-    const rainText = safeTier.rainDesc || safeTier.label;
+    // Strip redundant parenthesized cause count since the card directly below shows active causes
+    const cleanBadgeText = (safeTier.rainDesc || safeTier.label || '').replace(/\s*\(\d+\s*Causes?\)/i, '').trim();
     const ethFormatted = (typeof totalEth === 'number' ? totalEth : parseFloat(totalEth) || 0).toFixed(2);
+
+    let displayTitle = pName;
+    let displayRegion = regionName;
+    if (displayTitle && displayTitle.includes('°N') && displayTitle.includes('°E')) {
+      displayTitle = 'Southern Leyte';
+      displayRegion = 'Region VIII (Eastern Visayas)';
+    }
 
     return `
       <div class="province-tooltip-card ${isHub ? 'is-macro-hub' : ''}">
         <div class="prov-tooltip-header">
           <div class="prov-tooltip-title-col">
-            <span class="prov-tooltip-title">${pName}</span>
-            ${regionName ? `<span class="prov-tooltip-region">${regionName}</span>` : ''}
+            <span class="prov-tooltip-title">${displayTitle}</span>
+            ${displayRegion ? `<span class="prov-tooltip-region">${displayRegion}</span>` : ''}
           </div>
         </div>
         <div class="prov-tooltip-badge" style="--badge-tier: ${safeTier.color}; background: ${safeTier.color}1f; color: ${safeTier.color}; border: 1px solid ${safeTier.color}55;">
           <span class="prov-badge-pulse-dot" style="background: ${safeTier.color};"></span>
-          <span>${rainText}</span>
+          <span>${cleanBadgeText}</span>
         </div>
         <div class="prov-tooltip-stats-grid">
           <div class="prov-stat-cardlet">
@@ -1421,7 +1845,7 @@ function DisasterRadarHeatmapInner({
           </div>
           <div class="prov-stat-cardlet">
             <span class="prov-stat-k">Funds Mobilized</span>
-            <span class="prov-stat-v"><strong>${ethFormatted} ETH</strong></span>
+            <span class="prov-stat-v"><strong>₱${Number(Math.round(totalEth * 170000)).toLocaleString('en-US')}</strong> <span style="font-size: 10px; color: var(--text-muted, #a3a3a3); font-weight: 500;">(≈ ${ethFormatted} ETH)</span></span>
           </div>
         </div>
         ${isHub && memberProvinces && memberProvinces.length > 0 ? `
@@ -1454,14 +1878,13 @@ function DisasterRadarHeatmapInner({
     const isLightMode = currentTheme === 'light';
 
     // ── DYNAMIC PROVINCE COLOR OPACITY LOGIC (ACROSS ALL MAP STYLES) ──
-    // 1. Zoomed out (z <= 6): ~80% opacity (0.80) to make campaign distribution vivid and visible across the country
-    // 2. Zooming in (z = 6 to 10): gradually and smoothly decreases from 80% (0.80) down to a minimum floor of 25% (0.25)
-    //    z=6 -> 0.80, z=7 -> 0.663, z=8 -> 0.525, z=9 -> 0.388, z>=10 -> 0.25
-    // 3. Zoomed in deeply (z >= 10): clamped at 25% minimum opacity so colors never fade out completely
-    // 4. Selected / Clicked: reduces that specific province's opacity strictly to 10% (0.10), overriding normal zoom opacity!
+    // 1. Zoomed out (z <= 6): ~65% opacity (0.65) to keep fills deeply saturated without obscuring relief/terrain
+    // 2. Zooming in (z = 6 to 10): smoothly transitions from 65% (0.65) down to a balanced 30% floor (0.30)
+    // 3. Zoomed in deeply (z >= 10): clamped at 30% minimum opacity so colors remain vivid while roads/pins are crystal clear
+    // 4. Selected / Focused: reduces that specific province's opacity strictly to 10% (0.10) to highlight granular assets
     const dynamicZoomOpacity = z <= 6
-      ? 0.80
-      : (z >= 10 ? 0.25 : Number((0.80 - ((z - 6) / 4) * (0.80 - 0.25)).toFixed(3)));
+      ? 0.65
+      : (z >= 10 ? 0.30 : Number((0.65 - ((z - 6) / 4) * (0.65 - 0.30)).toFixed(3)));
 
     // ── IF A PROVINCE IS FOCUSED AND THIS IS NOT THE ONE: ELEGANTLY DIMMED & MUTED ──
     if (hasFocus && !isThisFocused) {
@@ -1494,61 +1917,62 @@ function DisasterRadarHeatmapInner({
         ? 0.10
         : (isHovered ? Math.min(0.92, dynamicZoomOpacity + 0.08) : dynamicZoomOpacity);
 
-      // SATELLITE: Translucent glassy tint & brilliant white boundary to reveal photographic textures underneath
+      // SATELLITE: Photographic base with tier color-coded boundary at rest (White hover/focus outline)
       if (currentLayer === 'satellite') {
         return {
           noClip: true,
           fillColor: tier.color,
           fillOpacity: effectiveOpacity,
-          color: 'rgba(255, 255, 255, 0.95)',
-          weight: isThisFocused ? (z >= 9 ? 1.6 : 1.8) : (isHovered ? 2.0 : (isZoomedOut ? 0.8 : 1.2)),
+          color: isThisFocused ? '#ffffff' : (isHovered ? '#ffffff' : tier.color),
+          weight: isThisFocused ? (z >= 9 ? 1.6 : 1.8) : (isHovered ? 2.2 : (isZoomedOut ? 0.8 : 1.2)),
           opacity: 0.95
         };
       }
 
-      // PLAIN VECTOR: Clean, saturated choropleth against off-white canvas
+      // PLAIN VECTOR: Clean choropleth with tier color-coded boundary at rest (Black hover/focus outline)
       if (isPlainWhite) {
         return {
           noClip: true,
           fillColor: tier.color,
           fillOpacity: effectiveOpacity,
-          color: isLightMode ? '#000000' : '#ffffff',
-          weight: isThisFocused ? (z >= 9 ? 1.6 : 1.8) : (isHovered ? 2.0 : (isZoomedOut ? 0.8 : 1.2)),
+          color: isThisFocused ? '#000000' : (isHovered ? '#000000' : tier.color),
+          weight: isThisFocused ? (z >= 9 ? 1.6 : 1.8) : (isHovered ? 2.2 : (isZoomedOut ? 0.8 : 1.2)),
           opacity: 0.95
         };
       }
 
-      // TERRAIN: Vivid saturation standing distinctly above topographic hillshading
+      // TERRAIN: Vivid saturation above hillshading with tier color-coded boundary at rest (Black hover/focus outline)
       if (currentLayer === 'terrain') {
         return {
           noClip: true,
           fillColor: tier.color,
           fillOpacity: effectiveOpacity,
-          color: isLightMode ? '#000000' : '#ffffff',
-          weight: isThisFocused ? (z >= 9 ? 1.6 : 1.8) : (isHovered ? 2.0 : (isZoomedOut ? 0.8 : 1.2)),
+          color: isThisFocused ? '#000000' : (isHovered ? '#000000' : tier.color),
+          weight: isThisFocused ? (z >= 9 ? 1.6 : 1.8) : (isHovered ? 2.2 : (isZoomedOut ? 0.8 : 1.2)),
           opacity: 0.95
         };
       }
 
-      // TACTICAL (ARCGIS CANVAS DARK / LIGHT): Luminous neon radar glow in Dark, crisp executive wash in Light
+      // TACTICAL (ARCGIS CANVAS DARK / LIGHT): Luminous neon radar glow with tier color-coded boundary at rest (White hover/focus outline in dark mode, Black in light mode)
       if (currentLayer === 'tactical') {
+        const tacticalHoverColor = isLightMode ? '#000000' : '#ffffff';
         return {
           noClip: true,
           fillColor: tier.color,
           fillOpacity: effectiveOpacity,
-          color: isThisFocused ? (isLightMode ? '#000000' : '#ffffff') : (isHovered ? '#ffffff' : (isLightMode ? '#000000' : tier.color)),
-          weight: isThisFocused ? (z >= 9 ? 1.6 : 1.8) : (isHovered ? 2.0 : (isZoomedOut ? 0.8 : 1.2)),
+          color: isThisFocused ? tacticalHoverColor : (isHovered ? tacticalHoverColor : tier.color),
+          weight: isThisFocused ? (z >= 9 ? 1.6 : 1.8) : (isHovered ? 2.2 : (isZoomedOut ? 0.8 : 1.2)),
           opacity: 0.95
         };
       }
 
-      // STREET (OSM): Rich translucent overlay
+      // STREET (OSM): Rich translucent overlay with tier color-coded boundary at rest (Black hover/focus outline)
       return {
         noClip: true,
         fillColor: tier.color,
         fillOpacity: effectiveOpacity,
-        color: isLightMode ? '#000000' : '#ffffff',
-        weight: isThisFocused ? (z >= 9 ? 1.6 : 1.8) : (isHovered ? 2.0 : (isZoomedOut ? 0.8 : 1.2)),
+        color: isThisFocused ? '#000000' : (isHovered ? '#000000' : tier.color),
+        weight: isThisFocused ? (z >= 9 ? 1.6 : 1.8) : (isHovered ? 2.2 : (isZoomedOut ? 0.8 : 1.2)),
         opacity: 0.95
       };
     }
@@ -1596,6 +2020,105 @@ function DisasterRadarHeatmapInner({
       weight: isThisFocused ? 1.4 : 0.6,
       opacity: 0.75
     };
+  }
+
+  // Canonical style reset for any province vector layer (guarantees zero stuck hover strokes)
+  function resetProvinceLayer(provLayer) {
+    if (!provLayer || !provLayer.feature) return;
+    const currentFocused = focusedProvinceRef.current;
+    const pName = provLayer.feature.properties?.name || '';
+    const isThisFocused = Boolean(currentFocused && (currentFocused.toLowerCase() === pName.toLowerCase()));
+    if (isThisFocused) return; // Never reset the bold highlight of the focused province
+
+    const currentActiveL = activeLayerRef.current || 'terrain';
+    const currentCamps = campaignsRef.current || [];
+    const currentZ = mapRef.current ? mapRef.current.getZoom() : 6;
+
+    const freshStyle = getProvinceStyle(
+      provLayer.feature,
+      currentFocused,
+      currentActiveL,
+      currentCamps,
+      currentZ
+    );
+    provLayer.setStyle(freshStyle);
+    if (provLayer._path && typeof freshStyle.fillOpacity === 'number') {
+      provLayer._path.setAttribute('fill-opacity', String(freshStyle.fillOpacity));
+      provLayer._path.style.fillOpacity = String(freshStyle.fillOpacity);
+    }
+    if (currentFocused) {
+      const focusedLayer = provinceLayersByNameRef.current.get(currentFocused.toLowerCase());
+      if (focusedLayer && typeof focusedLayer.bringToFront === 'function') {
+        focusedLayer.bringToFront();
+      }
+    }
+  }
+
+  // Clear all currently hovered province highlights safely
+  function clearAllHoveredProvinces(keepLayer = null) {
+    if (!hoveredProvinceLayersRef.current) return;
+    hoveredProvinceLayersRef.current.forEach(layer => {
+      if (layer !== keepLayer) {
+        resetProvinceLayer(layer);
+        hoveredProvinceLayersRef.current.delete(layer);
+      }
+    });
+  }
+
+  // Apply hover outline highlight safely to any province layer
+  function setProvinceHoverHighlight(layer, hoverColor) {
+    if (!layer || !layer.setStyle) return;
+    const currentFocused = focusedProvinceRef.current;
+    const pName = layer.feature?.properties?.name || '';
+    if (currentFocused && currentFocused.toLowerCase() === pName.toLowerCase()) {
+      return; // Do not alter the focused province style
+    }
+    hoveredProvinceLayersRef.current.add(layer);
+    layer.setStyle({
+      weight: 2.2,
+      color: hoverColor,
+      opacity: 1.0
+    });
+    if (typeof layer.bringToFront === 'function') {
+      layer.bringToFront();
+    }
+  }
+
+  // Hover outline color resolver:
+  // - Terrain, Street (OSM), and Plain are always light maps -> Black (#000000)
+  // - Satellite is always dark photographic base -> White (#ffffff)
+  // - Tactical strictly adapts to app theme: White (#ffffff) in Dark Mode, Black (#000000) in Light Mode
+  function getHoverOutlineColor(layerMode, themeMode) {
+    if (layerMode === 'tactical') {
+      return themeMode === 'light' ? '#000000' : '#ffffff';
+    }
+    if (layerMode === 'satellite') {
+      return '#ffffff';
+    }
+    return '#000000'; // 'terrain', 'osm', 'provinces'
+  }
+
+  // Robust province layer resolver supporting canonical names, aliases, and comma-separated cities
+  function resolveProvinceLayerForName(rawName) {
+    if (!rawName || !provinceLayersByNameRef.current) return null;
+    const clean = rawName.toLowerCase().trim();
+    if (provinceLayersByNameRef.current.has(clean)) {
+      return provinceLayersByNameRef.current.get(clean);
+    }
+    if (clean.includes(',')) {
+      const parts = clean.split(',').map(p => p.trim());
+      for (const part of parts) {
+        if (provinceLayersByNameRef.current.has(part)) {
+          return provinceLayersByNameRef.current.get(part);
+        }
+      }
+    }
+    for (const [key, layer] of provinceLayersByNameRef.current.entries()) {
+      if (clean.includes(key) || key.includes(clean)) {
+        return layer;
+      }
+    }
+    return null;
   }
 
   // ── Initialize Philippine Provinces GeoJSON Layer (BUILT ONCE, ZERO FLICKER) ──
@@ -1647,6 +2170,34 @@ function DisasterRadarHeatmapInner({
           layer.bindTooltip(tooltip);
         }
 
+        // Adaptive Bounds & Flip Logic for Province Polygon Tooltip:
+        // Automatically flips down and clamps horizontally so card NEVER collides with or overlaps borders
+        const updateLayerTooltipBounds = (e) => {
+          const tt = layer.getTooltip();
+          if (!tt || !mapRef.current || !e || !e.containerPoint) return;
+          const pt = e.containerPoint;
+          const size = mapRef.current.getSize();
+          const flipDown = pt.y < 225;
+          const targetDirection = flipDown ? 'bottom' : 'top';
+          let offsetX = 0;
+          const cardHalfWidth = 125;
+          if (pt.x < cardHalfWidth + 16) {
+            offsetX = (cardHalfWidth + 16) - pt.x;
+          } else if (pt.x > size.x - (cardHalfWidth + 16)) {
+            offsetX = -(pt.x - (size.x - (cardHalfWidth + 16)));
+          }
+          const offsetY = flipDown ? 20 : -14;
+
+          const curOffset = tt.options.offset || [0, 0];
+          if (tt.options.direction !== targetDirection || curOffset[0] !== offsetX || curOffset[1] !== offsetY) {
+            tt.options.direction = targetDirection;
+            tt.options.offset = [offsetX, offsetY];
+            if (tt.isOpen && tt.isOpen()) {
+              tt.update();
+            }
+          }
+        };
+
         layer.on({
           mousedown: (e) => {
             // Prevent browser from focusing the SVG path element (stops Chrome from drawing bounding-box outline)
@@ -1666,30 +2217,38 @@ function DisasterRadarHeatmapInner({
               return; // Also skip hover highlight for the focused province border
             }
 
-            const isSat = activeLayer === 'satellite';
-            const currentZ = mapRef.current ? mapRef.current.getZoom() : 6;
-            const isZoomedOut = currentZ <= 6.5;
-            e.target.setStyle({
-              weight: count > 0
-                ? (isSat ? (isZoomedOut ? 1.4 : 2.2) : (isZoomedOut ? 1.6 : 2.2))
-                : (isSat ? (isZoomedOut ? 1.0 : 1.8) : (isZoomedOut ? 1.2 : 1.6)),
-              color: isSat ? '#ffffff' : '#000000',
-              opacity: 1.0
-            });
-          },
-          mouseout: (e) => {
-            if (isMapMovingRef.current) return; // Prevent mid-animation style recalculations that displace vector paths
+            // Immediately clear any other hovered provinces to eliminate stuck hover borders
+            clearAllHoveredProvinces(e.target);
 
+            updateLayerTooltipBounds(e);
+
+            const currentActiveL = activeLayerRef.current || 'terrain';
+            const currentThemeMode = currentThemeRef.current || 'dark';
+            const hoverColor = getHoverOutlineColor(currentActiveL, currentThemeMode);
+
+            setProvinceHoverHighlight(e.target, hoverColor);
+          },
+          mousemove: (e) => {
+            if (isMapMovingRef.current) return;
             const currentFocused = focusedProvinceRef.current;
             const isThisFocused = Boolean(currentFocused && (currentFocused.toLowerCase() === pKey));
-            // NEVER reset the bold border of the currently focused province - it stays until next province!
-            if (!isThisFocused) {
-              const freshStyle = getProvinceStyle(feature, currentFocused, activeLayer, activeCampaigns, mapRef.current ? mapRef.current.getZoom() : 6);
-              e.target.setStyle(freshStyle);
-              if (e.target._path && typeof freshStyle.fillOpacity === 'number') {
-                e.target._path.setAttribute('fill-opacity', String(freshStyle.fillOpacity));
-                e.target._path.style.fillOpacity = String(freshStyle.fillOpacity);
-              }
+            if (isThisFocused) return;
+            updateLayerTooltipBounds(e);
+          },
+          mouseout: (e) => {
+            const relTarget = e.originalEvent && e.originalEvent.relatedTarget;
+            const marker = clusterMarkersByProvinceRef.current.get(pKey);
+            const markerEl = marker?.getElement ? marker.getElement() : null;
+
+            // If cursor is moving directly into this province's cluster marker or its tooltip card, maintain outline
+            if (relTarget) {
+              if (markerEl && (relTarget === markerEl || markerEl.contains(relTarget))) return;
+              if (relTarget.closest && relTarget.closest('.province-leaflet-tooltip, .leaflet-marker-icon')) return;
+            }
+
+            resetProvinceLayer(e.target);
+            if (hoveredProvinceLayersRef.current) {
+              hoveredProvinceLayersRef.current.delete(e.target);
             }
           },
           click: (e) => {
@@ -1707,13 +2266,28 @@ function DisasterRadarHeatmapInner({
               layer._path.blur();
             }
 
-            // Close tooltip immediately — prevents the info card from flashing on click
+            // Close tooltip immediately across map — prevents the info card from remaining open
             if (layer.getTooltip()) layer.closeTooltip();
+            if (mapRef.current) {
+              mapRef.current.eachLayer(l => {
+                if (typeof l.closeTooltip === 'function') {
+                  try { l.closeTooltip(); } catch (_) { }
+                }
+              });
+            }
 
             isProvinceClickRef.current = true;
             setTimeout(() => {
               isProvinceClickRef.current = false;
             }, 150);
+
+            // Record zoom height and center before focusing so disclicking outside smoothly returns
+            if (!focusedProvinceRef.current && mapRef.current) {
+              preFocusViewRef.current = {
+                zoom: mapRef.current.getZoom(),
+                center: mapRef.current.getCenter()
+              };
+            }
 
             setFocusedProvince(pName);
             focusedProvinceRef.current = pName;
@@ -1724,9 +2298,8 @@ function DisasterRadarHeatmapInner({
             if (mapRef.current && bounds && bounds.isValid()) {
               const center = bounds.getCenter();
               lastFocusCenterRef.current = [center.lat, center.lng];
-              const currentZoom = mapRef.current.getZoom();
-              const targetZoom = Math.max(currentZoom, 8);
-              smoothNavigateTo(center, targetZoom);
+              const optimalZoom = getProvinceOptimalZoom(bounds, mapRef.current);
+              smoothNavigateTo(center, optimalZoom);
             }
           }
         });
@@ -1741,7 +2314,7 @@ function DisasterRadarHeatmapInner({
 
     geoGroup.addLayer(geoJsonLayer);
     geoJsonLayerRef.current = geoJsonLayer;
-  }, [activeLayer, activeCampaigns]);
+  }, [activeCampaigns]);
 
   // ── Smoothly Update Province Styles on Focus Change ──
   useEffect(() => {
@@ -1783,7 +2356,7 @@ function DisasterRadarHeatmapInner({
         layer.bringToFront();
       }
     });
-  }, [focusedProvince, activeLayer, activeCampaigns, hoveredCorridorName]);
+  }, [focusedProvince, activeLayer, activeCampaigns, hoveredCorridorName, currentTheme]);
 
   // ── Native Vector Spotlight Dimmer (Punches 100% Crisp Hole in spotlightPane at zIndex 350) ──
   // Living strictly in spotlightPane (zIndex 350), it is BELOW markerPane (zIndex 600) and popupPane (zIndex 700)
@@ -1910,20 +2483,37 @@ function DisasterRadarHeatmapInner({
   useEffect(() => {
     if (!mapRef.current || !heatCloudGroupRef.current || !markersGroupRef.current) return;
 
+    const map = mapRef.current;
     const heatGroup = heatCloudGroupRef.current;
     const markersGroup = markersGroupRef.current;
     heatGroup.clearLayers();
     markersGroup.clearLayers();
     clusterMarkersByProvinceRef.current.clear();
 
-    // When a province is focused OR when in 'choropleth' mode, hide national cluster badges
-    if (focusedProvince || radarDisplayMode === 'choropleth' || radarDisplayMode === 'heat_only') return;
+    // When a province is focused, hide national cluster badges (exact campaign pins will show instead)
+    if (focusedProvince) {
+      if (map.hasLayer(markersGroup)) {
+        map.removeLayer(markersGroup);
+      }
+      if (map.hasLayer(heatGroup)) {
+        map.removeLayer(heatGroup);
+      }
+      return;
+    }
 
-    const map = mapRef.current;
+    // Ensure national layer groups are active on the map
+    if (!map.hasLayer(markersGroup)) {
+      map.addLayer(markersGroup);
+    }
+    if (!map.hasLayer(heatGroup)) {
+      map.addLayer(heatGroup);
+    }
+
     const currentZ = map.getZoom();
 
     // Dynamically aggregate clusters based on screen distance to guarantee ZERO overcrowding
-    const clustersToRender = aggregateClustersByScreenDistance(visibleClusters, currentZ, map);
+    const rawClusters = aggregateClustersByScreenDistance(visibleClusters, currentZ, map);
+    const clustersToRender = (rawClusters && rawClusters.length > 0) ? rawClusters : (visibleClusters || []);
 
     clustersToRender.forEach(cluster => {
       const { lat, lng, tier, campaigns: clusterCamps } = cluster;
@@ -1933,30 +2523,40 @@ function DisasterRadarHeatmapInner({
       const provKey = provName.toLowerCase();
 
       // ── Doppler Storm Beacon (Tactical Precision Node / Macro Hub) ──
-      // Institutional GDACS/Mapbox-style precision node with colored accent ring, tactile disc, and anchored pip
+      // Modern high-contrast tactical shield with tier color aura, alert icon, and directional ground pointer
       const markerHtml = `
         <div class="tactical-radar-node ${isHub ? 'macro-hub' : ''} tier-${tier.level}" style="--tier-color: ${tier.color}; --tier-glow: ${tier.glowColor};">
-          <div class="node-halo-pulse"></div>
-          <div class="node-disc ${isHub ? 'macro-disc' : ''}">
+          <div class="node-sonar-pulse wave-1"></div>
+          <div class="node-sonar-pulse wave-2"></div>
+          <div class="node-badge-core">
+            <span class="material-symbols-outlined node-icon">${isHub ? 'hub' : 'crisis_alert'}</span>
             <span class="node-count">${count}</span>
           </div>
-          <div class="node-anchor-pip"></div>
+          <div class="node-pointer-arrow"></div>
         </div>
       `;
 
       const customIcon = L.divIcon({
         html: markerHtml,
         className: 'tactical-radar-node-wrapper',
-        iconSize: isHub ? [36, 42] : [32, 38],
-        iconAnchor: isHub ? [18, 40] : [16, 36]
+        iconSize: isHub ? [54, 34] : [46, 30],
+        iconAnchor: isHub ? [27, 34] : [23, 30]
       });
 
       const marker = L.marker([lat, lng], { icon: customIcon, interactive: true });
 
       // Map this marker for single canonical tooltip synchronization
       clusterMarkersByProvinceRef.current.set(provKey, marker);
+      const canonicalProvLayer = resolveProvinceLayerForName(cluster.name);
+      if (canonicalProvLayer?.feature?.properties?.name) {
+        clusterMarkersByProvinceRef.current.set(canonicalProvLayer.feature.properties.name.toLowerCase().trim(), marker);
+      }
       if (isHub && cluster.memberProvinces) {
         cluster.memberProvinces.forEach(m => {
+          const memLayer = resolveProvinceLayerForName(m.name);
+          if (memLayer?.feature?.properties?.name) {
+            clusterMarkersByProvinceRef.current.set(memLayer.feature.properties.name.toLowerCase().trim(), marker);
+          }
           const memKey = m.name.split(',')[0].trim().toLowerCase();
           clusterMarkersByProvinceRef.current.set(memKey, marker);
         });
@@ -1972,6 +2572,38 @@ function DisasterRadarHeatmapInner({
         memberProvinces: cluster.memberProvinces
       });
 
+      // Adaptive Tooltip Bounds & Flip Logic: Ensures cluster card NEVER collides with or overlaps top/side borders
+      const updateClusterTooltipBounds = () => {
+        if (!mapRef.current) return;
+        const pt = mapRef.current.latLngToContainerPoint([lat, lng]);
+        const size = mapRef.current.getSize();
+        const tt = marker.getTooltip();
+        if (!tt) return;
+
+        // Card height is ~155px. If pin is in the upper 225px of the map container, FLIP DOWN
+        const flipDown = pt.y < 225;
+        const targetDirection = flipDown ? 'bottom' : 'top';
+        const cardHalfWidth = isHub ? 135 : 125;
+        let offsetX = 0;
+        if (pt.x < cardHalfWidth + 16) {
+          offsetX = (cardHalfWidth + 16) - pt.x;
+        } else if (pt.x > size.x - (cardHalfWidth + 16)) {
+          offsetX = -(pt.x - (size.x - (cardHalfWidth + 16)));
+        }
+        const offsetY = flipDown ? (isHub ? 18 : 14) : (isHub ? -40 : -36);
+
+        const curOffset = tt.options.offset || [0, 0];
+        if (tt.options.direction !== targetDirection || curOffset[0] !== offsetX || curOffset[1] !== offsetY) {
+          tt.options.direction = targetDirection;
+          tt.options.offset = [offsetX, offsetY];
+          if (tt.isOpen && tt.isOpen()) {
+            tt.update();
+          }
+        }
+      };
+
+      marker._updateTooltipBounds = updateClusterTooltipBounds;
+
       marker.bindTooltip(tooltipHtml, {
         direction: 'top',
         offset: isHub ? [0, -40] : [0, -36],
@@ -1981,55 +2613,75 @@ function DisasterRadarHeatmapInner({
 
       marker.on({
         mouseover: () => {
+          updateClusterTooltipBounds();
           if (isMapMovingRef.current) return;
-          // Highlight underlying province polygon
+          const currentActiveL = activeLayerRef.current || 'terrain';
+          const currentThemeMode = currentThemeRef.current || 'dark';
+          const hoverColor = getHoverOutlineColor(currentActiveL, currentThemeMode);
+
+          // Highlight underlying province polygon (black on terrain/osm, white on tactical/satellite)
           if (isHub && cluster.memberProvinces) {
+            const memberLayers = [];
             cluster.memberProvinces.forEach(m => {
-              const memKey = m.name.split(',')[0].trim().toLowerCase();
-              const l = provinceLayersByNameRef.current.get(memKey);
-              if (l && (!focusedProvinceRef.current || focusedProvinceRef.current.toLowerCase() !== memKey)) {
-                l.setStyle({ weight: 2.0, color: '#ffffff', opacity: 1.0 });
-              }
+              const l = resolveProvinceLayerForName(m.name);
+              if (l) memberLayers.push(l);
+            });
+            // Clear any layers not in this hub
+            if (hoveredProvinceLayersRef.current) {
+              hoveredProvinceLayersRef.current.forEach(hl => {
+                if (!memberLayers.includes(hl)) {
+                  resetProvinceLayer(hl);
+                  hoveredProvinceLayersRef.current.delete(hl);
+                }
+              });
+            }
+            memberLayers.forEach(l => {
+              setProvinceHoverHighlight(l, hoverColor);
             });
           } else {
-            const provLayer = provinceLayersByNameRef.current.get(provKey);
-            if (provLayer && (!focusedProvinceRef.current || focusedProvinceRef.current.toLowerCase() !== provKey)) {
-              const isSat = activeLayerRef.current === 'satellite';
-              const currentZ = mapRef.current ? mapRef.current.getZoom() : 6;
-              const isZoomedOut = currentZ <= 6.5;
-              provLayer.setStyle({
-                weight: isSat ? (isZoomedOut ? 1.4 : 2.2) : (isZoomedOut ? 1.6 : 2.2),
-                color: isSat ? '#ffffff' : '#000000',
-                opacity: 1.0
-              });
+            const provLayer = resolveProvinceLayerForName(cluster.name) || provinceLayersByNameRef.current.get(provKey);
+            if (provLayer) {
+              clearAllHoveredProvinces(provLayer);
+              setProvinceHoverHighlight(provLayer, hoverColor);
             }
           }
         },
-        mouseout: () => {
-          if (isMapMovingRef.current) return;
+        mouseout: (e) => {
+          const relTarget = e && e.originalEvent && e.originalEvent.relatedTarget;
+          const markerEl = marker.getElement ? marker.getElement() : null;
+
+          // If cursor is still inside this marker element or its tooltip, do NOT reset
+          if (relTarget) {
+            if (markerEl && (relTarget === markerEl || markerEl.contains(relTarget))) return;
+            if (relTarget.closest && relTarget.closest('.province-leaflet-tooltip')) return;
+
+            // If cursor moved directly onto the underlying province polygon, do NOT reset
+            const provLayer = resolveProvinceLayerForName(cluster.name) || provinceLayersByNameRef.current.get(provKey);
+            if (provLayer && provLayer._path && provLayer._path === relTarget) return;
+
+            if (isHub && cluster.memberProvinces) {
+              const isOverMemberPath = cluster.memberProvinces.some(m => {
+                const l = resolveProvinceLayerForName(m.name);
+                return l && l._path && l._path === relTarget;
+              });
+              if (isOverMemberPath) return;
+            }
+          }
+
           // Reset underlying province polygon style
           if (isHub && cluster.memberProvinces) {
             cluster.memberProvinces.forEach(m => {
-              const memKey = m.name.split(',')[0].trim().toLowerCase();
-              const l = provinceLayersByNameRef.current.get(memKey);
-              if (l && (!focusedProvinceRef.current || focusedProvinceRef.current.toLowerCase() !== memKey)) {
-                const freshStyle = getProvinceStyle(l.feature, focusedProvinceRef.current, activeLayerRef.current, campaignsRef.current, mapRef.current ? mapRef.current.getZoom() : 6);
-                l.setStyle(freshStyle);
-                if (l._path && typeof freshStyle.fillOpacity === 'number') {
-                  l._path.setAttribute('fill-opacity', String(freshStyle.fillOpacity));
-                  l._path.style.fillOpacity = String(freshStyle.fillOpacity);
-                }
+              const l = resolveProvinceLayerForName(m.name);
+              if (l) {
+                resetProvinceLayer(l);
+                if (hoveredProvinceLayersRef.current) hoveredProvinceLayersRef.current.delete(l);
               }
             });
           } else {
-            const provLayer = provinceLayersByNameRef.current.get(provKey);
-            if (provLayer && (!focusedProvinceRef.current || focusedProvinceRef.current.toLowerCase() !== provKey)) {
-              const freshStyle = getProvinceStyle(provLayer.feature, focusedProvinceRef.current, activeLayerRef.current, campaignsRef.current, mapRef.current ? mapRef.current.getZoom() : 6);
-              provLayer.setStyle(freshStyle);
-              if (provLayer._path && typeof freshStyle.fillOpacity === 'number') {
-                provLayer._path.setAttribute('fill-opacity', String(freshStyle.fillOpacity));
-                provLayer._path.style.fillOpacity = String(freshStyle.fillOpacity);
-              }
+            const provLayer = resolveProvinceLayerForName(cluster.name) || provinceLayersByNameRef.current.get(provKey);
+            if (provLayer) {
+              resetProvinceLayer(provLayer);
+              if (hoveredProvinceLayersRef.current) hoveredProvinceLayersRef.current.delete(provLayer);
             }
           }
         },
@@ -2038,11 +2690,26 @@ function DisasterRadarHeatmapInner({
             L.DomEvent.stopPropagation(e.originalEvent);
           }
           if (marker.getTooltip()) marker.closeTooltip();
+          if (mapRef.current) {
+            mapRef.current.eachLayer(l => {
+              if (typeof l.closeTooltip === 'function') {
+                try { l.closeTooltip(); } catch (_) { }
+              }
+            });
+          }
 
           isProvinceClickRef.current = true;
           setTimeout(() => {
             isProvinceClickRef.current = false;
           }, 150);
+
+          // Save view before focus if not already focused
+          if (!focusedProvinceRef.current && mapRef.current) {
+            preFocusViewRef.current = {
+              zoom: mapRef.current.getZoom(),
+              center: mapRef.current.getCenter()
+            };
+          }
 
           if (cluster.isMacroHub) {
             // Clicking a regional macro hub smoothly zooms in to unpack the member provinces
@@ -2057,35 +2724,108 @@ function DisasterRadarHeatmapInner({
           setFocusedProvince(provName);
           focusedProvinceRef.current = provName;
           lastFocusCenterRef.current = [lat, lng];
+
           if (mapRef.current) {
-            const currentZoom = mapRef.current.getZoom();
-            const targetZoom = Math.max(currentZoom, 8.5);
-            smoothNavigateTo([lat, lng], targetZoom);
+            const provLayer = provinceLayersByNameRef.current.get(provName.toLowerCase());
+            if (provLayer && provLayer.getBounds && provLayer.getBounds().isValid()) {
+              const bounds = provLayer.getBounds();
+              const optimalZoom = getProvinceOptimalZoom(bounds, mapRef.current);
+              smoothNavigateTo(bounds.getCenter(), optimalZoom);
+            } else {
+              const currentZoom = mapRef.current.getZoom();
+              const targetZoom = Math.max(currentZoom, 8.5);
+              smoothNavigateTo([lat, lng], targetZoom);
+            }
           }
+        },
+        tooltipopen: () => {
+          updateClusterTooltipBounds();
         }
       });
 
       markersGroup.addLayer(marker);
     });
-  }, [visibleClusters, currentTheme, currentZoomLevel, radarDisplayMode]);
 
-  // Toggle Cluster Beacon Visibility on Focus Change without destroying layers
+    // Re-check positioning of any open cluster tooltip when the map moves or zooms
+    const handleMoveForClusterTooltips = () => {
+      markersGroup.eachLayer(m => {
+        if (typeof m._updateTooltipBounds === 'function') {
+          const tt = m.getTooltip();
+          if (tt && tt.isOpen && tt.isOpen()) {
+            m._updateTooltipBounds();
+          }
+        }
+      });
+    };
+    if (map) {
+      map.on('move', handleMoveForClusterTooltips);
+    }
+
+    return () => {
+      if (map) {
+        map.off('move', handleMoveForClusterTooltips);
+      }
+    };
+  }, [visibleClusters, currentTheme, currentZoomLevel, focusedProvince, activeLayer]);
+
+  // Toggle Cluster Beacon Visibility & Suppress Province Tooltips on Focus Change
   useEffect(() => {
     if (!mapRef.current) return;
     const map = mapRef.current;
+
+    // Explicitly close all tooltips on the map
+    map.eachLayer(l => {
+      if (typeof l.closeTooltip === 'function') {
+        try { l.closeTooltip(); } catch (_) { }
+      }
+    });
+
     if (focusedProvince) {
-      if (markersGroupRef.current && map.hasLayer(markersGroupRef.current)) {
-        map.removeLayer(markersGroupRef.current);
+      // 1. Hide cluster markers & heat cloud
+      if (markersGroupRef.current) {
+        markersGroupRef.current.eachLayer(m => {
+          if (typeof m.closeTooltip === 'function') {
+            try { m.closeTooltip(); } catch (_) { }
+          }
+        });
+        if (map.hasLayer(markersGroupRef.current)) {
+          map.removeLayer(markersGroupRef.current);
+        }
       }
       if (heatCloudGroupRef.current && map.hasLayer(heatCloudGroupRef.current)) {
         map.removeLayer(heatCloudGroupRef.current);
       }
+
+      // 2. Unbind tooltips on all GeoJSON province layers
+      // This completely strips Leaflet's internal mousemove/mouseover listeners for tooltips
+      if (geoJsonLayerRef.current) {
+        geoJsonLayerRef.current.eachLayer(l => {
+          if (typeof l.closeTooltip === 'function') {
+            try { l.closeTooltip(); } catch (_) { }
+          }
+          if (typeof l.getTooltip === 'function' && l.getTooltip()) {
+            l._savedSectorTooltip = l.getTooltip();
+            l.unbindTooltip();
+          }
+        });
+      }
     } else {
+      // Restore cluster markers & heat cloud
       if (markersGroupRef.current && !map.hasLayer(markersGroupRef.current)) {
         map.addLayer(markersGroupRef.current);
       }
       if (heatCloudGroupRef.current && !map.hasLayer(heatCloudGroupRef.current)) {
         map.addLayer(heatCloudGroupRef.current);
+      }
+
+      // Restore tooltips on GeoJSON province layers
+      if (geoJsonLayerRef.current) {
+        geoJsonLayerRef.current.eachLayer(l => {
+          if (l._savedSectorTooltip && (!l.getTooltip || !l.getTooltip())) {
+            l.bindTooltip(l._savedSectorTooltip);
+            l._savedSectorTooltip = null;
+          }
+        });
       }
     }
   }, [focusedProvince]);
@@ -2105,8 +2845,10 @@ function DisasterRadarHeatmapInner({
     // Distance-based collision avoidance: ensure all placed pins have a minimum visual separation
     const placedPins = [];
     const MIN_PIN_DISTANCE_DEG = 0.038; // ~4.2km separation ensures zero disc overlap
+    pinCoordsByCampIdRef.current.clear();
 
     provCamps.forEach((camp, idx) => {
+      const campId = String(camp.id || camp.title);
       const baseCoords = resolveCampaignCoords(camp);
       let lat = baseCoords[0];
       let lng = baseCoords[1];
@@ -2131,10 +2873,15 @@ function DisasterRadarHeatmapInner({
       }
 
       placedPins.push({ lat, lng });
+      pinCoordsByCampIdRef.current.set(campId, [lat, lng]);
 
       const raised = parseFloat(camp.currentAmount || camp.raised_eth || 0) || 0;
       const target = parseFloat(camp.targetAmount || camp.target_eth || 0) || 0;
       const pct = target > 0 ? Math.min(100, Math.round((raised / target) * 100)) : 0;
+
+      const ETH_TO_PHP = 170000;
+      const raisedPhp = camp.raised_php || camp.currentAmountPhp || Math.round(raised * ETH_TO_PHP);
+      const targetPhp = camp.target_php || camp.targetAmountPhp || Math.round(target * ETH_TO_PHP);
 
       const catMeta = getCampaignCategoryMeta(camp);
       const subLocation = resolveCampaignSubLocation(camp, focusedProvince);
@@ -2146,82 +2893,102 @@ function DisasterRadarHeatmapInner({
       const stripped = rawTitle.replace(/(operation|project)/gi, '').trim();
       const displayTitle = stripped.length > 20 ? stripped.slice(0, 18).trim() + '…' : stripped;
 
+      const isThisBeaconSelected = Boolean(selectedBeaconRef.current && selectedBeaconRef.current === campId);
+      const isOtherBeaconSelected = Boolean(selectedBeaconRef.current && selectedBeaconRef.current !== campId);
+
+      // Resolve disaster aftermath photos if attached
+      let pinDisasterPhotos = camp.disasterImages;
+      if (!pinDisasterPhotos && (camp.disaster_images_json || camp.disasterImagesJson)) {
+        try {
+          const parsed = typeof (camp.disaster_images_json || camp.disasterImagesJson) === 'string'
+            ? JSON.parse(camp.disaster_images_json || camp.disasterImagesJson)
+            : (camp.disaster_images_json || camp.disasterImagesJson);
+          if (Array.isArray(parsed) && parsed.length > 0) pinDisasterPhotos = parsed;
+        } catch (_) {}
+      }
+      const firstPinPhoto = Array.isArray(pinDisasterPhotos) && pinDisasterPhotos.length > 0 ? pinDisasterPhotos[0] : null;
+      const pinPhotoCount = Array.isArray(pinDisasterPhotos) ? pinDisasterPhotos.length : 0;
+
       const pinHtml = `
-        <div class="exact-campaign-tactical-pin" style="--pin-color: ${catMeta.color}; --glow-color: ${catMeta.glowColor}; animation-delay: ${idx * 90}ms;">
-          <!-- Visual Beacon Head, Stem, and Reticle -->
+        <div class="exact-campaign-tactical-pin ${isThisBeaconSelected ? 'is-beacon-selected' : ''} ${isOtherBeaconSelected ? 'is-beacon-dimmed' : ''}" style="--pin-color: ${catMeta.color}; --glow-color: ${catMeta.glowColor}; animation-delay: ${idx * 90}ms;">
+          <!-- Visual Beacon Head, Stem, and Reticle (Scales dynamically on zoom in) -->
           <div class="pin-visual-beacon">
+            <!-- Visible Sonar Pulse Waves -->
             <div class="pin-pulse-wave wave-1"></div>
             <div class="pin-pulse-wave wave-2"></div>
+
+            <!-- Compact Tactical Reticle -->
             <div class="pin-target-reticle" style="border-color: ${catMeta.color};"></div>
 
-            <!-- Ground Marker Head & Anchor Stem with Category-Accurate Icon -->
-            <div class="pin-head-disc" style="background: ${catMeta.color}; border-color: #ffffff; color: #ffffff;" title="${rawTitle}">
+            <!-- Ground Marker Head & Anchor Stem -->
+            <div class="pin-head-disc" style="background: ${catMeta.color}; border-color: #ffffff; color: #ffffff;">
               <span class="material-symbols-outlined pin-symbol" style="color: inherit;">${catMeta.icon}</span>
             </div>
             <div class="pin-beacon-stem" style="background: linear-gradient(to bottom, ${catMeta.color}, rgba(255,255,255,0.7));"></div>
             <div class="pin-anchor-dot" style="background: ${catMeta.color};"></div>
           </div>
           
-          <!-- Mission HUD Card (Clean Vercel Tactical Dossier) -->
+          <!-- Mission HUD Card (Clean, Spacious, Essential Info Only) -->
           <div class="pin-tactical-hud-card">
             <div class="hud-expanded-view">
-              <!-- Top Category Color Accent Stripe -->
-              <div class="hud-card-accent-strip" style="background: linear-gradient(90deg, ${catMeta.color}, #10b981);"></div>
-
-              <!-- Header: Category Pill & Active Pulse -->
+              <!-- Header: Category Badge & Live Status -->
               <div class="hud-exp-header">
-                <span class="hud-exp-cat" style="color: ${catMeta.color}; background: ${catMeta.color}18; border: 1px solid ${catMeta.color}38;">
-                  <span class="material-symbols-outlined" style="font-size: 12px;">${catMeta.icon}</span>
+                <div class="hud-exp-cat" style="background: ${catMeta.color}18; color: ${catMeta.color}; border: 1px solid ${catMeta.color}55;">
+                  <span class="material-symbols-outlined" style="font-size: 14px; color: ${catMeta.color};">${catMeta.icon}</span>
                   <span>${catMeta.shortLabel}</span>
-                </span>
-                <span class="hud-exp-badge">
+                </div>
+                <div class="hud-exp-badge">
                   <span class="hud-status-pulse-dot"></span>
                   <span>ACTIVE</span>
-                </span>
+                </div>
               </div>
+
+              ${firstPinPhoto ? `
+                <div class="hud-aftermath-thumb-wrap">
+                  <img src="${firstPinPhoto}" alt="Disaster impact evidence" class="hud-aftermath-thumb-img" />
+                  <span class="hud-aftermath-badge">
+                    <span class="material-symbols-outlined" style="font-size: 11px;">photo_camera</span>
+                    ${pinPhotoCount} Field Photo${pinPhotoCount > 1 ? 's' : ''}
+                  </span>
+                </div>
+              ` : ''}
 
               <!-- Campaign Title -->
               <div class="hud-exp-title" title="${rawTitle}">${rawTitle}</div>
 
               <!-- Location & Verified Trust Pill -->
               <div class="hud-exp-meta-row">
-                <span class="hud-exp-location" title="${subLocation ? `${subLocation}, ${focusedProvince}` : (camp.locationRegion || focusedProvince)}">
-                  <span class="material-symbols-outlined" style="font-size: 12px; color: ${catMeta.color};">location_on</span>
-                  <span>${subLocation ? `${subLocation}, ${focusedProvince}` : (camp.locationRegion || focusedProvince)}</span>
-                </span>
-                <span class="hud-trust-pill">
-                  <span class="material-symbols-outlined" style="font-size: 11px; color: #10b981;">verified</span>
-                  <span>Verified NGO</span>
-                </span>
+                <div class="hud-exp-location" title="${subLocation && !subLocation.toLowerCase().includes((focusedProvince || '').toLowerCase()) ? `${subLocation}, ${focusedProvince}` : (subLocation || camp.locationRegion || focusedProvince)}">
+                  <span class="material-symbols-outlined" style="font-size: 13px; color: var(--text-muted, #737373);">location_on</span>
+                  <span>${subLocation && !subLocation.toLowerCase().includes((focusedProvince || '').toLowerCase()) ? `${subLocation}, ${focusedProvince}` : (subLocation || camp.locationRegion || focusedProvince)}</span>
+                </div>
+                <div class="hud-trust-pill" title="${camp.orgName || 'Verified NGO'}">
+                  <span class="material-symbols-outlined" style="font-size: 12px;">verified</span>
+                  <span>${camp.orgName || 'Verified NGO'}</span>
+                </div>
               </div>
 
-              <!-- Funding Progress & Stats Block -->
+              <!-- Funding Progress & Amounts (PHP Primary) -->
               <div class="hud-exp-funding-box">
                 <div class="hud-exp-stats">
                   <div class="hud-raised-group">
-                    <span class="hud-exp-raised">${raised.toFixed(2)} ETH</span>
-                    <span class="hud-exp-pct-tag" style="color: ${catMeta.color}; background: ${catMeta.color}18; border: 1px solid ${catMeta.color}35;">${pct}%</span>
+                    <span class="hud-exp-raised">₱${Number(raisedPhp).toLocaleString('en-US')}</span>
+                    <span class="hud-exp-pct-tag">${pct}%</span>
                   </div>
-                  <span class="hud-exp-goal">Goal: ${target.toFixed(2)} ETH</span>
+                  <span class="hud-exp-goal">Goal: ₱${Number(targetPhp).toLocaleString('en-US')}</span>
                 </div>
                 <div class="hud-exp-prog-track">
                   <div class="hud-exp-prog-fill" style="width: ${pct}%; background: linear-gradient(90deg, ${catMeta.color}, #10b981);"></div>
                 </div>
               </div>
 
-              <!-- Action Button to View Campaign -->
+              <!-- Primary Action Button -->
               <div class="hud-exp-btn-wrap">
                 <button type="button" class="hud-campaign-redirect-btn" data-campaign-id="${camp.id || ''}" data-campaign-title="${encodeURIComponent(rawTitle)}">
-                  <span class="material-symbols-outlined" style="font-size: 13px;">explore</span>
+                  <span class="material-symbols-outlined" style="font-size: 15px;">explore</span>
                   <span>View Campaign Details</span>
-                  <span class="material-symbols-outlined hud-btn-arrow" style="font-size: 13px;">arrow_forward</span>
+                  <span class="material-symbols-outlined hud-btn-arrow" style="font-size: 15px;">arrow_forward</span>
                 </button>
-              </div>
-
-              <!-- Footer Pin Cue -->
-              <div class="hud-exp-footer">
-                <span class="material-symbols-outlined" style="font-size: 10px;">push_pin</span>
-                <span>Click beacon to pin · Click map to close</span>
               </div>
             </div>
           </div>
@@ -2236,6 +3003,12 @@ function DisasterRadarHeatmapInner({
       });
 
       const pinMarker = L.marker([lat, lng], { icon: customPinIcon, interactive: true });
+      pinMarker._campaignId = campId;
+      pinMarker._campaignCoords = [lat, lng];
+
+      if (isThisBeaconSelected) {
+        pinMarker.setZIndexOffset(100000);
+      }
 
       // Adaptive Bounds & Flip Logic: Ensures card NEVER gets cut off by the top border
       const updateCardBounds = () => {
@@ -2254,7 +3027,7 @@ function DisasterRadarHeatmapInner({
           inner.classList.remove('card-flip-down');
         }
 
-        // Horizontal boundary checks: card width is ~254px (127px each side)
+        // Horizontal boundary checks: card width is ~264px (132px each side)
         if (pt.x < 140) {
           inner.classList.add('card-align-left');
           inner.classList.remove('card-align-right');
@@ -2268,11 +3041,32 @@ function DisasterRadarHeatmapInner({
 
       pinMarker._updateCardBounds = updateCardBounds;
 
-      // Hover: strictly triggered ONLY when entering the mini circle icon itself or the open card
+      // Hover: strictly triggered ONLY when entering the circular beacon head disc or the open card
       pinMarker.on('mouseover', (e) => {
-        if (e && e.originalEvent && !e.originalEvent.target.closest('.pin-head-disc, .hud-expanded-view')) {
+        // While a beacon is already selected in focus mode, suppress hover mini-cards
+        if (selectedBeaconRef.current) return;
+
+        if (e && e.originalEvent && !e.originalEvent.target.closest('.pin-head-disc, .pin-visual-beacon, .hud-expanded-view')) {
           return;
         }
+
+        // Close ALL other hover cards across all markers immediately so only ONE card is ever open!
+        pinsGroup.eachLayer(otherMarker => {
+          if (otherMarker !== pinMarker) {
+            const otherEl = otherMarker.getElement();
+            if (otherEl) {
+              otherEl.classList.remove('is-marker-hovered');
+              const otherInner = otherEl.querySelector('.exact-campaign-tactical-pin');
+              if (otherInner && !otherInner.classList.contains('is-card-pinned')) {
+                otherInner.classList.remove('is-card-hovered');
+              }
+            }
+            if (!otherMarker.getElement()?.querySelector('.exact-campaign-tactical-pin.is-card-pinned')) {
+              otherMarker.setZIndexOffset(0);
+            }
+          }
+        });
+
         updateCardBounds();
         pinMarker.setZIndexOffset(100000);
         const el = pinMarker.getElement();
@@ -2281,12 +3075,16 @@ function DisasterRadarHeatmapInner({
         if (inner) inner.classList.add('is-card-hovered');
       });
 
-      // Mouseout: hide card and restore normal z-index unless moving between disc and card or pinned open
+      // Mouseout: hide card and restore normal z-index unless moving within this exact pin or pinned open
       pinMarker.on('mouseout', (e) => {
-        if (e && e.originalEvent && e.originalEvent.relatedTarget && e.originalEvent.relatedTarget.closest('.exact-campaign-tactical-pin')) {
+        if (selectedBeaconRef.current) return;
+
+        const el = pinMarker.getElement();
+        // If the mouse is still inside THIS marker's element, do nothing
+        if (e && e.originalEvent && e.originalEvent.relatedTarget && el && el.contains(e.originalEvent.relatedTarget)) {
           return;
         }
-        const el = pinMarker.getElement();
+
         const inner = el?.querySelector('.exact-campaign-tactical-pin');
         if (inner && !inner.classList.contains('is-card-pinned')) {
           inner.classList.remove('is-card-hovered');
@@ -2295,61 +3093,31 @@ function DisasterRadarHeatmapInner({
         }
       });
 
-      // Click: ONLY clickable on the mini circle icon beacon itself!
-      // Clicks anywhere outside the circle pass through to the map.
+      // Click: Triggers Interactive Beacon Selection, Camera Zoom, Repositioning, and Expanded Card!
+      // Fully responsive whether clicking the beacon head, reticle, hover card, or button!
       pinMarker.on('click', (e) => {
         if (e && e.originalEvent) {
-          if (e.originalEvent.target.closest('.hud-campaign-redirect-btn')) {
-            return; // Let redirect handler handle it
-          }
-          // The ONLY clickable element on the beacon is the mini circle icon itself!
-          if (!e.originalEvent.target.closest('.pin-head-disc')) {
-            return;
-          }
           L.DomEvent.stopPropagation(e.originalEvent);
         }
         isProvinceClickRef.current = true;
         setTimeout(() => { isProvinceClickRef.current = false; }, 150);
 
-        const el = pinMarker.getElement();
-        const inner = el?.querySelector('.exact-campaign-tactical-pin');
-        if (!inner) return;
-
-        updateCardBounds();
-        const isCurrentlyPinned = inner.classList.contains('is-card-pinned');
-
-        // Unpin every other pin first and reset their z-index offsets
-        pinsGroup.eachLayer(otherMarker => {
-          if (otherMarker !== pinMarker) {
-            otherMarker.setZIndexOffset(0);
-            const otherEl = otherMarker.getElement();
-            if (otherEl) {
-              otherEl.classList.remove('is-marker-pinned', 'is-marker-hovered');
-              const otherInner = otherEl.querySelector('.exact-campaign-tactical-pin');
-              if (otherInner) {
-                otherInner.classList.remove('is-card-pinned', 'is-card-hovered');
-              }
-            }
-          }
-        });
-
-        if (isCurrentlyPinned) {
-          // Already pinned → unpin (toggle off)
-          inner.classList.remove('is-card-pinned');
-          inner.classList.remove('is-card-hovered');
-          if (el) el.classList.remove('is-marker-pinned', 'is-marker-hovered');
-          pinMarker.setZIndexOffset(0);
+        // If clicking the already-selected beacon, toggle it off / close focus
+        if (selectedBeaconRef.current === campId) {
+          handleCloseBeaconFocus();
         } else {
-          // Pin it open at top-most z-index
-          inner.classList.add('is-card-pinned');
-          inner.classList.add('is-card-hovered');
-          if (el) el.classList.add('is-marker-pinned', 'is-marker-hovered');
-          pinMarker.setZIndexOffset(100000);
+          // Select and focus this beacon
+          handleSelectBeacon(camp, [lat, lng]);
         }
       });
 
       pinsGroup.addLayer(pinMarker);
     });
+
+    // If a beacon is currently selected when pins are initialized or updated, re-apply isolation styling
+    if (selectedBeaconRef.current) {
+      updatePinIsolationStyles(selectedBeaconRef.current);
+    }
 
     // Re-check positioning of any pinned card when the map moves or zooms
     const handleMoveForPinnedCards = () => {
@@ -2362,13 +3130,32 @@ function DisasterRadarHeatmapInner({
         }
       });
     };
+
+    // Close any unpinned hover card immediately when mouse moves outside all tactical pins
+    const handleMapMouseMove = (e) => {
+      if (selectedBeaconRef.current) return;
+      if (e && e.originalEvent && !e.originalEvent.target.closest('.exact-tactical-pin-wrapper')) {
+        pinsGroup.eachLayer(m => {
+          const el = m.getElement();
+          const inner = el?.querySelector('.exact-campaign-tactical-pin');
+          if (inner && !inner.classList.contains('is-card-pinned') && inner.classList.contains('is-card-hovered')) {
+            inner.classList.remove('is-card-hovered');
+            if (el) el.classList.remove('is-marker-hovered');
+            m.setZIndexOffset(0);
+          }
+        });
+      }
+    };
+
     const map = mapRef.current;
     map.on('move', handleMoveForPinnedCards);
+    map.on('mousemove', handleMapMouseMove);
 
     return () => {
       map.off('move', handleMoveForPinnedCards);
+      map.off('mousemove', handleMapMouseMove);
     };
-  }, [focusedProvince, activeCampaigns, activeLayer, currentTheme]);
+  }, [focusedProvince, activeCampaigns]);
 
   // Campaign Redirect Button Click Handler (delegated from map container)
   useEffect(() => {
@@ -2383,20 +3170,11 @@ function DisasterRadarHeatmapInner({
       e.stopPropagation();
 
       const campId = btn.getAttribute('data-campaign-id');
-      const targetCamp = activeCampaigns.find(c => String(c.id) === String(campId));
+      const targetCamp = activeCampaigns.find(c => String(c.id || c.title) === String(campId));
+      if (!targetCamp) return;
 
-      if (targetCamp?.isSimulated) {
-        return; // Simulated preview only
-      }
-
-      if (onSelectCampaign && targetCamp) {
-        onSelectCampaign(targetCamp);
-      } else {
-        const targetEl = document.getElementById(`campaign-${campId}`) || document.getElementById('campaigns');
-        if (targetEl) {
-          targetEl.scrollIntoView({ behavior: 'smooth' });
-        }
-      }
+      const targetCoords = pinCoordsByCampIdRef.current.get(campId) || resolveCampaignCoords(targetCamp);
+      handleSelectBeacon(targetCamp, targetCoords);
     };
 
     container.addEventListener('click', handleRedirectClick, true);
@@ -2425,15 +3203,26 @@ function DisasterRadarHeatmapInner({
   }, []); // Bind once on mount
 
   const handleResetFocus = () => {
+    if (selectedBeaconRef.current) {
+      handleCloseBeaconFocus();
+    }
     setFocusedProvince(null);
     focusedProvinceRef.current = null;
     setSelectedCluster(null);
     setIsDossierOpen(false);
-    // User requirement: "I changed my mind, unfocusing on a country doesn't zoom out even a little"
-    // Camera stays completely steady at current zoom and position
+
+    // Return zoom and center to what it was before clicking on that province
+    if (preFocusViewRef.current && mapRef.current) {
+      const { zoom: returnZoom, center: returnCenter } = preFocusViewRef.current;
+      smoothNavigateTo(returnCenter, returnZoom);
+      preFocusViewRef.current = null;
+    }
   };
 
   const handleFlyToCluster = (cluster) => {
+    if (selectedBeaconRef.current) {
+      handleCloseBeaconFocus();
+    }
     setSelectedCluster(cluster);
     const provName = cluster.name.split(',')[0].trim();
     setFocusedProvince(provName);
@@ -2448,7 +3237,14 @@ function DisasterRadarHeatmapInner({
   };
 
   const handleJumpRegion = (regionCode) => {
+    if (selectedBeaconRef.current) {
+      handleCloseBeaconFocus();
+    }
     setFilterRegion(regionCode);
+    setFocusedProvince(null);
+    focusedProvinceRef.current = null;
+    setSelectedCluster(null);
+    preFocusViewRef.current = null;
     if (!mapRef.current) return;
 
     if (regionCode === 'ALL') {
@@ -2508,6 +3304,28 @@ function DisasterRadarHeatmapInner({
     }
   }, [isFullscreen]);
 
+  // Manage Escape and Arrow keys to navigate/exit lightbox preview or beacon focus mode
+  useEffect(() => {
+    if (!selectedBeaconCampaign && activeLightboxIdx === null) return;
+    const handleKeyDown = (e) => {
+      if (activeLightboxIdx !== null) {
+        if (e.key === 'Escape') {
+          setActiveLightboxIdx(null);
+        } else if (e.key === 'ArrowLeft') {
+          setActiveLightboxIdx(prev => (prev > 0 ? prev - 1 : (lightboxPhotos.length - 1)));
+        } else if (e.key === 'ArrowRight') {
+          setActiveLightboxIdx(prev => (prev < lightboxPhotos.length - 1 ? prev + 1 : 0));
+        }
+        return;
+      }
+      if (e.key === 'Escape' && selectedBeaconCampaign) {
+        handleCloseBeaconFocus();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedBeaconCampaign, activeLightboxIdx, lightboxPhotos.length]);
+
   return (
     <>
       {isFullscreen && (
@@ -2520,7 +3338,7 @@ function DisasterRadarHeatmapInner({
           aria-label="Exit fullscreen backdrop"
         />
       )}
-      <div className={`bbdrts-radar-command ${isFullscreen ? 'radar-command-fullscreen' : ''} ${className}`}>
+      <div className={`bbdrts-radar-command ${isFullscreen ? 'radar-command-fullscreen' : ''} ${focusedProvince ? 'has-focused-province' : ''} ${selectedBeaconCampaign ? 'has-selected-beacon' : ''} ${className}`}>
 
         {/* ── Vercel / Linear Unified Command Bar (Single Sleek 48px Header) ── */}
         <div className="radar-unified-command-bar">
@@ -2570,6 +3388,12 @@ function DisasterRadarHeatmapInner({
           </div>
 
           <div className="radar-bar-right">
+            {lowBandwidthMode && (
+              <div className="data-saver-chip" title={wt.dataSaverDesc}>
+                <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>eco</span>
+                <span>{wt.dataSaverRadar}</span>
+              </div>
+            )}
             {/* Active Telemetry Pill */}
             <div className="radar-telemetry-pill" title="Total active relief operations tracked">
               <span className="telemetry-pill-dot"></span>
@@ -2579,28 +3403,6 @@ function DisasterRadarHeatmapInner({
 
             <div className="radar-telemetry-pill time-pill" title="Philippine Standard Time (UTC+8)">
               <span className="telemetry-pill-time">{currentTime || '08:00 PST'}</span>
-            </div>
-
-            {/* Mode Switch: Choropleth vs Tactical Nodes */}
-            <div className="radar-mode-segmented-dock">
-              <button
-                type="button"
-                className={`mode-dock-btn ${radarDisplayMode === 'choropleth' || radarDisplayMode === 'heat_only' ? 'active' : ''}`}
-                onClick={() => setRadarDisplayMode('choropleth')}
-                title="Pure Choropleth (Clean, Zero Pins)"
-              >
-                <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>map</span>
-                <span>Choropleth</span>
-              </button>
-              <button
-                type="button"
-                className={`mode-dock-btn ${radarDisplayMode === 'nodes' ? 'active' : ''}`}
-                onClick={() => setRadarDisplayMode('nodes')}
-                title="Tactical Cluster Nodes"
-              >
-                <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>scatter_plot</span>
-                <span>Pins</span>
-              </button>
             </div>
 
             {/* Density Sim Toggle */}
@@ -2642,251 +3444,240 @@ function DisasterRadarHeatmapInner({
         </div>
 
         {/* ── Viewport ── */}
-        <div className={`radar-map-viewport ${activeLayer === 'provinces' ? 'is-plain-white-mode' : ''} ${focusedProvince ? 'has-focused-province' : ''}`} style={{ height: isFullscreen ? 'calc(100vh - 48px)' : height }}>
+        <div className={`radar-map-viewport ${activeLayer === 'provinces' ? 'is-plain-white-mode' : ''} ${focusedProvince ? 'has-focused-province' : ''} ${selectedBeaconCampaign ? 'has-selected-beacon' : ''}`} style={{ height: isFullscreen ? 'calc(100vh - 48px)' : height }}>
 
           {/* ── FLOATING COMMAND HUD PANEL (LINEAR / APPLE GLASSMORPHISM) ── */}
           {/* Organizes all active crisis corridors, mission counts, and quick-jumps without cluttering the map */}
-          {(radarDisplayMode === 'choropleth' || radarDisplayMode === 'heat_only') && (
-            isCommandHudCollapsed ? (
-              <div className="radar-command-hud-collapsed-wrap" onMouseDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}>
-                {focusedProvince ? (
-                  <div className="hud-collapsed-focus-pill">
-                    <span className="focused-beacon-dot"></span>
-                    <span className="hud-focus-pill-name">{focusedProvince}</span>
-                    <span className="hud-focus-pill-count">
-                      {getProvinceCampaigns(focusedProvince, activeCampaigns).length} Causes
+          {isCommandHudCollapsed ? (
+            <div className="radar-command-hud-collapsed-wrap" onMouseDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}>
+              {focusedProvince ? (
+                <div className="hud-collapsed-focus-pill">
+                  <span className="focused-beacon-dot"></span>
+                  <span className="hud-focus-pill-name">{focusedProvince}</span>
+                  <span className="hud-focus-pill-count">
+                    {getProvinceCampaigns(focusedProvince, activeCampaigns).length} Causes
+                  </span>
+                  <button
+                    type="button"
+                    className="hud-focus-pill-close"
+                    onClick={handleResetFocus}
+                    title="Clear Province Focus"
+                    aria-label="Clear Province Focus"
+                  >
+                    <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>close</span>
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  className="radar-command-hud-toggle-pill"
+                  onClick={() => setIsCommandHudCollapsed(false)}
+                  title="Expand Active Relief Areas"
+                >
+                  <span className="material-symbols-outlined hud-pill-icon">shield_with_heart</span>
+                  <span className="hud-pill-label">Active Areas</span>
+                  <span className="hud-pill-count">{sortedCorridors.length}</span>
+                  <span className="material-symbols-outlined hud-pill-arrow">chevron_right</span>
+                </button>
+              )}
+            </div>
+          ) : (
+            <div
+              className="radar-command-hud"
+              onMouseDown={(e) => e.stopPropagation()}
+              onClick={(e) => e.stopPropagation()}
+              onDoubleClick={(e) => e.stopPropagation()}
+            >
+              {/* HUD Header */}
+              <div className="command-hud-header">
+                <div className="hud-header-left">
+                  <span className="hud-radar-pulse"></span>
+                  <div>
+                    <div className="hud-title">ACTIVE RELIEF AREAS</div>
+                    <div className="hud-subtitle">
+                      {sortedCorridors.length > 0
+                        ? `${sortedCorridors.length} ${sortedCorridors.length === 1 ? 'Province' : 'Provinces'} Monitored`
+                        : 'Archipelago Normal Monitoring'}
+                    </div>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  className="hud-collapse-btn"
+                  onClick={() => setIsCommandHudCollapsed(true)}
+                  title="Minimize HUD"
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>close_fullscreen</span>
+                </button>
+              </div>
+
+              {/* In-Focus Sector Pinning Banner */}
+              {focusedProvince && (
+                <div className="hud-focused-sector-card">
+                  <div className="focused-card-top">
+                    <div className="focused-card-label">
+                      <span className="focused-beacon-dot"></span>
+                      <span>SECTOR IN FOCUS</span>
+                    </div>
+                    <button
+                      type="button"
+                      className="focused-card-close"
+                      onClick={handleResetFocus}
+                      title="Exit Sector Focus"
+                    >
+                      <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>close</span>
+                    </button>
+                  </div>
+                  <div className="focused-card-body">
+                    <span className="focused-card-name">{focusedProvince}</span>
+                    <span className="focused-card-badge">
+                      {getProvinceCampaigns(focusedProvince, activeCampaigns).length} {getProvinceCampaigns(focusedProvince, activeCampaigns).length === 1 ? 'Mission' : 'Missions'}
                     </span>
+                  </div>
+                  <div className="focused-card-actions">
                     {getProvinceCampaigns(focusedProvince, activeCampaigns).length > 0 && (
                       <button
                         type="button"
-                        className="hud-focus-pill-action"
-                        onClick={() => {
+                        className={`focused-dossier-action-btn ${isDossierOpen ? 'active' : ''}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
                           if (!selectedCluster && activeDossierCluster) {
                             setSelectedCluster(activeDossierCluster);
                           }
                           setIsDossierOpen(prev => !prev);
                         }}
-                        title="View Dossier"
                       >
-                        <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>description</span>
+                        <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>
+                          {isDossierOpen ? 'visibility_off' : 'description'}
+                        </span>
+                        <span>{isDossierOpen ? 'Hide Dossier' : 'Open Dossier'}</span>
                       </button>
                     )}
                     <button
                       type="button"
-                      className="hud-focus-pill-close"
+                      className="focused-reset-action-btn"
                       onClick={handleResetFocus}
-                      title="Reset Sector Focus"
                     >
-                      <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>close</span>
-                    </button>
-                    <button
-                      type="button"
-                      className="hud-collapsed-expand-btn"
-                      onClick={() => setIsCommandHudCollapsed(false)}
-                      title="Expand HUD"
-                    >
-                      <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>chevron_right</span>
+                      <span>Reset Focus</span>
                     </button>
                   </div>
-                ) : (
-                  <button
-                    type="button"
-                    className="radar-command-hud-toggle-pill"
-                    onClick={() => setIsCommandHudCollapsed(false)}
-                    title="Expand Operations Corridor HUD"
-                  >
-                    <span className="material-symbols-outlined hud-pill-icon">shield_with_heart</span>
-                    <span className="hud-pill-label">Active Corridors</span>
-                    <span className="hud-pill-count">{sortedCorridors.length}</span>
-                    <span className="material-symbols-outlined hud-pill-arrow">chevron_right</span>
-                  </button>
-                )}
-              </div>
-            ) : (
-              <div
-                className="radar-command-hud"
-                onMouseDown={(e) => e.stopPropagation()}
-                onClick={(e) => e.stopPropagation()}
-                onDoubleClick={(e) => e.stopPropagation()}
-              >
-                {/* HUD Header */}
-                <div className="command-hud-header">
-                  <div className="hud-header-left">
-                    <span className="hud-radar-pulse"></span>
-                    <div>
-                      <div className="hud-title">ACTIVE CRISIS CORRIDORS</div>
-                      <div className="hud-subtitle">
-                        {sortedCorridors.length > 0
-                          ? `${sortedCorridors.length} Operations ${sortedCorridors.length === 1 ? 'Sector' : 'Sectors'} Monitored`
-                          : 'Archipelago Normal Monitoring'}
-                      </div>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    className="hud-collapse-btn"
-                    onClick={() => setIsCommandHudCollapsed(true)}
-                    title="Minimize HUD"
-                  >
-                    <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>close_fullscreen</span>
-                  </button>
                 </div>
+              )}
 
-                {/* In-Focus Sector Pinning Banner */}
-                {focusedProvince && (
-                  <div className="hud-focused-sector-card">
-                    <div className="focused-card-top">
-                      <div className="focused-card-label">
-                        <span className="focused-beacon-dot"></span>
-                        <span>SECTOR IN FOCUS</span>
-                      </div>
-                      <button
-                        type="button"
-                        className="focused-card-close"
-                        onClick={handleResetFocus}
-                        title="Exit Sector Focus"
-                      >
-                        <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>close</span>
-                      </button>
-                    </div>
-                    <div className="focused-card-body">
-                      <span className="focused-card-name">{focusedProvince}</span>
-                      <span className="focused-card-badge">
-                        {getProvinceCampaigns(focusedProvince, activeCampaigns).length} {getProvinceCampaigns(focusedProvince, activeCampaigns).length === 1 ? 'Mission' : 'Missions'}
-                      </span>
-                    </div>
-                    <div className="focused-card-actions">
-                      {getProvinceCampaigns(focusedProvince, activeCampaigns).length > 0 && (
-                        <button
-                          type="button"
-                          className={`focused-dossier-action-btn ${isDossierOpen ? 'active' : ''}`}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (!selectedCluster && activeDossierCluster) {
-                              setSelectedCluster(activeDossierCluster);
-                            }
-                            setIsDossierOpen(prev => !prev);
-                          }}
-                        >
-                          <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>
-                            {isDossierOpen ? 'visibility_off' : 'description'}
-                          </span>
-                          <span>{isDossierOpen ? 'Hide Dossier' : 'Open Dossier'}</span>
-                        </button>
-                      )}
-                      <button
-                        type="button"
-                        className="focused-reset-action-btn"
-                        onClick={handleResetFocus}
-                      >
-                        <span>Reset Focus</span>
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {/* Quick Search inside HUD */}
-                {sortedCorridors.length > 2 && (
-                  <div className="command-hud-search-bar">
-                    <span className="material-symbols-outlined hud-search-icon">search</span>
-                    <input
-                      type="text"
-                      placeholder="Search active corridor..."
-                      value={hudSearchQuery}
-                      onChange={(e) => setHudSearchQuery(e.target.value)}
-                      className="hud-search-input"
-                    />
-                    {hudSearchQuery && (
-                      <button type="button" className="hud-search-clear" onClick={() => setHudSearchQuery('')}>
-                        <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>close</span>
-                      </button>
-                    )}
-                  </div>
-                )}
-
-                {/* Corridors Scroll List */}
-                <div className="command-hud-body">
-                  {filteredCorridors.length === 0 ? (
-                    <div className="command-hud-empty">
-                      <span className="material-symbols-outlined" style={{ fontSize: '18px', opacity: 0.5 }}>travel_explore</span>
-                      <span>No matching active corridors</span>
-                    </div>
-                  ) : (
-                    filteredCorridors.map(c => {
-                      const isFocused = focusedProvince?.toLowerCase() === c.name.toLowerCase();
-                      const progressPct = c.totalTarget > 0 ? Math.min(100, Math.round((c.totalRaised / c.totalTarget) * 100)) : 0;
-                      return (
-                        <div
-                          key={c.id}
-                          className={`command-hud-sector-item ${isFocused ? 'is-focused' : ''}`}
-                          onClick={() => handleFlyToCluster(c)}
-                          onMouseEnter={() => setHoveredCorridorName(c.name)}
-                          onMouseLeave={() => setHoveredCorridorName(null)}
-                          style={{ '--sector-color': c.tier.color }}
-                          title={`Click to navigate to ${c.name} & unpack relief stations`}
-                        >
-                          <div className="sector-header-row">
-                            <div className="sector-name-col">
-                              <span className="sector-status-dot" style={{ backgroundColor: c.tier.color, boxShadow: `0 0 8px ${c.tier.color}` }}></span>
-                              <span className="sector-name">{c.name}</span>
-                            </div>
-                            <span
-                              className="sector-tier-badge"
-                              style={{
-                                color: c.tier.color,
-                                borderColor: `${c.tier.color}44`,
-                                backgroundColor: `${c.tier.color}18`
-                              }}
-                            >
-                              L{c.tier.level} · {c.tier.label.split(' ')[0]}
-                            </span>
-                          </div>
-
-                          <div className="sector-metrics-row">
-                            <span className="sector-missions-count">
-                              <strong>{c.campaigns.length}</strong> {c.campaigns.length === 1 ? 'Mission' : 'Missions'}
-                            </span>
-                            <span className="sector-raised-eth">
-                              {c.totalRaised.toFixed(2)} ETH
-                              {c.totalTarget > 0 ? ` / ${c.totalTarget.toFixed(1)} ETH` : ''}
-                            </span>
-                          </div>
-
-                          <div className="sector-progress-track">
-                            <div
-                              className="sector-progress-fill"
-                              style={{
-                                width: `${progressPct > 0 ? progressPct : 12}%`,
-                                backgroundColor: c.tier.color
-                              }}
-                            />
-                          </div>
-
-                          <div className="sector-action-hint">
-                            <span>{isFocused ? 'In Tactical Focus' : 'Inspect Sector'}</span>
-                            <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>
-                              {isFocused ? 'my_location' : 'north_east'}
-                            </span>
-                          </div>
-                        </div>
-                      );
-                    })
+              {/* Quick Search inside HUD */}
+              {sortedCorridors.length > 2 && (
+                <div className="command-hud-search-bar">
+                  <span className="material-symbols-outlined hud-search-icon">search</span>
+                  <input
+                    type="text"
+                    placeholder="Search active area..."
+                    value={hudSearchQuery}
+                    onChange={(e) => setHudSearchQuery(e.target.value)}
+                    className="hud-search-input"
+                  />
+                  {hudSearchQuery && (
+                    <button type="button" className="hud-search-clear" onClick={() => setHudSearchQuery('')}>
+                      <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>close</span>
+                    </button>
                   )}
                 </div>
+              )}
 
-                {/* HUD Footer status */}
-                <div className="command-hud-footer">
-                  <span className="hud-footer-hint">Click corridor to jump & reveal tactical pins</span>
-                </div>
+              {/* Areas Scroll List */}
+              <div className="command-hud-body">
+                {filteredCorridors.length === 0 ? (
+                  <div className="command-hud-empty">
+                    <span className="material-symbols-outlined" style={{ fontSize: '18px', opacity: 0.5 }}>travel_explore</span>
+                    <span>No matching active areas</span>
+                  </div>
+                ) : (
+                  filteredCorridors.map(c => {
+                    const isFocused = focusedProvince?.toLowerCase() === c.name.toLowerCase();
+                    const progressPct = c.totalTarget > 0 ? Math.min(100, Math.round((c.totalRaised / c.totalTarget) * 100)) : 0;
+                    return (
+                      <div
+                        key={c.id}
+                        className={`command-hud-sector-item ${isFocused ? 'is-focused' : ''}`}
+                        onClick={() => handleFlyToCluster(c)}
+                        onMouseEnter={() => setHoveredCorridorName(c.name)}
+                        onMouseLeave={() => setHoveredCorridorName(null)}
+                        style={{ '--sector-color': c.tier.color }}
+                        title={`Click to navigate to ${c.name} & unpack relief stations`}
+                      >
+                        <div className="sector-header-row">
+                          <div className="sector-name-col">
+                            <span className="sector-status-dot" style={{ backgroundColor: c.tier.color, boxShadow: `0 0 8px ${c.tier.color}` }}></span>
+                            <span className="sector-name">{c.name}</span>
+                          </div>
+                          <span
+                            className="sector-tier-badge"
+                            style={{
+                              color: c.tier.color,
+                              borderColor: `${c.tier.color}44`,
+                              backgroundColor: `${c.tier.color}18`
+                            }}
+                          >
+                            L{c.tier.level} · {c.tier.label.split(' ')[0]}
+                          </span>
+                        </div>
+
+                        <div className="sector-metrics-row">
+                          <span className="sector-missions-count">
+                            <strong>{c.campaigns.length}</strong> {c.campaigns.length === 1 ? 'Mission' : 'Missions'}
+                          </span>
+                          <span className="sector-raised-eth">
+                            ₱{Number(Math.round(c.totalRaised * 170000)).toLocaleString('en-US')}
+                            {c.totalTarget > 0 ? ` / ₱${Number(Math.round(c.totalTarget * 170000)).toLocaleString('en-US')}` : ''}
+                          </span>
+                        </div>
+
+                        <div className="sector-progress-track">
+                          <div
+                            className="sector-progress-fill"
+                            style={{
+                              width: `${progressPct > 0 ? progressPct : 12}%`,
+                              backgroundColor: c.tier.color
+                            }}
+                          />
+                        </div>
+
+                        <div className="sector-action-hint">
+                          <span>{isFocused ? 'In Tactical Focus' : 'Inspect Sector'}</span>
+                          <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>
+                            {isFocused ? 'my_location' : 'north_east'}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
               </div>
-            )
-          )}
+
+              {/* HUD Footer status */}
+              <div className="command-hud-footer">
+                <span className="hud-footer-hint">Click an area to focus & view relief operations</span>
+              </div>
+            </div>
+          )
+          }
 
           {/* Leaflet Map Stage */}
-          <div ref={containerRef} className={`radar-leaflet-stage ${activeLayer === 'provinces' ? 'is-plain-white-mode' : ''} ${activeLayer === 'satellite' ? 'is-satellite-mode' : ''}`} />
+          <div
+            ref={containerRef}
+            className={`radar-leaflet-stage ${activeLayer === 'provinces' ? 'is-plain-white-mode' : ''} ${activeLayer === 'satellite' ? 'is-satellite-mode' : ''} ${currentZoomLevel >= 13 ? 'is-ultra-zoom' : currentZoomLevel >= 11 ? 'is-deep-zoom' : ''}`}
+          />
 
           {/* ── Segmented Basemap Dock (Floating Bottom-Right Beside Zoom Controls) ── */}
-          <div className="radar-floating-basemap-dock" onMouseDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()}>
+          <div
+            className="radar-floating-basemap-dock"
+            onMouseDown={(e) => {
+              e.stopPropagation();
+              isProvinceClickRef.current = true;
+              setTimeout(() => { isProvinceClickRef.current = false; }, 250);
+            }}
+            onClick={(e) => e.stopPropagation()}
+            onDoubleClick={(e) => e.stopPropagation()}
+          >
             <button
               type="button"
               className={`basemap-dock-btn ${activeLayer === 'tactical' ? 'active' : ''}`}
@@ -2895,24 +3686,6 @@ function DisasterRadarHeatmapInner({
             >
               <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>contrast</span>
               <span>Tactical</span>
-            </button>
-            <button
-              type="button"
-              className={`basemap-dock-btn ${activeLayer === 'satellite' ? 'active' : ''}`}
-              onClick={() => setActiveLayer('satellite')}
-              title="High-Resolution Satellite Photography"
-            >
-              <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>satellite_alt</span>
-              <span>Satellite</span>
-            </button>
-            <button
-              type="button"
-              className={`basemap-dock-btn ${activeLayer === 'provinces' ? 'active' : ''}`}
-              onClick={() => setActiveLayer('provinces')}
-              title="Plain Vector Cartography"
-            >
-              <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>grid_view</span>
-              <span>Plain</span>
             </button>
             <button
               type="button"
@@ -2925,12 +3698,30 @@ function DisasterRadarHeatmapInner({
             </button>
             <button
               type="button"
+              className={`basemap-dock-btn ${activeLayer === 'satellite' ? 'active' : ''}`}
+              onClick={() => setActiveLayer('satellite')}
+              title="High-Resolution Satellite Photography"
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>satellite_alt</span>
+              <span>Satellite</span>
+            </button>
+            <button
+              type="button"
               className={`basemap-dock-btn ${activeLayer === 'osm' ? 'active' : ''}`}
               onClick={() => setActiveLayer('osm')}
               title="Standard Street Map"
             >
               <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>map</span>
               <span>Street</span>
+            </button>
+            <button
+              type="button"
+              className={`basemap-dock-btn ${activeLayer === 'provinces' ? 'active' : ''}`}
+              onClick={() => setActiveLayer('provinces')}
+              title="Vector-only Province Boundaries (Zero external map tiles)"
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>eco</span>
+              <span>Vector</span>
             </button>
           </div>
 
@@ -2945,12 +3736,12 @@ function DisasterRadarHeatmapInner({
               <span className="micro-legend-dot"></span>
               <span className="micro-legend-label">SEVERITY</span>
               <div className="micro-legend-bar">
-                <span className="m-step tier-1" style={{ backgroundColor: '#0070f3' }}></span>
-                <span className="m-step tier-2" style={{ backgroundColor: '#f5a623' }}></span>
-                <span className="m-step tier-3" style={{ backgroundColor: '#ea580c' }}></span>
-                <span className="m-step tier-4" style={{ backgroundColor: '#e00000' }}></span>
-                <span className="m-step tier-5" style={{ backgroundColor: '#dc2626' }}></span>
-                <span className="m-step tier-6" style={{ backgroundColor: '#881337' }}></span>
+                <span className="m-step tier-1" style={{ backgroundColor: DOPPLER_TIERS[1].color }}></span>
+                <span className="m-step tier-2" style={{ backgroundColor: DOPPLER_TIERS[2].color }}></span>
+                <span className="m-step tier-3" style={{ backgroundColor: DOPPLER_TIERS[3].color }}></span>
+                <span className="m-step tier-4" style={{ backgroundColor: DOPPLER_TIERS[4].color }}></span>
+                <span className="m-step tier-5" style={{ backgroundColor: DOPPLER_TIERS[5].color }}></span>
+                <span className="m-step tier-6" style={{ backgroundColor: DOPPLER_TIERS[6].color }}></span>
               </div>
               <span className="micro-legend-tag">{focusedTier !== null ? `L${focusedTier}` : 'L1–L6'}</span>
               <span className="material-symbols-outlined micro-legend-arrow">
@@ -2962,7 +3753,7 @@ function DisasterRadarHeatmapInner({
             {isLegendExpanded && (
               <div className="micro-legend-popover">
                 <div className="popover-header">
-                  <span className="popover-title">CRISIS SEVERITY SCALE</span>
+                  <span className="popover-title">SEVERITY SCALE</span>
                   {focusedTier !== null && (
                     <button type="button" className="popover-clear-btn" onClick={() => setFocusedTier(null)}>
                       Reset Filter
@@ -2983,7 +3774,7 @@ function DisasterRadarHeatmapInner({
                         <span className="popover-tier-dot" style={{ backgroundColor: t.color }}></span>
                         <span className="popover-tier-lvl">L{lvl}</span>
                         <span className="popover-tier-label">{t.label}</span>
-                        <span className="popover-tier-count">{count > 0 ? `${count} zones` : '0'}</span>
+                        <span className="popover-tier-count">{count > 0 ? `${count} ${count === 1 ? 'province' : 'provinces'}` : '0'}</span>
                       </div>
                     );
                   })}
@@ -3030,11 +3821,11 @@ function DisasterRadarHeatmapInner({
                   <span className="dossier-tag-label">Active Causes</span>
                 </div>
                 <div className="dossier-metric-cell">
-                  <span className="dossier-num">{((activeDossierCluster.totalRaised ?? 0)).toFixed(2)} ETH</span>
+                  <span className="dossier-num">₱{Number(Math.round((activeDossierCluster.totalRaised ?? 0) * 170000)).toLocaleString('en-US')}</span>
                   <span className="dossier-tag-label">Funds Raised</span>
                 </div>
                 <div className="dossier-metric-cell">
-                  <span className="dossier-num">{((activeDossierCluster.totalTarget ?? 0)).toFixed(2)} ETH</span>
+                  <span className="dossier-num">₱{Number(Math.round((activeDossierCluster.totalTarget ?? 0) * 170000)).toLocaleString('en-US')}</span>
                   <span className="dossier-tag-label">Target Goal</span>
                 </div>
               </div>
@@ -3051,6 +3842,10 @@ function DisasterRadarHeatmapInner({
                     const target = parseFloat(c.targetAmount || c.target_eth || 0);
                     const pct = target > 0 ? Math.min(100, (raised / target) * 100).toFixed(1) : 0;
 
+                    const campPhotos = c.disasterImages || (typeof c.disaster_images_json === 'string' ? (() => {
+                      try { return JSON.parse(c.disaster_images_json || '[]'); } catch (_) { return []; }
+                    })() : c.disaster_images_json) || [];
+
                     return (
                       <div key={c.id} className="dossier-card">
                         <div className="dossier-card-tags">
@@ -3064,6 +3859,23 @@ function DisasterRadarHeatmapInner({
                           )}
                         </div>
 
+                        {campPhotos.length > 0 && (
+                          <div
+                            className="dossier-card-thumb-wrap"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openLightbox(campPhotos, 0);
+                            }}
+                            title="Click to view disaster aftermath field photo"
+                          >
+                            <img src={campPhotos[0]} alt="Disaster aftermath evidence" className="dossier-card-thumb" />
+                            <span className="dossier-card-thumb-count">
+                              <span className="material-symbols-outlined" style={{ fontSize: '11px' }}>photo_camera</span>
+                              {campPhotos.length} {campPhotos.length === 1 ? 'Field Photo' : 'Field Photos'}
+                            </span>
+                          </div>
+                        )}
+
                         <h4 className="dossier-camp-title">{c.title}</h4>
                         <p className="dossier-camp-desc">{c.description?.slice(0, 115)}...</p>
 
@@ -3072,8 +3884,8 @@ function DisasterRadarHeatmapInner({
                             <div className="dossier-progress-bar" style={{ width: `${pct}%` }}></div>
                           </div>
                           <div className="dossier-progress-labels">
-                            <span>{raised.toFixed(2)} ETH raised ({pct}%)</span>
-                            <span>Target: {target.toFixed(2)} ETH</span>
+                            <span>₱{Number(Math.round(raised * 170000)).toLocaleString('en-US')} raised ({pct}%)</span>
+                            <span>Target: ₱{Number(Math.round(target * 170000)).toLocaleString('en-US')}</span>
                           </div>
                         </div>
 
@@ -3106,9 +3918,423 @@ function DisasterRadarHeatmapInner({
             </div>
           )}
 
+          {/* ── Expanded Tactical Beacon Dossier Card (Left-Aligned Beacon Focus Experience) ── */}
+          {selectedBeaconCampaign && (() => {
+            const rawCamp = selectedBeaconCampaign;
+            const campId = String(rawCamp.id || rawCamp.title);
+            // Ensure we always read the latest synced data from activeCampaigns if available
+            const camp = activeCampaigns.find(c => String(c.id || c.title) === campId) || rawCamp;
+            const catMeta = getCampaignCategoryMeta(camp);
+            const subLocation = resolveCampaignSubLocation(camp, focusedProvince);
+            const provCamps = focusedProvince ? getProvinceCampaigns(focusedProvince, activeCampaigns) : [];
+            const currentIndex = provCamps.findIndex(c => String(c.id || c.title) === campId);
+            const currentNum = currentIndex >= 0 ? currentIndex + 1 : 1;
+            const totalCount = provCamps.length || 1;
+
+            const raised = parseFloat(camp.currentAmount || camp.raised_eth || 0) || 0;
+            const target = parseFloat(camp.targetAmount || camp.target_eth || 0) || 0;
+            const pct = target > 0 ? ((raised / target) * 100).toFixed(1) : '0';
+            const pctInt = Math.min(100, Math.round(parseFloat(pct)));
+
+            const ETH_TO_PHP = 170000;
+            const raisedPhp = camp.raised_php || camp.currentAmountPhp || Math.round(raised * ETH_TO_PHP);
+            const targetPhp = camp.target_php || camp.targetAmountPhp || Math.round(target * ETH_TO_PHP);
+
+            // Coordinates
+            const coords = selectedBeaconCoords || (pinCoordsByCampIdRef.current ? pinCoordsByCampIdRef.current.get(campId) : null) || resolveCampaignCoords(camp);
+            const latStr = coords && coords[0] ? coords[0].toFixed(4) : '10.1335';
+            const lngStr = coords && coords[1] ? coords[1].toFixed(4) : '124.8736';
+
+            const orgName = camp.orgName || camp.org_name || camp.organizationName || camp.beneficiary || 'Verified NGO';
+            const urgencyLabel = (camp.urgency || 'HIGH PRIORITY').toUpperCase();
+
+            // Real donors from blockchain and database multi-rail breakdown
+            const realDonors = camp.totalBackers
+              ?? camp.railBreakdown?.totalBackers
+              ?? (((camp.railBreakdown?.eth?.count || 0) + (camp.railBreakdown?.gcash?.count || 0) + (camp.railBreakdown?.maya?.count || 0) + (camp.railBreakdown?.bank?.count || 0)) || null)
+              ?? camp.donorsCount
+              ?? camp.donorCount
+              ?? (raised > 0 ? 1 : 0);
+            const donorsCount = typeof realDonors === 'number' ? realDonors : (parseInt(realDonors, 10) || 0);
+
+            // Real beneficiaries directly from database record
+            const beneficiaries = camp.beneficiariesImpact
+              || camp.beneficiaries_impact
+              || camp.beneficiaries
+              || 'Displaced Families in Impact Zone';
+
+            const descText = camp.description || 'Emergency disaster response, relief distribution, and rehabilitation operation.';
+            const isLongOverview = descText.length > 130;
+
+            const provClean = focusedProvince || '';
+            const displayLocation = subLocation && !subLocation.toLowerCase().includes(provClean.toLowerCase())
+              ? `${subLocation}, ${provClean}`
+              : (subLocation || camp.locationRegion || provClean || 'Philippines');
+
+            const rawPhotos = camp.disasterImages || camp.disaster_images_json || camp.disasterImagesJson;
+            let disasterPhotos = [];
+            if (Array.isArray(rawPhotos)) {
+              disasterPhotos = rawPhotos;
+            } else if (typeof rawPhotos === 'string') {
+              try {
+                const p = JSON.parse(rawPhotos);
+                if (Array.isArray(p)) disasterPhotos = p;
+              } catch (_) {}
+            }
+
+            return (
+              <div
+                className="radar-beacon-dossier-card"
+                onMouseDown={(e) => e.stopPropagation()}
+                onClick={(e) => e.stopPropagation()}
+              >
+                {/* ── Minimalist Topbar ── */}
+                <div className="beacon-dossier-topbar">
+                  <div className="beacon-topbar-left">
+                    <span
+                      className="beacon-cat-pill"
+                      style={{
+                        backgroundColor: `${catMeta.color}18`,
+                        borderColor: `${catMeta.color}35`,
+                        color: catMeta.color
+                      }}
+                    >
+                      <span className="material-symbols-outlined beacon-cat-icon">{catMeta.icon}</span>
+                      <span>{catMeta.shortLabel}</span>
+                    </span>
+                    <span className="beacon-status-chip">
+                      <span className="beacon-status-pulse"></span>
+                      <span>Active</span>
+                    </span>
+                  </div>
+
+                  <div className="beacon-topbar-right">
+                    {totalCount > 1 && (
+                      <div className="beacon-stepper-control">
+                        <button
+                          type="button"
+                          className="beacon-stepper-btn"
+                          onClick={() => handleStepBeacon(-1)}
+                          title="Previous Cause in this Province"
+                          aria-label="Previous Cause"
+                        >
+                          <span className="material-symbols-outlined">chevron_left</span>
+                        </button>
+                        <span className="beacon-stepper-text">
+                          {currentNum} of {totalCount}
+                        </span>
+                        <button
+                          type="button"
+                          className="beacon-stepper-btn"
+                          onClick={() => handleStepBeacon(1)}
+                          title="Next Cause in this Province"
+                          aria-label="Next Cause"
+                        >
+                          <span className="material-symbols-outlined">chevron_right</span>
+                        </button>
+                      </div>
+                    )}
+
+                    <button
+                      type="button"
+                      className="beacon-dossier-close-btn"
+                      onClick={handleCloseBeaconFocus}
+                      title="Return to Province View (Esc)"
+                      aria-label="Close Beacon Focus"
+                    >
+                      <span className="material-symbols-outlined">close</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* ── Spacious Card Content ── */}
+                <div className="beacon-dossier-body">
+                  {/* Title & Metadata */}
+                  <div className="beacon-header-block">
+                    <h2 className="beacon-dossier-title">{camp.title}</h2>
+                    <div className="beacon-meta-subtitle">
+                      <span className="material-symbols-outlined beacon-loc-icon">location_on</span>
+                      <span>{displayLocation}</span>
+                    </div>
+                  </div>
+
+                  {/* Clean Funding & Progress Section (Unboxed) */}
+                  <div className="beacon-funding-section">
+                    <div className="beacon-funding-row">
+                      <div className="beacon-funding-amounts">
+                        <div className="beacon-amounts-primary">
+                          <span className="beacon-raised-num">₱{Number(raisedPhp).toLocaleString('en-US')}</span>
+                        </div>
+                        <span className="beacon-goal-label">
+                          Goal: ₱{Number(targetPhp).toLocaleString('en-US')}
+                        </span>
+                      </div>
+                      <span
+                        className="beacon-pct-tag"
+                        style={{
+                          backgroundColor: `${catMeta.color}18`,
+                          color: catMeta.color,
+                          borderColor: `${catMeta.color}35`
+                        }}
+                      >
+                        {pct}%
+                      </span>
+                    </div>
+
+                    <div className="beacon-progress-track">
+                      <div
+                        className="beacon-progress-fill"
+                        style={{
+                          width: `${pctInt}%`,
+                          background: `linear-gradient(90deg, #10b981 0%, ${catMeta.color} 100%)`
+                        }}
+                      />
+                    </div>
+
+                    <div className="beacon-quick-stats">
+                      <span className="beacon-stat-item">
+                        <span className="material-symbols-outlined">group</span>
+                        {donorsCount} {donorsCount === 1 ? 'donor' : 'donors'}
+                      </span>
+                      <span className="beacon-stat-sep">·</span>
+                      <span className="beacon-stat-item">
+                        <span className="material-symbols-outlined">family_restroom</span>
+                        {beneficiaries}
+                      </span>
+                      <span className="beacon-stat-sep">·</span>
+                      <span className="beacon-stat-item verified">
+                        <span className="material-symbols-outlined">verified_user</span>
+                        {orgName}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Mission Narrative / Bio (Clean Prose) */}
+                  <div className="beacon-overview-section">
+                    <p className={`beacon-narrative-text ${isOverviewExpanded ? 'is-expanded' : 'is-clamped'}`}>
+                      {descText}
+                    </p>
+                    {isLongOverview && (
+                      <button
+                        type="button"
+                        className="beacon-overview-toggle-link"
+                        onClick={() => setIsOverviewExpanded(prev => !prev)}
+                      >
+                        <span>{isOverviewExpanded ? 'Show less' : 'Show more...'}</span>
+                        <span className="material-symbols-outlined">
+                          {isOverviewExpanded ? 'expand_less' : 'expand_more'}
+                        </span>
+                      </button>
+                    )}
+                  </div>
+
+                  {/* ── Disaster Impact & Aftermath Evidence Photos (Placed below bio) ── */}
+                  {disasterPhotos.length > 0 && (
+                    <div className="beacon-aftermath-gallery">
+                      <div className="beacon-aftermath-header">
+                        <span className="beacon-aftermath-title">
+                          <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>photo_camera</span>
+                          DISASTER IMPACT EVIDENCE
+                        </span>
+                        {disasterPhotos.length > 1 && (
+                          <span className="beacon-aftermath-counter">
+                            Photo {(activeDossierPhotoIdx || 0) + 1} of {disasterPhotos.length}
+                          </span>
+                        )}
+                      </div>
+
+                      <div
+                        className="beacon-aftermath-hero-wrap"
+                        onClick={() => openLightbox(disasterPhotos, activeDossierPhotoIdx || 0)}
+                        title="Click to view full photo evidence in full-screen lightbox"
+                      >
+                        <img
+                          src={disasterPhotos[activeDossierPhotoIdx || 0] || disasterPhotos[0]}
+                          alt="Disaster aftermath evidence"
+                          className="beacon-aftermath-hero-img"
+                        />
+                        <div className="beacon-aftermath-hero-overlay">
+                          <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>zoom_in</span>
+                          <span>Click to Enlarge</span>
+                        </div>
+                      </div>
+
+                      {disasterPhotos.length > 1 && (() => {
+                        const maxVisible = 6;
+                        const hasOverflow = disasterPhotos.length > maxVisible;
+                        const visiblePhotos = hasOverflow ? disasterPhotos.slice(0, maxVisible) : disasterPhotos;
+                        const overflowCount = disasterPhotos.length - (maxVisible - 1);
+
+                        return (
+                          <div className="beacon-aftermath-thumbnails">
+                            {visiblePhotos.map((photoUrl, pIdx) => {
+                              const isOverflow = hasOverflow && pIdx === (maxVisible - 1);
+                              const isActive = (activeDossierPhotoIdx || 0) === pIdx;
+
+                              return (
+                                <button
+                                  key={pIdx}
+                                  type="button"
+                                  className={`beacon-aftermath-thumb-btn ${isActive ? 'is-active' : ''} ${isOverflow ? 'is-overflow' : ''}`}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setActiveDossierPhotoIdx(pIdx);
+                                    if (isOverflow) {
+                                      openLightbox(disasterPhotos, pIdx);
+                                    }
+                                  }}
+                                  title={isOverflow ? `+${overflowCount} more photo${overflowCount > 1 ? 's' : ''} (Click to view full gallery)` : `View photo ${pIdx + 1}`}
+                                >
+                                  <img src={photoUrl} alt={`Thumbnail ${pIdx + 1}`} />
+                                  {isOverflow && (
+                                    <div className="beacon-thumb-overflow-overlay">
+                                      <span>+{overflowCount}</span>
+                                    </div>
+                                  )}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  )}
+                </div>
+
+                {/* ── Sleek Action Footer ── */}
+                <div className="beacon-dossier-footer">
+                  <button
+                    type="button"
+                    className="beacon-action-secondary"
+                    onClick={handleCloseBeaconFocus}
+                    title="Return to Province View"
+                  >
+                    <span className="material-symbols-outlined">arrow_back</span>
+                    <span>Back</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    className={`beacon-action-primary ${camp.isSimulated ? 'is-simulated' : ''}`}
+                    onClick={() => {
+                      if (camp.isSimulated) return;
+                      if (onSelectCampaign) {
+                        onSelectCampaign(camp);
+                      } else {
+                        const el = document.getElementById(`campaign-${camp.id}`) || document.getElementById('campaigns');
+                        if (el) el.scrollIntoView({ behavior: 'smooth' });
+                      }
+                    }}
+                    title={camp.isSimulated ? 'Simulated Campaign Preview' : 'Donate and Support this Campaign'}
+                  >
+                    <span className="material-symbols-outlined">
+                      {camp.isSimulated ? 'visibility' : 'volunteer_activism'}
+                    </span>
+                    <span>{camp.isSimulated ? 'Simulated Preview' : 'Support Mission'}</span>
+                  </button>
+                </div>
+              </div>
+            );
+          })()}
+
         </div>
 
       </div>
+
+      {/* ── Disaster Aftermath Lightbox Modal (Root Document Body Portal) ── */}
+      {typeof document !== 'undefined' && activeLightboxIdx !== null && lightboxPhotos.length > 0 && lightboxPhotos[activeLightboxIdx] && createPortal(
+        <div
+          className="disaster-lightbox-backdrop"
+          onClick={() => setActiveLightboxIdx(null)}
+          role="dialog"
+          aria-modal="true"
+        >
+          <div className="disaster-lightbox-content" onClick={(e) => e.stopPropagation()}>
+            {/* Top Bar: Counter & Close */}
+            <div className="disaster-lightbox-top-bar">
+              <div className="disaster-lightbox-pill">
+                <span className="material-symbols-outlined" style={{ fontSize: '15px', color: '#10b981' }}>photo_library</span>
+                <span>Photo {activeLightboxIdx + 1} of {lightboxPhotos.length}</span>
+              </div>
+              <button
+                type="button"
+                className="disaster-lightbox-close"
+                onClick={() => setActiveLightboxIdx(null)}
+                title="Close Preview (Esc)"
+                aria-label="Close Preview"
+              >
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+
+            {/* Middle Main Row: Prev Button + Big Image + Next Button */}
+            <div className="disaster-lightbox-stage">
+              {lightboxPhotos.length > 1 && (
+                <button
+                  type="button"
+                  className="disaster-lightbox-nav-btn prev"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setActiveLightboxIdx(prev => (prev > 0 ? prev - 1 : (lightboxPhotos.length - 1)));
+                  }}
+                  title="Previous Photo (Left Arrow)"
+                  aria-label="Previous Photo"
+                >
+                  <span className="material-symbols-outlined">chevron_left</span>
+                </button>
+              )}
+
+              <div className="disaster-lightbox-img-frame">
+                <img
+                  src={lightboxPhotos[activeLightboxIdx]}
+                  alt={`Disaster Aftermath Evidence #${activeLightboxIdx + 1}`}
+                  className="disaster-lightbox-img"
+                />
+              </div>
+
+              {lightboxPhotos.length > 1 && (
+                <button
+                  type="button"
+                  className="disaster-lightbox-nav-btn next"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setActiveLightboxIdx(prev => (prev < lightboxPhotos.length - 1 ? prev + 1 : 0));
+                  }}
+                  title="Next Photo (Right Arrow)"
+                  aria-label="Next Photo"
+                >
+                  <span className="material-symbols-outlined">chevron_right</span>
+                </button>
+              )}
+            </div>
+
+            {/* Bottom Caption */}
+            <div className="disaster-lightbox-caption">
+              <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#10b981' }}>verified</span>
+              <span>Disaster Impact & Aftermath Evidence • Ground Photographic Verification</span>
+            </div>
+
+            {/* Bottom Carousel / Thumbnails Strip */}
+            {lightboxPhotos.length > 1 && (
+              <div className="disaster-lightbox-thumbs-strip" onClick={(e) => e.stopPropagation()}>
+                {lightboxPhotos.map((thumbUrl, tIdx) => (
+                  <button
+                    key={tIdx}
+                    type="button"
+                    className={`disaster-lightbox-strip-thumb ${tIdx === activeLightboxIdx ? 'is-active' : ''}`}
+                    onClick={() => setActiveLightboxIdx(tIdx)}
+                    title={`Switch to photo ${tIdx + 1}`}
+                  >
+                    <img src={thumbUrl} alt={`Thumbnail ${tIdx + 1}`} />
+                    <span className="disaster-lightbox-thumb-num">{tIdx + 1}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>,
+        document.body
+      )}
     </>
   );
 }
