@@ -147,6 +147,32 @@ export default function AnalyticsReportsPanel({ mode = 'admin', onNavigateTab })
   const topContributors = analytics?.topContributors || [];
   const insights = analytics?.insights || [];
   const allCampaigns = analytics?.campaignPerformance || [];
+  const donorStats = analytics?.ecosystemStats?.donors || {
+    registered: Number(kpis.registeredDonors ?? kpis.totalDonors ?? 0),
+    verified: Number(kpis.verifiedDonors || 0),
+    registeredOnly: Number(kpis.registeredOnlyDonors || 0),
+    walletLinked: Number(kpis.walletVerifiedDonors || 0),
+    contributing: Number(kpis.contributingDonors || 0),
+    repeat: Number(kpis.repeatDonors || 0),
+    verifiedRatePct: 0
+  };
+  const ngoStats = analytics?.ecosystemStats?.ngos || {
+    registered: Number(kpis.registeredNgos ?? ((kpis.approvedOrgs || 0) + (kpis.pendingOrgs || 0) + (kpis.rejectedOrgs || 0))),
+    verified: Number(kpis.verifiedNgos ?? kpis.approvedOrgs ?? 0),
+    pending: Number(kpis.pendingOrgs || 0),
+    rejected: Number(kpis.rejectedOrgs || 0),
+    evmEnrolled: Number(kpis.evmEnrolledNgos || 0),
+    verifiedRatePct: 0
+  };
+  const supporterStats = analytics?.supporterStats || {
+    totalBackers: Number(kpis.uniqueDonors || 0),
+    registeredBackers: Number(kpis.registeredBackers || 0),
+    verifiedBackers: Number(kpis.verifiedBackers || 0),
+    registeredOnlyBackers: Math.max(0, Number(kpis.registeredBackers || 0) - Number(kpis.verifiedBackers || 0)),
+    repeatBackers: Number(kpis.repeatBackers || 0),
+    anonymousGifts: 0,
+    verifiedRatePct: 0
+  };
 
   const campaigns = allCampaigns.filter((c) => {
     if (statusFilter === 'ACTIVE' && !c.isActive) return false;
@@ -412,7 +438,260 @@ export default function AnalyticsReportsPanel({ mode = 'admin', onNavigateTab })
             </section>
           </div>
 
-          {/* ── Row 2: Compact Hairline Insights Strip ── */}
+          {/* ── Row 2: Donor & NGO Ecosystem Cohorts (Registered vs Verified) ── */}
+          {isAdmin ? (
+            <section className="va-panel va-ecosystem-strip" aria-label="Donor and NGO cohorts">
+              {/* Platform Donors Cohort */}
+              <div className="va-eco-cell">
+                <div className="va-eco-head">
+                  <div>
+                    <h3 className="va-section-heading">Platform Donors</h3>
+                    <p className="va-panel-sub">Registered accounts vs verified contributors</p>
+                  </div>
+                  <span className="va-kpi-tag">{donorStats.verifiedRatePct}% verified</span>
+                </div>
+
+                <div className="va-eco-headline">
+                  <strong className="va-eco-total">{donorStats.registered.toLocaleString('en-US')}</strong>
+                  <span className="va-eco-unit">registered donors</span>
+                </div>
+
+                <div className="va-eco-bar" aria-hidden="true">
+                  {donorStats.verified > 0 && (
+                    <div
+                      className="va-eco-seg seg-primary"
+                      style={{ width: `${Math.max(4, (donorStats.verified / Math.max(1, donorStats.registered)) * 100)}%` }}
+                    />
+                  )}
+                  {donorStats.registeredOnly > 0 && (
+                    <div
+                      className="va-eco-seg seg-neutral"
+                      style={{ width: `${Math.max(4, (donorStats.registeredOnly / Math.max(1, donorStats.registered)) * 100)}%` }}
+                    />
+                  )}
+                </div>
+
+                <div className="va-eco-metrics">
+                  <div className="va-eco-metric">
+                    <span className="va-eco-metric-label">
+                      <span className="va-dot-sm primary" />
+                      Verified Donors
+                    </span>
+                    <strong>{donorStats.verified.toLocaleString('en-US')}</strong>
+                    <span className="va-eco-metric-sub">Wallet, 2FA, or gift verified</span>
+                  </div>
+                  <div className="va-eco-metric">
+                    <span className="va-eco-metric-label">
+                      <span className="va-dot-sm muted" />
+                      Registered Only
+                    </span>
+                    <strong>{donorStats.registeredOnly.toLocaleString('en-US')}</strong>
+                    <span className="va-eco-metric-sub">Account created, unverified</span>
+                  </div>
+                </div>
+
+                <div className="va-eco-foot">
+                  <span>{donorStats.walletLinked} EVM wallets linked · {donorStats.contributing} active contributors · {donorStats.repeat} repeat</span>
+                </div>
+              </div>
+
+              {/* Relief Organizations (NGOs) Cohort */}
+              <div className="va-eco-cell">
+                <div className="va-eco-head">
+                  <div>
+                    <h3 className="va-section-heading">Relief Organizations (NGOs)</h3>
+                    <p className="va-panel-sub">Registered applicants vs SEC-accredited partners</p>
+                  </div>
+                  <div className="va-eco-head-right">
+                    <span className="va-kpi-tag">{ngoStats.verifiedRatePct}% verified</span>
+                    {onNavigateTab && (
+                      <button type="button" className="va-card-action-link" onClick={() => onNavigateTab('approvals')}>
+                        Review KYC
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                <div className="va-eco-headline">
+                  <strong className="va-eco-total">{ngoStats.registered.toLocaleString('en-US')}</strong>
+                  <span className="va-eco-unit">registered NGOs</span>
+                </div>
+
+                <div className="va-eco-bar" aria-hidden="true">
+                  {ngoStats.verified > 0 && (
+                    <div
+                      className="va-eco-seg seg-ok"
+                      style={{ width: `${Math.max(4, (ngoStats.verified / Math.max(1, ngoStats.registered)) * 100)}%` }}
+                    />
+                  )}
+                  {ngoStats.pending > 0 && (
+                    <div
+                      className="va-eco-seg seg-warn"
+                      style={{ width: `${Math.max(4, (ngoStats.pending / Math.max(1, ngoStats.registered)) * 100)}%` }}
+                    />
+                  )}
+                  {ngoStats.rejected > 0 && (
+                    <div
+                      className="va-eco-seg seg-neutral"
+                      style={{ width: `${Math.max(4, (ngoStats.rejected / Math.max(1, ngoStats.registered)) * 100)}%` }}
+                    />
+                  )}
+                </div>
+
+                <div className="va-eco-metrics cols-3">
+                  <div className="va-eco-metric">
+                    <span className="va-eco-metric-label">
+                      <span className="va-dot-sm ok" />
+                      Verified NGOs
+                    </span>
+                    <strong>{ngoStats.verified.toLocaleString('en-US')}</strong>
+                    <span className="va-eco-metric-sub">SEC accredited</span>
+                  </div>
+                  <div className="va-eco-metric">
+                    <span className="va-eco-metric-label">
+                      <span className="va-dot-sm warn" />
+                      Pending KYC
+                    </span>
+                    <strong>{ngoStats.pending.toLocaleString('en-US')}</strong>
+                    <span className="va-eco-metric-sub">Under review</span>
+                  </div>
+                  <div className="va-eco-metric">
+                    <span className="va-eco-metric-label">
+                      <span className="va-dot-sm muted" />
+                      Rejected
+                    </span>
+                    <strong>{ngoStats.rejected.toLocaleString('en-US')}</strong>
+                    <span className="va-eco-metric-sub">Unverified</span>
+                  </div>
+                </div>
+
+                <div className="va-eco-foot">
+                  <span>{ngoStats.evmEnrolled} approved NGOs enrolled on Sepolia EVM registry</span>
+                </div>
+              </div>
+            </section>
+          ) : (
+            <section className="va-panel va-ecosystem-strip" aria-label="Supporter cohorts and operations">
+              {/* NGO Supporter Cohorts */}
+              <div className="va-eco-cell">
+                <div className="va-eco-head">
+                  <div>
+                    <h3 className="va-section-heading">Donor &amp; Supporter Cohorts</h3>
+                    <p className="va-panel-sub">Verified supporters vs registered backers funding your drives</p>
+                  </div>
+                  <span className="va-kpi-tag">{supporterStats.verifiedRatePct}% verified</span>
+                </div>
+
+                <div className="va-eco-headline">
+                  <strong className="va-eco-total">{supporterStats.totalBackers.toLocaleString('en-US')}</strong>
+                  <span className="va-eco-unit">unique supporters</span>
+                </div>
+
+                <div className="va-eco-bar" aria-hidden="true">
+                  {supporterStats.verifiedBackers > 0 && (
+                    <div
+                      className="va-eco-seg seg-primary"
+                      style={{ width: `${Math.max(4, (supporterStats.verifiedBackers / Math.max(1, supporterStats.totalBackers)) * 100)}%` }}
+                    />
+                  )}
+                  {supporterStats.registeredOnlyBackers > 0 && (
+                    <div
+                      className="va-eco-seg seg-neutral"
+                      style={{ width: `${Math.max(4, (supporterStats.registeredOnlyBackers / Math.max(1, supporterStats.totalBackers)) * 100)}%` }}
+                    />
+                  )}
+                  {supporterStats.anonymousGifts > 0 && (
+                    <div
+                      className="va-eco-seg seg-warn"
+                      style={{ width: `${Math.max(4, (supporterStats.anonymousGifts / Math.max(1, supporterStats.totalBackers)) * 100)}%` }}
+                    />
+                  )}
+                </div>
+
+                <div className="va-eco-metrics cols-3">
+                  <div className="va-eco-metric">
+                    <span className="va-eco-metric-label">
+                      <span className="va-dot-sm primary" />
+                      Verified Donors
+                    </span>
+                    <strong>{supporterStats.verifiedBackers.toLocaleString('en-US')}</strong>
+                    <span className="va-eco-metric-sub">Wallet / repeat verified</span>
+                  </div>
+                  <div className="va-eco-metric">
+                    <span className="va-eco-metric-label">
+                      <span className="va-dot-sm muted" />
+                      Registered Donors
+                    </span>
+                    <strong>{supporterStats.registeredBackers.toLocaleString('en-US')}</strong>
+                    <span className="va-eco-metric-sub">Identified accounts</span>
+                  </div>
+                  <div className="va-eco-metric">
+                    <span className="va-eco-metric-label">
+                      <span className="va-dot-sm warn" />
+                      Anonymous Gifts
+                    </span>
+                    <strong>{supporterStats.anonymousGifts.toLocaleString('en-US')}</strong>
+                    <span className="va-eco-metric-sub">{kpis.anonymousSharePct || 0}% of tx</span>
+                  </div>
+                </div>
+
+                <div className="va-eco-foot">
+                  <span>{supporterStats.repeatBackers} repeat contributor{supporterStats.repeatBackers === 1 ? '' : 's'} across your operations</span>
+                </div>
+              </div>
+
+              {/* NGO Operational Standing */}
+              <div className="va-eco-cell">
+                <div className="va-eco-head">
+                  <div>
+                    <h3 className="va-section-heading">Accreditation &amp; Relief Standing</h3>
+                    <p className="va-panel-sub">Your organization verification status and field output</p>
+                  </div>
+                  <span className={`va-delta-pill ${String(analytics?.meta?.verificationStatus).toLowerCase() === 'approved' ? 'pos' : 'neutral'}`}>
+                    {analytics?.meta?.verificationStatus || 'Pending'}
+                  </span>
+                </div>
+
+                <div className="va-eco-headline">
+                  <strong className="va-eco-total">{kpis.totalCampaigns || 0}</strong>
+                  <span className="va-eco-unit">relief operations</span>
+                </div>
+
+                <div className="va-eco-metrics cols-3">
+                  <div className="va-eco-metric">
+                    <span className="va-eco-metric-label">
+                      <span className="va-dot-sm ok" />
+                      Active Drives
+                    </span>
+                    <strong>{kpis.activeCampaigns || 0}</strong>
+                    <span className="va-eco-metric-sub">Live fundraising</span>
+                  </div>
+                  <div className="va-eco-metric">
+                    <span className="va-eco-metric-label">
+                      <span className="va-dot-sm muted" />
+                      Concluded
+                    </span>
+                    <strong>{kpis.concludedCampaigns || 0}</strong>
+                    <span className="va-eco-metric-sub">Completed quotas</span>
+                  </div>
+                  <div className="va-eco-metric">
+                    <span className="va-eco-metric-label">
+                      <span className="va-dot-sm primary" />
+                      Beneficiaries
+                    </span>
+                    <strong>{Number(kpis.totalBeneficiaries || 0).toLocaleString('en-US')}</strong>
+                    <span className="va-eco-metric-sub">Documented reach</span>
+                  </div>
+                </div>
+
+                <div className="va-eco-foot">
+                  <span>{kpis.pendingSlipsCount || 0} pending payment slip{(kpis.pendingSlipsCount || 0) === 1 ? '' : 's'} · {kpis.approvalRatePct || 0}% slip verification rate</span>
+                </div>
+              </div>
+            </section>
+          )}
+
+          {/* ── Compact Hairline Insights Strip ── */}
           {insights.length > 0 && (
             <section className="va-panel va-highlights-strip" aria-label="Key highlights">
               {insights.slice(0, 4).map((ins, i) => (

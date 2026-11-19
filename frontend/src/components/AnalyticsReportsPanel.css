@@ -33,6 +33,7 @@
   box-sizing: border-box;
   padding-bottom: 64px;
   color: var(--va-text);
+  font-family: var(--font-sans, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif);
   font-variant-numeric: tabular-nums;
 }
 
@@ -312,7 +313,8 @@
 }
 
 .va-ext-tag {
-  font-family: var(--font-mono, monospace);
+  font-family: inherit;
+  font-variant-numeric: tabular-nums;
   font-size: 0.675rem;
   font-weight: 500;
   color: var(--va-text-muted);
@@ -452,7 +454,8 @@
 
 .va-delta-pill,
 .va-kpi-tag {
-  font-family: var(--font-mono, monospace);
+  font-family: inherit;
+  font-variant-numeric: tabular-nums;
   font-size: 0.66rem;
   font-weight: 500;
   padding: 1px 5px;
@@ -484,7 +487,8 @@
   letter-spacing: -0.03em;
   line-height: 1.15;
   color: var(--va-text);
-  font-family: var(--font-mono, monospace);
+  font-family: inherit;
+  font-variant-numeric: tabular-nums;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -505,6 +509,128 @@
   flex-direction: column;
   justify-content: center;
 }
+
+/* ── Row 2: Donor & NGO Ecosystem Cohort Strip (Registered vs Verified) ── */
+.va-ecosystem-strip {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.va-eco-cell {
+  padding: 16px 18px;
+  border-right: 1px solid var(--va-border);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.va-eco-cell:last-child {
+  border-right: none;
+}
+
+.va-eco-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.va-eco-head-right {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.va-eco-headline {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.va-eco-total {
+  font-size: 1.65rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+  color: var(--va-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.va-eco-unit {
+  font-size: 0.78rem;
+  color: var(--va-text-muted);
+}
+
+.va-eco-bar {
+  display: flex;
+  height: 6px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--va-border-subtle);
+  gap: 2px;
+}
+
+.va-eco-seg.seg-primary { background: var(--va-series-primary); }
+.va-eco-seg.seg-ok { background: #10b981; }
+.va-eco-seg.seg-warn { background: #f5a623; }
+.va-eco-seg.seg-neutral { background: var(--va-border-strong); }
+
+.va-eco-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  padding-top: 2px;
+}
+
+.va-eco-metrics.cols-3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.va-eco-metric {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.va-eco-metric-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: var(--va-text-secondary);
+  white-space: nowrap;
+}
+
+.va-eco-metric strong {
+  font-size: 1.05rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--va-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.va-eco-metric-sub {
+  font-size: 0.69rem;
+  color: var(--va-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.va-eco-foot {
+  margin-top: auto;
+  padding-top: 10px;
+  border-top: 1px solid var(--va-border-subtle);
+  font-size: 0.72rem;
+  color: var(--va-text-muted);
+}
+
+.va-dot-sm.primary { background: var(--va-series-primary); }
+.va-dot-sm.muted { background: var(--va-border-strong); }
 
 /* ── Quiet Hairline Highlights Strip ── */
 .va-highlights-strip {
@@ -759,7 +885,8 @@
 .va-axis-tick {
   fill: var(--va-text-muted);
   font-size: 10px;
-  font-family: var(--font-mono, monospace);
+  font-family: inherit;
+  font-variant-numeric: tabular-nums;
 }
 
 .va-crosshair {
@@ -791,7 +918,8 @@
 .va-tooltip-date {
   font-size: 0.68rem;
   font-weight: 500;
-  font-family: var(--font-mono, monospace);
+  font-family: inherit;
+  font-variant-numeric: tabular-nums;
   color: var(--va-text-muted);
   margin-bottom: 5px;
 }
@@ -809,7 +937,8 @@
   margin-left: auto;
   color: var(--va-text);
   font-weight: 600;
-  font-family: var(--font-mono, monospace);
+  font-family: inherit;
+  font-variant-numeric: tabular-nums;
 }
 
 .va-tooltip-foot {
@@ -818,7 +947,8 @@
   border-top: 1px solid var(--va-border);
   font-size: 0.67rem;
   color: var(--va-text-muted);
-  font-family: var(--font-mono, monospace);
+  font-family: inherit;
+  font-variant-numeric: tabular-nums;
 }
 
 /* ── Thin Architectural Donut + Borderless Hairline List ── */
@@ -867,13 +997,15 @@
   font-weight: 600;
   letter-spacing: -0.02em;
   color: var(--va-text);
-  font-family: var(--font-mono, monospace);
+  font-family: inherit;
+  font-variant-numeric: tabular-nums;
 }
 
 .va-donut-center-sub {
   font-size: 0.65rem;
   color: var(--va-text-muted);
-  font-family: var(--font-mono, monospace);
+  font-family: inherit;
+  font-variant-numeric: tabular-nums;
 }
 
 .va-hairline-list {
@@ -950,13 +1082,15 @@
   font-size: 0.77rem;
   font-weight: 600;
   color: var(--va-text);
-  font-family: var(--font-mono, monospace);
+  font-family: inherit;
+  font-variant-numeric: tabular-nums;
 }
 
 .va-pct {
   font-size: 0.7rem;
   color: var(--va-text-muted);
-  font-family: var(--font-mono, monospace);
+  font-family: inherit;
+  font-variant-numeric: tabular-nums;
   min-width: 34px;
   text-align: right;
 }
@@ -1069,7 +1203,8 @@
 .va-funnel-kpi strong {
   font-size: 1.05rem;
   font-weight: 600;
-  font-family: var(--font-mono, monospace);
+  font-family: inherit;
+  font-variant-numeric: tabular-nums;
   color: var(--va-text);
 }
 
@@ -1215,7 +1350,8 @@
 }
 
 .va-table .mono {
-  font-family: var(--font-mono, monospace);
+  font-family: inherit;
+  font-variant-numeric: tabular-nums;
 }
 
 .va-table .muted {
@@ -1310,7 +1446,8 @@
 
 .va-table-footer strong {
   color: var(--va-text);
-  font-family: var(--font-mono, monospace);
+  font-family: inherit;
+  font-variant-numeric: tabular-nums;
 }
 
 .va-footer-export-btn {
@@ -1376,8 +1513,18 @@
 }
 
 @media (max-width: 900px) {
-  .va-two-col {
+  .va-two-col,
+  .va-ecosystem-strip {
     grid-template-columns: 1fr;
+  }
+
+  .va-eco-cell {
+    border-right: none;
+    border-bottom: 1px solid var(--va-border);
+  }
+
+  .va-eco-cell:last-child {
+    border-bottom: none;
   }
 }
 
@@ -1422,6 +1569,14 @@
   .va-table-controls,
   .va-search-box {
     width: 100%;
+  }
+
+  .va-eco-cell {
+    padding: 14px;
+  }
+
+  .va-eco-metrics.cols-3 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .va-export-menu {

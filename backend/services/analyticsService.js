@@ -430,7 +430,7 @@ async function buildAdminAnalytics(db, { range = '30d', category = 'ALL' } = {})
     [manualRows],
     [disbRows],
     [orgRows],
-    [donorCountRows],
+    [donorRows],
     [actRows]
   ] = await Promise.all([
     db.query(`
@@ -468,7 +468,9 @@ async function buildAdminAnalytics(db, { range = '30d', category = 'ALL' } = {})
         dt.Donor_ID as donorId,
         dt.Is_Anonymous as isAnonymous,
         dt.Created_At as createdAt,
-        COALESCE(NULLIF(d.Display_Name, ''), NULLIF(d.Legal_Name, ''), NULLIF(d.Name, ''), d.Username) as donorName
+        COALESCE(NULLIF(d.Display_Name, ''), NULLIF(d.Legal_Name, ''), NULLIF(d.Name, ''), d.Username) as donorName,
+        d.Wallet_Address as donorWallet,
+        d.Two_Factor_Enabled as donor2fa
       FROM DONATION_TRANSACTION dt
       LEFT JOIN DONOR d ON dt.Donor_ID = d.Donor_ID
       ORDER BY dt.Transaction_ID DESC
@@ -515,7 +517,15 @@ async function buildAdminAnalytics(db, { range = '30d', category = 'ALL' } = {})
       FROM ORGANIZATION
       ORDER BY Org_ID DESC
     `),
-    db.query(`SELECT COUNT(*) as totalDonors FROM DONOR`),
+    db.query(`
+      SELECT
+        Donor_ID as id,
+        Wallet_Address as walletAddress,
+        Total_Donated as totalDonated,
+        Two_Factor_Enabled as twoFactorEnabled,
+        Is_Deleted as isDeleted
+      FROM DONOR
+    `).catch(() => [[]]),
     db.query(`
       SELECT Category as category, COUNT(*) as count
       FROM ACTIVITY_LOGS
@@ -638,6 +648,56 @@ async function buildAdminAnalytics(db, { range = '30d', category = 'ALL' } = {})
   const approvedOrgs = (orgRows || []).filter((o) => String(o.status).toLowerCase() === 'approved').length;
   const pendingOrgs = (orgRows || []).filter((o) => String(o.status).toLowerCase() === 'pending').length;
   const rejectedOrgs = (orgRows || []).filter((o) => String(o.status).toLowerCase() === 'rejected').length;
+  const registeredNgos = (orgRows || []).length;
+  const evmEnrolledNgos = (orgRows || []).filter(
+    (o) => String(o.status).toLowerCase() === 'approved' && o.walletAddress && String(o.walletAddress).trim().length > 0
+  ).length;
+
+  // Donor Cohorts: Registered Donors vs Verified Donors (confirmed contribution, EVM wallet linked, or 2FA enabled)
+  const txCountByDonor = new Map();
+  allNormalizedTx.forEach((tx) => {
+    if (tx.donorId) {
+      txCountByDonor.set(Number(tx.donorId), (txCountByDonor.get(Number(tx.donorId)) || 0) + 1);
+    }
+  });
+  const activeDonorRows = (donorRows || []).filter((d) => Number(d.isDeleted || 0) !== 1);
+  const registeredDonors = activeDonorRows.length;
+  let verifiedDonors = 0;
+  let walletVerifiedDonors = 0;
+  let contributingDonors = 0;
+  let repeatDonors = 0;
+  activeDonorRows.forEach((d) => {
+    const id = Number(d.id);
+    const txCnt = txCountByDonor.get(id) || 0;
+    const hasWallet = Boolean(d.walletAddress && String(d.walletAddress).trim().length > 0);
+    const hasGift = txCnt > 0 || Number(d.totalDonated || 0) > 0;
+    const has2fa = Number(d.twoFactorEnabled || 0) === 1;
+    if (hasWallet) walletVerifiedDonors += 1;
+    if (hasGift) contributingDonors += 1;
+    if (txCnt >= 2) repeatDonors += 1;
+    if (hasWallet || hasGift || has2fa) verifiedDonors += 1;
+  });
+  const registeredOnlyDonors = Math.max(0, registeredDonors - verifiedDonors);
+
+  const ecosystemStats = {
+    donors: {
+      registered: registeredDonors,
+      verified: verifiedDonors,
+      registeredOnly: registeredOnlyDonors,
+      walletLinked: walletVerifiedDonors,
+      contributing: contributingDonors,
+      repeat: repeatDonors,
+      verifiedRatePct: registeredDonors > 0 ? Number(((verifiedDonors / registeredDonors) * 100).toFixed(1)) : 0
+    },
+    ngos: {
+      registered: registeredNgos,
+      verified: approvedOrgs,
+      pending: pendingOrgs,
+      rejected: rejectedOrgs,
+      evmEnrolled: evmEnrolledNgos,
+      verifiedRatePct: registeredNgos > 0 ? Number(((approvedOrgs / registeredNgos) * 100).toFixed(1)) : 0
+    }
+  };
 
   const actTotal = (actRows || []).reduce((s, r) => s + Number(r.count || 0), 0);
   const activityLabels = {
@@ -714,14 +774,24 @@ async function buildAdminAnalytics(db, { range = '30d', category = 'ALL' } = {})
       concludedCampaigns,
       totalCampaigns: campaignPerf.length,
       avgFundingPct,
-      totalDonors: Number(donorCountRows?.[0]?.totalDonors || 0),
+      totalDonors: registeredDonors,
+      registeredDonors,
+      verifiedDonors,
+      registeredOnlyDonors,
+      walletVerifiedDonors,
+      contributingDonors,
+      repeatDonors,
+      registeredNgos,
+      verifiedNgos: approvedOrgs,
       approvedOrgs,
       pendingOrgs,
       rejectedOrgs,
+      evmEnrolledNgos,
       approvalRatePct: verificationFunnel.approvalRatePct,
       avgAiConfidence: verificationFunnel.avgAiConfidence,
       pendingManualCount: verificationFunnel.pending
     },
+    ecosystemStats,
     trendSeries,
     paymentRails,
     categoryBreakdown: categories,
@@ -789,7 +859,9 @@ async function buildOrganizationAnalytics(db, { userId, userWallet = '', range =
         dt.Donor_ID as donorId,
         dt.Is_Anonymous as isAnonymous,
         dt.Created_At as createdAt,
-        COALESCE(NULLIF(d.Display_Name, ''), NULLIF(d.Legal_Name, ''), NULLIF(d.Name, ''), d.Username) as donorName
+        COALESCE(NULLIF(d.Display_Name, ''), NULLIF(d.Legal_Name, ''), NULLIF(d.Name, ''), d.Username) as donorName,
+        d.Wallet_Address as donorWallet,
+        d.Two_Factor_Enabled as donor2fa
       FROM DONATION_TRANSACTION dt
       LEFT JOIN CAMPAIGN c ON dt.Campaign_ID = c.Campaign_ID
       LEFT JOIN ORGANIZATION o ON (dt.Org_ID = o.Org_ID OR c.Org_ID = o.Org_ID)
@@ -869,15 +941,38 @@ async function buildOrganizationAnalytics(db, { userId, userWallet = '', range =
     : 0;
   const totalBeneficiaries = normalizedDisb.reduce((s, d) => s + d.beneficiariesReached, 0);
 
+  const donorMetaById = new Map();
+  (dtRows || []).forEach((r) => {
+    if (r.donorId) {
+      donorMetaById.set(Number(r.donorId), {
+        hasWallet: Boolean(r.donorWallet && String(r.donorWallet).trim().length > 0),
+        has2fa: Number(r.donor2fa || 0) === 1
+      });
+    }
+  });
+
   const uniqueDonorSet = new Set();
+  const registeredBackerIds = new Set();
+  const verifiedBackerIds = new Set();
+  const backerGiftCounts = new Map();
   let anonCount = 0;
   const supporterAgg = new Map();
   scopedTx.forEach((tx) => {
     const key = tx.isAnonymous
       ? `anon_${tx.id}`
       : (tx.donorId ? `d_${tx.donorId}` : tx.donorName);
-    if (!tx.isAnonymous && tx.donorId) uniqueDonorSet.add(`d_${tx.donorId}`);
-    else uniqueDonorSet.add(key);
+    if (!tx.isAnonymous && tx.donorId) {
+      const dId = Number(tx.donorId);
+      uniqueDonorSet.add(`d_${dId}`);
+      registeredBackerIds.add(dId);
+      backerGiftCounts.set(dId, (backerGiftCounts.get(dId) || 0) + 1);
+      const dm = donorMetaById.get(dId);
+      if (dm?.hasWallet || dm?.has2fa || tx.rail === 'Sepolia ETH') {
+        verifiedBackerIds.add(dId);
+      }
+    } else {
+      uniqueDonorSet.add(key);
+    }
 
     if (tx.isAnonymous) anonCount += 1;
 
@@ -890,6 +985,26 @@ async function buildOrganizationAnalytics(db, { userId, userWallet = '', range =
     item.eth += tx.ethAmount;
     item.count += 1;
   });
+
+  let repeatBackers = 0;
+  backerGiftCounts.forEach((cnt, dId) => {
+    if (cnt >= 2) {
+      repeatBackers += 1;
+      verifiedBackerIds.add(dId);
+    }
+  });
+  const registeredOnlyBackers = Math.max(0, registeredBackerIds.size - verifiedBackerIds.size);
+  const supporterStats = {
+    totalBackers: uniqueDonorSet.size,
+    registeredBackers: registeredBackerIds.size,
+    verifiedBackers: verifiedBackerIds.size,
+    registeredOnlyBackers,
+    repeatBackers,
+    anonymousGifts: anonCount,
+    verifiedRatePct: registeredBackerIds.size > 0
+      ? Number(((verifiedBackerIds.size / registeredBackerIds.size) * 100).toFixed(1))
+      : 0
+  };
 
   const topContributors = Array.from(supporterAgg.values())
     .map((x) => ({ ...x, eth: Number(x.eth.toFixed(4)) }))
@@ -955,6 +1070,9 @@ async function buildOrganizationAnalytics(db, { userId, userWallet = '', range =
       periodDeltaPct,
       txCount: scopedTx.length,
       uniqueDonors: uniqueDonorSet.size,
+      registeredBackers: supporterStats.registeredBackers,
+      verifiedBackers: supporterStats.verifiedBackers,
+      repeatBackers: supporterStats.repeatBackers,
       avgGiftPhp,
       anonymousSharePct,
       totalDisbursedPhp,
@@ -975,6 +1093,7 @@ async function buildOrganizationAnalytics(db, { userId, userWallet = '', range =
     categoryBreakdown: categories,
     regionalBreakdown: regions,
     verificationFunnel,
+    supporterStats,
     campaignPerformance: campaignPerf,
     disbursements: scopedDisb,
     topContributors,

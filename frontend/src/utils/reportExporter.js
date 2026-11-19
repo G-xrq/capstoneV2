@@ -78,11 +78,17 @@ function buildExecutiveRows(analytics, isAdmin) {
     ['Relief Operations Count', kpis.totalCampaigns || 0, `${kpis.totalCampaigns || 0} Operations`, `${kpis.activeCampaigns || 0} active · ${kpis.concludedCampaigns || 0} concluded`],
     ['Average Goal Completion', kpis.avgFundingPct || 0, `${kpis.avgFundingPct || 0}%`, 'Mean quota completion across portfolio'],
     isAdmin
-      ? ['Accredited Partner NGOs', kpis.approvedOrgs || 0, `${kpis.approvedOrgs || 0} Accredited`, `${kpis.pendingOrgs || 0} pending KYC · ${kpis.rejectedOrgs || 0} rejected`]
+      ? ['Registered NGOs (Total)', kpis.registeredNgos ?? ((kpis.approvedOrgs || 0) + (kpis.pendingOrgs || 0) + (kpis.rejectedOrgs || 0)), `${kpis.registeredNgos ?? ((kpis.approvedOrgs || 0) + (kpis.pendingOrgs || 0) + (kpis.rejectedOrgs || 0))} NGOs`, `${kpis.approvedOrgs || 0} verified/accredited · ${kpis.pendingOrgs || 0} pending KYC · ${kpis.rejectedOrgs || 0} rejected`]
       : ['Remaining Unallocated Escrow', kpis.remainingEscrowPhp || 0, fmtPhp(kpis.remainingEscrowPhp), 'Available for upcoming milestone disbursements'],
     isAdmin
-      ? ['Registered Platform Donors', kpis.totalDonors || 0, `${kpis.totalDonors || 0} Donors`, `${kpis.totalBeneficiaries || 0} documented beneficiaries reached`]
-      : ['Unique Identified Donors', kpis.uniqueDonors || 0, `${kpis.uniqueDonors || 0} Backers`, `${kpis.anonymousSharePct || 0}% opted for anonymous privacy`],
+      ? ['Verified / Accredited NGOs', kpis.verifiedNgos ?? kpis.approvedOrgs ?? 0, `${kpis.verifiedNgos ?? kpis.approvedOrgs ?? 0} Verified`, `${kpis.evmEnrolledNgos || 0} with active EVM wallet on Sepolia`]
+      : ['Verified Supporters', kpis.verifiedBackers || 0, `${kpis.verifiedBackers || 0} Verified`, `${kpis.repeatBackers || 0} repeat backers · wallet/on-chain verified`],
+    isAdmin
+      ? ['Registered Platform Donors', kpis.registeredDonors ?? kpis.totalDonors ?? 0, `${kpis.registeredDonors ?? kpis.totalDonors ?? 0} Donors`, `${kpis.verifiedDonors || 0} verified · ${kpis.registeredOnlyDonors || 0} registered-only accounts`]
+      : ['Unique Identified Donors', kpis.uniqueDonors || 0, `${kpis.uniqueDonors || 0} Backers`, `${kpis.registeredBackers || 0} registered accounts · ${kpis.anonymousSharePct || 0}% anonymous gifts`],
+    ...(isAdmin
+      ? [['Verified Platform Donors', kpis.verifiedDonors || 0, `${kpis.verifiedDonors || 0} Verified`, `${kpis.walletVerifiedDonors || 0} EVM wallet linked · ${kpis.contributingDonors || 0} active contributors`]]
+      : []),
     ['Manual Slip Verification Rate', kpis.approvalRatePct || 0, `${kpis.approvalRatePct || 0}%`, `${verificationFunnel.approved || 0} approved · ${verificationFunnel.pending || 0} pending · ${verificationFunnel.rejected || 0} rejected`],
     ['Avg AI OCR Verification Confidence', kpis.avgAiConfidence || 0, `${kpis.avgAiConfidence || 0}%`, 'Automated Gemini Vision & Tesseract slip audit score'],
     [],
@@ -112,14 +118,18 @@ export function exportExcelWorkbook(analytics, options = {}) {
   // Sheet 1: Executive Summary
   const execRows = buildExecutiveRows(analytics, isAdmin);
   const wsExec = XLSX.utils.aoa_to_sheet(execRows);
+  const sec1Idx = execRows.findIndex((r) => r[0] === 'SECTION 1: KEY PERFORMANCE INDICATORS');
+  const sec2Idx = execRows.findIndex((r) => r[0] === 'SECTION 2: AUTOMATED ANALYTICAL INSIGHTS');
+  const sec3Idx = execRows.findIndex((r) => r[0] === 'SECTION 3: PAYMENT RAIL VOLUME DISTRIBUTION');
   wsExec['!merges'] = [
     { s: { r: 0, c: 0 }, e: { r: 0, c: 3 } },
     { s: { r: 1, c: 0 }, e: { r: 1, c: 3 } },
-    { s: { r: 8, c: 0 }, e: { r: 8, c: 3 } },
-    { s: { r: 21, c: 0 }, e: { r: 21, c: 3 } }
+    ...(sec1Idx >= 0 ? [{ s: { r: sec1Idx, c: 0 }, e: { r: sec1Idx, c: 3 } }] : []),
+    ...(sec2Idx >= 0 ? [{ s: { r: sec2Idx, c: 0 }, e: { r: sec2Idx, c: 3 } }] : []),
+    ...(sec3Idx >= 0 ? [{ s: { r: sec3Idx, c: 0 }, e: { r: sec3Idx, c: 3 } }] : [])
   ];
   autoSizeSheet(wsExec, execRows, 3);
-  applyPhpAndPctFormats(wsExec, [2], [], [3], 24);
+  applyPhpAndPctFormats(wsExec, [2], [], [3], sec3Idx >= 0 ? sec3Idx + 2 : 24);
   XLSX.utils.book_append_sheet(wb, wsExec, 'Executive Summary');
 
   // Sheet 2: Period Trends
