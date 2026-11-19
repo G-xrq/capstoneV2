@@ -452,7 +452,7 @@ export default function Header({
             {/* Leaderboard Trigger */}
             <button
               type="button"
-              className={`bbdrts-icon-btn ${showLeaderboardModal ? 'active' : ''}`}
+              className={`bbdrts-icon-btn bbdrts-leaderboard-btn ${showLeaderboardModal ? 'active' : ''}`}
               onClick={() => setShowLeaderboardModal(true)}
               title="Top Donors & Relief Partners"
               aria-label="Open Top Donors and Relief Partners"
@@ -871,6 +871,32 @@ export default function Header({
               <span className="material-symbols-outlined">emoji_events</span>
               <span>Top Donors & Relief Partners</span>
             </button>
+
+            {!dbUser && (
+              <div className="bbdrts-mobile-nav-group">
+                <div className="bbdrts-mobile-group-title">Web3 Wallet</div>
+                {!walletAddress ? (
+                  <button
+                    type="button"
+                    className="bbdrts-mobile-nav-link"
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      handleConnectWallet?.();
+                    }}
+                  >
+                    <span className="material-symbols-outlined">account_balance_wallet</span>
+                    <span>Connect Wallet (MetaMask / EVM)</span>
+                  </button>
+                ) : (
+                  <div className="bbdrts-mobile-nav-link" style={{ cursor: 'default' }}>
+                    <span className="bbdrts-wallet-dot" />
+                    <span style={{ fontFamily: 'var(--font-mono, monospace)', fontSize: '0.82rem' }}>
+                      Connected: {walletAddress.substring(0, 6)}…{walletAddress.substring(walletAddress.length - 4)}
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
 
             {!dbUser && (
               <div className="bbdrts-mobile-auth-dock" style={{ display: 'flex', gap: '8px', marginTop: '12px', paddingTop: '12px', borderTop: '1px solid var(--border)' }}>

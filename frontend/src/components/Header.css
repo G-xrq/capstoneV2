@@ -1388,3 +1388,88 @@
   border-radius: 12px;
   box-shadow: 0 0 0 2px var(--accent, #22c55e), 0 8px 24px rgba(34, 197, 94, 0.15) !important;
 }
+
+/* ── Responsive Mobile Phone Header Containment (<= 640px, <= 480px, <= 340px) ── */
+@media (max-width: 640px) {
+  .bbdrts-header-inner.public-mode,
+  .bbdrts-header-inner.dashboard-mode {
+    padding: 0 12px;
+    gap: 8px;
+  }
+
+  .bbdrts-header-left {
+    min-width: 0;
+    gap: 8px;
+  }
+
+  .bbdrts-header-actions {
+    gap: 6px;
+    min-width: 0;
+  }
+
+  /* Live Tracker, Top Donors leaderboard, and Web3 Wallet live inside the mobile drawer below 640px */
+  .bbdrts-header-actions .bbdrts-live-pill,
+  .bbdrts-header-actions .bbdrts-leaderboard-btn,
+  .bbdrts-header-actions .bbdrts-wallet-btn,
+  .bbdrts-header-actions .bbdrts-wallet-pill {
+    display: none !important;
+  }
+
+  .bbdrts-header-broadcast-pill {
+    padding: 0 8px;
+  }
+
+  .bbdrts-header-show-badge,
+  .bbdrts-header-broadcast-label {
+    display: none !important;
+  }
+
+  .bbdrts-auth-btn-group {
+    gap: 4px;
+  }
+
+  .bbdrts-ghost-btn {
+    padding: 0 8px;
+    font-size: 0.78rem;
+  }
+
+  .bbdrts-primary-btn {
+    padding: 0 10px;
+    font-size: 0.78rem;
+  }
+
+  .bbdrts-profile-meta {
+    display: none;
+  }
+
+  .bbdrts-mobile-drawer {
+    max-height: calc(100dvh - 60px);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    box-sizing: border-box;
+  }
+}
+
+@media (max-width: 480px) {
+  /* Below 480px keep Header ultra-clean: [Brand] ... [Theme] [Log In] [Menu]; Sign Up lives in Menu drawer */
+  .bbdrts-auth-btn-group .bbdrts-primary-btn {
+    display: none !important;
+  }
+
+  .bbdrts-ghost-btn {
+    padding: 0 9px;
+    border-color: var(--border, #eaeaea);
+    color: var(--text-primary, #000000);
+  }
+
+  [data-theme="dark"] .bbdrts-ghost-btn {
+    border-color: #27272a;
+    color: #ffffff;
+  }
+}
+
+@media (max-width: 340px) {
+  .bbdrts-ghost-btn .material-symbols-outlined {
+    display: none;
+  }
+}

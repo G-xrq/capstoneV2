@@ -1479,13 +1479,16 @@
 .campaigns-grid .campaign-org-badge {
   align-self: flex-start;
   width: fit-content;
-  max-width: fit-content;
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
   margin-top: 2px;
   margin-bottom: 10px;
 }
 
 .campaigns-grid .campaign-org-name {
-  max-width: 220px;
+  max-width: 100%;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -2273,7 +2276,10 @@
   margin-bottom: 0;
   align-self: flex-start;
   width: fit-content;
-  max-width: fit-content;
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  box-sizing: border-box;
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   cursor: pointer;
   outline: none;
@@ -2313,7 +2319,9 @@
   font-size: 0.72rem;
   font-weight: 700;
   letter-spacing: 0.3px;
-  max-width: 280px;
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   cursor: pointer;
   outline: none;
@@ -2428,6 +2436,9 @@
   font-weight: 700;
   color: var(--text-primary, #ffffff);
   white-space: nowrap;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
   transition: color 0.15s ease;
 }
 
@@ -2456,6 +2467,7 @@
   color: var(--text-muted, #94a3b8);
   opacity: 0.55;
   margin-left: -1px;
+  flex-shrink: 0;
   transition: transform 0.15s ease, opacity 0.15s ease, color 0.15s ease;
 }
 
@@ -2960,6 +2972,7 @@
 .donate-input-wrapper {
   position: relative;
   flex: 1;
+  min-width: 0;
   display: flex;
   align-items: center;
   background-color: var(--bg-input);
@@ -6531,11 +6544,21 @@ input:-webkit-autofill:active {
     align-self: auto;
   }
 
-  .campaign-actions {
+  .campaign-actions,
+  .campaigns-list .campaign-actions {
     flex: 1 1 100%;
     width: 100%;
     min-width: 0;
     max-width: 100%;
+    margin-left: 0;
+  }
+
+  .donate-box-card,
+  .donate-box-header,
+  .donate-row {
+    min-width: 0;
+    max-width: 100%;
+    box-sizing: border-box;
   }
 }
 
@@ -7558,11 +7581,13 @@ input:-webkit-autofill:active {
     padding: 56px 0 44px;
   }
 
-  .campaign-actions {
+  .campaign-actions,
+  .campaigns-list .campaign-actions {
     flex: 1 1 100%;
     width: 100%;
     min-width: 0;
     max-width: 100%;
+    margin-left: 0;
   }
 
   .form-row {

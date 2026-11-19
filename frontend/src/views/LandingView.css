@@ -7,6 +7,8 @@
   background-color: var(--bg-base, #000000);
   color: var(--text-primary, #ededed);
   min-height: 100vh;
+  max-width: 100%;
+  overflow-x: clip;
   position: relative;
   z-index: 2;
   font-family: var(--font-sans, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif);
@@ -75,6 +77,12 @@
   margin: 0 auto;
   padding: 0 24px;
   box-sizing: border-box;
+}
+
+@media (max-width: 640px) {
+  .bbdrts-landing-root .container {
+    padding: 0 16px;
+  }
 }
 
 /* Subtle Architectural Grid Background (Disabled for clean Vercel pitch-black canvas) */
@@ -167,8 +175,19 @@
   font-weight: 500;
   letter-spacing: -0.01em;
   margin-bottom: 24px;
+  -webkit-backdrop-filter: blur(8px);
   backdrop-filter: blur(8px);
   transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+@media (max-width: 420px) {
+  .bbdrts-hero-badge {
+    padding: 5px 10px;
+    font-size: 0.68rem;
+    gap: 5px;
+    flex-wrap: nowrap;
+    white-space: nowrap;
+  }
 }
 
 .bbdrts-hero-badge:hover {
@@ -536,6 +555,7 @@
   position: relative;
   width: 100%;
   max-width: 480px;
+  overflow-x: clip;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
@@ -594,7 +614,7 @@
 /* Masked Vercel Dot-Matrix Backdrop (Recessed in 3D Backplane) */
 .bdr-process-backdrop {
   position: absolute;
-  inset: -32px -40px;
+  inset: -32px 0;
   background-image: radial-gradient(rgba(255, 255, 255, 0.13) 1px, transparent 1px);
   background-size: 16px 16px;
   -webkit-mask-image: radial-gradient(ellipse 75% 75% at 50% 50%, #000 30%, transparent 88%);
@@ -614,7 +634,7 @@
 /* Monochrome Specular Hover Glare across the 3D Deck */
 .bdr-tilt-glare {
   position: absolute;
-  inset: -18px;
+  inset: 0;
   border-radius: 20px;
   background: radial-gradient(
     420px circle at var(--pointer-x) var(--pointer-y),
@@ -1395,7 +1415,12 @@
   }
   .bdr-process-visualizer {
     gap: 12px;
+    max-width: 100%;
+    overflow: hidden;
     transform: none !important;
+  }
+  .bdr-tilt-glare {
+    inset: 0;
   }
   .bdr-campaign-card,
   .bdr-flow-steps-row,
@@ -2177,6 +2202,8 @@
   border-radius: 8px;
   padding: 6px 12px;
   width: 240px;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 [data-theme="light"] .bbdrts-search-input-wrap {
@@ -2275,7 +2302,20 @@
 .bbdrts-pagination-controls {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
+  max-width: 100%;
   gap: 6px;
+}
+
+@media (max-width: 640px) {
+  .bbdrts-toolbar-right {
+    width: 100%;
+    max-width: 100%;
+  }
+  .bbdrts-search-input-wrap {
+    width: 100%;
+    flex: 1 1 180px;
+  }
 }
 
 .bbdrts-page-btn {
