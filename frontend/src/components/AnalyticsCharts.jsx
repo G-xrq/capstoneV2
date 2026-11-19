@@ -10,8 +10,7 @@ export function formatPhpCompact(val) {
 
 /**
  * Fritsch-Carlson monotone cubic spline SVG path builder.
- * Produces smooth Vercel-style curves that strictly preserve monotonicity
- * and never overshoot below the baseline or above local peaks.
+ * Strictly preserves monotonicity and never overshoots below the baseline.
  */
 function buildMonotonePath(points, yKey, baselineY) {
   const n = points.length;
@@ -45,7 +44,6 @@ function buildMonotonePath(points, yKey, baselineY) {
     }
   }
 
-  // Enforce monotonicity limits so curve never overshoots flat segments
   for (let i = 0; i < n - 1; i++) {
     if (Math.abs(ms[i]) < 1e-6) {
       tangents[i] = 0;
@@ -77,21 +75,26 @@ function buildMonotonePath(points, yKey, baselineY) {
 
 export function VercelAreaLineChart({
   data = [],
-  height = 248,
-  showCryptoSplit = false,
+  height = 240,
+  seriesMode = 'combined', // 'combined' | 'split' | 'disbursed' | 'volume'
+  onSeriesModeChange,
+  showModeSwitch = true,
   title = '',
-  subtitle = '',
   emptyMessage = 'No contribution activity recorded in this window.'
 }) {
   const [hoverIdx, setHoverIdx] = useState(null);
-  const [seriesMode, setSeriesMode] = useState('combined'); // 'combined' | 'split'
+  const [internalMode, setInternalMode] = useState(seriesMode);
+  const activeMode = onSeriesModeChange ? seriesMode : internalMode;
+  const setMode = onSeriesModeChange || setInternalMode;
 
-  const w = 780;
+  const w = 640;
   const h = height;
-  const pad = { top: 16, right: 16, bottom: 28, left: 56 };
+  const pad = { top: 14, right: 14, bottom: 26, left: 52 };
   const plotW = w - pad.left - pad.right;
   const plotH = h - pad.top - pad.bottom;
   const baselineY = pad.top + plotH;
+
+  const isCountAxis = activeMode === 'volume';
 
   const { maxY, ticksY, points } = useMemo(() => {
     if (!Array.isArray(data) || data.length === 0) {
@@ -99,14 +102,19 @@ export function VercelAreaLineChart({
     }
     let rawMax = 0;
     data.forEach((d) => {
-      rawMax = Math.max(
-        rawMax,
-        Number(d.totalPhp || 0),
-        Number(d.disbursedPhp || 0),
-        seriesMode === 'split' ? Math.max(Number(d.fiatPhp || 0), Number(d.cryptoPhp || 0)) : 0
-      );
+      if (activeMode === 'volume') {
+        rawMax = Math.max(rawMax, Number(d.txCount || 0));
+      } else if (activeMode === 'disbursed') {
+        rawMax = Math.max(rawMax, Number(d.disbursedPhp || 0), Number(d.totalPhp || 0) * 0.15);
+      } else if (activeMode === 'split') {
+        rawMax = Math.max(rawMax, Number(d.fiatPhp || 0), Number(d.cryptoPhp || 0));
+      } else {
+        rawMax = Math.max(rawMax, Number(d.totalPhp || 0), Number(d.disbursedPhp || 0));
+      }
     });
-    const niceMax = rawMax > 0 ? Math.ceil(rawMax * 1.12) : 1000;
+    const niceMax = isCountAxis
+      ? Math.max(4, Math.ceil(rawMax * 1.2))
+      : (rawMax > 0 ? Math.ceil(rawMax * 1.12) : 1000);
     const ticks = [0, 0.33, 0.66, 1].map((p) => Math.round(niceMax * p));
 
     const pts = data.map((d, i) => {
@@ -117,11 +125,12 @@ export function VercelAreaLineChart({
       const yDisb = pad.top + plotH - ((Number(d.disbursedPhp || 0) / niceMax) * plotH);
       const yFiat = pad.top + plotH - ((Number(d.fiatPhp || 0) / niceMax) * plotH);
       const yCrypto = pad.top + plotH - ((Number(d.cryptoPhp || 0) / niceMax) * plotH);
-      return { ...d, i, x, yTotal, yDisb, yFiat, yCrypto };
+      const yTx = pad.top + plotH - ((Number(d.txCount || 0) / niceMax) * plotH);
+      return { ...d, i, x, yTotal, yDisb, yFiat, yCrypto, yTx };
     });
 
     return { maxY: niceMax, ticksY: ticks, points: pts };
-  }, [data, plotH, plotW, pad.left, pad.top, seriesMode]);
+  }, [data, plotH, plotW, pad.left, pad.top, activeMode, isCountAxis]);
 
   const xLabelIndices = useMemo(() => {
     if (points.length <= 5) return points.map((_, i) => i);
@@ -164,24 +173,25 @@ export function VercelAreaLineChart({
         <div className="va-chart-title-group">
           {title && <h3 className="va-section-heading">{title}</h3>}
           <div className="va-legend-row">
-            {seriesMode === 'combined' ? (
+            {activeMode === 'combined' && (
               <>
                 <span className="va-legend-item">
                   <span className="va-legend-swatch va-swatch-blue" />
-                  Total Inflow
+                  Inflow
                 </span>
                 {hasAnyDisb && (
                   <span className="va-legend-item">
                     <span className="va-legend-swatch va-swatch-emerald" />
-                    Disbursed Aid
+                    Disbursed
                   </span>
                 )}
               </>
-            ) : (
+            )}
+            {activeMode === 'split' && (
               <>
                 <span className="va-legend-item">
                   <span className="va-legend-swatch va-swatch-blue" />
-                  Fiat Rails
+                  Fiat
                 </span>
                 <span className="va-legend-item">
                   <span className="va-legend-swatch va-swatch-neutral" />
@@ -189,25 +199,43 @@ export function VercelAreaLineChart({
                 </span>
               </>
             )}
+            {activeMode === 'disbursed' && (
+              <span className="va-legend-item">
+                <span className="va-legend-swatch va-swatch-emerald" />
+                Direct Aid Disbursed
+              </span>
+            )}
+            {activeMode === 'volume' && (
+              <span className="va-legend-item">
+                <span className="va-legend-swatch va-swatch-blue" />
+                Verified Gifts / Day
+              </span>
+            )}
           </div>
-          {subtitle && !title && <span className="va-muted-copy">{subtitle}</span>}
         </div>
 
-        {showCryptoSplit && (
+        {showModeSwitch && (
           <div className="va-segmented-mini" role="group" aria-label="Chart series mode">
             <button
               type="button"
-              className={`va-seg-mini-btn ${seriesMode === 'combined' ? 'active' : ''}`}
-              onClick={() => setSeriesMode('combined')}
+              className={`va-seg-mini-btn ${activeMode === 'combined' ? 'active' : ''}`}
+              onClick={() => setMode('combined')}
             >
-              Inflow vs Disbursed
+              Inflow
             </button>
             <button
               type="button"
-              className={`va-seg-mini-btn ${seriesMode === 'split' ? 'active' : ''}`}
-              onClick={() => setSeriesMode('split')}
+              className={`va-seg-mini-btn ${activeMode === 'split' ? 'active' : ''}`}
+              onClick={() => setMode('split')}
             >
               Fiat vs Crypto
+            </button>
+            <button
+              type="button"
+              className={`va-seg-mini-btn ${activeMode === 'volume' ? 'active' : ''}`}
+              onClick={() => setMode('volume')}
+            >
+              Tx Count
             </button>
           </div>
         )}
@@ -217,11 +245,11 @@ export function VercelAreaLineChart({
         <svg viewBox={`0 0 ${w} ${h}`} className="va-line-svg" role="img" aria-label="Relief Funds Trend Chart">
           <defs>
             <linearGradient id="vaAreaBlue" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="var(--va-series-primary, #3291FF)" stopOpacity="0.22" />
+              <stop offset="0%" stopColor="var(--va-series-primary, #3291FF)" stopOpacity="0.20" />
               <stop offset="100%" stopColor="var(--va-series-primary, #3291FF)" stopOpacity="0.0" />
             </linearGradient>
             <linearGradient id="vaAreaEmerald" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#10b981" stopOpacity="0.16" />
+              <stop offset="0%" stopColor="#10b981" stopOpacity="0.20" />
               <stop offset="100%" stopColor="#10b981" stopOpacity="0.0" />
             </linearGradient>
             <linearGradient id="vaAreaNeutral" x1="0" y1="0" x2="0" y2="1">
@@ -243,7 +271,7 @@ export function VercelAreaLineChart({
                   className={`va-grid-line ${idx === 0 ? 'va-grid-baseline' : ''}`}
                 />
                 <text x={pad.left - 10} y={yPos + 3.5} textAnchor="end" className="va-axis-tick">
-                  {formatPhpCompact(val)}
+                  {isCountAxis ? `${val} tx` : formatPhpCompact(val)}
                 </text>
               </g>
             );
@@ -254,14 +282,14 @@ export function VercelAreaLineChart({
             const pt = points[idx];
             if (!pt) return null;
             return (
-              <text key={pt.date} x={pt.x} y={h - 6} textAnchor="middle" className="va-axis-tick">
+              <text key={pt.date} x={pt.x} y={h - 5} textAnchor="middle" className="va-axis-tick">
                 {pt.label}
               </text>
             );
           })}
 
-          {/* Smooth Monotone Spline Area + Stroke */}
-          {seriesMode === 'combined' ? (
+          {/* Series Rendering */}
+          {activeMode === 'combined' && (
             <>
               {points.length > 1 && <path d={buildArea('yTotal')} fill="url(#vaAreaBlue)" />}
               <path
@@ -286,7 +314,9 @@ export function VercelAreaLineChart({
                 </>
               )}
             </>
-          ) : (
+          )}
+
+          {activeMode === 'split' && (
             <>
               {points.length > 1 && <path d={buildArea('yFiat')} fill="url(#vaAreaBlue)" />}
               <path
@@ -309,7 +339,35 @@ export function VercelAreaLineChart({
             </>
           )}
 
-          {/* Hover Crosshair & Active Point Ring Only (Zero Static Noise) */}
+          {activeMode === 'disbursed' && (
+            <>
+              {points.length > 1 && <path d={buildArea('yDisb')} fill="url(#vaAreaEmerald)" />}
+              <path
+                d={buildMonotonePath(points, 'yDisb', baselineY)}
+                fill="none"
+                stroke="#10b981"
+                strokeWidth="1.85"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </>
+          )}
+
+          {activeMode === 'volume' && (
+            <>
+              {points.length > 1 && <path d={buildArea('yTx')} fill="url(#vaAreaBlue)" />}
+              <path
+                d={buildMonotonePath(points, 'yTx', baselineY)}
+                fill="none"
+                stroke="var(--va-series-primary, #3291FF)"
+                strokeWidth="1.75"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </>
+          )}
+
+          {/* Hover Crosshair & Active Ring */}
           {activePt && (
             <g>
               <line
@@ -321,23 +379,18 @@ export function VercelAreaLineChart({
               />
               <circle
                 cx={activePt.x}
-                cy={seriesMode === 'combined' ? activePt.yTotal : activePt.yFiat}
+                cy={
+                  activeMode === 'volume' ? activePt.yTx
+                    : activeMode === 'disbursed' ? activePt.yDisb
+                      : activeMode === 'split' ? activePt.yFiat
+                        : activePt.yTotal
+                }
                 r="4"
                 fill="var(--va-surface, #0a0a0a)"
-                stroke="var(--va-series-primary, #3291FF)"
+                stroke={activeMode === 'disbursed' ? '#10b981' : 'var(--va-series-primary, #3291FF)'}
                 strokeWidth="2"
               />
-              {seriesMode === 'combined' && hasAnyDisb && activePt.disbursedPhp > 0 && (
-                <circle
-                  cx={activePt.x}
-                  cy={activePt.yDisb}
-                  r="3.5"
-                  fill="var(--va-surface, #0a0a0a)"
-                  stroke="#10b981"
-                  strokeWidth="2"
-                />
-              )}
-              {seriesMode === 'split' && (
+              {activeMode === 'split' && (
                 <circle
                   cx={activePt.x}
                   cy={activePt.yCrypto}
@@ -350,11 +403,10 @@ export function VercelAreaLineChart({
             </g>
           )}
 
-          {/* Single-point marker when only 1 day exists */}
           {points.length === 1 && (
             <circle
               cx={points[0].x}
-              cy={seriesMode === 'combined' ? points[0].yTotal : points[0].yFiat}
+              cy={activeMode === 'volume' ? points[0].yTx : activeMode === 'disbursed' ? points[0].yDisb : points[0].yTotal}
               r="4.5"
               fill="var(--va-surface, #0a0a0a)"
               stroke="var(--va-series-primary, #3291FF)"
@@ -362,7 +414,7 @@ export function VercelAreaLineChart({
             />
           )}
 
-          {/* Invisible Interactive Columns */}
+          {/* Interactive Columns */}
           {points.map((pt) => {
             const colW = points.length === 1 ? plotW : Math.max(14, plotW / points.length);
             const colX = points.length === 1 ? pad.left : pt.x - colW / 2;
@@ -390,7 +442,32 @@ export function VercelAreaLineChart({
             }}
           >
             <div className="va-tooltip-date">{activePt.date}</div>
-            {seriesMode === 'combined' ? (
+            {activeMode === 'split' ? (
+              <>
+                <div className="va-tooltip-row">
+                  <span className="va-legend-swatch va-swatch-blue" />
+                  <span>Fiat Rails</span>
+                  <strong>₱{Number(activePt.fiatPhp || 0).toLocaleString('en-US')}</strong>
+                </div>
+                <div className="va-tooltip-row">
+                  <span className="va-legend-swatch va-swatch-neutral" />
+                  <span>Sepolia ETH</span>
+                  <strong>₱{Number(activePt.cryptoPhp || 0).toLocaleString('en-US')}</strong>
+                </div>
+              </>
+            ) : activeMode === 'disbursed' ? (
+              <div className="va-tooltip-row">
+                <span className="va-legend-swatch va-swatch-emerald" />
+                <span>Disbursed</span>
+                <strong>₱{Number(activePt.disbursedPhp || 0).toLocaleString('en-US')}</strong>
+              </div>
+            ) : activeMode === 'volume' ? (
+              <div className="va-tooltip-row">
+                <span className="va-legend-swatch va-swatch-blue" />
+                <span>Verified Gifts</span>
+                <strong>{activePt.txCount} tx</strong>
+              </div>
+            ) : (
               <>
                 <div className="va-tooltip-row">
                   <span className="va-legend-swatch va-swatch-blue" />
@@ -404,19 +481,6 @@ export function VercelAreaLineChart({
                     <strong>₱{Number(activePt.disbursedPhp || 0).toLocaleString('en-US')}</strong>
                   </div>
                 )}
-              </>
-            ) : (
-              <>
-                <div className="va-tooltip-row">
-                  <span className="va-legend-swatch va-swatch-blue" />
-                  <span>Fiat Rails</span>
-                  <strong>₱{Number(activePt.fiatPhp || 0).toLocaleString('en-US')}</strong>
-                </div>
-                <div className="va-tooltip-row">
-                  <span className="va-legend-swatch va-swatch-neutral" />
-                  <span>Sepolia ETH</span>
-                  <strong>₱{Number(activePt.cryptoPhp || 0).toLocaleString('en-US')}</strong>
-                </div>
               </>
             )}
             <div className="va-tooltip-foot">
@@ -440,6 +504,7 @@ export function VercelDonutChart({
   items = [],
   centerLabel = 'Total',
   centerValue = '₱0',
+  stacked = false,
   emptyMessage = 'No channel breakdown available yet.'
 }) {
   const [hoveredKey, setHoveredKey] = useState(null);
@@ -455,10 +520,10 @@ export function VercelDonutChart({
     );
   }
 
-  const size = 156;
+  const size = stacked ? 142 : 156;
   const cx = size / 2;
   const cy = size / 2;
-  const r = 62;
+  const r = stacked ? 56 : 62;
   const circ = 2 * Math.PI * r;
   const gapPx = nonZero.length > 1 ? 2.5 : 0;
 
@@ -482,10 +547,10 @@ export function VercelDonutChart({
   const activeSlice = hoveredKey ? slices.find((s) => s.key === hoveredKey) : null;
 
   return (
-    <div className="va-donut-layout">
-      <div className="va-donut-ring">
+    <div className={`va-donut-layout ${stacked ? 'is-stacked' : ''}`}>
+      <div className="va-donut-ring" style={{ width: `${size}px`, height: `${size}px` }}>
         <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} role="img" aria-label={centerLabel}>
-          <circle cx={cx} cy={cy} r={r} fill="none" stroke="var(--va-border-subtle, #1a1a1a)" strokeWidth="11" />
+          <circle cx={cx} cy={cy} r={r} fill="none" stroke="var(--va-border-subtle, #1a1a1a)" strokeWidth="10" />
           <g transform={`rotate(-90 ${cx} ${cy})`}>
             {slices.map((s) => {
               if (s.value <= 0) return null;
@@ -498,7 +563,7 @@ export function VercelDonutChart({
                   r={r}
                   fill="none"
                   stroke={s.color}
-                  strokeWidth={isHover ? 13.5 : 11}
+                  strokeWidth={isHover ? 12.5 : 10}
                   strokeDasharray={`${s.dashLen} ${circ}`}
                   strokeDashoffset={s.dashOffset}
                   style={{
@@ -557,12 +622,13 @@ export function VercelDonutChart({
 
 /**
  * Authentic Vercel Analytics "List Bar" component
- * (Matches vercel.com/analytics Pages / Referrers / Countries style:
- * subtle tinted horizontal fill behind clean tabular rows, zero rainbow clutter).
+ * with subtle column header labels and subtle proportional row fills.
  */
 export function VercelBarChart({
   items = [],
-  maxItems = 7,
+  maxItems = 6,
+  leftColLabel = '',
+  rightColLabel = '',
   emptyMessage = 'No records in this period.'
 }) {
   const list = (items || []).slice(0, maxItems);
@@ -570,7 +636,7 @@ export function VercelBarChart({
 
   if (list.length === 0) {
     return (
-      <div className="va-empty-state" style={{ minHeight: '170px' }}>
+      <div className="va-empty-state" style={{ minHeight: '165px' }}>
         <span>{emptyMessage}</span>
       </div>
     );
@@ -578,6 +644,12 @@ export function VercelBarChart({
 
   return (
     <div className="va-listbar-wrap">
+      {(leftColLabel || rightColLabel) && (
+        <div className="va-listbar-colhead">
+          <span>{leftColLabel}</span>
+          <span>{rightColLabel}</span>
+        </div>
+      )}
       {list.map((item, idx) => {
         const val = Number(item.value || 0);
         const widthPct = item.forcePct !== undefined
@@ -617,13 +689,19 @@ export function VercelFunnelMeter({ funnel }) {
 
   return (
     <div className="va-funnel">
-      <div className="va-funnel-top">
-        <span className="va-funnel-rate">
-          <strong>{approvalRatePct}%</strong> pass rate across {total} slip{total === 1 ? '' : 's'}
-        </span>
-        <span className="va-funnel-ai">
-          AI OCR {avgAiConfidence > 0 ? `${avgAiConfidence}%` : '—'}
-        </span>
+      <div className="va-funnel-kpis">
+        <div className="va-funnel-kpi">
+          <span>Approval Rate</span>
+          <strong>{approvalRatePct}%</strong>
+        </div>
+        <div className="va-funnel-kpi">
+          <span>Slips Audited</span>
+          <strong>{total}</strong>
+        </div>
+        <div className="va-funnel-kpi">
+          <span>Avg AI OCR</span>
+          <strong>{avgAiConfidence > 0 ? `${avgAiConfidence}%` : '—'}</strong>
+        </div>
       </div>
 
       <div className="va-funnel-track">
@@ -632,19 +710,19 @@ export function VercelFunnelMeter({ funnel }) {
         {rejected > 0 && <div className="va-funnel-seg seg-err" style={{ width: `${rejPct}%` }} title={`Rejected: ${rejected}`} />}
       </div>
 
-      <div className="va-funnel-legend">
-        <span className="va-funnel-stat">
-          <span className="va-dot-sm ok" />
-          Approved <strong>{approved}</strong>
-        </span>
-        <span className="va-funnel-stat">
-          <span className="va-dot-sm warn" />
-          Pending <strong>{pending}</strong>
-        </span>
-        <span className="va-funnel-stat">
-          <span className="va-dot-sm err" />
-          Rejected <strong>{rejected}</strong>
-        </span>
+      <div className="va-funnel-rows">
+        <div className="va-funnel-row">
+          <span className="va-funnel-stat"><span className="va-dot-sm ok" />Approved receipts</span>
+          <strong className="va-num">{approved}</strong>
+        </div>
+        <div className="va-funnel-row">
+          <span className="va-funnel-stat"><span className="va-dot-sm warn" />Pending verification</span>
+          <strong className="va-num">{pending}</strong>
+        </div>
+        <div className="va-funnel-row">
+          <span className="va-funnel-stat"><span className="va-dot-sm err" />Flagged / rejected</span>
+          <strong className="va-num">{rejected}</strong>
+        </div>
       </div>
     </div>
   );

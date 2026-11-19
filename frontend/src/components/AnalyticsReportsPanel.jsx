@@ -47,8 +47,23 @@ export default function AnalyticsReportsPanel({ mode = 'admin', onNavigateTab })
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [exportMenuOpen, setExportMenuOpen] = useState(false);
+
+  // Interactive Hero KPI -> Chart Series binding
+  const [chartSeries, setChartSeries] = useState('combined'); // 'combined' | 'volume' | 'disbursed' | 'split'
+
+  // Vercel Tabbed Breakdown Deck states
+  const [leftTab, setLeftTab] = useState(isAdmin ? 'causes' : 'goals');
+  const [rightTab, setRightTab] = useState(isAdmin ? 'ngos' : 'supporters');
+
+  // Matrix table filters
   const [campSearch, setCampSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('ALL'); // 'ALL' | 'ACTIVE' | 'CLOSED'
   const exportMenuRef = useRef(null);
+
+  useEffect(() => {
+    setLeftTab(isAdmin ? 'causes' : 'goals');
+    setRightTab(isAdmin ? 'ngos' : 'supporters');
+  }, [isAdmin]);
 
   useEffect(() => {
     const onDocClick = (e) => {
@@ -131,7 +146,11 @@ export default function AnalyticsReportsPanel({ mode = 'admin', onNavigateTab })
   const activityBreakdown = analytics?.activityBreakdown || [];
   const topContributors = analytics?.topContributors || [];
   const insights = analytics?.insights || [];
-  const campaigns = (analytics?.campaignPerformance || []).filter((c) => {
+  const allCampaigns = analytics?.campaignPerformance || [];
+
+  const campaigns = allCampaigns.filter((c) => {
+    if (statusFilter === 'ACTIVE' && !c.isActive) return false;
+    if (statusFilter === 'CLOSED' && c.isActive) return false;
     if (!campSearch.trim()) return true;
     const q = campSearch.toLowerCase();
     return (
@@ -142,12 +161,13 @@ export default function AnalyticsReportsPanel({ mode = 'admin', onNavigateTab })
     );
   });
 
+  const filteredRaisedSum = campaigns.reduce((sum, c) => sum + Number(c.raisedPhp || 0), 0);
   const deltaNum = kpis.periodDeltaPct;
   const hasDelta = deltaNum !== null && deltaNum !== undefined;
 
   return (
     <div className="va-root analytics-panel-root">
-      {/* ── Top Bar: Clean Geist Heading + Right-Aligned Controls ── */}
+      {/* ── Top Bar: Clean Geist Heading + Single-Row Controls ── */}
       <header className="va-header">
         <div className="va-header-title-wrap">
           <h2 className="va-page-title">
@@ -258,112 +278,125 @@ export default function AnalyticsReportsPanel({ mode = 'admin', onNavigateTab })
         </div>
       ) : (
         <>
-          {/* ── Unified Vercel Hero Frame: 4 KPI Columns + Smooth Monotone Area Graph ── */}
-          <section className="va-panel va-hero-panel">
-            <div className="va-kpi-grid analytics-kpi-strip">
-              <div className="va-kpi-cell">
-                <div className="va-kpi-top">
-                  <span className="va-kpi-label">Mobilized</span>
-                  {hasDelta ? (
-                    <span className={`va-delta-pill ${deltaNum < 0 ? 'neg' : 'pos'}`}>
-                      {deltaNum >= 0 ? '+' : ''}{deltaNum}%
-                    </span>
-                  ) : (
-                    <span className="va-delta-pill neutral">All time</span>
-                  )}
-                </div>
-                <div className="va-kpi-value">
-                  ₱{Number(kpis.totalMobilizedPhp || 0).toLocaleString('en-US')}
-                </div>
-                <div className="va-kpi-sub">
-                  {Number(kpis.totalMobilizedEth || 0).toFixed(4)} ETH equivalent
-                </div>
-              </div>
-
-              <div className="va-kpi-cell">
-                <div className="va-kpi-top">
-                  <span className="va-kpi-label">Avg Gift</span>
-                  <span className="va-kpi-tag">{kpis.txCount || 0} tx</span>
-                </div>
-                <div className="va-kpi-value">
-                  ₱{Number(kpis.avgGiftPhp || 0).toLocaleString('en-US')}
-                </div>
-                <div className="va-kpi-sub">
-                  {isAdmin
-                    ? `${kpis.totalDonors || 0} registered donors`
-                    : `${kpis.uniqueDonors || 0} backers · ${kpis.anonymousSharePct || 0}% anon`}
-                </div>
-              </div>
-
-              <div className="va-kpi-cell">
-                <div className="va-kpi-top">
-                  <span className="va-kpi-label">Disbursed</span>
-                  <span className="va-kpi-tag">{kpis.utilizationPct || 0}%</span>
-                </div>
-                <div className="va-kpi-value">
-                  ₱{Number(kpis.totalDisbursedPhp || 0).toLocaleString('en-US')}
-                </div>
-                <div className="va-kpi-sub">
-                  {isAdmin
-                    ? `${kpis.totalBeneficiaries || 0} beneficiaries served`
-                    : `₱${Number(kpis.remainingEscrowPhp || 0).toLocaleString('en-US')} escrow left`}
-                </div>
-              </div>
-
-              <div className="va-kpi-cell">
-                <div className="va-kpi-top">
-                  <span className="va-kpi-label">Goal Pacing</span>
-                  <span className="va-kpi-tag">
-                    {isAdmin ? `${kpis.approvedOrgs || 0} NGOs` : `${kpis.pendingSlipsCount || 0} slips`}
-                  </span>
-                </div>
-                <div className="va-kpi-value">
-                  {kpis.avgFundingPct || 0}%
-                </div>
-                <div className="va-kpi-sub">
-                  {isAdmin
-                    ? `${kpis.activeCampaigns || 0} active · ${kpis.pendingOrgs || 0} KYC pending`
-                    : `${kpis.activeCampaigns || 0} active · ${kpis.approvalRatePct || 0}% pass`}
-                </div>
-              </div>
-            </div>
-
-            <div className="va-hero-chart-body">
-              <VercelAreaLineChart
-                data={trendSeries}
-                height={252}
-                showCryptoSplit
-                title={isAdmin ? 'Contribution & Disbursement Velocity' : 'Fundraising & Disbursement Velocity'}
-              />
-            </div>
-          </section>
-
-          {/* ── Quiet Hairline Highlights Rail (Single Connected Strip, Zero Glow) ── */}
-          {insights.length > 0 && (
-            <section className="va-panel va-highlights-strip" aria-label="Automated insights">
-              {insights.slice(0, 4).map((ins, i) => (
-                <div key={i} className="va-highlight-cell">
-                  <div className="va-highlight-title-row">
-                    {ins.tone === 'amber' && <span className="va-dot-sm warn" />}
-                    <strong>{ins.title}</strong>
+          {/* ── Row 1: Asymmetric Bento Hero (8-col Interactive KPI + Spline | 4-col Payment Channels) ── */}
+          <div className="va-bento-hero">
+            <section className="va-panel va-hero-panel">
+              {/* Interactive Vercel Metric Tabs (clicking switches the chart below) */}
+              <div className="va-kpi-grid analytics-kpi-strip" role="tablist" aria-label="Chart metric selector">
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={chartSeries === 'combined'}
+                  className={`va-kpi-cell va-kpi-btn ${chartSeries === 'combined' ? 'is-selected' : ''}`}
+                  onClick={() => setChartSeries('combined')}
+                >
+                  <div className="va-kpi-top">
+                    <span className="va-kpi-label">Mobilized</span>
+                    {hasDelta ? (
+                      <span className={`va-delta-pill ${deltaNum < 0 ? 'neg' : 'pos'}`}>
+                        {deltaNum >= 0 ? '+' : ''}{deltaNum}%
+                      </span>
+                    ) : (
+                      <span className="va-delta-pill neutral">All</span>
+                    )}
                   </div>
-                  <p>{ins.detail}</p>
-                </div>
-              ))}
-            </section>
-          )}
+                  <div className="va-kpi-value">
+                    ₱{Number(kpis.totalMobilizedPhp || 0).toLocaleString('en-US')}
+                  </div>
+                  <div className="va-kpi-sub">
+                    {Number(kpis.totalMobilizedEth || 0).toFixed(4)} ETH
+                  </div>
+                </button>
 
-          {/* ── Row 2: Payment Channels (Thin Donut) + Breakdown by Cause (Vercel List Bars) ── */}
-          <div className="va-two-col">
-            <section className="va-panel">
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={chartSeries === 'volume'}
+                  className={`va-kpi-cell va-kpi-btn ${chartSeries === 'volume' ? 'is-selected' : ''}`}
+                  onClick={() => setChartSeries('volume')}
+                >
+                  <div className="va-kpi-top">
+                    <span className="va-kpi-label">Avg Gift</span>
+                    <span className="va-kpi-tag">{kpis.txCount || 0} tx</span>
+                  </div>
+                  <div className="va-kpi-value">
+                    ₱{Number(kpis.avgGiftPhp || 0).toLocaleString('en-US')}
+                  </div>
+                  <div className="va-kpi-sub">
+                    {isAdmin
+                      ? `${kpis.totalDonors || 0} donors`
+                      : `${kpis.uniqueDonors || 0} backers · ${kpis.anonymousSharePct || 0}% anon`}
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={chartSeries === 'disbursed'}
+                  className={`va-kpi-cell va-kpi-btn ${chartSeries === 'disbursed' ? 'is-selected' : ''}`}
+                  onClick={() => setChartSeries('disbursed')}
+                >
+                  <div className="va-kpi-top">
+                    <span className="va-kpi-label">Disbursed</span>
+                    <span className="va-kpi-tag">{kpis.utilizationPct || 0}%</span>
+                  </div>
+                  <div className="va-kpi-value">
+                    ₱{Number(kpis.totalDisbursedPhp || 0).toLocaleString('en-US')}
+                  </div>
+                  <div className="va-kpi-sub">
+                    {isAdmin
+                      ? `${kpis.totalBeneficiaries || 0} beneficiaries`
+                      : `₱${Number(kpis.remainingEscrowPhp || 0).toLocaleString('en-US')} left`}
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={chartSeries === 'split'}
+                  className={`va-kpi-cell va-kpi-btn ${chartSeries === 'split' ? 'is-selected' : ''}`}
+                  onClick={() => setChartSeries('split')}
+                >
+                  <div className="va-kpi-top">
+                    <span className="va-kpi-label">Goal Pacing</span>
+                    <span className="va-kpi-tag">
+                      {isAdmin ? `${kpis.approvedOrgs || 0} NGOs` : `${kpis.pendingSlipsCount || 0} slips`}
+                    </span>
+                  </div>
+                  <div className="va-kpi-value">
+                    {kpis.avgFundingPct || 0}%
+                  </div>
+                  <div className="va-kpi-sub">
+                    {isAdmin
+                      ? `${kpis.activeCampaigns || 0} active · ${kpis.pendingOrgs || 0} KYC`
+                      : `${kpis.activeCampaigns || 0} active · ${kpis.approvalRatePct || 0}% pass`}
+                  </div>
+                </button>
+              </div>
+
+              <div className="va-hero-chart-body">
+                <VercelAreaLineChart
+                  data={trendSeries}
+                  height={232}
+                  seriesMode={chartSeries}
+                  onSeriesModeChange={setChartSeries}
+                  showModeSwitch
+                  title={isAdmin ? 'Contribution & Disbursement Velocity' : 'Fundraising & Disbursement Velocity'}
+                />
+              </div>
+            </section>
+
+            {/* Right Bento Column: Payment Channels Above The Fold */}
+            <section className="va-panel va-channel-panel">
               <div className="va-panel-head">
                 <div>
                   <h3 className="va-section-heading">Payment Channels</h3>
-                  <p className="va-panel-sub">Share of verified inflows by settlement rail</p>
+                  <p className="va-panel-sub">Verified volume by settlement rail</p>
                 </div>
               </div>
-              <div className="va-panel-body">
+              <div className="va-panel-body va-channel-body">
                 <VercelDonutChart
+                  stacked
                   centerLabel="Period"
                   centerValue={`₱${Number(kpis.totalMobilizedPhp || 0).toLocaleString('en-US')}`}
                   items={paymentRails.map((r) => ({
@@ -377,43 +410,96 @@ export default function AnalyticsReportsPanel({ mode = 'admin', onNavigateTab })
                 />
               </div>
             </section>
-
-            <section className="va-panel">
-              <div className="va-panel-head">
-                <div>
-                  <h3 className="va-section-heading">
-                    {isAdmin ? 'Mobilization by Cause' : 'Operations by Cause'}
-                  </h3>
-                  <p className="va-panel-sub">Raised capital relative to active targets</p>
-                </div>
-              </div>
-              <div className="va-panel-body">
-                <VercelBarChart
-                  items={categoryBreakdown.map((c) => ({
-                    key: c.key,
-                    label: c.label,
-                    sub: `${c.campaignCount} op${c.campaignCount === 1 ? '' : 's'} · Goal ₱${Number(c.targetPhp || 0).toLocaleString('en-US')}`,
-                    value: c.raisedPhp,
-                    badge: `${c.fundingPct}%`
-                  }))}
-                />
-              </div>
-            </section>
           </div>
 
-          {/* ── Row 3: Role-Tailored Breakdowns (Admin Geo/NGOs vs NGO Goals/Supporters) ── */}
-          {isAdmin ? (
-            <div className="va-two-col">
-              <section className="va-panel">
-                <div className="va-panel-head">
-                  <div>
-                    <h3 className="va-section-heading">Geographic Reach by Philippine Region</h3>
-                    <p className="va-panel-sub">Mobilized relief funding across regional zones</p>
+          {/* ── Row 2: Compact Hairline Insights Strip ── */}
+          {insights.length > 0 && (
+            <section className="va-panel va-highlights-strip" aria-label="Key highlights">
+              {insights.slice(0, 4).map((ins, i) => (
+                <div key={i} className="va-highlight-cell">
+                  <div className="va-highlight-title-row">
+                    {ins.tone === 'amber' && <span className="va-dot-sm warn" />}
+                    <strong>{ins.title}</strong>
                   </div>
+                  <p>{ins.detail}</p>
                 </div>
-                <div className="va-panel-body">
+              ))}
+            </section>
+          )}
+
+          {/* ── Row 3: Symmetric 2-Column Vercel Tabbed Breakdown Deck (Zero Empty Card Voids!) ── */}
+          <div className="va-two-col">
+            {/* LEFT BREAKDOWN CARD */}
+            <section className="va-panel va-tabbed-panel">
+              <div className="va-card-tabbar" role="tablist" aria-label="Distribution breakdown">
+                <div className="va-card-tabbar-left">
+                {isAdmin ? (
+                  <>
+                    <button
+                      type="button"
+                      role="tab"
+                      aria-selected={leftTab === 'causes'}
+                      className={`va-card-tab ${leftTab === 'causes' ? 'active' : ''}`}
+                      onClick={() => setLeftTab('causes')}
+                    >
+                      By Cause
+                    </button>
+                    <button
+                      type="button"
+                      role="tab"
+                      aria-selected={leftTab === 'regions'}
+                      className={`va-card-tab ${leftTab === 'regions' ? 'active' : ''}`}
+                      onClick={() => setLeftTab('regions')}
+                    >
+                      PH Regions
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      role="tab"
+                      aria-selected={leftTab === 'goals'}
+                      className={`va-card-tab ${leftTab === 'goals' ? 'active' : ''}`}
+                      onClick={() => setLeftTab('goals')}
+                    >
+                      Campaign Goals
+                    </button>
+                    <button
+                      type="button"
+                      role="tab"
+                      aria-selected={leftTab === 'causes'}
+                      className={`va-card-tab ${leftTab === 'causes' ? 'active' : ''}`}
+                      onClick={() => setLeftTab('causes')}
+                    >
+                      By Cause
+                    </button>
+                  </>
+                )}
+                </div>
+              </div>
+
+              <div className="va-panel-body">
+                {isAdmin && leftTab === 'causes' && (
                   <VercelBarChart
                     maxItems={6}
+                    leftColLabel="Cause Category"
+                    rightColLabel="Raised / Funded"
+                    items={categoryBreakdown.map((c) => ({
+                      key: c.key,
+                      label: c.label,
+                      sub: `${c.campaignCount} op${c.campaignCount === 1 ? '' : 's'} · Goal ₱${Number(c.targetPhp || 0).toLocaleString('en-US')}`,
+                      value: c.raisedPhp,
+                      badge: `${c.fundingPct}%`
+                    }))}
+                  />
+                )}
+
+                {isAdmin && leftTab === 'regions' && (
+                  <VercelBarChart
+                    maxItems={6}
+                    leftColLabel="Philippine Region"
+                    rightColLabel="Mobilized / Ops"
                     items={regionalBreakdown.map((r) => ({
                       key: r.region,
                       label: r.region,
@@ -422,50 +508,14 @@ export default function AnalyticsReportsPanel({ mode = 'admin', onNavigateTab })
                       badge: `${r.campaignCount} ops`
                     }))}
                   />
-                </div>
-              </section>
+                )}
 
-              <section className="va-panel">
-                <div className="va-panel-head">
-                  <div>
-                    <h3 className="va-section-heading">Top Accredited NGOs &amp; Slip Audit Health</h3>
-                    <p className="va-panel-sub">Manual receipt pass rate and leading partners</p>
-                  </div>
-                  {onNavigateTab && (
-                    <button type="button" className="va-ghost-link" onClick={() => onNavigateTab('approvals')}>
-                      NGO Desk
-                    </button>
-                  )}
-                </div>
-                <div className="va-panel-body va-stack-body">
-                  <VercelFunnelMeter funnel={verificationFunnel} />
-                  <div className="va-sub-divider" />
-                  <VercelBarChart
-                    maxItems={4}
-                    items={topOrganizations.filter((o) => o.raisedPhp > 0 || o.campaignCount > 0).map((o) => ({
-                      key: String(o.orgId),
-                      label: o.orgName,
-                      sub: `${o.status} · ${o.campaignCount} op${o.campaignCount === 1 ? '' : 's'}`,
-                      value: o.raisedPhp,
-                      badge: `${o.fundingPct}%`
-                    }))}
-                  />
-                </div>
-              </section>
-            </div>
-          ) : (
-            <div className="va-two-col">
-              <section className="va-panel">
-                <div className="va-panel-head">
-                  <div>
-                    <h3 className="va-section-heading">Campaign Goal Completion Progress</h3>
-                    <p className="va-panel-sub">Quota completion across your active and concluded drives</p>
-                  </div>
-                </div>
-                <div className="va-panel-body">
+                {!isAdmin && leftTab === 'goals' && (
                   <VercelBarChart
                     maxItems={6}
-                    items={[...(analytics?.campaignPerformance || [])]
+                    leftColLabel="Campaign"
+                    rightColLabel="Raised / Goal"
+                    items={[...allCampaigns]
                       .sort((a, b) => b.fundingPct - a.fundingPct)
                       .map((c) => ({
                         key: String(c.id),
@@ -477,26 +527,136 @@ export default function AnalyticsReportsPanel({ mode = 'admin', onNavigateTab })
                         badge: `${c.fundingPct}%`
                       }))}
                   />
-                </div>
-              </section>
+                )}
 
-              <section className="va-panel">
-                <div className="va-panel-head">
-                  <div>
-                    <h3 className="va-section-heading">Slip Audit Health &amp; Top Supporters</h3>
-                    <p className="va-panel-sub">Receipt verification status and top contributors</p>
-                  </div>
-                  {onNavigateTab && (
-                    <button type="button" className="va-ghost-link" onClick={() => onNavigateTab('ledger')}>
-                      Open Ledger
-                    </button>
+                {!isAdmin && leftTab === 'causes' && (
+                  <VercelBarChart
+                    maxItems={6}
+                    leftColLabel="Cause Category"
+                    rightColLabel="Raised / Goal"
+                    items={categoryBreakdown.map((c) => ({
+                      key: c.key,
+                      label: c.label,
+                      sub: `${c.campaignCount} op${c.campaignCount === 1 ? '' : 's'} · Goal ₱${Number(c.targetPhp || 0).toLocaleString('en-US')}`,
+                      value: c.raisedPhp,
+                      badge: `${c.fundingPct}%`
+                    }))}
+                  />
+                )}
+              </div>
+            </section>
+
+            {/* RIGHT BREAKDOWN CARD */}
+            <section className="va-panel va-tabbed-panel">
+              <div className="va-card-tabbar" role="tablist" aria-label="Governance and verification breakdown">
+                <div className="va-card-tabbar-left">
+                  {isAdmin ? (
+                    <>
+                      <button
+                        type="button"
+                        role="tab"
+                        aria-selected={rightTab === 'ngos'}
+                        className={`va-card-tab ${rightTab === 'ngos' ? 'active' : ''}`}
+                        onClick={() => setRightTab('ngos')}
+                      >
+                        Top NGOs
+                      </button>
+                      <button
+                        type="button"
+                        role="tab"
+                        aria-selected={rightTab === 'slips'}
+                        className={`va-card-tab ${rightTab === 'slips' ? 'active' : ''}`}
+                        onClick={() => setRightTab('slips')}
+                      >
+                        Slip Audits
+                      </button>
+                      {activityBreakdown.length > 0 && (
+                        <button
+                          type="button"
+                          role="tab"
+                          aria-selected={rightTab === 'audit'}
+                          className={`va-card-tab ${rightTab === 'audit' ? 'active' : ''}`}
+                          onClick={() => setRightTab('audit')}
+                        >
+                          Audit Events
+                        </button>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        role="tab"
+                        aria-selected={rightTab === 'supporters'}
+                        className={`va-card-tab ${rightTab === 'supporters' ? 'active' : ''}`}
+                        onClick={() => setRightTab('supporters')}
+                      >
+                        Top Supporters
+                      </button>
+                      <button
+                        type="button"
+                        role="tab"
+                        aria-selected={rightTab === 'slips'}
+                        className={`va-card-tab ${rightTab === 'slips' ? 'active' : ''}`}
+                        onClick={() => setRightTab('slips')}
+                      >
+                        Slip Audits
+                      </button>
+                    </>
                   )}
                 </div>
-                <div className="va-panel-body va-stack-body">
-                  <VercelFunnelMeter funnel={verificationFunnel} />
-                  <div className="va-sub-divider" />
+
+                {onNavigateTab && (
+                  <button
+                    type="button"
+                    className="va-card-action-link"
+                    onClick={() => onNavigateTab(isAdmin ? 'approvals' : 'ledger')}
+                  >
+                    {isAdmin ? 'NGO Desk' : 'Open Ledger'}
+                  </button>
+                )}
+              </div>
+
+              <div className="va-panel-body">
+                {isAdmin && rightTab === 'ngos' && (
                   <VercelBarChart
-                    maxItems={4}
+                    maxItems={6}
+                    leftColLabel="Accredited Organization"
+                    rightColLabel="Raised / Funded"
+                    items={topOrganizations.filter((o) => o.raisedPhp > 0 || o.campaignCount > 0).map((o) => ({
+                      key: String(o.orgId),
+                      label: o.orgName,
+                      sub: `${o.status} · ${o.campaignCount} op${o.campaignCount === 1 ? '' : 's'}`,
+                      value: o.raisedPhp,
+                      badge: `${o.fundingPct}%`
+                    }))}
+                  />
+                )}
+
+                {rightTab === 'slips' && (
+                  <VercelFunnelMeter funnel={verificationFunnel} />
+                )}
+
+                {isAdmin && rightTab === 'audit' && (
+                  <VercelBarChart
+                    maxItems={6}
+                    leftColLabel="Audit Event Category"
+                    rightColLabel="Events / Share"
+                    items={activityBreakdown.map((act) => ({
+                      key: act.category,
+                      label: act.label,
+                      value: act.count,
+                      displayValue: act.count.toLocaleString('en-US'),
+                      badge: `${act.sharePct}%`
+                    }))}
+                  />
+                )}
+
+                {!isAdmin && rightTab === 'supporters' && (
+                  <VercelBarChart
+                    maxItems={6}
+                    leftColLabel="Contributor"
+                    rightColLabel="Total / Gifts"
                     emptyMessage="No confirmed contributors in this period yet."
                     items={topContributors.map((d, i) => ({
                       key: `${d.name}-${i}`,
@@ -506,35 +666,12 @@ export default function AnalyticsReportsPanel({ mode = 'admin', onNavigateTab })
                       badge: d.isAnonymous ? 'Anon' : `${d.count}×`
                     }))}
                   />
-                </div>
-              </section>
-            </div>
-          )}
-
-          {/* ── Row 4 (Admin Only): Compact Hairline Audit Event Strip ── */}
-          {isAdmin && activityBreakdown.length > 0 && (
-            <section className="va-panel">
-              <div className="va-panel-head">
-                <div>
-                  <h3 className="va-section-heading">System Audit Activity Breakdown</h3>
-                  <p className="va-panel-sub">Recorded security, verification, and operational events</p>
-                </div>
-              </div>
-              <div className="va-audit-strip">
-                {activityBreakdown.map((act) => (
-                  <div key={act.category} className="va-audit-cell">
-                    <span className="va-audit-label">{act.label}</span>
-                    <div className="va-audit-nums">
-                      <strong>{act.count.toLocaleString('en-US')}</strong>
-                      <span>{act.sharePct}%</span>
-                    </div>
-                  </div>
-                ))}
+                )}
               </div>
             </section>
-          )}
+          </div>
 
-          {/* ── Flush Vercel Data Table: Campaign Performance Matrix ── */}
+          {/* ── Row 4: Actionable Flush Vercel Performance Matrix Table ── */}
           <section className="va-panel">
             <div className="va-panel-head va-table-head-bar">
               <div>
@@ -542,18 +679,33 @@ export default function AnalyticsReportsPanel({ mode = 'admin', onNavigateTab })
                   {isAdmin ? 'Portfolio Performance Matrix' : 'Campaign Performance Matrix'}
                 </h3>
                 <p className="va-panel-sub">
-                  Included directly in Excel (.xlsx), PDF, and CSV report exports
+                  Exported directly into formatted Excel (.xlsx), PDF, and CSV reports
                 </p>
               </div>
 
-              <div className="va-search-box">
-                <span className="material-symbols-outlined">search</span>
-                <input
-                  type="text"
-                  placeholder="Filter operations..."
-                  value={campSearch}
-                  onChange={(e) => setCampSearch(e.target.value)}
-                />
+              <div className="va-table-controls">
+                <div className="va-segmented-mini" role="group" aria-label="Status filter">
+                  {['ALL', 'ACTIVE', 'CLOSED'].map((st) => (
+                    <button
+                      key={st}
+                      type="button"
+                      className={`va-seg-mini-btn ${statusFilter === st ? 'active' : ''}`}
+                      onClick={() => setStatusFilter(st)}
+                    >
+                      {st === 'ALL' ? 'All' : st === 'ACTIVE' ? 'Active' : 'Concluded'}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="va-search-box">
+                  <span className="material-symbols-outlined">search</span>
+                  <input
+                    type="text"
+                    placeholder="Filter operations..."
+                    value={campSearch}
+                    onChange={(e) => setCampSearch(e.target.value)}
+                  />
+                </div>
               </div>
             </div>
 
@@ -614,6 +766,20 @@ export default function AnalyticsReportsPanel({ mode = 'admin', onNavigateTab })
                 </table>
               </div>
             )}
+
+            <div className="va-table-footer">
+              <span>
+                Showing <strong>{campaigns.length}</strong> of {allCampaigns.length} operation{allCampaigns.length === 1 ? '' : 's'} · Filtered raised <strong>₱{filteredRaisedSum.toLocaleString('en-US')}</strong>
+              </span>
+              <button
+                type="button"
+                className="va-footer-export-btn"
+                onClick={() => handleExport('xlsx')}
+                disabled={!analytics}
+              >
+                Download Excel Workbook (.xlsx)
+              </button>
+            </div>
           </section>
         </>
       )}
