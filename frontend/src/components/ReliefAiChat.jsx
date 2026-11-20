@@ -909,7 +909,7 @@ export default function ReliefAiChat({
               <div className="bbdrts-copilot-settings-card">
                 <div className="bbdrts-copilot-settings-header">
                   <div className="bbdrts-copilot-settings-title">
-                    <span className="material-symbols-outlined" style={{ fontSize: '18px', color: 'var(--accent, #22c55e)' }}>tune</span>
+                    <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#10b981' }}>tune</span>
                     <span>ReliefAI Settings</span>
                   </div>
                   <button
@@ -996,7 +996,7 @@ export default function ReliefAiChat({
               <div className="bbdrts-copilot-welcome-container">
                 <div className="bbdrts-copilot-welcome-badge">
                   <div className="bbdrts-copilot-welcome-icon-wrap">
-                    <span className="material-symbols-outlined" style={{ fontSize: '26px' }}>shield</span>
+                    <BbdrtsLogo size={22} />
                   </div>
                   <h3 className="bbdrts-copilot-welcome-title">Welcome to ReliefAI</h3>
                   <p className="bbdrts-copilot-welcome-subtitle">
