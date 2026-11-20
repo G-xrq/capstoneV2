@@ -1074,7 +1074,7 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
               <div className="admin-page-header" id="tour-donor-dashboard-header">
                 <div className="admin-page-title-wrap">
                   <h2 className="admin-page-title">
-                    <span className="material-symbols-outlined icon text-emerald">space_dashboard</span>
+                    <span className="material-symbols-outlined icon" style={{ color: 'var(--text-primary)' }}>space_dashboard</span>
                     <span>{wt.donorOverviewTitle}</span>
                   </h2>
                   <p className="admin-page-sub">
@@ -1170,10 +1170,10 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
                         onClick={() => setShowTierModal(true)}
                         title="View Philanthropic Honor Roll"
                       >
-                        <span className="material-symbols-outlined" style={{ fontSize: '14px', color: activeTierInfo?.tier?.color || 'var(--text-muted)' }}>
+                        <span className="material-symbols-outlined" style={{ fontSize: '14px', color: '#10b981' }}>
                           {activeTierInfo?.tier ? 'workspace_premium' : 'military_tech'}
                         </span>
-                        <span style={{ color: activeTierInfo?.tier?.color || 'var(--text-secondary)' }}>
+                        <span style={{ color: 'var(--text-secondary)' }}>
                           {activeTierInfo?.tier ? activeTierInfo.tier.name : 'New Contributor'}
                         </span>
                         <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>chevron_right</span>
@@ -1280,7 +1280,7 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
                       <span className="dbo-metric-title">Honor Roll Standing</span>
                       <span className="material-symbols-outlined dbo-metric-icon">workspace_premium</span>
                     </div>
-                    <div className="dbo-metric-number" style={{ fontSize: '1.2rem', color: activeTierInfo?.tier?.color || 'var(--text-secondary)' }}>
+                    <div className="dbo-metric-number" style={{ fontSize: '1.25rem' }}>
                       {activeTierInfo?.tier ? activeTierInfo.tier.name : 'New Contributor'}
                     </div>
                     <p className="dbo-metric-caption">
@@ -1294,7 +1294,7 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
               <div className="dbo-section-wrapper" id="tour-donor-featured-causes">
                 <div className="dbo-clean-section-header">
                   <h2 className="dbo-clean-heading">
-                    <span className="material-symbols-outlined" style={{ fontSize: '20px', color: '#ef4444' }}>emergency</span>
+                    <span className="material-symbols-outlined" style={{ fontSize: '18px', color: 'var(--text-secondary)' }}>emergency</span>
                     <span>{wt.activeAppeals}</span>
                   </h2>
                   <button type="button" className="dbo-clean-link" onClick={() => setActiveTab('campaigns')}>

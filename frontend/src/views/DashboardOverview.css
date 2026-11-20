@@ -83,14 +83,47 @@
 .dbo-clean-badge {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 2px 8px;
+  gap: 5px;
+  padding: 4px 9px;
   border-radius: 9999px;
-  font-size: 0.7rem;
+  font-size: 0.68rem;
   font-weight: 600;
-  border: 1px solid rgba(22, 163, 74, 0.3);
-  background: rgba(22, 163, 74, 0.08);
-  color: #16a34a;
+  line-height: 1;
+  border: 1px solid rgba(16, 185, 129, 0.34);
+  background: rgba(16, 185, 129, 0.12);
+  color: #34d399;
+}
+
+[data-theme="light"] .dbo-clean-badge {
+  border-color: rgba(5, 150, 105, 0.3);
+  background: rgba(5, 150, 105, 0.08);
+  color: #059669;
+}
+
+/* Primary CTA button inside Dashboard Hero: Solid White on Dark / Solid Black on Light (matches Landing Hero) */
+.dbo-clean-hero .db-actions .db-btn--primary {
+  background: #ffffff;
+  color: #000000;
+  border: 1px solid #ffffff;
+  font-weight: 600;
+}
+
+.dbo-clean-hero .db-actions .db-btn--primary:hover {
+  background: #e4e4e7;
+  border-color: #e4e4e7;
+  color: #000000;
+}
+
+[data-theme="light"] .dbo-clean-hero .db-actions .db-btn--primary {
+  background: #09090b;
+  color: #ffffff;
+  border-color: #09090b;
+}
+
+[data-theme="light"] .dbo-clean-hero .db-actions .db-btn--primary:hover {
+  background: #27272a;
+  border-color: #27272a;
+  color: #ffffff;
 }
 
 .dbo-clean-subtext {
@@ -147,13 +180,18 @@
 
 .dbo-clean-stat-sub {
   font-size: 0.74rem;
-  color: #16a34a;
-  font-weight: 600;
+  color: var(--text-secondary);
+  font-weight: 500;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
-  gap: 3px;
-  margin-top: 2px;
+  gap: 4px;
+  margin-top: 3px;
+  transition: color 0.15s ease;
+}
+
+.dbo-clean-stat-sub:hover {
+  color: var(--text-primary);
 }
 
 .dbo-clean-stat-sub:hover {
@@ -176,13 +214,38 @@
 .dbo-metric-card {
   background: var(--bg-card);
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 12px;
   padding: 16px 18px;
   display: flex;
   flex-direction: column;
   gap: 6px;
   box-shadow: var(--shadow-card);
-  transition: border-color 0.15s ease, transform 0.15s ease;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+[data-theme="dark"] .dbo-clean-hero,
+[data-theme="dark"] .dbo-metric-card,
+[data-theme="dark"] .dbo-clean-card,
+[data-theme="dark"] .dbo-feed-card {
+  background: #0a0a0a;
+  border-color: #262626;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+[data-theme="dark"] .dbo-metric-card.interactive:hover {
+  border-color: #404040;
+  background: #101010;
+  transform: none;
+}
+
+[data-theme="dark"] .dbo-metric-title,
+[data-theme="dark"] .dbo-clean-stat-label {
+  color: #a1a1aa;
+}
+
+[data-theme="dark"] .dbo-metric-caption,
+[data-theme="dark"] .dbo-clean-subtext {
+  color: #a1a1aa;
 }
 
 .dbo-metric-card.interactive {
@@ -224,7 +287,7 @@
 }
 
 .dbo-metric-number.accent {
-  color: #16a34a;
+  color: var(--text-primary);
 }
 
 .dbo-metric-caption {
@@ -263,8 +326,8 @@
 
 .dbo-clean-link {
   font-size: 0.8rem;
-  font-weight: 600;
-  color: #16a34a;
+  font-weight: 500;
+  color: var(--text-secondary);
   background: none;
   border: none;
   padding: 0;
@@ -272,12 +335,11 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  transition: opacity 0.15s ease;
+  transition: color 0.15s ease;
 }
 
 .dbo-clean-link:hover {
-  opacity: 0.8;
-  text-decoration: underline;
+  color: var(--text-primary);
 }
 
 /* ── 4. Elegant Campaign Cards ── */
@@ -305,19 +367,15 @@
               border-color 0.2s ease;
 }
 
-.dbo-campaigns-grid:has(.dbo-clean-card:hover) .dbo-clean-card:not(:hover) {
-  opacity: 0.45 !important;
-  filter: blur(4px) !important;
-  transform: scale(0.988);
+.dbo-clean-card:hover {
+  border-color: var(--border-strong, #404040);
+  transform: translateY(-2px);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.22);
 }
 
-.dbo-clean-card:hover {
-  opacity: 1 !important;
-  filter: blur(0px) !important;
-  border-color: var(--accent, #10b981) !important;
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.35), var(--shadow-glow);
-  transform: translateY(-3px) scale(1.006);
-  z-index: 10;
+[data-theme="dark"] .dbo-clean-card:hover {
+  border-color: #404040;
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 
 .dbo-clean-card-thumb {
@@ -404,8 +462,8 @@
 
 .dbo-clean-progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, #16a34a, #22c55e);
-  border-radius: 3px;
+  background: linear-gradient(90deg, #0d9488 0%, #10b981 100%);
+  border-radius: 9999px;
 }
 
 .dbo-clean-progress-labels {
@@ -439,13 +497,26 @@
 }
 
 .dbo-card-btn.primary {
-  background: #16a34a;
-  border-color: #16a34a;
+  background: #09090b;
+  border-color: #09090b;
   color: #ffffff;
 }
 
 .dbo-card-btn.primary:hover {
-  background: #15803d;
+  background: #27272a;
+  border-color: #27272a;
+}
+
+[data-theme="dark"] .dbo-card-btn.primary {
+  background: #ffffff;
+  border-color: #ffffff;
+  color: #000000;
+}
+
+[data-theme="dark"] .dbo-card-btn.primary:hover {
+  background: #e4e4e7;
+  border-color: #e4e4e7;
+  color: #000000;
 }
 
 .dbo-card-btn.secondary {
