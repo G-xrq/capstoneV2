@@ -3,7 +3,7 @@
    Sleek, High-Contrast Web3 Aesthetic • Layered #111/#1a1a1a/#222
    ═══════════════════════════════════════════════════════════════════ */
 
-/* ── 1. Floating Launcher Capsule Button ── */
+/* ── 1. Floating Launcher Capsule Button (Vercel Geist Aesthetic) ── */
 .bbdrts-copilot-trigger-btn {
   position: fixed;
   bottom: 24px;
@@ -12,17 +12,17 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 8px 16px 8px 10px;
-  background: var(--bg-surface, #1a1a1a);
-  color: var(--text-primary, #ffffff);
-  border: 1px solid var(--border-strong, rgba(255, 255, 255, 0.16));
+  padding: 7px 15px 7px 8px;
+  background: rgba(10, 10, 10, 0.92);
+  color: #ffffff;
+  border: 1px solid #262626;
   border-radius: var(--radius-pill, 9999px);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), 0 0 20px var(--accent-glow, rgba(34, 197, 94, 0.2));
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.06);
   cursor: pointer;
-  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
   font-family: var(--font-sans, inherit);
-  -webkit-backdrop-filter: blur(16px);
-  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
   outline: none;
 }
 
@@ -41,9 +41,9 @@ body.has-modal-open .bbdrts-copilot-trigger-btn {
 
 .bbdrts-copilot-trigger-btn:hover {
   transform: translateY(-2px);
-  background: var(--bg-card-hover, #2a2a2a);
-  border-color: var(--accent, #22c55e);
-  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.65), 0 0 26px var(--accent-glow, rgba(34, 197, 94, 0.35));
+  background: #141414;
+  border-color: #3f3f46;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.68), inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
 
 .bbdrts-copilot-trigger-btn:active {
@@ -52,66 +52,46 @@ body.has-modal-open .bbdrts-copilot-trigger-btn {
 
 .bbdrts-copilot-trigger-icon-wrap {
   position: relative;
-  width: 32px;
-  height: 32px;
+  width: 34px;
+  height: 34px;
   border-radius: 50%;
-  background: var(--accent-dim, rgba(34, 197, 94, 0.12));
-  border: 1px solid var(--border-focus, rgba(34, 197, 94, 0.4));
+  background: #141414;
+  border: 1px solid #262626;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--accent, #22c55e);
   flex-shrink: 0;
+  transition: border-color 0.2s ease, background 0.2s ease;
 }
 
-.bbdrts-copilot-pulse-ring {
-  position: absolute;
-  top: -1px;
-  right: -1px;
-  width: 9px;
-  height: 9px;
-  background: var(--accent, #22c55e);
-  border-radius: 50%;
-  border: 2px solid var(--bg-surface, #1a1a1a);
-  animation: copilotPulse 2s infinite;
-}
-
-@keyframes copilotPulse {
-  0% {
-    transform: scale(0.95);
-    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7);
-  }
-
-  70% {
-    transform: scale(1.15);
-    box-shadow: 0 0 0 6px rgba(34, 197, 94, 0);
-  }
-
-  100% {
-    transform: scale(0.95);
-    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0);
-  }
+.bbdrts-copilot-trigger-btn:hover .bbdrts-copilot-trigger-icon-wrap {
+  background: #1a1a1a;
+  border-color: #3a3a3a;
 }
 
 .bbdrts-copilot-trigger-info {
   display: flex;
   flex-direction: column;
+  gap: 1px;
   text-align: left;
 }
 
 .bbdrts-copilot-trigger-title {
-  font-weight: 700;
-  font-size: 0.88rem;
-  letter-spacing: 0.2px;
-  line-height: 1.2;
+  font-weight: 600;
+  font-size: 0.84rem;
+  letter-spacing: -0.015em;
+  line-height: 1.15;
+  color: inherit;
 }
 
 .bbdrts-copilot-trigger-sub {
   font-size: 0.68rem;
-  color: var(--text-secondary, #a1a1aa);
+  font-weight: 500;
+  color: #a1a1aa;
   display: flex;
   align-items: center;
   gap: 5px;
+  line-height: 1.15;
 }
 
 .bbdrts-copilot-trigger-sub .dot {
@@ -119,7 +99,7 @@ body.has-modal-open .bbdrts-copilot-trigger-btn {
   height: 6px;
   border-radius: 50%;
   background: #10b981;
-  box-shadow: 0 0 8px rgba(16, 185, 129, 0.7);
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.75);
 }
 
 /* ── 2. Anchored Chat Window Frame ── */
@@ -1219,15 +1199,30 @@ body.has-modal-open .bbdrts-copilot-trigger-btn {
    LIGHT THEME OVERRIDES
    ═══════════════════════════════════════════════════════════════════ */
 [data-theme="light"] .bbdrts-copilot-trigger-btn {
-  background: #ffffff;
-  color: #0f172a;
-  border-color: rgba(0, 0, 0, 0.14);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12), 0 0 16px rgba(22, 163, 74, 0.15);
+  background: rgba(255, 255, 255, 0.96);
+  color: #09090b;
+  border-color: #e4e4e7;
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.08), inset 0 1px 0 #ffffff;
 }
 
 [data-theme="light"] .bbdrts-copilot-trigger-btn:hover {
-  background: #f8fafc;
-  border-color: #16a34a;
+  background: #fafafa;
+  border-color: #a1a1aa;
+  box-shadow: 0 14px 32px rgba(0, 0, 0, 0.12), inset 0 1px 0 #ffffff;
+}
+
+[data-theme="light"] .bbdrts-copilot-trigger-icon-wrap {
+  background: #f4f4f5;
+  border-color: #e4e4e7;
+}
+
+[data-theme="light"] .bbdrts-copilot-trigger-btn:hover .bbdrts-copilot-trigger-icon-wrap {
+  background: #ececef;
+  border-color: #d4d4d8;
+}
+
+[data-theme="light"] .bbdrts-copilot-trigger-sub {
+  color: #52525b;
 }
 
 [data-theme="light"] .bbdrts-copilot-window {

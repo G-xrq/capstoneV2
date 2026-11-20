@@ -137,7 +137,7 @@ const getHeroStepDetails = (step, camp, raisedPhp, targetPhp, pct) => {
 };
 
 const HERO_SLIDE_INTERVAL_MS = 6500;
-const HERO_SLIDE_ANIM_MS = 380;
+const HERO_SLIDE_ANIM_MS = 420;
 
 const getValidHeroPool = (rawList) => {
   const filtered = Array.isArray(rawList)
@@ -357,14 +357,12 @@ export default function LandingView({
       st.currX = 0;
       st.currY = 0;
       st.rafId = null;
-      el.classList.remove('is-tilting');
-      el.style.transform = '';
+      el.style.transform = 'rotateX(0deg) rotateY(0deg)';
       el.style.setProperty('--pointer-x', '50%');
       el.style.setProperty('--pointer-y', '50%');
       return;
     }
 
-    el.classList.add('is-tilting');
     el.style.transform = `rotateX(${st.currX.toFixed(3)}deg) rotateY(${st.currY.toFixed(3)}deg)`;
     st.rafId = requestAnimationFrame(runTiltLoop);
   }, []);
@@ -1083,7 +1081,7 @@ export default function LandingView({
                         src={activeMetrics.imageUrl}
                         onError={(e) => { e.currentTarget.src = '/hero_relief_command.jpg'; }}
                         alt={activeHeroCampaign?.title || 'Relief campaign'}
-                        className={`bdr-campaign-thumb ${exitingHeroSlide && heroSlider.seq > 0 ? 'is-entering' : ''}`}
+                        className={`bdr-campaign-thumb ${heroSlider.seq > 0 ? 'is-entering' : ''}`}
                       />
                       {exitingHeroSlide && exitingMetrics && (
                         <img
@@ -1098,11 +1096,11 @@ export default function LandingView({
                     </div>
 
                     <div className="bdr-campaign-info">
-                      {/* Soft-feathered text transition zone (masked ONLY while sliding so idle text stays razor sharp) */}
-                      <div className={`bdr-campaign-text-stage ${exitingHeroSlide ? 'is-animating' : ''}`}>
+                      {/* Clean text slide transition zone */}
+                      <div className="bdr-campaign-text-stage">
                         <div
                           key={`text-${heroSlider.seq}`}
-                          className={`bdr-campaign-text-pane ${exitingHeroSlide && heroSlider.seq > 0 ? `is-entering dir-${heroSlider.direction}` : ''}`}
+                          className={`bdr-campaign-text-pane ${heroSlider.seq > 0 ? `is-entering dir-${heroSlider.direction}` : ''}`}
                         >
                           <HeroCampaignTextPane
                             camp={activeHeroCampaign}
@@ -1136,7 +1134,7 @@ export default function LandingView({
                         <div className="bdr-campaign-metric-stage">
                           <div
                             key={`metric-${heroSlider.seq}`}
-                            className={`bdr-campaign-metric-row ${exitingHeroSlide && heroSlider.seq > 0 ? 'is-entering' : ''}`}
+                            className={`bdr-campaign-metric-row ${heroSlider.seq > 0 ? 'is-entering' : ''}`}
                           >
                             <HeroMetricRow metrics={activeMetrics} />
                           </div>

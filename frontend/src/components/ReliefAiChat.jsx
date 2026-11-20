@@ -817,7 +817,6 @@ export default function ReliefAiChat({
         >
           <div className="bbdrts-copilot-trigger-icon-wrap">
             <BbdrtsLogo size={22} />
-            <span className="bbdrts-copilot-pulse-ring" />
           </div>
           <div className="bbdrts-copilot-trigger-info">
             <span className="bbdrts-copilot-trigger-title">ReliefAI</span>

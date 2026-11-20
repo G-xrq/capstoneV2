@@ -505,25 +505,20 @@
   border-color: var(--border-strong, #cccccc);
 }
 
-.bbdrts-live-pill {
-  color: #059669;
-  border-color: rgba(5, 150, 105, 0.28);
-}
-
 [data-theme="dark"] .bbdrts-live-pill,
 [data-theme="dark"] .bbdrts-live-tracker-btn {
   background: #0a0a0a;
-  border-color: rgba(16, 185, 129, 0.28);
-  color: #10b981;
+  border-color: #262626;
+  color: #ffffff;
 }
 
 [data-theme="dark"] .bbdrts-live-pill:hover,
 [data-theme="dark"] .bbdrts-live-pill.active,
 [data-theme="dark"] .bbdrts-live-tracker-btn:hover,
 [data-theme="dark"] .bbdrts-live-tracker-btn.active {
-  background: rgba(16, 185, 129, 0.1);
-  border-color: rgba(16, 185, 129, 0.5);
-  color: #34d399;
+  background: #171717;
+  border-color: #3a3a3a;
+  color: #ffffff;
 }
 
 .bbdrts-live-beacon {

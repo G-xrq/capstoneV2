@@ -579,12 +579,8 @@
   box-shadow: none !important;
   padding: 0 !important;
   backdrop-filter: none !important;
-  transform: none;
-  will-change: auto;
-}
-
-.bdr-process-visualizer.is-tilting {
-  transform-style: preserve-3d;
+  transform: rotateX(0deg) rotateY(0deg);
+  backface-visibility: hidden;
   will-change: transform;
 }
 
@@ -637,9 +633,7 @@
   z-index: 0;
 }
 
-.bdr-process-visualizer.is-tilting .bdr-process-backdrop {
-  transform: translateZ(-22px);
-}
+
 
 [data-theme="light"] .bdr-process-backdrop {
   background-image: radial-gradient(rgba(0, 0, 0, 0.12) 1px, transparent 1px);
@@ -687,9 +681,7 @@
   overflow: visible;
 }
 
-.bdr-process-visualizer.is-tilting .bdr-flow-svg {
-  transform: translateZ(-6px);
-}
+
 
 .bdr-wire-idle {
   stroke: var(--viz-wire-idle);
@@ -856,38 +848,28 @@
   filter: grayscale(20%) contrast(1.04);
 }
 
+.bdr-campaign-thumb {
+  backface-visibility: hidden;
+}
+
 .bdr-campaign-thumb.is-entering {
   z-index: 2;
-  will-change: opacity, transform;
-  animation: bdrThumbIn 0.38s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: bdrThumbIn 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .bdr-campaign-thumb.is-exiting {
   z-index: 1;
   pointer-events: none;
-  will-change: opacity, transform;
-  animation: bdrThumbOut 0.26s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 @keyframes bdrThumbIn {
   from {
     opacity: 0;
-    transform: scale(1.035);
+    transform: scale(1.02);
   }
   to {
     opacity: 1;
     transform: scale(1);
-  }
-}
-
-@keyframes bdrThumbOut {
-  from {
-    opacity: 1;
-    transform: scale(1);
-  }
-  to {
-    opacity: 0;
-    transform: scale(0.98);
   }
 }
 
@@ -902,26 +884,7 @@
 
 .bdr-campaign-text-stage {
   position: relative;
-  padding: 0 12px;
-  margin: 0 -12px;
   overflow: hidden;
-}
-
-.bdr-campaign-text-stage.is-animating {
-  -webkit-mask-image: linear-gradient(
-    to right,
-    transparent 0%,
-    #000 12px,
-    #000 calc(100% - 12px),
-    transparent 100%
-  );
-  mask-image: linear-gradient(
-    to right,
-    transparent 0%,
-    #000 12px,
-    #000 calc(100% - 12px),
-    transparent 100%
-  );
 }
 
 .bdr-campaign-text-pane {
@@ -931,40 +894,38 @@
   flex-direction: column;
   gap: 2px;
   min-width: 0;
+  backface-visibility: hidden;
 }
 
 .bdr-campaign-text-pane.is-exiting {
   position: absolute;
   top: 0;
-  left: 12px;
-  right: 12px;
+  left: 0;
+  right: 0;
   z-index: 1;
   pointer-events: none;
-  will-change: transform, opacity;
 }
 
 .bdr-campaign-text-pane.is-entering.dir-next {
-  will-change: transform, opacity;
-  animation: bdrSlideInNext 0.38s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: bdrSlideInNext 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .bdr-campaign-text-pane.is-exiting.dir-next {
-  animation: bdrSlideOutNext 0.24s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: bdrSlideOutNext 0.22s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .bdr-campaign-text-pane.is-entering.dir-prev {
-  will-change: transform, opacity;
-  animation: bdrSlideInPrev 0.38s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: bdrSlideInPrev 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .bdr-campaign-text-pane.is-exiting.dir-prev {
-  animation: bdrSlideOutPrev 0.24s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: bdrSlideOutPrev 0.22s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 @keyframes bdrSlideInNext {
   from {
     opacity: 0;
-    transform: translate3d(18px, 0, 0);
+    transform: translate3d(12px, 0, 0);
   }
   to {
     opacity: 1;
@@ -979,14 +940,14 @@
   }
   to {
     opacity: 0;
-    transform: translate3d(-18px, 0, 0);
+    transform: translate3d(-12px, 0, 0);
   }
 }
 
 @keyframes bdrSlideInPrev {
   from {
     opacity: 0;
-    transform: translate3d(-18px, 0, 0);
+    transform: translate3d(-12px, 0, 0);
   }
   to {
     opacity: 1;
@@ -1001,7 +962,7 @@
   }
   to {
     opacity: 0;
-    transform: translate3d(18px, 0, 0);
+    transform: translate3d(12px, 0, 0);
   }
 }
 
