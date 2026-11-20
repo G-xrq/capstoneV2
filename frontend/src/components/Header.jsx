@@ -38,6 +38,19 @@ export default function Header({
   useEffect(() => {
     if (!dbUser) setMobileSidebarOpen(false);
   }, [dbUser]);
+
+  // Lock background page scroll while public mobile navigation drawer is open
+  useEffect(() => {
+    if (!mobileMenuOpen || dbUser || typeof window === 'undefined') return;
+    const prevHtml = document.documentElement.style.overflow;
+    const prevBody = document.body.style.overflow;
+    document.documentElement.style.overflow = 'hidden';
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.documentElement.style.overflow = prevHtml;
+      document.body.style.overflow = prevBody;
+    };
+  }, [mobileMenuOpen, dbUser]);
   const [copiedAddr, setCopiedAddr] = useState(false);
   const [copiedId, setCopiedId] = useState(false);
   const [showLeaderboardModal, setShowLeaderboardModal] = useState(false);
@@ -714,11 +727,16 @@ export default function Header({
             {!dbUser && (
               <button
                 type="button"
-                className="bbdrts-mobile-toggle"
+                className={`bbdrts-mobile-toggle ${mobileMenuOpen ? 'is-open' : ''}`}
                 onClick={() => setMobileMenuOpen(prev => !prev)}
-                aria-label="Toggle Navigation Drawer"
+                aria-label={mobileMenuOpen ? 'Close Navigation Menu' : 'Open Navigation Menu'}
+                aria-expanded={mobileMenuOpen}
               >
-                <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>{mobileMenuOpen ? 'close' : 'menu'}</span>
+                <span className={`bbdrts-hamburger-morph ${mobileMenuOpen ? 'is-open' : ''}`} aria-hidden="true">
+                  <span className="bar bar-1" />
+                  <span className="bar bar-2" />
+                  <span className="bar bar-3" />
+                </span>
               </button>
             )}
           </div>
@@ -737,7 +755,7 @@ export default function Header({
                 <button type="button" className="bbdrts-mobile-nav-link" onClick={handleRadarClick}>
                   <span className="material-symbols-outlined">radar</span>
                   <span>Relief Radar</span>
-                  <span className="bbdrts-nav-live-dot" style={{ marginLeft: 'auto' }} />
+                  <span className="bbdrts-nav-live-dot" style={{ marginLeft: 'auto', background: '#10b981', boxShadow: '0 0 8px rgba(16, 185, 129, 0.7)' }} />
                 </button>
 
                 <div className="bbdrts-mobile-nav-group">
@@ -851,17 +869,30 @@ export default function Header({
               </>
             )}
 
-            <button
-              type="button"
-              className="bbdrts-mobile-drawer-btn"
-              onClick={() => {
-                setMobileMenuOpen(false);
-                setShowLeaderboardModal(true);
-              }}
-            >
-              <span className="material-symbols-outlined">emoji_events</span>
-              <span>Top Donors & Relief Partners</span>
-            </button>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '6px' }}>
+              <button
+                type="button"
+                className="bbdrts-mobile-drawer-btn"
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  setShowLiveTrackerModal(true);
+                }}
+              >
+                <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#10b981', boxShadow: '0 0 8px rgba(16, 185, 129, 0.75)', flexShrink: 0 }} />
+                <span>Live Donations</span>
+              </button>
+              <button
+                type="button"
+                className="bbdrts-mobile-drawer-btn"
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  setShowLeaderboardModal(true);
+                }}
+              >
+                <span className="material-symbols-outlined">emoji_events</span>
+                <span>Top Donors &amp; Relief Partners</span>
+              </button>
+            </div>
 
             {/* No personal wallet required — gasless relayer active */}
 
