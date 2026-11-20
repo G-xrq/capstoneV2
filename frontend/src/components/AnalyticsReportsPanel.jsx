@@ -17,9 +17,10 @@ import {
 import './AnalyticsReportsPanel.css';
 
 const RANGE_OPTIONS = [
-  { id: '7d', label: '7D' },
-  { id: '30d', label: '30D' },
-  { id: '90d', label: '90D' },
+  { id: 'today', label: 'Today' },
+  { id: 'week', label: 'Week' },
+  { id: 'month', label: 'Month' },
+  { id: 'year', label: 'Year' },
   { id: 'all', label: 'All' }
 ];
 
@@ -33,7 +34,7 @@ export default function AnalyticsReportsPanel({ mode = 'admin', onNavigateTab })
   const isAdmin = mode === 'admin';
   const { showSuccess, showError } = useToast();
 
-  const [range, setRange] = useState('30d');
+  const [range, setRange] = useState('month');
   const [analytics, setAnalytics] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);

@@ -85,11 +85,23 @@ function extractRegion(rawLoc) {
 }
 
 function parseRangeDays(rangeStr) {
-  const clean = String(rangeStr || '30d').toLowerCase();
-  if (clean === '7d') return 7;
-  if (clean === '30d') return 30;
+  const clean = String(rangeStr || 'month').toLowerCase();
+  if (clean === 'today' || clean === '1d') return 1;
+  if (clean === 'week' || clean === '7d') return 7;
+  if (clean === 'month' || clean === '30d') return 30;
   if (clean === '90d') return 90;
+  if (clean === 'year' || clean === '365d') return 365;
   return null; // 'all'
+}
+
+function formatRangeLabel(rangeStr) {
+  const clean = String(rangeStr || 'month').toLowerCase();
+  if (clean === 'today' || clean === '1d') return 'Today';
+  if (clean === 'week' || clean === '7d') return 'This Week';
+  if (clean === 'month' || clean === '30d') return 'This Month';
+  if (clean === '90d') return 'Last 90 Days';
+  if (clean === 'year' || clean === '365d') return 'This Year';
+  return 'All Time';
 }
 
 function toDayKey(dateInput) {
@@ -776,7 +788,7 @@ async function buildAdminAnalytics(db, { range = '30d', category = 'ALL' } = {})
     meta: {
       scope: 'PLATFORM',
       range,
-      rangeLabel: range === '7d' ? 'Last 7 Days' : range === '30d' ? 'Last 30 Days' : range === '90d' ? 'Last 90 Days' : 'All Time',
+      rangeLabel: formatRangeLabel(range),
       category,
       generatedAt: new Date(nowMs).toISOString()
     },
@@ -1082,7 +1094,7 @@ async function buildOrganizationAnalytics(db, { userId, userWallet = '', range =
       orgEmail: orgInfo.Username || '',
       verificationStatus: orgInfo.Verification_Status || 'Pending',
       range,
-      rangeLabel: range === '7d' ? 'Last 7 Days' : range === '30d' ? 'Last 30 Days' : range === '90d' ? 'Last 90 Days' : 'All Time',
+      rangeLabel: formatRangeLabel(range),
       generatedAt: new Date(nowMs).toISOString()
     },
     kpis: {
