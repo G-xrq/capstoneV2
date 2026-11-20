@@ -521,12 +521,13 @@
   color: #ffffff;
 }
 
-.bbdrts-live-beacon {
+.bbdrts-live-pill .bbdrts-live-beacon,
+.bbdrts-live-tracker-btn .bbdrts-live-beacon {
   width: 7px;
   height: 7px;
   border-radius: 50%;
   background: #10b981;
-  box-shadow: 0 0 8px rgba(16, 185, 129, 0.7);
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.75);
   flex-shrink: 0;
 }
 
