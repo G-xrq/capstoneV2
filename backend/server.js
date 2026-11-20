@@ -5985,7 +5985,18 @@ app.get('/api/public-stats', async (req, res) => {
     const [donors] = await db.query('SELECT COUNT(*) as c FROM DONOR');
     const [orgs] = await db.query("SELECT COUNT(*) as c FROM ORGANIZATION WHERE Verification_Status = 'Approved'");
     const [campaigns] = await db.query('SELECT COUNT(*) as c FROM CAMPAIGN');
-    const [totals] = await db.query('SELECT COALESCE(SUM(dt.Amount), 0) as totalEth FROM DONATION_TRANSACTION dt');
+    const [totals] = await db.query(`
+      SELECT COALESCE(SUM(dt.Amount), 0) as totalEth
+      FROM DONATION_TRANSACTION dt
+      WHERE (
+        UPPER(COALESCE(dt.Payment_Method, '')) LIKE '%GCASH%'
+        OR UPPER(COALESCE(dt.Payment_Method, '')) LIKE '%MAYA%'
+        OR UPPER(COALESCE(dt.Payment_Method, '')) LIKE '%BANK%'
+        OR UPPER(COALESCE(dt.Payment_Method, '')) LIKE '%CARD%'
+        OR UPPER(COALESCE(dt.Payment_Method, '')) LIKE '%CREDIT%'
+        OR UPPER(COALESCE(dt.Tx_Hash, '')) LIKE 'FIAT-%'
+      )
+    `);
     const totalEth = parseFloat(totals[0]?.totalEth || 0);
     const totalPhp = Math.round(totalEth * 170000);
 

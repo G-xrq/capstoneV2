@@ -376,13 +376,7 @@ export default function AnalyticsReportsPanel({ mode = 'admin', onNavigateTab })
                   </div>
                 </button>
 
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={chartSeries === 'split'}
-                  className={`va-kpi-cell va-kpi-btn ${chartSeries === 'split' ? 'is-selected' : ''}`}
-                  onClick={() => setChartSeries('split')}
-                >
+                <div className="va-kpi-cell">
                   <div className="va-kpi-top">
                     <span className="va-kpi-label">Goal Pacing</span>
                     <span className="va-kpi-tag">
@@ -400,15 +394,16 @@ export default function AnalyticsReportsPanel({ mode = 'admin', onNavigateTab })
                       ? `${kpis.activeCampaigns || 0} active · ${kpis.pendingOrgs || 0} KYC`
                       : `${kpis.activeCampaigns || 0} active · ${kpis.approvalRatePct || 0}% pass`}
                   </div>
-                </button>
+                </div>
 
-                {/* Smooth Sliding Active Indicator Bar */}
+                {/* Smooth Sliding Active Indicator Bar (hidden when viewing By Channel split mode) */}
                 <span
                   className="va-kpi-slider"
                   aria-hidden="true"
                   style={{
+                    opacity: chartSeries === 'split' ? 0 : 1,
                     transform: `translateX(${
-                      (chartSeries === 'combined' ? 0 : chartSeries === 'volume' ? 1 : chartSeries === 'disbursed' ? 2 : 3) * 100
+                      (chartSeries === 'combined' ? 0 : chartSeries === 'volume' ? 1 : 2) * 100
                     }%)`
                   }}
                 />

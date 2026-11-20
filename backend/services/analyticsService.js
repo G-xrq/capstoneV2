@@ -276,7 +276,7 @@ function summarizeVerificationHealth(manualRows) {
   };
 }
 
-function aggregateCampaignMetrics(campRows, txRows, disbRows) {
+function aggregateCampaignMetrics(campRows, txRows, disbRows, allTimeTxRows = null) {
   const txByCamp = new Map();
   txRows.forEach((t) => {
     if (!txByCamp.has(t.campaignId)) {
@@ -287,6 +287,19 @@ function aggregateCampaignMetrics(campRows, txRows, disbRows) {
     c.eth += t.ethAmount;
     c.count += 1;
   });
+
+  const allTimeTxByCamp = allTimeTxRows ? new Map() : null;
+  if (allTimeTxRows) {
+    allTimeTxRows.forEach((t) => {
+      if (!allTimeTxByCamp.has(t.campaignId)) {
+        allTimeTxByCamp.set(t.campaignId, { php: 0, eth: 0, count: 0 });
+      }
+      const c = allTimeTxByCamp.get(t.campaignId);
+      c.php += t.phpAmount;
+      c.eth += t.ethAmount;
+      c.count += 1;
+    });
+  }
 
   const disbByCamp = new Map();
   const benByCamp = new Map();
@@ -304,8 +317,13 @@ function aggregateCampaignMetrics(campRows, txRows, disbRows) {
       ? Math.round(Number(c.targetAmountPhp || c.Target_Amount_Php))
       : Math.round((parseFloat(c.targetAmount || c.Target_Amount || 1) || 1) * PHP_PER_ETH);
 
-    const allTimeRaisedEth = parseFloat(c.allTimeRaisedEth || c.currentAmount || 0) || 0;
-    const allTimeRaisedPhp = Math.round(allTimeRaisedEth * PHP_PER_ETH);
+    const allTimeAgg = allTimeTxByCamp ? (allTimeTxByCamp.get(id) || { php: 0, eth: 0, count: 0 }) : null;
+    const allTimeRaisedEth = allTimeAgg
+      ? allTimeAgg.eth
+      : (parseFloat(c.allTimeRaisedEth || c.currentAmount || 0) || 0);
+    const allTimeRaisedPhp = allTimeAgg
+      ? Math.round(allTimeAgg.php)
+      : Math.round(allTimeRaisedEth * PHP_PER_ETH);
 
     const periodAgg = txByCamp.get(id) || { php: 0, eth: 0, count: 0 };
     const storedDisb = parseFloat(c.disbursedAmountPhp || c.Disbursed_Amount_Php || 0) || 0;
@@ -578,7 +596,7 @@ async function buildAdminAnalytics(db, { range = '30d', category = 'ALL' } = {})
     nowMs
   );
 
-  const campaignPerf = aggregateCampaignMetrics(filteredCampRows, scopedTx, normalizedDisb);
+  const campaignPerf = aggregateCampaignMetrics(filteredCampRows, scopedTx, normalizedDisb, allNormalizedTx);
   const { categories, regions } = buildCategoryAndRegional(campaignPerf);
   const paymentRails = aggregatePaymentRails(scopedTx);
   const verificationFunnel = summarizeVerificationHealth(scopedManual);
@@ -932,7 +950,7 @@ async function buildOrganizationAnalytics(db, { userId, userWallet = '', range =
   const scopedDisb = filterByRange(normalizedDisb, 'disbursedAt', rangeDays, nowMs);
   const scopedManual = filterByRange(manualRows || [], 'createdAt', rangeDays, nowMs);
 
-  const campaignPerf = aggregateCampaignMetrics(campRows, scopedTx, normalizedDisb);
+  const campaignPerf = aggregateCampaignMetrics(campRows, scopedTx, normalizedDisb, allNormalizedTx);
   const { categories, regions } = buildCategoryAndRegional(campaignPerf);
   const paymentRails = aggregatePaymentRails(scopedTx);
   const verificationFunnel = summarizeVerificationHealth(scopedManual);

@@ -225,7 +225,7 @@ export function VercelAreaLineChart({
           rawMax,
           Number(d.gcashPhp ?? 0),
           Number(d.mayaPhp ?? 0),
-          Number(d.bankCardPhp ?? d.cryptoPhp ?? 0)
+          Number(d.bankCardPhp ?? 0)
         );
       } else {
         rawMax = Math.max(rawMax, Number(d.totalPhp || 0), Number(d.disbursedPhp || 0));
@@ -250,7 +250,7 @@ export function VercelAreaLineChart({
       ? data.map((d) => (activeMode === 'split' ? Number(d.mayaPhp ?? 0) : Number(d.disbursedPhp || 0)) / niceMax)
       : data.map(() => 0);
     const rawTertiary = showTert
-      ? data.map((d) => Number(d.bankCardPhp ?? d.cryptoPhp ?? 0) / niceMax)
+      ? data.map((d) => Number(d.bankCardPhp ?? 0) / niceMax)
       : data.map(() => 0);
 
     const pts = data.map((d, i) => {
@@ -261,7 +261,7 @@ export function VercelAreaLineChart({
       const yDisb = pad.top + plotH - ((Number(d.disbursedPhp || 0) / niceMax) * plotH);
       const yGcash = pad.top + plotH - ((Number(d.gcashPhp ?? 0) / niceMax) * plotH);
       const yMaya = pad.top + plotH - ((Number(d.mayaPhp ?? 0) / niceMax) * plotH);
-      const yBankCard = pad.top + plotH - ((Number(d.bankCardPhp ?? d.cryptoPhp ?? 0) / niceMax) * plotH);
+      const yBankCard = pad.top + plotH - ((Number(d.bankCardPhp ?? 0) / niceMax) * plotH);
       const yTx = pad.top + plotH - ((Number(d.txCount || 0) / niceMax) * plotH);
       return { ...d, i, x, yTotal, yDisb, yGcash, yMaya, yBankCard, yTx };
     });
@@ -768,7 +768,7 @@ export function VercelAreaLineChart({
                 <div className="va-tooltip-row">
                   <span className="va-legend-swatch va-swatch-purple" />
                   <span>Bank / Card</span>
-                  <strong>₱{Number(activePt.bankCardPhp ?? activePt.cryptoPhp ?? 0).toLocaleString('en-US')}</strong>
+                  <strong>₱{Number(activePt.bankCardPhp ?? 0).toLocaleString('en-US')}</strong>
                 </div>
               </>
             ) : activeMode === 'disbursed' ? (
