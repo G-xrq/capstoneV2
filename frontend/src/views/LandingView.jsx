@@ -126,7 +126,7 @@ const getHeroStepDetails = (step, camp, raisedPhp, targetPhp, pct) => {
       return {
         title: 'Blockchain Record',
         stage: 'Step 3',
-        status: 'Verified',
+        status: 'Confirmed',
         field1Label: 'Transaction Hash',
         field1Value: '0x8f32...c41e',
         field2Label: 'Network Ledger',
