@@ -4595,7 +4595,7 @@ export default function CampaignCard(props) {
               className="card bounce-in"
               style={{
                 position: 'relative',
-                width: isPaymentProcessing ? '540px' : ((donateStep === 0 || donateStep === 6 || donateStep === 7) ? '880px' : (donateStep === 8 && !instantReceipt && !instantSettlingOnChain ? '720px' : '460px')),
+                width: isPaymentProcessing ? '540px' : (donateStep === 0 ? '560px' : ((donateStep === 6 || donateStep === 7) ? '880px' : (donateStep === 8 && !instantReceipt && !instantSettlingOnChain ? '720px' : '460px'))),
                 maxWidth: '94vw',
                 maxHeight: '92vh',
                 overflowY: 'auto',
@@ -4898,306 +4898,331 @@ export default function CampaignCard(props) {
                 );
               })()}
 
-              {/* ── STEP 0: Multi-Rail Payment Gateway Selector (Territory: Full Modal) ── */}
+              {/* ── STEP 0: Select Payment Method (Strict Vercel Geist UI) ── */}
               {!isPaymentProcessing && donateStep === 0 && (
-                <div className="fade-in" style={{ position: 'relative' }}>
+                <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '16px', fontFamily: 'var(--font-sans, inherit)' }}>
 
-                  {/* Header matching Step 6 & 7 */}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '18px', borderBottom: '1px solid var(--border, rgba(255,255,255,0.08))', paddingBottom: '14px', flexWrap: 'wrap', gap: '10px' }}>
-                    <div>
-                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.74rem', color: '#22c55e', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>
-                        <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>lock</span>
-                        Institutional Contribution Gateway
+                  {/* Minimal Geist Header */}
+                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px', borderBottom: '1px solid var(--border, #222)', paddingBottom: '14px' }}>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.72rem', fontWeight: 500, color: 'var(--text-muted, #888)', marginBottom: '4px' }}>
+                        <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10b981', display: 'inline-block' }} />
+                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '390px' }}>
+                          {camp.title} · {getOrgDisplayName(camp)}
+                        </span>
                       </div>
-                      <h2 style={{ margin: 0, fontSize: '1.35rem', color: 'var(--text-primary, #fff)', fontWeight: 800 }}>
-                        Select Payment Method
+                      <h2 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 600, letterSpacing: '-0.02em', color: 'var(--text-primary, #ededed)' }}>
+                        Make a donation
                       </h2>
-                      <div style={{ fontSize: '0.78rem', color: 'var(--text-muted, #94a3b8)', marginTop: '3px' }}>
-                        Beneficiary Campaign: <strong style={{ color: 'var(--text-secondary, #cbd5e1)' }}>{camp.title}</strong>
-                      </div>
                     </div>
                     <button
+                      type="button"
                       onClick={() => {
                         setMagnifierActive(false);
                         setModalOpen(false);
                       }}
-                      style={{ background: 'var(--bg-input, rgba(255,255,255,0.05))', border: '1px solid var(--border, rgba(255,255,255,0.1))', color: 'var(--text-muted, #94a3b8)', width: '32px', height: '32px', borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                      title="Close dialog"
+                      style={{
+                        background: 'transparent',
+                        border: '1px solid var(--border, #262626)',
+                        color: 'var(--text-muted, #888)',
+                        width: '30px',
+                        height: '30px',
+                        borderRadius: '6px',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexShrink: 0
+                      }}
+                      title="Close"
                     >
-                      <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>close</span>
+                      <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>close</span>
                     </button>
                   </div>
 
-                  {/* Top Combined Summary Card: Campaign Context (Left) + Donation Amount (Right) */}
-                  <div className="payment-selector-top-card">
-                    {/* Left Side: Campaign Context & Beneficiary */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '14px', minWidth: 0 }}>
-                      <img
-                        src={coverData.imageUrl}
-                        alt={camp.title}
-                        style={{ width: '54px', height: '54px', borderRadius: '12px', objectFit: 'cover', flexShrink: 0, border: '1px solid var(--border)' }}
-                        onError={(e) => { e.target.onerror = null; e.target.src = 'https://images.unsplash.com/photo-1532629345422-7515f3d16bb6?auto=format&fit=crop&w=150&q=80'; }}
+                  {/* Clean Monochrome Amount Input Block */}
+                  <div style={{ border: '1px solid var(--border, #222)', borderRadius: '8px', background: 'var(--bg-inset, #0a0a0a)', padding: '14px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                      <label style={{ fontSize: '0.72rem', fontWeight: 500, color: 'var(--text-muted, #888)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        Amount (PHP)
+                      </label>
+                      {amount && Number(amount) > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => setAmount('')}
+                          style={{ background: 'none', border: 'none', color: 'var(--text-muted, #888)', fontSize: '0.72rem', cursor: 'pointer', padding: 0 }}
+                        >
+                          Clear
+                        </button>
+                      )}
+                    </div>
+
+                    <div style={{ position: 'relative', display: 'flex', alignItems: 'center', marginBottom: '10px' }}>
+                      <span style={{ position: 'absolute', left: '12px', color: 'var(--text-muted, #888)', fontWeight: 600, fontSize: '1.1rem', fontVariantNumeric: 'tabular-nums' }}>₱</span>
+                      <input
+                        type="number"
+                        step="1"
+                        min="1"
+                        value={amount}
+                        onChange={(e) => setAmount(e.target.value)}
+                        placeholder="0.00"
+                        style={{
+                          width: '100%',
+                          height: '42px',
+                          padding: '0 12px 0 30px',
+                          background: 'var(--bg-card, #000)',
+                          border: '1px solid var(--border, #262626)',
+                          borderRadius: '6px',
+                          color: 'var(--text-primary, #ededed)',
+                          fontSize: '1.15rem',
+                          fontWeight: 600,
+                          fontVariantNumeric: 'tabular-nums',
+                          outline: 'none'
+                        }}
                       />
-                      <div style={{ minWidth: 0, flex: 1 }}>
-                        <div style={{ fontSize: '0.94rem', fontWeight: 800, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                          {camp.title}
-                        </div>
-                        <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '5px', marginTop: '3px' }}>
-                          <span className="material-symbols-outlined" style={{ fontSize: '15px', color: '#22c55e' }}>corporate_fare</span>
-                          <span style={{ color: 'var(--text-secondary)' }}>Beneficiary: {getOrgDisplayName(camp)}</span>
-                        </div>
-                        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-                          0% platform fee · Gasless Sepolia audit receipt
-                        </div>
-                      </div>
                     </div>
 
-                    {/* Right Side: Interactive Donation Amount Input with Chips */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <label style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                          Donation Amount (PHP)
-                        </label>
-                        {amount && Number(amount) > 0 && (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '6px' }}>
+                      {['100', '500', '1000', '2500', '5000'].map((val) => {
+                        const isSel = String(amount) === val;
+                        return (
                           <button
+                            key={val}
                             type="button"
-                            onClick={() => setAmount('')}
-                            style={{ background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: '0.7rem', cursor: 'pointer', padding: 0 }}
-                          >
-                            Clear
-                          </button>
-                        )}
-                      </div>
-
-                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
-                        <div style={{ position: 'relative', display: 'flex', alignItems: 'center', flex: '1 1 140px', minWidth: '120px' }}>
-                          <span style={{ position: 'absolute', left: '12px', color: 'var(--accent, #10b981)', fontWeight: 800, fontSize: '1.05rem', fontFamily: 'var(--font-mono)' }}>₱</span>
-                          <input
-                            type="number"
-                            step="1"
-                            min="1"
-                            value={amount}
-                            onChange={(e) => setAmount(e.target.value)}
-                            placeholder="0.00"
+                            onClick={() => setAmount(val)}
                             style={{
-                              width: '100%',
-                              padding: '8px 12px 8px 30px',
-                              background: 'var(--bg-subcard, rgba(0,0,0,0.3))',
-                              border: '1.5px solid var(--border, rgba(255,255,255,0.15))',
-                              borderRadius: '8px',
-                              color: 'var(--text-primary, #fff)',
-                              fontSize: '1.05rem',
-                              fontWeight: 700,
-                              fontFamily: 'var(--font-mono)',
-                              outline: 'none'
+                              height: '30px',
+                              borderRadius: '6px',
+                              fontSize: '0.73rem',
+                              fontWeight: isSel ? 600 : 500,
+                              fontVariantNumeric: 'tabular-nums',
+                              cursor: 'pointer',
+                              background: isSel ? 'var(--text-primary, #ededed)' : 'transparent',
+                              color: isSel ? 'var(--bg-card, #0a0a0a)' : 'var(--text-secondary, #a1a1aa)',
+                              border: `1px solid ${isSel ? 'var(--text-primary, #ededed)' : 'var(--border, #242424)'}`,
+                              transition: 'all 0.14s ease'
                             }}
-                          />
-                        </div>
-
-                        <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap', flex: '1 1 auto' }}>
-                          {['100', '500', '1000', '2500', '5000'].map((val) => (
-                            <button
-                              key={val}
-                              type="button"
-                              onClick={() => setAmount(val)}
-                              style={{
-                                padding: '5px 8px',
-                                borderRadius: '6px',
-                                fontSize: '0.72rem',
-                                fontWeight: 600,
-                                cursor: 'pointer',
-                                background: amount === val ? 'var(--text-primary)' : 'var(--bg-subcard, rgba(255,255,255,0.05))',
-                                color: amount === val ? 'var(--bg-page, #000)' : 'var(--text-secondary)',
-                                border: `1px solid ${amount === val ? 'var(--text-primary)' : 'var(--border)'}`,
-                                transition: 'all 0.15s ease'
-                              }}
-                            >
-                              ₱{Number(val).toLocaleString()}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
+                          >
+                            ₱{Number(val).toLocaleString()}
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
 
-                  {/* Show PayMongo Automated Checkout switcher ONLY when a real PayMongo API key is configured */}
+                  {/* Vercel Monochrome Segmented Verification Switcher */}
                   {paymongoEnabled && (
-                  <div
-                    style={{
-                      display: 'grid',
-                      gridTemplateColumns: '1fr 1fr',
-                      gap: '6px',
-                      padding: '4px',
-                      marginBottom: '12px',
-                      borderRadius: '10px',
-                      background: 'var(--bg-input, rgba(255,255,255,0.04))',
-                      border: '1px solid var(--border, rgba(255,255,255,0.1))'
-                    }}
-                    role="tablist"
-                    aria-label="Donation verification mode"
-                  >
-                    <button
-                      type="button"
-                      role="tab"
-                      aria-selected={checkoutMode === 'instant'}
-                      onClick={() => setCheckoutMode('instant')}
-                      style={{
-                        padding: '8px 10px',
-                        borderRadius: '7px',
-                        border: checkoutMode === 'instant' ? '1px solid rgba(16, 185, 129, 0.45)' : '1px solid transparent',
-                        background: checkoutMode === 'instant' ? 'rgba(16, 185, 129, 0.14)' : 'transparent',
-                        color: checkoutMode === 'instant' ? '#10b981' : 'var(--text-muted, #94a3b8)',
-                        cursor: 'pointer',
-                        textAlign: 'left',
-                        transition: 'all 0.15s ease'
-                      }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.77rem', fontWeight: 700 }}>
-                        <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>bolt</span>
-                        <span>Instant Auto-Verified</span>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      <div
+                        role="tablist"
+                        aria-label="Donation verification mode"
+                        style={{
+                          display: 'grid',
+                          gridTemplateColumns: '1fr 1fr',
+                          gap: '4px',
+                          padding: '3px',
+                          borderRadius: '8px',
+                          background: 'var(--bg-inset, #0a0a0a)',
+                          border: '1px solid var(--border, #222)'
+                        }}
+                      >
+                        <button
+                          type="button"
+                          role="tab"
+                          aria-selected={checkoutMode === 'instant'}
+                          onClick={() => setCheckoutMode('instant')}
+                          style={{
+                            height: '34px',
+                            borderRadius: '6px',
+                            border: checkoutMode === 'instant' ? '1px solid var(--border-strong, #333)' : '1px solid transparent',
+                            background: checkoutMode === 'instant' ? 'var(--bg-subcard, #1a1a1a)' : 'transparent',
+                            color: checkoutMode === 'instant' ? 'var(--text-primary, #ededed)' : 'var(--text-muted, #888)',
+                            fontSize: '0.78rem',
+                            fontWeight: checkoutMode === 'instant' ? 600 : 500,
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '6px',
+                            transition: 'all 0.14s ease'
+                          }}
+                        >
+                          <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>bolt</span>
+                          <span>Instant · QR Ph</span>
+                        </button>
+                        <button
+                          type="button"
+                          role="tab"
+                          aria-selected={checkoutMode === 'manual'}
+                          onClick={() => setCheckoutMode('manual')}
+                          style={{
+                            height: '34px',
+                            borderRadius: '6px',
+                            border: checkoutMode === 'manual' ? '1px solid var(--border-strong, #333)' : '1px solid transparent',
+                            background: checkoutMode === 'manual' ? 'var(--bg-subcard, #1a1a1a)' : 'transparent',
+                            color: checkoutMode === 'manual' ? 'var(--text-primary, #ededed)' : 'var(--text-muted, #888)',
+                            fontSize: '0.78rem',
+                            fontWeight: checkoutMode === 'manual' ? 600 : 500,
+                            cursor: 'pointer',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '6px',
+                            transition: 'all 0.14s ease'
+                          }}
+                        >
+                          <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>qr_code_scanner</span>
+                          <span>Direct QR &amp; Slip</span>
+                        </button>
                       </div>
-                      <div style={{ fontSize: '0.67rem', opacity: 0.82, marginTop: '2px' }}>
-                        Zero receipt upload · Webhook → Sepolia
-                      </div>
-                    </button>
-
-                    <button
-                      type="button"
-                      role="tab"
-                      aria-selected={checkoutMode === 'manual'}
-                      onClick={() => setCheckoutMode('manual')}
-                      style={{
-                        padding: '8px 10px',
-                        borderRadius: '7px',
-                        border: checkoutMode === 'manual' ? '1px solid rgba(56, 189, 248, 0.45)' : '1px solid transparent',
-                        background: checkoutMode === 'manual' ? 'rgba(56, 189, 248, 0.14)' : 'transparent',
-                        color: checkoutMode === 'manual' ? '#38bdf8' : 'var(--text-muted, #94a3b8)',
-                        cursor: 'pointer',
-                        textAlign: 'left',
-                        transition: 'all 0.15s ease'
-                      }}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.77rem', fontWeight: 700 }}>
-                        <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>qr_code_scanner</span>
-                        <span>Direct QR &amp; Receipt</span>
-                      </div>
-                      <div style={{ fontSize: '0.67rem', opacity: 0.82, marginTop: '2px' }}>
-                        Direct NGO QR + AI Slip Scan + Note Code
-                      </div>
-                    </button>
-                  </div>
+                      <p style={{ margin: 0, fontSize: '0.72rem', color: 'var(--text-muted, #888)' }}>
+                        {checkoutMode === 'instant'
+                          ? 'Auto-verified via Dynamic QR Ph webhook and sealed gaslessly on Sepolia — no receipt upload needed.'
+                          : 'Scan the NGO direct QR code and upload your payment slip with a unique BB-XXXX tracking code.'}
+                      </p>
+                    </div>
                   )}
 
-                  {/* Section Subtitle */}
-                  <p style={{ color: 'var(--text-muted, #94a3b8)', fontSize: '0.78rem', margin: '0 0 12px 2px' }}>
-                    {paymongoEnabled && checkoutMode === 'instant'
-                      ? 'Select a channel for PayMongo Dynamic QR Ph checkout — automatically credited & notarized on Sepolia upon real payment:'
-                      : 'Choose how you would like to securely transfer your disaster relief aid (includes a unique BB-XXXX tracking code):'}
-                  </p>
-
-                  {/* Philippine Multi-Rail Payment Channels (100% PHP + Gasless Sepolia Notarization) */}
-                  <div className="payment-rails-grid">
-
-                    {/* Option 2: GCash E-Wallet */}
-                    <button
-                      disabled={instantLoading}
-                      onClick={() => {
-                        if (paymongoEnabled && checkoutMode === 'instant') {
-                          startInstantCheckout('GCash');
-                          return;
+                  {/* Clean 3-Row Monochrome Geist Channel List (Zero Asymmetric 2+1 Grid, Zero Loud Badges) */}
+                  <div style={{ border: '1px solid var(--border, #222)', borderRadius: '8px', background: 'var(--bg-inset, #0a0a0a)', overflow: 'hidden' }}>
+                    {[
+                      {
+                        id: 'GCash',
+                        title: 'GCash',
+                        desc: paymongoEnabled && checkoutMode === 'instant' ? 'Dynamic QR Ph · Auto-verified' : 'Direct NGO QR · AI receipt audit',
+                        iconBg: '#0052FF',
+                        iconColor: '#fff',
+                        iconText: 'G',
+                        onClick: () => {
+                          if (paymongoEnabled && checkoutMode === 'instant') {
+                            startInstantCheckout('GCash');
+                            return;
+                          }
+                          setGatewayMethod('GCash');
+                          setGatewayStep(0);
+                          setGatewayMobile('');
+                          setGatewayOtp(['', '', '', '', '', '']);
+                          handleRemoveProof();
+                          createDirectQrIntent('GCash');
+                          setDonateStep(7);
                         }
-                        setGatewayMethod('GCash');
-                        setGatewayStep(0);
-                        setGatewayMobile('');
-                        setGatewayOtp(['', '', '', '', '', '']);
-                        handleRemoveProof();
-                        createDirectQrIntent('GCash');
-                        setDonateStep(7);
-                      }}
-                      className="payment-option-btn"
-                    >
-                      <div className="payment-option-icon-box" style={{ background: '#0052FF', color: '#fff', fontWeight: 900 }}>
-                        G
-                      </div>
-                      <div className="payment-option-meta">
-                        <div className="payment-option-title-row">
-                          <span className="payment-option-title">GCash E-Wallet</span>
-                          <span className="payment-option-badge" style={{ background: 'rgba(0, 82, 255, 0.15)', color: '#38bdf8', borderColor: 'rgba(0, 82, 255, 0.3)' }}>Instant QR / OTP</span>
-                        </div>
-                        <div className="payment-option-desc">Fast contactless scan via QR Ph or phone authentication with instant receipt</div>
-                      </div>
-                      <span className="material-symbols-outlined" style={{ color: 'var(--text-muted, #94a3b8)', fontSize: '20px' }}>chevron_right</span>
-                    </button>
-
-                    {/* Option 3: Maya (PayMaya) */}
-                    <button
-                      disabled={instantLoading}
-                      onClick={() => {
-                        if (paymongoEnabled && checkoutMode === 'instant') {
-                          startInstantCheckout('Maya');
-                          return;
+                      },
+                      {
+                        id: 'Maya',
+                        title: 'Maya',
+                        desc: paymongoEnabled && checkoutMode === 'instant' ? 'Dynamic QR Ph · Auto-verified' : 'Direct NGO QR · AI receipt audit',
+                        iconBg: '#00D68F',
+                        iconColor: '#052e16',
+                        iconText: 'M',
+                        onClick: () => {
+                          if (paymongoEnabled && checkoutMode === 'instant') {
+                            startInstantCheckout('Maya');
+                            return;
+                          }
+                          setGatewayMethod('Maya');
+                          setGatewayStep(0);
+                          setGatewayMobile('');
+                          setGatewayOtp(['', '', '', '', '', '']);
+                          handleRemoveProof();
+                          createDirectQrIntent('Maya');
+                          setDonateStep(7);
                         }
-                        setGatewayMethod('Maya');
-                        setGatewayStep(0);
-                        setGatewayMobile('');
-                        setGatewayOtp(['', '', '', '', '', '']);
-                        handleRemoveProof();
-                        createDirectQrIntent('Maya');
-                        setDonateStep(7);
-                      }}
-                      className="payment-option-btn"
-                    >
-                      <div className="payment-option-icon-box" style={{ background: '#00D68F', color: '#000', fontWeight: 900, fontSize: '13px' }}>
-                        maya
-                      </div>
-                      <div className="payment-option-meta">
-                        <div className="payment-option-title-row">
-                          <span className="payment-option-title">Maya (PayMaya)</span>
-                          <span className="payment-option-badge" style={{ background: 'rgba(0, 214, 143, 0.15)', color: '#00D68F', borderColor: 'rgba(0, 214, 143, 0.3)' }}>QR Ph Ready</span>
-                        </div>
-                        <div className="payment-option-desc">Scan QR Ph code or link registered Maya wallet with instant automated verification</div>
-                      </div>
-                      <span className="material-symbols-outlined" style={{ color: 'var(--text-muted, #94a3b8)', fontSize: '20px' }}>chevron_right</span>
-                    </button>
-
-                    {/* Option 4: Bank Transfer & Cards */}
-                    <button
-                      disabled={instantLoading}
-                      onClick={() => {
-                        if (paymongoEnabled && checkoutMode === 'instant') {
-                          startInstantCheckout('Bank / Card');
-                          return;
+                      },
+                      {
+                        id: 'Bank / Card',
+                        title: 'Bank & Credit Cards',
+                        desc: 'Visa, Mastercard, or Philippine bank transfer',
+                        iconBg: 'var(--bg-subcard, #18181b)',
+                        iconColor: 'var(--text-primary, #ededed)',
+                        iconName: 'credit_card',
+                        onClick: () => {
+                          if (paymongoEnabled && checkoutMode === 'instant') {
+                            startInstantCheckout('Bank / Card');
+                            return;
+                          }
+                          createDirectQrIntent('Bank / Card');
+                          setDonateStep(6);
                         }
-                        createDirectQrIntent('Bank / Card');
-                        setDonateStep(6);
-                      }}
-                      className="payment-option-btn"
-                    >
-                      <div className="payment-option-icon-box" style={{ background: 'rgba(34, 197, 94, 0.12)', border: '1px solid rgba(34, 197, 94, 0.3)', color: '#22c55e' }}>
-                        <span className="material-symbols-outlined" style={{ fontSize: '22px' }}>credit_card</span>
-                      </div>
-                      <div className="payment-option-meta">
-                        <div className="payment-option-title-row">
-                          <span className="payment-option-title">Bank & Credit Cards</span>
-                          <span className="payment-option-badge">256-Bit SSL</span>
+                      }
+                    ].map((rail, idx, arr) => (
+                      <button
+                        key={rail.id}
+                        type="button"
+                        disabled={instantLoading}
+                        onClick={rail.onClick}
+                        className="payment-option-btn"
+                        style={{
+                          width: '100%',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          gap: '12px',
+                          padding: '12px 14px',
+                          background: 'transparent',
+                          border: 'none',
+                          borderRadius: 0,
+                          borderBottom: idx < arr.length - 1 ? '1px solid var(--border, #1f1f1f)' : 'none',
+                          cursor: instantLoading ? 'wait' : 'pointer',
+                          textAlign: 'left',
+                          transition: 'background-color 0.14s ease'
+                        }}
+                        onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.03)'; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0 }}>
+                          <div style={{
+                            width: '32px',
+                            height: '32px',
+                            borderRadius: '7px',
+                            background: rail.iconBg,
+                            color: rail.iconColor,
+                            border: rail.iconName ? '1px solid var(--border, #2a2a2a)' : 'none',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontWeight: 800,
+                            fontSize: '0.88rem',
+                            flexShrink: 0
+                          }}>
+                            {rail.iconName
+                              ? <span className="material-symbols-outlined" style={{ fontSize: '17px' }}>{rail.iconName}</span>
+                              : rail.iconText}
+                          </div>
+                          <div style={{ minWidth: 0 }}>
+                            <div style={{ fontSize: '0.84rem', fontWeight: 600, color: 'var(--text-primary, #ededed)', lineHeight: 1.25 }}>
+                              {rail.title}
+                            </div>
+                            <div style={{ fontSize: '0.73rem', color: 'var(--text-muted, #888)', marginTop: '2px' }}>
+                              {rail.desc}
+                            </div>
+                          </div>
                         </div>
-                        <div className="payment-option-desc">Visa, Mastercard, JCB, or direct InstaPay bank transfer gateway</div>
-                      </div>
-                      <span className="material-symbols-outlined" style={{ color: 'var(--text-muted, #94a3b8)', fontSize: '20px' }}>chevron_right</span>
-                    </button>
-
+                        <span className="material-symbols-outlined" style={{ color: 'var(--text-muted, #666)', fontSize: '18px', flexShrink: 0 }}>
+                          chevron_right
+                        </span>
+                      </button>
+                    ))}
                   </div>
 
-                  {/* Footer Bar */}
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.72rem', color: 'var(--text-muted, #94a3b8)', borderTop: '1px solid var(--border, rgba(255,255,255,0.08))', paddingTop: '12px' }}>
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                      <span className="material-symbols-outlined" style={{ fontSize: '15px', color: '#22c55e' }}>verified_user</span>
-                      Decentralized Disaster Relief Protocol • 100% Verified Humanitarian Routing
+                  {/* Quiet Geist Footer */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px solid var(--border, #222)', paddingTop: '12px' }}>
+                    <span style={{ fontSize: '0.71rem', color: 'var(--text-muted, #666)' }}>
+                      0% platform fee · Gasless Sepolia audit ledger
                     </span>
                     <button
-                      className="btn btn-ghost btn-sm"
+                      type="button"
                       onClick={() => setModalOpen(false)}
-                      style={{ fontSize: '0.78rem', padding: '5px 12px' }}
+                      style={{
+                        height: '30px',
+                        padding: '0 12px',
+                        borderRadius: '6px',
+                        border: '1px solid var(--border, #262626)',
+                        background: 'transparent',
+                        color: 'var(--text-secondary, #a1a1aa)',
+                        fontSize: '0.74rem',
+                        fontWeight: 500,
+                        cursor: 'pointer'
+                      }}
                     >
                       Cancel
                     </button>
