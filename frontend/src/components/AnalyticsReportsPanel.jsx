@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { API_URL } from '../config';
 import { useToast } from '../context/ToastContext';
 import {
+  AnimatedNumber,
   VercelAreaLineChart,
   VercelDonutChart,
   VercelBarChart,
@@ -281,7 +282,7 @@ export default function AnalyticsReportsPanel({ mode = 'admin', onNavigateTab })
         </div>
       ) : (
         <>
-          {/* ── Row 1: Asymmetric 8/4 Bento Hero (Interactive KPI + Smooth Animated Spline | Payment Channels) ── */}
+          {/* ── Row 1: Asymmetric 8/4 Bento Hero (Interactive KPI + Smooth Wave | Payment Channels) ── */}
           <div className="va-bento-hero">
             <section className="va-panel va-hero-panel">
               <div className="va-kpi-grid analytics-kpi-strip" role="tablist" aria-label="Chart metric selector">
@@ -303,10 +304,16 @@ export default function AnalyticsReportsPanel({ mode = 'admin', onNavigateTab })
                     )}
                   </div>
                   <div className="va-kpi-value">
-                    ₱{Number(kpis.totalMobilizedPhp || 0).toLocaleString('en-US')}
+                    <AnimatedNumber
+                      value={Number(kpis.totalMobilizedPhp || 0)}
+                      format={(v) => `₱${Math.round(v).toLocaleString('en-US')}`}
+                    />
                   </div>
                   <div className="va-kpi-sub">
-                    {Number(kpis.totalMobilizedEth || 0).toFixed(4)} ETH
+                    <AnimatedNumber
+                      value={Number(kpis.totalMobilizedEth || 0)}
+                      format={(v) => `${v.toFixed(4)} ETH`}
+                    />
                   </div>
                 </button>
 
@@ -318,11 +325,16 @@ export default function AnalyticsReportsPanel({ mode = 'admin', onNavigateTab })
                   onClick={() => setChartSeries('volume')}
                 >
                   <div className="va-kpi-top">
-                    <span className="va-kpi-label">Avg Gift</span>
-                    <span className="va-kpi-tag">{kpis.txCount || 0} tx</span>
+                    <span className="va-kpi-label">Avg Donation</span>
+                    <span className="va-kpi-tag">
+                      <AnimatedNumber value={Number(kpis.txCount || 0)} format={(v) => `${Math.round(v)} tx`} />
+                    </span>
                   </div>
                   <div className="va-kpi-value">
-                    ₱{Number(kpis.avgGiftPhp || 0).toLocaleString('en-US')}
+                    <AnimatedNumber
+                      value={Number(kpis.avgGiftPhp || 0)}
+                      format={(v) => `₱${Math.round(v).toLocaleString('en-US')}`}
+                    />
                   </div>
                   <div className="va-kpi-sub">
                     {isAdmin
@@ -340,15 +352,25 @@ export default function AnalyticsReportsPanel({ mode = 'admin', onNavigateTab })
                 >
                   <div className="va-kpi-top">
                     <span className="va-kpi-label">Disbursed</span>
-                    <span className="va-kpi-tag">{kpis.utilizationPct || 0}%</span>
+                    <span className="va-kpi-tag">
+                      <AnimatedNumber value={Number(kpis.utilizationPct || 0)} format={(v) => `${v.toFixed(1).replace(/\.0$/, '')}%`} />
+                    </span>
                   </div>
                   <div className="va-kpi-value">
-                    ₱{Number(kpis.totalDisbursedPhp || 0).toLocaleString('en-US')}
+                    <AnimatedNumber
+                      value={Number(kpis.totalDisbursedPhp || 0)}
+                      format={(v) => `₱${Math.round(v).toLocaleString('en-US')}`}
+                    />
                   </div>
                   <div className="va-kpi-sub">
                     {isAdmin
                       ? `${kpis.totalBeneficiaries || 0} beneficiaries`
-                      : `₱${Number(kpis.remainingEscrowPhp || 0).toLocaleString('en-US')} left`}
+                      : (
+                        <AnimatedNumber
+                          value={Number(kpis.remainingEscrowPhp || 0)}
+                          format={(v) => `₱${Math.round(v).toLocaleString('en-US')} left`}
+                        />
+                      )}
                   </div>
                 </button>
 
@@ -366,7 +388,10 @@ export default function AnalyticsReportsPanel({ mode = 'admin', onNavigateTab })
                     </span>
                   </div>
                   <div className="va-kpi-value">
-                    {kpis.avgFundingPct || 0}%
+                    <AnimatedNumber
+                      value={Number(kpis.avgFundingPct || 0)}
+                      format={(v) => `${v.toFixed(1)}%`}
+                    />
                   </div>
                   <div className="va-kpi-sub">
                     {isAdmin
@@ -374,6 +399,17 @@ export default function AnalyticsReportsPanel({ mode = 'admin', onNavigateTab })
                       : `${kpis.activeCampaigns || 0} active · ${kpis.approvalRatePct || 0}% pass`}
                   </div>
                 </button>
+
+                {/* Smooth Sliding Active Indicator Bar */}
+                <span
+                  className="va-kpi-slider"
+                  aria-hidden="true"
+                  style={{
+                    transform: `translateX(${
+                      (chartSeries === 'combined' ? 0 : chartSeries === 'volume' ? 1 : chartSeries === 'disbursed' ? 2 : 3) * 100
+                    }%)`
+                  }}
+                />
               </div>
 
               <div className="va-hero-chart-body">
@@ -382,7 +418,6 @@ export default function AnalyticsReportsPanel({ mode = 'admin', onNavigateTab })
                   height={232}
                   seriesMode={chartSeries}
                   onSeriesModeChange={setChartSeries}
-                  animKey={range}
                   showModeSwitch
                   title={isAdmin ? 'Contribution & Disbursement Velocity' : 'Fundraising & Disbursement Velocity'}
                 />
@@ -514,7 +549,7 @@ export default function AnalyticsReportsPanel({ mode = 'admin', onNavigateTab })
                         Verified Donors
                       </span>
                       <strong>{donorStats.verified.toLocaleString('en-US')}</strong>
-                      <span className="va-eco-metric-sub">Wallet, 2FA, or gift verified</span>
+                      <span className="va-eco-metric-sub">Wallet, 2FA, or donation verified</span>
                     </div>
                     <div className="va-eco-metric">
                       <span className="va-eco-metric-label">
@@ -929,12 +964,12 @@ export default function AnalyticsReportsPanel({ mode = 'admin', onNavigateTab })
                   <VercelBarChart
                     maxItems={5}
                     leftColLabel="Contributor"
-                    rightColLabel="Total / Gifts"
+                    rightColLabel="Total / Donations"
                     emptyMessage="No confirmed contributors in this period yet."
                     items={topContributors.map((d, i) => ({
                       key: `${d.name}-${i}`,
                       label: d.name,
-                      sub: `${d.count} gift${d.count === 1 ? '' : 's'} · ${d.eth} ETH`,
+                      sub: `${d.count} donation${d.count === 1 ? '' : 's'} · ${d.eth} ETH`,
                       value: d.php,
                       badge: d.isAnonymous ? 'Anon' : `${d.count}×`
                     }))}

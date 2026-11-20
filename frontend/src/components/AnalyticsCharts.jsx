@@ -24,6 +24,51 @@ function easeOutQuint(t) {
 }
 
 /**
+ * Smooth requestAnimationFrame numeric counter for KPI values, currency totals,
+ * ETH amounts, counts, and percentages — glides fluidly on 7D/30D/90D/All switches.
+ */
+export function AnimatedNumber({ value = 0, format, duration = 640 }) {
+  const numTarget = Number(value || 0);
+  const currRef = useRef(numTarget);
+  const rafRef = useRef(null);
+  const [displayVal, setDisplayVal] = useState(numTarget);
+
+  useEffect(() => {
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    if (prefersReducedMotion() || currRef.current === numTarget) {
+      currRef.current = numTarget;
+      setDisplayVal(numTarget);
+      return;
+    }
+
+    const from = currRef.current;
+    const startTs = performance.now();
+
+    const tick = (now) => {
+      const rawT = Math.min(1, (now - startTs) / Math.max(1, duration));
+      const eased = easeOutQuint(rawT);
+      const next = from + (numTarget - from) * eased;
+      currRef.current = next;
+      setDisplayVal(next);
+      if (rawT < 1) {
+        rafRef.current = requestAnimationFrame(tick);
+      } else {
+        currRef.current = numTarget;
+        setDisplayVal(numTarget);
+        rafRef.current = null;
+      }
+    };
+
+    rafRef.current = requestAnimationFrame(tick);
+    return () => {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    };
+  }, [numTarget, duration]);
+
+  return <>{format ? format(displayVal) : Math.round(displayVal).toLocaleString('en-US')}</>;
+}
+
+/**
  * Resample any array of normalized heights [0..1] onto a fixed-size grid (WAVE_SAMPLES)
  * using Fritsch-Carlson monotone cubic spline interpolation so ANY two datasets
  * (e.g. 7D vs 30D vs 90D vs All) can continuously wave-morph point-for-point.
@@ -247,11 +292,12 @@ export function VercelAreaLineChart({
     initialized: false
   });
 
-  // Update morph targets smoothly whenever filtered data or series mode changes (zero snap!)
+  // Trigger silky staggered wave morph on filter/mode change and rest completely still once settled
   useEffect(() => {
     setHoverIdx(null);
     const st = waveStateRef.current;
     const now = performance.now();
+    const reduced = prefersReducedMotion();
 
     if (!st.initialized) {
       st.fromPrimary = new Array(WAVE_SAMPLES).fill(0);
@@ -276,27 +322,20 @@ export function VercelAreaLineChart({
     st.toSecOp = hasSecondary ? 1 : 0;
     st.isCountAxis = isCountAxis;
     st.morphStartTs = now;
-    st.morphDuration = prefersReducedMotion() ? 1 : 720;
-  }, [targetPrimary, targetSecondary, targetMaxY, hasSecondary, isCountAxis]);
+    st.morphDuration = reduced ? 1 : 680;
 
-  // Single continuous rAF loop: serene ambient liquid wave flow + silky staggered filter morph
-  useEffect(() => {
     let rafId = null;
-    const reduced = prefersReducedMotion();
-    const staggerSpread = 0.26;
+    const staggerSpread = 0.24;
     const displayPrimary = new Array(WAVE_SAMPLES);
     const displaySecondary = new Array(WAVE_SAMPLES);
 
-    const drawFrame = (now) => {
-      const st = waveStateRef.current;
-      const elapsed = Math.max(0, now - st.morphStartTs);
-      const rawT = Math.min(1, elapsed / Math.max(1, st.morphDuration));
+    const drawFrame = (ts) => {
+      const elapsed = Math.max(0, ts - st.morphStartTs);
+      const rawT = reduced ? 1 : Math.min(1, elapsed / Math.max(1, st.morphDuration));
       const globalEase = easeOutQuint(rawT);
 
-      // Continuous flowing wave phase (slow, calm 0.0018 rad/ms fluid current)
-      const flowPhase = now * 0.0018;
-      // Extra organic traveling ripple during filter transition that settles cleanly
-      const morphRippleEnv = reduced ? 0 : Math.sin(rawT * Math.PI) * (1 - rawT) * 0.028;
+      // Subtle flowing liquid wave ripple ONLY during the transition, settling cleanly to exact 0
+      const morphRippleEnv = reduced ? 0 : Math.sin(rawT * Math.PI) * (1 - rawT) * 0.024;
 
       for (let k = 0; k < WAVE_SAMPLES; k++) {
         const frac = k / (WAVE_SAMPLES - 1);
@@ -309,18 +348,12 @@ export function VercelAreaLineChart({
         st.currPrimary[k] = baseP;
         st.currSecondary[k] = baseS;
 
-        // Gentle continuous ambient wave motion modulated smoothly by local wave height
-        // (keeps flat zero segments rock-steady at baseline while crests breathe fluidly)
-        const ambientWave = reduced
-          ? 0
-          : (Math.sin(frac * Math.PI * 3.2 - flowPhase) * 0.011 + Math.sin(frac * Math.PI * 5.6 - flowPhase * 1.45) * 0.004);
-        const morphWave = Math.sin(frac * Math.PI * 3.0 - rawT * Math.PI * 2.4) * morphRippleEnv;
+        const morphWave = Math.sin(frac * Math.PI * 3.0 - rawT * Math.PI * 2.2) * morphRippleEnv;
+        const envP = baseP > 0.018 ? Math.min(1, baseP * 1.25) : 0;
+        const envS = baseS > 0.018 ? Math.min(1, baseS * 1.25) : 0;
 
-        const envP = baseP > 0.018 ? Math.min(1, baseP * 1.35) : 0;
-        const envS = baseS > 0.018 ? Math.min(1, baseS * 1.35) : 0;
-
-        displayPrimary[k] = Math.max(0, Math.min(1, baseP + (ambientWave + morphWave) * envP));
-        displaySecondary[k] = Math.max(0, Math.min(1, baseS + (ambientWave * 0.8 + morphWave) * envS));
+        displayPrimary[k] = Math.max(0, Math.min(1, baseP + morphWave * envP));
+        displaySecondary[k] = Math.max(0, Math.min(1, baseS + morphWave * envS));
       }
 
       st.currMaxY = st.fromMaxY + (st.toMaxY - st.fromMaxY) * globalEase;
@@ -339,20 +372,19 @@ export function VercelAreaLineChart({
         if (secondaryAreaRef.current) secondaryAreaRef.current.setAttribute('d', buildWaveArea(sLine, pad.left, plotW, baselineY));
       }
 
-      // Smoothly update Y-axis tick labels during morph
-      if (rawT < 1 || elapsed < 50) {
-        const fracs = [0, 0.33, 0.66, 1];
-        for (let i = 0; i < 4; i++) {
-          const el = tickTextRefs.current[i];
-          if (el) {
-            const val = Math.round(st.currMaxY * fracs[i]);
-            el.textContent = st.isCountAxis ? `${val} tx` : formatPhpCompact(val);
-          }
+      const fracs = [0, 0.33, 0.66, 1];
+      for (let i = 0; i < 4; i++) {
+        const el = tickTextRefs.current[i];
+        if (el) {
+          const val = Math.round(st.currMaxY * fracs[i]);
+          el.textContent = st.isCountAxis ? `${val} tx` : formatPhpCompact(val);
         }
       }
 
-      if (!reduced) {
+      if (rawT < 1) {
         rafId = requestAnimationFrame(drawFrame);
+      } else {
+        rafId = null;
       }
     };
 
@@ -360,7 +392,7 @@ export function VercelAreaLineChart({
     return () => {
       if (rafId) cancelAnimationFrame(rafId);
     };
-  }, [pad.left, pad.top, plotW, plotH, baselineY]);
+  }, [targetPrimary, targetSecondary, targetMaxY, hasSecondary, isCountAxis, pad.left, pad.top, plotW, plotH, baselineY]);
 
   const xLabelIndices = useMemo(() => {
     if (points.length <= 5) return points.map((_, i) => i);
@@ -392,7 +424,6 @@ export function VercelAreaLineChart({
   const primaryGradId = activeMode === 'disbursed' ? `vaAreaEm_${uid}` : `vaAreaBl_${uid}`;
   const secondaryColor = activeMode === 'split' ? 'var(--va-series-mono, #a1a1aa)' : '#10b981';
   const secondaryGradId = activeMode === 'split' ? `vaAreaNu_${uid}` : `vaAreaEm_${uid}`;
-  const shimmerGradId = `vaWaveFlow_${uid}`;
 
   const activePt = hoverIdx !== null && points[hoverIdx] ? points[hoverIdx] : null;
   const isEmpty = !data || data.length === 0;
@@ -439,7 +470,7 @@ export function VercelAreaLineChart({
             {activeMode === 'volume' && (
               <span className="va-legend-item">
                 <span className="va-legend-swatch va-swatch-blue" />
-                Verified Gifts / Day
+                Donations / Day
               </span>
             )}
           </div>
@@ -487,18 +518,6 @@ export function VercelAreaLineChart({
               <stop offset="0%" stopColor="var(--va-series-mono, #a1a1aa)" stopOpacity="0.14" />
               <stop offset="100%" stopColor="var(--va-series-mono, #a1a1aa)" stopOpacity="0.0" />
             </linearGradient>
-            {/* Continuous subtle flowing light sheen traveling smoothly across the wave */}
-            <linearGradient id={shimmerGradId} x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stopColor={primaryColor} stopOpacity="0.92" />
-              <stop offset="44%" stopColor={primaryColor} stopOpacity="1" />
-              <stop offset="50%" stopColor="#ffffff" stopOpacity="0.72">
-                <animate attributeName="offset" values="-0.25;1.25" dur="4.8s" repeatCount="indefinite" />
-              </stop>
-              <stop offset="56%" stopColor={primaryColor} stopOpacity="1">
-                <animate attributeName="offset" values="-0.19;1.31" dur="4.8s" repeatCount="indefinite" />
-              </stop>
-              <stop offset="100%" stopColor={primaryColor} stopOpacity="0.92" />
-            </linearGradient>
           </defs>
 
           {/* Horizontal Hairlines & Smoothly Scaling Y Ticks */}
@@ -544,8 +563,8 @@ export function VercelAreaLineChart({
               ref={primaryLineRef}
               d={initialPrimaryLine}
               fill="none"
-              stroke={`url(#${shimmerGradId})`}
-              strokeWidth="2"
+              stroke={primaryColor}
+              strokeWidth="1.9"
               strokeLinecap="round"
               strokeLinejoin="round"
               className="va-wave-stroke"
@@ -669,7 +688,7 @@ export function VercelAreaLineChart({
             ) : activeMode === 'volume' ? (
               <div className="va-tooltip-row">
                 <span className="va-legend-swatch va-swatch-blue" />
-                <span>Verified Gifts</span>
+                <span>Donations</span>
                 <strong>{activePt.txCount} tx</strong>
               </div>
             ) : (
@@ -689,7 +708,7 @@ export function VercelAreaLineChart({
               </>
             )}
             <div className="va-tooltip-foot">
-              {activePt.txCount} gift{activePt.txCount === 1 ? '' : 's'} · {Number(activePt.ethAmount || 0).toFixed(4)} ETH
+              {activePt.txCount} donation{activePt.txCount === 1 ? '' : 's'} · {Number(activePt.ethAmount || 0).toFixed(4)} ETH
             </div>
           </div>
         )}
@@ -738,17 +757,16 @@ export function VercelDonutChart({
     });
 
     const nonZeroCount = orderedForRing.filter((it) => Number(it.value || 0) > 0).length;
-    // Account for round end-cap radius (+strokeW total) plus crisp 4px visual breathing gap between arcs
-    const capAndGapFrac = nonZeroCount > 1 ? (strokeW + 4) / circ : 0;
-    const capHalfFrac = nonZeroCount > 1 ? (strokeW * 0.5 + 2) / circ : 0;
+    // Exact geometric circular sectors with crisp 1.5px hairline divider (zero round-cap distortion!)
+    const gapFrac = nonZeroCount > 1 ? 1.5 / circ : 0;
 
     let cum = 0;
     const ringMap = new Map();
     const ringArr = orderedForRing.map((item, idx) => {
       const val = Math.max(0, Number(item.value || 0));
       const frac = rawTotal > 0 ? val / rawTotal : 0;
-      const startFrac = frac > 0 ? cum + capHalfFrac : cum;
-      const sweepFrac = frac > 0 ? Math.max(0.002, frac - capAndGapFrac) : 0;
+      const startFrac = cum;
+      const sweepFrac = frac > 0 ? (frac > gapFrac * 1.6 ? frac - gapFrac : frac * 0.85) : 0;
       cum += frac;
       const entry = {
         ...item,
@@ -826,24 +844,23 @@ export function VercelDonutChart({
     const step = (now) => {
       const elapsed = now - startTs;
       const rawT = Math.min(1, elapsed / duration);
+      const eased = easeOutQuint(rawT);
       const nextMap = {};
 
-      canonicalSlices.forEach((s, idx) => {
-        const delay = idx * 0.05;
-        const localT = Math.max(0, Math.min(1, (rawT - delay) / (1 - delay)));
-        const eased = easeOutQuint(localT);
-        const f = fromSlices[s.key] || { startFrac: 0, sweepFrac: 0, opacity: 0 };
+      // Synchronized clockwork interpolation guarantees adjacent slices NEVER overlap mid-transition
+      canonicalSlices.forEach((s) => {
+        const f = fromSlices[s.key] || { startFrac: s.startFrac, sweepFrac: 0, opacity: 0 };
         nextMap[s.key] = {
           startFrac: f.startFrac + (s.startFrac - f.startFrac) * eased,
           sweepFrac: f.sweepFrac + (s.sweepFrac - f.sweepFrac) * eased,
-          opacity: f.opacity + (s.opacity - f.opacity) * Math.min(1, eased * 1.35)
+          opacity: f.opacity + (s.opacity - f.opacity) * Math.min(1, eased * 1.4)
         };
       });
 
       // Signature subtle rotational glide that settles smoothly back to -90deg
-      const spinAmp = isInitialLoad ? 28 : 18;
+      const spinAmp = isInitialLoad ? 24 : 16;
       const ringAngle = -90 + Math.sin(rawT * Math.PI) * spinAmp * (1 - rawT);
-      const displayTotal = Math.round(fromTotal + (totalVal - fromTotal) * easeOutQuint(rawT));
+      const displayTotal = Math.round(fromTotal + (totalVal - fromTotal) * eased);
 
       currSlicesRef.current = nextMap;
       currTotalRef.current = displayTotal;
@@ -888,7 +905,7 @@ export function VercelDonutChart({
                   fill="none"
                   stroke={s.color}
                   strokeWidth={isHover ? 13 : strokeW}
-                  strokeLinecap={dashLen > 1 ? 'round' : 'butt'}
+                  strokeLinecap="butt"
                   strokeDasharray={`${dashLen.toFixed(2)} ${circ.toFixed(2)}`}
                   strokeDashoffset={dashOffset.toFixed(2)}
                   style={{

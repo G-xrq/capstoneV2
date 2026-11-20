@@ -722,7 +722,7 @@ async function buildAdminAnalytics(db, { range = '30d', category = 'ALL' } = {})
     insights.push({
       tone: 'sky',
       title: `${topRail.rail} leads donor inflows`,
-      detail: `${topRail.rail} accounts for ${topRail.sharePct}% (₱${topRail.php.toLocaleString()}) across ${topRail.count} verified gift${topRail.count === 1 ? '' : 's'}.`
+      detail: `${topRail.rail} accounts for ${topRail.sharePct}% (₱${topRail.php.toLocaleString()}) across ${topRail.count} verified donation${topRail.count === 1 ? '' : 's'}.`
     });
   }
   if (regions[0] && regions[0].raisedPhp > 0) {

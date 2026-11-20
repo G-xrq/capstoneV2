@@ -71,7 +71,7 @@ function buildExecutiveRows(analytics, isAdmin) {
     [],
     ['SECTION 1: KEY PERFORMANCE INDICATORS', '', '', ''],
     ['KPI Metric', 'Numeric Value', 'Formatted Display', 'Operational Context'],
-    ['Total Aid Mobilized (Period)', kpis.totalMobilizedPhp || 0, fmtPhp(kpis.totalMobilizedPhp), `${fmtEth(kpis.totalMobilizedEth)} across ${kpis.txCount || 0} verified gifts`],
+    ['Total Aid Mobilized (Period)', kpis.totalMobilizedPhp || 0, fmtPhp(kpis.totalMobilizedPhp), `${fmtEth(kpis.totalMobilizedEth)} across ${kpis.txCount || 0} verified donations`],
     ['All-Time Mobilized Aid', kpis.allTimeMobilizedPhp || 0, fmtPhp(kpis.allTimeMobilizedPhp), fmtEth(kpis.allTimeMobilizedEth)],
     ['Average Contribution Size', kpis.avgGiftPhp || 0, fmtPhp(kpis.avgGiftPhp), 'Per verified donation record in selected period'],
     ['Disbursed Humanitarian Aid', kpis.totalDisbursedPhp || 0, fmtPhp(kpis.totalDisbursedPhp), `${kpis.utilizationPct || 0}% utilization rate of total mobilized funds`],
@@ -138,7 +138,7 @@ export function exportExcelWorkbook(analytics, options = {}) {
     [isAdmin ? 'DAILY CONTRIBUTION & DISBURSEMENT TRENDS' : 'NGO DAILY INFLOW & DISBURSEMENT TRENDS'],
     [`Window: ${analytics?.meta?.rangeLabel || '30D'} · Generated: ${formatPhtNow(analytics?.meta?.generatedAt)}`],
     [],
-    ['Date (PHT)', 'Display Label', 'Verified Gifts', 'Crypto Inflow (PHP)', 'Fiat Inflow (PHP)', 'Total Inflow (PHP)', 'ETH Volume', 'Disbursed Aid (PHP)']
+    ['Date (PHT)', 'Display Label', 'Verified Donations', 'Crypto Inflow (PHP)', 'Fiat Inflow (PHP)', 'Total Inflow (PHP)', 'ETH Volume', 'Disbursed Aid (PHP)']
   ];
   let sumTx = 0, sumCrypto = 0, sumFiat = 0, sumTotal = 0, sumEth = 0, sumDisb = 0;
   trends.forEach((t) => {
