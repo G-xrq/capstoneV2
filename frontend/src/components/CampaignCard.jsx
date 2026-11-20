@@ -328,13 +328,13 @@ export const getTransactionRailMeta = (txHash, paymentMethod = '') => {
     };
   }
   return {
-    railKey: 'ONCHAIN',
-    name: 'Web3 Sepolia',
-    badgeClass: 'rail-badge-onchain',
-    icon: 'token',
-    dotClass: 'onchain-dot',
-    color: '#f59e0b',
-    isWeb3: true
+    railKey: 'CARD',
+    name: 'Cards & Bank',
+    badgeClass: 'rail-badge-card',
+    icon: 'credit_card',
+    dotClass: 'card-dot',
+    color: '#a855f7',
+    isWeb3: hash.startsWith('0X') && hash.length === 66
   };
 };
 
@@ -1753,8 +1753,8 @@ export default function CampaignCard(props) {
       const currentEth = parseFloat(camp.currentAmount || 0);
       // Meaningful epsilon (0.000001 ETH ~ 0.17 PHP) strictly prevents IEEE-754 precision noise from creating phantom donors
       if (currentEth > totalTracked + 0.000001) {
-        ethAmt += (currentEth - totalTracked);
-        if (ethCnt === 0 && (!history || history.length === 0)) ethCnt = 1;
+        bankAmt += (currentEth - totalTracked);
+        if (bankCnt === 0 && (!history || history.length === 0)) bankCnt = 1;
       }
 
       // Exact count of actual ledger donations
@@ -1786,10 +1786,10 @@ export default function CampaignCard(props) {
     const currentEth = parseFloat(camp.currentAmount || 0);
     const apiBackers = camp.totalBackers ?? camp.donorsCount ?? (currentEth > 0 ? 1 : 0);
     return {
-      eth: { amount: currentEth, php: Math.round(currentEth * 170000), count: apiBackers > 0 ? 1 : 0 },
+      eth: { amount: 0, php: 0, count: 0 },
       gcash: { amount: 0, php: 0, count: 0 },
       maya: { amount: 0, php: 0, count: 0 },
-      bank: { amount: 0, php: 0, count: 0 },
+      bank: { amount: currentEth, php: Math.round(currentEth * 170000), count: apiBackers > 0 ? 1 : 0 },
       totalRaisedEth: currentEth,
       totalRaisedPhp: Math.round(currentEth * 170000),
       totalBackers: apiBackers
@@ -2840,7 +2840,7 @@ export default function CampaignCard(props) {
               globalAmountEth: globalEth,
               globalAmountPhp: globalPhp,
               txHash: d.Tx_Hash,
-              paymentMethod: d.paymentMethod || d.Payment_Method || 'Crypto',
+              paymentMethod: d.paymentMethod || d.Payment_Method || 'Bank / Card',
               createdAt: d.createdAt
             };
           });
@@ -2878,7 +2878,7 @@ export default function CampaignCard(props) {
                 globalAmountEth: gEth,
                 globalAmountPhp: gPhp,
                 txHash: txHash,
-                paymentMethod: 'Crypto',
+                paymentMethod: 'Bank / Card',
                 createdAt: new Date().toISOString()
               });
 
@@ -3162,18 +3162,7 @@ export default function CampaignCard(props) {
                     </div>
 
                     <div className="drawer-compact-list">
-                      {breakdown.eth.php > 0 && (
-                        <div className="drawer-compact-row">
-                          <div className="drawer-compact-left">
-                            <span className="drawer-compact-pip pip-eth"></span>
-                            <span className="drawer-compact-name">Legacy Verified</span>
-                          </div>
-                          <div className="drawer-compact-right">
-                            <span className="drawer-compact-val">₱{breakdown.eth.php.toLocaleString()}</span>
-                            <span className="drawer-compact-pct">{ethShare}%</span>
-                          </div>
-                        </div>
-                      )}
+
                       <div className="drawer-compact-row">
                         <div className="drawer-compact-left">
                           <span className="drawer-compact-pip pip-gcash"></span>
@@ -3231,14 +3220,7 @@ export default function CampaignCard(props) {
               title="Click to view payment rail breakdown"
             >
               <div className="multi-rail-track-inner">
-                {ethSegmentPct > 0 && (
-                  <div 
-                    className="multi-rail-segment rail-segment-eth" 
-                    style={{ width: `${ethSegmentPct}%` }}
-                    onMouseEnter={() => setHoveredRail('eth')}
-                    onMouseLeave={() => setHoveredRail(null)}
-                  />
-                )}
+
                 {gcashSegmentPct > 0 && (
                   <div 
                     className="multi-rail-segment rail-segment-gcash" 
@@ -3269,16 +3251,7 @@ export default function CampaignCard(props) {
               </div>
 
               {/* Direct Segment Tooltips Positioned Right Above The Active Segment */}
-              {hoveredRail === 'eth' && breakdown.eth.php > 0 && (
-                <div 
-                  className="rail-pill-tooltip rail-pill-tooltip-eth is-visible"
-                  style={{ left: `${Math.max(12, Math.min(88, ethSegmentPct / 2))}%`, bottom: 'calc(100% + 8px)' }}
-                >
-                  <div className="rpt-header"><span className="rpt-pip" style={{ background: '#22c55e' }}></span>Legacy Verified</div>
-                  <div className="rpt-amount" style={{ color: '#22c55e' }}>₱{breakdown.eth.php.toLocaleString()}</div>
-                  <div className="rpt-meta">{breakdown.eth.count || 0} verified tx{breakdown.eth.count !== 1 ? 's' : ''} · {ethShare}% of total</div>
-                </div>
-              )}
+
               {hoveredRail === 'gcash' && (
                 <div 
                   className="rail-pill-tooltip rail-pill-tooltip-gcash is-visible"

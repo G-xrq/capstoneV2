@@ -1703,7 +1703,7 @@ export default function OrganizationView({
       badge: 'Operations Hub',
       placement: 'bottom',
       align: 'start',
-      description: 'Your command center header displays your organization name, SEC accreditation badge, and connected wallet address. Use the action buttons to review your verification status or verify the public ledger on Etherscan.'
+      description: 'Your command center header displays your organization name, SEC accreditation badge, and gasless Sepolia audit status. Use the action buttons to review your verification status or verify the public ledger on Etherscan.'
     },
     {
       target: '#tour-ngo-metrics',
@@ -1712,7 +1712,7 @@ export default function OrganizationView({
       badge: 'Mission Analytics',
       placement: 'bottom',
       align: 'center',
-      description: 'Monitor your key organization metrics: active relief campaigns, total donations received across ETH and Philippine e-wallets, completed milestones, and verified escrow funds.'
+      description: 'Monitor your key organization metrics: active relief campaigns, total PHP donations received across GCash, Maya, cards, and bank transfer, completed milestones, and verified escrow funds.'
     },
     {
       target: '#tour-ngo-tab-sec',
@@ -1730,7 +1730,7 @@ export default function OrganizationView({
       badge: 'Campaign Deployment',
       placement: 'right',
       align: 'center',
-      description: 'Launch emergency appeals by setting funding goals in PHP and ETH, calamity type, urgency priority, affected Philippine location, and milestone-based escrow delivery schedules.'
+      description: 'Launch emergency appeals by setting funding goals in Philippine Pesos (PHP), calamity type, urgency priority, affected Philippine location, and milestone-based escrow delivery schedules.'
     },
     {
       target: '#tour-ngo-tab-my-campaigns',
@@ -1748,7 +1748,7 @@ export default function OrganizationView({
       badge: 'Audit Ledger',
       placement: 'right',
       align: 'center',
-      description: 'Review multi-channel financial reconciliation across Ethereum Web3, GCash, Maya, and bank deposits with real-time audit trails and exportable compliance reports.'
+      description: 'Review multi-channel financial reconciliation across GCash, Maya, cards, and bank deposits with gasless Sepolia audit trails and exportable compliance reports.'
     },
     {
       target: '#tour-ngo-tab-radar',
@@ -2083,16 +2083,14 @@ export default function OrganizationView({
   const ledgerTelemetry = useMemo(() => {
     const list = orgDonations || [];
     let totalEth = 0;
-    const railCounts = { eth: 0, gcash: 0, maya: 0, bank: 0, other: 0 };
+    const railCounts = { gcash: 0, maya: 0, bank: 0 };
     list.forEach(d => {
       const amt = parseFloat(d.amount || 0) || 0;
       totalEth += amt;
-      const m = String(d.paymentMethod || 'ETH').toUpperCase();
-      if (m.includes('ETH') || m.includes('CRYPTO') || m.includes('SEPOLIA')) railCounts.eth++;
-      else if (m.includes('GCASH')) railCounts.gcash++;
+      const m = String(d.paymentMethod || '').toUpperCase();
+      if (m.includes('GCASH')) railCounts.gcash++;
       else if (m.includes('MAYA') || m.includes('PAYMAYA')) railCounts.maya++;
-      else if (m.includes('BANK')) railCounts.bank++;
-      else railCounts.other++;
+      else railCounts.bank++;
     });
     return {
       totalEth,
@@ -2117,11 +2115,10 @@ export default function OrganizationView({
 
         // Payment Rail filter
         if (ledgerRailFilter !== 'ALL') {
-          const m = String(d.paymentMethod || 'ETH').toUpperCase();
-          if (ledgerRailFilter === 'ETH' && !m.includes('ETH') && !m.includes('CRYPTO') && !m.includes('SEPOLIA')) return false;
+          const m = String(d.paymentMethod || '').toUpperCase();
           if (ledgerRailFilter === 'GCASH' && !m.includes('GCASH')) return false;
-          if (ledgerRailFilter === 'MAYA' && !m.includes('MAYA')) return false;
-          if (ledgerRailFilter === 'BANK' && !m.includes('BANK')) return false;
+          if (ledgerRailFilter === 'MAYA' && !m.includes('MAYA') && !m.includes('PAYMAYA')) return false;
+          if (ledgerRailFilter === 'BANK' && !m.includes('BANK') && !m.includes('CARD') && !m.includes('CREDIT')) return false;
         }
 
         // Campaign filter
@@ -2168,9 +2165,7 @@ export default function OrganizationView({
       'Campaign Title',
       'Category',
       'Donor Name',
-      'Donor Wallet',
       'Payment Rail',
-      'Amount (ETH)',
       'Amount (PHP)',
       'Transaction Hash',
       'Verification Status'
@@ -2192,9 +2187,7 @@ export default function OrganizationView({
         `"${campTitle.replace(/"/g, '""')}"`,
         `"${catLabel}"`,
         `"${donor.replace(/"/g, '""')}"`,
-        `"${d.donorWallet || ''}"`,
-        `"${d.paymentMethod || 'ETH'}"`,
-        `"${amtEth}"`,
+        `"${d.paymentMethod || 'Bank / Card'}"`,
         `"${amtPhp}"`,
         `"${d.txHash || ''}"`,
         `"Verified On-Chain"`
@@ -2379,7 +2372,7 @@ export default function OrganizationView({
     } catch (err) {
       console.error(err);
       if (err.code !== 'ACTION_REJECTED') {
-        let errMsg = err.reason || err.shortMessage || err.message || 'Please check MetaMask.';
+        let errMsg = err.reason || err.shortMessage || err.message || 'Unable to deploy campaign right now. Please try again.';
         if (typeof errMsg === 'string' && (errMsg.includes('missing revert data') || errMsg.includes('CALL_EXCEPTION'))) {
           errMsg = 'Transaction reverted by the network. Ensure you have sufficient SepoliaETH to deploy this contract.';
         }
@@ -2544,17 +2537,7 @@ export default function OrganizationView({
       <section className="ref-main-content">
         {walletAlertBanner}
 
-        {/* Sleek Inline Testnet Banner
-          <div className="ref-inline-testnet-banner">
-            <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>biotech</span>
-            <span>
-                <strong>Sepolia Testnet Protocol Active</strong> — Verified Smart Contract Operations.{' '}
-              <a href="https://sepoliafaucet.com/" target="_blank" rel="noreferrer" style={{ color: '#38bdf8', textDecoration: 'underline' }}>
-                Get Sepolia ETH →
-              </a>
-            </span>
-          </div>
-          */}
+
 
         {/* ── 1. DASHBOARD OVERVIEW TAB ONLY ── */}
         {activeTab === 'dashboard' && (() => {
@@ -2807,7 +2790,7 @@ export default function OrganizationView({
                   <div className="db-empty-state">
                     <div className="db-empty-icon"><span className="material-symbols-outlined">rocket_launch</span></div>
                     <div className="db-empty-title">You haven't deployed any campaigns yet</div>
-                    <div className="db-empty-desc">Start your first relief operation to receive contributions via crypto, GCash, Maya, and bank rails.</div>
+                    <div className="db-empty-desc">Start your first relief operation to receive contributions via GCash, Maya, cards, and Philippine bank transfer.</div>
                     <button
                       type="button"
                       className="dbo-card-btn primary"
@@ -2911,19 +2894,19 @@ export default function OrganizationView({
                   ) : (
                     <div>
                       {orgDonations.slice(0, 4).map((d, dIdx) => {
-                        const rail = (d.paymentMethod || d.Payment_Method || 'ETH').toUpperCase();
-                        const railClass = rail.includes('GCASH') ? 'gcash' : rail.includes('MAYA') ? 'maya' : rail.includes('BANK') ? 'bank' : 'eth';
+                        const rail = (d.paymentMethod || d.Payment_Method || 'CARD').toUpperCase();
+                        const railClass = rail.includes('GCASH') ? 'gcash' : rail.includes('MAYA') ? 'maya' : 'bank';
                         const ethAmt = parseFloat(d.amount || d.Amount || 0);
                         const phpVal = d.phpAmount || Math.round(ethAmt * 170000);
                         const txHash = d.txHash || d.Tx_Hash;
-                        const donorName = d.donorName || d.donor_name || (d.donorAddress ? shortAddr(d.donorAddress) : 'Generous Contributor');
+                        const donorName = d.donorName || d.donor_name || 'Generous Contributor';
                         const campTitle = d.campaignTitle || d.campaign_title || 'Relief Campaign';
 
                         return (
                           <div className="dbo-feed-row" key={dIdx}>
                             <div className="dbo-feed-info">
                               <span className={`dbo-feed-rail ${railClass}`}>
-                                {rail.includes('GCASH') ? 'GCASH' : rail.includes('MAYA') ? 'MAYA' : rail.includes('BANK') ? 'BANK' : 'ETH'}
+                                {rail.includes('GCASH') ? 'GCASH' : rail.includes('MAYA') ? 'MAYA' : 'BANK / CARD'}
                               </span>
                               <div className="dbo-feed-text">
                                 <div className="dbo-feed-title" title={campTitle}>{campTitle}</div>
@@ -7088,13 +7071,10 @@ export default function OrganizationView({
                   const rawTitle = matchCamp ? matchCamp.title : `Disaster Relief Campaign #${d.campaignId}`;
                   const campTitle = formatCampaignTitle(rawTitle, d.campaignId);
                   const catInfo = getCampaignCategoryInfo(matchCamp);
-                  const method = String(d.paymentMethod || 'ETH').toUpperCase();
-                  const isCrypto = method.includes('ETH') || method.includes('CRYPTO') || method.includes('SEPOLIA');
+                  const method = String(d.paymentMethod || 'CARD').toUpperCase();
                   const isGcash = method.includes('GCASH');
                   const isMaya = method.includes('MAYA');
                   const donorDisplay = d.isAnonymous ? 'Anonymous Supporter' : (d.donorName || 'Public Philanthropist');
-                  const pm = String(d.paymentMethod || 'ETH').toUpperCase();
-                  const isFiat = pm.includes('GCASH') || pm.includes('MAYA') || pm.includes('BANK') || pm.includes('CARD') || String(d.txHash || '').startsWith('FIAT-');
                   const phpVal = Math.round(parseFloat(d.amount || 0) * 170000);
                   const ethVal = parseFloat(d.amount || 0).toFixed(4);
 
@@ -7136,18 +7116,18 @@ export default function OrganizationView({
                       }}>
                         <span className="material-symbols-outlined" style={{
                           fontSize: '20px',
-                          color: isShortage ? '#ef4444' : (isCrypto ? '#c084fc' : isGcash ? '#38bdf8' : isMaya ? '#00d68f' : '#f59e0b')
+                          color: isShortage ? '#ef4444' : (isGcash ? '#38bdf8' : isMaya ? '#00d68f' : '#a855f7')
                         }}>
-                          {isShortage ? 'warning' : (isCrypto ? 'token' : isGcash ? 'payments' : isMaya ? 'account_balance_wallet' : 'credit_card')}
+                          {isShortage ? 'warning' : (isGcash ? 'payments' : isMaya ? 'account_balance_wallet' : 'credit_card')}
                         </span>
                         <span style={{
                           fontSize: '0.52rem',
                           fontWeight: 700,
-                          color: isShortage ? '#ef4444' : (isCrypto ? '#c084fc' : isGcash ? '#38bdf8' : isMaya ? '#00d68f' : '#f59e0b'),
+                          color: isShortage ? '#ef4444' : (isGcash ? '#38bdf8' : isMaya ? '#00d68f' : '#a855f7'),
                           letterSpacing: '0.04em',
                           marginTop: '1px'
                         }}>
-                          {isCrypto ? 'ETH' : isGcash ? 'GCASH' : isMaya ? 'MAYA' : 'CARD'}
+                          {isGcash ? 'GCASH' : isMaya ? 'MAYA' : 'CARD'}
                         </span>
                       </div>
 
@@ -7386,10 +7366,7 @@ export default function OrganizationView({
                         const rawTitle = matchCamp ? matchCamp.title : `Campaign #${d.campaignId}`;
                         const campTitle = formatCampaignTitle(rawTitle, d.campaignId);
                         const donor = d.isAnonymous ? 'Anonymous' : (d.donorName || 'Public Supporter');
-                        const pm = String(d.paymentMethod || 'ETH').toUpperCase();
-                        const isFiat = pm.includes('GCASH') || pm.includes('MAYA') || pm.includes('BANK') || pm.includes('CARD') || String(d.txHash || '').startsWith('FIAT-');
                         const phpVal = Math.round(parseFloat(d.amount || 0) * 170000);
-                        const ethVal = parseFloat(d.amount || 0).toFixed(4);
 
                         const variancePhp = d.variancePhp !== undefined && d.variancePhp !== null ? Number(d.variancePhp) : 0;
                         const declaredPhp = d.declaredPhp !== undefined && d.declaredPhp !== null ? Number(d.declaredPhp) : (variancePhp !== 0 ? (phpVal - variancePhp) : phpVal);
@@ -7433,12 +7410,12 @@ export default function OrganizationView({
                             </td>
                             <td style={{ padding: '12px 14px' }}>
                               <span style={{ padding: '2px 7px', borderRadius: '4px', background: '#181818', border: '1px solid #262626', fontSize: '0.70rem', color: '#cccccc', fontWeight: 600 }}>
-                                {d.paymentMethod || 'ETH'}
+                                {d.paymentMethod || 'Bank / Card'}
                               </span>
                             </td>
                             <td style={{ padding: '12px 14px', fontFamily: 'monospace' }}>
                               <div style={{ color: isShortage ? '#ef4444' : (isOverCredit ? '#f59e0b' : '#10b981'), fontWeight: 750 }}>
-                                {isFiat ? `+₱${phpVal.toLocaleString('en-US')}` : `+${ethVal} ETH`}
+                                +₱{phpVal.toLocaleString('en-US')}
                               </div>
                               {hasVariance && (
                                 <div style={{ fontSize: '0.68rem', color: isShortage ? '#ef4444' : '#f59e0b', fontWeight: 600, marginTop: '2px' }}>
@@ -9207,7 +9184,7 @@ export default function OrganizationView({
                       Payment Method Rail
                     </div>
                     <div style={{ fontSize: '0.92rem', fontWeight: 700, color: '#38bdf8' }}>
-                      {selectedVoucherTx.paymentMethod || 'ETH'}
+                      {selectedVoucherTx.paymentMethod || 'Bank / Card'}
                     </div>
                   </div>
 

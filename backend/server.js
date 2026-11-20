@@ -5816,12 +5816,9 @@ async function loadCampaignsFromDb() {
         } else if (pMethod.includes('MAYA') || hash.startsWith('FIAT-MAYA') || hash.includes('MAYA')) {
           txByCampaign[cId].mayaAmount += amt;
           txByCampaign[cId].mayaCount++;
-        } else if (pMethod.includes('BANK') || pMethod.includes('CARD') || hash.startsWith('FIAT-BANK') || hash.startsWith('FIAT-CRED') || hash.includes('BANK') || hash.includes('CARD')) {
+        } else {
           txByCampaign[cId].bankAmount += amt;
           txByCampaign[cId].bankCount++;
-        } else {
-          txByCampaign[cId].ethAmount += amt;
-          txByCampaign[cId].ethCount++;
         }
       });
     }

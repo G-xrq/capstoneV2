@@ -901,8 +901,7 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
           if (receiptFilter !== catInfo.prefix && receiptFilter !== catInfo.code) return false;
         }
         if (receiptRailFilter !== 'ALL') {
-          const pm = String(d.paymentMethod || 'ETH').toUpperCase();
-          if (receiptRailFilter === 'ETH' && !pm.includes('ETH') && !pm.includes('CRYPTO') && !pm.includes('SEPOLIA')) return false;
+          const pm = String(d.paymentMethod || 'CARD').toUpperCase();
           if (receiptRailFilter === 'GCASH' && !pm.includes('GCASH')) return false;
           if (receiptRailFilter === 'MAYA' && !pm.includes('MAYA')) return false;
           if (receiptRailFilter === 'CARD' && !pm.includes('CARD') && !pm.includes('BANK')) return false;
@@ -1365,7 +1364,7 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
                     <div>
                       {myDonations.slice(0, 4).map((d, dIdx) => {
                         const rail = (d.paymentMethod || d.Payment_Method || 'PHP').toUpperCase();
-                        const railClass = rail.includes('GCASH') ? 'gcash' : rail.includes('MAYA') ? 'maya' : (rail.includes('BANK') || rail.includes('CARD')) ? 'bank' : 'eth';
+                        const railClass = rail.includes('GCASH') ? 'gcash' : rail.includes('MAYA') ? 'maya' : 'bank';
                         const ethAmt = parseFloat(d.amount || d.Amount || 0);
                         const phpVal = d.phpAmount || Math.round(ethAmt * 170000);
                         const txHash = d.txHash || d.Tx_Hash;
@@ -2241,7 +2240,7 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
                   </div>
                   <h3 className="db-empty-title">No contributions recorded yet</h3>
                   <p className="db-empty-desc">
-                    When you support any active disaster relief campaign using GCash, Maya, Bank Transfer, or Crypto, your digital receipts and on-chain proofs will appear here.
+                    When you support any active disaster relief campaign using GCash, Maya, Card, or Bank Transfer, your digital receipts and gasless Sepolia audit proofs will appear here.
                   </p>
                   <div className="db-empty-action">
                     <button
@@ -2287,13 +2286,12 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
                     const coverData = getCampaignCoverData(matchCamp);
                     const orgName   = getOrgDisplayName(matchCamp.orgAddress, matchCamp.orgName, d.campaignId);
 
-                    const pm = (d.paymentMethod || 'ETH').toUpperCase();
-                    const isCard = pm.includes('CARD');
+                    const pm = (d.paymentMethod || 'CARD').toUpperCase();
                     const isGcash = pm.includes('GCASH');
                     const isMaya = pm.includes('MAYA');
-                    const railColor = isCard ? '#f59e0b' : isGcash ? '#007DFE' : isMaya ? '#10b981' : '#6366f1';
-                    const railBg = isCard ? 'rgba(245, 158, 11, 0.1)' : isGcash ? 'rgba(0, 125, 254, 0.1)' : isMaya ? 'rgba(16, 185, 129, 0.1)' : 'rgba(99, 102, 241, 0.1)';
-                    const railIcon = isCard ? 'credit_card' : isGcash ? 'smartphone' : isMaya ? 'account_balance_wallet' : 'token';
+                    const railColor = isGcash ? '#007DFE' : isMaya ? '#10b981' : '#a855f7';
+                    const railBg = isGcash ? 'rgba(0, 125, 254, 0.1)' : isMaya ? 'rgba(16, 185, 129, 0.1)' : 'rgba(168, 85, 247, 0.1)';
+                    const railIcon = isGcash ? 'smartphone' : isMaya ? 'account_balance_wallet' : 'credit_card';
                     const ethAmt = parseFloat(d.amount || 0);
                     const phpAmt = Math.round(ethAmt * 170000);
                     const isShortage = d.auditStatus === 'SHORTAGE';

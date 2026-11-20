@@ -1053,11 +1053,10 @@ export function DonorTierModal({
     if (!Array.isArray(donorTransactions)) return 0;
     if (railId === 'ALL') return donorTransactions.length;
     return donorTransactions.filter(t => {
-      const pm = (t.paymentMethod || 'ETH').toUpperCase();
-      if (railId === 'CARD' || railId === 'CREDIT CARD') return pm.includes('CARD') || pm.includes('BANK');
+      const pm = (t.paymentMethod || 'CARD').toUpperCase();
+      if (railId === 'CARD' || railId === 'CREDIT CARD') return pm.includes('CARD') || pm.includes('BANK') || pm.includes('CREDIT');
       if (railId === 'GCASH') return pm.includes('GCASH');
       if (railId === 'MAYA') return pm.includes('MAYA');
-      if (railId === 'ETH') return pm.includes('ETH') || pm.includes('CRYPTO') || pm.includes('SEPOLIA');
       return false;
     }).length;
   }, [donorTransactions]);
@@ -1118,11 +1117,10 @@ export function DonorTierModal({
   const filteredTxList = useMemo(() => {
     if (ledgerFilter === 'ALL') return donorTransactions;
     return donorTransactions.filter(t => {
-      const pm = (t.paymentMethod || 'ETH').toUpperCase();
-      if (ledgerFilter === 'CREDIT CARD' || ledgerFilter === 'CARD') return pm.includes('CARD') || pm.includes('BANK');
+      const pm = (t.paymentMethod || 'CARD').toUpperCase();
+      if (ledgerFilter === 'CREDIT CARD' || ledgerFilter === 'CARD') return pm.includes('CARD') || pm.includes('BANK') || pm.includes('CREDIT');
       if (ledgerFilter === 'GCASH') return pm.includes('GCASH');
       if (ledgerFilter === 'MAYA') return pm.includes('MAYA');
-      if (ledgerFilter === 'ETH') return pm.includes('ETH') || pm.includes('CRYPTO') || pm.includes('SEPOLIA');
       return true;
     });
   }, [donorTransactions, ledgerFilter]);
@@ -1567,13 +1565,12 @@ export function DonorTierModal({
             ) : (
               <div className="donor-ledger-list donor-data-fade-in">
                 {pagedTxList.map((tx, idx) => {
-                  const pm = (tx.paymentMethod || 'ETH').toUpperCase();
-                  const isCard = pm.includes('CARD');
+                  const pm = (tx.paymentMethod || 'CARD').toUpperCase();
                   const isGcash = pm.includes('GCASH');
                   const isMaya = pm.includes('MAYA');
-                  const railColor = isCard ? '#f59e0b' : isGcash ? '#007DFE' : isMaya ? '#10b981' : '#8b5cf6';
-                  const railBg = isCard ? 'rgba(245, 158, 11, 0.12)' : isGcash ? 'rgba(0, 125, 254, 0.12)' : isMaya ? 'rgba(16, 185, 129, 0.12)' : 'rgba(139, 92, 246, 0.12)';
-                  const railIcon = isCard ? 'credit_card' : isGcash ? 'smartphone' : isMaya ? 'account_balance_wallet' : 'token';
+                  const railColor = isGcash ? '#007DFE' : isMaya ? '#10b981' : '#a855f7';
+                  const railBg = isGcash ? 'rgba(0, 125, 254, 0.12)' : isMaya ? 'rgba(16, 185, 129, 0.12)' : 'rgba(168, 85, 247, 0.12)';
+                  const railIcon = isGcash ? 'smartphone' : isMaya ? 'account_balance_wallet' : 'credit_card';
                   const ethAmt = parseFloat(tx.amount || 0);
                   const phpAmt = Math.round(ethAmt * 170000);
                   const txHashClean = tx.txHash || '';
@@ -1605,7 +1602,7 @@ export function DonorTierModal({
 
                         <div className="donor-ledger-sub-line">
                           <span className="donor-ledger-rail-name" style={{ color: railColor }}>
-                            {tx.paymentMethod || 'ETH'}
+                            {(tx.paymentMethod && !/eth|crypto|metamask/i.test(tx.paymentMethod)) ? tx.paymentMethod : 'Bank / Card'}
                           </span>
                           <span className="donor-ledger-sep">•</span>
                           <span>{formattedDate}</span>

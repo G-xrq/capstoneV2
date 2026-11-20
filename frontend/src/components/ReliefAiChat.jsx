@@ -373,7 +373,7 @@ export default function ReliefAiChat({
         icon: 'receipt_long',
         title: 'Analyze My Receipts',
         sub: 'Review verified on-chain donation history',
-        prompt: 'Can you read my donation history on this screen, summarize my total contributions in ETH and PHP, and tell me my donor recognition tier?'
+        prompt: 'Can you read my donation history on this screen, summarize my total PHP contributions, and tell me my donor recognition tier?'
       });
       starters.push({
         icon: 'verified',
@@ -846,7 +846,7 @@ export default function ReliefAiChat({
                 </div>
                 <div className="bbdrts-copilot-header-sub">
                   <span className="bbdrts-copilot-status-badge" />
-                  <span>BBDRTS Web3 Assistant</span>
+                  <span>BBDRTS Relief Assistant</span>
                 </div>
               </div>
             </div>
@@ -1000,7 +1000,7 @@ export default function ReliefAiChat({
                   </div>
                   <h3 className="bbdrts-copilot-welcome-title">Welcome to ReliefAI</h3>
                   <p className="bbdrts-copilot-welcome-subtitle">
-                    Your intelligent Web3 assistant for verified disaster relief, on-chain donation tracking, and smart contract transparency.
+                    Your intelligent humanitarian assistant for verified disaster relief, PHP donation tracking, and gasless blockchain audit transparency.
                   </p>
                 </div>
 
@@ -1062,7 +1062,7 @@ export default function ReliefAiChat({
                                 <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>location_on</span>
                                 {camp.Location_Region || 'Philippines'}
                               </span>
-                              <span>Target: <strong>{camp.Target_Amount} ETH</strong></span>
+                              <span>Target: <strong>₱{Math.round(Number(camp.Target_Amount_Php || (parseFloat(camp.Target_Amount || 0) * 170000))).toLocaleString('en-US')}</strong></span>
                             </div>
                           </div>
                         ))}

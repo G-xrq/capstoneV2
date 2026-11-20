@@ -173,7 +173,7 @@ export default function AdminBroadcastPanel({ onActiveCountChange }) {
             Broadcast &amp; Alerts
           </h2>
           <p className="admin-page-sub">
-            Publish real-time disaster warnings, Ethereum Sepolia status alerts, and relief milestone advisories visible across all platform views.
+            Publish real-time disaster warnings, platform status alerts, and relief milestone advisories visible across all platform views.
           </p>
         </div>
 

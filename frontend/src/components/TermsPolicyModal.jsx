@@ -220,7 +220,7 @@ export default function TermsPolicyModal({ isOpen, onClose, initialTab = 'agreem
                   <p>
                     Welcome to the <strong>Blockchain-Based Donation &amp; Relief Transparency System (BBDRTS)</strong>. 
                     By accessing our application, creating an institutional or donor profile, contributing humanitarian funds 
-                    via Ethereum (Sepolia EVM) or Philippine digital fiat payment rails (GCash, Maya, Bank Transfer), 
+                    via Philippine digital payment rails (GCash, Maya, Cards, and Bank Transfer), 
                     or publishing relief campaigns, you agree to enter into a legally binding contract governed by the 
                     laws of the Republic of the Philippines.
                   </p>

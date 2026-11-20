@@ -366,7 +366,7 @@ export default function AdminView({
       title: 'Multi-Rail Finance & Disbursements',
       icon: 'receipt_long',
       badge: 'Inflows & Proofs',
-      description: 'Audit incoming crypto and fiat contributions (GCash, Maya, Bank) alongside NGO disbursement manifests and beneficiary delivery proofs.',
+      description: 'Audit incoming Philippine Peso contributions (GCash, Maya, Bank & Card) alongside NGO disbursement manifests and beneficiary delivery proofs.',
       placement: 'right'
     },
     {
@@ -912,7 +912,8 @@ export default function AdminView({
         const hasEtherscanTx = txHashStr.startsWith('0x') && txHashStr.length === 66;
         return {
           ...tx,
-          isCrypto: hasEtherscanTx,
+          isCrypto: false,
+          hasEtherscanTx,
           isNotarized: true,
           amountEth: amtEth,
           rail: normalizedRail,
@@ -1839,7 +1840,7 @@ export default function AdminView({
                         <span>Recent Multi-Rail Contributions</span>
                       </h3>
                       <p className="admin-card-desc">
-                        Latest incoming donations across crypto and fiat rails.
+                        Latest incoming donations across GCash, Maya, Bank, and Card rails.
                       </p>
                     </div>
                     <button
@@ -1860,7 +1861,6 @@ export default function AdminView({
                   ) : (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                       {unifiedLedgerList.slice(0, 5).map((tx, idx) => {
-                        const isCrypto = tx.isCrypto;
                         const isGcash = (tx.rail || '').toLowerCase().includes('gcash');
                         const isMaya = (tx.rail || '').toLowerCase().includes('maya');
 
@@ -1874,9 +1874,9 @@ export default function AdminView({
                             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0, flex: 1 }}>
                               <span className="material-symbols-outlined" style={{
                                 fontSize: '20px',
-                                color: isCrypto ? '#c084fc' : isGcash ? '#38bdf8' : isMaya ? '#00d68f' : '#f59e0b'
+                                color: isGcash ? '#38bdf8' : isMaya ? '#00d68f' : '#a855f7'
                               }}>
-                                {isCrypto ? 'token' : isGcash ? 'payments' : isMaya ? 'account_balance_wallet' : 'credit_card'}
+                                {isGcash ? 'payments' : isMaya ? 'account_balance_wallet' : 'credit_card'}
                               </span>
                               <div style={{ minWidth: 0 }}>
                                 <div style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -1893,7 +1893,7 @@ export default function AdminView({
                                 +₱{tx.phpAmount.toLocaleString()}
                               </div>
                               <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>
-                                {isCrypto ? `≈ ${tx.displayAmount}` : (tx.rail || 'Direct Settlement')}
+                                {tx.rail || 'Direct Settlement'}
                               </div>
                             </div>
                           </div>
@@ -3382,7 +3382,6 @@ export default function AdminView({
                         {paginatedLedger.map((tx, idx) => {
                           const isGcash = (tx.rail || '').toLowerCase().includes('gcash');
                           const isMaya = (tx.rail || '').toLowerCase().includes('maya');
-                          const isCrypto = tx.isCrypto;
                           const isVerified = (tx.status || '').toLowerCase().includes('verified');
                           const isRejected = (tx.status || '').toLowerCase().includes('reject');
 
@@ -3393,11 +3392,11 @@ export default function AdminView({
                               </td>
 
                               <td>
-                                <span className={`badge-status ${isCrypto ? 'purple' : isGcash ? 'sky' : isMaya ? 'success' : 'warning'}`}>
+                                <span className={`badge-status ${isGcash ? 'sky' : isMaya ? 'success' : 'purple'}`}>
                                   <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>
-                                    {isCrypto ? 'token' : isGcash ? 'payments' : isMaya ? 'account_balance_wallet' : 'credit_card'}
+                                    {isGcash ? 'payments' : isMaya ? 'account_balance_wallet' : 'credit_card'}
                                   </span>
-                                  <span>{isCrypto ? 'ETH' : isGcash ? 'GCash' : isMaya ? 'Maya' : 'Card'}</span>
+                                  <span>{isGcash ? 'GCash' : isMaya ? 'Maya' : 'Bank / Card'}</span>
                                 </span>
                               </td>
 
@@ -3445,7 +3444,7 @@ export default function AdminView({
                               </td>
 
                               <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
-                                {isCrypto ? (
+                                {tx.hasEtherscanTx ? (
                                   <a
                                     href={`https://sepolia.etherscan.io/tx/${tx.refCode}`}
                                     target="_blank"
@@ -3480,7 +3479,6 @@ export default function AdminView({
                     {paginatedLedger.map((tx, idx) => {
                       const isGcash = (tx.rail || '').toLowerCase().includes('gcash');
                       const isMaya = (tx.rail || '').toLowerCase().includes('maya');
-                      const isCrypto = tx.isCrypto;
 
                       return (
                         <div
@@ -3506,12 +3504,12 @@ export default function AdminView({
                           }}>
                             <span className="material-symbols-outlined" style={{
                               fontSize: '18px',
-                              color: isCrypto ? '#c084fc' : isGcash ? '#38bdf8' : isMaya ? '#10b981' : '#f59e0b'
+                              color: isGcash ? '#38bdf8' : isMaya ? '#10b981' : '#a855f7'
                             }}>
-                              {isCrypto ? 'token' : isGcash ? 'payments' : isMaya ? 'account_balance_wallet' : 'credit_card'}
+                              {isGcash ? 'payments' : isMaya ? 'account_balance_wallet' : 'credit_card'}
                             </span>
                             <span style={{ fontSize: '0.50rem', fontWeight: 700, color: 'var(--text-muted)' }}>
-                              {isGcash ? 'GCASH' : isMaya ? 'MAYA' : 'BANK'}
+                              {isGcash ? 'GCASH' : isMaya ? 'MAYA' : 'CARD'}
                             </span>
                           </div>
 

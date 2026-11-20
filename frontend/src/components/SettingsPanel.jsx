@@ -183,68 +183,7 @@ export default function SettingsPanel({
     }
   };
 
-  // Web3 / Sepolia Network Detection
-  const [currentChainId, setCurrentChainId] = useState(null);
 
-  useEffect(() => {
-    if (typeof window !== 'undefined' && window.ethereum) {
-      window.ethereum.request({ method: 'eth_chainId' }).then(chain => {
-        setCurrentChainId(chain);
-      }).catch(() => {});
-
-      const handleChainChanged = (chainId) => {
-        setCurrentChainId(chainId);
-      };
-      if (window.ethereum.on) {
-        window.ethereum.on('chainChanged', handleChainChanged);
-      }
-      return () => {
-        if (window.ethereum?.removeListener) {
-          window.ethereum.removeListener('chainChanged', handleChainChanged);
-        }
-      };
-    }
-  }, []);
-
-  const isSepolia = currentChainId === '0xaa36a7' || currentChainId === '11155111' || currentChainId === 11155111;
-
-  const handleSwitchToSepolia = async () => {
-    if (typeof window === 'undefined' || !window.ethereum) {
-      showError('MetaMask or Web3 wallet extension not detected in this browser.', 'Wallet Extension Missing');
-      return;
-    }
-    try {
-      await window.ethereum.request({
-        method: 'wallet_switchEthereumChain',
-        params: [{ chainId: '0xaa36a7' }]
-      });
-      setCurrentChainId('0xaa36a7');
-      showSuccess('Switched to Ethereum Sepolia Testnet.', 'Network Switched');
-    } catch (switchError) {
-      if (switchError.code === 4902) {
-        try {
-          await window.ethereum.request({
-            method: 'wallet_addEthereumChain',
-            params: [
-              {
-                chainId: '0xaa36a7',
-                chainName: 'Sepolia test network',
-                nativeCurrency: { name: 'Sepolia ETH', symbol: 'ETH', decimals: 18 },
-                rpcUrls: ['https://rpc.sepolia.org'],
-                blockExplorerUrls: ['https://sepolia.etherscan.io']
-              }
-            ]
-          });
-          setCurrentChainId('0xaa36a7');
-          showSuccess('Added and switched to Sepolia test network.', 'Network Added');
-        } catch (addError) {
-          showError(addError?.message || 'Failed to add Sepolia network.', 'Network Error');
-        }
-      } else {
-        showError(switchError?.message || 'Failed to switch network.', 'Network Switch Failed');
-      }
-    }
-  };
 
   // Helper to format registration date
   function formatMemberSince(dateVal) {
