@@ -1394,22 +1394,23 @@
   text-decoration: underline;
 }
 
-/* Mobile adaptation for visualizer */
+/* Mobile adaptation for visualizer (preserves full desktop visual architecture) */
 @media (max-width: 520px) {
   .bbdrts-hero-right {
-    padding: 0;
+    padding: 0 14px;
+    box-sizing: border-box;
   }
   .bdr-process-backdrop {
-    inset: -12px 0;
+    inset: -12px -10px;
     transform: none !important;
   }
   .bdr-flow-svg {
-    display: none;
+    display: block;
   }
   .bdr-process-visualizer {
-    gap: 12px;
+    gap: 22px;
     max-width: 100%;
-    overflow: hidden;
+    overflow: visible;
     transform: none !important;
   }
   .bdr-tilt-glare {
@@ -1420,48 +1421,69 @@
   .bdr-record-card {
     transform: none !important;
   }
-  .bdr-campaign-card,
-  .bdr-record-card {
-    height: auto;
+  .bdr-campaign-card {
+    height: 112px;
     padding: 12px 14px;
     gap: 12px;
   }
+  .bdr-record-card {
+    height: auto;
+    min-height: 104px;
+    padding: 12px 14px;
+    gap: 12px;
+  }
+  .bdr-record-title {
+    font-size: 0.78rem;
+  }
   .bdr-record-stage-tag {
-    display: none;
+    display: inline-block;
+    font-size: 0.56rem;
+    padding-left: 6px;
   }
   .bdr-campaign-thumb-wrap {
     width: 72px;
-    height: 64px;
+    height: 68px;
   }
   .bdr-campaign-info {
     height: auto;
     gap: 6px;
   }
+  .bdr-campaign-nav-btn {
+    width: 24px;
+    height: 24px;
+    opacity: 0.92;
+    pointer-events: auto;
+    transform: translateY(-50%) scale(1);
+  }
   .bdr-campaign-nav-btn.prev {
-    left: 4px;
+    left: -12px;
   }
   .bdr-campaign-nav-btn.next {
-    right: 4px;
+    right: -12px;
   }
   .bdr-flow-steps-row {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 6px;
-    height: auto;
+    grid-template-columns: 1fr 12px 1fr 12px 1fr 12px 1fr;
+    gap: 2px;
+    height: 76px;
   }
   .bdr-flow-step-btn {
     height: 74px;
     padding: 6px 2px;
   }
   .bdr-step-arrow {
-    display: none;
+    display: flex;
+  }
+  .bdr-step-arrow svg {
+    width: 11px;
+    height: 11px;
   }
   .bdr-record-cube-col {
-    width: 52px;
-    height: 52px;
+    width: 50px;
+    height: 50px;
   }
   .bdr-record-meta-grid {
-    grid-template-columns: 1fr;
-    gap: 6px;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
   }
 }
 

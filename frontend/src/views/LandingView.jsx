@@ -992,7 +992,7 @@ export default function LandingView({
                   <div className="bdr-tilt-glare" aria-hidden="true" />
 
                   {/* SVG Architectural Connecting Pipeline Bus (Height 126 + 28 + 86 + 28 + 112 = 380) */}
-                  <svg className="bdr-flow-svg" viewBox="0 0 480 380" fill="none" aria-hidden="true">
+                  <svg className="bdr-flow-svg" viewBox="0 0 480 380" preserveAspectRatio="none" fill="none" aria-hidden="true">
                     {/* 1. Left Inflow Rail: Top Campaign (0,63) -> Donate (0,197) */}
                     <path
                       d="M 0 63 H -10 A 10 10 0 0 0 -20 73 V 187 A 10 10 0 0 0 -10 197 H 0"
