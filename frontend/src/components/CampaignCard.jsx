@@ -1212,6 +1212,7 @@ export default function CampaignCard(props) {
   const [activeIntent, setActiveIntent] = useState(null);
   const [instantLoading, setInstantLoading] = useState(false);
   const [instantSimulating, setInstantSimulating] = useState(false);
+  const [instantSettlingOnChain, setInstantSettlingOnChain] = useState(false);
   const [instantReceipt, setInstantReceipt] = useState(null);
 
   const handleSimulateXenditQr = async () => {
@@ -1224,14 +1225,13 @@ export default function CampaignCard(props) {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || 'Xendit test simulation failed.');
+      setInstantSettlingOnChain(false);
       setInstantReceipt(data);
       setTxHash(data.txHash || '');
       showSuccess?.(
         `₱${Number(data.amountPhp || activeIntent.amountPhp).toLocaleString('en-US')} verified via Xendit QR Ph & notarized on Sepolia!`,
         'Dynamic QR Ph Verified'
       );
-      window.dispatchEvent(new CustomEvent('bbdrts_donation_success'));
-      onDonated?.();
       fetchHistory(true);
     } catch (err) {
       showWarning?.(err.message || 'Simulation failed.', 'Xendit Test Error');
@@ -1319,7 +1319,10 @@ export default function CampaignCard(props) {
         const res = await fetch(`${API_URL}/api/payments/intent/${activeIntent.intentId}`);
         if (res.ok) {
           const row = await res.json();
-          if (row.Status === 'COMPLETED' && row.Tx_Hash) {
+          if (row.Status === 'SETTLING') {
+            setInstantSettlingOnChain(true);
+          } else if (row.Status === 'COMPLETED' && row.Tx_Hash) {
+            setInstantSettlingOnChain(false);
             setInstantReceipt({
               txHash: row.Tx_Hash,
               trackingCode: row.Tracking_Code,
@@ -1327,13 +1330,15 @@ export default function CampaignCard(props) {
               paymentMethod: row.Payment_Method || activeIntent.paymentMethod
             });
             setTxHash(row.Tx_Hash);
-            window.dispatchEvent(new CustomEvent('bbdrts_donation_success'));
-            onDonated?.();
+            showSuccess?.(
+              `₱${Number(row.Amount_Php || activeIntent.amountPhp).toLocaleString('en-US')} verified via ${row.Payment_Method || activeIntent.paymentMethod} and sealed on Sepolia!`,
+              'Donation Confirmed'
+            );
             fetchHistory(true);
           }
         }
       } catch (_) {}
-    }, 3000);
+    }, 1800);
     return () => clearInterval(iv);
   }, [donateStep, activeIntent, instantReceipt]);
 
@@ -6173,46 +6178,138 @@ export default function CampaignCard(props) {
                     </div>
                     <button
                       type="button"
-                      onClick={() => { setDonateStep(0); setInstantReceipt(null); }}
+                      onClick={() => {
+                        if (instantReceipt) {
+                          window.dispatchEvent(new CustomEvent('bbdrts_donation_success'));
+                          onDonated?.();
+                          setModalOpen(false);
+                        }
+                        setDonateStep(0);
+                        setInstantReceipt(null);
+                        setInstantSettlingOnChain(false);
+                      }}
                       style={{ background: 'var(--bg-input, rgba(255,255,255,0.05))', border: '1px solid var(--border, rgba(255,255,255,0.1))', color: 'var(--text-muted, #94a3b8)', width: '32px', height: '32px', borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                      title="Back"
+                      title="Close"
                     >
                       <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>close</span>
                     </button>
                   </div>
 
                   {instantReceipt ? (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', padding: '18px', borderRadius: '12px', background: 'rgba(16, 185, 129, 0.08)', border: '1px solid rgba(16, 185, 129, 0.3)', textAlign: 'center' }}>
-                      <span className="material-symbols-outlined" style={{ fontSize: '42px', color: '#10b981', margin: '0 auto' }}>verified</span>
-                      <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-primary, #fff)' }}>
+                    <div
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        gap: '12px',
+                        padding: '24px 20px',
+                        borderRadius: '14px',
+                        background: 'linear-gradient(180deg, rgba(16, 185, 129, 0.12) 0%, rgba(16, 185, 129, 0.03) 100%)',
+                        border: '1px solid rgba(16, 185, 129, 0.35)',
+                        textAlign: 'center',
+                        animation: 'bbdrtsSuccessPop 0.48s cubic-bezier(0.16, 1, 0.3, 1) both'
+                      }}
+                    >
+                      <style>{`
+                        @keyframes bbdrtsSuccessPop {
+                          0% { opacity: 0; transform: translateY(10px) scale(0.96); }
+                          100% { opacity: 1; transform: translateY(0) scale(1); }
+                        }
+                        @keyframes bbdrtsRingPulse {
+                          0% { transform: scale(0.82); opacity: 0.7; }
+                          100% { transform: scale(1.42); opacity: 0; }
+                        }
+                        @keyframes bbdrtsCheckDraw {
+                          0% { stroke-dashoffset: 48; }
+                          100% { stroke-dashoffset: 0; }
+                        }
+                      `}</style>
+
+                      <div style={{ position: 'relative', width: '64px', height: '64px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <span style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: '2px solid rgba(16, 185, 129, 0.55)', animation: 'bbdrtsRingPulse 1.4s cubic-bezier(0.16, 1, 0.3, 1) infinite' }} />
+                        <div style={{ width: '58px', height: '58px', borderRadius: '50%', background: 'rgba(16, 185, 129, 0.16)', border: '1.5px solid #10b981', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+                            <path
+                              d="M6.5 14.5L11.5 19.5L21.5 9"
+                              stroke="#10b981"
+                              strokeWidth="3"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              style={{ strokeDasharray: 48, strokeDashoffset: 0, animation: 'bbdrtsCheckDraw 0.55s cubic-bezier(0.22, 1, 0.36, 1) 0.12s both' }}
+                            />
+                          </svg>
+                        </div>
+                      </div>
+
+                      <div style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#10b981' }}>
+                        Payment Confirmed · Sealed on Ethereum Sepolia
+                      </div>
+
+                      <div style={{ fontSize: '2rem', fontWeight: 800, letterSpacing: '-0.03em', color: 'var(--text-primary, #fff)', lineHeight: 1.1 }}>
                         ₱{Number(instantReceipt.amountPhp || activeIntent.amountPhp).toLocaleString('en-US')}
                       </div>
-                      <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary, #cbd5e1)' }}>
-                        Settled via <strong>{instantReceipt.paymentMethod || activeIntent.paymentMethod}</strong> · Ref <code>{instantReceipt.trackingCode || activeIntent.trackingCode}</code>
+
+                      <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary, #cbd5e1)', maxWidth: '380px' }}>
+                        Donated to <strong style={{ color: 'var(--text-primary, #fff)' }}>{camp.title}</strong> via{' '}
+                        <strong>{instantReceipt.paymentMethod || activeIntent.paymentMethod}</strong> · Ref{' '}
+                        <code style={{ color: '#38bdf8' }}>{instantReceipt.trackingCode || activeIntent.trackingCode}</code>
                       </div>
-                      <div style={{ fontSize: '0.74rem', color: 'var(--text-muted, #94a3b8)' }}>
-                        Zero screenshot upload required — webhook automatically updated the campaign total and sealed your proof on Ethereum Sepolia.
+
+                      <div style={{ fontSize: '0.73rem', color: 'var(--text-muted, #94a3b8)', maxWidth: '380px', lineHeight: 1.45 }}>
+                        Automatically verified and recorded in the public ledger — zero receipt upload required.
                       </div>
+
                       {instantReceipt.txHash && (
                         <a
                           href={`https://sepolia.etherscan.io/tx/${instantReceipt.txHash}`}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="btn btn-outline btn-sm"
-                          style={{ margin: '4px auto 0', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                          style={{ marginTop: '4px', display: 'inline-flex', alignItems: 'center', gap: '6px', borderRadius: '8px', padding: '7px 14px' }}
                         >
                           <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>open_in_new</span>
                           <span>Inspect Proof on Sepolia Etherscan</span>
                         </a>
                       )}
+
                       <button
                         type="button"
                         className="btn btn-primary"
-                        onClick={() => { setModalOpen(false); setDonateStep(0); setInstantReceipt(null); }}
-                        style={{ marginTop: '6px' }}
+                        onClick={() => {
+                          window.dispatchEvent(new CustomEvent('bbdrts_donation_success'));
+                          onDonated?.();
+                          setModalOpen(false);
+                          setDonateStep(0);
+                          setInstantReceipt(null);
+                          setInstantSettlingOnChain(false);
+                        }}
+                        style={{ marginTop: '6px', width: '100%', padding: '11px', borderRadius: '10px', fontWeight: 700 }}
                       >
                         Done
                       </button>
+                    </div>
+                  ) : instantSettlingOnChain ? (
+                    <div
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        gap: '12px',
+                        padding: '32px 20px',
+                        borderRadius: '14px',
+                        background: 'rgba(56, 189, 248, 0.06)',
+                        border: '1px solid rgba(56, 189, 248, 0.28)',
+                        textAlign: 'center',
+                        animation: 'bbdrtsSuccessPop 0.35s ease both'
+                      }}
+                    >
+                      <div className="spinner spinner-light" style={{ width: '36px', height: '36px', borderWidth: '3px' }} />
+                      <div style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary, #fff)' }}>
+                        Payment Received! Sealing Proof on Ethereum Sepolia…
+                      </div>
+                      <div style={{ fontSize: '0.78rem', color: 'var(--text-muted, #94a3b8)', maxWidth: '340px' }}>
+                        Your ₱{Number(activeIntent.amountPhp || 0).toLocaleString('en-US')} {activeIntent.paymentMethod} contribution is being notarized gaslessly on-chain.
+                      </div>
                     </div>
                   ) : (
                     <>
