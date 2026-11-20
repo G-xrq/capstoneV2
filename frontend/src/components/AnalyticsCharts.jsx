@@ -8,7 +8,7 @@ export function formatPhpCompact(val) {
   return `₱${Math.round(num).toLocaleString('en-US')}`;
 }
 
-const WAVE_SAMPLES = 72;
+const WAVE_SAMPLES = 240;
 
 function prefersReducedMotion() {
   if (typeof window === 'undefined' || !window.matchMedia) return false;
@@ -143,6 +143,18 @@ function sampleMonotoneSeries(rawValues, sampleCount = WAVE_SAMPLES) {
     const val = h00 * ys[seg] + h10 * h * tangents[seg] + h01 * ys[seg + 1] + h11 * h * tangents[seg + 1];
     out[k] = Math.max(0, Math.min(1, val));
   }
+
+  // Snap nearest sample index for every real data point to its exact value so spikes never get clipped or missed
+  const snapped = new Set();
+  for (let i = 0; i < n; i++) {
+    const k = Math.round(xs[i] * (sampleCount - 1));
+    if (snapped.has(k)) {
+      out[k] = Math.max(out[k], ys[i]);
+    } else {
+      out[k] = ys[i];
+      snapped.add(k);
+    }
+  }
   return out;
 }
 
@@ -150,26 +162,13 @@ function buildWavePath(samples, padLeft, padTop, plotW, plotH) {
   const n = samples.length;
   if (n === 0) return '';
   const baselineY = padTop + plotH;
-  const pts = samples.map((v, k) => ({
-    x: padLeft + (k / (n - 1)) * plotW,
-    y: Math.min(baselineY, padTop + plotH - v * plotH)
-  }));
-
-  let d = `M ${pts[0].x.toFixed(1)} ${pts[0].y.toFixed(1)}`;
-  for (let i = 0; i < n - 1; i++) {
-    const curr = pts[i];
-    const next = pts[i + 1];
-    const midX = ((curr.x + next.x) * 0.5).toFixed(1);
-    const midY = ((curr.y + next.y) * 0.5).toFixed(1);
-    if (i === 0) {
-      d += ` L ${midX} ${midY}`;
-    } else {
-      d += ` Q ${curr.x.toFixed(1)} ${curr.y.toFixed(1)}, ${midX} ${midY}`;
-    }
+  const parts = new Array(n);
+  for (let k = 0; k < n; k++) {
+    const x = padLeft + (k / (n - 1)) * plotW;
+    const y = Math.min(baselineY, padTop + plotH - samples[k] * plotH);
+    parts[k] = `${k === 0 ? 'M' : 'L'} ${x.toFixed(1)} ${y.toFixed(1)}`;
   }
-  const last = pts[n - 1];
-  d += ` L ${last.x.toFixed(1)} ${last.y.toFixed(1)}`;
-  return d;
+  return parts.join(' ');
 }
 
 function buildWaveArea(linePath, padLeft, plotW, baselineY) {

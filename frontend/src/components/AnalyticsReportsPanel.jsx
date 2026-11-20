@@ -24,10 +24,9 @@ const RANGE_OPTIONS = [
 ];
 
 const RAIL_COLORS = {
-  'Bank / Card': 'var(--va-series-primary, #3291FF)',
-  GCash: '#10b981',
-  Maya: '#a855f7',
-  'Legacy On-Chain': '#71717a'
+  GCash: 'var(--va-series-primary, #3291FF)',
+  Maya: '#10b981',
+  'Bank / Card': '#a855f7'
 };
 
 export default function AnalyticsReportsPanel({ mode = 'admin', onNavigateTab }) {
@@ -129,7 +128,11 @@ export default function AnalyticsReportsPanel({ mode = 'admin', onNavigateTab })
 
   const kpis = analytics?.kpis || {};
   const trendSeries = analytics?.trendSeries || [];
-  const paymentRails = analytics?.paymentRails || [];
+  const rawPaymentRails = analytics?.paymentRails || [];
+  const paymentRails = rawPaymentRails.filter((r) => (
+    r?.rail === 'GCash' || r?.rail === 'Maya' || r?.rail === 'Bank / Card'
+  ));
+  const paymentRailsTotalPhp = paymentRails.reduce((acc, r) => acc + Number(r.php || 0), 0);
   const categoryBreakdown = analytics?.categoryBreakdown || [];
   const regionalBreakdown = analytics?.regionalBreakdown || [];
   const verificationFunnel = analytics?.verificationFunnel || {};
@@ -435,7 +438,7 @@ export default function AnalyticsReportsPanel({ mode = 'admin', onNavigateTab })
                 <VercelDonutChart
                   stacked
                   centerLabel="Period"
-                  centerValue={`₱${Number(kpis.totalMobilizedPhp || 0).toLocaleString('en-US')}`}
+                  centerValue={`₱${Number(paymentRailsTotalPhp || 0).toLocaleString('en-US')}`}
                   items={paymentRails.map((r) => ({
                     key: r.rail,
                     label: r.rail,

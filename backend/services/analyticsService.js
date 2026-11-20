@@ -191,8 +191,8 @@ function aggregatePaymentRails(txRows) {
 
   let totalPhp = 0;
   txRows.forEach((tx) => {
-    const r = tx.rail || 'Legacy On-Chain';
-    if (!railMap.has(r)) railMap.set(r, { rail: r, php: 0, count: 0 });
+    const r = tx.rail;
+    if (!railMap.has(r)) return;
     const entry = railMap.get(r);
     entry.php += tx.phpAmount;
     entry.count += 1;
@@ -209,32 +209,34 @@ function aggregatePaymentRails(txRows) {
 }
 
 function formatNormalizedTransactions(dtRows, campaignsMap) {
-  return (dtRows || []).map((dt) => {
-    const eth = parseFloat(dt.amount || dt.Amount || 0) || 0;
-    const php = Math.round(eth * PHP_PER_ETH);
-    const camp = campaignsMap.get(Number(dt.campaignId || dt.Campaign_ID));
-    const rail = normalizePaymentRail(dt.paymentMethod || dt.Payment_Method, dt.txHash || dt.Tx_Hash);
-    const donorName = Boolean(dt.isAnonymous || dt.Is_Anonymous)
-      ? 'Anonymous Supporter'
-      : (dt.donorName || dt.Donor_Name || 'Verified Supporter');
+  return (dtRows || [])
+    .map((dt) => {
+      const eth = parseFloat(dt.amount || dt.Amount || 0) || 0;
+      const php = Math.round(eth * PHP_PER_ETH);
+      const camp = campaignsMap.get(Number(dt.campaignId || dt.Campaign_ID));
+      const rail = normalizePaymentRail(dt.paymentMethod || dt.Payment_Method, dt.txHash || dt.Tx_Hash);
+      const donorName = Boolean(dt.isAnonymous || dt.Is_Anonymous)
+        ? 'Anonymous Supporter'
+        : (dt.donorName || dt.Donor_Name || 'Verified Supporter');
 
-    return {
-      id: dt.id || dt.Transaction_ID,
-      txHash: dt.txHash || dt.Tx_Hash || '',
-      campaignId: Number(dt.campaignId || dt.Campaign_ID),
-      campaignTitle: camp?.title || dt.campaignTitle || dt.Campaign_Title || `Campaign #${dt.campaignId || dt.Campaign_ID}`,
-      orgId: camp?.orgId || Number(dt.orgId || dt.Org_ID || 0),
-      orgName: camp?.orgName || dt.orgName || 'Verified Partner NGO',
-      donorId: dt.donorId || dt.Donor_ID || null,
-      donorName,
-      isAnonymous: Boolean(dt.isAnonymous || dt.Is_Anonymous),
-      rail,
-      ethAmount: eth,
-      phpAmount: php,
-      createdAt: dt.createdAt || dt.Created_At || null,
-      status: 'VERIFIED'
-    };
-  });
+      return {
+        id: dt.id || dt.Transaction_ID,
+        txHash: dt.txHash || dt.Tx_Hash || '',
+        campaignId: Number(dt.campaignId || dt.Campaign_ID),
+        campaignTitle: camp?.title || dt.campaignTitle || dt.Campaign_Title || `Campaign #${dt.campaignId || dt.Campaign_ID}`,
+        orgId: camp?.orgId || Number(dt.orgId || dt.Org_ID || 0),
+        orgName: camp?.orgName || dt.orgName || 'Verified Partner NGO',
+        donorId: dt.donorId || dt.Donor_ID || null,
+        donorName,
+        isAnonymous: Boolean(dt.isAnonymous || dt.Is_Anonymous),
+        rail,
+        ethAmount: eth,
+        phpAmount: php,
+        createdAt: dt.createdAt || dt.Created_At || null,
+        status: 'VERIFIED'
+      };
+    })
+    .filter((tx) => tx.rail === 'GCash' || tx.rail === 'Maya' || tx.rail === 'Bank / Card');
 }
 
 function summarizeVerificationHealth(manualRows) {
