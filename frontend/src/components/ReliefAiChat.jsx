@@ -560,17 +560,6 @@ export default function ReliefAiChat({
     }
 
     // ── Scenario H: Default Overview (Dashboard Home) ──
-    starters.push({
-      icon: 'dashboard_customize',
-      title: 'Analyze My Dashboard',
-      sub: isAuth 
-        ? `Live review of your ${activeView || 'portal'} & active section` 
-        : 'Summarize system metrics & active appeals',
-      prompt: isAuth
-        ? `Can you read my active dashboard, confirm who I am logged in as on the ${activeSubpage || 'dashboard'}, and summarize my live status and recommendations?`
-        : 'Can you read the current dashboard screen and tell me what relief drives and features are available here?'
-    });
-
     if (userRole === 'organization') {
       starters.push({
         icon: 'campaign',
@@ -755,7 +744,7 @@ export default function ReliefAiChat({
           id: (Date.now() + 1).toString(),
           sender: 'ai',
           text: aiReply,
-          modelUsed: data.modelUsed || (data.isRealtimeAi ? 'Real-Time AI' : 'ReliefAI'),
+          modelUsed: 'ReliefAI',
           campaigns: data.campaigns || null,
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         }
@@ -777,7 +766,7 @@ export default function ReliefAiChat({
             id: (Date.now() + 1).toString(),
             sender: 'ai',
             text: liveAiResult.text,
-            modelUsed: liveAiResult.modelUsed || 'Real-Time AI',
+            modelUsed: 'ReliefAI',
             timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
           }
         ]);
@@ -840,9 +829,7 @@ export default function ReliefAiChat({
               <div className="bbdrts-copilot-header-titles">
                 <div className="bbdrts-copilot-header-title-row">
                   <span className="bbdrts-copilot-title-text">ReliefAI</span>
-                  <span className="bbdrts-copilot-copilot-tag">
-                    {customApiKey ? 'Gemini' : 'Relief Copilot'}
-                  </span>
+                  <span className="bbdrts-copilot-copilot-tag">Relief Copilot</span>
                 </div>
                 <div className="bbdrts-copilot-header-sub">
                   <span className="bbdrts-copilot-status-badge" />
@@ -852,14 +839,16 @@ export default function ReliefAiChat({
             </div>
 
             <div className="bbdrts-copilot-header-actions-pill">
-              <button
-                className={`bbdrts-copilot-icon-btn ${showSettings ? 'active' : ''}`}
-                onClick={() => setShowSettings((prev) => !prev)}
-                title="AI Key & Intelligence Settings"
-                aria-label="AI Settings"
-              >
-                <span className="material-symbols-outlined">tune</span>
-              </button>
+              {userRole === 'admin' && (
+                <button
+                  className={`bbdrts-copilot-icon-btn ${showSettings ? 'active' : ''}`}
+                  onClick={() => setShowSettings((prev) => !prev)}
+                  title="Admin AI Configuration"
+                  aria-label="Admin AI Settings"
+                >
+                  <span className="material-symbols-outlined">tune</span>
+                </button>
+              )}
               <button
                 className="bbdrts-copilot-icon-btn"
                 onClick={handleResetChat}
@@ -903,8 +892,8 @@ export default function ReliefAiChat({
             </span>
           </div>
 
-          {/* AI Settings Overlay Modal */}
-          {showSettings && (
+          {/* Admin-Only AI Settings Overlay Modal */}
+          {showSettings && userRole === 'admin' && (
             <div className="bbdrts-copilot-settings-overlay">
               <div className="bbdrts-copilot-settings-card">
                 <div className="bbdrts-copilot-settings-header">

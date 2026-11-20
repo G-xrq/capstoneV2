@@ -109,8 +109,8 @@ body.has-modal-open .bbdrts-copilot-trigger-btn {
   right: 24px;
   width: 420px;
   max-width: calc(100vw - 32px);
-  height: 620px;
-  max-height: calc(100vh - 48px);
+  height: 600px;
+  max-height: calc(100vh - 96px);
   z-index: 9999;
   display: flex;
   flex-direction: column;
@@ -127,7 +127,7 @@ body.has-modal-open .bbdrts-copilot-trigger-btn {
 .bbdrts-copilot-window.expanded {
   width: 560px;
   height: 700px;
-  max-height: calc(100vh - 48px);
+  max-height: calc(100vh - 96px);
 }
 
 @keyframes copilotSlideIn {
@@ -706,16 +706,16 @@ body.has-modal-open .bbdrts-copilot-trigger-btn {
   align-items: center;
   gap: 5px;
   padding: 10px 14px;
-  background: var(--bg-card, #202020);
-  border: 1px solid var(--border, rgba(255, 255, 255, 0.08));
-  border-radius: 14px;
+  background: #0a0a0a;
+  border: 1px solid #262626;
+  border-radius: 12px;
   width: fit-content;
 }
 
 .bbdrts-copilot-typing-dot {
   width: 6px;
   height: 6px;
-  background: var(--accent, #22c55e);
+  background: #10b981;
   border-radius: 50%;
   animation: typingBlink 1.4s infinite ease-in-out both;
 }
@@ -744,9 +744,9 @@ body.has-modal-open .bbdrts-copilot-trigger-btn {
 }
 
 .bbdrts-copilot-generating-label {
-  font-size: 0.72rem;
-  font-weight: 600;
-  color: var(--accent, #22c55e);
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: #a1a1aa;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -757,8 +757,8 @@ body.has-modal-open .bbdrts-copilot-trigger-btn {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--accent, #22c55e);
-  box-shadow: 0 0 6px var(--accent, #22c55e);
+  background: #10b981;
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.75);
 }
 
 @keyframes pulseOpacity {
@@ -775,9 +775,9 @@ body.has-modal-open .bbdrts-copilot-trigger-btn {
 
 /* ── 9. Contextual Suggestion Pills Bar ── */
 .bbdrts-copilot-chips-bar {
-  padding: 6px 14px;
-  background: var(--bg-surface, #181818);
-  border-top: 1px solid var(--border, rgba(255, 255, 255, 0.06));
+  padding: 7px 14px;
+  background: #050505;
+  border-top: 1px solid #1f1f1f;
   display: flex;
   gap: 6px;
   overflow-x: auto;
@@ -790,15 +790,15 @@ body.has-modal-open .bbdrts-copilot-trigger-btn {
 }
 
 .bbdrts-copilot-chip-btn {
-  background: var(--bg-input, #141414);
-  border: 1px solid var(--border, rgba(255, 255, 255, 0.1));
-  color: var(--text-secondary, #a3a3a3);
-  padding: 5px 12px;
+  background: #0a0a0a;
+  border: 1px solid #262626;
+  color: #a1a1aa;
+  padding: 5px 11px;
   border-radius: var(--radius-pill, 999px);
-  font-size: 0.72rem;
+  font-size: 0.7rem;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.15s;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
   display: inline-flex;
   align-items: center;
   gap: 5px;
@@ -806,14 +806,18 @@ body.has-modal-open .bbdrts-copilot-trigger-btn {
 }
 
 .bbdrts-copilot-chip-btn:hover {
-  background: var(--accent-dim, rgba(34, 197, 94, 0.12));
-  border-color: var(--accent, #22c55e);
-  color: var(--accent, #22c55e);
+  background: #141414;
+  border-color: #404040;
+  color: #ffffff;
 }
 
 .bbdrts-copilot-chip-icon {
   font-size: 13px;
-  color: var(--accent, #22c55e);
+  color: #71717a;
+}
+
+.bbdrts-copilot-chip-btn:hover .bbdrts-copilot-chip-icon {
+  color: #ffffff;
 }
 
 /* ── 10. Integrated Bottom Dock & Input (Vercel Geist Composer) ── */
@@ -934,10 +938,10 @@ body.has-modal-open .bbdrts-copilot-trigger-btn {
 .bbdrts-copilot-settings-card {
   width: 100%;
   max-width: 360px;
-  background: var(--bg-card, #202020);
-  border: 1px solid var(--border-strong, rgba(255, 255, 255, 0.16));
+  background: #0a0a0a;
+  border: 1px solid #262626;
   border-radius: 14px;
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.8);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.85);
   overflow: hidden;
 }
 
@@ -946,8 +950,8 @@ body.has-modal-open .bbdrts-copilot-trigger-btn {
   align-items: center;
   justify-content: space-between;
   padding: 12px 16px;
-  border-bottom: 1px solid var(--border, rgba(255, 255, 255, 0.08));
-  background: rgba(255, 255, 255, 0.02);
+  border-bottom: 1px solid #1f1f1f;
+  background: #050505;
 }
 
 .bbdrts-copilot-settings-title {
@@ -991,17 +995,17 @@ body.has-modal-open .bbdrts-copilot-trigger-btn {
   font-size: 0.74rem;
   padding: 8px 10px;
   border-radius: 8px;
-  background: rgba(34, 197, 94, 0.08);
-  border: 1px solid rgba(34, 197, 94, 0.2);
-  color: #fff;
+  background: #111111;
+  border: 1px solid #262626;
+  color: #ededed;
 }
 
 .bbdrts-copilot-status-indicator {
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
-  background: #22c55e;
-  box-shadow: 0 0 8px #22c55e;
+  background: #10b981;
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.75);
   flex-shrink: 0;
 }
 
@@ -1067,16 +1071,20 @@ body.has-modal-open .bbdrts-copilot-trigger-btn {
 }
 
 .bbdrts-copilot-save-key-btn {
-  background: var(--accent, #22c55e);
-  color: #052e16;
-  font-weight: 700;
+  background: #ffffff;
+  color: #000000;
+  font-weight: 600;
   font-size: 0.74rem;
   padding: 0 14px;
   border: none;
   border-radius: 8px;
   cursor: pointer;
-  transition: opacity 0.2s ease;
+  transition: background 0.15s ease;
   flex-shrink: 0;
+}
+
+.bbdrts-copilot-save-key-btn:hover {
+  background: #e4e4e7;
 }
 
 .bbdrts-copilot-save-key-btn:disabled {
@@ -1112,8 +1120,12 @@ body.has-modal-open .bbdrts-copilot-trigger-btn {
   align-items: center;
   gap: 5px;
   font-size: 0.72rem;
-  color: var(--accent, #22c55e);
+  color: #a1a1aa;
   text-decoration: none;
+}
+
+.bbdrts-copilot-ext-link:hover {
+  color: #ffffff;
 }
 
 .bbdrts-copilot-ext-link:hover {
@@ -1130,9 +1142,9 @@ body.has-modal-open .bbdrts-copilot-trigger-btn {
 }
 
 .bbdrts-copilot-markdown-h3 {
-  font-size: 0.88rem;
-  font-weight: 700;
-  color: var(--accent, #22c55e);
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: #ffffff;
   margin: 10px 0 4px 0;
 }
 
@@ -1334,19 +1346,35 @@ body.has-modal-open .bbdrts-copilot-trigger-btn {
 }
 
 [data-theme="light"] .bbdrts-copilot-msg-row.user .bbdrts-copilot-bubble {
-  background: linear-gradient(135deg, rgba(22, 163, 74, 0.18), rgba(22, 163, 74, 0.08));
-  color: #0f172a;
-  border-color: #16a34a;
+  background: #09090b;
+  color: #ffffff;
+  border-color: #09090b;
+}
+
+[data-theme="light"] .bbdrts-copilot-msg-avatar.ai {
+  background: #f4f4f5;
+  border-color: #e4e4e7;
+}
+
+[data-theme="light"] .bbdrts-copilot-model-badge {
+  background: #f4f4f5;
+  color: #52525b;
+  border-color: #e4e4e7;
+}
+
+[data-theme="light"] .bbdrts-copilot-typing-indicator {
+  background: #ffffff;
+  border-color: #e4e4e7;
 }
 
 [data-theme="light"] .bbdrts-copilot-highlight {
-  color: #16a34a;
+  color: #059669;
 }
 
 [data-theme="light"] .bbdrts-copilot-code-token {
-  background: #e2e8f0;
-  border-color: rgba(0, 0, 0, 0.12);
-  color: #16a34a;
+  background: #f4f4f5;
+  border-color: #e4e4e7;
+  color: #059669;
 }
 
 [data-theme="light"] .bbdrts-copilot-markdown-h2 {
@@ -1407,9 +1435,9 @@ body.has-modal-open .bbdrts-copilot-trigger-btn {
 }
 
 [data-theme="light"] .bbdrts-copilot-chip-btn:hover {
-  background: rgba(22, 163, 74, 0.08);
-  border-color: #16a34a;
-  color: #16a34a;
+  background: #f4f4f5;
+  border-color: #a1a1aa;
+  color: #09090b;
 }
 
 /* ═══════════════════════════════════════════════════════════════════
