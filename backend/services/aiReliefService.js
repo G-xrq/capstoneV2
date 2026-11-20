@@ -86,27 +86,35 @@ async function callNeuralLlm({ systemInstruction, query, conversationHistory = [
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
-    const response = await fetch('https://text.pollinations.ai/', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        messages,
-        model: 'openai-fast',
-        seed: Math.floor(Math.random() * 1000000)
-      }),
-      signal: controller.signal
-    });
+    for (const modelName of ['openai-fast', 'openai']) {
+      try {
+        const response = await fetch('https://text.pollinations.ai/', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
+          },
+          body: JSON.stringify({
+            messages,
+            model: modelName,
+            seed: Math.floor(Math.random() * 1000000)
+          }),
+          signal: controller.signal
+        });
 
-    if (!response.ok) {
-      throw new Error(`Neural API returned HTTP ${response.status}`);
-    }
+        if (!response.ok) {
+          console.warn(`⚠️ Neural API (${modelName}) returned HTTP ${response.status}`);
+          continue;
+        }
 
-    const text = await response.text();
-    if (text && text.trim()) {
-      return text.trim();
+        const text = await response.text();
+        if (text && text.trim()) {
+          return text.trim();
+        }
+      } catch (innerErr) {
+        console.warn(`⚠️ Neural LLM (${modelName}) error:`, innerErr.message);
+      }
     }
-  } catch (err) {
-    console.warn('⚠️ Real-time Neural LLM call error:', err.message);
   } finally {
     clearTimeout(timer);
   }

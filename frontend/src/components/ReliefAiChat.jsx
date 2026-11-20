@@ -53,6 +53,13 @@ async function callClientRealtimeAi({ query, conversationHistory = [], customApi
     ? `${dashboardContext.walletAddress.substring(0, 6)}...${dashboardContext.walletAddress.substring(38)}`
     : 'None (Browsing mode)';
 
+  const campaignLines = Array.isArray(dashboardContext?.activeCampaignSummaries) && dashboardContext.activeCampaignSummaries.length > 0
+    ? dashboardContext.activeCampaignSummaries
+        .slice(0, 6)
+        .map((c, i) => `${i + 1}. ${c.title || 'Relief Appeal'} (${c.region || 'Philippines'}) — Raised: ₱${Math.round(Number(c.raisedPhp || (Number(c.raisedEth || 0) * 170000))).toLocaleString()} / Goal: ₱${Math.round(Number(c.targetPhp || (Number(c.targetEth || 0) * 170000))).toLocaleString()}`)
+        .join('\n')
+    : 'Live relief campaigns loaded on platform.';
+
   const dashboardNarrative = dashboardContext ? `
 BACKGROUND DASHBOARD CONTEXT (REFERENCE ONLY - DO NOT DUMP OR RECITE UNLESS EXPLICITLY ASKED):
 - Name: ${dashboardContext.userName || 'Guest / Unregistered'}
@@ -61,10 +68,12 @@ BACKGROUND DASHBOARD CONTEXT (REFERENCE ONLY - DO NOT DUMP OR RECITE UNLESS EXPL
 - Current Screen: ${dashboardContext.activeSubpage || 'Dashboard Overview'}
 - Truncated Wallet: ${truncatedWallet}
 - Loaded Campaigns: ${dashboardContext.totalCampaignsLoaded || 0}
+ACTIVE CAMPAIGNS:
+${campaignLines}
 
 ANTI-REPETITION CONSTRAINTS:
 1. The user already sees their dashboard. DO NOT dump or recite their supporter profile, full wallet address, or email unless they explicitly ask "Who am I?" or "What is my wallet address?".
-2. For conversational follow-ups like "what about now?", "what's next?", or "what should I do?", suggest active relief campaigns or next steps without reciting their profile card.` : '';
+2. Always answer the user's specific question directly, naturally, and conversationally in clean markdown.` : '';
   
   if (activeKey && activeKey.length > 15) {
     for (const mName of ['gemini-3.5-flash-lite', 'gemini-3.5-flash', 'gemini-3.8-flash', 'gemini-flash-latest']) {
@@ -351,12 +360,14 @@ export default function ReliefAiChat({
       totalCampaignsLoaded: rawCampList.length,
       activeCampaignSummaries: (activeTabMeta?.visibleCampaigns && activeTabMeta.visibleCampaigns.length > 0)
         ? activeTabMeta.visibleCampaigns
-        : rawCampList.slice(0, 5).map(c => ({
+        : rawCampList.slice(0, 6).map(c => ({
             id: c.Campaign_ID || c.id,
             title: c.Campaign_Title || c.title || 'Relief Appeal',
+            targetPhp: c.targetAmountPhp || c.target_amount_php || c.Target_Amount_Php || Math.round(Number(c.targetAmount || c.Target_Amount || 0) * 170000),
+            raisedPhp: c.currentAmountPhp || c.current_amount_php || c.Raised_Php || Math.round(Number(c.currentAmount || c.Raised_Eth || 0) * 170000),
             targetEth: c.Target_Amount || c.targetEth,
             raisedEth: c.Raised_Eth || c.raisedEth,
-            region: c.Location_Region || c.region,
+            region: c.locationRegion || c.Location_Region || c.region,
             urgency: c.Urgency || c.urgency
           }))
     };
@@ -732,7 +743,25 @@ export default function ReliefAiChat({
       }
 
       const data = await response.json();
-      const aiReply = data.reply || 'I apologize, I could not process your query at this moment. Please try again.';
+      let aiReply = data.reply || 'I apologize, I could not process your query at this moment. Please try again.';
+
+      // If backend fell back to offline/hardcoded synthesis (e.g., Render missing GEMINI_API_KEY),
+      // seamlessly upgrade to real-time conversational LLM from the client so the user gets a true AI answer.
+      if (data.isRealtimeAi === false) {
+        try {
+          const liveUpgrade = await callClientRealtimeAi({
+            query,
+            conversationHistory: messages,
+            customApiKey,
+            dashboardContext
+          });
+          if (liveUpgrade?.text) {
+            aiReply = liveUpgrade.text;
+          }
+        } catch (upgradeErr) {
+          console.warn('Client real-time AI upgrade skipped:', upgradeErr.message);
+        }
+      }
 
       if (Array.isArray(data.suggestedPrompts) && data.suggestedPrompts.length > 0) {
         setCurrentSuggestions(data.suggestedPrompts);
