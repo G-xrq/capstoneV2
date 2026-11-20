@@ -7016,6 +7016,49 @@ app.patch('/api/donations/intent/:id/cancel', authenticateToken, async (req, res
 });
 
 // 8. NGO "Declare Unclaimed Direct Deposit" (Honest NGO logs an unuploaded GCash/Maya/Bank transfer)
+// 7B. Live Lookup of a BB-XXXX Tracking Code for NGO Unclaimed Deposit Auto-Fill
+app.get('/api/org/donations/intent-lookup/:code', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'organization' && req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Unauthorized' });
+    }
+    const cleanCode = String(req.params.code || '').trim().toUpperCase();
+    if (!cleanCode || cleanCode.length < 5) {
+      return res.json({ found: false });
+    }
+    const [rows] = await db.query(
+      `SELECT pi.*, c.Campaign_Title as campaignTitle, c.Org_ID as campOrgId,
+              COALESCE(NULLIF(d.Display_Name, ''), NULLIF(d.Name, ''), NULLIF(d.Legal_Name, ''), d.Username) as resolvedDonorName
+       FROM PAYMENT_INTENT pi
+       LEFT JOIN CAMPAIGN c ON pi.Campaign_ID = c.Campaign_ID
+       LEFT JOIN DONOR d ON pi.Donor_ID = d.Donor_ID
+       WHERE pi.Tracking_Code = ?
+       LIMIT 1`,
+      [cleanCode]
+    );
+    if (!rows || rows.length === 0) return res.json({ found: false });
+    const row = rows[0];
+    const ownerOrg = row.campOrgId || row.Org_ID;
+    if (req.user.role === 'organization' && ownerOrg && Number(ownerOrg) !== Number(req.user.id)) {
+      return res.json({ found: false, reason: 'Belongs to another organization' });
+    }
+    res.json({
+      found: true,
+      intentId: row.Intent_ID,
+      trackingCode: row.Tracking_Code,
+      campaignId: row.Campaign_ID,
+      campaignTitle: row.campaignTitle || `Campaign #${row.Campaign_ID}`,
+      paymentMethod: row.Payment_Method || 'GCash',
+      amountPhp: Math.round(Number(row.Amount_Php || 0)),
+      donorName: row.Is_Anonymous ? 'Anonymous Supporter' : (row.resolvedDonorName || row.Donor_Name || 'Guest Donor'),
+      isAnonymous: Boolean(row.Is_Anonymous),
+      status: row.Status
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.post('/api/org/donations/declare-direct', authenticateToken, async (req, res) => {
   try {
     if (req.user.role !== 'organization' && req.user.role !== 'admin') {

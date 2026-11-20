@@ -22,6 +22,8 @@ export default function DeclareDirectDepositModal({
   const [amountPhp, setAmountPhp] = useState('');
   const [referenceNumber, setReferenceNumber] = useState('');
   const [trackingCode, setTrackingCode] = useState('');
+  const [matchedIntent, setMatchedIntent] = useState(null);
+  const [lookupStatus, setLookupStatus] = useState('idle'); // 'idle' | 'loading' | 'found' | 'not_found'
   const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -31,6 +33,42 @@ export default function DeclareDirectDepositModal({
       if (firstActive) setCampaignId(String(firstActive.id));
     }
   }, [isOpen, campaigns, campaignId]);
+
+  // Live auto-identify donor, campaign, channel, and amount as soon as NGO enters a BB-XXXX code
+  useEffect(() => {
+    const code = trackingCode.trim().toUpperCase();
+    if (!code || code.length < 6) {
+      setMatchedIntent(null);
+      setLookupStatus('idle');
+      return;
+    }
+    const timer = setTimeout(async () => {
+      setLookupStatus('loading');
+      try {
+        const token = localStorage.getItem('bbdrts_token');
+        const res = await fetch(`${API_URL}/api/org/donations/intent-lookup/${encodeURIComponent(code)}`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {}
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data?.found) {
+            setMatchedIntent(data);
+            setLookupStatus('found');
+            if (data.campaignId) setCampaignId(String(data.campaignId));
+            if (data.paymentMethod) setPaymentMethod(data.paymentMethod);
+            if (data.amountPhp && Number(data.amountPhp) > 0) setAmountPhp(String(data.amountPhp));
+            return;
+          }
+        }
+        setMatchedIntent(null);
+        setLookupStatus('not_found');
+      } catch (_) {
+        setMatchedIntent(null);
+        setLookupStatus('idle');
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [trackingCode]);
 
   if (!isOpen) return null;
 
@@ -180,6 +218,65 @@ export default function DeclareDirectDepositModal({
 
         <form onSubmit={handleSubmit} style={{ padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: '13px' }}>
           <div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '5px' }}>
+              <label style={{ fontSize: '0.73rem', fontWeight: 600, color: 'var(--text-secondary, #a1a1aa)' }}>
+                Donor Note Code (Auto-Identifies Donor &amp; Campaign)
+              </label>
+              {lookupStatus === 'loading' && (
+                <span style={{ fontSize: '0.68rem', color: '#38bdf8' }}>Looking up…</span>
+              )}
+              {lookupStatus === 'found' && (
+                <span style={{ fontSize: '0.68rem', color: '#10b981', fontWeight: 700 }}>✓ Auto-Matched</span>
+              )}
+              {lookupStatus === 'not_found' && (
+                <span style={{ fontSize: '0.68rem', color: '#f59e0b' }}>No matching code found</span>
+              )}
+            </div>
+            <input
+              type="text"
+              placeholder="Paste BB-XXXX code from GCash/Maya note (e.g. BB-278341)"
+              value={trackingCode}
+              onChange={(e) => setTrackingCode(e.target.value.toUpperCase())}
+              style={{
+                width: '100%',
+                height: '38px',
+                padding: '0 12px',
+                borderRadius: '8px',
+                border: `1px solid ${lookupStatus === 'found' ? 'rgba(16, 185, 129, 0.55)' : 'var(--border, #262626)'}`,
+                background: 'var(--bg-input, #111)',
+                color: 'var(--text-primary, #fff)',
+                fontSize: '0.84rem',
+                fontFamily: 'var(--font-mono, monospace)',
+                fontWeight: 700,
+                boxSizing: 'border-box'
+              }}
+            />
+            {matchedIntent && (
+              <div
+                style={{
+                  marginTop: '7px',
+                  padding: '8px 10px',
+                  borderRadius: '8px',
+                  background: 'rgba(16, 185, 129, 0.1)',
+                  border: '1px solid rgba(16, 185, 129, 0.3)',
+                  fontSize: '0.73rem',
+                  color: '#d1fae5',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '2px'
+                }}
+              >
+                <div>
+                  <strong style={{ color: '#10b981' }}>Matched Donor:</strong> {matchedIntent.donorName}
+                </div>
+                <div>
+                  <strong style={{ color: '#10b981' }}>Intended Campaign:</strong> #{matchedIntent.campaignId} — {matchedIntent.campaignTitle} (₱{Number(matchedIntent.amountPhp || 0).toLocaleString('en-US')} via {matchedIntent.paymentMethod})
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div>
             <label style={{ display: 'block', fontSize: '0.73rem', fontWeight: 600, color: 'var(--text-secondary, #a1a1aa)', marginBottom: '5px' }}>
               Target Relief Campaign *
             </label>
@@ -258,55 +355,29 @@ export default function DeclareDirectDepositModal({
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-            <div>
-              <label style={{ display: 'block', fontSize: '0.73rem', fontWeight: 600, color: 'var(--text-secondary, #a1a1aa)', marginBottom: '5px' }}>
-                Payment Reference No. *
-              </label>
-              <input
-                type="text"
-                required
-                placeholder="e.g. 0044 579 175068"
-                value={referenceNumber}
-                onChange={(e) => setReferenceNumber(e.target.value)}
-                style={{
-                  width: '100%',
-                  height: '38px',
-                  padding: '0 12px',
-                  borderRadius: '8px',
-                  border: '1px solid var(--border, #262626)',
-                  background: 'var(--bg-input, #111)',
-                  color: 'var(--text-primary, #fff)',
-                  fontSize: '0.82rem',
-                  fontFamily: 'var(--font-mono, monospace)',
-                  boxSizing: 'border-box'
-                }}
-              />
-            </div>
-
-            <div>
-              <label style={{ display: 'block', fontSize: '0.73rem', fontWeight: 600, color: 'var(--text-secondary, #a1a1aa)', marginBottom: '5px' }}>
-                Donor Note Code (Optional)
-              </label>
-              <input
-                type="text"
-                placeholder="e.g. BB-4821A"
-                value={trackingCode}
-                onChange={(e) => setTrackingCode(e.target.value.toUpperCase())}
-                style={{
-                  width: '100%',
-                  height: '38px',
-                  padding: '0 12px',
-                  borderRadius: '8px',
-                  border: '1px solid var(--border, #262626)',
-                  background: 'var(--bg-input, #111)',
-                  color: 'var(--text-primary, #fff)',
-                  fontSize: '0.82rem',
-                  fontFamily: 'var(--font-mono, monospace)',
-                  boxSizing: 'border-box'
-                }}
-              />
-            </div>
+          <div>
+            <label style={{ display: 'block', fontSize: '0.73rem', fontWeight: 600, color: 'var(--text-secondary, #a1a1aa)', marginBottom: '5px' }}>
+              Payment Reference No. *
+            </label>
+            <input
+              type="text"
+              required
+              placeholder="e.g. 0044 579 175068"
+              value={referenceNumber}
+              onChange={(e) => setReferenceNumber(e.target.value)}
+              style={{
+                width: '100%',
+                height: '38px',
+                padding: '0 12px',
+                borderRadius: '8px',
+                border: '1px solid var(--border, #262626)',
+                background: 'var(--bg-input, #111)',
+                color: 'var(--text-primary, #fff)',
+                fontSize: '0.82rem',
+                fontFamily: 'var(--font-mono, monospace)',
+                boxSizing: 'border-box'
+              }}
+            />
           </div>
 
           <div>
