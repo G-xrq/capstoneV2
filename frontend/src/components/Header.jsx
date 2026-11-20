@@ -239,7 +239,23 @@ export default function Header({
       setShowAuth(false);
     }
     setTimeout(() => {
-      const el = document.getElementById('transparency');
+      const el = document.getElementById('payment-rails') || document.getElementById('how-it-works');
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }, 100);
+  };
+
+  const handleFaqClick = (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+    if (mobileMenuOpen) setMobileMenuOpen(false);
+    setActiveDropdown(null);
+
+    if (!dbUser && showAuth && setShowAuth) {
+      setShowAuth(false);
+    }
+    setTimeout(() => {
+      const el = document.getElementById('faq');
       if (el) {
         el.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
@@ -300,6 +316,21 @@ export default function Header({
                       onClick={handleHomeClick}
                     >
                       <span>Home</span>
+                    </button>
+                  </li>
+
+                  <li className="bbdrts-nav-item">
+                    <button
+                      type="button"
+                      className={`bbdrts-nav-link ${!showAuth && activeLandingSection === 'radar' ? 'active' : ''}`}
+                      onClick={handleRadarClick}
+                    >
+                      <span>Radar</span>
+                      <span
+                        className="bbdrts-nav-live-dot"
+                        style={{ background: '#10b981', boxShadow: '0 0 8px rgba(16, 185, 129, 0.7)' }}
+                        title="Live PAGASA Doppler Telemetry"
+                      />
                     </button>
                   </li>
 
@@ -384,17 +415,6 @@ export default function Header({
                     </div>
                   </li>
 
-                  <li className="bbdrts-nav-item">
-                    <button
-                      type="button"
-                      className={`bbdrts-nav-link ${!showAuth && activeLandingSection === 'radar' ? 'active' : ''}`}
-                      onClick={handleRadarClick}
-                    >
-                      <span>Radar</span>
-                      <span className="bbdrts-nav-live-dot" title="Live PAGASA Doppler Telemetry" />
-                    </button>
-                  </li>
-
                   <li
                     className="bbdrts-nav-item has-dropdown"
                     onClick={(e) => e.stopPropagation()}
@@ -404,7 +424,7 @@ export default function Header({
                     <button
                       type="button"
                       className={`bbdrts-nav-link ${activeDropdown === 'transparency' || (!showAuth && activeLandingSection === 'transparency') ? 'active' : ''}`}
-                      onClick={() => setActiveDropdown(prev => prev === 'transparency' ? null : 'transparency')}
+                      onClick={handleHowItWorksClick}
                     >
                       <span>Transparency</span>
                       <span className="material-symbols-outlined bbdrts-dropdown-caret">
@@ -480,8 +500,20 @@ export default function Header({
                       >
                         <span className="material-symbols-outlined">verified_user</span>
                         <div className="bbdrts-dropdown-action-text">
-                          <span className="bbdrts-dropdown-action-title">Direct NGO Routing</span>
-                          <span className="bbdrts-dropdown-action-desc">0% platform fee, direct escrow custody</span>
+                          <span className="bbdrts-dropdown-action-title">Payment Rails &amp; 0% Fee</span>
+                          <span className="bbdrts-dropdown-action-desc">GCash, Maya, Bank &amp; Card direct routing</span>
+                        </div>
+                      </button>
+
+                      <button
+                        type="button"
+                        className="bbdrts-dropdown-action"
+                        onClick={handleFaqClick}
+                      >
+                        <span className="material-symbols-outlined">help</span>
+                        <div className="bbdrts-dropdown-action-text">
+                          <span className="bbdrts-dropdown-action-title">FAQ &amp; Help</span>
+                          <span className="bbdrts-dropdown-action-desc">Common questions on receipts &amp; security</span>
                         </div>
                       </button>
                     </div>
@@ -869,7 +901,11 @@ export default function Header({
                   </button>
                   <button type="button" className="bbdrts-mobile-nav-link" onClick={handleTransparencyClick}>
                     <span className="material-symbols-outlined">verified_user</span>
-                    <span>0% Intermediary Guarantee</span>
+                    <span>Payment Rails &amp; 0% Fee</span>
+                  </button>
+                  <button type="button" className="bbdrts-mobile-nav-link" onClick={handleFaqClick}>
+                    <span className="material-symbols-outlined">help</span>
+                    <span>FAQ &amp; Help</span>
                   </button>
                 </div>
               </>
