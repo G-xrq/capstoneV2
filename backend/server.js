@@ -6654,9 +6654,22 @@ async function settleGatewayIntent(intentRow, externalRef = '') {
   };
 }
 
-// 1. Create Instant Auto-Verified Checkout Session (PayMongo or Built-In Sandbox)
+// 0. Check if real PayMongo Gateway is configured
+app.get('/api/payments/gateway-status', (req, res) => {
+  res.json({
+    paymongoEnabled: paymongoService.isPaymongoConfigured(),
+    liveMode: paymongoService.isLiveMode()
+  });
+});
+
+// 1. Create Real PayMongo Checkout Session (requires PAYMONGO_SECRET_KEY in backend/.env)
 app.post('/api/payments/checkout-session', async (req, res) => {
   try {
+    if (!paymongoService.isPaymongoConfigured()) {
+      return res.status(503).json({
+        error: 'PayMongo gateway is not configured yet. Please use Direct QR & Receipt Upload, or add PAYMONGO_SECRET_KEY in backend/.env.'
+      });
+    }
     let authedUser = null;
     const authHeader = req.headers['authorization'];
     if (authHeader && authHeader.startsWith('Bearer ')) {
@@ -6785,24 +6798,7 @@ app.post('/api/webhooks/paymongo', async (req, res) => {
   }
 });
 
-// 3. Built-in Sandbox Webhook Completion (disabled automatically when sk_live_ key is active)
-app.post('/api/payments/sandbox-complete/:intentId', async (req, res) => {
-  try {
-    if (paymongoService.isLiveMode()) {
-      return res.status(403).json({ error: 'Sandbox completion is disabled in live PayMongo mode.' });
-    }
-    const intentId = Number(req.params.intentId);
-    const [rows] = await db.query('SELECT * FROM PAYMENT_INTENT WHERE Intent_ID = ?', [intentId]);
-    if (!rows || rows.length === 0) {
-      return res.status(404).json({ error: 'Payment intent not found.' });
-    }
-    const result = await settleGatewayIntent(rows[0], `PM-SANDBOX-${rows[0].Tracking_Code}`);
-    res.json({ success: true, ...result });
-  } catch (err) {
-    console.error('Sandbox complete error:', err);
-    res.status(500).json({ error: err.message || 'Failed to settle sandbox payment.' });
-  }
-});
+// Note: Direct fake/sandbox auto-completion is intentionally disabled so NO unpaid donation can ever be recorded on-chain.
 
 // 4. Poll Payment Intent Status
 app.get('/api/payments/intent/:intentId', async (req, res) => {

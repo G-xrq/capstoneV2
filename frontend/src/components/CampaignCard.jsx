@@ -1206,12 +1206,21 @@ export default function CampaignCard(props) {
   const [duplicateRefWarning, setDuplicateRefWarning] = useState(null);
   const [railMismatchWarning, setRailMismatchWarning] = useState(null);
 
-  // Anti-Loophole Checkout Mode: 'instant' (PayMongo/Webhook, zero upload) vs 'manual' (Direct QR + AI Receipt + BB-XXXX Intent)
-  const [checkoutMode, setCheckoutMode] = useState('instant');
+  // Real Direct QR & Receipt Upload is default; PayMongo Automated Checkout only appears when real PAYMONGO_SECRET_KEY is configured
+  const [paymongoEnabled, setPaymongoEnabled] = useState(false);
+  const [checkoutMode, setCheckoutMode] = useState('manual');
   const [activeIntent, setActiveIntent] = useState(null);
   const [instantLoading, setInstantLoading] = useState(false);
-  const [instantSettling, setInstantSettling] = useState(false);
   const [instantReceipt, setInstantReceipt] = useState(null);
+
+  useEffect(() => {
+    fetch(`${API_URL}/api/payments/gateway-status`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (d?.paymongoEnabled) setPaymongoEnabled(true);
+      })
+      .catch(() => {});
+  }, []);
 
   const createDirectQrIntent = async (method) => {
     const parsedPhp = Math.max(1, Math.round(Number(amount || 100)));
@@ -1273,31 +1282,7 @@ export default function CampaignCard(props) {
     }
   };
 
-  const handleSandboxCompleteInstant = async () => {
-    if (!activeIntent?.intentId) return;
-    setInstantSettling(true);
-    try {
-      const res = await fetch(`${API_URL}/api/payments/sandbox-complete/${activeIntent.intentId}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || 'Failed to confirm payment.');
-      setInstantReceipt(data);
-      setTxHash(data.txHash || '');
-      showSuccess?.(
-        `₱${Number(data.amountPhp || activeIntent.amountPhp).toLocaleString('en-US')} verified automatically via webhook and notarized on Sepolia!`,
-        'Instant Donation Confirmed'
-      );
-      window.dispatchEvent(new CustomEvent('bbdrts_donation_success'));
-      onDonated?.();
-      fetchHistory(true);
-    } catch (err) {
-      showWarning?.(err.message || 'Payment confirmation failed.', 'Webhook Error');
-    } finally {
-      setInstantSettling(false);
-    }
-  };
+
 
   // Auto-poll live PayMongo checkout session if user was redirected to hosted PayMongo URL
   useEffect(() => {
@@ -5003,7 +4988,8 @@ export default function CampaignCard(props) {
                     </div>
                   </div>
 
-                  {/* Anti-Loophole Checkout Mode Switcher (Instant Webhook vs Direct QR + AI Receipt) */}
+                  {/* Show PayMongo Automated Checkout switcher ONLY when a real PayMongo API key is configured */}
+                  {paymongoEnabled && (
                   <div
                     style={{
                       display: 'grid',
@@ -5068,12 +5054,13 @@ export default function CampaignCard(props) {
                       </div>
                     </button>
                   </div>
+                  )}
 
                   {/* Section Subtitle */}
                   <p style={{ color: 'var(--text-muted, #94a3b8)', fontSize: '0.78rem', margin: '0 0 12px 2px' }}>
-                    {checkoutMode === 'instant'
-                      ? 'Select a channel for instant gateway checkout — automatically credited & notarized on Sepolia even if you close this tab:'
-                      : 'Choose a direct NGO channel to scan their QR code and upload your payment slip for AI + NGO verification:'}
+                    {paymongoEnabled && checkoutMode === 'instant'
+                      ? 'Select a channel for PayMongo Dynamic QR Ph checkout — automatically credited & notarized on Sepolia upon real payment:'
+                      : 'Choose how you would like to securely transfer your disaster relief aid (includes a unique BB-XXXX tracking code):'}
                   </p>
 
                   {/* Philippine Multi-Rail Payment Channels (100% PHP + Gasless Sepolia Notarization) */}
@@ -5083,7 +5070,7 @@ export default function CampaignCard(props) {
                     <button
                       disabled={instantLoading}
                       onClick={() => {
-                        if (checkoutMode === 'instant') {
+                        if (paymongoEnabled && checkoutMode === 'instant') {
                           startInstantCheckout('GCash');
                           return;
                         }
@@ -5114,7 +5101,7 @@ export default function CampaignCard(props) {
                     <button
                       disabled={instantLoading}
                       onClick={() => {
-                        if (checkoutMode === 'instant') {
+                        if (paymongoEnabled && checkoutMode === 'instant') {
                           startInstantCheckout('Maya');
                           return;
                         }
@@ -5145,7 +5132,7 @@ export default function CampaignCard(props) {
                     <button
                       disabled={instantLoading}
                       onClick={() => {
-                        if (checkoutMode === 'instant') {
+                        if (paymongoEnabled && checkoutMode === 'instant') {
                           startInstantCheckout('Bank / Card');
                           return;
                         }
@@ -6225,7 +6212,7 @@ export default function CampaignCard(props) {
                         <strong style={{ color: '#10b981' }}>Zero-Loophole Guarantee:</strong> Once authorized, our signed payment webhook automatically credits <strong>{camp.title}</strong> and mints your Sepolia blockchain proof — even if you close your browser immediately.
                       </div>
 
-                      {activeIntent.provider === 'paymongo' && activeIntent.checkoutUrl ? (
+                      {activeIntent.checkoutUrl && (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                           <a
                             href={activeIntent.checkoutUrl}
@@ -6238,26 +6225,9 @@ export default function CampaignCard(props) {
                             <span>Open PayMongo {activeIntent.paymentMethod} Checkout</span>
                           </a>
                           <div style={{ textAlign: 'center', fontSize: '0.74rem', color: 'var(--text-muted, #94a3b8)' }}>
-                            Waiting for signed PayMongo webhook confirmation…
+                            Waiting for signed PayMongo webhook confirmation after real payment…
                           </div>
                         </div>
-                      ) : (
-                        <button
-                          type="button"
-                          className="btn btn-primary"
-                          disabled={instantSettling}
-                          onClick={handleSandboxCompleteInstant}
-                          style={{ width: '100%', padding: '12px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontWeight: 700 }}
-                        >
-                          <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>
-                            {instantSettling ? 'hourglass_top' : 'verified_user'}
-                          </span>
-                          <span>
-                            {instantSettling
-                              ? 'Processing Webhook & Notarizing on Sepolia…'
-                              : `Authorize ₱${Number(activeIntent.amountPhp || 0).toLocaleString('en-US')} via ${activeIntent.paymentMethod} (Instant)`}
-                          </span>
-                        </button>
                       )}
 
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
