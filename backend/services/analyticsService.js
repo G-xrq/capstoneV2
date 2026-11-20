@@ -1,5 +1,14 @@
 const PHP_PER_ETH = 170000;
 
+const PHP_RAIL_SQL = (alias = 'dt') => `(
+  UPPER(COALESCE(${alias}.Payment_Method, '')) LIKE '%GCASH%'
+  OR UPPER(COALESCE(${alias}.Payment_Method, '')) LIKE '%MAYA%'
+  OR UPPER(COALESCE(${alias}.Payment_Method, '')) LIKE '%BANK%'
+  OR UPPER(COALESCE(${alias}.Payment_Method, '')) LIKE '%CARD%'
+  OR UPPER(COALESCE(${alias}.Payment_Method, '')) LIKE '%CREDIT%'
+  OR UPPER(COALESCE(${alias}.Tx_Hash, '')) LIKE 'FIAT-%'
+)`;
+
 const CATEGORY_LABELS = {
   DR: 'Disaster Relief',
   CD: 'Charitable Aid',
@@ -276,7 +285,7 @@ function summarizeVerificationHealth(manualRows) {
   };
 }
 
-function aggregateCampaignMetrics(campRows, txRows, disbRows, allTimeTxRows = null) {
+function aggregateCampaignMetrics(campRows, txRows, disbRows) {
   const txByCamp = new Map();
   txRows.forEach((t) => {
     if (!txByCamp.has(t.campaignId)) {
@@ -287,19 +296,6 @@ function aggregateCampaignMetrics(campRows, txRows, disbRows, allTimeTxRows = nu
     c.eth += t.ethAmount;
     c.count += 1;
   });
-
-  const allTimeTxByCamp = allTimeTxRows ? new Map() : null;
-  if (allTimeTxRows) {
-    allTimeTxRows.forEach((t) => {
-      if (!allTimeTxByCamp.has(t.campaignId)) {
-        allTimeTxByCamp.set(t.campaignId, { php: 0, eth: 0, count: 0 });
-      }
-      const c = allTimeTxByCamp.get(t.campaignId);
-      c.php += t.phpAmount;
-      c.eth += t.ethAmount;
-      c.count += 1;
-    });
-  }
 
   const disbByCamp = new Map();
   const benByCamp = new Map();
@@ -317,13 +313,8 @@ function aggregateCampaignMetrics(campRows, txRows, disbRows, allTimeTxRows = nu
       ? Math.round(Number(c.targetAmountPhp || c.Target_Amount_Php))
       : Math.round((parseFloat(c.targetAmount || c.Target_Amount || 1) || 1) * PHP_PER_ETH);
 
-    const allTimeAgg = allTimeTxByCamp ? (allTimeTxByCamp.get(id) || { php: 0, eth: 0, count: 0 }) : null;
-    const allTimeRaisedEth = allTimeAgg
-      ? allTimeAgg.eth
-      : (parseFloat(c.allTimeRaisedEth || c.currentAmount || 0) || 0);
-    const allTimeRaisedPhp = allTimeAgg
-      ? Math.round(allTimeAgg.php)
-      : Math.round(allTimeRaisedEth * PHP_PER_ETH);
+    const allTimeRaisedEth = parseFloat(c.allTimeRaisedEth || c.currentAmount || 0) || 0;
+    const allTimeRaisedPhp = Math.round(allTimeRaisedEth * PHP_PER_ETH);
 
     const periodAgg = txByCamp.get(id) || { php: 0, eth: 0, count: 0 };
     const storedDisb = parseFloat(c.disbursedAmountPhp || c.Disbursed_Amount_Php || 0) || 0;
@@ -476,7 +467,8 @@ async function buildAdminAnalytics(db, { range = '30d', category = 'ALL' } = {})
       FROM CAMPAIGN c
       LEFT JOIN (
         SELECT Campaign_ID, SUM(Amount) as sumEth
-        FROM DONATION_TRANSACTION
+        FROM DONATION_TRANSACTION dt
+        WHERE ${PHP_RAIL_SQL('dt')}
         GROUP BY Campaign_ID
       ) dt ON c.Campaign_ID = dt.Campaign_ID
       LEFT JOIN ORGANIZATION o ON c.Org_ID = o.Org_ID
@@ -498,6 +490,7 @@ async function buildAdminAnalytics(db, { range = '30d', category = 'ALL' } = {})
         d.Two_Factor_Enabled as donor2fa
       FROM DONATION_TRANSACTION dt
       LEFT JOIN DONOR d ON dt.Donor_ID = d.Donor_ID
+      WHERE ${PHP_RAIL_SQL('dt')}
       ORDER BY dt.Transaction_ID DESC
     `),
     db.query(`
@@ -596,7 +589,7 @@ async function buildAdminAnalytics(db, { range = '30d', category = 'ALL' } = {})
     nowMs
   );
 
-  const campaignPerf = aggregateCampaignMetrics(filteredCampRows, scopedTx, normalizedDisb, allNormalizedTx);
+  const campaignPerf = aggregateCampaignMetrics(filteredCampRows, scopedTx, normalizedDisb);
   const { categories, regions } = buildCategoryAndRegional(campaignPerf);
   const paymentRails = aggregatePaymentRails(scopedTx);
   const verificationFunnel = summarizeVerificationHealth(scopedManual);
@@ -869,7 +862,8 @@ async function buildOrganizationAnalytics(db, { userId, userWallet = '', range =
       FROM CAMPAIGN c
       LEFT JOIN (
         SELECT Campaign_ID, SUM(Amount) as sumEth
-        FROM DONATION_TRANSACTION
+        FROM DONATION_TRANSACTION dt
+        WHERE ${PHP_RAIL_SQL('dt')}
         GROUP BY Campaign_ID
       ) dt ON c.Campaign_ID = dt.Campaign_ID
       LEFT JOIN ORGANIZATION o ON c.Org_ID = o.Org_ID
@@ -894,7 +888,8 @@ async function buildOrganizationAnalytics(db, { userId, userWallet = '', range =
       LEFT JOIN CAMPAIGN c ON dt.Campaign_ID = c.Campaign_ID
       LEFT JOIN ORGANIZATION o ON (dt.Org_ID = o.Org_ID OR c.Org_ID = o.Org_ID)
       LEFT JOIN DONOR d ON dt.Donor_ID = d.Donor_ID
-      WHERE dt.Org_ID = ? OR c.Org_ID = ? OR (o.Wallet_Address IS NOT NULL AND LOWER(o.Wallet_Address) = ?)
+      WHERE (dt.Org_ID = ? OR c.Org_ID = ? OR (o.Wallet_Address IS NOT NULL AND LOWER(o.Wallet_Address) = ?))
+        AND ${PHP_RAIL_SQL('dt')}
       ORDER BY dt.Transaction_ID DESC
     `, [userId, userId, orgEffectiveWallet]),
     db.query(`
@@ -950,7 +945,7 @@ async function buildOrganizationAnalytics(db, { userId, userWallet = '', range =
   const scopedDisb = filterByRange(normalizedDisb, 'disbursedAt', rangeDays, nowMs);
   const scopedManual = filterByRange(manualRows || [], 'createdAt', rangeDays, nowMs);
 
-  const campaignPerf = aggregateCampaignMetrics(campRows, scopedTx, normalizedDisb, allNormalizedTx);
+  const campaignPerf = aggregateCampaignMetrics(campRows, scopedTx, normalizedDisb);
   const { categories, regions } = buildCategoryAndRegional(campaignPerf);
   const paymentRails = aggregatePaymentRails(scopedTx);
   const verificationFunnel = summarizeVerificationHealth(scopedManual);

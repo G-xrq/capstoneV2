@@ -292,8 +292,8 @@ export default function AnalyticsReportsPanel({ mode = 'admin', onNavigateTab })
                 <button
                   type="button"
                   role="tab"
-                  aria-selected={chartSeries === 'combined'}
-                  className={`va-kpi-cell va-kpi-btn ${chartSeries === 'combined' ? 'is-selected' : ''}`}
+                  aria-selected={chartSeries === 'combined' || chartSeries === 'split'}
+                  className={`va-kpi-cell va-kpi-btn ${chartSeries === 'combined' || chartSeries === 'split' ? 'is-selected' : ''}`}
                   onClick={() => setChartSeries('combined')}
                 >
                   <div className="va-kpi-top">
@@ -396,14 +396,13 @@ export default function AnalyticsReportsPanel({ mode = 'admin', onNavigateTab })
                   </div>
                 </div>
 
-                {/* Smooth Sliding Active Indicator Bar (hidden when viewing By Channel split mode) */}
+                {/* Smooth Sliding Active Indicator Bar */}
                 <span
                   className="va-kpi-slider"
                   aria-hidden="true"
                   style={{
-                    opacity: chartSeries === 'split' ? 0 : 1,
                     transform: `translateX(${
-                      (chartSeries === 'combined' ? 0 : chartSeries === 'volume' ? 1 : 2) * 100
+                      (chartSeries === 'volume' ? 1 : chartSeries === 'disbursed' ? 2 : 0) * 100
                     }%)`
                   }}
                 />

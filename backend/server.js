@@ -17,6 +17,15 @@ const { logActivity } = require('./services/activityLogger');
 const analyticsService = require('./services/analyticsService');
 
 const app = express();
+
+const PHP_RAIL_SQL = (alias = 'dt') => `(
+  UPPER(COALESCE(${alias}.Payment_Method, '')) LIKE '%GCASH%'
+  OR UPPER(COALESCE(${alias}.Payment_Method, '')) LIKE '%MAYA%'
+  OR UPPER(COALESCE(${alias}.Payment_Method, '')) LIKE '%BANK%'
+  OR UPPER(COALESCE(${alias}.Payment_Method, '')) LIKE '%CARD%'
+  OR UPPER(COALESCE(${alias}.Payment_Method, '')) LIKE '%CREDIT%'
+  OR UPPER(COALESCE(${alias}.Tx_Hash, '')) LIKE 'FIAT-%'
+)`;
 app.use(compression()); // Fast GZIP compression for all responses
 const PORT = process.env.PORT || 3001;
 const JWT_SECRET = process.env.JWT_SECRET;
@@ -4594,7 +4603,8 @@ app.post('/api/campaigns/:id/disburse', authenticateToken, async (req, res) => {
       JOIN ORGANIZATION o ON c.Org_ID = o.Org_ID
       LEFT JOIN (
         SELECT Campaign_ID, SUM(Amount) as totalDonationAmount
-        FROM DONATION_TRANSACTION
+        FROM DONATION_TRANSACTION dt_sub
+        WHERE ${PHP_RAIL_SQL('dt_sub')}
         GROUP BY Campaign_ID
       ) dt ON c.Campaign_ID = dt.Campaign_ID
       WHERE c.Campaign_ID = ?
@@ -5462,9 +5472,10 @@ app.get('/api/donations/me', authenticateToken, async (req, res) => {
       LEFT JOIN DONOR d ON dt.Donor_ID = d.Donor_ID
       LEFT JOIN CAMPAIGN c ON dt.Campaign_ID = c.Campaign_ID
       LEFT JOIN ORGANIZATION o ON (dt.Org_ID = o.Org_ID OR c.Org_ID = o.Org_ID)
-      WHERE ${isDonor 
+      WHERE (${isDonor 
         ? '(dt.Donor_ID = ? OR (dt.Wallet_Address IS NOT NULL AND LOWER(dt.Wallet_Address) = ?))' 
-        : '(dt.Org_ID = ? OR c.Org_ID = ? OR (o.Wallet_Address IS NOT NULL AND LOWER(o.Wallet_Address) = ?))'}
+        : '(dt.Org_ID = ? OR c.Org_ID = ? OR (o.Wallet_Address IS NOT NULL AND LOWER(o.Wallet_Address) = ?))'})
+        AND ${PHP_RAIL_SQL('dt')}
       ORDER BY dt.Transaction_ID DESC
     `, isDonor ? [req.user.id, userWallet || '___none___'] : [req.user.id, req.user.id, userWallet || '___none___']);
     res.json(rows || []);
@@ -5763,7 +5774,8 @@ async function loadCampaignsFromDb() {
       FROM CAMPAIGN c
       LEFT JOIN (
         SELECT Campaign_ID, SUM(Amount) as totalDonationAmount
-        FROM DONATION_TRANSACTION
+        FROM DONATION_TRANSACTION dt_sub
+        WHERE ${PHP_RAIL_SQL('dt_sub')}
         GROUP BY Campaign_ID
       ) dt ON c.Campaign_ID = dt.Campaign_ID
       LEFT JOIN ORGANIZATION o ON c.Org_ID = o.Org_ID
@@ -5776,7 +5788,7 @@ async function loadCampaignsFromDb() {
 
     let txRows = [];
     try {
-      const [txs] = await db.query(`SELECT Campaign_ID, Tx_Hash, Amount, Payment_Method FROM DONATION_TRANSACTION`);
+      const [txs] = await db.query(`SELECT Campaign_ID, Tx_Hash, Amount, Payment_Method FROM DONATION_TRANSACTION dt WHERE ${PHP_RAIL_SQL('dt')}`);
       txRows = txs || [];
     } catch (_) {}
 
@@ -6029,6 +6041,7 @@ app.get('/api/donors/cumulative-totals', async (req, res) => {
         dt.Amount as amount
       FROM DONATION_TRANSACTION dt
       LEFT JOIN DONOR d ON dt.Donor_ID = d.Donor_ID
+      WHERE ${PHP_RAIL_SQL('dt')}
     `);
 
     const donorTotals = {};
@@ -6116,6 +6129,7 @@ app.get('/api/donors/:identifier/transactions', async (req, res) => {
         ${isAddress ? 'LOWER(dt.Wallet_Address) = ?' : 'dt.Donor_ID = ?'}
         ${isAddress ? 'OR dt.Donor_ID IN (SELECT Donor_ID FROM DONOR WHERE LOWER(Wallet_Address) = ?)' : 'OR LOWER(dt.Wallet_Address) IN (SELECT LOWER(Wallet_Address) FROM DONOR WHERE Donor_ID = ? AND Wallet_Address IS NOT NULL)'}
       )
+        AND ${PHP_RAIL_SQL('dt')}
       ORDER BY dt.Transaction_ID DESC
     `, isAddress ? [cleanAddr, cleanAddr] : [donorId, donorId]);
 
@@ -6188,7 +6202,7 @@ app.get('/api/leaderboard', async (req, res) => {
       FROM DONOR d
       INNER JOIN DONATION_TRANSACTION dt ON (d.Donor_ID = dt.Donor_ID OR (d.Wallet_Address IS NOT NULL AND dt.Wallet_Address IS NOT NULL AND LOWER(d.Wallet_Address) = LOWER(dt.Wallet_Address)))
       LEFT JOIN CAMPAIGN c ON dt.Campaign_ID = c.Campaign_ID
-      WHERE 1=1 ${donorTimeframeFilter}
+      WHERE ${PHP_RAIL_SQL('dt')} ${donorTimeframeFilter}
       GROUP BY d.Donor_ID, d.Username, d.Display_Name, d.Legal_Name, d.Name, d.Avatar_Url, d.Wallet_Address, d.Preferences_Json, d.Bio, d.Is_Anonymous
       HAVING totalDonatedEth > 0
       ORDER BY totalDonatedEth DESC, donationCount DESC
@@ -6206,7 +6220,7 @@ app.get('/api/leaderboard', async (req, res) => {
       FROM DONATION_TRANSACTION dt
       LEFT JOIN CAMPAIGN c ON dt.Campaign_ID = c.Campaign_ID
       LEFT JOIN DONOR d ON (dt.Donor_ID = d.Donor_ID OR (dt.Wallet_Address IS NOT NULL AND d.Wallet_Address IS NOT NULL AND LOWER(dt.Wallet_Address) = LOWER(d.Wallet_Address)))
-      WHERE d.Donor_ID IS NULL AND dt.Amount > 0 ${unlinkedTimeframeFilter}
+      WHERE d.Donor_ID IS NULL AND dt.Amount > 0 AND ${PHP_RAIL_SQL('dt')} ${unlinkedTimeframeFilter}
       GROUP BY dt.Donor_ID, dt.Wallet_Address
     `, unlinkedQueryParams);
 
@@ -6332,11 +6346,11 @@ app.get('/api/leaderboard', async (req, res) => {
       campFilter = 'WHERE c.Is_Active = 1';
     }
 
-    let dtFilter = '';
+    let dtFilter = `WHERE ${PHP_RAIL_SQL('dt')}`;
     const orgQueryParams = [];
     if (timeframe === 'month') {
       const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 19).replace('T', ' ');
-      dtFilter = 'WHERE dt.Created_At >= ?';
+      dtFilter = `WHERE ${PHP_RAIL_SQL('dt')} AND dt.Created_At >= ?`;
       orgQueryParams.push(thirtyDaysAgo);
     }
 
@@ -6591,12 +6605,13 @@ app.get('/api/donations/live', async (req, res) => {
 
     // 4. Compute running cumulative contributions per donor up to the moment of each transaction
     const [allTxs] = await db.query(`
-      SELECT Transaction_ID as id,
-             Donor_ID as donorId,
-             LOWER(COALESCE(Wallet_Address, '')) as wallet,
-             Amount as amountEth
-      FROM DONATION_TRANSACTION
-      ORDER BY Transaction_ID ASC
+      SELECT dt.Transaction_ID as id,
+             dt.Donor_ID as donorId,
+             LOWER(COALESCE(dt.Wallet_Address, '')) as wallet,
+             dt.Amount as amountEth
+      FROM DONATION_TRANSACTION dt
+      WHERE ${PHP_RAIL_SQL('dt')}
+      ORDER BY dt.Transaction_ID ASC
     `);
 
     const runningEthMap = {};
@@ -6745,15 +6760,16 @@ app.get('/api/campaigns/:id/donations', async (req, res) => {
              d.Preferences_Json as preferencesJson
       FROM DONATION_TRANSACTION dt
       LEFT JOIN DONOR d ON dt.Donor_ID = d.Donor_ID
-      WHERE dt.Campaign_ID = ?
+      WHERE dt.Campaign_ID = ? AND ${PHP_RAIL_SQL('dt')}
       ORDER BY dt.Transaction_ID DESC
     `, [req.params.id]);
 
-    // Query all transactions to compute global totals across all campaigns
+    // Query all PHP transactions to compute global totals across all campaigns
     const [allTxs] = await db.query(`
       SELECT dt.Donor_ID as donorId, dt.Wallet_Address as txWallet, dt.Amount as amount, d.Wallet_Address as donorWallet
       FROM DONATION_TRANSACTION dt
       LEFT JOIN DONOR d ON dt.Donor_ID = d.Donor_ID
+      WHERE ${PHP_RAIL_SQL('dt')}
     `);
     const donorTotals = {};
     const donorToWallets = {};
@@ -6892,7 +6908,7 @@ app.get('/api/donors/:identifier/transactions', async (req, res) => {
       FROM DONATION_TRANSACTION dt
       LEFT JOIN CAMPAIGN c ON dt.Campaign_ID = c.Campaign_ID
       LEFT JOIN ORGANIZATION o ON (dt.Org_ID = o.Org_ID OR c.Org_ID = o.Org_ID)
-      WHERE ${whereClauses.join(' OR ')}
+      WHERE (${whereClauses.join(' OR ')}) AND ${PHP_RAIL_SQL('dt')}
       ORDER BY dt.Transaction_ID DESC
     `;
 
@@ -7054,7 +7070,7 @@ app.get('/api/admin/donors', authenticateToken, async (req, res) => {
         COALESCE(SUM(dt.Amount), 0) as totalOnChainEth,
         COUNT(DISTINCT md.Manual_ID) as manualTxCount
       FROM DONOR d
-      LEFT JOIN DONATION_TRANSACTION dt ON d.Donor_ID = dt.Donor_ID
+      LEFT JOIN DONATION_TRANSACTION dt ON d.Donor_ID = dt.Donor_ID AND ${PHP_RAIL_SQL('dt')}
       LEFT JOIN MANUAL_DONATION md ON d.Donor_ID = md.Donor_ID
       GROUP BY d.Donor_ID
       ORDER BY d.Donor_ID DESC
@@ -7267,6 +7283,7 @@ app.get('/api/admin/financial-ledger', authenticateToken, async (req, res) => {
       LEFT JOIN DONOR d ON dt.Donor_ID = d.Donor_ID
       LEFT JOIN CAMPAIGN c ON dt.Campaign_ID = c.Campaign_ID
       LEFT JOIN ORGANIZATION o ON c.Org_ID = o.Org_ID
+      WHERE ${PHP_RAIL_SQL('dt')}
       ORDER BY dt.Transaction_ID DESC
       LIMIT 200
     `);
@@ -7923,7 +7940,7 @@ app.get('/api/public/organizations', async (req, res) => {
         COALESCE(SUM(dt.Amount), 0) as totalRaisedEth
       FROM ORGANIZATION o
       LEFT JOIN CAMPAIGN c ON o.Org_ID = c.Org_ID
-      LEFT JOIN DONATION_TRANSACTION dt ON c.Campaign_ID = dt.Campaign_ID
+      LEFT JOIN DONATION_TRANSACTION dt ON c.Campaign_ID = dt.Campaign_ID AND ${PHP_RAIL_SQL('dt')}
       WHERE o.Verification_Status = 'Approved'
       GROUP BY o.Org_ID, o.Org_Name, o.Username, o.Verification_Status, o.Wallet_Address,
                o.Mobile_Number, o.Sec_Registration_No, o.Sec_Certificate_Url,
@@ -8110,7 +8127,8 @@ app.get('/api/public/organizations/:id', async (req, res) => {
       JOIN ORGANIZATION o ON c.Org_ID = o.Org_ID
       LEFT JOIN (
         SELECT Campaign_ID, SUM(Amount) as totalDonationAmount
-        FROM DONATION_TRANSACTION
+        FROM DONATION_TRANSACTION dt_sub
+        WHERE ${PHP_RAIL_SQL('dt_sub')}
         GROUP BY Campaign_ID
       ) dt ON c.Campaign_ID = dt.Campaign_ID
       WHERE c.Org_ID = ?
