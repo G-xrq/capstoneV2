@@ -110,6 +110,12 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
     try { return localStorage.getItem('bbdrts_sidebar_collapsed') === 'true'; } catch (_) { return false; }
   });
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent('bbdrts_mobile_sidebar_state', { detail: { open: mobileSidebarOpen } }));
+    return () => {
+      window.dispatchEvent(new CustomEvent('bbdrts_mobile_sidebar_state', { detail: { open: false } }));
+    };
+  }, [mobileSidebarOpen]);
 
   const toggleSidebar = () => {
     setIsSidebarCollapsed(prev => {

@@ -25,6 +25,19 @@ export default function Header({
   const { showSuccess } = useToast();
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+
+  useEffect(() => {
+    const handleSidebarState = (e) => {
+      setMobileSidebarOpen(Boolean(e?.detail?.open));
+    };
+    window.addEventListener('bbdrts_mobile_sidebar_state', handleSidebarState);
+    return () => window.removeEventListener('bbdrts_mobile_sidebar_state', handleSidebarState);
+  }, []);
+
+  useEffect(() => {
+    if (!dbUser) setMobileSidebarOpen(false);
+  }, [dbUser]);
   const [copiedAddr, setCopiedAddr] = useState(false);
   const [copiedId, setCopiedId] = useState(false);
   const [showLeaderboardModal, setShowLeaderboardModal] = useState(false);
@@ -192,12 +205,17 @@ export default function Header({
             {dbUser && (
               <button
                 type="button"
-                className="bbdrts-sidebar-toggle-btn"
+                className={`bbdrts-sidebar-toggle-btn ${mobileSidebarOpen ? 'is-open' : ''}`}
                 onClick={() => window.dispatchEvent(new CustomEvent('bbdrts_toggle_sidebar'))}
-                title="Toggle Navigation Menu"
-                aria-label="Toggle Navigation Menu"
+                title={mobileSidebarOpen ? 'Close Navigation Menu' : 'Open Navigation Menu'}
+                aria-label={mobileSidebarOpen ? 'Close Navigation Menu' : 'Open Navigation Menu'}
+                aria-expanded={mobileSidebarOpen}
               >
-                <span className="material-symbols-outlined" style={{ fontSize: '19px' }}>menu</span>
+                <span className={`bbdrts-hamburger-morph ${mobileSidebarOpen ? 'is-open' : ''}`} aria-hidden="true">
+                  <span className="bar bar-1" />
+                  <span className="bar bar-2" />
+                  <span className="bar bar-3" />
+                </span>
               </button>
             )}
 
