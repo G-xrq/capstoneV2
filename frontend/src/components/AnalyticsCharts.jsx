@@ -202,13 +202,15 @@ export function VercelAreaLineChart({
   const isCountAxis = activeMode === 'volume';
 
   // Target curves & exact interactive data points
-  const { targetMaxY, targetPrimary, targetSecondary, hasSecondary, points } = useMemo(() => {
+  const { targetMaxY, targetPrimary, targetSecondary, targetTertiary, hasSecondary, hasTertiary, points } = useMemo(() => {
     if (!Array.isArray(data) || data.length === 0) {
       return {
         targetMaxY: isCountAxis ? 4 : 1000,
         targetPrimary: new Array(WAVE_SAMPLES).fill(0),
         targetSecondary: new Array(WAVE_SAMPLES).fill(0),
+        targetTertiary: new Array(WAVE_SAMPLES).fill(0),
         hasSecondary: false,
+        hasTertiary: false,
         points: []
       };
     }
@@ -220,7 +222,12 @@ export function VercelAreaLineChart({
       } else if (activeMode === 'disbursed') {
         rawMax = Math.max(rawMax, Number(d.disbursedPhp || 0), Number(d.totalPhp || 0) * 0.15);
       } else if (activeMode === 'split') {
-        rawMax = Math.max(rawMax, Number(d.ewalletPhp ?? d.fiatPhp ?? 0), Number(d.bankCardPhp ?? d.cryptoPhp ?? 0));
+        rawMax = Math.max(
+          rawMax,
+          Number(d.gcashPhp ?? 0),
+          Number(d.mayaPhp ?? 0),
+          Number(d.bankCardPhp ?? d.cryptoPhp ?? 0)
+        );
       } else {
         rawMax = Math.max(rawMax, Number(d.totalPhp || 0), Number(d.disbursedPhp || 0));
       }
@@ -233,14 +240,18 @@ export function VercelAreaLineChart({
     const rawPrimary = data.map((d) => {
       if (activeMode === 'volume') return Number(d.txCount || 0) / niceMax;
       if (activeMode === 'disbursed') return Number(d.disbursedPhp || 0) / niceMax;
-      if (activeMode === 'split') return Number(d.ewalletPhp ?? d.fiatPhp ?? 0) / niceMax;
+      if (activeMode === 'split') return Number(d.gcashPhp ?? 0) / niceMax;
       return Number(d.totalPhp || 0) / niceMax;
     });
 
     const hasAnyDisb = data.some((d) => Number(d.disbursedPhp || 0) > 0);
     const showSec = activeMode === 'split' || (activeMode === 'combined' && hasAnyDisb);
+    const showTert = activeMode === 'split';
     const rawSecondary = showSec
-      ? data.map((d) => (activeMode === 'split' ? Number(d.bankCardPhp ?? d.cryptoPhp ?? 0) : Number(d.disbursedPhp || 0)) / niceMax)
+      ? data.map((d) => (activeMode === 'split' ? Number(d.mayaPhp ?? 0) : Number(d.disbursedPhp || 0)) / niceMax)
+      : data.map(() => 0);
+    const rawTertiary = showTert
+      ? data.map((d) => Number(d.bankCardPhp ?? d.cryptoPhp ?? 0) / niceMax)
       : data.map(() => 0);
 
     const pts = data.map((d, i) => {
@@ -249,17 +260,20 @@ export function VercelAreaLineChart({
         : pad.left + (i / (data.length - 1)) * plotW;
       const yTotal = pad.top + plotH - ((Number(d.totalPhp || 0) / niceMax) * plotH);
       const yDisb = pad.top + plotH - ((Number(d.disbursedPhp || 0) / niceMax) * plotH);
-      const yEwallet = pad.top + plotH - ((Number(d.ewalletPhp ?? d.fiatPhp ?? 0) / niceMax) * plotH);
+      const yGcash = pad.top + plotH - ((Number(d.gcashPhp ?? 0) / niceMax) * plotH);
+      const yMaya = pad.top + plotH - ((Number(d.mayaPhp ?? 0) / niceMax) * plotH);
       const yBankCard = pad.top + plotH - ((Number(d.bankCardPhp ?? d.cryptoPhp ?? 0) / niceMax) * plotH);
       const yTx = pad.top + plotH - ((Number(d.txCount || 0) / niceMax) * plotH);
-      return { ...d, i, x, yTotal, yDisb, yEwallet, yBankCard, yTx };
+      return { ...d, i, x, yTotal, yDisb, yGcash, yMaya, yBankCard, yTx };
     });
 
     return {
       targetMaxY: niceMax,
       targetPrimary: sampleMonotoneSeries(rawPrimary, WAVE_SAMPLES),
       targetSecondary: sampleMonotoneSeries(rawSecondary, WAVE_SAMPLES),
+      targetTertiary: sampleMonotoneSeries(rawTertiary, WAVE_SAMPLES),
       hasSecondary: showSec,
+      hasTertiary: showTert,
       points: pts
     };
   }, [data, plotH, plotW, pad.left, pad.top, activeMode, isCountAxis]);
@@ -270,6 +284,9 @@ export function VercelAreaLineChart({
   const secondaryLineRef = useRef(null);
   const secondaryAreaRef = useRef(null);
   const secondaryGroupRef = useRef(null);
+  const tertiaryLineRef = useRef(null);
+  const tertiaryAreaRef = useRef(null);
+  const tertiaryGroupRef = useRef(null);
   const tickTextRefs = useRef([]);
 
   // Persistent fluid wave physics state
@@ -280,12 +297,18 @@ export function VercelAreaLineChart({
     fromSecondary: new Array(WAVE_SAMPLES).fill(0),
     toSecondary: new Array(WAVE_SAMPLES).fill(0),
     currSecondary: new Array(WAVE_SAMPLES).fill(0),
+    fromTertiary: new Array(WAVE_SAMPLES).fill(0),
+    toTertiary: new Array(WAVE_SAMPLES).fill(0),
+    currTertiary: new Array(WAVE_SAMPLES).fill(0),
     fromMaxY: 1000,
     toMaxY: 1000,
     currMaxY: 1000,
     fromSecOp: 0,
     toSecOp: 0,
     currSecOp: 0,
+    fromTertOp: 0,
+    toTertOp: 0,
+    currTertOp: 0,
     morphStartTs: 0,
     morphDuration: 720,
     isCountAxis: false,
@@ -294,8 +317,8 @@ export function VercelAreaLineChart({
   });
 
   const waveSig = useMemo(
-    () => `${activeMode}|${isCountAxis ? 1 : 0}|${targetMaxY}|${hasSecondary ? 1 : 0}|${targetPrimary.map((v) => v.toFixed(4)).join(',')}|${targetSecondary.map((v) => v.toFixed(4)).join(',')}`,
-    [activeMode, isCountAxis, targetMaxY, hasSecondary, targetPrimary, targetSecondary]
+    () => `${activeMode}|${isCountAxis ? 1 : 0}|${targetMaxY}|${hasSecondary ? 1 : 0}|${hasTertiary ? 1 : 0}|${targetPrimary.map((v) => v.toFixed(4)).join(',')}|${targetSecondary.map((v) => v.toFixed(4)).join(',')}|${targetTertiary.map((v) => v.toFixed(4)).join(',')}`,
+    [activeMode, isCountAxis, targetMaxY, hasSecondary, hasTertiary, targetPrimary, targetSecondary, targetTertiary]
   );
 
   // Trigger silky staggered wave morph ONLY when chart data/mode actually changes, and rest completely still once settled
@@ -314,22 +337,30 @@ export function VercelAreaLineChart({
       st.currPrimary = new Array(WAVE_SAMPLES).fill(0);
       st.fromSecondary = new Array(WAVE_SAMPLES).fill(0);
       st.currSecondary = new Array(WAVE_SAMPLES).fill(0);
+      st.fromTertiary = new Array(WAVE_SAMPLES).fill(0);
+      st.currTertiary = new Array(WAVE_SAMPLES).fill(0);
       st.fromMaxY = targetMaxY;
       st.currMaxY = targetMaxY;
       st.fromSecOp = 0;
       st.currSecOp = 0;
+      st.fromTertOp = 0;
+      st.currTertOp = 0;
       st.initialized = true;
     } else {
       st.fromPrimary = [...st.currPrimary];
       st.fromSecondary = [...st.currSecondary];
+      st.fromTertiary = [...st.currTertiary];
       st.fromMaxY = st.currMaxY;
       st.fromSecOp = st.currSecOp;
+      st.fromTertOp = st.currTertOp;
     }
 
     st.toPrimary = [...targetPrimary];
     st.toSecondary = [...targetSecondary];
+    st.toTertiary = [...targetTertiary];
     st.toMaxY = targetMaxY;
     st.toSecOp = hasSecondary ? 1 : 0;
+    st.toTertOp = hasTertiary ? 1 : 0;
     st.isCountAxis = isCountAxis;
     st.morphStartTs = now;
     st.morphDuration = reduced ? 1 : 680;
@@ -338,6 +369,7 @@ export function VercelAreaLineChart({
     const staggerSpread = 0.24;
     const displayPrimary = new Array(WAVE_SAMPLES);
     const displaySecondary = new Array(WAVE_SAMPLES);
+    const displayTertiary = new Array(WAVE_SAMPLES);
 
     const drawFrame = (ts) => {
       const elapsed = Math.max(0, ts - st.morphStartTs);
@@ -355,19 +387,24 @@ export function VercelAreaLineChart({
 
         const baseP = st.fromPrimary[k] + (st.toPrimary[k] - st.fromPrimary[k]) * eased;
         const baseS = st.fromSecondary[k] + (st.toSecondary[k] - st.fromSecondary[k]) * eased;
+        const baseT = st.fromTertiary[k] + (st.toTertiary[k] - st.fromTertiary[k]) * eased;
         st.currPrimary[k] = baseP;
         st.currSecondary[k] = baseS;
+        st.currTertiary[k] = baseT;
 
         const morphWave = Math.sin(frac * Math.PI * 3.0 - rawT * Math.PI * 2.2) * morphRippleEnv;
         const envP = baseP > 0.018 ? Math.min(1, baseP * 1.25) : 0;
         const envS = baseS > 0.018 ? Math.min(1, baseS * 1.25) : 0;
+        const envT = baseT > 0.018 ? Math.min(1, baseT * 1.25) : 0;
 
         displayPrimary[k] = Math.max(0, Math.min(1, baseP + morphWave * envP));
         displaySecondary[k] = Math.max(0, Math.min(1, baseS + morphWave * envS));
+        displayTertiary[k] = Math.max(0, Math.min(1, baseT + morphWave * envT));
       }
 
       st.currMaxY = st.fromMaxY + (st.toMaxY - st.fromMaxY) * globalEase;
       st.currSecOp = st.fromSecOp + (st.toSecOp - st.fromSecOp) * globalEase;
+      st.currTertOp = st.fromTertOp + (st.toTertOp - st.fromTertOp) * globalEase;
 
       const pLine = buildWavePath(displayPrimary, pad.left, pad.top, plotW, plotH);
       if (primaryLineRef.current) primaryLineRef.current.setAttribute('d', pLine);
@@ -380,6 +417,15 @@ export function VercelAreaLineChart({
         const sLine = buildWavePath(displaySecondary, pad.left, pad.top, plotW, plotH);
         if (secondaryLineRef.current) secondaryLineRef.current.setAttribute('d', sLine);
         if (secondaryAreaRef.current) secondaryAreaRef.current.setAttribute('d', buildWaveArea(sLine, pad.left, plotW, baselineY));
+      }
+
+      if (tertiaryGroupRef.current) {
+        tertiaryGroupRef.current.style.opacity = st.currTertOp.toFixed(3);
+      }
+      if (st.currTertOp > 0.005) {
+        const tLine = buildWavePath(displayTertiary, pad.left, pad.top, plotW, plotH);
+        if (tertiaryLineRef.current) tertiaryLineRef.current.setAttribute('d', tLine);
+        if (tertiaryAreaRef.current) tertiaryAreaRef.current.setAttribute('d', buildWaveArea(tLine, pad.left, plotW, baselineY));
       }
 
       const fracs = [0, 0.33, 0.66, 1];
@@ -402,7 +448,7 @@ export function VercelAreaLineChart({
     return () => {
       if (rafId) cancelAnimationFrame(rafId);
     };
-  }, [targetPrimary, targetSecondary, targetMaxY, hasSecondary, isCountAxis, pad.left, pad.top, plotW, plotH, baselineY]);
+  }, [waveSig, targetPrimary, targetSecondary, targetTertiary, targetMaxY, hasSecondary, hasTertiary, isCountAxis, pad.left, pad.top, plotW, plotH, baselineY]);
 
   const xLabelIndices = useMemo(() => {
     if (points.length <= 5) return points.map((_, i) => i);
@@ -432,8 +478,10 @@ export function VercelAreaLineChart({
 
   const primaryColor = activeMode === 'disbursed' ? '#10b981' : 'var(--va-series-primary, #3291FF)';
   const primaryGradId = activeMode === 'disbursed' ? `vaAreaEm_${uid}` : `vaAreaBl_${uid}`;
-  const secondaryColor = activeMode === 'split' ? 'var(--va-series-mono, #a1a1aa)' : '#10b981';
-  const secondaryGradId = activeMode === 'split' ? `vaAreaNu_${uid}` : `vaAreaEm_${uid}`;
+  const secondaryColor = '#10b981';
+  const secondaryGradId = `vaAreaEm_${uid}`;
+  const tertiaryColor = '#a855f7';
+  const tertiaryGradId = `vaAreaPu_${uid}`;
 
   const activePt = hoverIdx !== null && points[hoverIdx] ? points[hoverIdx] : null;
   const isEmpty = !data || data.length === 0;
@@ -463,10 +511,14 @@ export function VercelAreaLineChart({
               <>
                 <span className="va-legend-item">
                   <span className="va-legend-swatch va-swatch-blue" />
-                  E-Wallets (GCash / Maya)
+                  GCash
                 </span>
                 <span className="va-legend-item">
-                  <span className="va-legend-swatch va-swatch-neutral" />
+                  <span className="va-legend-swatch va-swatch-emerald" />
+                  Maya
+                </span>
+                <span className="va-legend-item">
+                  <span className="va-legend-swatch va-swatch-purple" />
                   Bank / Card
                 </span>
               </>
@@ -500,7 +552,7 @@ export function VercelAreaLineChart({
               className={`va-seg-mini-btn ${activeMode === 'split' ? 'active' : ''}`}
               onClick={() => setMode('split')}
             >
-              E-Wallet vs Bank
+              By Channel
             </button>
             <button
               type="button"
@@ -523,6 +575,10 @@ export function VercelAreaLineChart({
             <linearGradient id={`vaAreaEm_${uid}`} x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor="#10b981" stopOpacity="0.20" />
               <stop offset="100%" stopColor="#10b981" stopOpacity="0.0" />
+            </linearGradient>
+            <linearGradient id={`vaAreaPu_${uid}`} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#a855f7" stopOpacity="0.18" />
+              <stop offset="100%" stopColor="#a855f7" stopOpacity="0.0" />
             </linearGradient>
             <linearGradient id={`vaAreaNu_${uid}`} x1="0" y1="0" x2="0" y2="1">
               <stop offset="0%" stopColor="var(--va-series-mono, #a1a1aa)" stopOpacity="0.14" />
@@ -586,8 +642,20 @@ export function VercelAreaLineChart({
                 d=""
                 fill="none"
                 stroke={secondaryColor}
-                strokeWidth="1.55"
+                strokeWidth="1.65"
                 strokeDasharray={activeMode === 'combined' ? '3 3' : undefined}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </g>
+            <g ref={tertiaryGroupRef} style={{ opacity: hasTertiary ? 1 : 0 }}>
+              <path ref={tertiaryAreaRef} d="" fill={`url(#${tertiaryGradId})`} />
+              <path
+                ref={tertiaryLineRef}
+                d=""
+                fill="none"
+                stroke={tertiaryColor}
+                strokeWidth="1.65"
                 strokeLinecap="round"
                 strokeLinejoin="round"
               />
@@ -609,7 +677,7 @@ export function VercelAreaLineChart({
                 cy={
                   activeMode === 'volume' ? activePt.yTx
                     : activeMode === 'disbursed' ? activePt.yDisb
-                      : activeMode === 'split' ? activePt.yEwallet
+                      : activeMode === 'split' ? activePt.yGcash
                         : activePt.yTotal
                 }
                 r="4"
@@ -618,14 +686,24 @@ export function VercelAreaLineChart({
                 strokeWidth="2"
               />
               {activeMode === 'split' && (
-                <circle
-                  cx={activePt.x}
-                  cy={activePt.yBankCard}
-                  r="3.5"
-                  fill="var(--va-surface, #0a0a0a)"
-                  stroke="var(--va-series-mono, #a1a1aa)"
-                  strokeWidth="2"
-                />
+                <>
+                  <circle
+                    cx={activePt.x}
+                    cy={activePt.yMaya}
+                    r="3.5"
+                    fill="var(--va-surface, #0a0a0a)"
+                    stroke={secondaryColor}
+                    strokeWidth="2"
+                  />
+                  <circle
+                    cx={activePt.x}
+                    cy={activePt.yBankCard}
+                    r="3.5"
+                    fill="var(--va-surface, #0a0a0a)"
+                    stroke={tertiaryColor}
+                    strokeWidth="2"
+                  />
+                </>
               )}
             </g>
           )}
@@ -634,7 +712,7 @@ export function VercelAreaLineChart({
           {points.length === 1 && !activePt && (
             <circle
               cx={points[0].x}
-              cy={activeMode === 'volume' ? points[0].yTx : activeMode === 'disbursed' ? points[0].yDisb : points[0].yTotal}
+              cy={activeMode === 'volume' ? points[0].yTx : activeMode === 'disbursed' ? points[0].yDisb : activeMode === 'split' ? points[0].yGcash : points[0].yTotal}
               r="4"
               fill="var(--va-surface, #0a0a0a)"
               stroke={primaryColor}
@@ -680,11 +758,16 @@ export function VercelAreaLineChart({
               <>
                 <div className="va-tooltip-row">
                   <span className="va-legend-swatch va-swatch-blue" />
-                  <span>E-Wallets</span>
-                  <strong>₱{Number(activePt.ewalletPhp ?? activePt.fiatPhp ?? 0).toLocaleString('en-US')}</strong>
+                  <span>GCash</span>
+                  <strong>₱{Number(activePt.gcashPhp ?? 0).toLocaleString('en-US')}</strong>
                 </div>
                 <div className="va-tooltip-row">
-                  <span className="va-legend-swatch va-swatch-neutral" />
+                  <span className="va-legend-swatch va-swatch-emerald" />
+                  <span>Maya</span>
+                  <strong>₱{Number(activePt.mayaPhp ?? 0).toLocaleString('en-US')}</strong>
+                </div>
+                <div className="va-tooltip-row">
+                  <span className="va-legend-swatch va-swatch-purple" />
                   <span>Bank / Card</span>
                   <strong>₱{Number(activePt.bankCardPhp ?? activePt.cryptoPhp ?? 0).toLocaleString('en-US')}</strong>
                 </div>

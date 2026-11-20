@@ -6535,23 +6535,47 @@ app.get('/api/donations/live', async (req, res) => {
       FROM DONATION_TRANSACTION dt
       LEFT JOIN DONOR d ON dt.Donor_ID = d.Donor_ID
       LEFT JOIN CAMPAIGN c ON dt.Campaign_ID = c.Campaign_ID
+      WHERE (
+        UPPER(COALESCE(dt.Payment_Method, '')) LIKE '%GCASH%'
+        OR UPPER(COALESCE(dt.Payment_Method, '')) LIKE '%MAYA%'
+        OR UPPER(COALESCE(dt.Payment_Method, '')) LIKE '%BANK%'
+        OR UPPER(COALESCE(dt.Payment_Method, '')) LIKE '%CARD%'
+        OR UPPER(COALESCE(dt.Payment_Method, '')) LIKE '%CREDIT%'
+        OR UPPER(COALESCE(dt.Tx_Hash, '')) LIKE 'FIAT-%'
+      )
       ORDER BY dt.Transaction_ID DESC
       LIMIT ?
     `, [limit]);
 
-    // 2. Compute platform-wide cumulative telemetry across ALL transactions
+    // 2. Compute platform-wide cumulative telemetry across PHP rail transactions only (ETH excluded)
     const [totals] = await db.query(`
       SELECT 
         COUNT(*) as totalTxns,
         COALESCE(SUM(dt.Amount), 0) as totalEth,
         COUNT(DISTINCT dt.Campaign_ID) as activeCauses
       FROM DONATION_TRANSACTION dt
+      WHERE (
+        UPPER(COALESCE(dt.Payment_Method, '')) LIKE '%GCASH%'
+        OR UPPER(COALESCE(dt.Payment_Method, '')) LIKE '%MAYA%'
+        OR UPPER(COALESCE(dt.Payment_Method, '')) LIKE '%BANK%'
+        OR UPPER(COALESCE(dt.Payment_Method, '')) LIKE '%CARD%'
+        OR UPPER(COALESCE(dt.Payment_Method, '')) LIKE '%CREDIT%'
+        OR UPPER(COALESCE(dt.Tx_Hash, '')) LIKE 'FIAT-%'
+      )
     `);
 
-    // 3. Compute rail distribution across ALL transactions
+    // 3. Compute rail distribution across PHP rail transactions only (ETH excluded)
     const [railRows] = await db.query(`
       SELECT dt.Tx_Hash as txHash, dt.Payment_Method as paymentMethod
       FROM DONATION_TRANSACTION dt
+      WHERE (
+        UPPER(COALESCE(dt.Payment_Method, '')) LIKE '%GCASH%'
+        OR UPPER(COALESCE(dt.Payment_Method, '')) LIKE '%MAYA%'
+        OR UPPER(COALESCE(dt.Payment_Method, '')) LIKE '%BANK%'
+        OR UPPER(COALESCE(dt.Payment_Method, '')) LIKE '%CARD%'
+        OR UPPER(COALESCE(dt.Payment_Method, '')) LIKE '%CREDIT%'
+        OR UPPER(COALESCE(dt.Tx_Hash, '')) LIKE 'FIAT-%'
+      )
     `);
 
     // 4. Compute running cumulative contributions per donor up to the moment of each transaction
@@ -6602,14 +6626,14 @@ app.get('/api/donations/live', async (req, res) => {
       return null;
     };
 
-    const byRail = { ONCHAIN: 0, GCASH: 0, MAYA: 0, CARD: 0 };
+    const byRail = { GCASH: 0, MAYA: 0, CARD: 0 };
     railRows.forEach(r => {
       const pm = (r.paymentMethod || '').toUpperCase();
       const hash = (r.txHash || '').toUpperCase();
       if (pm.includes('GCASH') || hash.startsWith('FIAT-GCAS') || hash.includes('GCASH')) byRail.GCASH++;
       else if (pm.includes('MAYA') || hash.startsWith('FIAT-MAYA') || hash.includes('MAYA')) byRail.MAYA++;
-      else if (pm.includes('BANK') || pm.includes('CARD') || hash.startsWith('FIAT-BANK') || hash.startsWith('FIAT-CARD') || hash.startsWith('FIAT-CRED') || hash.includes('CARD') || hash.includes('BANK')) byRail.CARD++;
-      else byRail.ONCHAIN++;
+      else if (pm.includes('BANK') || pm.includes('CARD') || pm.includes('CREDIT') || hash.startsWith('FIAT-BANK') || hash.startsWith('FIAT-CARD') || hash.startsWith('FIAT-CRED') || hash.includes('CARD') || hash.includes('BANK')) byRail.CARD++;
+      else byRail.CARD++;
     });
 
     const totalEth = parseFloat(totals[0]?.totalEth || 0);
@@ -6624,10 +6648,10 @@ app.get('/api/donations/live', async (req, res) => {
       const isGuest = !r.donorId && (!r.wallet || r.wallet === '' || r.wallet === '0x0000000000000000000000000000000000000000');
       const hash = (r.txHash || '').toUpperCase();
       const pm = (r.paymentMethod || '').toUpperCase();
-      let rail = 'ONCHAIN';
+      let rail = 'CARD';
       if (pm.includes('GCASH') || hash.startsWith('FIAT-GCAS') || hash.includes('GCASH')) rail = 'GCASH';
       else if (pm.includes('MAYA') || hash.startsWith('FIAT-MAYA') || hash.includes('MAYA')) rail = 'MAYA';
-      else if (pm.includes('BANK') || pm.includes('CARD') || hash.startsWith('FIAT-BANK') || hash.startsWith('FIAT-CARD') || hash.startsWith('FIAT-CRED') || hash.includes('CARD') || hash.includes('BANK')) rail = 'CARD';
+      else if (pm.includes('BANK') || pm.includes('CARD') || pm.includes('CREDIT') || hash.startsWith('FIAT-BANK') || hash.startsWith('FIAT-CARD') || hash.startsWith('FIAT-CRED') || hash.includes('CARD') || hash.includes('BANK')) rail = 'CARD';
 
       // Format donor display name cleanly without leaking raw emails
       let donorDisplayName = 'Guest Donor';

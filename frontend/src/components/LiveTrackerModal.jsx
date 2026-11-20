@@ -6,7 +6,6 @@ import "./LiveTrackerModal.css";
 import { API_URL } from "../config";
 
 const RAIL_CONFIG = {
-  ONCHAIN: { label: "Sepolia EVM",  icon: "token",                 color: "#f59e0b", dim: "rgba(245,158,11,0.12)", border: "rgba(245,158,11,0.3)" },
   GCASH:   { label: "GCash",        icon: "account_balance_wallet", color: "#0ea5e9", dim: "rgba(14,165,233,0.12)", border: "rgba(14,165,233,0.3)" },
   MAYA:    { label: "Maya",          icon: "wallet",                 color: "#00D68F", dim: "rgba(0,214,143,0.12)",  border: "rgba(0,214,143,0.3)"  },
   CARD:    { label: "Card / Bank",  icon: "credit_card",            color: "#a78bfa", dim: "rgba(167,139,250,0.12)",border: "rgba(167,139,250,0.3)"},
@@ -184,16 +183,25 @@ export default function LiveTrackerModal({ isOpen, onClose, theme }) {
       const [res] = await Promise.all([fetchPromise, minDelay]);
       if (res.ok) {
         const data = await res.json();
-        const list = Array.isArray(data) ? data : (data.donations || []);
+        const rawList = Array.isArray(data) ? data : (data.donations || []);
+        const list = rawList.filter((d) => {
+          const r = String(d?.rail || "").toUpperCase();
+          return r === "GCASH" || r === "MAYA" || r === "CARD";
+        });
         const telemetry = (!Array.isArray(data) && data.stats) ? data.stats : null;
+        const hadFilteredOut = rawList.length !== list.length || (telemetry && telemetry.byRail && Number(telemetry.byRail.ONCHAIN || 0) > 0);
         if (list.length > 0) {
           if (prevFirstIdRef.current && list[0].id !== prevFirstIdRef.current) {
             setNewTxId(list[0].id);
             setTimeout(() => setNewTxId(null), 3800);
           }
           prevFirstIdRef.current = list[0].id;
-          setDonations(list);
-          if (telemetry) setServerStats(telemetry);
+        }
+        setDonations(list);
+        if (telemetry && !hadFilteredOut) {
+          setServerStats(telemetry);
+        } else {
+          setServerStats(null);
         }
       }
     } catch (err) {
@@ -263,7 +271,7 @@ export default function LiveTrackerModal({ isOpen, onClose, theme }) {
     if (serverStats) return serverStats;
     let totalPhp = 0, totalEth = 0;
     const uniqueCauses = new Set();
-    const byRail = { ONCHAIN: 0, GCASH: 0, MAYA: 0, CARD: 0 };
+    const byRail = { GCASH: 0, MAYA: 0, CARD: 0 };
     donations.forEach(d => {
       totalPhp += Number(d.amountPhp || 0);
       totalEth += Number(d.amountEth || 0);
@@ -588,7 +596,7 @@ export default function LiveTrackerModal({ isOpen, onClose, theme }) {
                           React.createElement("div", { className: "ltm-tx-row ltm-tx-row--btm" },
                             React.createElement("span", { className: `ltm-tx-rail ltm-tx-rail--${(item.rail || "").toLowerCase()}` },
                               React.createElement("span", { className: "material-symbols-outlined" }, railCfg.icon || "payments"),
-                              item.rail === "ONCHAIN" ? "Verified Audit" : item.rail
+                              railCfg.label || item.rail
                             ),
                             React.createElement("span", { className: "ltm-tx-time" },
                               `${formatExactTime(item.createdAt)} \u00b7 ${formatLiveTimeAgo(item.createdAt)}`

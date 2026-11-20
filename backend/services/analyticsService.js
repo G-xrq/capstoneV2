@@ -121,6 +121,8 @@ function buildTrendSeries(txRows, disbRows, rangeDays, nowMs) {
         label: formatShortDay(dayKey),
         totalPhp: 0,
         txCount: 0,
+        gcashPhp: 0,
+        mayaPhp: 0,
         ewalletPhp: 0,
         bankCardPhp: 0,
         disbursedPhp: 0
@@ -146,8 +148,15 @@ function buildTrendSeries(txRows, disbRows, rangeDays, nowMs) {
     const bucket = ensureDay(k);
     bucket.totalPhp += tx.phpAmount;
     bucket.txCount += 1;
-    if (tx.rail === 'GCash' || tx.rail === 'Maya') bucket.ewalletPhp += tx.phpAmount;
-    else bucket.bankCardPhp += tx.phpAmount;
+    if (tx.rail === 'GCash') {
+      bucket.gcashPhp += tx.phpAmount;
+      bucket.ewalletPhp += tx.phpAmount;
+    } else if (tx.rail === 'Maya') {
+      bucket.mayaPhp += tx.phpAmount;
+      bucket.ewalletPhp += tx.phpAmount;
+    } else if (tx.rail === 'Bank / Card') {
+      bucket.bankCardPhp += tx.phpAmount;
+    }
   });
 
   disbRows.forEach((d) => {
@@ -165,6 +174,8 @@ function buildTrendSeries(txRows, disbRows, rangeDays, nowMs) {
   return sorted.map((b) => ({
     ...b,
     totalPhp: Math.round(b.totalPhp),
+    gcashPhp: Math.round(b.gcashPhp),
+    mayaPhp: Math.round(b.mayaPhp),
     ewalletPhp: Math.round(b.ewalletPhp),
     bankCardPhp: Math.round(b.bankCardPhp),
     disbursedPhp: Math.round(b.disbursedPhp)

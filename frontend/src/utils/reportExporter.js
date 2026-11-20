@@ -133,24 +133,26 @@ export function exportExcelWorkbook(analytics, options = {}) {
     [isAdmin ? 'DAILY CONTRIBUTION & DISBURSEMENT TRENDS' : 'NGO DAILY INFLOW & DISBURSEMENT TRENDS'],
     [`Window: ${analytics?.meta?.rangeLabel || '30D'} · Generated: ${formatPhtNow(analytics?.meta?.generatedAt)}`],
     [],
-    ['Date (PHT)', 'Display Label', 'Verified Donations', 'E-Wallet Inflow (PHP)', 'Bank / Card Inflow (PHP)', 'Total Inflow (PHP)', 'Disbursed Aid (PHP)']
+    ['Date (PHT)', 'Display Label', 'Verified Donations', 'GCash Inflow (PHP)', 'Maya Inflow (PHP)', 'Bank / Card Inflow (PHP)', 'Total Inflow (PHP)', 'Disbursed Aid (PHP)']
   ];
-  let sumTx = 0, sumEwallet = 0, sumBankCard = 0, sumTotal = 0, sumDisb = 0;
+  let sumTx = 0, sumGcash = 0, sumMaya = 0, sumBankCard = 0, sumTotal = 0, sumDisb = 0;
   trends.forEach((t) => {
-    const ew = Number(t.ewalletPhp ?? t.fiatPhp ?? 0);
+    const gc = Number(t.gcashPhp ?? 0);
+    const my = Number(t.mayaPhp ?? 0);
     const bc = Number(t.bankCardPhp ?? t.cryptoPhp ?? 0);
     sumTx += t.txCount || 0;
-    sumEwallet += ew;
+    sumGcash += gc;
+    sumMaya += my;
     sumBankCard += bc;
     sumTotal += t.totalPhp || 0;
     sumDisb += t.disbursedPhp || 0;
-    trendRows.push([t.date, t.label, t.txCount, ew, bc, t.totalPhp, t.disbursedPhp]);
+    trendRows.push([t.date, t.label, t.txCount, gc, my, bc, t.totalPhp, t.disbursedPhp]);
   });
-  trendRows.push(['TOTAL', `${trends.length} Days`, sumTx, sumEwallet, sumBankCard, sumTotal, sumDisb]);
+  trendRows.push(['TOTAL', `${trends.length} Days`, sumTx, sumGcash, sumMaya, sumBankCard, sumTotal, sumDisb]);
   const wsTrends = XLSX.utils.aoa_to_sheet(trendRows);
-  wsTrends['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 6 } }, { s: { r: 1, c: 0 }, e: { r: 1, c: 6 } }];
+  wsTrends['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 7 } }, { s: { r: 1, c: 0 }, e: { r: 1, c: 7 } }];
   autoSizeSheet(wsTrends, trendRows, 4);
-  applyPhpAndPctFormats(wsTrends, [3, 4, 5, 6], [], 4);
+  applyPhpAndPctFormats(wsTrends, [3, 4, 5, 6, 7], [], 4);
   XLSX.utils.book_append_sheet(wb, wsTrends, 'Daily Trends');
 
   // Sheet 3: Payment Rails

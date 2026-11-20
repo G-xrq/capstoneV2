@@ -874,6 +874,7 @@
 
 .va-swatch-blue { background: var(--va-series-primary); }
 .va-swatch-emerald { background: #10b981; }
+.va-swatch-purple { background: #a855f7; }
 .va-swatch-neutral { background: var(--va-series-mono); }
 
 .va-segmented-mini {
