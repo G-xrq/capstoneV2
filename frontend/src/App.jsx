@@ -17,8 +17,9 @@ import GlobalBroadcastBanner from './components/GlobalBroadcastBanner';
 import MaintenanceGuardModal from './components/MaintenanceGuardModal';
 import PersonalizationOnboarding from './components/PersonalizationOnboarding';
 import { useLivePresence } from './hooks/useLivePresence';
+import { useToast } from './context/ToastContext';
 import './App.css';
-import { isLocalhost, API_URL } from './config';
+import { isLocalhost, API_URL, apiFetch } from './config';
 
 export default function App() {
   /* ── Database Auth State (Synchronously hydrated from localStorage or JWT payload to prevent Landing flash on F5 refresh) ── */
@@ -90,6 +91,62 @@ export default function App() {
     }
     return false;
   });
+
+  const { showSuccess, showError, showInfo } = useToast();
+  const emailActionHandledRef = useRef(false);
+
+  // Handle email-change verification/cancellation links even when the user is already logged in
+  useEffect(() => {
+    if (!dbUser || emailActionHandledRef.current || typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const action = params.get('action');
+    const token = params.get('token');
+    if (!token || (action !== 'verify-email-change' && action !== 'cancel-email-change')) return;
+
+    emailActionHandledRef.current = true;
+    const isVerify = action === 'verify-email-change';
+    const endpoint = isVerify ? '/api/auth/verify-email-change' : '/api/auth/cancel-email-change';
+
+    showInfo(
+      isVerify ? 'Verifying your new email address...' : 'Processing your account security request...',
+      isVerify ? 'Verifying Email Change' : 'Account Security',
+      3500
+    );
+
+    apiFetch(`${API_URL}${endpoint}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token })
+    })
+      .then(async (res) => {
+        const data = await res.json().catch(() => ({}));
+        // Clean URL query params so refreshing does not re-trigger
+        try {
+          window.history.replaceState({}, '', window.location.pathname);
+        } catch (_) {}
+
+        if (res.ok && data.success) {
+          const updatedEmail = isVerify ? data.newEmail : data.originalEmail;
+          if (updatedEmail) {
+            setDbUser((prev) => (prev ? { ...prev, email: updatedEmail, username: updatedEmail } : prev));
+          }
+          showSuccess(
+            data.message || (isVerify ? 'Email address successfully updated!' : 'Account email change cancelled.'),
+            isVerify ? 'Email Updated' : 'Security Request Complete',
+            8000
+          );
+        } else {
+          showError(
+            data.error || 'This verification link is invalid or has expired.',
+            isVerify ? 'Email Verification Failed' : 'Security Action Failed',
+            8000
+          );
+        }
+      })
+      .catch((err) => {
+        showError(err.message || 'Network error while verifying email change.', 'Verification Error', 7000);
+      });
+  }, [dbUser, showSuccess, showError, showInfo]);
 
   // Listen for custom event to trigger onboarding preview prototype
   useEffect(() => {

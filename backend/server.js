@@ -2576,7 +2576,8 @@ app.post('/api/auth/verify-email-change', rateLimiter(20, 15 * 60 * 1000), async
       return res.json({
         success: true,
         alreadyApplied: true,
-        message: 'This email change has already been verified and applied. You can log in using your new email address.'
+        newEmail: record.New_Email,
+        message: `This email change has already been verified and applied (${record.New_Email}).`
       });
     }
 
@@ -2598,7 +2599,7 @@ app.post('/api/auth/verify-email-change', rateLimiter(20, 15 * 60 * 1000), async
     const nowIso = new Date().toISOString();
     await db.query('UPDATE EMAIL_CHANGE_TOKENS SET Status = "APPLIED", Applied_At = ? WHERE Token = ?', [nowIso, token]);
 
-    const origin = process.env.APP_URL || 'http://localhost:5173';
+    const origin = req.headers.origin || process.env.APP_URL || 'https://bbdrts-frontend.vercel.app';
     const emergencyRevertUrl = `${origin}/?action=cancel-email-change&token=${record.Cancel_Token || record.Token}`;
 
     // 1. Send confirmation to NEW email address
@@ -2639,7 +2640,8 @@ app.post('/api/auth/verify-email-change', rateLimiter(20, 15 * 60 * 1000), async
 
     res.json({
       success: true,
-      message: 'Your email address has been successfully updated! Please log in with your new email.'
+      newEmail: record.New_Email,
+      message: `Your email address has been successfully updated to ${record.New_Email}!`
     });
   } catch (error) {
     res.status(500).json({ error: 'Failed to verify email change: ' + error.message });
