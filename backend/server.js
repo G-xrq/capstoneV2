@@ -13,7 +13,6 @@ const QRCode = require('qrcode');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const db = require('./database');
 const blockchainRelayer = require('./services/blockchainRelayer');
-const paymongoService = require('./services/paymongoService');
 const xenditService = require('./services/xenditService');
 const { logActivity } = require('./services/activityLogger');
 const analyticsService = require('./services/analyticsService');
@@ -6659,7 +6658,7 @@ app.get('/api/leaderboard', async (req, res) => {
 
 // ============================================================================
 // ANTI-LOOPHOLE PAYMENT SYSTEM:
-// 1) PayMongo Dynamic Checkout + Signed Webhooks (Auto-Verified -> Gasless Sepolia)
+// 1) Xendit Embedded Dynamic QR Ph + Signed Webhooks (Auto-Verified -> Gasless Sepolia)
 // 2) Pre-Payment Donation Intents (BB-XXXX Tracking Code + Pending Upload Recovery)
 // 3) NGO "Declare Unclaimed Direct Deposit" (Honest NGO Reconciliation -> Gasless Sepolia)
 // ============================================================================
@@ -6768,26 +6767,23 @@ async function settleGatewayIntent(intentRow, externalRef = '') {
   };
 }
 
-// 0. Check if a real Philippine Payment Gateway (Xendit or PayMongo) is configured
+// 0. Check if Xendit Dynamic QR Ph gateway is configured
 app.get('/api/payments/gateway-status', (req, res) => {
   const xenditOn = xenditService.isXenditConfigured();
-  const paymongoOn = paymongoService.isPaymongoConfigured();
   res.json({
-    paymongoEnabled: xenditOn || paymongoOn,
-    gatewayEnabled: xenditOn || paymongoOn,
-    provider: xenditOn ? 'xendit' : (paymongoOn ? 'paymongo' : null),
-    liveMode: xenditOn ? xenditService.isXenditLive() : paymongoService.isLiveMode()
+    xenditEnabled: xenditOn,
+    gatewayEnabled: xenditOn,
+    provider: xenditOn ? 'xendit' : null,
+    liveMode: xenditService.isXenditLive()
   });
 });
 
-// 1. Create Real Gateway Checkout Session (Xendit or PayMongo)
+// 1. Create Xendit Dynamic QR Ph Checkout Session
 app.post('/api/payments/checkout-session', async (req, res) => {
   try {
-    const useXendit = xenditService.isXenditConfigured();
-    const usePaymongo = !useXendit && paymongoService.isPaymongoConfigured();
-    if (!useXendit && !usePaymongo) {
+    if (!xenditService.isXenditConfigured()) {
       return res.status(503).json({
-        error: 'No payment gateway key is configured. Please use Direct QR & Receipt Upload, or add XENDIT_SECRET_KEY / PAYMONGO_SECRET_KEY in backend/.env.'
+        error: 'Xendit gateway key is not configured. Please use Direct QR & Receipt Upload, or add XENDIT_SECRET_KEY in backend/.env.'
       });
     }
     let authedUser = null;
@@ -6824,7 +6820,7 @@ app.post('/api/payments/checkout-session', async (req, res) => {
       } catch (_) {}
     }
 
-    const trackingCode = paymongoService.generateTrackingCode();
+    const trackingCode = xenditService.generateTrackingCode();
     const amountEth = Number((amountPhp / 170000).toFixed(8));
     const cleanMethod = /maya/i.test(String(payment_method))
       ? 'Maya'
@@ -6840,27 +6836,13 @@ app.post('/api/payments/checkout-session', async (req, res) => {
     );
     const intentId = ins.insertId;
 
-    const origin = req.headers.origin || 'http://localhost:5173';
-    const session = useXendit
-      ? await xenditService.createDynamicQrPh({
-          intentId,
-          trackingCode,
-          campaignId,
-          amountPhp,
-          paymentMethod: cleanMethod
-        })
-      : await paymongoService.createCheckoutSession({
-          intentId,
-          trackingCode,
-          campaignId,
-          campaignTitle: camp.Campaign_Title,
-          amountPhp,
-          paymentMethod: cleanMethod,
-          donorEmail: resolvedEmail,
-          donorName: resolvedName,
-          successUrl: `${origin}/?payment_status=success&intent=${intentId}`,
-          cancelUrl: `${origin}/?payment_status=cancelled&intent=${intentId}`
-        });
+    const session = await xenditService.createDynamicQrPh({
+      intentId,
+      trackingCode,
+      campaignId,
+      amountPhp,
+      paymentMethod: cleanMethod
+    });
 
     await db.query(
       'UPDATE PAYMENT_INTENT SET Gateway_Session_ID = ?, Gateway_Checkout_Url = ? WHERE Intent_ID = ?',
@@ -6879,7 +6861,7 @@ app.post('/api/payments/checkout-session', async (req, res) => {
     res.json({
       intentId,
       trackingCode,
-      provider: session.provider, // 'xendit_qrph' | 'paymongo'
+      provider: session.provider, // 'xendit_qrph'
       sessionId: session.sessionId,
       qrString: session.qrString || null,
       mobilePayUrl,
@@ -6893,49 +6875,6 @@ app.post('/api/payments/checkout-session', async (req, res) => {
   } catch (err) {
     console.error('Checkout session error:', err);
     res.status(500).json({ error: err.message || 'Failed to create instant checkout session.' });
-  }
-});
-
-// 2. Signed PayMongo Webhook Receiver (Automatic Server-to-Server Settlement)
-app.post('/api/webhooks/paymongo', async (req, res) => {
-  try {
-    const sigHeader = req.headers['paymongo-signature'];
-    const rawStr = typeof req.body === 'string' ? req.body : JSON.stringify(req.body || {});
-    const sigCheck = paymongoService.verifyWebhookSignature(rawStr, sigHeader);
-    if (!sigCheck.valid) {
-      return res.status(401).json({ error: `Invalid webhook signature: ${sigCheck.reason}` });
-    }
-
-    const event = typeof req.body === 'string' ? JSON.parse(req.body) : (req.body || {});
-    const eventType = event?.data?.attributes?.type || '';
-    const resource = event?.data?.attributes?.data || {};
-    const attrs = resource?.attributes || {};
-    const metadata = attrs?.metadata || {};
-
-    if (eventType === 'checkout_session.payment.paid' || eventType === 'payment.paid') {
-      const sessionId = resource.id || attrs.checkout_session_id || null;
-      const trackingCode = metadata.tracking_code || attrs.reference_number || null;
-      const intentId = metadata.intent_id ? Number(metadata.intent_id) : null;
-
-      let rows = [];
-      if (intentId) {
-        [rows] = await db.query('SELECT * FROM PAYMENT_INTENT WHERE Intent_ID = ?', [intentId]);
-      } else if (sessionId) {
-        [rows] = await db.query('SELECT * FROM PAYMENT_INTENT WHERE Gateway_Session_ID = ?', [sessionId]);
-      } else if (trackingCode) {
-        [rows] = await db.query('SELECT * FROM PAYMENT_INTENT WHERE Tracking_Code = ?', [trackingCode]);
-      }
-
-      if (rows && rows.length > 0) {
-        const result = await settleGatewayIntent(rows[0], sessionId || trackingCode);
-        return res.json({ received: true, settled: true, ...result });
-      }
-    }
-
-    res.json({ received: true, settled: false, eventType });
-  } catch (err) {
-    console.error('PayMongo webhook error:', err);
-    res.status(500).json({ error: err.message || 'Webhook processing failed.' });
   }
 });
 
@@ -7276,7 +7215,7 @@ app.post('/api/donations/intent', async (req, res) => {
     const donorEmail = authedUser?.email || null;
     const donorName = authedUser?.name || null;
 
-    const trackingCode = paymongoService.generateTrackingCode();
+    const trackingCode = xenditService.generateTrackingCode();
     const amountEth = Number((amountPhp / 170000).toFixed(8));
     const cleanMethod = /maya/i.test(String(payment_method))
       ? 'Maya'

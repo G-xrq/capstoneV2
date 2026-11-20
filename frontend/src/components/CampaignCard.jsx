@@ -1208,7 +1208,7 @@ export default function CampaignCard(props) {
   const [railMismatchWarning, setRailMismatchWarning] = useState(null);
 
   // Real Direct QR & Receipt Upload is default; PayMongo Automated Checkout only appears when real PAYMONGO_SECRET_KEY is configured
-  const [paymongoEnabled, setPaymongoEnabled] = useState(false);
+  const [xenditEnabled, setXenditEnabled] = useState(false);
   const [checkoutMode, setCheckoutMode] = useState('manual');
   const [activeIntent, setActiveIntent] = useState(null);
   const [instantLoading, setInstantLoading] = useState(false);
@@ -1245,7 +1245,7 @@ export default function CampaignCard(props) {
     fetch(`${API_URL}/api/payments/gateway-status`)
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
-        if (d?.paymongoEnabled) setPaymongoEnabled(true);
+        if (d?.gatewayEnabled || d?.xenditEnabled) setXenditEnabled(true);
       })
       .catch(() => {});
   }, []);
@@ -1312,9 +1312,9 @@ export default function CampaignCard(props) {
 
 
 
-  // Auto-poll live Xendit / PayMongo checkout session until webhook or API confirms payment
+  // Auto-poll live Xendit checkout session until webhook or API confirms payment
   useEffect(() => {
-    if (donateStep !== 8 || !activeIntent?.intentId || !['paymongo', 'xendit', 'xendit_qrph'].includes(activeIntent?.provider) || instantReceipt) return;
+    if (donateStep !== 8 || !activeIntent?.intentId || !['xendit', 'xendit_qrph'].includes(activeIntent?.provider) || instantReceipt) return;
     const iv = setInterval(async () => {
       try {
         const res = await fetch(`${API_URL}/api/payments/intent/${activeIntent.intentId}`);
@@ -4902,7 +4902,7 @@ export default function CampaignCard(props) {
               {/* ── STEP 0: Vercel Geist Split Checkout ── */}
               {!isPaymentProcessing && donateStep === 0 && (() => {
                 const selectedChannel = gatewayMethod || 'GCash';
-                const isInstant = Boolean(paymongoEnabled && checkoutMode === 'instant');
+                const isInstant = Boolean(xenditEnabled && checkoutMode === 'instant');
                 const parsedAmount = parseFloat(amount || 0);
                 const hasAmount = !isNaN(parsedAmount) && parsedAmount > 0;
                 const channelLabel = selectedChannel === 'Bank / Card' ? 'Bank & Cards' : selectedChannel;
@@ -5066,7 +5066,7 @@ export default function CampaignCard(props) {
                         <div>
                           <div className="vc-field-header">
                             <span className="vc-field-label">Payment method</span>
-                            {paymongoEnabled && (
+                            {xenditEnabled && (
                               <div className="vc-mode-tabs" role="tablist" aria-label="Verification mode">
                                 <button
                                   type="button"
@@ -6475,7 +6475,7 @@ export default function CampaignCard(props) {
                                 gap: '6px'
                               }}
                             >
-                              <span>Open {activeIntent.provider === 'xendit' ? 'Xendit' : 'PayMongo'} Checkout</span>
+                              <span>Open Xendit Checkout</span>
                               <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>north_east</span>
                             </a>
                             <div style={{ fontSize: '0.72rem', color: 'var(--text-muted, #888)' }}>

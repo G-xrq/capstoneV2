@@ -234,9 +234,14 @@ async function simulateQrPhPayment(qrId, amountPhp) {
   return json;
 }
 
+function generateTrackingCode() {
+  return `BB-${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
+}
+
 module.exports = {
   isXenditConfigured,
   isXenditLive,
+  generateTrackingCode,
   createInvoice,
   getInvoice,
   createDynamicQrPh,
