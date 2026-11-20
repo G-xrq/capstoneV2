@@ -1086,11 +1086,9 @@ html[data-dashboard-active="true"][data-text-size="extra-large"] {
 @keyframes dashboardFadeReveal {
   from {
     opacity: 0;
-    transform: translateY(10px) scale(0.99);
   }
   to {
     opacity: 1;
-    transform: none;
   }
 }
 

@@ -624,6 +624,16 @@ export default function Header({
                         <span>Profile & Settings</span>
                       </a>
 
+                      <a href="#" className="bbdrts-dropdown-link" onClick={(e) => { e.preventDefault(); setShowLiveTrackerModal(true); setIsProfileOpen(false); }}>
+                        <span className="material-symbols-outlined bbdrts-dropdown-item-icon" style={{ color: '#10b981' }}>sensors</span>
+                        <span>Live Donations</span>
+                      </a>
+
+                      <a href="#" className="bbdrts-dropdown-link" onClick={(e) => { e.preventDefault(); setShowLeaderboardModal(true); setIsProfileOpen(false); }}>
+                        <span className="material-symbols-outlined bbdrts-dropdown-item-icon">leaderboard</span>
+                        <span>Top Donors &amp; Partners</span>
+                      </a>
+
                       {(roleLabel === 'NGO' || roleLabel === 'ORGANIZATION') && (
                         <a
                           href="#"
@@ -682,21 +692,23 @@ export default function Header({
               </div>
             )}
 
-            {/* Mobile Hamburger */}
-            <button
-              type="button"
-              className="bbdrts-mobile-toggle"
-              onClick={() => setMobileMenuOpen(prev => !prev)}
-              aria-label="Toggle Navigation Drawer"
-            >
-              <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>{mobileMenuOpen ? 'close' : 'menu'}</span>
-            </button>
+            {/* Mobile Hamburger (Public Landing View Only — Logged-In Dashboards Use Left Sidebar Toggle) */}
+            {!dbUser && (
+              <button
+                type="button"
+                className="bbdrts-mobile-toggle"
+                onClick={() => setMobileMenuOpen(prev => !prev)}
+                aria-label="Toggle Navigation Drawer"
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>{mobileMenuOpen ? 'close' : 'menu'}</span>
+              </button>
+            )}
           </div>
 
         </div>
 
-        {/* Mobile Navigation Drawer */}
-        {mobileMenuOpen && (
+        {/* Mobile Navigation Drawer (Public Landing View Only) */}
+        {!dbUser && mobileMenuOpen && (
           <div className="bbdrts-mobile-drawer open">
             {!dbUser ? (
               <>
