@@ -4595,7 +4595,7 @@ export default function CampaignCard(props) {
               className="card bounce-in"
               style={{
                 position: 'relative',
-                width: isPaymentProcessing ? '540px' : ((donateStep === 6 || donateStep === 7) ? '880px' : (donateStep === 0 ? '520px' : (donateStep === 8 && !instantReceipt && !instantSettlingOnChain ? '720px' : '460px'))),
+                width: isPaymentProcessing ? '540px' : ((donateStep === 6 || donateStep === 7) ? '880px' : ((donateStep === 0 || (donateStep === 8 && !instantReceipt && !instantSettlingOnChain)) ? '720px' : '460px')),
                 maxWidth: '94vw',
                 maxHeight: '92vh',
                 overflowY: 'auto',
@@ -4898,7 +4898,7 @@ export default function CampaignCard(props) {
                 );
               })()}
 
-              {/* ── STEP 0: Select Payment Method (Landing Page Monochrome Style) ── */}
+              {/* ── STEP 0: Select Payment Method (Vercel Geist 2-Column 720px) ── */}
               {!isPaymentProcessing && donateStep === 0 && (() => {
                 const selectedChannel = gatewayMethod || 'GCash';
                 const handleContinue = () => {
@@ -4920,31 +4920,55 @@ export default function CampaignCard(props) {
                   setDonateStep(7);
                 };
 
-                return (
-                  <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-
-                    {/* Top Pill Badge + Close */}
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
-                      <div
-                        style={{
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '8px',
-                          padding: '5px 12px',
-                          borderRadius: '9999px',
-                          background: 'rgba(255, 255, 255, 0.03)',
-                          border: '1px solid rgba(255, 255, 255, 0.1)',
-                          fontSize: '0.75rem',
-                          color: '#a1a1aa',
-                          maxWidth: '390px'
-                        }}
-                      >
-                        <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#ffffff', flexShrink: 0 }} />
-                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {camp.title}
-                        </span>
+                const channels = [
+                  {
+                    id: 'GCash',
+                    label: 'GCash',
+                    sub: 'QR Ph · E-Wallet',
+                    icon: (
+                      <div style={{ width: '32px', height: '32px', borderRadius: '7px', background: '#0052FF', color: '#fff', fontWeight: 800, fontSize: '0.92rem', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        G
                       </div>
+                    )
+                  },
+                  {
+                    id: 'Maya',
+                    label: 'Maya',
+                    sub: 'QR Ph · E-Wallet',
+                    icon: (
+                      <div style={{ width: '32px', height: '32px', borderRadius: '7px', background: '#00D68F', color: '#000', fontWeight: 900, fontSize: '0.62rem', letterSpacing: '-0.02em', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        maya
+                      </div>
+                    )
+                  },
+                  {
+                    id: 'Bank / Card',
+                    label: 'Bank & Cards',
+                    sub: 'InstaPay · Visa · Mastercard',
+                    icon: (
+                      <div style={{ width: '32px', height: '32px', borderRadius: '7px', background: '#161616', border: '1px solid #2a2a2a', color: '#d4d4d8', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        <span className="material-symbols-outlined" style={{ fontSize: '17px' }}>credit_card</span>
+                      </div>
+                    )
+                  }
+                ];
 
+                return (
+                  <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '20px', fontFamily: 'var(--font-sans, inherit)' }}>
+
+                    {/* Geist Header (matches Step 8) */}
+                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px', borderBottom: '1px solid var(--border, #1f1f1f)', paddingBottom: '16px' }}>
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', fontSize: '0.76rem', fontWeight: 500, color: 'var(--text-muted, #888)', marginBottom: '4px' }}>
+                          <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10b981', display: 'inline-block', flexShrink: 0 }} />
+                          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '520px' }}>
+                            {camp.title} · {getOrgDisplayName(camp)}
+                          </span>
+                        </div>
+                        <h2 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 600, letterSpacing: '-0.025em', color: 'var(--text-primary, #ededed)' }}>
+                          Make a donation
+                        </h2>
+                      </div>
                       <button
                         type="button"
                         onClick={() => {
@@ -4952,9 +4976,9 @@ export default function CampaignCard(props) {
                           setModalOpen(false);
                         }}
                         style={{
-                          background: '#000000',
-                          border: '1px solid #333333',
-                          color: '#888888',
+                          background: 'transparent',
+                          border: '1px solid var(--border, #262626)',
+                          color: 'var(--text-muted, #888)',
                           width: '32px',
                           height: '32px',
                           borderRadius: '6px',
@@ -4970,180 +4994,261 @@ export default function CampaignCard(props) {
                       </button>
                     </div>
 
-                    {/* Headline & Lead */}
-                    <div>
-                      <h2 style={{ margin: '0 0 6px', fontSize: '1.5rem', fontWeight: 700, letterSpacing: '-0.035em', color: '#ffffff', lineHeight: 1.15 }}>
-                        Make a donation
-                      </h2>
-                      <p style={{ margin: 0, fontSize: '0.86rem', color: '#888888', lineHeight: 1.5 }}>
-                        0% platform fee · Gasless Ethereum Sepolia audit proof
-                      </p>
-                    </div>
+                    {/* 2-Column Balanced Geist Body */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1.1fr 0.9fr', gap: '24px', alignItems: 'stretch' }}>
 
-                    {/* Amount Input + Presets */}
-                    <div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                        <label style={{ fontSize: '0.78rem', fontWeight: 500, color: '#a1a1aa' }}>
-                          Donation Amount
-                        </label>
-                        {amount && Number(amount) > 0 && (
-                          <button
-                            type="button"
-                            onClick={() => setAmount('')}
-                            style={{ background: 'none', border: 'none', color: '#888888', fontSize: '0.75rem', cursor: 'pointer', padding: 0 }}
+                      {/* Left Column: Amount & Verification Mode */}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+
+                        {/* Hero Amount Input */}
+                        <div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                            <label style={{ fontSize: '0.7rem', fontWeight: 500, color: 'var(--text-muted, #737373)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                              Amount
+                            </label>
+                            {amount && Number(amount) > 0 && (
+                              <button
+                                type="button"
+                                onClick={() => setAmount('')}
+                                style={{ background: 'none', border: 'none', color: 'var(--text-muted, #737373)', fontSize: '0.72rem', cursor: 'pointer', padding: 0 }}
+                              >
+                                Clear
+                              </button>
+                            )}
+                          </div>
+
+                          <div
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '8px',
+                              padding: '10px 14px',
+                              background: 'var(--bg-inset, #0a0a0a)',
+                              border: '1px solid var(--border, #262626)',
+                              borderRadius: '10px'
+                            }}
                           >
-                            Clear
-                          </button>
+                            <span style={{ color: 'var(--text-muted, #666)', fontSize: '1.45rem', fontWeight: 500, fontVariantNumeric: 'tabular-nums' }}>₱</span>
+                            <input
+                              type="number"
+                              step="1"
+                              min="1"
+                              value={amount}
+                              onChange={(e) => setAmount(e.target.value)}
+                              placeholder="0"
+                              style={{
+                                width: '100%',
+                                background: 'transparent',
+                                border: 'none',
+                                color: 'var(--text-primary, #ededed)',
+                                fontSize: '1.65rem',
+                                fontWeight: 600,
+                                letterSpacing: '-0.03em',
+                                fontVariantNumeric: 'tabular-nums',
+                                outline: 'none',
+                                padding: 0
+                              }}
+                            />
+                            <span style={{ fontSize: '0.72rem', fontFamily: 'var(--font-mono, monospace)', color: 'var(--text-muted, #666)', fontWeight: 500 }}>
+                              PHP
+                            </span>
+                          </div>
+
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '6px', marginTop: '10px' }}>
+                            {[
+                              { val: '100', label: '₱100' },
+                              { val: '500', label: '₱500' },
+                              { val: '1000', label: '₱1k' },
+                              { val: '2500', label: '₱2.5k' },
+                              { val: '5000', label: '₱5k' }
+                            ].map((preset) => {
+                              const isSel = String(amount) === preset.val;
+                              return (
+                                <button
+                                  key={preset.val}
+                                  type="button"
+                                  onClick={() => setAmount(preset.val)}
+                                  style={{
+                                    height: '32px',
+                                    borderRadius: '6px',
+                                    fontSize: '0.74rem',
+                                    fontWeight: isSel ? 600 : 500,
+                                    fontVariantNumeric: 'tabular-nums',
+                                    cursor: 'pointer',
+                                    background: isSel ? '#ededed' : 'var(--bg-inset, #0a0a0a)',
+                                    color: isSel ? '#000' : 'var(--text-secondary, #a1a1aa)',
+                                    border: `1px solid ${isSel ? '#ededed' : 'var(--border, #262626)'}`,
+                                    transition: 'all 0.14s ease'
+                                  }}
+                                >
+                                  {preset.label}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        {/* Verification Mode Switcher */}
+                        {paymongoEnabled && (
+                          <div>
+                            <div style={{ fontSize: '0.7rem', fontWeight: 500, color: 'var(--text-muted, #737373)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '8px' }}>
+                              Verification
+                            </div>
+                            <div
+                              role="tablist"
+                              aria-label="Donation verification mode"
+                              style={{
+                                display: 'grid',
+                                gridTemplateColumns: '1fr 1fr',
+                                gap: '3px',
+                                padding: '3px',
+                                borderRadius: '8px',
+                                background: 'var(--bg-inset, #0a0a0a)',
+                                border: '1px solid var(--border, #222)'
+                              }}
+                            >
+                              <button
+                                type="button"
+                                role="tab"
+                                aria-selected={checkoutMode === 'instant'}
+                                onClick={() => setCheckoutMode('instant')}
+                                style={{
+                                  height: '32px',
+                                  borderRadius: '6px',
+                                  border: checkoutMode === 'instant' ? '1px solid #333' : '1px solid transparent',
+                                  background: checkoutMode === 'instant' ? '#1c1c1c' : 'transparent',
+                                  color: checkoutMode === 'instant' ? '#ededed' : '#737373',
+                                  fontSize: '0.76rem',
+                                  fontWeight: checkoutMode === 'instant' ? 600 : 500,
+                                  cursor: 'pointer',
+                                  transition: 'all 0.14s ease'
+                                }}
+                              >
+                                Instant QR Ph
+                              </button>
+                              <button
+                                type="button"
+                                role="tab"
+                                aria-selected={checkoutMode === 'manual'}
+                                onClick={() => setCheckoutMode('manual')}
+                                style={{
+                                  height: '32px',
+                                  borderRadius: '6px',
+                                  border: checkoutMode === 'manual' ? '1px solid #333' : '1px solid transparent',
+                                  background: checkoutMode === 'manual' ? '#1c1c1c' : 'transparent',
+                                  color: checkoutMode === 'manual' ? '#ededed' : '#737373',
+                                  fontSize: '0.76rem',
+                                  fontWeight: checkoutMode === 'manual' ? 600 : 500,
+                                  cursor: 'pointer',
+                                  transition: 'all 0.14s ease'
+                                }}
+                              >
+                                Direct QR &amp; Slip
+                              </button>
+                            </div>
+                            <p style={{ margin: '8px 0 0', fontSize: '0.74rem', color: 'var(--text-muted, #737373)', lineHeight: 1.45 }}>
+                              {checkoutMode === 'instant'
+                                ? 'Auto-verified via webhook and sealed on Ethereum Sepolia. No receipt upload needed.'
+                                : 'Transfer directly to the NGO QR with a BB-XXXX tracking code and AI receipt scan.'}
+                            </p>
+                          </div>
                         )}
                       </div>
 
-                      <div
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '8px',
-                          height: '48px',
-                          padding: '0 14px',
-                          background: '#000000',
-                          border: '1px solid #333333',
-                          borderRadius: '6px'
-                        }}
-                      >
-                        <span style={{ color: '#888888', fontSize: '1.15rem', fontWeight: 500 }}>₱</span>
-                        <input
-                          type="number"
-                          step="1"
-                          min="1"
-                          value={amount}
-                          onChange={(e) => setAmount(e.target.value)}
-                          placeholder="0.00"
+                      {/* Right Column: Payment Method & Primary CTA */}
+                      <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: '16px' }}>
+                        <div>
+                          <div style={{ fontSize: '0.7rem', fontWeight: 500, color: 'var(--text-muted, #737373)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '8px' }}>
+                            Payment Method
+                          </div>
+
+                          <div style={{ border: '1px solid var(--border, #222)', borderRadius: '10px', background: 'var(--bg-inset, #0a0a0a)', overflow: 'hidden' }}>
+                            {channels.map((ch, idx) => {
+                              const isSelected = selectedChannel === ch.id;
+                              return (
+                                <button
+                                  key={ch.id}
+                                  type="button"
+                                  disabled={instantLoading}
+                                  onClick={() => setGatewayMethod(ch.id)}
+                                  style={{
+                                    width: '100%',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '12px',
+                                    padding: '12px 14px',
+                                    background: isSelected ? '#141414' : 'transparent',
+                                    border: 'none',
+                                    borderTop: idx > 0 ? '1px solid var(--border, #1e1e1e)' : 'none',
+                                    cursor: instantLoading ? 'wait' : 'pointer',
+                                    textAlign: 'left',
+                                    transition: 'background 0.14s ease'
+                                  }}
+                                >
+                                  {ch.icon}
+                                  <div style={{ flex: 1, minWidth: 0 }}>
+                                    <div style={{ fontSize: '0.84rem', fontWeight: 600, color: isSelected ? '#ededed' : '#a1a1aa' }}>
+                                      {ch.label}
+                                    </div>
+                                    <div style={{ fontSize: '0.71rem', color: '#666', marginTop: '1px' }}>
+                                      {ch.sub}
+                                    </div>
+                                  </div>
+                                  <span
+                                    style={{
+                                      width: '16px',
+                                      height: '16px',
+                                      borderRadius: '50%',
+                                      border: isSelected ? '5px solid #ededed' : '1.5px solid #333',
+                                      background: isSelected ? '#000' : 'transparent',
+                                      flexShrink: 0,
+                                      transition: 'all 0.14s ease'
+                                    }}
+                                  />
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        {/* Vercel Primary White CTA */}
+                        <button
+                          type="button"
+                          disabled={instantLoading}
+                          onClick={handleContinue}
                           style={{
                             width: '100%',
-                            background: 'transparent',
+                            height: '42px',
+                            borderRadius: '8px',
                             border: 'none',
-                            color: '#ffffff',
-                            fontSize: '1.2rem',
+                            background: '#ededed',
+                            color: '#000',
+                            fontSize: '0.84rem',
                             fontWeight: 600,
-                            fontVariantNumeric: 'tabular-nums',
-                            outline: 'none',
-                            padding: 0
+                            cursor: instantLoading ? 'wait' : 'pointer',
+                            opacity: instantLoading ? 0.65 : 1,
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '6px',
+                            transition: 'opacity 0.14s ease'
                           }}
-                        />
-                        <span style={{ fontSize: '0.75rem', color: '#666666', fontWeight: 500 }}>PHP</span>
-                      </div>
-
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '8px', marginTop: '10px' }}>
-                        {['100', '500', '1000', '2500', '5000'].map((val) => {
-                          const isSel = String(amount) === val;
-                          return (
-                            <button
-                              key={val}
-                              type="button"
-                              onClick={() => setAmount(val)}
-                              style={{
-                                height: '34px',
-                                borderRadius: '6px',
-                                fontSize: '0.78rem',
-                                fontWeight: isSel ? 600 : 500,
-                                fontVariantNumeric: 'tabular-nums',
-                                cursor: 'pointer',
-                                background: isSel ? '#ffffff' : '#000000',
-                                color: isSel ? '#000000' : '#a1a1aa',
-                                border: `1px solid ${isSel ? '#ffffff' : '#333333'}`,
-                                transition: 'all 0.15s ease'
-                              }}
-                            >
-                              ₱{Number(val).toLocaleString()}
-                            </button>
-                          );
-                        })}
+                        >
+                          <span>
+                            {instantLoading
+                              ? 'Generating QR Ph...'
+                              : `Continue with ${selectedChannel === 'Bank / Card' ? 'Bank & Cards' : selectedChannel}`}
+                          </span>
+                          {!instantLoading && <span style={{ fontSize: '0.95rem' }}>→</span>}
+                        </button>
                       </div>
                     </div>
 
-                    {/* Payment Method (Simple 3-Button Monochrome Row) */}
-                    <div>
-                      <div style={{ fontSize: '0.78rem', fontWeight: 500, color: '#a1a1aa', marginBottom: '8px' }}>
-                        Payment Method
-                      </div>
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
-                        {[
-                          { id: 'GCash', label: 'GCash' },
-                          { id: 'Maya', label: 'Maya' },
-                          { id: 'Bank / Card', label: 'Bank & Cards' }
-                        ].map((ch) => {
-                          const isSel = selectedChannel === ch.id;
-                          return (
-                            <button
-                              key={ch.id}
-                              type="button"
-                              disabled={instantLoading}
-                              onClick={() => setGatewayMethod(ch.id)}
-                              style={{
-                                height: '42px',
-                                borderRadius: '6px',
-                                fontSize: '0.84rem',
-                                fontWeight: isSel ? 600 : 500,
-                                cursor: instantLoading ? 'wait' : 'pointer',
-                                background: isSel ? '#ffffff' : '#000000',
-                                color: isSel ? '#000000' : '#ededed',
-                                border: `1px solid ${isSel ? '#ffffff' : '#333333'}`,
-                                transition: 'all 0.15s ease'
-                              }}
-                            >
-                              {ch.label}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-
-                    {/* Verification Mode (Simple 2-Button Monochrome Toggle) */}
-                    {paymongoEnabled && (
-                      <div>
-                        <div style={{ fontSize: '0.78rem', fontWeight: 500, color: '#a1a1aa', marginBottom: '8px' }}>
-                          Verification
-                        </div>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-                          <button
-                            type="button"
-                            onClick={() => setCheckoutMode('instant')}
-                            style={{
-                              height: '38px',
-                              borderRadius: '6px',
-                              fontSize: '0.8rem',
-                              fontWeight: checkoutMode === 'instant' ? 600 : 500,
-                              cursor: 'pointer',
-                              background: checkoutMode === 'instant' ? '#141414' : '#000000',
-                              color: checkoutMode === 'instant' ? '#ffffff' : '#888888',
-                              border: `1px solid ${checkoutMode === 'instant' ? '#555555' : '#262626'}`,
-                              transition: 'all 0.15s ease'
-                            }}
-                          >
-                            Instant QR Ph
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setCheckoutMode('manual')}
-                            style={{
-                              height: '38px',
-                              borderRadius: '6px',
-                              fontSize: '0.8rem',
-                              fontWeight: checkoutMode === 'manual' ? 600 : 500,
-                              cursor: 'pointer',
-                              background: checkoutMode === 'manual' ? '#141414' : '#000000',
-                              color: checkoutMode === 'manual' ? '#ffffff' : '#888888',
-                              border: `1px solid ${checkoutMode === 'manual' ? '#555555' : '#262626'}`,
-                              transition: 'all 0.15s ease'
-                            }}
-                          >
-                            Direct QR &amp; Receipt
-                          </button>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Landing-Style Primary & Secondary Action Buttons */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', paddingTop: '4px' }}>
+                    {/* Quiet Geist Footer */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--border, #1f1f1f)', paddingTop: '14px' }}>
+                      <span style={{ fontSize: '0.73rem', color: 'var(--text-muted, #666)' }}>
+                        0% platform fee · Gasless Sepolia audit proof
+                      </span>
                       <button
                         type="button"
                         onClick={() => {
@@ -5151,48 +5256,18 @@ export default function CampaignCard(props) {
                           setModalOpen(false);
                         }}
                         style={{
-                          height: '44px',
-                          padding: '0 18px',
+                          height: '30px',
+                          padding: '0 12px',
                           borderRadius: '6px',
-                          background: '#000000',
-                          color: '#ededed',
-                          border: '1px solid #333333',
-                          fontSize: '0.88rem',
+                          border: '1px solid var(--border, #262626)',
+                          background: 'transparent',
+                          color: 'var(--text-secondary, #a1a1aa)',
+                          fontSize: '0.76rem',
                           fontWeight: 500,
                           cursor: 'pointer'
                         }}
                       >
                         Cancel
-                      </button>
-
-                      <button
-                        type="button"
-                        disabled={instantLoading}
-                        onClick={handleContinue}
-                        style={{
-                          flex: 1,
-                          height: '44px',
-                          padding: '0 20px',
-                          borderRadius: '6px',
-                          background: '#ffffff',
-                          color: '#000000',
-                          border: '1px solid #ffffff',
-                          fontSize: '0.88rem',
-                          fontWeight: 600,
-                          cursor: instantLoading ? 'wait' : 'pointer',
-                          opacity: instantLoading ? 0.65 : 1,
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          gap: '8px'
-                        }}
-                      >
-                        <span>
-                          {instantLoading
-                            ? 'Generating QR Ph...'
-                            : `Continue with ${selectedChannel === 'Bank / Card' ? 'Bank & Cards' : selectedChannel}`}
-                        </span>
-                        {!instantLoading && <span>→</span>}
                       </button>
                     </div>
                   </div>
