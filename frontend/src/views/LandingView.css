@@ -220,16 +220,16 @@
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: #ffffff;
-  box-shadow: 0 0 8px rgba(255, 255, 255, 0.8);
+  background: #10b981;
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.75);
   display: inline-block;
   animation: bbdrtsHeroBeaconPulse 2s infinite cubic-bezier(0.4, 0, 0.6, 1);
   flex-shrink: 0;
 }
 
 [data-theme="light"] .bbdrts-pulse-beacon {
-  background: #09090b;
-  box-shadow: 0 0 6px rgba(0, 0, 0, 0.25);
+  background: #059669;
+  box-shadow: 0 0 6px rgba(5, 150, 105, 0.45);
 }
 
 @keyframes bbdrtsHeroBeaconPulse {
@@ -269,7 +269,7 @@
 }
 
 .bbdrts-title-gradient {
-  background: linear-gradient(180deg, #FFFFFF 20%, #71717A 100%);
+  background: linear-gradient(180deg, #FFFFFF 55%, #E4E4E7 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   display: inline;
@@ -277,7 +277,7 @@
 
 [data-theme="light"] .bbdrts-title-gradient,
 .bbdrts-landing-root[data-theme="light"] .bbdrts-title-gradient {
-  background: linear-gradient(180deg, #18181b 30%, #71717a 100%);
+  background: linear-gradient(180deg, #09090b 60%, #27272a 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
@@ -286,7 +286,7 @@
 .bbdrts-hero-lead {
   font-size: clamp(0.96rem, 1.35vw, 1.05rem);
   line-height: 1.6;
-  color: #888888;
+  color: #a1a1aa;
   max-width: 530px;
   text-wrap: pretty;
   margin: 0 0 32px 0;
@@ -473,15 +473,15 @@
 }
 
 .bbdrts-hero-stat-lbl {
-  font-size: 0.63rem;
-  color: #71717a;
+  font-size: 0.64rem;
+  color: #a1a1aa;
   white-space: nowrap;
   letter-spacing: -0.01em;
   text-align: center;
 }
 
 [data-theme="light"] .bbdrts-hero-stat-lbl {
-  color: #71717a;
+  color: #52525b;
 }
 
 .bbdrts-hero-stat-sep {
@@ -534,13 +534,13 @@
   --viz-port-fill: #0a0a0a;
   --viz-port-stroke: #52525b;
   --viz-text-primary: #ffffff;
-  --viz-text-secondary: #a1a1aa;
-  --viz-text-muted: #71717a;
+  --viz-text-secondary: #d4d4d8;
+  --viz-text-muted: #9ca3af;
   --viz-pill-bg: #161616;
   --viz-pill-border: #2e2e2e;
   --viz-pill-text: #f4f4f5;
   --viz-progress-track: #1f1f1f;
-  --viz-progress-fill: #ffffff;
+  --viz-progress-fill: linear-gradient(90deg, #0d9488 0%, #10b981 100%);
   --viz-cube-top: rgba(255, 255, 255, 0.14);
   --viz-cube-left: rgba(255, 255, 255, 0.05);
   --viz-cube-right: rgba(255, 255, 255, 0.22);
@@ -598,7 +598,7 @@
   --viz-pill-border: #e4e4e7;
   --viz-pill-text: #09090b;
   --viz-progress-track: #e4e4e7;
-  --viz-progress-fill: #09090b;
+  --viz-progress-fill: linear-gradient(90deg, #0d9488 0%, #059669 100%);
   --viz-cube-top: rgba(9, 9, 11, 0.08);
   --viz-cube-left: rgba(9, 9, 11, 0.03);
   --viz-cube-right: rgba(9, 9, 11, 0.14);
@@ -1348,11 +1348,17 @@
   font-weight: 600;
   padding: 3px 9px;
   border-radius: 9999px;
-  background: var(--viz-pill-bg);
-  color: var(--viz-pill-text);
-  border: 1px solid var(--viz-pill-border);
+  background: rgba(16, 185, 129, 0.12);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.34);
   white-space: nowrap;
   flex-shrink: 0;
+}
+
+[data-theme="light"] .bdr-record-verified-pill {
+  background: rgba(16, 185, 129, 0.1);
+  color: #047857;
+  border-color: rgba(16, 185, 129, 0.32);
 }
 
 .bdr-record-meta-grid {
