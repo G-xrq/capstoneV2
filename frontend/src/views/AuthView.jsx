@@ -259,6 +259,11 @@ export default function AuthView({ onLoginSuccess, onBack, theme, onToggleTheme,
             if (data.originalEmail) {
               setEmail(data.originalEmail);
             }
+            if (data.securityToken && data.originalEmail) {
+              setSecureEmail(data.originalEmail);
+              setSecureToken(data.securityToken);
+              setSecureModalOpen(true);
+            }
           } else {
             setEmailChangeNotice({
               verifying: false,

@@ -464,13 +464,23 @@ export default function SettingsPanel({
         return;
       }
 
+      if (tfaStatus.enabled && passwordTfaCode.trim().length < 6) {
+        showError('Please enter your 6-digit authenticator code to change your password.', '2FA Required');
+        setSavingPassword(false);
+        return;
+      }
+
       const res = await fetch(`${API_URL}/api/auth/change-password`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ currentPassword, newPassword })
+        body: JSON.stringify({
+          currentPassword,
+          newPassword,
+          ...(tfaStatus.enabled ? { twoFactorCode: passwordTfaCode.trim() } : {})
+        })
       });
 
       const data = await res.json();
@@ -479,6 +489,7 @@ export default function SettingsPanel({
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
+      setPasswordTfaCode('');
       showSuccess('Your password has been securely updated.', 'Password Updated');
     } catch (err) {
       showError(err.message || 'Failed to update password.', 'Error');
@@ -509,8 +520,10 @@ export default function SettingsPanel({
 
   // Email Change State
   const [showEmailChangeModal, setShowEmailChangeModal] = useState(false);
+  const [passwordTfaCode, setPasswordTfaCode] = useState('');
   const [newEmailInput, setNewEmailInput] = useState('');
   const [emailChangePassword, setEmailChangePassword] = useState('');
+  const [emailChangeTfaCode, setEmailChangeTfaCode] = useState('');
   const [emailChangeSubmitting, setEmailChangeSubmitting] = useState(false);
   const [emailChangeSuccess, setEmailChangeSuccess] = useState(false);
 
@@ -793,16 +806,24 @@ export default function SettingsPanel({
     const token = localStorage.getItem('bbdrts_token') || localStorage.getItem('token');
     try {
       setRevokingAllOthers(true);
+      const cleanEmail = (currentUser?.email || '').trim().toLowerCase();
+      const normRole = String(currentUser?.role || 'donor').toLowerCase();
+      const currentTrustedDeviceToken =
+        localStorage.getItem(`bbdrts_trusted_device_${normRole}_${cleanEmail}`) ||
+        localStorage.getItem(`bbdrts_trusted_device_${cleanEmail}`) ||
+        null;
+
       const res = await fetch(`${API_URL}/api/auth/sessions/revoke-all-others`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
-        }
+        },
+        body: JSON.stringify({ currentTrustedDeviceToken })
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to log out other sessions');
-      showSuccess('All other sessions have been logged out.', 'Sessions Cleared');
+      showSuccess('All other sessions have been logged out and their 30-day trusted device status was reset.', 'Sessions & Device Trust Cleared');
       setActiveSessions(prev => prev.filter(s => s.isCurrent));
     } catch (err) {
       showError(err.message, 'Action Failed');
@@ -824,6 +845,12 @@ export default function SettingsPanel({
     const token = localStorage.getItem('bbdrts_token') || localStorage.getItem('token');
     try {
       setEmailChangeSubmitting(true);
+      if (tfaStatus.enabled && emailChangeTfaCode.trim().length < 6) {
+        showError('Please enter your 6-digit authenticator code to change your email address.', '2FA Required');
+        setEmailChangeSubmitting(false);
+        return;
+      }
+
       const res = await fetch(`${API_URL}/api/auth/request-email-change`, {
         method: 'POST',
         headers: {
@@ -832,7 +859,8 @@ export default function SettingsPanel({
         },
         body: JSON.stringify({
           newEmail: newEmailInput.trim(),
-          currentPassword: emailChangePassword
+          currentPassword: emailChangePassword,
+          ...(tfaStatus.enabled ? { twoFactorCode: emailChangeTfaCode.trim() } : {})
         })
       });
       const data = await res.json();
@@ -3250,6 +3278,24 @@ export default function SettingsPanel({
                 </div>
               </div>
 
+              {tfaStatus.enabled && (
+                <div className="bbdrts-field-group" style={{ marginTop: '12px' }}>
+                  <label className="bbdrts-form-label">2FA Authenticator Code (Required)</label>
+                  <div className="bbdrts-input-wrap">
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={6}
+                      className="bbdrts-settings-input"
+                      placeholder="Enter 6-digit code from authenticator app"
+                      value={passwordTfaCode}
+                      onChange={(e) => setPasswordTfaCode(e.target.value.replace(/[^0-9]/g, '').slice(0, 6))}
+                      autoComplete="one-time-code"
+                    />
+                  </div>
+                </div>
+              )}
+
               {/* Action Bar */}
               <div className="bbdrts-password-actions-bar">
                 <span className="bbdrts-password-actions-note">
@@ -4021,6 +4067,24 @@ export default function SettingsPanel({
                   </div>
                 </div>
 
+                {tfaStatus.enabled && (
+                  <div className="input-group-modern">
+                    <label>2FA AUTHENTICATOR CODE (REQUIRED)</label>
+                    <div className="input-container">
+                      <span className="material-symbols-outlined input-icon">verified_user</span>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        maxLength={6}
+                        placeholder="Enter 6-digit authenticator code"
+                        value={emailChangeTfaCode}
+                        onChange={e => setEmailChangeTfaCode(e.target.value.replace(/[^0-9]/g, '').slice(0, 6))}
+                        required
+                      />
+                    </div>
+                  </div>
+                )}
+
                 <div className="forgot-action-row">
                   <button
                     type="button"
@@ -4032,7 +4096,7 @@ export default function SettingsPanel({
                   <button
                     type="submit"
                     className="btn-modern-primary"
-                    disabled={emailChangeSubmitting || !newEmailInput || !emailChangePassword}
+                    disabled={emailChangeSubmitting || !newEmailInput || !emailChangePassword || (tfaStatus.enabled && emailChangeTfaCode.length < 6)}
                   >
                     {emailChangeSubmitting ? (
                       <>

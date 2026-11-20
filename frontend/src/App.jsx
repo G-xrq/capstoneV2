@@ -113,19 +113,44 @@ export default function App() {
       3500
     );
 
+    const authToken = localStorage.getItem('bbdrts_token') || localStorage.getItem('token');
     apiFetch(`${API_URL}${endpoint}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(authToken ? { Authorization: `Bearer ${authToken}` } : {})
+      },
       body: JSON.stringify({ token })
     })
       .then(async (res) => {
         const data = await res.json().catch(() => ({}));
-        // Clean URL query params so refreshing does not re-trigger
-        try {
-          window.history.replaceState({}, '', window.location.pathname);
-        } catch (_) {}
-
         if (res.ok && data.success) {
+          if (!isVerify && data.securityToken && data.originalEmail) {
+            // Account reclaimed! Log out stale session & launch immediate password reset modal
+            try {
+              localStorage.removeItem('bbdrts_token');
+              localStorage.removeItem('token');
+              localStorage.removeItem('bbdrts_user');
+              window.history.replaceState(
+                {},
+                '',
+                `/?action=secure-account&email=${encodeURIComponent(data.originalEmail)}&token=${encodeURIComponent(data.securityToken)}`
+              );
+            } catch (_) {}
+            setDbUser(null);
+            setShowAuth(true);
+            showSuccess(
+              data.message || 'Account reclaimed! Please set a new password now.',
+              'Account Reclaimed — Change Password Now',
+              9000
+            );
+            return;
+          }
+
+          try {
+            window.history.replaceState({}, '', window.location.pathname);
+          } catch (_) {}
+
           const updatedEmail = isVerify ? data.newEmail : data.originalEmail;
           if (updatedEmail) {
             setDbUser((prev) => (prev ? { ...prev, email: updatedEmail, username: updatedEmail } : prev));
@@ -136,6 +161,9 @@ export default function App() {
             8000
           );
         } else {
+          try {
+            window.history.replaceState({}, '', window.location.pathname);
+          } catch (_) {}
           showError(
             data.error || 'This verification link is invalid or has expired.',
             isVerify ? 'Email Verification Failed' : 'Security Action Failed',
@@ -147,6 +175,50 @@ export default function App() {
         showError(err.message || 'Network error while verifying email change.', 'Verification Error', 7000);
       });
   }, [dbUser, showSuccess, showError, showInfo]);
+
+  // Real-Time Session Revocation Guard: auto-logout any device within seconds when its session is terminated remotely
+  useEffect(() => {
+    if (!dbUser) return;
+    let active = true;
+
+    const verifySessionAlive = async () => {
+      if (!active || (typeof document !== 'undefined' && document.visibilityState === 'hidden')) return;
+      const token = localStorage.getItem('bbdrts_token') || localStorage.getItem('token');
+      if (!token || token === 'direct_admin_access_token') return;
+      try {
+        const res = await fetch(`${API_URL}/api/auth/session-check`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (res.status === 401) {
+          const data = await res.json().catch(() => ({}));
+          if (data.sessionRevoked && active) {
+            localStorage.removeItem('bbdrts_token');
+            localStorage.removeItem('token');
+            localStorage.removeItem('bbdrts_user');
+            setDbUser(null);
+            setShowAuth(true);
+            showError(
+              'Your session was terminated on another device or by a security action. Please sign in again.',
+              'Session Terminated',
+              8000
+            );
+          }
+        }
+      } catch (_) {}
+    };
+
+    const intervalId = window.setInterval(verifySessionAlive, 8000);
+    const onFocus = () => verifySessionAlive();
+    window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onFocus);
+
+    return () => {
+      active = false;
+      window.clearInterval(intervalId);
+      window.removeEventListener('focus', onFocus);
+      document.removeEventListener('visibilitychange', onFocus);
+    };
+  }, [dbUser, showError]);
 
   // Listen for custom event to trigger onboarding preview prototype
   useEffect(() => {

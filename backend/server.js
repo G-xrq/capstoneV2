@@ -518,6 +518,74 @@ const getRoleIDColumn = (role) => {
   return 'Donor_ID';
 };
 
+// Check whether a 30-day trustedDeviceToken was invalidated by "Sign Out All Other Sessions" or "Reclaim Account"
+const isTrustedDeviceRevoked = (knownDevicesJson, decodedTrust) => {
+  if (!knownDevicesJson || !decodedTrust) return false;
+  try {
+    const arr = JSON.parse(knownDevicesJson);
+    if (!Array.isArray(arr)) return false;
+    const policy = arr.find(item => item && item.__trustPolicy === true);
+    if (!policy || !policy.revokedBefore) return false;
+    const issuedAtMs = (decodedTrust.iat || 0) * 1000;
+    if (issuedAtMs >= policy.revokedBefore) return false;
+    const preserved = Array.isArray(policy.preservedTrustIds) ? policy.preservedTrustIds : [];
+    if (decodedTrust.trustId && preserved.includes(decodedTrust.trustId)) return false;
+    return true;
+  } catch (_) {
+    return false;
+  }
+};
+
+// Persist a trust-revocation watermark inside Known_Devices_Json (no schema migration required)
+const updateTrustPolicyInKnownDevices = (knownDevicesJson, revokedBefore, preservedTrustIds = []) => {
+  let arr = [];
+  try {
+    if (knownDevicesJson) {
+      const parsed = JSON.parse(knownDevicesJson);
+      if (Array.isArray(parsed)) arr = parsed.filter(item => !(item && item.__trustPolicy === true));
+    }
+  } catch (_) {}
+  arr.push({
+    __trustPolicy: true,
+    revokedBefore,
+    preservedTrustIds: Array.isArray(preservedTrustIds) ? preservedTrustIds.filter(Boolean) : []
+  });
+  return JSON.stringify(arr);
+};
+
+// Verify a 6-digit TOTP code for sensitive account security actions (Change Email / Change Password)
+const verifyUserTotpCode = (user, rawCode) => {
+  const cleanCode = String(rawCode || '').replace(/\s+/g, '');
+  const cleanSecret = String(user?.Two_Factor_Secret || '').trim().toUpperCase();
+  if (!cleanCode || !cleanSecret) return false;
+  try {
+    const res = verifySync({ token: cleanCode, secret: cleanSecret, epochTolerance: 60 });
+    return Boolean(res && (res === true || res.valid === true));
+  } catch (_) {
+    return false;
+  }
+};
+
+// Issue a 1-hour emergency security token in Security_Tokens_Json for mandatory post-reclaim password reset
+const issueEmergencySecurityToken = async (tableName, idCol, userId, req) => {
+  const [uRows] = await db.query(`SELECT Security_Tokens_Json FROM ${tableName} WHERE ${idCol} = ?`, [userId]);
+  let securityTokens = [];
+  try {
+    if (uRows.length > 0 && uRows[0].Security_Tokens_Json) {
+      securityTokens = JSON.parse(uRows[0].Security_Tokens_Json);
+      if (!Array.isArray(securityTokens)) securityTokens = [];
+    }
+  } catch (_) {
+    securityTokens = [];
+  }
+  const securityToken = crypto.randomBytes(32).toString('hex');
+  const expiresAt = Date.now() + 60 * 60 * 1000; // 60 minutes
+  securityTokens = securityTokens.filter(t => t && t.expiresAt > Date.now());
+  securityTokens.push({ token: securityToken, expiresAt, device: detectClientDeviceInfo(req), reason: 'email_reclaim' });
+  await db.query(`UPDATE ${tableName} SET Security_Tokens_Json = ? WHERE ${idCol} = ?`, [JSON.stringify(securityTokens), userId]);
+  return securityToken;
+};
+
 const formatUserObj = (user, role, idCol) => {
   if (!user) return null;
   const idColumn = idCol || getRoleIDColumn(role);
@@ -1288,7 +1356,14 @@ app.post('/api/auth/login', rateLimiter(100, 15 * 60 * 1000), async (req, res) =
         const decodedTrust = jwt.verify(clientTrustedToken, secretKey);
         const roleMatches = !decodedTrust?.role || String(decodedTrust.role).toLowerCase() === String(requestedRole).toLowerCase();
         const emailMatches = !decodedTrust?.email || String(decodedTrust.email).trim().toLowerCase() === String(user.Username || '').trim().toLowerCase();
-        if (decodedTrust && decodedTrust.isTrustedDevice && String(decodedTrust.id) === String(user[idCol]) && roleMatches && emailMatches) {
+        if (
+          decodedTrust &&
+          decodedTrust.isTrustedDevice &&
+          String(decodedTrust.id) === String(user[idCol]) &&
+          roleMatches &&
+          emailMatches &&
+          !isTrustedDeviceRevoked(user.Known_Devices_Json, decodedTrust)
+        ) {
           isDeviceTrusted = true;
         }
       } catch (_) {}
@@ -1453,7 +1528,7 @@ app.post('/api/auth/login-2fa-verify', rateLimiter(30, 15 * 60 * 1000), async (r
     let trustedDeviceToken = null;
     if (req.body.trustDevice) {
       trustedDeviceToken = jwt.sign(
-        { id: user[idCol], email: user.Username, role, isTrustedDevice: true },
+        { id: user[idCol], email: user.Username, role, isTrustedDevice: true, trustId: crypto.randomUUID() },
         secretKey,
         { expiresIn: '30d' }
       );
@@ -2032,7 +2107,7 @@ app.get('/api/auth/me', authenticateToken, async (req, res) => {
 
 // ── Routes: Change Password (Authenticated User) ──────────
 app.post('/api/auth/change-password', authenticateToken, async (req, res) => {
-  const { currentPassword, newPassword } = req.body;
+  const { currentPassword, newPassword, twoFactorCode } = req.body;
   if (!currentPassword || !newPassword) {
     return res.status(400).json({ error: 'Please provide both your current and new password.' });
   }
@@ -2051,6 +2126,15 @@ app.post('/api/auth/change-password', authenticateToken, async (req, res) => {
     const isMatch = await bcrypt.compare(currentPassword, user.Password);
     if (!isMatch) {
       return res.status(400).json({ error: 'Current password does not match our records.' });
+    }
+
+    if (user.Two_Factor_Enabled) {
+      if (!twoFactorCode || !String(twoFactorCode).trim()) {
+        return res.status(400).json({ error: 'Two-factor authentication code is required to change your password.', requires2FA: true });
+      }
+      if (!verifyUserTotpCode(user, twoFactorCode)) {
+        return res.status(400).json({ error: 'Invalid 6-digit 2FA verification code.' });
+      }
     }
 
     const hashedPassword = await bcrypt.hash(newPassword, 10);
@@ -2398,14 +2482,19 @@ app.post('/api/auth/sessions/revoke', authenticateToken, async (req, res) => {
   }
 });
 
-// Revoke All Other Sessions
+// Lightweight real-time session validity check (triggers immediate auto-logout if revoked)
+app.get('/api/auth/session-check', authenticateToken, (req, res) => {
+  res.json({ valid: true, sessionId: req.user.sessionId || null, email: req.user.email });
+});
+
+// Revoke All Other Sessions (AND reset 30-day trusted device tokens on all logged-out devices)
 app.post('/api/auth/sessions/revoke-all-others', authenticateToken, async (req, res) => {
   const tableName = getRoleTable(req.user.role);
   const idCol = getRoleIDColumn(req.user.role);
   const currentSessionId = req.user.sessionId;
 
   try {
-    const [rows] = await db.query(`SELECT Active_Sessions_Json FROM ${tableName} WHERE ${idCol} = ?`, [req.user.id]);
+    const [rows] = await db.query(`SELECT Active_Sessions_Json, Known_Devices_Json FROM ${tableName} WHERE ${idCol} = ?`, [req.user.id]);
     if (rows.length === 0) return res.status(404).json({ error: 'User record not found.' });
 
     let sessions = [];
@@ -2418,10 +2507,25 @@ app.post('/api/auth/sessions/revoke-all-others', authenticateToken, async (req, 
       sessions = [];
     }
 
-    // Keep only the current session
+    // Preserve 30-day trust ONLY for the currently active device (if it sent its trustedDeviceToken)
+    const preservedTrustIds = [];
+    const currentTrustToken = req.body?.currentTrustedDeviceToken || req.headers['x-trusted-device-token'];
+    if (currentTrustToken) {
+      try {
+        const decoded = jwt.verify(currentTrustToken, secretKey);
+        if (decoded && decoded.isTrustedDevice && String(decoded.id) === String(req.user.id) && decoded.trustId) {
+          preservedTrustIds.push(decoded.trustId);
+        }
+      } catch (_) {}
+    }
+
+    const updatedKnownDevices = updateTrustPolicyInKnownDevices(rows[0].Known_Devices_Json, Date.now(), preservedTrustIds);
+
+    // Keep only the current session and invalidate all other devices' 30-day trust tokens
     const filtered = sessions.filter(s => s.sessionId === currentSessionId);
-    await db.query(`UPDATE ${tableName} SET Active_Sessions_Json = ? WHERE ${idCol} = ?`, [
+    await db.query(`UPDATE ${tableName} SET Active_Sessions_Json = ?, Known_Devices_Json = ? WHERE ${idCol} = ?`, [
       JSON.stringify(filtered),
+      updatedKnownDevices,
       req.user.id
     ]);
 
@@ -2447,7 +2551,7 @@ app.post('/api/auth/sessions/revoke-all-others', authenticateToken, async (req, 
 
 // Request Email Change (Sends verification to new email & alert to current email)
 app.post('/api/auth/request-email-change', authenticateToken, rateLimiter(10, 15 * 60 * 1000), async (req, res) => {
-  const { newEmail, currentPassword } = req.body;
+  const { newEmail, currentPassword, twoFactorCode } = req.body;
   if (!newEmail || !currentPassword) {
     return res.status(400).json({ error: 'Please provide both your new email and current password.' });
   }
@@ -2473,6 +2577,15 @@ app.post('/api/auth/request-email-change', authenticateToken, rateLimiter(10, 15
     const isMatch = await bcrypt.compare(currentPassword, user.Password);
     if (!isMatch) {
       return res.status(400).json({ error: 'Current password does not match.' });
+    }
+
+    if (user.Two_Factor_Enabled) {
+      if (!twoFactorCode || !String(twoFactorCode).trim()) {
+        return res.status(400).json({ error: 'Two-factor authentication code is required to change your email address.', requires2FA: true });
+      }
+      if (!verifyUserTotpCode(user, twoFactorCode)) {
+        return res.status(400).json({ error: 'Invalid 6-digit 2FA verification code.' });
+      }
     }
 
     // 2. Check if new email is already registered across any role
@@ -2592,8 +2705,34 @@ app.post('/api/auth/verify-email-change', rateLimiter(20, 15 * 60 * 1000), async
     const tableName = getRoleTable(record.Role);
     const idCol = getRoleIDColumn(record.Role);
 
-    // Apply the update to the user's Username
-    await db.query(`UPDATE ${tableName} SET Username = ? WHERE ${idCol} = ?`, [record.New_Email, record.User_ID]);
+    // Determine if caller is already authenticated on this device; keep ONLY their current session, revoke all others
+    let keepSessionId = null;
+    try {
+      const authHdr = req.headers['authorization'];
+      const bearer = authHdr && authHdr.split(' ')[1];
+      if (bearer) {
+        const decodedCaller = jwt.verify(bearer, secretKey);
+        if (decodedCaller && String(decodedCaller.id) === String(record.User_ID) && decodedCaller.sessionId) {
+          keepSessionId = decodedCaller.sessionId;
+        }
+      }
+    } catch (_) {}
+
+    let nextSessionsJson = '[]';
+    if (keepSessionId) {
+      try {
+        const [uRows] = await db.query(`SELECT Active_Sessions_Json FROM ${tableName} WHERE ${idCol} = ?`, [record.User_ID]);
+        if (uRows.length > 0 && uRows[0].Active_Sessions_Json) {
+          const parsed = JSON.parse(uRows[0].Active_Sessions_Json);
+          if (Array.isArray(parsed)) {
+            nextSessionsJson = JSON.stringify(parsed.filter(s => s.sessionId === keepSessionId));
+          }
+        }
+      } catch (_) {}
+    }
+
+    // Apply the update to the user's Username & terminate all other sessions
+    await db.query(`UPDATE ${tableName} SET Username = ?, Active_Sessions_Json = ? WHERE ${idCol} = ?`, [record.New_Email, nextSessionsJson, record.User_ID]);
 
     // PRESERVE AUDIT TRAIL: Mark status as APPLIED (do NOT delete row!)
     const nowIso = new Date().toISOString();
@@ -2671,14 +2810,16 @@ app.post('/api/auth/cancel-email-change', rateLimiter(20, 15 * 60 * 1000), async
     const idCol = getRoleIDColumn(record.Role);
     const nowIso = new Date().toISOString();
 
-    // Case 1: Already reverted
+    // Case 1: Already reverted — still provide a fresh one-time password reset token so the owner can change their password right away
     if (record.Status === 'REVERTED') {
+      const securityToken = await issueEmergencySecurityToken(tableName, idCol, record.User_ID, req);
       return res.json({
         success: true,
         reverted: true,
         alreadyReverted: true,
         originalEmail: record.Current_Email,
-        message: `Your account was already successfully secured and restored to ${record.Current_Email}. All active sessions remain terminated.`
+        securityToken,
+        message: `Your account was restored to ${record.Current_Email} and all active sessions were terminated. Please set a new password now to lock out the intruder permanently.`
       });
     }
 
@@ -2695,11 +2836,18 @@ app.post('/api/auth/cancel-email-change', rateLimiter(20, 15 * 60 * 1000), async
         });
       }
 
-      // 1. Instantly REVERT the user's primary email (Username) back to Current_Email
-      await db.query(`UPDATE ${tableName} SET Username = ? WHERE ${idCol} = ?`, [record.Current_Email, record.User_ID]);
+      // 1. Instantly REVERT email, WIPE all active sessions, REVOKE all 30-day trusted devices,
+      //    AND apply a 15-minute temporary login lockout so the intruder cannot sign back in with the stolen password!
+      const lockoutUntilIso = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+      const [uDevRows] = await db.query(`SELECT Known_Devices_Json FROM ${tableName} WHERE ${idCol} = ?`, [record.User_ID]);
+      const wipedTrustKnownDevices = updateTrustPolicyInKnownDevices(uDevRows[0]?.Known_Devices_Json, Date.now(), []);
+      await db.query(
+        `UPDATE ${tableName} SET Username = ?, Active_Sessions_Json = '[]', Known_Devices_Json = ?, Lockout_Until = ? WHERE ${idCol} = ?`,
+        [record.Current_Email, wipedTrustKnownDevices, lockoutUntilIso, record.User_ID]
+      );
 
-      // 2. Instantly TERMINATE and REVOKE all active sessions across all devices
-      await db.query(`UPDATE ${tableName} SET Active_Sessions_Json = '[]' WHERE ${idCol} = ?`, [record.User_ID]);
+      // 2. Generate a fresh 60-minute one-time securityToken so the owner can immediately set a new password & unlock
+      const securityToken = await issueEmergencySecurityToken(tableName, idCol, record.User_ID, req);
 
       // 3. Update token status to REVERTED
       await db.query(
@@ -2750,7 +2898,9 @@ app.post('/api/auth/cancel-email-change', rateLimiter(20, 15 * 60 * 1000), async
         success: true,
         reverted: true,
         originalEmail: record.Current_Email,
-        message: `Account Successfully Reclaimed! Your primary email has been restored to ${record.Current_Email} and all active sessions were terminated.`
+        securityToken,
+        lockedMinutes: 15,
+        message: `Account reclaimed & restored to ${record.Current_Email}! All sessions & trusted devices were wiped and logins are locked for 15 minutes. Set a new password now to unlock your account.`
       });
     }
 
@@ -2761,9 +2911,17 @@ app.post('/api/auth/cancel-email-change', rateLimiter(20, 15 * 60 * 1000), async
         [nowIso, record.Token, token]
       );
 
-      // Terminate any suspicious active sessions as a precaution
+      // Terminate all sessions, revoke all 30-day trusted devices, apply 15-min lockout, and issue password reset token
+      let securityToken = null;
       try {
-        await db.query(`UPDATE ${tableName} SET Active_Sessions_Json = '[]' WHERE ${idCol} = ?`, [record.User_ID]);
+        const lockoutUntilIso = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+        const [uDevRows] = await db.query(`SELECT Known_Devices_Json FROM ${tableName} WHERE ${idCol} = ?`, [record.User_ID]);
+        const wipedTrustKnownDevices = updateTrustPolicyInKnownDevices(uDevRows[0]?.Known_Devices_Json, Date.now(), []);
+        await db.query(
+          `UPDATE ${tableName} SET Active_Sessions_Json = '[]', Known_Devices_Json = ?, Lockout_Until = ? WHERE ${idCol} = ?`,
+          [wipedTrustKnownDevices, lockoutUntilIso, record.User_ID]
+        );
+        securityToken = await issueEmergencySecurityToken(tableName, idCol, record.User_ID, req);
       } catch (_) {}
 
       logActivity({
@@ -2782,7 +2940,9 @@ app.post('/api/auth/cancel-email-change', rateLimiter(20, 15 * 60 * 1000), async
         success: true,
         cancelled: true,
         originalEmail: record.Current_Email,
-        message: `The pending email change request has been cancelled and voided. Your primary email remains ${record.Current_Email}, and all active sessions have been terminated for security.`
+        securityToken,
+        lockedMinutes: 15,
+        message: `Pending email change cancelled! All sessions were terminated and logins are locked for 15 minutes. Please set a new password now to secure your account.`
       });
     }
 
