@@ -636,6 +636,21 @@ export default function ReliefAiChat({
     }
   }, [messages, isLoading, isOpen]);
 
+  // Lock background page scroll while full-screen mobile chatbox is open
+  useEffect(() => {
+    if (!isOpen || typeof window === 'undefined') return;
+    const isMobile = window.matchMedia('(max-width: 640px)').matches;
+    if (!isMobile) return;
+    const prevHtmlOverflow = document.documentElement.style.overflow;
+    const prevBodyOverflow = document.body.style.overflow;
+    document.documentElement.style.overflow = 'hidden';
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.documentElement.style.overflow = prevHtmlOverflow;
+      document.body.style.overflow = prevBodyOverflow;
+    };
+  }, [isOpen]);
+
   // Auto-resize input textarea smoothly as user types
   useEffect(() => {
     if (textareaRef.current) {

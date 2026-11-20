@@ -339,6 +339,8 @@ body.has-modal-open .bbdrts-copilot-trigger-btn {
 .bbdrts-copilot-chat-body {
   flex: 1;
   overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
   padding: 14px;
   display: flex;
   flex-direction: column;
@@ -1446,6 +1448,8 @@ body.has-modal-open .bbdrts-copilot-trigger-btn {
 @media (max-width: 640px) {
   .bbdrts-copilot-window,
   .bbdrts-copilot-window.expanded {
+    overscroll-behavior: contain;
+    touch-action: pan-y;
     bottom: 0;
     right: 0;
     left: 0;
