@@ -21,10 +21,26 @@ import './App.css';
 import { isLocalhost, API_URL } from './config';
 
 export default function App() {
-  /* ── Database Auth State ────────────────────────────── */
-  const [dbUser, setDbUser] = useState(null);
+  /* ── Database Auth State (Synchronously hydrated from localStorage to prevent Landing flash on F5 refresh) ── */
+  const [dbUser, setDbUser] = useState(() => {
+    try {
+      const token = localStorage.getItem('bbdrts_token');
+      const cached = localStorage.getItem('bbdrts_user');
+      if (token && cached) {
+        const parsed = JSON.parse(cached);
+        if (parsed && parsed.role) return parsed;
+      }
+    } catch (_) {}
+    return null;
+  });
   // dbUser = { id, name, email, role }
-  const [authLoading, setAuthLoading] = useState(true);
+  const [authLoading, setAuthLoading] = useState(() => {
+    try {
+      return !(localStorage.getItem('bbdrts_token') && localStorage.getItem('bbdrts_user'));
+    } catch (_) {
+      return true;
+    }
+  });
   const [showAuth, setShowAuth] = useState(() => {
     if (typeof window !== 'undefined') {
       const pathname = window.location.pathname;
