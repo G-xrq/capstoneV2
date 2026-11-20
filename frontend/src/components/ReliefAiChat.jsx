@@ -865,7 +865,6 @@ export default function ReliefAiChat({
               <div className="bbdrts-copilot-header-titles">
                 <div className="bbdrts-copilot-header-title-row">
                   <span className="bbdrts-copilot-title-text">ReliefAI</span>
-                  <span className="bbdrts-copilot-copilot-tag">Relief Copilot</span>
                 </div>
                 <div className="bbdrts-copilot-header-sub">
                   <span className="bbdrts-copilot-status-badge" />
