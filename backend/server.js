@@ -13,6 +13,7 @@ const QRCode = require('qrcode');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const db = require('./database');
 const blockchainRelayer = require('./services/blockchainRelayer');
+const paymongoService = require('./services/paymongoService');
 const { logActivity } = require('./services/activityLogger');
 const analyticsService = require('./services/analyticsService');
 
@@ -4974,7 +4975,7 @@ app.post('/api/manual-donations', authenticateToken, async (req, res) => {
       : 'Unchecked';
     const aiNotes = ocrScan ? (ocrScan.summary || (ocrScan.fraudFlags?.join('; ') || 'Audited by Gemini AI Vision & Tesseract OCR')) : null;
 
-    await db.query(
+    const [manualIns] = await db.query(
       `INSERT INTO MANUAL_DONATION (
         Donor_ID, Campaign_ID, Amount, Payment_Method, Receipt_Base64, Status, Is_Anonymous, Reference_Number,
         Ai_Extracted_Amount, Ai_Extracted_Ref_No, Ai_Extracted_Date, Ai_Confidence_Score, Ai_Validation_Status, Ai_Audit_Notes
@@ -4984,6 +4985,28 @@ app.post('/api/manual-donations', authenticateToken, async (req, res) => {
         aiExtractedAmt, aiExtractedRef, aiExtractedDate, aiConfidence, aiStatus, aiNotes
       ]
     );
+    // Mark matching Pre-Payment Direct QR Intent as COMPLETED so the pending-upload reminder clears automatically
+    try {
+      const { intent_id, tracking_code } = req.body || {};
+      if (intent_id) {
+        await db.query(
+          `UPDATE PAYMENT_INTENT SET Status = 'COMPLETED', Manual_ID = ?, Completed_At = CURRENT_TIMESTAMP WHERE Intent_ID = ?`,
+          [manualIns.insertId, Number(intent_id)]
+        );
+      } else if (tracking_code) {
+        await db.query(
+          `UPDATE PAYMENT_INTENT SET Status = 'COMPLETED', Manual_ID = ?, Completed_At = CURRENT_TIMESTAMP WHERE Tracking_Code = ?`,
+          [manualIns.insertId, String(tracking_code).trim().toUpperCase()]
+        );
+      } else {
+        await db.query(
+          `UPDATE PAYMENT_INTENT SET Status = 'COMPLETED', Manual_ID = ?, Completed_At = CURRENT_TIMESTAMP
+           WHERE Donor_ID = ? AND Campaign_ID = ? AND Mode = 'DIRECT_QR' AND Status = 'PENDING_PROOF'
+           ORDER BY Intent_ID DESC LIMIT 1`,
+          [manualIns.insertId, req.user.id, campaign_id]
+        );
+      }
+    } catch (_) {}
 
     const numAmt = parseFloat(amount) || 0;
     const amountPhp = numAmt < 1 ? Math.round(numAmt * 170000) : Math.round(numAmt);
@@ -6534,6 +6557,513 @@ app.get('/api/leaderboard', async (req, res) => {
 });
 
 // ── Live Donations Stream Endpoint (for Header Live Donation Tracker) ──
+
+// ============================================================================
+// ANTI-LOOPHOLE PAYMENT SYSTEM:
+// 1) PayMongo Dynamic Checkout + Signed Webhooks (Auto-Verified -> Gasless Sepolia)
+// 2) Pre-Payment Donation Intents (BB-XXXX Tracking Code + Pending Upload Recovery)
+// 3) NGO "Declare Unclaimed Direct Deposit" (Honest NGO Reconciliation -> Gasless Sepolia)
+// ============================================================================
+
+async function settleGatewayIntent(intentRow, externalRef = '') {
+  if (!intentRow) throw new Error('Payment intent not found.');
+  if (intentRow.Status === 'COMPLETED' && intentRow.Tx_Hash) {
+    return { alreadyCompleted: true, txHash: intentRow.Tx_Hash, intentId: intentRow.Intent_ID, trackingCode: intentRow.Tracking_Code };
+  }
+
+  const amountPhp = Math.round(parseFloat(intentRow.Amount_Php || 0));
+  const amountEth = Number((amountPhp / 170000).toFixed(8));
+  const cleanMethod = intentRow.Payment_Method || 'GCash';
+  const refNo = externalRef || intentRow.Gateway_Session_ID || intentRow.Tracking_Code;
+
+  // Resolve Org_ID & Campaign_Title
+  let orgId = intentRow.Org_ID || null;
+  let campTitle = `Campaign #${intentRow.Campaign_ID}`;
+  try {
+    const [cRows] = await db.query('SELECT Org_ID, Campaign_Title FROM CAMPAIGN WHERE Campaign_ID = ?', [intentRow.Campaign_ID]);
+    if (cRows.length > 0) {
+      orgId = orgId || cRows[0].Org_ID;
+      campTitle = cRows[0].Campaign_Title || campTitle;
+    }
+  } catch (_) {}
+
+  // Gaslessly notarize on Ethereum Sepolia via platform relayer
+  const relayRes = await blockchainRelayer.relayDonation({
+    campaignId: intentRow.Campaign_ID,
+    amountPhp,
+    declaredPhp: amountPhp,
+    variancePhp: 0,
+    hasVariance: false,
+    amountEth,
+    paymentMethod: cleanMethod,
+    referenceNumber: refNo,
+    donorWallet: null,
+    donorId: intentRow.Donor_ID || null
+  });
+  const auditHash = relayRes.txHash;
+
+  // Idempotent insert into DONATION_TRANSACTION
+  const [existingTx] = await db.query('SELECT Transaction_ID FROM DONATION_TRANSACTION WHERE Tx_Hash = ?', [auditHash]);
+  if (!existingTx || existingTx.length === 0) {
+    await db.query(
+      `INSERT INTO DONATION_TRANSACTION (Donor_ID, Org_ID, Campaign_ID, Tx_Hash, Amount, Is_Anonymous, Wallet_Address, Payment_Method)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [intentRow.Donor_ID || null, orgId, intentRow.Campaign_ID, auditHash, amountEth, intentRow.Is_Anonymous ? 1 : 0, null, cleanMethod]
+    );
+  }
+
+  await db.query(
+    `UPDATE PAYMENT_INTENT SET Status = 'COMPLETED', Tx_Hash = ?, Completed_At = CURRENT_TIMESTAMP WHERE Intent_ID = ?`,
+    [auditHash, intentRow.Intent_ID]
+  );
+
+  invalidateCampaignsCache();
+
+  // Audit log
+  logActivity({
+    activity: `${intentRow.Is_Anonymous ? 'Anonymous Donor' : (intentRow.Donor_Name || 'Supporter')} donated ₱${amountPhp.toLocaleString()} via ${cleanMethod} (Instant Gateway ${intentRow.Tracking_Code}) to "${campTitle}" — auto-notarized on Sepolia`,
+    userName: intentRow.Is_Anonymous ? 'Anonymous Donor' : (intentRow.Donor_Name || 'Supporter'),
+    userEmail: intentRow.Donor_Email || 'guest@bbdrts.org',
+    role: 'DONOR',
+    target: `Ref ${intentRow.Tracking_Code}`,
+    category: 'DONATION',
+    status: 'SUCCESS'
+  });
+
+  // Notify donor if email present
+  if (intentRow.Donor_Email) {
+    sendNotificationToUser({
+      userEmail: intentRow.Donor_Email,
+      role: 'donor',
+      type: 'DONATION',
+      title: `Instant Donation Verified: ₱${amountPhp.toLocaleString()} via ${cleanMethod}`,
+      message: `Your ₱${amountPhp.toLocaleString()} contribution to "${campTitle}" (${intentRow.Tracking_Code}) was automatically verified via payment gateway webhook and permanently notarized on Ethereum Sepolia — no receipt upload required.`,
+      referenceId: auditHash,
+      referenceType: 'DONATION_TX'
+    }).catch(() => {});
+  }
+
+  return {
+    alreadyCompleted: false,
+    txHash: auditHash,
+    intentId: intentRow.Intent_ID,
+    trackingCode: intentRow.Tracking_Code,
+    amountPhp,
+    paymentMethod: cleanMethod,
+    campaignTitle: campTitle
+  };
+}
+
+// 1. Create Instant Auto-Verified Checkout Session (PayMongo or Built-In Sandbox)
+app.post('/api/payments/checkout-session', async (req, res) => {
+  try {
+    let authedUser = null;
+    const authHeader = req.headers['authorization'];
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      try {
+        authedUser = jwt.verify(authHeader.split(' ')[1], JWT_SECRET);
+      } catch (_) {}
+    }
+
+    const { campaign_id, amount_php, payment_method, is_anonymous, donor_name, donor_email } = req.body || {};
+    const campaignId = Number(campaign_id);
+    const amountPhp = Math.round(Number(amount_php || 0));
+    if (!campaignId || amountPhp < 1) {
+      return res.status(400).json({ error: 'Valid campaign_id and amount_php (>= ₱1) are required.' });
+    }
+
+    const [campRows] = await db.query('SELECT Campaign_ID, Org_ID, Campaign_Title, Is_Active FROM CAMPAIGN WHERE Campaign_ID = ?', [campaignId]);
+    if (!campRows || campRows.length === 0) {
+      return res.status(404).json({ error: 'Campaign not found.' });
+    }
+    const camp = campRows[0];
+
+    const donorId = authedUser && authedUser.role === 'donor' ? authedUser.id : null;
+    let resolvedName = donor_name || (authedUser?.name || '');
+    let resolvedEmail = donor_email || (authedUser?.email || '');
+    if (donorId && !resolvedName) {
+      try {
+        const [dRows] = await db.query('SELECT Display_Name, Name, Legal_Name, Username FROM DONOR WHERE Donor_ID = ?', [donorId]);
+        if (dRows.length > 0) {
+          resolvedName = dRows[0].Display_Name || dRows[0].Name || dRows[0].Legal_Name || dRows[0].Username || '';
+          resolvedEmail = resolvedEmail || dRows[0].Username || '';
+        }
+      } catch (_) {}
+    }
+
+    const trackingCode = paymongoService.generateTrackingCode();
+    const amountEth = Number((amountPhp / 170000).toFixed(8));
+    const cleanMethod = /maya/i.test(String(payment_method))
+      ? 'Maya'
+      : /card|bank/i.test(String(payment_method))
+        ? 'Bank / Card'
+        : 'GCash';
+
+    const [ins] = await db.query(
+      `INSERT INTO PAYMENT_INTENT
+        (Tracking_Code, Mode, Campaign_ID, Org_ID, Donor_ID, Donor_Name, Donor_Email, Payment_Method, Amount_Php, Amount_Eth, Is_Anonymous, Status)
+       VALUES (?, 'GATEWAY', ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING_PAYMENT')`,
+      [trackingCode, campaignId, camp.Org_ID || null, donorId, resolvedName || null, resolvedEmail || null, cleanMethod, amountPhp, amountEth, is_anonymous ? 1 : 0]
+    );
+    const intentId = ins.insertId;
+
+    const origin = req.headers.origin || 'http://localhost:5173';
+    const session = await paymongoService.createCheckoutSession({
+      intentId,
+      trackingCode,
+      campaignId,
+      campaignTitle: camp.Campaign_Title,
+      amountPhp,
+      paymentMethod: cleanMethod,
+      donorEmail: resolvedEmail,
+      donorName: resolvedName,
+      successUrl: `${origin}/?payment_status=success&intent=${intentId}`,
+      cancelUrl: `${origin}/?payment_status=cancelled&intent=${intentId}`
+    });
+
+    await db.query(
+      'UPDATE PAYMENT_INTENT SET Gateway_Session_ID = ?, Gateway_Checkout_Url = ? WHERE Intent_ID = ?',
+      [session.sessionId, session.checkoutUrl, intentId]
+    );
+
+    res.json({
+      intentId,
+      trackingCode,
+      provider: session.provider, // 'paymongo' | 'sandbox'
+      sessionId: session.sessionId,
+      checkoutUrl: session.checkoutUrl,
+      amountPhp,
+      paymentMethod: cleanMethod,
+      campaignTitle: camp.Campaign_Title
+    });
+  } catch (err) {
+    console.error('Checkout session error:', err);
+    res.status(500).json({ error: err.message || 'Failed to create instant checkout session.' });
+  }
+});
+
+// 2. Signed PayMongo Webhook Receiver (Automatic Server-to-Server Settlement)
+app.post('/api/webhooks/paymongo', async (req, res) => {
+  try {
+    const sigHeader = req.headers['paymongo-signature'];
+    const rawStr = typeof req.body === 'string' ? req.body : JSON.stringify(req.body || {});
+    const sigCheck = paymongoService.verifyWebhookSignature(rawStr, sigHeader);
+    if (!sigCheck.valid) {
+      return res.status(401).json({ error: `Invalid webhook signature: ${sigCheck.reason}` });
+    }
+
+    const event = typeof req.body === 'string' ? JSON.parse(req.body) : (req.body || {});
+    const eventType = event?.data?.attributes?.type || '';
+    const resource = event?.data?.attributes?.data || {};
+    const attrs = resource?.attributes || {};
+    const metadata = attrs?.metadata || {};
+
+    if (eventType === 'checkout_session.payment.paid' || eventType === 'payment.paid') {
+      const sessionId = resource.id || attrs.checkout_session_id || null;
+      const trackingCode = metadata.tracking_code || attrs.reference_number || null;
+      const intentId = metadata.intent_id ? Number(metadata.intent_id) : null;
+
+      let rows = [];
+      if (intentId) {
+        [rows] = await db.query('SELECT * FROM PAYMENT_INTENT WHERE Intent_ID = ?', [intentId]);
+      } else if (sessionId) {
+        [rows] = await db.query('SELECT * FROM PAYMENT_INTENT WHERE Gateway_Session_ID = ?', [sessionId]);
+      } else if (trackingCode) {
+        [rows] = await db.query('SELECT * FROM PAYMENT_INTENT WHERE Tracking_Code = ?', [trackingCode]);
+      }
+
+      if (rows && rows.length > 0) {
+        const result = await settleGatewayIntent(rows[0], sessionId || trackingCode);
+        return res.json({ received: true, settled: true, ...result });
+      }
+    }
+
+    res.json({ received: true, settled: false, eventType });
+  } catch (err) {
+    console.error('PayMongo webhook error:', err);
+    res.status(500).json({ error: err.message || 'Webhook processing failed.' });
+  }
+});
+
+// 3. Built-in Sandbox Webhook Completion (disabled automatically when sk_live_ key is active)
+app.post('/api/payments/sandbox-complete/:intentId', async (req, res) => {
+  try {
+    if (paymongoService.isLiveMode()) {
+      return res.status(403).json({ error: 'Sandbox completion is disabled in live PayMongo mode.' });
+    }
+    const intentId = Number(req.params.intentId);
+    const [rows] = await db.query('SELECT * FROM PAYMENT_INTENT WHERE Intent_ID = ?', [intentId]);
+    if (!rows || rows.length === 0) {
+      return res.status(404).json({ error: 'Payment intent not found.' });
+    }
+    const result = await settleGatewayIntent(rows[0], `PM-SANDBOX-${rows[0].Tracking_Code}`);
+    res.json({ success: true, ...result });
+  } catch (err) {
+    console.error('Sandbox complete error:', err);
+    res.status(500).json({ error: err.message || 'Failed to settle sandbox payment.' });
+  }
+});
+
+// 4. Poll Payment Intent Status
+app.get('/api/payments/intent/:intentId', async (req, res) => {
+  try {
+    const intentId = Number(req.params.intentId);
+    const [rows] = await db.query(
+      `SELECT pi.*, c.Campaign_Title as campaignTitle
+       FROM PAYMENT_INTENT pi
+       LEFT JOIN CAMPAIGN c ON pi.Campaign_ID = c.Campaign_ID
+       WHERE pi.Intent_ID = ?`,
+      [intentId]
+    );
+    if (!rows || rows.length === 0) return res.status(404).json({ error: 'Intent not found.' });
+    res.json(rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 5. Create Pre-Payment Direct QR Intent (Generates unique BB-XXXX note code BEFORE donor scans QR)
+app.post('/api/donations/intent', async (req, res) => {
+  try {
+    let authedUser = null;
+    const authHeader = req.headers['authorization'];
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      try {
+        authedUser = jwt.verify(authHeader.split(' ')[1], JWT_SECRET);
+      } catch (_) {}
+    }
+
+    const { campaign_id, amount_php, payment_method, is_anonymous } = req.body || {};
+    const campaignId = Number(campaign_id);
+    const amountPhp = Math.round(Number(amount_php || 0));
+    if (!campaignId || amountPhp < 1) {
+      return res.status(400).json({ error: 'Valid campaign_id and amount_php are required.' });
+    }
+
+    const [campRows] = await db.query('SELECT Org_ID, Campaign_Title FROM CAMPAIGN WHERE Campaign_ID = ?', [campaignId]);
+    const orgId = campRows?.[0]?.Org_ID || null;
+    const donorId = authedUser && authedUser.role === 'donor' ? authedUser.id : null;
+    const donorEmail = authedUser?.email || null;
+    const donorName = authedUser?.name || null;
+
+    const trackingCode = paymongoService.generateTrackingCode();
+    const amountEth = Number((amountPhp / 170000).toFixed(8));
+    const cleanMethod = /maya/i.test(String(payment_method))
+      ? 'Maya'
+      : /card|bank/i.test(String(payment_method))
+        ? 'Bank / Card'
+        : 'GCash';
+
+    const [ins] = await db.query(
+      `INSERT INTO PAYMENT_INTENT
+        (Tracking_Code, Mode, Campaign_ID, Org_ID, Donor_ID, Donor_Name, Donor_Email, Payment_Method, Amount_Php, Amount_Eth, Is_Anonymous, Status)
+       VALUES (?, 'DIRECT_QR', ?, ?, ?, ?, ?, ?, ?, ?, ?, 'PENDING_PROOF')`,
+      [trackingCode, campaignId, orgId, donorId, donorName, donorEmail, cleanMethod, amountPhp, amountEth, is_anonymous ? 1 : 0]
+    );
+
+    res.json({
+      intentId: ins.insertId,
+      trackingCode,
+      campaignId,
+      amountPhp,
+      paymentMethod: cleanMethod,
+      status: 'PENDING_PROOF'
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 6. Get Logged-in Donor's Pending-Proof Direct QR Intents (Recovery Banner)
+app.get('/api/donations/intents/me', authenticateToken, async (req, res) => {
+  try {
+    const [rows] = await db.query(
+      `SELECT
+         pi.Intent_ID as intentId,
+         pi.Tracking_Code as trackingCode,
+         pi.Campaign_ID as campaignId,
+         pi.Payment_Method as paymentMethod,
+         pi.Amount_Php as amountPhp,
+         pi.Status as status,
+         pi.Created_At as createdAt,
+         COALESCE(c.Campaign_Title, CONCAT('Campaign #', pi.Campaign_ID)) as campaignTitle
+       FROM PAYMENT_INTENT pi
+       LEFT JOIN CAMPAIGN c ON pi.Campaign_ID = c.Campaign_ID
+       WHERE pi.Donor_ID = ?
+         AND pi.Mode = 'DIRECT_QR'
+         AND pi.Status = 'PENDING_PROOF'
+         AND pi.Created_At >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+       ORDER BY pi.Intent_ID DESC
+       LIMIT 5`,
+      [req.user.id]
+    );
+    res.json(rows || []);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 7. Dismiss / Cancel a Pending-Proof Direct QR Intent
+app.patch('/api/donations/intent/:id/cancel', authenticateToken, async (req, res) => {
+  try {
+    const intentId = Number(req.params.id);
+    await db.query(
+      `UPDATE PAYMENT_INTENT SET Status = 'CANCELLED' WHERE Intent_ID = ? AND Donor_ID = ?`,
+      [intentId, req.user.id]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// 8. NGO "Declare Unclaimed Direct Deposit" (Honest NGO logs an unuploaded GCash/Maya/Bank transfer)
+app.post('/api/org/donations/declare-direct', authenticateToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'organization' && req.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Only accredited NGOs or admins can declare direct deposits.' });
+    }
+
+    const { campaign_id, amount_php, payment_method, reference_number, tracking_code, notes } = req.body || {};
+    const campaignId = Number(campaign_id);
+    const amountPhp = Math.round(Number(amount_php || 0));
+    const cleanRef = String(reference_number || '').trim();
+    const cleanCode = String(tracking_code || '').trim().toUpperCase();
+
+    if (!campaignId || amountPhp < 1) {
+      return res.status(400).json({ error: 'Valid campaign and PHP amount (>= ₱1) are required.' });
+    }
+    if (!cleanRef || cleanRef.length < 4) {
+      return res.status(400).json({ error: 'Please provide the GCash, Maya, or bank reference number.' });
+    }
+
+    // Verify campaign belongs to this NGO (unless admin)
+    const [campRows] = await db.query('SELECT Campaign_ID, Org_ID, Campaign_Title FROM CAMPAIGN WHERE Campaign_ID = ?', [campaignId]);
+    if (!campRows || campRows.length === 0) {
+      return res.status(404).json({ error: 'Campaign not found.' });
+    }
+    const camp = campRows[0];
+    if (req.user.role === 'organization' && Number(camp.Org_ID) !== Number(req.user.id)) {
+      return res.status(403).json({ error: 'You can only log direct deposits for your own campaigns.' });
+    }
+
+    // Prevent duplicate reference number double-counting
+    const normalizedRef = cleanRef.replace(/[\s-]/g, '').toUpperCase();
+    const [dupManual] = await db.query(
+      `SELECT Manual_ID FROM MANUAL_DONATION WHERE REPLACE(REPLACE(UPPER(COALESCE(Reference_Number, '')), ' ', ''), '-', '') = ? AND Status != 'Rejected' LIMIT 1`,
+      [normalizedRef]
+    );
+    if (dupManual && dupManual.length > 0) {
+      return res.status(409).json({ error: `Reference number "${cleanRef}" is already recorded in the ledger.` });
+    }
+
+    // If NGO entered a BB-XXXX tracking code from the GCash/Maya note, auto-match to the donor!
+    let matchedDonorId = null;
+    let matchedDonorEmail = null;
+    let matchedIntentId = null;
+    let isAnon = 1;
+    if (cleanCode) {
+      const [piRows] = await db.query('SELECT * FROM PAYMENT_INTENT WHERE Tracking_Code = ? LIMIT 1', [cleanCode]);
+      if (piRows && piRows.length > 0) {
+        matchedIntentId = piRows[0].Intent_ID;
+        matchedDonorId = piRows[0].Donor_ID || null;
+        matchedDonorEmail = piRows[0].Donor_Email || null;
+        isAnon = piRows[0].Is_Anonymous ? 1 : 0;
+      }
+    }
+
+    const baseMethod = /maya/i.test(String(payment_method))
+      ? 'Maya'
+      : /card|bank/i.test(String(payment_method))
+        ? 'Bank / Card'
+        : 'GCash';
+    const amountEth = Number((amountPhp / 170000).toFixed(8));
+
+    // Gaslessly notarize on Sepolia
+    const relayRes = await blockchainRelayer.relayDonation({
+      campaignId,
+      amountPhp,
+      declaredPhp: amountPhp,
+      variancePhp: 0,
+      hasVariance: false,
+      amountEth,
+      paymentMethod: baseMethod,
+      referenceNumber: cleanRef,
+      donorWallet: null,
+      donorId: matchedDonorId
+    });
+    const auditHash = relayRes.txHash;
+
+    // Insert into DONATION_TRANSACTION (tagged as base PHP rail so all analytics/filters include it cleanly)
+    await db.query(
+      `INSERT INTO DONATION_TRANSACTION (Donor_ID, Org_ID, Campaign_ID, Tx_Hash, Amount, Is_Anonymous, Wallet_Address, Payment_Method)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      [matchedDonorId, camp.Org_ID, campaignId, auditHash, amountEth, isAnon, null, baseMethod]
+    );
+
+    // Also record an Approved MANUAL_DONATION audit trail entry for duplicate-ref protection
+    const [manIns] = await db.query(
+      `INSERT INTO MANUAL_DONATION (Donor_ID, Campaign_ID, Amount, Confirmed_Amount, Payment_Method, Status, Is_Anonymous, Reference_Number, Tx_Hash, Verified_At, Ai_Validation_Status, Ai_Audit_Notes)
+       VALUES (?, ?, ?, ?, ?, 'Approved', ?, ?, ?, CURRENT_TIMESTAMP, 'NGO_Declared_Direct', ?)`,
+      [
+        matchedDonorId,
+        campaignId,
+        amountEth,
+        amountEth,
+        baseMethod,
+        isAnon,
+        cleanRef,
+        auditHash,
+        `NGO-declared unclaimed direct deposit${cleanCode ? ` (matched note ${cleanCode})` : ''}${notes ? ` · ${String(notes).slice(0, 200)}` : ''}`
+      ]
+    );
+
+    if (matchedIntentId) {
+      await db.query(
+        `UPDATE PAYMENT_INTENT SET Status = 'COMPLETED', Tx_Hash = ?, Manual_ID = ?, Completed_At = CURRENT_TIMESTAMP WHERE Intent_ID = ?`,
+        [auditHash, manIns.insertId, matchedIntentId]
+      );
+    }
+
+    invalidateCampaignsCache();
+
+    logActivity({
+      req,
+      activity: `NGO declared unclaimed direct deposit of ₱${amountPhp.toLocaleString()} via ${baseMethod} (Ref: ${cleanRef}${cleanCode ? `, Note: ${cleanCode}` : ''}) for "${camp.Campaign_Title}" — notarized on Sepolia`,
+      userName: req.user.name || req.user.email,
+      userEmail: req.user.email,
+      role: 'ORGANIZATION',
+      target: `Ref ${cleanRef}`,
+      category: 'DONATION',
+      status: 'SUCCESS'
+    });
+
+    if (matchedDonorEmail) {
+      sendNotificationToUser({
+        userEmail: matchedDonorEmail,
+        role: 'donor',
+        type: 'DONATION',
+        title: `Direct Deposit Matched & Verified: ₱${amountPhp.toLocaleString()}`,
+        message: `The NGO received and logged your ₱${amountPhp.toLocaleString()} ${baseMethod} transfer (${cleanCode}, Ref: ${cleanRef}) for "${camp.Campaign_Title}" and notarized it on the Sepolia blockchain ledger!`,
+        referenceId: auditHash,
+        referenceType: 'DONATION_TX'
+      }).catch(() => {});
+    }
+
+    res.json({
+      success: true,
+      txHash: auditHash,
+      amountPhp,
+      paymentMethod: baseMethod,
+      referenceNumber: cleanRef,
+      matchedTrackingCode: matchedIntentId ? cleanCode : null
+    });
+  } catch (err) {
+    console.error('Declare direct deposit error:', err);
+    res.status(500).json({ error: err.message || 'Failed to declare direct deposit.' });
+  }
+});
+
 app.get('/api/donations/live', async (req, res) => {
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
   try {

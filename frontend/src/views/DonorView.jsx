@@ -670,6 +670,32 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
   // My Contributions / Receipts Logic
   const [myDonations, setMyDonations] = useState(null);
   const [loadingMyDonations, setLoadingMyDonations] = useState(false);
+  const [pendingIntents, setPendingIntents] = useState([]);
+
+  const fetchPendingIntents = async () => {
+    try {
+      const token = localStorage.getItem('bbdrts_token');
+      if (!token) return;
+      const res = await fetch(`${API_URL}/api/donations/intents/me`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const list = await res.json();
+        setPendingIntents(Array.isArray(list) ? list : []);
+      }
+    } catch (_) {}
+  };
+
+  const handleDismissPendingIntent = async (intentId) => {
+    try {
+      const token = localStorage.getItem('bbdrts_token');
+      await fetch(`${API_URL}/api/donations/intent/${intentId}/cancel`, {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setPendingIntents((prev) => prev.filter((item) => item.intentId !== intentId));
+    } catch (_) {}
+  };
 
   const fetchMyDonations = async () => {
     setLoadingMyDonations(true);
@@ -697,6 +723,7 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
 
   useEffect(() => {
     fetchMyDonations();
+    fetchPendingIntents();
   }, [walletAddress]);
 
   const effectiveDonorKey = walletAddress || currentUser?.wallet_address;
@@ -1049,6 +1076,52 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
                   </p>
                 </div>
               </div>
+
+              {pendingIntents.length > 0 && (
+                <div
+                  style={{
+                    marginBottom: '14px',
+                    padding: '12px 16px',
+                    borderRadius: '10px',
+                    background: 'rgba(245, 158, 11, 0.08)',
+                    border: '1px solid rgba(245, 158, 11, 0.32)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: '12px',
+                    flexWrap: 'wrap'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+                    <span className="material-symbols-outlined" style={{ color: '#f59e0b', fontSize: '20px', flexShrink: 0 }}>
+                      pending_actions
+                    </span>
+                    <div style={{ fontSize: '0.78rem', color: 'var(--text-primary)' }}>
+                      <strong>Unfinished Direct-QR Donation ({pendingIntents[0].trackingCode}):</strong>{' '}
+                      You started a <strong>₱{Number(pendingIntents[0].amountPhp || 0).toLocaleString('en-US')}</strong> {pendingIntents[0].paymentMethod} transfer to{' '}
+                      <strong>{pendingIntents[0].campaignTitle}</strong> without uploading a receipt.
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                    <button
+                      type="button"
+                      className="btn btn-primary btn-sm"
+                      onClick={() => setActiveTab('campaigns')}
+                      style={{ fontSize: '0.74rem', padding: '5px 12px', borderRadius: '7px' }}
+                    >
+                      Upload Receipt
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-outline btn-sm"
+                      onClick={() => handleDismissPendingIntent(pendingIntents[0].intentId)}
+                      style={{ fontSize: '0.74rem', padding: '5px 10px', borderRadius: '7px' }}
+                    >
+                      I didn&apos;t pay
+                    </button>
+                  </div>
+                </div>
+              )}
 
               {/* ── 1. Clean Profile & Impact Header ── */}
               <div className="dbo-clean-hero" id="tour-donor-welcome">

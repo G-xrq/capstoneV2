@@ -1206,6 +1206,125 @@ export default function CampaignCard(props) {
   const [duplicateRefWarning, setDuplicateRefWarning] = useState(null);
   const [railMismatchWarning, setRailMismatchWarning] = useState(null);
 
+  // Anti-Loophole Checkout Mode: 'instant' (PayMongo/Webhook, zero upload) vs 'manual' (Direct QR + AI Receipt + BB-XXXX Intent)
+  const [checkoutMode, setCheckoutMode] = useState('instant');
+  const [activeIntent, setActiveIntent] = useState(null);
+  const [instantLoading, setInstantLoading] = useState(false);
+  const [instantSettling, setInstantSettling] = useState(false);
+  const [instantReceipt, setInstantReceipt] = useState(null);
+
+  const createDirectQrIntent = async (method) => {
+    const parsedPhp = Math.max(1, Math.round(Number(amount || 100)));
+    try {
+      const token = localStorage.getItem('bbdrts_token');
+      const res = await fetch(`${API_URL}/api/donations/intent`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token && token !== 'null' ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({
+          campaign_id: Number(camp.id),
+          amount_php: parsedPhp,
+          payment_method: method,
+          is_anonymous: isAnonymous
+        })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setActiveIntent(data);
+      }
+    } catch (_) {}
+  };
+
+  const startInstantCheckout = async (method) => {
+    const parsedPhp = Math.round(Number(amount || 0));
+    if (!parsedPhp || parsedPhp < 1) {
+      showWarning?.('Please enter a donation amount of at least ₱1.', 'Amount Required');
+      return;
+    }
+    setGatewayMethod(method);
+    setInstantLoading(true);
+    setInstantReceipt(null);
+    setActiveIntent(null);
+    try {
+      const token = localStorage.getItem('bbdrts_token');
+      const res = await fetch(`${API_URL}/api/payments/checkout-session`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token && token !== 'null' ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({
+          campaign_id: Number(camp.id),
+          amount_php: parsedPhp,
+          payment_method: method,
+          is_anonymous: isAnonymous
+        })
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Could not start instant checkout.');
+      setActiveIntent(data);
+      setDonateStep(8);
+    } catch (err) {
+      showWarning?.(err.message || 'Instant checkout unavailable. You can use Direct QR & Receipt Upload instead.', 'Checkout Error');
+    } finally {
+      setInstantLoading(false);
+    }
+  };
+
+  const handleSandboxCompleteInstant = async () => {
+    if (!activeIntent?.intentId) return;
+    setInstantSettling(true);
+    try {
+      const res = await fetch(`${API_URL}/api/payments/sandbox-complete/${activeIntent.intentId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Failed to confirm payment.');
+      setInstantReceipt(data);
+      setTxHash(data.txHash || '');
+      showSuccess?.(
+        `₱${Number(data.amountPhp || activeIntent.amountPhp).toLocaleString('en-US')} verified automatically via webhook and notarized on Sepolia!`,
+        'Instant Donation Confirmed'
+      );
+      window.dispatchEvent(new CustomEvent('bbdrts_donation_success'));
+      onDonated?.();
+      fetchHistory(true);
+    } catch (err) {
+      showWarning?.(err.message || 'Payment confirmation failed.', 'Webhook Error');
+    } finally {
+      setInstantSettling(false);
+    }
+  };
+
+  // Auto-poll live PayMongo checkout session if user was redirected to hosted PayMongo URL
+  useEffect(() => {
+    if (donateStep !== 8 || !activeIntent?.intentId || activeIntent?.provider !== 'paymongo' || instantReceipt) return;
+    const iv = setInterval(async () => {
+      try {
+        const res = await fetch(`${API_URL}/api/payments/intent/${activeIntent.intentId}`);
+        if (res.ok) {
+          const row = await res.json();
+          if (row.Status === 'COMPLETED' && row.Tx_Hash) {
+            setInstantReceipt({
+              txHash: row.Tx_Hash,
+              trackingCode: row.Tracking_Code,
+              amountPhp: Number(row.Amount_Php || activeIntent.amountPhp),
+              paymentMethod: row.Payment_Method || activeIntent.paymentMethod
+            });
+            setTxHash(row.Tx_Hash);
+            window.dispatchEvent(new CustomEvent('bbdrts_donation_success'));
+            onDonated?.();
+            fetchHistory(true);
+          }
+        }
+      } catch (_) {}
+    }, 3000);
+    return () => clearInterval(iv);
+  }, [donateStep, activeIntent, instantReceipt]);
+
   // Real-Time Duplicate Receipt Check Listener for Donor Modal
   useEffect(() => {
     const currentRef = (refNumber || gatewayRefNo || '').trim();
@@ -2721,7 +2840,15 @@ export default function CampaignCard(props) {
         const response = await fetch(`${apiUrl}/api/manual-donations`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', ...(token && token !== 'null' ? { 'Authorization': `Bearer ${token}` } : {}) },
-          body: JSON.stringify({ campaign_id: Number(camp.id), amount: ethAmount, payment_method: paymentMethod, receipt_base64: receiptBase64, is_anonymous: isAnonymous })
+          body: JSON.stringify({
+            campaign_id: Number(camp.id),
+            amount: ethAmount,
+            payment_method: paymentMethod,
+            receipt_base64: receiptBase64,
+            is_anonymous: isAnonymous,
+            intent_id: activeIntent?.intentId || undefined,
+            tracking_code: activeIntent?.trackingCode || undefined
+          })
         });
         const data = await response.json();
         if (!response.ok) throw new Error(data.error || 'Failed to submit');
@@ -4876,9 +5003,77 @@ export default function CampaignCard(props) {
                     </div>
                   </div>
 
+                  {/* Anti-Loophole Checkout Mode Switcher (Instant Webhook vs Direct QR + AI Receipt) */}
+                  <div
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: '1fr 1fr',
+                      gap: '6px',
+                      padding: '4px',
+                      marginBottom: '12px',
+                      borderRadius: '10px',
+                      background: 'var(--bg-input, rgba(255,255,255,0.04))',
+                      border: '1px solid var(--border, rgba(255,255,255,0.1))'
+                    }}
+                    role="tablist"
+                    aria-label="Donation verification mode"
+                  >
+                    <button
+                      type="button"
+                      role="tab"
+                      aria-selected={checkoutMode === 'instant'}
+                      onClick={() => setCheckoutMode('instant')}
+                      style={{
+                        padding: '8px 10px',
+                        borderRadius: '7px',
+                        border: checkoutMode === 'instant' ? '1px solid rgba(16, 185, 129, 0.45)' : '1px solid transparent',
+                        background: checkoutMode === 'instant' ? 'rgba(16, 185, 129, 0.14)' : 'transparent',
+                        color: checkoutMode === 'instant' ? '#10b981' : 'var(--text-muted, #94a3b8)',
+                        cursor: 'pointer',
+                        textAlign: 'left',
+                        transition: 'all 0.15s ease'
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.77rem', fontWeight: 700 }}>
+                        <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>bolt</span>
+                        <span>Instant Auto-Verified</span>
+                      </div>
+                      <div style={{ fontSize: '0.67rem', opacity: 0.82, marginTop: '2px' }}>
+                        Zero receipt upload · Webhook → Sepolia
+                      </div>
+                    </button>
+
+                    <button
+                      type="button"
+                      role="tab"
+                      aria-selected={checkoutMode === 'manual'}
+                      onClick={() => setCheckoutMode('manual')}
+                      style={{
+                        padding: '8px 10px',
+                        borderRadius: '7px',
+                        border: checkoutMode === 'manual' ? '1px solid rgba(56, 189, 248, 0.45)' : '1px solid transparent',
+                        background: checkoutMode === 'manual' ? 'rgba(56, 189, 248, 0.14)' : 'transparent',
+                        color: checkoutMode === 'manual' ? '#38bdf8' : 'var(--text-muted, #94a3b8)',
+                        cursor: 'pointer',
+                        textAlign: 'left',
+                        transition: 'all 0.15s ease'
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '0.77rem', fontWeight: 700 }}>
+                        <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>qr_code_scanner</span>
+                        <span>Direct QR &amp; Receipt</span>
+                      </div>
+                      <div style={{ fontSize: '0.67rem', opacity: 0.82, marginTop: '2px' }}>
+                        Direct NGO QR + AI Slip Scan + Note Code
+                      </div>
+                    </button>
+                  </div>
+
                   {/* Section Subtitle */}
                   <p style={{ color: 'var(--text-muted, #94a3b8)', fontSize: '0.78rem', margin: '0 0 12px 2px' }}>
-                    Choose how you would like to securely transfer your disaster relief aid:
+                    {checkoutMode === 'instant'
+                      ? 'Select a channel for instant gateway checkout — automatically credited & notarized on Sepolia even if you close this tab:'
+                      : 'Choose a direct NGO channel to scan their QR code and upload your payment slip for AI + NGO verification:'}
                   </p>
 
                   {/* Philippine Multi-Rail Payment Channels (100% PHP + Gasless Sepolia Notarization) */}
@@ -4886,12 +5081,18 @@ export default function CampaignCard(props) {
 
                     {/* Option 2: GCash E-Wallet */}
                     <button
+                      disabled={instantLoading}
                       onClick={() => {
+                        if (checkoutMode === 'instant') {
+                          startInstantCheckout('GCash');
+                          return;
+                        }
                         setGatewayMethod('GCash');
                         setGatewayStep(0);
                         setGatewayMobile('');
                         setGatewayOtp(['', '', '', '', '', '']);
                         handleRemoveProof();
+                        createDirectQrIntent('GCash');
                         setDonateStep(7);
                       }}
                       className="payment-option-btn"
@@ -4911,12 +5112,18 @@ export default function CampaignCard(props) {
 
                     {/* Option 3: Maya (PayMaya) */}
                     <button
+                      disabled={instantLoading}
                       onClick={() => {
+                        if (checkoutMode === 'instant') {
+                          startInstantCheckout('Maya');
+                          return;
+                        }
                         setGatewayMethod('Maya');
                         setGatewayStep(0);
                         setGatewayMobile('');
                         setGatewayOtp(['', '', '', '', '', '']);
                         handleRemoveProof();
+                        createDirectQrIntent('Maya');
                         setDonateStep(7);
                       }}
                       className="payment-option-btn"
@@ -4936,7 +5143,15 @@ export default function CampaignCard(props) {
 
                     {/* Option 4: Bank Transfer & Cards */}
                     <button
-                      onClick={() => setDonateStep(6)}
+                      disabled={instantLoading}
+                      onClick={() => {
+                        if (checkoutMode === 'instant') {
+                          startInstantCheckout('Bank / Card');
+                          return;
+                        }
+                        createDirectQrIntent('Bank / Card');
+                        setDonateStep(6);
+                      }}
                       className="payment-option-btn"
                     >
                       <div className="payment-option-icon-box" style={{ background: 'rgba(34, 197, 94, 0.12)', border: '1px solid rgba(34, 197, 94, 0.3)', color: '#22c55e' }}>
@@ -5929,6 +6144,148 @@ export default function CampaignCard(props) {
 
               )}
 
+              {/* ── STEP 8: Instant Auto-Verified Gateway Checkout (PayMongo / Sandbox Webhook) ── */}
+              {!isPaymentProcessing && donateStep === 8 && activeIntent && (
+                <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border, rgba(255,255,255,0.08))', paddingBottom: '12px' }}>
+                    <div>
+                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '0.72rem', fontWeight: 700, color: '#10b981', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>bolt</span>
+                        <span>{activeIntent.provider === 'paymongo' ? 'PayMongo Live/Test Gateway' : 'Instant Gateway Sandbox'} · Auto-Webhook</span>
+                      </div>
+                      <h3 style={{ margin: '3px 0 0', fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-primary, #fff)' }}>
+                        {instantReceipt ? 'Donation Automatically Verified!' : `${activeIntent.paymentMethod} Instant Checkout`}
+                      </h3>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => { setDonateStep(0); setInstantReceipt(null); }}
+                      style={{ background: 'var(--bg-input, rgba(255,255,255,0.05))', border: '1px solid var(--border, rgba(255,255,255,0.1))', color: 'var(--text-muted, #94a3b8)', width: '32px', height: '32px', borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                      title="Back"
+                    >
+                      <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>close</span>
+                    </button>
+                  </div>
+
+                  {instantReceipt ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', padding: '18px', borderRadius: '12px', background: 'rgba(16, 185, 129, 0.08)', border: '1px solid rgba(16, 185, 129, 0.3)', textAlign: 'center' }}>
+                      <span className="material-symbols-outlined" style={{ fontSize: '42px', color: '#10b981', margin: '0 auto' }}>verified</span>
+                      <div style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--text-primary, #fff)' }}>
+                        ₱{Number(instantReceipt.amountPhp || activeIntent.amountPhp).toLocaleString('en-US')}
+                      </div>
+                      <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary, #cbd5e1)' }}>
+                        Settled via <strong>{instantReceipt.paymentMethod || activeIntent.paymentMethod}</strong> · Ref <code>{instantReceipt.trackingCode || activeIntent.trackingCode}</code>
+                      </div>
+                      <div style={{ fontSize: '0.74rem', color: 'var(--text-muted, #94a3b8)' }}>
+                        Zero screenshot upload required — webhook automatically updated the campaign total and sealed your proof on Ethereum Sepolia.
+                      </div>
+                      {instantReceipt.txHash && (
+                        <a
+                          href={`https://sepolia.etherscan.io/tx/${instantReceipt.txHash}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="btn btn-outline btn-sm"
+                          style={{ margin: '4px auto 0', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                        >
+                          <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>open_in_new</span>
+                          <span>Inspect Proof on Sepolia Etherscan</span>
+                        </a>
+                      )}
+                      <button
+                        type="button"
+                        className="btn btn-primary"
+                        onClick={() => { setModalOpen(false); setDonateStep(0); setInstantReceipt(null); }}
+                        style={{ marginTop: '6px' }}
+                      >
+                        Done
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <div style={{ padding: '16px', borderRadius: '12px', background: 'var(--bg-input, rgba(255,255,255,0.03))', border: '1px solid var(--border, rgba(255,255,255,0.09))', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem' }}>
+                          <span style={{ color: 'var(--text-muted, #94a3b8)' }}>Campaign</span>
+                          <strong style={{ color: 'var(--text-primary, #fff)', textAlign: 'right', maxWidth: '65%' }}>{camp.title}</strong>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem' }}>
+                          <span style={{ color: 'var(--text-muted, #94a3b8)' }}>Channel</span>
+                          <strong style={{ color: '#38bdf8' }}>{activeIntent.paymentMethod} (Dynamic QR Ph / Checkout)</strong>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem' }}>
+                          <span style={{ color: 'var(--text-muted, #94a3b8)' }}>Tracking Reference</span>
+                          <code style={{ color: '#10b981', fontWeight: 700 }}>{activeIntent.trackingCode}</code>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', borderTop: '1px solid var(--border, rgba(255,255,255,0.08))', paddingTop: '10px' }}>
+                          <span style={{ fontSize: '0.8rem', color: 'var(--text-muted, #94a3b8)' }}>Total Contribution</span>
+                          <strong style={{ fontSize: '1.35rem', color: '#10b981' }}>₱{Number(activeIntent.amountPhp || 0).toLocaleString('en-US')}</strong>
+                        </div>
+                      </div>
+
+                      <div style={{ padding: '10px 12px', borderRadius: '8px', background: 'rgba(16, 185, 129, 0.08)', border: '1px solid rgba(16, 185, 129, 0.22)', fontSize: '0.73rem', color: 'var(--text-secondary, #cbd5e1)', lineHeight: 1.45 }}>
+                        <strong style={{ color: '#10b981' }}>Zero-Loophole Guarantee:</strong> Once authorized, our signed payment webhook automatically credits <strong>{camp.title}</strong> and mints your Sepolia blockchain proof — even if you close your browser immediately.
+                      </div>
+
+                      {activeIntent.provider === 'paymongo' && activeIntent.checkoutUrl ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                          <a
+                            href={activeIntent.checkoutUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="btn btn-primary"
+                            style={{ width: '100%', textAlign: 'center', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '12px' }}
+                          >
+                            <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>open_in_new</span>
+                            <span>Open PayMongo {activeIntent.paymentMethod} Checkout</span>
+                          </a>
+                          <div style={{ textAlign: 'center', fontSize: '0.74rem', color: 'var(--text-muted, #94a3b8)' }}>
+                            Waiting for signed PayMongo webhook confirmation…
+                          </div>
+                        </div>
+                      ) : (
+                        <button
+                          type="button"
+                          className="btn btn-primary"
+                          disabled={instantSettling}
+                          onClick={handleSandboxCompleteInstant}
+                          style={{ width: '100%', padding: '12px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontWeight: 700 }}
+                        >
+                          <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>
+                            {instantSettling ? 'hourglass_top' : 'verified_user'}
+                          </span>
+                          <span>
+                            {instantSettling
+                              ? 'Processing Webhook & Notarizing on Sepolia…'
+                              : `Authorize ₱${Number(activeIntent.amountPhp || 0).toLocaleString('en-US')} via ${activeIntent.paymentMethod} (Instant)`}
+                          </span>
+                        </button>
+                      )}
+
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <button
+                          type="button"
+                          className="btn btn-ghost btn-sm"
+                          onClick={() => {
+                            setCheckoutMode('manual');
+                            setDonateStep(0);
+                          }}
+                          style={{ fontSize: '0.74rem' }}
+                        >
+                          Switch to Direct QR &amp; Receipt Upload
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-ghost btn-sm"
+                          onClick={() => setDonateStep(0)}
+                          style={{ fontSize: '0.74rem' }}
+                        >
+                          Back
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+
               {/* ── STEP 7: Institutional E-Wallet (GCash / Maya) Terminal ── */}
               {!isPaymentProcessing && donateStep === 7 && (
                 <div className="fade-in">
@@ -5977,6 +6334,54 @@ export default function CampaignCard(props) {
                       </button>
                     </div>
                   </div>
+
+                  {activeIntent?.trackingCode && (
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: '10px',
+                        flexWrap: 'wrap',
+                        padding: '10px 14px',
+                        marginBottom: '14px',
+                        borderRadius: '10px',
+                        background: 'rgba(56, 189, 248, 0.08)',
+                        border: '1px solid rgba(56, 189, 248, 0.28)'
+                      }}
+                    >
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary, #cbd5e1)', lineHeight: 1.4 }}>
+                        <strong style={{ color: '#38bdf8' }}>Transfer Note Code: {activeIntent.trackingCode}</strong>
+                        <span style={{ display: 'block', fontSize: '0.71rem', color: 'var(--text-muted, #94a3b8)' }}>
+                          Paste this code in your {gatewayMethod} message/note so your gift is always linked to this campaign even if you forget to upload a slip.
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          navigator.clipboard?.writeText(activeIntent.trackingCode);
+                          showSuccess?.(`Copied note code ${activeIntent.trackingCode}`, 'Copied');
+                        }}
+                        style={{
+                          padding: '5px 10px',
+                          borderRadius: '6px',
+                          border: '1px solid rgba(56, 189, 248, 0.4)',
+                          background: 'rgba(56, 189, 248, 0.14)',
+                          color: '#38bdf8',
+                          fontSize: '0.72rem',
+                          fontWeight: 700,
+                          fontFamily: 'var(--font-mono, monospace)',
+                          cursor: 'pointer',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px'
+                        }}
+                      >
+                        <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>content_copy</span>
+                        <span>{activeIntent.trackingCode}</span>
+                      </button>
+                    </div>
+                  )}
 
                   {/* Main 2-Column Grid */}
                   <div className="ewallet-checkout-grid">

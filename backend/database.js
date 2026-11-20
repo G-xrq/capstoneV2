@@ -918,6 +918,33 @@ async function initializeDatabase() {
     try { await mysqlPool.query(`ALTER TABLE MANUAL_DONATION ADD COLUMN Ai_Audit_Notes LONGTEXT`); } catch (_) {}
 
     await mysqlPool.query(`
+      CREATE TABLE IF NOT EXISTS PAYMENT_INTENT (
+        Intent_ID INT AUTO_INCREMENT PRIMARY KEY,
+        Tracking_Code VARCHAR(32) UNIQUE NOT NULL,
+        Mode VARCHAR(20) NOT NULL DEFAULT 'DIRECT_QR',
+        Campaign_ID INT NOT NULL,
+        Org_ID INT NULL,
+        Donor_ID INT NULL,
+        Donor_Name VARCHAR(255) NULL,
+        Donor_Email VARCHAR(255) NULL,
+        Payment_Method VARCHAR(50) NOT NULL DEFAULT 'GCash',
+        Amount_Php DECIMAL(18, 2) NOT NULL,
+        Amount_Eth DECIMAL(36, 18) NOT NULL,
+        Is_Anonymous BOOLEAN DEFAULT 0,
+        Gateway_Session_ID VARCHAR(255) NULL,
+        Gateway_Checkout_Url TEXT NULL,
+        Status VARCHAR(32) NOT NULL DEFAULT 'PENDING_PROOF',
+        Tx_Hash VARCHAR(255) NULL,
+        Manual_ID INT NULL,
+        Created_At TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        Completed_At TIMESTAMP NULL,
+        INDEX idx_pi_donor (Donor_ID, Status),
+        INDEX idx_pi_campaign (Campaign_ID, Status),
+        INDEX idx_pi_session (Gateway_Session_ID)
+      )
+    `);
+
+    await mysqlPool.query(`
       CREATE TABLE IF NOT EXISTS NOTIFICATIONS (
         Notification_ID INT AUTO_INCREMENT PRIMARY KEY,
         Type VARCHAR(50) DEFAULT 'SYSTEM',

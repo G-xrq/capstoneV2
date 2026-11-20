@@ -12,6 +12,7 @@ import SecCertificateModal, { normalizeSecDocUrl, isPdfDocument } from '../compo
 import GuidedTour from '../components/GuidedTour';
 import SidebarToggleIcon from '../components/SidebarToggleIcon';
 import AnalyticsReportsPanel from '../components/AnalyticsReportsPanel';
+import DeclareDirectDepositModal from '../components/DeclareDirectDepositModal';
 import { useToast } from '../context/ToastContext';
 import { getRegions, getRegionForProvince } from '../data/philippineGeoData';
 import { CONTRACT_ADDRESS } from '../contractConfig';
@@ -856,6 +857,7 @@ export default function OrganizationView({
   const [description, setDescription] = useState('');
   const [creating, setCreating] = useState(false);
   const [bypassMetaMaskLocal, setBypassMetaMaskLocal] = useState(true);
+  const [showDeclareDepositModal, setShowDeclareDepositModal] = useState(false);
   const [txModal, setTxModal] = useState({ show: false, step: 0, hash: '', type: '', error: '', isLocal: false });
 
   // ── Reusable Payment QR Codes from NGO Settings Library ──
@@ -6255,6 +6257,16 @@ export default function OrganizationView({
                 </button>
                 <button
                   type="button"
+                  className="btn btn-outline btn-sm"
+                  onClick={() => setShowDeclareDepositModal(true)}
+                  title="Declare a GCash, Maya, or Bank transfer received without a donor receipt upload"
+                  style={{ borderRadius: '8px', padding: '6px 13px', display: 'inline-flex', alignItems: 'center', gap: '6px', borderColor: 'rgba(16, 185, 129, 0.45)', color: '#10b981' }}
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>add_card</span>
+                  <span>Log Unclaimed Deposit</span>
+                </button>
+                <button
+                  type="button"
                   className="btn btn-primary btn-sm"
                   onClick={handleExportLedgerCsv}
                   title="Export filtered ledger records to a standard CSV spreadsheet"
@@ -9329,6 +9341,19 @@ export default function OrganizationView({
           </div>
         );
       })(), document.body)}
+
+      {/* ── NGO Declare Unclaimed Direct Deposit Modal ── */}
+      <DeclareDirectDepositModal
+        isOpen={showDeclareDepositModal}
+        onClose={() => setShowDeclareDepositModal(false)}
+        campaigns={myCampaigns || []}
+        onSuccess={() => {
+          fetchOrgDonations?.();
+          onDonated?.();
+        }}
+        showSuccess={showSuccess}
+        showError={showError}
+      />
 
       {/* ── Proof of Payment Screenshot & AI Security Audit Preview Modal ── */}
       <ProofPreviewModal proofPreviewModalImg={proofPreviewModalImg} setProofPreviewModalImg={setProofPreviewModalImg} />
