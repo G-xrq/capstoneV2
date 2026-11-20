@@ -1284,9 +1284,9 @@ export default function CampaignCard(props) {
 
 
 
-  // Auto-poll live PayMongo checkout session if user was redirected to hosted PayMongo URL
+  // Auto-poll live Xendit / PayMongo checkout session until webhook or API confirms payment
   useEffect(() => {
-    if (donateStep !== 8 || !activeIntent?.intentId || activeIntent?.provider !== 'paymongo' || instantReceipt) return;
+    if (donateStep !== 8 || !activeIntent?.intentId || (activeIntent?.provider !== 'paymongo' && activeIntent?.provider !== 'xendit') || instantReceipt) return;
     const iv = setInterval(async () => {
       try {
         const res = await fetch(`${API_URL}/api/payments/intent/${activeIntent.intentId}`);
@@ -6138,7 +6138,7 @@ export default function CampaignCard(props) {
                     <div>
                       <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '0.72rem', fontWeight: 700, color: '#10b981', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                         <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>bolt</span>
-                        <span>{activeIntent.provider === 'paymongo' ? 'PayMongo Live/Test Gateway' : 'Instant Gateway Sandbox'} · Auto-Webhook</span>
+                        <span>{activeIntent.provider === 'xendit' ? 'Xendit Payment Gateway' : 'PayMongo Payment Gateway'} · Auto-Webhook</span>
                       </div>
                       <h3 style={{ margin: '3px 0 0', fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-primary, #fff)' }}>
                         {instantReceipt ? 'Donation Automatically Verified!' : `${activeIntent.paymentMethod} Instant Checkout`}
@@ -6222,10 +6222,10 @@ export default function CampaignCard(props) {
                             style={{ width: '100%', textAlign: 'center', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '12px' }}
                           >
                             <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>open_in_new</span>
-                            <span>Open PayMongo {activeIntent.paymentMethod} Checkout</span>
+                            <span>Open {activeIntent.provider === 'xendit' ? 'Xendit' : 'PayMongo'} {activeIntent.paymentMethod} Checkout</span>
                           </a>
                           <div style={{ textAlign: 'center', fontSize: '0.74rem', color: 'var(--text-muted, #94a3b8)' }}>
-                            Waiting for signed PayMongo webhook confirmation after real payment…
+                            Waiting for automatic {activeIntent.provider === 'xendit' ? 'Xendit' : 'PayMongo'} payment confirmation…
                           </div>
                         </div>
                       )}

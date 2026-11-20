@@ -14,6 +14,7 @@ const { GoogleGenerativeAI } = require('@google/generative-ai');
 const db = require('./database');
 const blockchainRelayer = require('./services/blockchainRelayer');
 const paymongoService = require('./services/paymongoService');
+const xenditService = require('./services/xenditService');
 const { logActivity } = require('./services/activityLogger');
 const analyticsService = require('./services/analyticsService');
 
@@ -6654,20 +6655,26 @@ async function settleGatewayIntent(intentRow, externalRef = '') {
   };
 }
 
-// 0. Check if real PayMongo Gateway is configured
+// 0. Check if a real Philippine Payment Gateway (Xendit or PayMongo) is configured
 app.get('/api/payments/gateway-status', (req, res) => {
+  const xenditOn = xenditService.isXenditConfigured();
+  const paymongoOn = paymongoService.isPaymongoConfigured();
   res.json({
-    paymongoEnabled: paymongoService.isPaymongoConfigured(),
-    liveMode: paymongoService.isLiveMode()
+    paymongoEnabled: xenditOn || paymongoOn,
+    gatewayEnabled: xenditOn || paymongoOn,
+    provider: xenditOn ? 'xendit' : (paymongoOn ? 'paymongo' : null),
+    liveMode: xenditOn ? xenditService.isXenditLive() : paymongoService.isLiveMode()
   });
 });
 
-// 1. Create Real PayMongo Checkout Session (requires PAYMONGO_SECRET_KEY in backend/.env)
+// 1. Create Real Gateway Checkout Session (Xendit or PayMongo)
 app.post('/api/payments/checkout-session', async (req, res) => {
   try {
-    if (!paymongoService.isPaymongoConfigured()) {
+    const useXendit = xenditService.isXenditConfigured();
+    const usePaymongo = !useXendit && paymongoService.isPaymongoConfigured();
+    if (!useXendit && !usePaymongo) {
       return res.status(503).json({
-        error: 'PayMongo gateway is not configured yet. Please use Direct QR & Receipt Upload, or add PAYMONGO_SECRET_KEY in backend/.env.'
+        error: 'No payment gateway key is configured. Please use Direct QR & Receipt Upload, or add XENDIT_SECRET_KEY / PAYMONGO_SECRET_KEY in backend/.env.'
       });
     }
     let authedUser = null;
@@ -6721,18 +6728,31 @@ app.post('/api/payments/checkout-session', async (req, res) => {
     const intentId = ins.insertId;
 
     const origin = req.headers.origin || 'http://localhost:5173';
-    const session = await paymongoService.createCheckoutSession({
-      intentId,
-      trackingCode,
-      campaignId,
-      campaignTitle: camp.Campaign_Title,
-      amountPhp,
-      paymentMethod: cleanMethod,
-      donorEmail: resolvedEmail,
-      donorName: resolvedName,
-      successUrl: `${origin}/?payment_status=success&intent=${intentId}`,
-      cancelUrl: `${origin}/?payment_status=cancelled&intent=${intentId}`
-    });
+    const session = useXendit
+      ? await xenditService.createInvoice({
+          intentId,
+          trackingCode,
+          campaignId,
+          campaignTitle: camp.Campaign_Title,
+          amountPhp,
+          paymentMethod: cleanMethod,
+          donorEmail: resolvedEmail,
+          donorName: resolvedName,
+          successUrl: `${origin}/?payment_status=success&intent=${intentId}`,
+          failureUrl: `${origin}/?payment_status=cancelled&intent=${intentId}`
+        })
+      : await paymongoService.createCheckoutSession({
+          intentId,
+          trackingCode,
+          campaignId,
+          campaignTitle: camp.Campaign_Title,
+          amountPhp,
+          paymentMethod: cleanMethod,
+          donorEmail: resolvedEmail,
+          donorName: resolvedName,
+          successUrl: `${origin}/?payment_status=success&intent=${intentId}`,
+          cancelUrl: `${origin}/?payment_status=cancelled&intent=${intentId}`
+        });
 
     await db.query(
       'UPDATE PAYMENT_INTENT SET Gateway_Session_ID = ?, Gateway_Checkout_Url = ? WHERE Intent_ID = ?',
@@ -6800,7 +6820,46 @@ app.post('/api/webhooks/paymongo', async (req, res) => {
 
 // Note: Direct fake/sandbox auto-completion is intentionally disabled so NO unpaid donation can ever be recorded on-chain.
 
-// 4. Poll Payment Intent Status
+// 3B. Signed Xendit Webhook Receiver (Automatic Server-to-Server Settlement)
+app.post('/api/webhooks/xendit', async (req, res) => {
+  try {
+    const tokenHeader = req.headers['x-callback-token'];
+    const tokenCheck = xenditService.verifyWebhookToken(tokenHeader);
+    if (!tokenCheck.valid) {
+      return res.status(401).json({ error: `Invalid Xendit webhook token: ${tokenCheck.reason}` });
+    }
+
+    const body = req.body || {};
+    const status = String(body.status || '').toUpperCase();
+    const invoiceId = body.id || null;
+    const externalId = String(body.external_id || '');
+    const metadata = body.metadata || {};
+
+    if (status === 'PAID' || status === 'SETTLED') {
+      let rows = [];
+      if (metadata.intent_id) {
+        [rows] = await db.query('SELECT * FROM PAYMENT_INTENT WHERE Intent_ID = ?', [Number(metadata.intent_id)]);
+      } else if (invoiceId) {
+        [rows] = await db.query('SELECT * FROM PAYMENT_INTENT WHERE Gateway_Session_ID = ?', [invoiceId]);
+      } else if (externalId) {
+        const trackingPart = externalId.split('-I')[0];
+        [rows] = await db.query('SELECT * FROM PAYMENT_INTENT WHERE Tracking_Code = ?', [trackingPart]);
+      }
+
+      if (rows && rows.length > 0) {
+        const result = await settleGatewayIntent(rows[0], invoiceId || externalId);
+        return res.json({ received: true, settled: true, ...result });
+      }
+    }
+
+    res.json({ received: true, settled: false, status });
+  } catch (err) {
+    console.error('Xendit webhook error:', err);
+    res.status(500).json({ error: err.message || 'Xendit webhook failed.' });
+  }
+});
+
+// 4. Poll Payment Intent Status (also live-syncs Xendit Invoice API so localhost works without a tunnel!)
 app.get('/api/payments/intent/:intentId', async (req, res) => {
   try {
     const intentId = Number(req.params.intentId);
@@ -6812,7 +6871,17 @@ app.get('/api/payments/intent/:intentId', async (req, res) => {
       [intentId]
     );
     if (!rows || rows.length === 0) return res.status(404).json({ error: 'Intent not found.' });
-    res.json(rows[0]);
+    let row = rows[0];
+
+    if (row.Status === 'PENDING_PAYMENT' && row.Gateway_Session_ID && xenditService.isXenditConfigured() && !String(row.Gateway_Session_ID).startsWith('cs_')) {
+      const inv = await xenditService.getInvoice(row.Gateway_Session_ID);
+      if (inv && (String(inv.status).toUpperCase() === 'PAID' || String(inv.status).toUpperCase() === 'SETTLED')) {
+        const settled = await settleGatewayIntent(row, inv.id);
+        row = { ...row, Status: 'COMPLETED', Tx_Hash: settled.txHash };
+      }
+    }
+
+    res.json(row);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
