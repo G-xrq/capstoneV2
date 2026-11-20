@@ -1129,15 +1129,15 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
                 </div>
               )}
 
-              {/* ── 1. Clean Profile & Impact Header ── */}
-              <div className="dbo-clean-hero" id="tour-donor-welcome">
-                <div className="dbo-clean-hero-top">
+              {/* ── 1. Unified Vercel Geist Command Deck (Identity + Actions + Integrated Hairline Stat Strip) ── */}
+              <div className="dbo-command-deck" id="tour-donor-welcome">
+                <div className="dbo-command-top">
                   <div className="dbo-clean-hero-left" id="tour-donor-identity">
                     <div className="dbo-clean-avatar">
                       {currentUser?.avatar_url && (currentUser.avatar_url.startsWith('data:') || currentUser.avatar_url.startsWith('http')) ? (
                         <img src={currentUser.avatar_url} alt="Profile" />
                       ) : currentUser?.avatar_url && currentUser.avatar_url.length < 30 ? (
-                        <span className="material-symbols-outlined" style={{ fontSize: '26px', color: 'var(--accent)' }}>{currentUser.avatar_url}</span>
+                        <span className="material-symbols-outlined" style={{ fontSize: '24px', color: 'var(--text-primary)' }}>{currentUser.avatar_url}</span>
                       ) : (
                         userInitials
                       )}
@@ -1146,199 +1146,182 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
                       <div className="dbo-clean-name-row">
                         <h1 className="dbo-clean-title">{userDisplayName || 'Donor Dashboard'}</h1>
                         <span className="dbo-clean-badge">
-                          <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>verified</span>
+                          <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>check_circle</span>
                           <span>{wt.verifiedWorkspace}</span>
                         </span>
                       </div>
                       <div className="dbo-clean-subtext">
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', color: 'var(--text-secondary)' }}>
-                          <span className="material-symbols-outlined" style={{ fontSize: '13px', color: '#10b981' }}>verified_user</span>
+                        <span className="dbo-live-inline">
+                          <span className="dbo-emerald-dot" />
                           <span>Gasless Sepolia Receipts Active</span>
                         </span>
-                        <span>•</span>
-                        <span style={{ color: 'var(--text-muted)' }}>Active Relief Network</span>
+                        <span className="dbo-sub-sep">/</span>
+                        <span>Active Relief Network</span>
                       </div>
                     </div>
                   </div>
 
-                  <div className="dbo-clean-hero-right" id="tour-donor-badge-card">
-                    <div className="dbo-clean-stat-box">
-                      <div className="dbo-clean-stat-label">Lifetime Giving</div>
-                      <div className="dbo-clean-stat-value">₱{Math.round(totalDonatedPhp).toLocaleString('en-US')}</div>
-                      <div 
-                        className="dbo-clean-stat-sub"
-                        onClick={() => setShowTierModal(true)}
-                        title="View Philanthropic Honor Roll"
+                  {/* Primary & Secondary Action Cluster */}
+                  <div className="dbo-command-actions" id="tour-donor-actions">
+                    <button
+                      type="button"
+                      className="dbo-cmd-btn dbo-cmd-btn--primary"
+                      onClick={() => setActiveTab('campaigns')}
+                      title="Explore active disaster relief campaigns"
+                    >
+                      <span>{interfaceMode === 'simplified' ? wt.donateRelief : wt.browseCampaigns}</span>
+                      <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>arrow_forward</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      className="dbo-cmd-btn"
+                      onClick={() => setActiveTab('my-donations')}
+                      title="View your notarized contribution receipts"
+                    >
+                      <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>receipt_long</span>
+                      <span>{wt.viewReceipts}</span>
+                    </button>
+
+                    {interfaceMode !== 'simplified' && (
+                      <button
+                        type="button"
+                        className="dbo-cmd-btn"
+                        onClick={() => setActiveTab('radar-heatmap')}
+                        title="Inspect Philippine disaster relief radar"
                       >
-                        <span className="material-symbols-outlined" style={{ fontSize: '14px', color: '#10b981' }}>
-                          {activeTierInfo?.tier ? 'workspace_premium' : 'military_tech'}
-                        </span>
-                        <span style={{ color: 'var(--text-secondary)' }}>
-                          {activeTierInfo?.tier ? activeTierInfo.tier.name : 'New Contributor'}
-                        </span>
-                        <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>chevron_right</span>
-                      </div>
-                    </div>
+                        <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>map</span>
+                        <span>{wt.exploreMap}</span>
+                      </button>
+                    )}
+
+                    {interfaceMode !== 'simplified' && (
+                      <a
+                        href="https://sepolia.etherscan.io"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="dbo-cmd-ghost"
+                        title="View Sepolia network explorer"
+                      >
+                        <span>{wt.publicLedger}</span>
+                        <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>north_east</span>
+                      </a>
+                    )}
                   </div>
                 </div>
 
-                {/* Action Row - Mirrored from Command Center Hero Card */}
-                <div className="db-actions" id="tour-donor-actions">
+                {/* Integrated Hairline Bento Stat Strip (Zero Redundant Boxes) */}
+                <div
+                  className={`dbo-bento-stat-strip ${interfaceMode === 'simplified' ? 'cols-3' : 'cols-4'}`}
+                  id="tour-donor-metrics"
+                >
                   <button
                     type="button"
-                    className="db-btn db-btn--primary"
-                    onClick={() => setActiveTab('campaigns')}
-                    title="Explore active disaster relief campaigns"
+                    className="dbo-bento-stat clickable"
+                    onClick={() => setActiveTab('my-donations')}
+                    title="View donation history"
                   >
-                    <span className="material-symbols-outlined">{interfaceMode === 'simplified' ? 'volunteer_activism' : 'campaign'}</span>
-                    <span>{interfaceMode === 'simplified' ? wt.donateRelief : wt.browseCampaigns}</span>
+                    <div className="dbo-bento-val">₱{Math.round(totalDonatedPhp).toLocaleString('en-US')}</div>
+                    <div className="dbo-bento-lbl">{wt.metricTotalContributed}</div>
+                    <div className="dbo-bento-sub">{wt.metricTotalContributedSub}</div>
                   </button>
 
                   <button
                     type="button"
-                    className="db-btn"
-                    onClick={() => setActiveTab('my-donations')}
-                    title="View your notarized contribution receipts"
+                    className="dbo-bento-stat clickable"
+                    onClick={() => setActiveTab('campaigns')}
+                    title="Browse relief campaigns"
                   >
-                    <span className="material-symbols-outlined">receipt_long</span>
-                    <span>{wt.viewReceipts}</span>
+                    <div className="dbo-bento-val">{activeCampaignsCount}</div>
+                    <div className="dbo-bento-lbl">{wt.metricLiveAppeals}</div>
+                    <div className="dbo-bento-sub">
+                      {interfaceMode === 'simplified'
+                        ? 'Open relief operations'
+                        : (criticalUrgencyCount > 0 ? `${criticalUrgencyCount} critical priority` : 'Open for donations')}
+                    </div>
                   </button>
+
+                  <div className="dbo-bento-stat">
+                    <div className="dbo-bento-val">
+                      {estimatedFamiliesAided > 0 ? `~${estimatedFamiliesAided.toLocaleString()}` : '0'}
+                    </div>
+                    <div className="dbo-bento-lbl">
+                      {interfaceMode === 'simplified' ? 'People & Families Aided' : 'Families Reached'}
+                    </div>
+                    <div className="dbo-bento-sub">
+                      {estimatedFamiliesAided > 0 ? 'Direct food & water packs' : 'Awaiting first relief pledge'}
+                    </div>
+                  </div>
 
                   {interfaceMode !== 'simplified' && (
                     <button
                       type="button"
-                      className="db-btn"
-                      onClick={() => setActiveTab('radar-heatmap')}
-                      title="Inspect Philippine disaster relief radar"
+                      className="dbo-bento-stat clickable"
+                      id="tour-donor-badge-card"
+                      onClick={() => setShowTierModal(true)}
+                      title="View Philanthropic Honor Roll"
                     >
-                      <span className="material-symbols-outlined">radar</span>
-                      <span>{wt.exploreMap}</span>
+                      <div className="dbo-bento-val dbo-bento-val--tier">
+                        <span>{activeTierInfo?.tier ? activeTierInfo.tier.name : 'New Contributor'}</span>
+                        <span className="material-symbols-outlined" style={{ fontSize: '14px', opacity: 0.7 }}>open_in_new</span>
+                      </div>
+                      <div className="dbo-bento-lbl">Honor Roll Standing</div>
+                      <div className="dbo-bento-sub">
+                        {donorReceiptsCount > 0 ? `${donorReceiptsCount} verified receipt${donorReceiptsCount !== 1 ? 's' : ''}` : 'Pledge first donation'}
+                      </div>
                     </button>
                   )}
-
-                  {interfaceMode !== 'simplified' && (
-                    <a
-                      href="https://sepolia.etherscan.io"
-                      target="_blank"
-                      rel="noreferrer"
-                      className="db-btn"
-                      style={{ marginLeft: 'auto' }}
-                      title="View Sepolia network explorer"
-                    >
-                      <span className="material-symbols-outlined">analytics</span>
-                      <span>{wt.publicLedger}</span>
-                      <span className="material-symbols-outlined" style={{ fontSize: '15px', marginLeft: '2px' }}>open_in_new</span>
-                    </a>
-                  )}
                 </div>
               </div>
 
-              {/* ── 2. Clean Metric Grid (3 cards in Simplified, 4 in Standard) ── */}
-              <div className={`dbo-metrics-row ${interfaceMode === 'simplified' ? 'is-simplified-metrics' : ''}`} id="tour-donor-metrics">
-                <div className="dbo-metric-card interactive" onClick={() => setActiveTab('my-donations')} title="View donation history">
-                  <div className="dbo-metric-head">
-                    <span className="dbo-metric-title">{wt.metricTotalContributed}</span>
-                    <span className="material-symbols-outlined dbo-metric-icon">payments</span>
+              {/* ── 2. Asymmetric Two-Column Workspace Grid (Featured Appeals + Recent Verified Activity) ── */}
+              <div className="dbo-workspace-split">
+                {/* Left Column: Featured Relief Appeals (Compact Horizontal Showcase Cards) */}
+                <div className="dbo-workspace-col" id="tour-donor-featured-causes">
+                  <div className="dbo-clean-section-header">
+                    <h2 className="dbo-clean-heading">
+                      <span>{wt.activeAppeals}</span>
+                      <span className="dbo-count-pill">{campaigns?.length || 0}</span>
+                    </h2>
+                    <button type="button" className="dbo-clean-link" onClick={() => setActiveTab('campaigns')}>
+                      <span>{wt.viewAll}</span>
+                      <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>arrow_forward</span>
+                    </button>
                   </div>
-                  <div className="dbo-metric-number accent">
-                    ₱{Math.round(totalDonatedPhp).toLocaleString('en-US')}
-                  </div>
-                  <p className="dbo-metric-caption">
-                    <span>{wt.metricTotalContributedSub} · {wt.metricVerifiedRecordsSub}</span>
-                  </p>
-                </div>
 
-                <div className="dbo-metric-card interactive" onClick={() => setActiveTab('campaigns')} title="Browse relief campaigns">
-                  <div className="dbo-metric-head">
-                    <span className="dbo-metric-title">{wt.metricLiveAppeals}</span>
-                    <span className="material-symbols-outlined dbo-metric-icon">campaign</span>
-                  </div>
-                  <div className="dbo-metric-number">
-                    {activeCampaignsCount}
-                  </div>
-                  <p className="dbo-metric-caption">
-                    <span>{interfaceMode === 'simplified' ? 'Open disaster relief operations' : (criticalUrgencyCount > 0 ? `${criticalUrgencyCount} critical priority` : 'Open for donations')}</span>
-                  </p>
-                </div>
-
-                <div className="dbo-metric-card">
-                  <div className="dbo-metric-head">
-                    <span className="dbo-metric-title">{interfaceMode === 'simplified' ? 'People & Families Aided' : 'Families Reached'}</span>
-                    <span className="material-symbols-outlined dbo-metric-icon">groups</span>
-                  </div>
-                  <div className="dbo-metric-number">
-                    {estimatedFamiliesAided > 0 ? `~${estimatedFamiliesAided.toLocaleString()}` : '0'}
-                  </div>
-                  <p className="dbo-metric-caption">
-                    <span>{interfaceMode === 'simplified' ? 'Emergency food & clean water relief' : (estimatedFamiliesAided > 0 ? 'Direct relief food & water packs' : 'Awaiting first relief pledge')}</span>
-                  </p>
-                </div>
-
-                {interfaceMode !== 'simplified' && (
-                  <div className="dbo-metric-card interactive" onClick={() => setShowTierModal(true)} title="View Philanthropic Honor Roll">
-                    <div className="dbo-metric-head">
-                      <span className="dbo-metric-title">Honor Roll Standing</span>
-                      <span className="material-symbols-outlined dbo-metric-icon">workspace_premium</span>
+                  {fetchingCampaigns ? (
+                    <div className="dbo-appeals-stack">
+                      <DbSkeletonCampRow />
+                      <DbSkeletonCampRow />
+                      <DbSkeletonCampRow />
                     </div>
-                    <div className="dbo-metric-number" style={{ fontSize: '1.25rem' }}>
-                      {activeTierInfo?.tier ? activeTierInfo.tier.name : 'New Contributor'}
+                  ) : (!campaigns || campaigns.length === 0) ? (
+                    <div className="db-empty-state">
+                      <div className="db-empty-icon"><span className="material-symbols-outlined">inbox</span></div>
+                      <div className="db-empty-title">No active campaigns on the ledger yet</div>
+                      <div className="db-empty-desc">Check back soon for upcoming humanitarian relief missions.</div>
                     </div>
-                    <p className="dbo-metric-caption">
-                      <span>{donorReceiptsCount > 0 ? `${donorReceiptsCount} verified receipt${donorReceiptsCount !== 1 ? 's' : ''}` : 'Pledge first donation'}</span>
-                    </p>
-                  </div>
-                )}
-              </div>
+                  ) : (
+                    <div className="dbo-appeals-stack">
+                      {campaigns.slice(0, 3).map((camp, idx) => {
+                        const pct = progressPct(camp.currentAmount, camp.targetAmount);
+                        const cover = getCampaignCoverData(camp);
+                        const catInfo = getCampaignCategoryInfo(camp);
+                        const isCritical = (camp.audit?.urgency || camp.urgency || '').toUpperCase().includes('CRITICAL') || (camp.audit?.urgency || camp.urgency || '').toUpperCase().includes('URGENT');
+                        const campPhpTarget = (camp.targetAmountPhp || camp.target_amount_php || Math.round((parseFloat(camp.targetAmount) || 0) * 170000)).toLocaleString('en-US');
+                        const campPhpCurrent = Math.round((parseFloat(camp.currentAmount) || 0) * 170000).toLocaleString('en-US');
 
-              {/* ── 3. Active Relief Appeals Section ── */}
-              <div className="dbo-section-wrapper" id="tour-donor-featured-causes">
-                <div className="dbo-clean-section-header">
-                  <h2 className="dbo-clean-heading">
-                    <span className="material-symbols-outlined" style={{ fontSize: '18px', color: 'var(--text-secondary)' }}>emergency</span>
-                    <span>{wt.activeAppeals}</span>
-                  </h2>
-                  <button type="button" className="dbo-clean-link" onClick={() => setActiveTab('campaigns')}>
-                    <span>{wt.viewAll} ({campaigns?.length || 0})</span>
-                    <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>arrow_forward</span>
-                  </button>
-                </div>
-
-                {fetchingCampaigns ? (
-                  <div className="dbo-campaigns-grid">
-                    <DbSkeletonCampRow />
-                    <DbSkeletonCampRow />
-                    <DbSkeletonCampRow />
-                  </div>
-                ) : (!campaigns || campaigns.length === 0) ? (
-                  <div className="db-empty-state">
-                    <div className="db-empty-icon"><span className="material-symbols-outlined">inbox</span></div>
-                    <div className="db-empty-title">No active campaigns on the ledger yet</div>
-                    <div className="db-empty-desc">Check back soon for upcoming humanitarian relief missions.</div>
-                  </div>
-                ) : (
-                  <div className="dbo-campaigns-grid">
-                    {campaigns.slice(0, 3).map((camp, idx) => {
-                      const pct = progressPct(camp.currentAmount, camp.targetAmount);
-                      const cover = getCampaignCoverData(camp);
-                      const catInfo = getCampaignCategoryInfo(camp);
-                      const isCritical = (camp.audit?.urgency || camp.urgency || '').toUpperCase().includes('CRITICAL') || (camp.audit?.urgency || camp.urgency || '').toUpperCase().includes('URGENT');
-                      const campPhpTarget = (camp.targetAmountPhp || camp.target_amount_php || Math.round((parseFloat(camp.targetAmount) || 0) * 170000)).toLocaleString('en-US');
-                      const campPhpCurrent = Math.round((parseFloat(camp.currentAmount) || 0) * 170000).toLocaleString('en-US');
-
-                      return (
-                        <div 
-                          className="dbo-clean-card" 
-                          key={camp.id}
-                          id={idx === 0 ? 'tour-donor-first-campaign' : undefined}
-                        >
+                        return (
                           <div
-                            className="dbo-clean-card-thumb"
-                            style={!lowBandwidthMode || loadedThumbs[camp.id] ? (cover.imageUrl ? { backgroundImage: `url(${cover.imageUrl})` } : undefined) : undefined}
+                            className="dbo-appeal-row-card"
+                            key={camp.id}
+                            id={idx === 0 ? 'tour-donor-first-campaign' : undefined}
                           >
-                            {lowBandwidthMode && !loadedThumbs[camp.id] && (
-                              <div className="data-saver-media-placeholder" style={{ minHeight: '100%', borderRadius: 0 }}>
-                                <span className="material-symbols-outlined" style={{ fontSize: '20px', color: '#f59e0b' }}>signal_cellular_alt</span>
-                                <span style={{ fontSize: '0.7rem', fontWeight: 700 }}>{wt.dataSaverTitle}</span>
+                            <div
+                              className="dbo-appeal-row-thumb"
+                              style={!lowBandwidthMode || loadedThumbs[camp.id] ? (cover.imageUrl ? { backgroundImage: `url(${cover.imageUrl})` } : undefined) : undefined}
+                            >
+                              {lowBandwidthMode && !loadedThumbs[camp.id] && (
                                 <button
                                   type="button"
                                   className="data-saver-load-btn"
@@ -1347,139 +1330,142 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
                                     setLoadedThumbs(prev => ({ ...prev, [camp.id]: true }));
                                   }}
                                 >
-                                  <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>image</span>
-                                  <span>{wt.loadPhoto}</span>
-                                </button>
-                              </div>
-                            )}
-                            <div className="dbo-clean-card-badges">
-                              {isCritical && <span className="dbo-pill-mini urgent">Critical</span>}
-                              <span className="dbo-pill-mini">{catInfo.label}</span>
-                            </div>
-                          </div>
-
-                          <div className="dbo-clean-card-body">
-                            <h3 className="dbo-clean-card-title" title={camp.title}>
-                              {formatCampaignTitle(camp.title, camp.id)}
-                            </h3>
-
-                            <p className="dbo-clean-card-location">
-                              <span className="material-symbols-outlined" style={{ fontSize: '14px', color: '#ef4444' }}>location_on</span>
-                              <span>{cover.locationTag || 'Philippines'}</span>
-                            </p>
-
-                            <div className="dbo-clean-progress-block">
-                              <div className="dbo-clean-progress-bar">
-                                <div className="dbo-clean-progress-fill" style={{ width: `${Math.min(100, parseFloat(pct) || 0)}%` }} />
-                              </div>
-                              <div className="dbo-clean-progress-labels">
-                                <span><strong>₱{campPhpCurrent}</strong> {wt.ofGoal} ₱{campPhpTarget}</span>
-                                <span style={{ color: '#16a34a', fontWeight: 700 }}>{pct}%</span>
-                              </div>
-                            </div>
-
-                            <div className="dbo-clean-card-actions">
-                              <button
-                                type="button"
-                                className="dbo-card-btn primary"
-                                style={interfaceMode === 'simplified' ? { flex: 1, width: '100%', justifyContent: 'center' } : undefined}
-                                onClick={() => {
-                                  setActiveTab('campaigns');
-                                  setSearchQuery(camp.title || '');
-                                }}
-                              >
-                                <span>{interfaceMode === 'simplified' ? wt.donateRelief : wt.donate}</span>
-                                <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>arrow_forward</span>
-                              </button>
-                              {interfaceMode !== 'simplified' && (
-                                <button
-                                  type="button"
-                                  className="dbo-card-btn secondary"
-                                  onClick={() => setSelectedCampaignForProof(camp)}
-                                >
-                                  <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>map</span>
-                                  <span>{wt.detailsMap}</span>
+                                  <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>image</span>
                                 </button>
                               )}
                             </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
 
-              {/* ── 4. Recent Contribution Activity ── */}
-              <div className="dbo-section-wrapper">
-                <div className="dbo-clean-section-header">
-                  <h2 className="dbo-clean-heading">
-                    <span className="material-symbols-outlined" style={{ fontSize: '20px', color: '#16a34a' }}>receipt_long</span>
-                    <span>{wt.recentContributions}</span>
-                  </h2>
-                  <button type="button" className="dbo-clean-link" onClick={() => setActiveTab('my-donations')}>
-                    <span>{wt.viewReceipts}</span>
-                    <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>arrow_forward</span>
-                  </button>
-                </div>
-
-                <div className="dbo-feed-card">
-                  {(!myDonations || myDonations.length === 0) ? (
-                    <div style={{ padding: '24px 20px', textAlign: 'center' }}>
-                      <div style={{ fontSize: '0.88rem', fontWeight: 600, color: 'var(--text-secondary)' }}>{wt.noContributions}</div>
-                      <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: '4px 0 12px' }}>
-                        Pledge relief via GCash, Maya, Bank Transfer, or Card to record your first gasless on-chain proof.
-                      </p>
-                      <button
-                        type="button"
-                        className="dbo-card-btn primary"
-                        style={{ display: 'inline-flex', width: 'auto', padding: '6px 16px' }}
-                        onClick={() => setActiveTab('campaigns')}
-                      >
-                        <span>Explore Campaigns</span>
-                      </button>
-                    </div>
-                  ) : (
-                    <div>
-                      {myDonations.slice(0, 4).map((d, dIdx) => {
-                        const rail = (d.paymentMethod || d.Payment_Method || 'PHP').toUpperCase();
-                        const railClass = rail.includes('GCASH') ? 'gcash' : rail.includes('MAYA') ? 'maya' : 'bank';
-                        const ethAmt = parseFloat(d.amount || d.Amount || 0);
-                        const phpVal = d.phpAmount || Math.round(ethAmt * 170000);
-                        const txHash = d.txHash || d.Tx_Hash;
-                        const campTitle = d.campaignTitle || d.campaign_title || 'Relief Operation';
-
-                        return (
-                          <div className="dbo-feed-row" key={dIdx}>
-                            <div className="dbo-feed-info">
-                              <span className={`dbo-feed-rail ${railClass}`}>
-                                {rail.includes('GCASH') ? 'GCASH' : rail.includes('MAYA') ? 'MAYA' : (rail.includes('BANK') || rail.includes('CARD')) ? 'BANK' : 'VERIFIED'}
-                              </span>
-                              <div className="dbo-feed-text">
-                                <div className="dbo-feed-title" title={campTitle}>{campTitle}</div>
-                                <div className="dbo-feed-meta">{interfaceMode === 'simplified' ? 'Verified Direct Relief' : 'Verified On-Chain'}</div>
+                            <div className="dbo-appeal-row-main">
+                              <div className="dbo-appeal-row-top">
+                                <div className="dbo-appeal-meta-pills">
+                                  <span className="dbo-cat-chip">{catInfo.label}</span>
+                                  {isCritical && <span className="dbo-cat-chip urgent">Critical</span>}
+                                  <span className="dbo-loc-text">{cover.locationTag || 'Philippines'}</span>
+                                </div>
                               </div>
-                            </div>
-                            <div className="dbo-feed-right">
-                              <div className="dbo-feed-amt">+₱{phpVal.toLocaleString('en-US')}</div>
-                              {txHash && (
-                                <a
-                                  href={`https://sepolia.etherscan.io/tx/${txHash}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="dbo-feed-link"
-                                  title="View on Sepolia Etherscan"
-                                >
-                                  <span>{shortAddr(txHash)}</span>
-                                  <span className="material-symbols-outlined" style={{ fontSize: '11px' }}>open_in_new</span>
-                                </a>
-                              )}
+
+                              <h3 className="dbo-appeal-row-title" title={camp.title}>
+                                {formatCampaignTitle(camp.title, camp.id)}
+                              </h3>
+
+                              <div className="dbo-appeal-row-bottom">
+                                <div className="dbo-appeal-progress-col">
+                                  <div className="dbo-clean-progress-bar">
+                                    <div className="dbo-clean-progress-fill" style={{ width: `${Math.min(100, parseFloat(pct) || 0)}%` }} />
+                                  </div>
+                                  <div className="dbo-clean-progress-labels">
+                                    <span><strong>₱{campPhpCurrent}</strong> <span className="dbo-goal-muted">/ ₱{campPhpTarget}</span></span>
+                                    <span className="dbo-pct-val">{pct}%</span>
+                                  </div>
+                                </div>
+
+                                <div className="dbo-appeal-row-actions">
+                                  {interfaceMode !== 'simplified' && (
+                                    <button
+                                      type="button"
+                                      className="dbo-row-icon-btn"
+                                      onClick={() => setSelectedCampaignForProof(camp)}
+                                      title={wt.detailsMap}
+                                      aria-label={wt.detailsMap}
+                                    >
+                                      <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>map</span>
+                                    </button>
+                                  )}
+                                  <button
+                                    type="button"
+                                    className="dbo-row-donate-btn"
+                                    onClick={() => {
+                                      setActiveTab('campaigns');
+                                      setSearchQuery(camp.title || '');
+                                    }}
+                                  >
+                                    <span>{interfaceMode === 'simplified' ? wt.donateRelief : wt.donate}</span>
+                                    <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>arrow_forward</span>
+                                  </button>
+                                </div>
+                              </div>
                             </div>
                           </div>
                         );
                       })}
                     </div>
                   )}
+                </div>
+
+                {/* Right Column: Recent Verified Activity Ledger */}
+                <div className="dbo-workspace-col">
+                  <div className="dbo-clean-section-header">
+                    <h2 className="dbo-clean-heading">
+                      <span>{wt.recentContributions}</span>
+                      {myDonations?.length > 0 && <span className="dbo-count-pill">{myDonations.length}</span>}
+                    </h2>
+                    <button type="button" className="dbo-clean-link" onClick={() => setActiveTab('my-donations')}>
+                      <span>{wt.viewReceipts}</span>
+                      <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>arrow_forward</span>
+                    </button>
+                  </div>
+
+                  <div className="dbo-feed-card">
+                    {(!myDonations || myDonations.length === 0) ? (
+                      <div style={{ padding: '28px 20px', textAlign: 'center' }}>
+                        <div style={{ fontSize: '0.86rem', fontWeight: 600, color: 'var(--text-primary)' }}>{wt.noContributions}</div>
+                        <p style={{ fontSize: '0.76rem', color: 'var(--text-secondary)', margin: '6px 0 14px', lineHeight: 1.5 }}>
+                          Donate via GCash, Maya, Bank Transfer, or Card to anchor your first gasless on-chain receipt.
+                        </p>
+                        <button
+                          type="button"
+                          className="dbo-row-donate-btn"
+                          style={{ display: 'inline-flex', margin: '0 auto' }}
+                          onClick={() => setActiveTab('campaigns')}
+                        >
+                          <span>Explore Campaigns</span>
+                          <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>arrow_forward</span>
+                        </button>
+                      </div>
+                    ) : (
+                      <div>
+                        {myDonations.slice(0, 5).map((d, dIdx) => {
+                          const rail = (d.paymentMethod || d.Payment_Method || 'PHP').toUpperCase();
+                          const ethAmt = parseFloat(d.amount || d.Amount || 0);
+                          const phpVal = d.phpAmount || Math.round(ethAmt * 170000);
+                          const txHash = d.txHash || d.Tx_Hash;
+                          const campTitle = d.campaignTitle || d.campaign_title || 'Relief Operation';
+
+                          return (
+                            <div className="dbo-feed-row" key={dIdx}>
+                              <div className="dbo-feed-info">
+                                <span className="dbo-feed-rail">
+                                  {rail.includes('GCASH') ? 'GCASH' : rail.includes('MAYA') ? 'MAYA' : (rail.includes('BANK') || rail.includes('CARD')) ? 'BANK' : 'PHP'}
+                                </span>
+                                <div className="dbo-feed-text">
+                                  <div className="dbo-feed-title" title={campTitle}>{campTitle}</div>
+                                  <div className="dbo-feed-meta">
+                                    <span className="dbo-emerald-dot-sm" />
+                                    <span>{interfaceMode === 'simplified' ? 'Verified Direct Relief' : 'Verified On-Chain'}</span>
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="dbo-feed-right">
+                                <div className="dbo-feed-amt">+₱{phpVal.toLocaleString('en-US')}</div>
+                                {txHash && (
+                                  <a
+                                    href={`https://sepolia.etherscan.io/tx/${txHash}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="dbo-feed-link"
+                                    title="View on Sepolia Etherscan"
+                                  >
+                                    <span>{shortAddr(txHash)}</span>
+                                    <span className="material-symbols-outlined" style={{ fontSize: '11px' }}>north_east</span>
+                                  </a>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             </>

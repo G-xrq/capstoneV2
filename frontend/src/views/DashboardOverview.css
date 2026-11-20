@@ -694,3 +694,514 @@
   font-weight: 600;
 }
 
+
+
+/* ═════════════════════════════════════════════════════════════════════════
+   RESTRUCTURED VERCEL GEIST COMMAND DECK & ASYMMETRIC WORKSPACE GRID
+   ═════════════════════════════════════════════════════════════════════════ */
+.dbo-command-deck {
+  background: var(--bg-card, #ffffff);
+  border: 1px solid var(--border, #e4e4e7);
+  border-radius: 14px;
+  overflow: hidden;
+  margin-bottom: 24px;
+  box-shadow: var(--shadow-card);
+}
+
+[data-theme="dark"] .dbo-command-deck {
+  background: #0a0a0a;
+  border-color: #262626;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.dbo-command-top {
+  padding: 20px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+
+.dbo-live-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-secondary);
+}
+
+.dbo-emerald-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.7);
+  flex-shrink: 0;
+}
+
+.dbo-emerald-dot-sm {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #10b981;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.dbo-sub-sep {
+  opacity: 0.4;
+}
+
+.dbo-command-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.dbo-cmd-btn {
+  height: 36px;
+  padding: 0 14px;
+  border-radius: 8px;
+  border: 1px solid var(--border, #e4e4e7);
+  background: var(--bg-inset, #f4f4f5);
+  color: var(--text-primary, #09090b);
+  font-size: 0.8rem;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.dbo-cmd-btn:hover {
+  border-color: var(--border-strong, #a1a1aa);
+}
+
+[data-theme="dark"] .dbo-cmd-btn {
+  background: #111111;
+  border-color: #262626;
+  color: #ededed;
+}
+
+[data-theme="dark"] .dbo-cmd-btn:hover {
+  background: #1a1a1a;
+  border-color: #404040;
+  color: #ffffff;
+}
+
+.dbo-cmd-btn--primary {
+  background: #09090b;
+  border-color: #09090b;
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.dbo-cmd-btn--primary:hover {
+  background: #27272a;
+  border-color: #27272a;
+  color: #ffffff;
+}
+
+[data-theme="dark"] .dbo-cmd-btn--primary {
+  background: #ffffff;
+  border-color: #ffffff;
+  color: #000000;
+}
+
+[data-theme="dark"] .dbo-cmd-btn--primary:hover {
+  background: #e4e4e7;
+  border-color: #e4e4e7;
+  color: #000000;
+}
+
+.dbo-cmd-ghost {
+  height: 36px;
+  padding: 0 10px;
+  border-radius: 8px;
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--text-secondary, #71717a);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  text-decoration: none;
+  transition: color 0.15s ease;
+  white-space: nowrap;
+}
+
+.dbo-cmd-ghost:hover {
+  color: var(--text-primary, #ffffff);
+}
+
+/* Integrated Hairline Bento Stat Strip */
+.dbo-bento-stat-strip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  border-top: 1px solid var(--border, #e4e4e7);
+}
+
+.dbo-bento-stat-strip.cols-3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+[data-theme="dark"] .dbo-bento-stat-strip {
+  border-top-color: #1f1f1f;
+  background: #050505;
+}
+
+.dbo-bento-stat {
+  padding: 16px 22px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  background: transparent;
+  border: none;
+  border-right: 1px solid var(--border, #e4e4e7);
+  text-align: left;
+  font-family: inherit;
+  transition: background 0.15s ease;
+}
+
+.dbo-bento-stat:last-child {
+  border-right: none;
+}
+
+[data-theme="dark"] .dbo-bento-stat {
+  border-right-color: #1f1f1f;
+}
+
+.dbo-bento-stat.clickable {
+  cursor: pointer;
+}
+
+.dbo-bento-stat.clickable:hover {
+  background: var(--bg-inset, #fafafa);
+}
+
+[data-theme="dark"] .dbo-bento-stat.clickable:hover {
+  background: #0f0f0f;
+}
+
+.dbo-bento-val {
+  font-size: 1.35rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: var(--text-primary, #09090b);
+  line-height: 1.15;
+  font-variant-numeric: tabular-nums;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.dbo-bento-val--tier {
+  font-size: 1.12rem;
+}
+
+[data-theme="dark"] .dbo-bento-val {
+  color: #ffffff;
+}
+
+.dbo-bento-lbl {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-secondary, #52525b);
+  letter-spacing: -0.01em;
+}
+
+[data-theme="dark"] .dbo-bento-lbl {
+  color: #a1a1aa;
+}
+
+.dbo-bento-sub {
+  font-size: 0.68rem;
+  color: var(--text-muted, #71717a);
+}
+
+/* Asymmetric Two-Column Workspace Grid */
+.dbo-workspace-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+
+.dbo-workspace-col {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.dbo-count-pill {
+  font-size: 0.68rem;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 9999px;
+  background: var(--bg-inset, #f4f4f5);
+  border: 1px solid var(--border, #e4e4e7);
+  color: var(--text-secondary, #52525b);
+  font-variant-numeric: tabular-nums;
+}
+
+[data-theme="dark"] .dbo-count-pill {
+  background: #141414;
+  border-color: #262626;
+  color: #a1a1aa;
+}
+
+/* Compact Horizontal Featured Appeal Cards */
+.dbo-appeals-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.dbo-appeal-row-card {
+  display: flex;
+  align-items: stretch;
+  gap: 14px;
+  padding: 13px 15px;
+  border-radius: 12px;
+  background: var(--bg-card, #ffffff);
+  border: 1px solid var(--border, #e4e4e7);
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.dbo-appeal-row-card:hover {
+  border-color: var(--border-strong, #a1a1aa);
+}
+
+[data-theme="dark"] .dbo-appeal-row-card {
+  background: #0a0a0a;
+  border-color: #262626;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+[data-theme="dark"] .dbo-appeal-row-card:hover {
+  border-color: #404040;
+  background: #0f0f0f;
+}
+
+.dbo-appeal-row-thumb {
+  width: 108px;
+  min-height: 86px;
+  border-radius: 8px;
+  background-size: cover;
+  background-position: center;
+  background-color: var(--bg-inset, #141414);
+  border: 1px solid var(--border, #262626);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dbo-appeal-row-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.dbo-appeal-meta-pills {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.dbo-cat-chip {
+  font-size: 0.6rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 2px 7px;
+  border-radius: 9999px;
+  background: var(--bg-inset, #f4f4f5);
+  border: 1px solid var(--border, #e4e4e7);
+  color: var(--text-primary, #09090b);
+  white-space: nowrap;
+}
+
+[data-theme="dark"] .dbo-cat-chip {
+  background: #161616;
+  border-color: #2e2e2e;
+  color: #f4f4f5;
+}
+
+.dbo-cat-chip.urgent {
+  background: rgba(239, 68, 68, 0.12);
+  border-color: rgba(239, 68, 68, 0.35);
+  color: #f87171;
+}
+
+.dbo-loc-text {
+  font-size: 0.7rem;
+  color: var(--text-muted, #71717a);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dbo-appeal-row-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-primary, #09090b);
+  margin: 0;
+  letter-spacing: -0.015em;
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+[data-theme="dark"] .dbo-appeal-row-title {
+  color: #ffffff;
+}
+
+.dbo-appeal-row-bottom {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 2px;
+}
+
+.dbo-appeal-progress-col {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.dbo-goal-muted {
+  color: var(--text-muted, #71717a);
+}
+
+.dbo-pct-val {
+  font-weight: 600;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.dbo-appeal-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.dbo-row-icon-btn {
+  width: 30px;
+  height: 30px;
+  border-radius: 7px;
+  border: 1px solid var(--border, #e4e4e7);
+  background: transparent;
+  color: var(--text-secondary, #71717a);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+}
+
+.dbo-row-icon-btn:hover {
+  border-color: var(--border-strong, #404040);
+  color: var(--text-primary);
+  background: var(--bg-inset);
+}
+
+.dbo-row-donate-btn {
+  height: 30px;
+  padding: 0 11px;
+  border-radius: 7px;
+  border: 1px solid #09090b;
+  background: #09090b;
+  color: #ffffff;
+  font-size: 0.74rem;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+  white-space: nowrap;
+}
+
+.dbo-row-donate-btn:hover {
+  background: #27272a;
+  border-color: #27272a;
+}
+
+[data-theme="dark"] .dbo-row-donate-btn {
+  background: #ffffff;
+  border-color: #ffffff;
+  color: #000000;
+}
+
+[data-theme="dark"] .dbo-row-donate-btn:hover {
+  background: #e4e4e7;
+  border-color: #e4e4e7;
+}
+
+/* Monochrome Feed Polish */
+.dbo-feed-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+[data-theme="dark"] .dbo-feed-amt {
+  color: #ffffff;
+}
+
+[data-theme="dark"] .dbo-feed-link:hover {
+  color: #ffffff;
+}
+
+/* Responsive Breakpoints for Restructured Layout */
+@media (max-width: 1080px) {
+  .dbo-workspace-split {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 820px) {
+  .dbo-bento-stat-strip,
+  .dbo-bento-stat-strip.cols-3 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .dbo-bento-stat {
+    border-bottom: 1px solid var(--border, #e4e4e7);
+  }
+  [data-theme="dark"] .dbo-bento-stat {
+    border-bottom-color: #1f1f1f;
+  }
+  .dbo-bento-stat:nth-child(2n) {
+    border-right: none;
+  }
+}
+
+@media (max-width: 540px) {
+  .dbo-command-top {
+    padding: 16px;
+  }
+  .dbo-bento-stat {
+    padding: 14px 16px;
+  }
+  .dbo-appeal-row-card {
+    flex-direction: column;
+  }
+  .dbo-appeal-row-thumb {
+    width: 100%;
+    height: 112px;
+  }
+}
