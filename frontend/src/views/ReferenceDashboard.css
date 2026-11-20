@@ -333,41 +333,33 @@ body[data-sidebar-collapsed="true"] {
 
 /* ── Mobile Off-Canvas Drawer (max-width: 768px) ── */
 @media (max-width: 768px) {
-  .ref-sidebar,
-  .ref-sidebar.collapsed {
+  .ref-sidebar {
     position: fixed !important;
     top: 60px !important;
     left: 0 !important;
     bottom: 0 !important;
     height: calc(100dvh - 60px) !important;
     max-height: calc(100dvh - 60px) !important;
-    width: 264px !important;
-    min-width: 264px !important;
-    padding: 12px 14px 20px !important;
+    width: 264px;
+    min-width: 264px;
+    padding: 12px 14px 20px;
     transform: translateX(-100%);
-    transition: transform 240ms cubic-bezier(0.16, 1, 0.3, 1);
+    transition: transform 240ms cubic-bezier(0.16, 1, 0.3, 1),
+                width 240ms cubic-bezier(0.16, 1, 0.3, 1),
+                min-width 240ms cubic-bezier(0.16, 1, 0.3, 1);
     box-shadow: 4px 0 24px rgba(0, 0, 0, 0.5);
     z-index: 2100;
     overflow-y: auto;
     overscroll-behavior: contain;
   }
 
-  .ref-sidebar.collapsed .ref-sidebar-brand-group,
-  .ref-sidebar.collapsed .ref-nav-item span:not(.material-symbols-outlined),
-  .ref-sidebar.collapsed .ref-nav-count {
-    display: flex !important;
-    opacity: 1 !important;
-    width: auto !important;
-    pointer-events: auto !important;
+  .ref-sidebar.collapsed {
+    width: 68px;
+    min-width: 68px;
+    padding: 12px 10px 20px;
   }
 
-  .ref-sidebar.collapsed .ref-nav-item {
-    justify-content: flex-start !important;
-    padding: 9px 12px !important;
-  }
-
-  .ref-sidebar.mobile-open,
-  .ref-sidebar.collapsed.mobile-open {
+  .ref-sidebar.mobile-open {
     transform: translateX(0);
   }
 

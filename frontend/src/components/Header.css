@@ -1444,6 +1444,33 @@
     display: none;
   }
 
+  .bbdrts-profile-hub {
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .bbdrts-profile-chip {
+    height: 32px;
+    padding: 3px 4px 3px 7px;
+    gap: 4px;
+    flex-direction: row-reverse;
+    box-sizing: border-box;
+  }
+
+  .bbdrts-profile-chip .bbdrts-avatar-wrap,
+  .bbdrts-profile-chip .bbdrts-profile-avatar,
+  .bbdrts-profile-chip .bbdrts-avatar-img,
+  .bbdrts-profile-chip .bbdrts-avatar-fallback {
+    width: 24px !important;
+    height: 24px !important;
+  }
+
+  .bbdrts-profile-chip > .material-symbols-outlined {
+    display: inline-flex !important;
+    font-size: 15px !important;
+    line-height: 1;
+  }
+
   .bbdrts-mobile-drawer {
     max-height: calc(100dvh - 60px);
     overflow-y: auto;
@@ -1469,16 +1496,12 @@
     color: #ffffff;
   }
 
-  /* Compact avatar chip on logged-in phones so all controls fit <= 360px cleanly */
+  /* Compact aligned avatar chip with left dropdown chevron on logged-in phones */
   .bbdrts-profile-chip {
     height: 32px;
-    padding: 2px;
-    gap: 0;
-  }
-
-  .bbdrts-profile-chip .bbdrts-profile-chevron,
-  .bbdrts-profile-chip > .material-symbols-outlined {
-    display: none;
+    padding: 3px 4px 3px 6px;
+    gap: 3px;
+    flex-direction: row-reverse;
   }
 }
 
