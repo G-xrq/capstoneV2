@@ -21,14 +21,29 @@ import './App.css';
 import { isLocalhost, API_URL } from './config';
 
 export default function App() {
-  /* ── Database Auth State (Synchronously hydrated from localStorage to prevent Landing flash on F5 refresh) ── */
+  /* ── Database Auth State (Synchronously hydrated from localStorage or JWT payload to prevent Landing flash on F5 refresh) ── */
   const [dbUser, setDbUser] = useState(() => {
     try {
       const token = localStorage.getItem('bbdrts_token');
+      if (!token) return null;
       const cached = localStorage.getItem('bbdrts_user');
-      if (token && cached) {
+      if (cached) {
         const parsed = JSON.parse(cached);
         if (parsed && parsed.role) return parsed;
+      }
+      // Fallback: synchronously decode JWT payload so even the very first refresh never flashes LandingView
+      const parts = token.split('.');
+      if (parts.length === 3) {
+        const b64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
+        const payload = JSON.parse(atob(b64));
+        if (payload && payload.role) {
+          return {
+            id: payload.id,
+            email: payload.email || '',
+            name: payload.name || payload.email || 'User',
+            role: payload.role
+          };
+        }
       }
     } catch (_) {}
     return null;
@@ -36,11 +51,20 @@ export default function App() {
   // dbUser = { id, name, email, role }
   const [authLoading, setAuthLoading] = useState(() => {
     try {
-      return !(localStorage.getItem('bbdrts_token') && localStorage.getItem('bbdrts_user'));
+      return !localStorage.getItem('bbdrts_token');
     } catch (_) {
       return true;
     }
   });
+
+  // Always keep bbdrts_user synced in localStorage whenever dbUser updates
+  useEffect(() => {
+    try {
+      if (dbUser && dbUser.role) {
+        localStorage.setItem('bbdrts_user', JSON.stringify(dbUser));
+      }
+    } catch (_) {}
+  }, [dbUser]);
   const [showAuth, setShowAuth] = useState(() => {
     if (typeof window !== 'undefined') {
       const pathname = window.location.pathname;
