@@ -6754,12 +6754,22 @@ app.post('/api/payments/checkout-session', async (req, res) => {
       [session.sessionId, session.checkoutUrl, intentId]
     );
 
+    const hostHeader = req.get('host') || 'localhost:3001';
+    const isLocalHost = hostHeader.startsWith('localhost') || hostHeader.startsWith('127.0.0.1');
+    const mobileBase = isLocalHost
+      ? `http://${getLocalLanIp()}:${process.env.PORT || 3001}`
+      : `${req.protocol}://${hostHeader}`;
+    const mobilePayUrl = (session.provider === 'xendit_qrph' && !session.liveMode)
+      ? `${mobileBase}/api/payments/xendit-qrph/mobile-pay/${intentId}`
+      : null;
+
     res.json({
       intentId,
       trackingCode,
       provider: session.provider, // 'xendit_qrph' | 'paymongo'
       sessionId: session.sessionId,
       qrString: session.qrString || null,
+      mobilePayUrl,
       expiresAt: session.expiresAt || null,
       liveMode: Boolean(session.liveMode),
       checkoutUrl: session.checkoutUrl || null,
@@ -6879,6 +6889,112 @@ app.post('/api/payments/xendit-qrph/simulate/:intentId', async (req, res) => {
   } catch (err) {
     console.error('Xendit QR Ph simulate error:', err);
     res.status(500).json({ error: err.message || 'Failed to simulate Xendit QR Ph payment.' });
+  }
+});
+
+// 3D. Mobile-Scannable Xendit Test-Mode QR Ph Wallet Confirmation Page (for real phone camera scan demos)
+function getLocalLanIp() {
+  try {
+    const os = require('os');
+    const nets = os.networkInterfaces();
+    for (const name of Object.keys(nets)) {
+      for (const net of nets[name] || []) {
+        if (net.family === 'IPv4' && !net.internal) return net.address;
+      }
+    }
+  } catch (_) {}
+  return 'localhost';
+}
+
+app.get('/api/payments/xendit-qrph/mobile-pay/:intentId', async (req, res) => {
+  try {
+    if (!xenditService.isXenditConfigured() || xenditService.isXenditLive()) {
+      return res.status(403).send('Test wallet confirmation is only available in Xendit Test Mode.');
+    }
+    const intentId = Number(req.params.intentId);
+    const [rows] = await db.query(
+      `SELECT pi.*, c.Campaign_Title as campaignTitle
+       FROM PAYMENT_INTENT pi
+       LEFT JOIN CAMPAIGN c ON pi.Campaign_ID = c.Campaign_ID
+       WHERE pi.Intent_ID = ? LIMIT 1`,
+      [intentId]
+    );
+    if (!rows || rows.length === 0) return res.status(404).send('Payment session not found.');
+    const row = rows[0];
+    const amt = Math.round(Number(row.Amount_Php || 0)).toLocaleString('en-US');
+    const alreadyPaid = row.Status === 'COMPLETED';
+    const title = String(row.campaignTitle || `Campaign #${row.Campaign_ID}`).replace(/[<>&"]/g, '');
+    const method = String(row.Payment_Method || 'GCash').replace(/[<>&"]/g, '');
+    const code = String(row.Tracking_Code || '').replace(/[<>&"]/g, '');
+
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.send(`<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1" />
+  <title>QR Ph Test Wallet · BBDRTS</title>
+  <style>
+    * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body { margin: 0; min-height: 100vh; background: #09090b; color: #fafafa; display: flex; align-items: center; justify-content: center; padding: 18px; }
+    .card { width: 100%; max-width: 400px; background: #111113; border: 1px solid #27272a; border-radius: 18px; padding: 22px; box-shadow: 0 20px 50px rgba(0,0,0,0.6); }
+    .pill { display: inline-block; font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: #38bdf8; background: rgba(56,189,248,.12); border: 1px solid rgba(56,189,248,.3); padding: 4px 10px; border-radius: 999px; }
+    h1 { margin: 12px 0 4px; font-size: 20px; }
+    .sub { color: #a1a1aa; font-size: 13px; margin: 0 0 18px; }
+    .amt-box { background: #18181b; border: 1px solid #27272a; border-radius: 12px; padding: 16px; text-align: center; margin-bottom: 16px; }
+    .amt-lbl { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: #a1a1aa; }
+    .amt { font-size: 34px; font-weight: 800; color: #10b981; margin-top: 4px; }
+    .row { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; padding: 8px 0; border-bottom: 1px solid #27272a; }
+    .row:last-of-type { border-bottom: none; }
+    .k { color: #a1a1aa; }
+    .v { font-weight: 600; text-align: right; }
+    .btn { width: 100%; margin-top: 18px; padding: 14px; border: none; border-radius: 12px; background: #10b981; color: #052e16; font-size: 15px; font-weight: 800; cursor: pointer; }
+    .btn:disabled { opacity: .6; cursor: wait; }
+    .done { text-align: center; padding: 16px; border-radius: 12px; background: rgba(16,185,129,.12); border: 1px solid rgba(16,185,129,.35); color: #d1fae5; margin-top: 14px; }
+    .err { color: #fca5a5; font-size: 13px; margin-top: 10px; text-align: center; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <span class="pill">Xendit QR Ph · Test Wallet</span>
+    <h1>Confirm Relief Donation</h1>
+    <p class="sub">Real Xendit Test API settlement → Gasless Sepolia Proof</p>
+    <div class="amt-box">
+      <div class="amt-lbl">Amount to Pay</div>
+      <div class="amt">₱${amt}</div>
+    </div>
+    <div class="row"><span class="k">Campaign</span><span class="v">${title}</span></div>
+    <div class="row"><span class="k">Channel</span><span class="v">${method} (QR Ph)</span></div>
+    <div class="row"><span class="k">Reference</span><span class="v">${code}</span></div>
+    ${alreadyPaid
+      ? `<div class="done"><strong>Already Paid &amp; Verified!</strong><br/><span style="font-size:12px;">Your laptop screen has been updated and notarized on Sepolia.</span></div>`
+      : `<button id="payBtn" class="btn" onclick="payNow()">Pay ₱${amt} Now</button>
+         <div id="statusBox"></div>`
+    }
+  </div>
+  <script>
+    async function payNow() {
+      const btn = document.getElementById('payBtn');
+      const box = document.getElementById('statusBox');
+      btn.disabled = true;
+      btn.textContent = 'Processing via Xendit API…';
+      try {
+        const res = await fetch('/api/payments/xendit-qrph/simulate/${intentId}', { method: 'POST' });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Payment failed');
+        btn.style.display = 'none';
+        box.innerHTML = '<div class="done"><strong>✓ Payment Confirmed!</strong><br/><span style="font-size:12px;">Look at your laptop screen — your donation is now verified &amp; sealed on Ethereum Sepolia.</span></div>';
+      } catch (e) {
+        btn.disabled = false;
+        btn.textContent = 'Pay ₱${amt} Now';
+        box.innerHTML = '<div class="err">' + (e.message || 'Error') + '</div>';
+      }
+    }
+  </script>
+</body>
+</html>`);
+  } catch (err) {
+    res.status(500).send('Error: ' + err.message);
   }
 });
 

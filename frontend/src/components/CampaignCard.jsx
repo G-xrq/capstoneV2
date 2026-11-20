@@ -6243,10 +6243,10 @@ export default function CampaignCard(props) {
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', padding: '16px', borderRadius: '12px', background: '#ffffff', color: '#09090b' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.78rem', fontWeight: 800, color: '#09090b' }}>
                             <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#007DFE' }}>qr_code_2</span>
-                            <span>Scan with GCash, Maya, or Any PH Bank App (QR Ph)</span>
+                            <span>{activeIntent.liveMode ? 'Scan with GCash, Maya, or Any PH Bank App (QR Ph)' : 'Scan with Your Phone Camera (Xendit QR Ph Test Wallet)'}</span>
                           </div>
                           <img
-                            src={`https://api.qrserver.com/v1/create-qr-code/?size=210x210&data=${encodeURIComponent(activeIntent.qrString)}`}
+                            src={`https://api.qrserver.com/v1/create-qr-code/?size=210x210&data=${encodeURIComponent(activeIntent.liveMode ? activeIntent.qrString : (activeIntent.mobilePayUrl || activeIntent.qrString))}`}
                             alt="Dynamic QR Ph Code"
                             style={{ width: '210px', height: '210px', borderRadius: '8px', border: '1px solid #e4e4e7' }}
                           />
