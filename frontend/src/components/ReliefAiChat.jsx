@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
+import BbdrtsLogo from './BbdrtsLogo';
 import './ReliefAiChat.css';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || (
@@ -815,7 +816,7 @@ export default function ReliefAiChat({
           aria-label="Open ReliefAI Assistant"
         >
           <div className="bbdrts-copilot-trigger-icon-wrap">
-            <span className="material-symbols-outlined" style={{ fontSize: '19px' }}>smart_toy</span>
+            <BbdrtsLogo size={22} />
             <span className="bbdrts-copilot-pulse-ring" />
           </div>
           <div className="bbdrts-copilot-trigger-info">
@@ -835,7 +836,7 @@ export default function ReliefAiChat({
           <div className="bbdrts-copilot-header">
             <div className="bbdrts-copilot-header-left">
               <div className="bbdrts-copilot-avatar-box">
-                <span className="material-symbols-outlined" style={{ fontSize: '19px' }}>smart_toy</span>
+                <BbdrtsLogo size={22} />
               </div>
               <div className="bbdrts-copilot-header-titles">
                 <div className="bbdrts-copilot-header-title-row">
@@ -1034,7 +1035,7 @@ export default function ReliefAiChat({
                 
                 {msg.sender === 'ai' && (
                   <div className="bbdrts-copilot-msg-avatar ai">
-                    <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>smart_toy</span>
+                    <BbdrtsLogo size={17} />
                   </div>
                 )}
 
@@ -1101,7 +1102,7 @@ export default function ReliefAiChat({
             {isLoading && (
               <div className="bbdrts-copilot-msg-row ai">
                 <div className="bbdrts-copilot-msg-avatar ai">
-                  <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>smart_toy</span>
+                  <BbdrtsLogo size={17} />
                 </div>
                 <div className="bbdrts-copilot-typing-indicator-wrap">
                   <div className="bbdrts-copilot-typing-indicator">

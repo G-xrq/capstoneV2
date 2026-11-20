@@ -277,6 +277,49 @@ function HeroMetricRow({ metrics }) {
   );
 }
 
+function useSmoothCounter(targetValue, durationMs = 950) {
+  const safeTarget = Number.isFinite(Number(targetValue)) ? Math.round(Number(targetValue)) : 0;
+  const [displayValue, setDisplayValue] = useState(safeTarget);
+  const [isBumping, setIsBumping] = useState(false);
+  const prevTargetRef = useRef(safeTarget);
+  const displayRef = useRef(safeTarget);
+
+  useEffect(() => {
+    const startVal = displayRef.current;
+    const endVal = safeTarget;
+    if (startVal === endVal) return;
+
+    const didIncrease = endVal > prevTargetRef.current && prevTargetRef.current > 0;
+    prevTargetRef.current = endVal;
+    if (didIncrease) setIsBumping(true);
+
+    let rafId = null;
+    const startTime = performance.now();
+    const tick = (now) => {
+      const progress = Math.min(1, (now - startTime) / durationMs);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      const nextVal = Math.round(startVal + (endVal - startVal) * eased);
+      displayRef.current = nextVal;
+      setDisplayValue(nextVal);
+      if (progress < 1) {
+        rafId = requestAnimationFrame(tick);
+      } else {
+        displayRef.current = endVal;
+        setDisplayValue(endVal);
+      }
+    };
+    rafId = requestAnimationFrame(tick);
+
+    const bumpTimer = didIncrease ? setTimeout(() => setIsBumping(false), 1200) : null;
+    return () => {
+      if (rafId) cancelAnimationFrame(rafId);
+      if (bumpTimer) clearTimeout(bumpTimer);
+    };
+  }, [safeTarget, durationMs]);
+
+  return { value: displayValue, isBumping };
+}
+
 export default function LandingView({
   onConnect,
   onSignIn,
@@ -371,13 +414,27 @@ export default function LandingView({
     };
   }, []);
 
-  const [stats, setStats] = useState({
-    donors: 148,
-    orgs: 5,
-    campaigns: 8,
-    totalEthRaised: '14.28',
-    totalPhpEstimated: '2,428,000'
+  const [stats, setStats] = useState(() => {
+    try {
+      const cached = localStorage.getItem('bbdrts_cached_stats_v1');
+      if (cached) {
+        const p = JSON.parse(cached);
+        if (p && typeof p.totalPhp === 'number') return p;
+      }
+    } catch (_) {}
+    return {
+      donors: 0,
+      orgs: 0,
+      campaigns: 0,
+      totalEthRaised: '0.0000',
+      totalPhp: 0,
+      totalPhpEstimated: '0'
+    };
   });
+
+  const animatedPhp = useSmoothCounter(stats.totalPhp, 1050);
+  const animatedDonors = useSmoothCounter(stats.donors, 850);
+  const animatedOrgs = useSmoothCounter(stats.orgs, 750);
 
   const [campaigns, setCampaigns] = useState(() => {
     try {
@@ -577,13 +634,18 @@ export default function LandingView({
               ? Math.round(realDbStats.totalPhp)
               : Math.round(ethSum * 170000);
 
-            setStats({
+            const nextStats = {
               donors: realDbStats.donors || 0,
               orgs: realDbStats.orgs || 0,
               campaigns: validList.length || realDbStats.campaigns || 0,
               totalEthRaised: ethSum > 0 ? ethSum.toFixed(4) : '0.0000',
+              totalPhp: phpEst > 0 ? phpEst : 0,
               totalPhpEstimated: phpEst > 0 ? phpEst.toLocaleString() : '0'
-            });
+            };
+            setStats(nextStats);
+            try {
+              localStorage.setItem('bbdrts_cached_stats_v1', JSON.stringify(nextStats));
+            } catch (_) {}
           }
         }
       } catch (err) {
@@ -593,8 +655,44 @@ export default function LandingView({
       }
     };
 
+    const pollLiveStats = async () => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
+      try {
+        const res = await fetch(`${API_URL}/api/public-stats?_t=${Date.now()}`);
+        if (!res.ok || !isMounted) return;
+        const d = await res.json();
+        const nextPhp = d && d.totalPhp !== undefined ? Math.round(Number(d.totalPhp) || 0) : 0;
+        const nextEth = d && d.totalEth !== undefined ? Number(d.totalEth) || 0 : 0;
+        setStats((prev) => {
+          const updated = {
+            donors: d.donors ?? prev.donors,
+            orgs: d.orgs ?? prev.orgs,
+            campaigns: d.campaigns ?? prev.campaigns,
+            totalEthRaised: nextEth > 0 ? nextEth.toFixed(4) : prev.totalEthRaised,
+            totalPhp: nextPhp > 0 ? nextPhp : prev.totalPhp,
+            totalPhpEstimated: (nextPhp > 0 ? nextPhp : prev.totalPhp).toLocaleString()
+          };
+          try {
+            localStorage.setItem('bbdrts_cached_stats_v1', JSON.stringify(updated));
+          } catch (_) {}
+          return updated;
+        });
+      } catch (_) {}
+    };
+
     fetchLandingData();
-    return () => { isMounted = false; };
+    const liveTimer = window.setInterval(pollLiveStats, 10000);
+    const onFocusOrVisible = () => {
+      if (document.visibilityState !== 'hidden') pollLiveStats();
+    };
+    window.addEventListener('focus', onFocusOrVisible);
+    document.addEventListener('visibilitychange', onFocusOrVisible);
+    return () => {
+      isMounted = false;
+      window.clearInterval(liveTimer);
+      window.removeEventListener('focus', onFocusOrVisible);
+      document.removeEventListener('visibilitychange', onFocusOrVisible);
+    };
   }, []);
 
   // Global Navigation Listener for Landing View
@@ -849,12 +947,16 @@ export default function LandingView({
                 </div>
                 <div className="bbdrts-hero-stat-sep" />
                 <div className="bbdrts-hero-stat-item">
-                  <div className="bbdrts-hero-stat-val">₱{stats.totalPhpEstimated}</div>
+                  <div className={`bbdrts-hero-stat-val ${animatedPhp.isBumping ? 'is-live-bump' : ''}`}>
+                    ₱{animatedPhp.value.toLocaleString()}
+                  </div>
                   <div className="bbdrts-hero-stat-lbl">Total Raised</div>
                 </div>
                 <div className="bbdrts-hero-stat-sep" />
                 <div className="bbdrts-hero-stat-item">
-                  <div className="bbdrts-hero-stat-val">{stats.donors}</div>
+                  <div className={`bbdrts-hero-stat-val ${animatedDonors.isBumping ? 'is-live-bump' : ''}`}>
+                    {animatedDonors.value.toLocaleString()}
+                  </div>
                   <div className="bbdrts-hero-stat-lbl">Total Donors</div>
                 </div>
                 <div className="bbdrts-hero-stat-sep" />
@@ -863,8 +965,8 @@ export default function LandingView({
                   onClick={() => onOpenNgoProfile && onOpenNgoProfile(3)}
                   title="Click to view verified NGO profile"
                 >
-                  <div className="bbdrts-hero-stat-val">
-                    <span>{stats.orgs} Verified</span>
+                  <div className={`bbdrts-hero-stat-val ${animatedOrgs.isBumping ? 'is-live-bump' : ''}`}>
+                    <span>{animatedOrgs.value} Verified</span>
                     <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>open_in_new</span>
                   </div>
                   <div className="bbdrts-hero-stat-lbl">Accredited NGOs</div>

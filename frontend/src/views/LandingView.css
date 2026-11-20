@@ -468,8 +468,23 @@
   white-space: nowrap;
 }
 
+.bbdrts-hero-stat-val {
+  font-variant-numeric: tabular-nums;
+  transition: color 0.35s ease, text-shadow 0.35s ease;
+}
+
+.bbdrts-hero-stat-val.is-live-bump {
+  color: #10b981;
+  text-shadow: 0 0 14px rgba(16, 185, 129, 0.45);
+}
+
 [data-theme="light"] .bbdrts-hero-stat-val {
   color: #09090b;
+}
+
+[data-theme="light"] .bbdrts-hero-stat-val.is-live-bump {
+  color: #059669;
+  text-shadow: none;
 }
 
 .bbdrts-hero-stat-lbl {

@@ -5745,7 +5745,7 @@ function invalidateCampaignsCache() {
 
 let cachedPublicStats = null;
 let cachedPublicStatsTimestamp = 0;
-const STATS_CACHE_TTL = 60000; // 1 minute
+const STATS_CACHE_TTL = 8000; // 8 seconds for live landing stats
 
 function invalidatePublicStatsCache() {
   cachedPublicStats = null;
