@@ -104,6 +104,25 @@ export default function NotificationCenter({ dbUser, theme, onSelectNotification
   const [currentTime, setCurrentTime] = useState(Date.now()); // Real-time timestamp ticker
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const panelRef = useRef(null);
+  const filterCacheRef = useRef({});
+  const activeFilterRef = useRef(filter);
+  activeFilterRef.current = filter;
+
+  // Instant 0ms local filter helper derived from cached 'all' inbox items
+  const deriveInstantFiltered = (targetFilter) => {
+    const exact = filterCacheRef.current[targetFilter];
+    if (exact && Array.isArray(exact.items)) return exact.items;
+    if (targetFilter === 'trash') return [];
+    const allItems = filterCacheRef.current.all?.items;
+    if (!Array.isArray(allItems)) return null;
+    if (targetFilter === 'all') return allItems;
+    if (targetFilter === 'unread') return allItems.filter(n => !n.isRead && !n.isDeleted);
+    const upper = String(targetFilter).toUpperCase();
+    return allItems.filter(n => {
+      const t = String(n.type || n.category || '').toUpperCase();
+      return t === upper || t.includes(upper);
+    });
+  };
 
   // Handle opening relief proofs directly from notification
   const handleViewProofs = async (notif) => {
@@ -188,8 +207,8 @@ export default function NotificationCenter({ dbUser, theme, onSelectNotification
     ];
   };
 
-  // Live real-time polling with pagination & category support
-  const fetchNotifications = async (pageNum = 1, append = false, currentFilter = filter) => {
+  // Live real-time polling with instant per-filter caching & stale-while-revalidate
+  const fetchNotifications = async (pageNum = 1, append = false, currentFilter = filter, silentPrefetch = false) => {
     const token = localStorage.getItem('bbdrts_token');
     try {
       const url = `${API_URL}/api/notifications?page=${pageNum}&limit=20&filter=${encodeURIComponent(currentFilter)}`;
@@ -207,28 +226,37 @@ export default function NotificationCenter({ dbUser, theme, onSelectNotification
         setTotalCount(total);
         setTrashCount(trash);
 
+        // Always update cache for this filter
+        if (!append) {
+          const prevCached = filterCacheRef.current[currentFilter]?.items || [];
+          let nextCached = notifList;
+          if (prevCached.length > 20 && pageNum === 1) {
+            const freshMap = new Map(notifList.map(n => [n.id, n]));
+            const updated = prevCached.map(p => freshMap.get(p.id) || p);
+            const prevIds = new Set(prevCached.map(p => p.id));
+            const brandNew = notifList.filter(n => !prevIds.has(n.id));
+            nextCached = [...brandNew, ...updated];
+          }
+          filterCacheRef.current[currentFilter] = { items: nextCached, hasMore: Boolean(data.hasMore) };
+        }
+
+        // Ignore UI update if this was a background prefetch or user already switched to another tab
+        if (silentPrefetch || activeFilterRef.current !== currentFilter) return;
+
         if (append) {
           setNotifications(prev => {
             const existingIds = new Set(prev.map(p => p.id));
             const fresh = notifList.filter(n => !existingIds.has(n.id));
-            return [...prev, ...fresh];
+            const merged = [...prev, ...fresh];
+            filterCacheRef.current[currentFilter] = { items: merged, hasMore: Boolean(data.hasMore) };
+            return merged;
           });
           setPage(pageNum);
           setHasMore(Boolean(data.hasMore));
         } else {
-          // If the user has already loaded older notifications (page > 1), do NOT truncate them during 3s background polling
-          setNotifications(prev => {
-            if (prev.length > 20 && pageNum === 1) {
-              const freshMap = new Map(notifList.map(n => [n.id, n]));
-              const updated = prev.map(p => freshMap.get(p.id) || p);
-              const prevIds = new Set(prev.map(p => p.id));
-              const brandNew = notifList.filter(n => !prevIds.has(n.id));
-              return [...brandNew, ...updated];
-            }
-            setHasMore(Boolean(data.hasMore));
-            setPage(1);
-            return notifList;
-          });
+          setNotifications(filterCacheRef.current[currentFilter].items);
+          setHasMore(Boolean(data.hasMore));
+          setPage(1);
         }
       }
     } catch (err) {
@@ -236,16 +264,28 @@ export default function NotificationCenter({ dbUser, theme, onSelectNotification
     }
   };
 
-  // Reset pagination when filter changes
+  // Instant 0ms tab/category/trash switch from cache + background sync
   useEffect(() => {
     if (!dbUser) return;
     setPage(1);
+    const instant = deriveInstantFiltered(filter);
+    if (instant !== null) {
+      setNotifications(instant);
+      setHasMore(Boolean(filterCacheRef.current[filter]?.hasMore));
+    }
     fetchNotifications(1, false, filter);
     const pollInterval = setInterval(() => {
       fetchNotifications(1, false, filter);
     }, 4000);
     return () => clearInterval(pollInterval);
   }, [dbUser, filter]);
+
+  // Silently prefetch Trash & Inbox when panel opens so switching Inbox <-> Trash is 0ms instant
+  useEffect(() => {
+    if (!isOpen || !dbUser) return;
+    if (filter !== 'trash') fetchNotifications(1, false, 'trash', true);
+    if (filter !== 'all') fetchNotifications(1, false, 'all', true);
+  }, [isOpen, dbUser]);
 
   // Real-time progressive clock ticker (updates relative time every 3s)
   useEffect(() => {

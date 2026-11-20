@@ -1166,4 +1166,25 @@
     max-height: calc(100dvh - 195px) !important;
     overflow-y: auto;
   }
+
+  .bbdrts-notif-card-footer {
+    flex-wrap: wrap;
+    padding: 12px 14px;
+    gap: 8px;
+  }
+
+  .bbdrts-notif-card-footer-right {
+    flex: 1;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 6px;
+    min-width: 0;
+  }
+
+  .bbdrts-notif-card-footer-right button,
+  .bbdrts-notif-card-footer-right a {
+    padding: 7px 11px !important;
+    font-size: 0.76rem !important;
+    white-space: nowrap;
+  }
 }
