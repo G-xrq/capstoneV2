@@ -1138,3 +1138,32 @@
 .bbdrts-notif-card-action-icon-btn:active {
   transform: scale(0.95);
 }
+
+/* ── Mobile Responsive Notification Panel (Zero Left/Right Clipping) ── */
+@media (max-width: 640px) {
+  .bbdrts-notif-panel {
+    position: fixed !important;
+    top: 64px !important;
+    left: 8px !important;
+    right: 8px !important;
+    width: auto !important;
+    max-width: calc(100vw - 16px) !important;
+    max-height: calc(100dvh - 80px) !important;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden !important;
+    box-sizing: border-box;
+  }
+
+  .bbdrts-notif-header {
+    padding: 12px 12px 10px !important;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
+  .bbdrts-notif-list {
+    flex: 1;
+    max-height: calc(100dvh - 195px) !important;
+    overflow-y: auto;
+  }
+}
