@@ -4595,7 +4595,7 @@ export default function CampaignCard(props) {
               className="card bounce-in"
               style={{
                 position: 'relative',
-                width: isPaymentProcessing ? '540px' : (donateStep === 0 ? '560px' : ((donateStep === 6 || donateStep === 7) ? '880px' : (donateStep === 8 && !instantReceipt && !instantSettlingOnChain ? '720px' : '460px'))),
+                width: isPaymentProcessing ? '540px' : ((donateStep === 6 || donateStep === 7) ? '880px' : ((donateStep === 0 || (donateStep === 8 && !instantReceipt && !instantSettlingOnChain)) ? '720px' : '460px')),
                 maxWidth: '94vw',
                 maxHeight: '92vh',
                 overflowY: 'auto',
@@ -4898,337 +4898,381 @@ export default function CampaignCard(props) {
                 );
               })()}
 
-              {/* ── STEP 0: Select Payment Method (Strict Vercel Geist UI) ── */}
-              {!isPaymentProcessing && donateStep === 0 && (
-                <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '16px', fontFamily: 'var(--font-sans, inherit)' }}>
+              {/* ── STEP 0: Select Payment Method (Vercel Geist 2-Column 720px) ── */}
+              {!isPaymentProcessing && donateStep === 0 && (() => {
+                const selectedChannel = gatewayMethod || 'GCash';
+                const handleContinue = () => {
+                  if (paymongoEnabled && checkoutMode === 'instant') {
+                    startInstantCheckout(selectedChannel);
+                    return;
+                  }
+                  if (selectedChannel === 'Bank / Card') {
+                    createDirectQrIntent('Bank / Card');
+                    setDonateStep(6);
+                    return;
+                  }
+                  setGatewayMethod(selectedChannel);
+                  setGatewayStep(0);
+                  setGatewayMobile('');
+                  setGatewayOtp(['', '', '', '', '', '']);
+                  handleRemoveProof();
+                  createDirectQrIntent(selectedChannel);
+                  setDonateStep(7);
+                };
 
-                  {/* Minimal Geist Header */}
-                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px', borderBottom: '1px solid var(--border, #222)', paddingBottom: '14px' }}>
-                    <div style={{ minWidth: 0 }}>
-                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.72rem', fontWeight: 500, color: 'var(--text-muted, #888)', marginBottom: '4px' }}>
-                        <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10b981', display: 'inline-block' }} />
-                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '390px' }}>
-                          {camp.title} · {getOrgDisplayName(camp)}
-                        </span>
+                const channels = [
+                  {
+                    id: 'GCash',
+                    label: 'GCash',
+                    sub: 'QR Ph · E-Wallet',
+                    icon: (
+                      <div style={{ width: '32px', height: '32px', borderRadius: '7px', background: '#0052FF', color: '#fff', fontWeight: 800, fontSize: '0.92rem', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        G
                       </div>
-                      <h2 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 600, letterSpacing: '-0.02em', color: 'var(--text-primary, #ededed)' }}>
-                        Make a donation
-                      </h2>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setMagnifierActive(false);
-                        setModalOpen(false);
-                      }}
-                      style={{
-                        background: 'transparent',
-                        border: '1px solid var(--border, #262626)',
-                        color: 'var(--text-muted, #888)',
-                        width: '30px',
-                        height: '30px',
-                        borderRadius: '6px',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        flexShrink: 0
-                      }}
-                      title="Close"
-                    >
-                      <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>close</span>
-                    </button>
-                  </div>
-
-                  {/* Clean Monochrome Amount Input Block */}
-                  <div style={{ border: '1px solid var(--border, #222)', borderRadius: '8px', background: 'var(--bg-inset, #0a0a0a)', padding: '14px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                      <label style={{ fontSize: '0.72rem', fontWeight: 500, color: 'var(--text-muted, #888)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                        Amount (PHP)
-                      </label>
-                      {amount && Number(amount) > 0 && (
-                        <button
-                          type="button"
-                          onClick={() => setAmount('')}
-                          style={{ background: 'none', border: 'none', color: 'var(--text-muted, #888)', fontSize: '0.72rem', cursor: 'pointer', padding: 0 }}
-                        >
-                          Clear
-                        </button>
-                      )}
-                    </div>
-
-                    <div style={{ position: 'relative', display: 'flex', alignItems: 'center', marginBottom: '10px' }}>
-                      <span style={{ position: 'absolute', left: '12px', color: 'var(--text-muted, #888)', fontWeight: 600, fontSize: '1.1rem', fontVariantNumeric: 'tabular-nums' }}>₱</span>
-                      <input
-                        type="number"
-                        step="1"
-                        min="1"
-                        value={amount}
-                        onChange={(e) => setAmount(e.target.value)}
-                        placeholder="0.00"
-                        style={{
-                          width: '100%',
-                          height: '42px',
-                          padding: '0 12px 0 30px',
-                          background: 'var(--bg-card, #000)',
-                          border: '1px solid var(--border, #262626)',
-                          borderRadius: '6px',
-                          color: 'var(--text-primary, #ededed)',
-                          fontSize: '1.15rem',
-                          fontWeight: 600,
-                          fontVariantNumeric: 'tabular-nums',
-                          outline: 'none'
-                        }}
-                      />
-                    </div>
-
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '6px' }}>
-                      {['100', '500', '1000', '2500', '5000'].map((val) => {
-                        const isSel = String(amount) === val;
-                        return (
-                          <button
-                            key={val}
-                            type="button"
-                            onClick={() => setAmount(val)}
-                            style={{
-                              height: '30px',
-                              borderRadius: '6px',
-                              fontSize: '0.73rem',
-                              fontWeight: isSel ? 600 : 500,
-                              fontVariantNumeric: 'tabular-nums',
-                              cursor: 'pointer',
-                              background: isSel ? 'var(--text-primary, #ededed)' : 'transparent',
-                              color: isSel ? 'var(--bg-card, #0a0a0a)' : 'var(--text-secondary, #a1a1aa)',
-                              border: `1px solid ${isSel ? 'var(--text-primary, #ededed)' : 'var(--border, #242424)'}`,
-                              transition: 'all 0.14s ease'
-                            }}
-                          >
-                            ₱{Number(val).toLocaleString()}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  {/* Vercel Monochrome Segmented Verification Switcher */}
-                  {paymongoEnabled && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                      <div
-                        role="tablist"
-                        aria-label="Donation verification mode"
-                        style={{
-                          display: 'grid',
-                          gridTemplateColumns: '1fr 1fr',
-                          gap: '4px',
-                          padding: '3px',
-                          borderRadius: '8px',
-                          background: 'var(--bg-inset, #0a0a0a)',
-                          border: '1px solid var(--border, #222)'
-                        }}
-                      >
-                        <button
-                          type="button"
-                          role="tab"
-                          aria-selected={checkoutMode === 'instant'}
-                          onClick={() => setCheckoutMode('instant')}
-                          style={{
-                            height: '34px',
-                            borderRadius: '6px',
-                            border: checkoutMode === 'instant' ? '1px solid var(--border-strong, #333)' : '1px solid transparent',
-                            background: checkoutMode === 'instant' ? 'var(--bg-subcard, #1a1a1a)' : 'transparent',
-                            color: checkoutMode === 'instant' ? 'var(--text-primary, #ededed)' : 'var(--text-muted, #888)',
-                            fontSize: '0.78rem',
-                            fontWeight: checkoutMode === 'instant' ? 600 : 500,
-                            cursor: 'pointer',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: '6px',
-                            transition: 'all 0.14s ease'
-                          }}
-                        >
-                          <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>bolt</span>
-                          <span>Instant · QR Ph</span>
-                        </button>
-                        <button
-                          type="button"
-                          role="tab"
-                          aria-selected={checkoutMode === 'manual'}
-                          onClick={() => setCheckoutMode('manual')}
-                          style={{
-                            height: '34px',
-                            borderRadius: '6px',
-                            border: checkoutMode === 'manual' ? '1px solid var(--border-strong, #333)' : '1px solid transparent',
-                            background: checkoutMode === 'manual' ? 'var(--bg-subcard, #1a1a1a)' : 'transparent',
-                            color: checkoutMode === 'manual' ? 'var(--text-primary, #ededed)' : 'var(--text-muted, #888)',
-                            fontSize: '0.78rem',
-                            fontWeight: checkoutMode === 'manual' ? 600 : 500,
-                            cursor: 'pointer',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: '6px',
-                            transition: 'all 0.14s ease'
-                          }}
-                        >
-                          <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>qr_code_scanner</span>
-                          <span>Direct QR &amp; Slip</span>
-                        </button>
+                    )
+                  },
+                  {
+                    id: 'Maya',
+                    label: 'Maya',
+                    sub: 'QR Ph · E-Wallet',
+                    icon: (
+                      <div style={{ width: '32px', height: '32px', borderRadius: '7px', background: '#00D68F', color: '#000', fontWeight: 900, fontSize: '0.62rem', letterSpacing: '-0.02em', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        maya
                       </div>
-                      <p style={{ margin: 0, fontSize: '0.72rem', color: 'var(--text-muted, #888)' }}>
-                        {checkoutMode === 'instant'
-                          ? 'Auto-verified via Dynamic QR Ph webhook and sealed gaslessly on Sepolia — no receipt upload needed.'
-                          : 'Scan the NGO direct QR code and upload your payment slip with a unique BB-XXXX tracking code.'}
-                      </p>
-                    </div>
-                  )}
+                    )
+                  },
+                  {
+                    id: 'Bank / Card',
+                    label: 'Bank & Cards',
+                    sub: 'InstaPay · Visa · Mastercard',
+                    icon: (
+                      <div style={{ width: '32px', height: '32px', borderRadius: '7px', background: '#161616', border: '1px solid #2a2a2a', color: '#d4d4d8', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        <span className="material-symbols-outlined" style={{ fontSize: '17px' }}>credit_card</span>
+                      </div>
+                    )
+                  }
+                ];
 
-                  {/* Clean 3-Row Monochrome Geist Channel List (Zero Asymmetric 2+1 Grid, Zero Loud Badges) */}
-                  <div style={{ border: '1px solid var(--border, #222)', borderRadius: '8px', background: 'var(--bg-inset, #0a0a0a)', overflow: 'hidden' }}>
-                    {[
-                      {
-                        id: 'GCash',
-                        title: 'GCash',
-                        desc: paymongoEnabled && checkoutMode === 'instant' ? 'Dynamic QR Ph · Auto-verified' : 'Direct NGO QR · AI receipt audit',
-                        iconBg: '#0052FF',
-                        iconColor: '#fff',
-                        iconText: 'G',
-                        onClick: () => {
-                          if (paymongoEnabled && checkoutMode === 'instant') {
-                            startInstantCheckout('GCash');
-                            return;
-                          }
-                          setGatewayMethod('GCash');
-                          setGatewayStep(0);
-                          setGatewayMobile('');
-                          setGatewayOtp(['', '', '', '', '', '']);
-                          handleRemoveProof();
-                          createDirectQrIntent('GCash');
-                          setDonateStep(7);
-                        }
-                      },
-                      {
-                        id: 'Maya',
-                        title: 'Maya',
-                        desc: paymongoEnabled && checkoutMode === 'instant' ? 'Dynamic QR Ph · Auto-verified' : 'Direct NGO QR · AI receipt audit',
-                        iconBg: '#00D68F',
-                        iconColor: '#052e16',
-                        iconText: 'M',
-                        onClick: () => {
-                          if (paymongoEnabled && checkoutMode === 'instant') {
-                            startInstantCheckout('Maya');
-                            return;
-                          }
-                          setGatewayMethod('Maya');
-                          setGatewayStep(0);
-                          setGatewayMobile('');
-                          setGatewayOtp(['', '', '', '', '', '']);
-                          handleRemoveProof();
-                          createDirectQrIntent('Maya');
-                          setDonateStep(7);
-                        }
-                      },
-                      {
-                        id: 'Bank / Card',
-                        title: 'Bank & Credit Cards',
-                        desc: 'Visa, Mastercard, or Philippine bank transfer',
-                        iconBg: 'var(--bg-subcard, #18181b)',
-                        iconColor: 'var(--text-primary, #ededed)',
-                        iconName: 'credit_card',
-                        onClick: () => {
-                          if (paymongoEnabled && checkoutMode === 'instant') {
-                            startInstantCheckout('Bank / Card');
-                            return;
-                          }
-                          createDirectQrIntent('Bank / Card');
-                          setDonateStep(6);
-                        }
-                      }
-                    ].map((rail, idx, arr) => (
+                return (
+                  <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '20px', fontFamily: 'var(--font-sans, inherit)' }}>
+
+                    {/* Geist Header (matches Step 8) */}
+                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px', borderBottom: '1px solid var(--border, #1f1f1f)', paddingBottom: '16px' }}>
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', fontSize: '0.76rem', fontWeight: 500, color: 'var(--text-muted, #888)', marginBottom: '4px' }}>
+                          <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10b981', display: 'inline-block', flexShrink: 0 }} />
+                          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '520px' }}>
+                            {camp.title} · {getOrgDisplayName(camp)}
+                          </span>
+                        </div>
+                        <h2 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 600, letterSpacing: '-0.025em', color: 'var(--text-primary, #ededed)' }}>
+                          Make a donation
+                        </h2>
+                      </div>
                       <button
-                        key={rail.id}
                         type="button"
-                        disabled={instantLoading}
-                        onClick={rail.onClick}
-                        className="payment-option-btn"
+                        onClick={() => {
+                          setMagnifierActive(false);
+                          setModalOpen(false);
+                        }}
                         style={{
-                          width: '100%',
+                          background: 'transparent',
+                          border: '1px solid var(--border, #262626)',
+                          color: 'var(--text-muted, #888)',
+                          width: '32px',
+                          height: '32px',
+                          borderRadius: '6px',
+                          cursor: 'pointer',
                           display: 'flex',
                           alignItems: 'center',
-                          justifyContent: 'space-between',
-                          gap: '12px',
-                          padding: '12px 14px',
-                          background: 'transparent',
-                          border: 'none',
-                          borderRadius: 0,
-                          borderBottom: idx < arr.length - 1 ? '1px solid var(--border, #1f1f1f)' : 'none',
-                          cursor: instantLoading ? 'wait' : 'pointer',
-                          textAlign: 'left',
-                          transition: 'background-color 0.14s ease'
+                          justifyContent: 'center',
+                          flexShrink: 0
                         }}
-                        onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.03)'; }}
-                        onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+                        title="Close"
                       >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0 }}>
-                          <div style={{
-                            width: '32px',
-                            height: '32px',
-                            borderRadius: '7px',
-                            background: rail.iconBg,
-                            color: rail.iconColor,
-                            border: rail.iconName ? '1px solid var(--border, #2a2a2a)' : 'none',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            fontWeight: 800,
-                            fontSize: '0.88rem',
-                            flexShrink: 0
-                          }}>
-                            {rail.iconName
-                              ? <span className="material-symbols-outlined" style={{ fontSize: '17px' }}>{rail.iconName}</span>
-                              : rail.iconText}
+                        <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>close</span>
+                      </button>
+                    </div>
+
+                    {/* 2-Column Balanced Geist Body */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1.1fr 0.9fr', gap: '24px', alignItems: 'stretch' }}>
+
+                      {/* Left Column: Amount & Verification Mode */}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+
+                        {/* Hero Amount Input */}
+                        <div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                            <label style={{ fontSize: '0.7rem', fontWeight: 500, color: 'var(--text-muted, #737373)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                              Amount
+                            </label>
+                            {amount && Number(amount) > 0 && (
+                              <button
+                                type="button"
+                                onClick={() => setAmount('')}
+                                style={{ background: 'none', border: 'none', color: 'var(--text-muted, #737373)', fontSize: '0.72rem', cursor: 'pointer', padding: 0 }}
+                              >
+                                Clear
+                              </button>
+                            )}
                           </div>
-                          <div style={{ minWidth: 0 }}>
-                            <div style={{ fontSize: '0.84rem', fontWeight: 600, color: 'var(--text-primary, #ededed)', lineHeight: 1.25 }}>
-                              {rail.title}
-                            </div>
-                            <div style={{ fontSize: '0.73rem', color: 'var(--text-muted, #888)', marginTop: '2px' }}>
-                              {rail.desc}
-                            </div>
+
+                          <div
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '8px',
+                              padding: '10px 14px',
+                              background: 'var(--bg-inset, #0a0a0a)',
+                              border: '1px solid var(--border, #262626)',
+                              borderRadius: '10px'
+                            }}
+                          >
+                            <span style={{ color: 'var(--text-muted, #666)', fontSize: '1.45rem', fontWeight: 500, fontVariantNumeric: 'tabular-nums' }}>₱</span>
+                            <input
+                              type="number"
+                              step="1"
+                              min="1"
+                              value={amount}
+                              onChange={(e) => setAmount(e.target.value)}
+                              placeholder="0"
+                              style={{
+                                width: '100%',
+                                background: 'transparent',
+                                border: 'none',
+                                color: 'var(--text-primary, #ededed)',
+                                fontSize: '1.65rem',
+                                fontWeight: 600,
+                                letterSpacing: '-0.03em',
+                                fontVariantNumeric: 'tabular-nums',
+                                outline: 'none',
+                                padding: 0
+                              }}
+                            />
+                            <span style={{ fontSize: '0.72rem', fontFamily: 'var(--font-mono, monospace)', color: 'var(--text-muted, #666)', fontWeight: 500 }}>
+                              PHP
+                            </span>
+                          </div>
+
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '6px', marginTop: '10px' }}>
+                            {[
+                              { val: '100', label: '₱100' },
+                              { val: '500', label: '₱500' },
+                              { val: '1000', label: '₱1k' },
+                              { val: '2500', label: '₱2.5k' },
+                              { val: '5000', label: '₱5k' }
+                            ].map((preset) => {
+                              const isSel = String(amount) === preset.val;
+                              return (
+                                <button
+                                  key={preset.val}
+                                  type="button"
+                                  onClick={() => setAmount(preset.val)}
+                                  style={{
+                                    height: '32px',
+                                    borderRadius: '6px',
+                                    fontSize: '0.74rem',
+                                    fontWeight: isSel ? 600 : 500,
+                                    fontVariantNumeric: 'tabular-nums',
+                                    cursor: 'pointer',
+                                    background: isSel ? '#ededed' : 'var(--bg-inset, #0a0a0a)',
+                                    color: isSel ? '#000' : 'var(--text-secondary, #a1a1aa)',
+                                    border: `1px solid ${isSel ? '#ededed' : 'var(--border, #262626)'}`,
+                                    transition: 'all 0.14s ease'
+                                  }}
+                                >
+                                  {preset.label}
+                                </button>
+                              );
+                            })}
                           </div>
                         </div>
-                        <span className="material-symbols-outlined" style={{ color: 'var(--text-muted, #666)', fontSize: '18px', flexShrink: 0 }}>
-                          chevron_right
-                        </span>
-                      </button>
-                    ))}
-                  </div>
 
-                  {/* Quiet Geist Footer */}
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px solid var(--border, #222)', paddingTop: '12px' }}>
-                    <span style={{ fontSize: '0.71rem', color: 'var(--text-muted, #666)' }}>
-                      0% platform fee · Gasless Sepolia audit ledger
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setModalOpen(false)}
-                      style={{
-                        height: '30px',
-                        padding: '0 12px',
-                        borderRadius: '6px',
-                        border: '1px solid var(--border, #262626)',
-                        background: 'transparent',
-                        color: 'var(--text-secondary, #a1a1aa)',
-                        fontSize: '0.74rem',
-                        fontWeight: 500,
-                        cursor: 'pointer'
-                      }}
-                    >
-                      Cancel
-                    </button>
+                        {/* Verification Mode Switcher */}
+                        {paymongoEnabled && (
+                          <div>
+                            <div style={{ fontSize: '0.7rem', fontWeight: 500, color: 'var(--text-muted, #737373)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '8px' }}>
+                              Verification
+                            </div>
+                            <div
+                              role="tablist"
+                              aria-label="Donation verification mode"
+                              style={{
+                                display: 'grid',
+                                gridTemplateColumns: '1fr 1fr',
+                                gap: '3px',
+                                padding: '3px',
+                                borderRadius: '8px',
+                                background: 'var(--bg-inset, #0a0a0a)',
+                                border: '1px solid var(--border, #222)'
+                              }}
+                            >
+                              <button
+                                type="button"
+                                role="tab"
+                                aria-selected={checkoutMode === 'instant'}
+                                onClick={() => setCheckoutMode('instant')}
+                                style={{
+                                  height: '32px',
+                                  borderRadius: '6px',
+                                  border: checkoutMode === 'instant' ? '1px solid #333' : '1px solid transparent',
+                                  background: checkoutMode === 'instant' ? '#1c1c1c' : 'transparent',
+                                  color: checkoutMode === 'instant' ? '#ededed' : '#737373',
+                                  fontSize: '0.76rem',
+                                  fontWeight: checkoutMode === 'instant' ? 600 : 500,
+                                  cursor: 'pointer',
+                                  transition: 'all 0.14s ease'
+                                }}
+                              >
+                                Instant QR Ph
+                              </button>
+                              <button
+                                type="button"
+                                role="tab"
+                                aria-selected={checkoutMode === 'manual'}
+                                onClick={() => setCheckoutMode('manual')}
+                                style={{
+                                  height: '32px',
+                                  borderRadius: '6px',
+                                  border: checkoutMode === 'manual' ? '1px solid #333' : '1px solid transparent',
+                                  background: checkoutMode === 'manual' ? '#1c1c1c' : 'transparent',
+                                  color: checkoutMode === 'manual' ? '#ededed' : '#737373',
+                                  fontSize: '0.76rem',
+                                  fontWeight: checkoutMode === 'manual' ? 600 : 500,
+                                  cursor: 'pointer',
+                                  transition: 'all 0.14s ease'
+                                }}
+                              >
+                                Direct QR &amp; Slip
+                              </button>
+                            </div>
+                            <p style={{ margin: '8px 0 0', fontSize: '0.74rem', color: 'var(--text-muted, #737373)', lineHeight: 1.45 }}>
+                              {checkoutMode === 'instant'
+                                ? 'Auto-verified via webhook and sealed on Ethereum Sepolia. No receipt upload needed.'
+                                : 'Transfer directly to the NGO QR with a BB-XXXX tracking code and AI receipt scan.'}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Right Column: Payment Method & Primary CTA */}
+                      <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: '16px' }}>
+                        <div>
+                          <div style={{ fontSize: '0.7rem', fontWeight: 500, color: 'var(--text-muted, #737373)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '8px' }}>
+                            Payment Method
+                          </div>
+
+                          <div style={{ border: '1px solid var(--border, #222)', borderRadius: '10px', background: 'var(--bg-inset, #0a0a0a)', overflow: 'hidden' }}>
+                            {channels.map((ch, idx) => {
+                              const isSelected = selectedChannel === ch.id;
+                              return (
+                                <button
+                                  key={ch.id}
+                                  type="button"
+                                  disabled={instantLoading}
+                                  onClick={() => setGatewayMethod(ch.id)}
+                                  style={{
+                                    width: '100%',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '12px',
+                                    padding: '12px 14px',
+                                    background: isSelected ? '#141414' : 'transparent',
+                                    border: 'none',
+                                    borderTop: idx > 0 ? '1px solid var(--border, #1e1e1e)' : 'none',
+                                    cursor: instantLoading ? 'wait' : 'pointer',
+                                    textAlign: 'left',
+                                    transition: 'background 0.14s ease'
+                                  }}
+                                >
+                                  {ch.icon}
+                                  <div style={{ flex: 1, minWidth: 0 }}>
+                                    <div style={{ fontSize: '0.84rem', fontWeight: 600, color: isSelected ? '#ededed' : '#a1a1aa' }}>
+                                      {ch.label}
+                                    </div>
+                                    <div style={{ fontSize: '0.71rem', color: '#666', marginTop: '1px' }}>
+                                      {ch.sub}
+                                    </div>
+                                  </div>
+                                  <span
+                                    style={{
+                                      width: '16px',
+                                      height: '16px',
+                                      borderRadius: '50%',
+                                      border: isSelected ? '5px solid #ededed' : '1.5px solid #333',
+                                      background: isSelected ? '#000' : 'transparent',
+                                      flexShrink: 0,
+                                      transition: 'all 0.14s ease'
+                                    }}
+                                  />
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        {/* Vercel Primary White CTA */}
+                        <button
+                          type="button"
+                          disabled={instantLoading}
+                          onClick={handleContinue}
+                          style={{
+                            width: '100%',
+                            height: '42px',
+                            borderRadius: '8px',
+                            border: 'none',
+                            background: '#ededed',
+                            color: '#000',
+                            fontSize: '0.84rem',
+                            fontWeight: 600,
+                            cursor: instantLoading ? 'wait' : 'pointer',
+                            opacity: instantLoading ? 0.65 : 1,
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '6px',
+                            transition: 'opacity 0.14s ease'
+                          }}
+                        >
+                          <span>
+                            {instantLoading
+                              ? 'Generating QR Ph...'
+                              : `Continue with ${selectedChannel === 'Bank / Card' ? 'Bank & Cards' : selectedChannel}`}
+                          </span>
+                          {!instantLoading && <span style={{ fontSize: '0.95rem' }}>→</span>}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Quiet Geist Footer */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--border, #1f1f1f)', paddingTop: '14px' }}>
+                      <span style={{ fontSize: '0.73rem', color: 'var(--text-muted, #666)' }}>
+                        0% platform fee · Gasless Sepolia audit proof
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setMagnifierActive(false);
+                          setModalOpen(false);
+                        }}
+                        style={{
+                          height: '30px',
+                          padding: '0 12px',
+                          borderRadius: '6px',
+                          border: '1px solid var(--border, #262626)',
+                          background: 'transparent',
+                          color: 'var(--text-secondary, #a1a1aa)',
+                          fontSize: '0.76rem',
+                          fontWeight: 500,
+                          cursor: 'pointer'
+                        }}
+                      >
+                        Cancel
+                      </button>
+                    </div>
                   </div>
-                </div>
-              )}
+                );
+              })()}
 
               {/* ── STEP 1: Web3 MetaMask Review & Signing ── */}
               {!isPaymentProcessing && donateStep === 1 && (
