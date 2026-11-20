@@ -1205,3 +1205,892 @@
     height: 112px;
   }
 }
+/* ============================================================
+   EDITORIAL VERCEL GEIST DONOR OVERVIEW (BORDERLESS HERO + BENTO)
+   ============================================================ */
+
+.dbo-editorial-hero {
+  margin-bottom: 28px;
+}
+
+.dbo-hero-eyebrow-row {
+  margin-bottom: 14px;
+}
+
+.dbo-hero-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 12px;
+  border-radius: 9999px;
+  font-size: 0.72rem;
+  background: var(--bg-inset, #f4f4f5);
+  border: 1px solid var(--border, #e4e4e7);
+  color: var(--text-secondary, #52525b);
+}
+
+[data-theme="dark"] .dbo-hero-status-pill {
+  background: #0a0a0a;
+  border-color: #262626;
+  color: #a1a1aa;
+}
+
+.dbo-pill-strong {
+  font-weight: 600;
+  color: var(--text-primary, #09090b);
+}
+
+[data-theme="dark"] .dbo-pill-strong {
+  color: #ffffff;
+}
+
+.dbo-pill-slash {
+  opacity: 0.35;
+}
+
+.dbo-pill-muted {
+  color: var(--text-secondary, #71717a);
+}
+
+[data-theme="dark"] .dbo-pill-muted {
+  color: #a1a1aa;
+}
+
+.dbo-emerald-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.65);
+  flex-shrink: 0;
+}
+
+.dbo-emerald-dot-sm {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #10b981;
+  flex-shrink: 0;
+}
+
+.dbo-hero-main-row {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+  margin-bottom: 24px;
+}
+
+.dbo-hero-identity {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-width: 0;
+}
+
+.dbo-hero-avatar {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  border: 1px solid var(--border-strong, #d4d4d8);
+  background: var(--bg-inset, #f4f4f5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--text-primary, #09090b);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+[data-theme="dark"] .dbo-hero-avatar {
+  background: #141414;
+  border-color: #2e2e2e;
+  color: #ffffff;
+}
+
+.dbo-hero-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.dbo-hero-title-group {
+  min-width: 0;
+}
+
+.dbo-hero-name {
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  line-height: 1.1;
+  margin: 0 0 4px 0;
+  color: var(--text-primary, #09090b);
+}
+
+[data-theme="dark"] .dbo-hero-name {
+  color: #ffffff;
+}
+
+.dbo-hero-sub {
+  font-size: 0.84rem;
+  color: var(--text-secondary, #52525b);
+  margin: 0;
+  line-height: 1.45;
+}
+
+[data-theme="dark"] .dbo-hero-sub {
+  color: #a1a1aa;
+}
+
+.dbo-hero-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.dbo-cmd-btn {
+  height: 38px;
+  padding: 0 16px;
+  border-radius: 8px;
+  border: 1px solid var(--border, #e4e4e7);
+  background: var(--bg-card, #ffffff);
+  color: var(--text-primary, #09090b);
+  font-size: 0.82rem;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.dbo-cmd-btn:hover {
+  border-color: var(--border-strong, #a1a1aa);
+}
+
+[data-theme="dark"] .dbo-cmd-btn {
+  background: #0a0a0a;
+  border-color: #262626;
+  color: #ededed;
+}
+
+[data-theme="dark"] .dbo-cmd-btn:hover {
+  background: #141414;
+  border-color: #404040;
+  color: #ffffff;
+}
+
+.dbo-cmd-btn--primary {
+  background: #09090b;
+  border-color: #09090b;
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.dbo-cmd-btn--primary:hover {
+  background: #27272a;
+  border-color: #27272a;
+  color: #ffffff;
+}
+
+[data-theme="dark"] .dbo-cmd-btn--primary {
+  background: #ffffff;
+  border-color: #ffffff;
+  color: #000000;
+}
+
+[data-theme="dark"] .dbo-cmd-btn--primary:hover {
+  background: #e4e4e7;
+  border-color: #e4e4e7;
+  color: #000000;
+}
+
+.dbo-cmd-ghost {
+  height: 38px;
+  padding: 0 8px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--text-secondary, #71717a);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  text-decoration: none;
+  transition: color 0.15s ease;
+  white-space: nowrap;
+}
+
+.dbo-cmd-ghost:hover {
+  color: var(--text-primary, #ffffff);
+}
+
+.dbo-pending-banner {
+  margin-bottom: 18px;
+  padding: 12px 16px;
+  border-radius: 10px;
+  background: rgba(245, 158, 11, 0.08);
+  border: 1px solid rgba(245, 158, 11, 0.32);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+/* Bare Hairline Stat Strip (Matches Landing Page Hero Stats) */
+.dbo-bare-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  border-top: 1px solid var(--border, #e4e4e7);
+  border-bottom: 1px solid var(--border, #e4e4e7);
+}
+
+.dbo-bare-stats.cols-3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+[data-theme="dark"] .dbo-bare-stats {
+  border-top-color: #1f1f1f;
+  border-bottom-color: #1f1f1f;
+}
+
+.dbo-bare-stat {
+  padding: 18px 20px 18px 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  background: transparent;
+  border: none;
+  text-align: left;
+  font-family: inherit;
+  transition: opacity 0.15s ease;
+}
+
+.dbo-bare-stat + .dbo-bare-stat {
+  padding-left: 22px;
+  border-left: 1px solid var(--border, #e4e4e7);
+}
+
+[data-theme="dark"] .dbo-bare-stat + .dbo-bare-stat {
+  border-left-color: #1a1a1a;
+}
+
+.dbo-bare-stat.clickable {
+  cursor: pointer;
+}
+
+.dbo-bare-stat.clickable:hover .dbo-bare-val {
+  opacity: 0.78;
+}
+
+.dbo-bare-val {
+  font-size: 1.55rem;
+  font-weight: 700;
+  letter-spacing: -0.035em;
+  line-height: 1.15;
+  color: var(--text-primary, #09090b);
+  font-variant-numeric: tabular-nums;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: opacity 0.15s ease;
+}
+
+.dbo-bare-val--tier {
+  font-size: 1.25rem;
+}
+
+[data-theme="dark"] .dbo-bare-val {
+  color: #ffffff;
+}
+
+.dbo-bare-lbl {
+  font-size: 0.76rem;
+  font-weight: 500;
+  color: var(--text-muted, #71717a);
+}
+
+.dbo-bare-accent {
+  color: var(--text-secondary, #a1a1aa);
+}
+
+/* Asymmetric Two-Column Bento Workspace */
+.dbo-workspace-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+
+.dbo-workspace-col {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.dbo-section-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.dbo-section-title-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dbo-section-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--text-primary, #09090b);
+  margin: 0;
+}
+
+[data-theme="dark"] .dbo-section-title {
+  color: #ffffff;
+}
+
+.dbo-count-pill {
+  font-size: 0.68rem;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 9999px;
+  background: var(--bg-inset, #f4f4f5);
+  border: 1px solid var(--border, #e4e4e7);
+  color: var(--text-secondary, #52525b);
+  font-variant-numeric: tabular-nums;
+}
+
+[data-theme="dark"] .dbo-count-pill {
+  background: #141414;
+  border-color: #262626;
+  color: #a1a1aa;
+}
+
+/* 1 + 2 Bento Appeals Layout */
+.dbo-bento-appeals {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.dbo-spotlight-card {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  border-radius: 14px;
+  background: var(--bg-card, #ffffff);
+  border: 1px solid var(--border, #e4e4e7);
+  overflow: hidden;
+  transition: border-color 0.15s ease;
+}
+
+.dbo-spotlight-card:hover {
+  border-color: var(--border-strong, #a1a1aa);
+}
+
+[data-theme="dark"] .dbo-spotlight-card {
+  background: #0a0a0a;
+  border-color: #262626;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+[data-theme="dark"] .dbo-spotlight-card:hover {
+  border-color: #3f3f46;
+}
+
+.dbo-spotlight-media {
+  position: relative;
+  min-height: 190px;
+  background-size: cover;
+  background-position: center;
+  background-color: #141414;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dbo-spotlight-scrim {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, rgba(10, 10, 10, 0.06) 45%, rgba(10, 10, 10, 0.72) 100%);
+  pointer-events: none;
+}
+
+[data-theme="light"] .dbo-spotlight-scrim {
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0) 55%, rgba(255, 255, 255, 0.4) 100%);
+}
+
+.dbo-spotlight-body {
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+}
+
+.dbo-appeal-meta-pills {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+
+.dbo-cat-chip {
+  font-size: 0.62rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  background: var(--bg-inset, #f4f4f5);
+  border: 1px solid var(--border, #e4e4e7);
+  color: var(--text-primary, #09090b);
+  white-space: nowrap;
+}
+
+[data-theme="dark"] .dbo-cat-chip {
+  background: #161616;
+  border-color: #2e2e2e;
+  color: #f4f4f5;
+}
+
+.dbo-cat-chip.urgent {
+  background: rgba(239, 68, 68, 0.12);
+  border-color: rgba(239, 68, 68, 0.35);
+  color: #f87171;
+}
+
+.dbo-loc-text {
+  font-size: 0.72rem;
+  color: var(--text-muted, #71717a);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dbo-spotlight-title {
+  font-size: 1.04rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.32;
+  color: var(--text-primary, #09090b);
+  margin: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+[data-theme="dark"] .dbo-spotlight-title {
+  color: #ffffff;
+}
+
+.dbo-spotlight-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.dbo-spotlight-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border, #e4e4e7);
+}
+
+[data-theme="dark"] .dbo-spotlight-footer {
+  border-top-color: #1a1a1a;
+}
+
+.dbo-org-label {
+  font-size: 0.72rem;
+  color: var(--text-muted, #71717a);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Secondary 2-Col Appeal Cards */
+.dbo-secondary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.dbo-mini-appeal-card {
+  border-radius: 12px;
+  background: var(--bg-card, #ffffff);
+  border: 1px solid var(--border, #e4e4e7);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: border-color 0.15s ease;
+}
+
+.dbo-mini-appeal-card:hover {
+  border-color: var(--border-strong, #a1a1aa);
+}
+
+[data-theme="dark"] .dbo-mini-appeal-card {
+  background: #0a0a0a;
+  border-color: #262626;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+[data-theme="dark"] .dbo-mini-appeal-card:hover {
+  border-color: #3f3f46;
+}
+
+.dbo-mini-media {
+  position: relative;
+  height: 112px;
+  background-size: cover;
+  background-position: center;
+  background-color: #141414;
+}
+
+.dbo-mini-scrim {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.15) 0%, rgba(10, 10, 10, 0.78) 100%);
+  pointer-events: none;
+}
+
+.dbo-mini-cat-chip {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  font-size: 0.58rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 2px 7px;
+  border-radius: 9999px;
+  background: rgba(10, 10, 10, 0.82);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: #ffffff;
+  backdrop-filter: blur(6px);
+}
+
+.dbo-mini-body {
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1;
+}
+
+.dbo-mini-title {
+  font-size: 0.88rem;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  line-height: 1.35;
+  color: var(--text-primary, #09090b);
+  margin: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  min-height: 2.38rem;
+}
+
+[data-theme="dark"] .dbo-mini-title {
+  color: #ffffff;
+}
+
+.dbo-mini-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.dbo-mini-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 8px;
+  border-top: 1px solid var(--border, #e4e4e7);
+}
+
+[data-theme="dark"] .dbo-mini-footer {
+  border-top-color: #1a1a1a;
+}
+
+.dbo-goal-muted {
+  color: var(--text-muted, #71717a);
+}
+
+.dbo-pct-val {
+  font-weight: 600;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.dbo-appeal-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.dbo-row-icon-btn {
+  width: 30px;
+  height: 30px;
+  border-radius: 7px;
+  border: 1px solid var(--border, #e4e4e7);
+  background: transparent;
+  color: var(--text-secondary, #71717a);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+}
+
+.dbo-row-icon-btn:hover {
+  border-color: var(--border-strong, #404040);
+  color: var(--text-primary);
+  background: var(--bg-inset);
+}
+
+.dbo-row-donate-btn {
+  height: 30px;
+  padding: 0 11px;
+  border-radius: 7px;
+  border: 1px solid #09090b;
+  background: #09090b;
+  color: #ffffff;
+  font-size: 0.74rem;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+  white-space: nowrap;
+}
+
+.dbo-row-donate-btn:hover {
+  background: #27272a;
+  border-color: #27272a;
+}
+
+[data-theme="dark"] .dbo-row-donate-btn {
+  background: #ffffff;
+  border-color: #ffffff;
+  color: #000000;
+}
+
+[data-theme="dark"] .dbo-row-donate-btn:hover {
+  background: #e4e4e7;
+  border-color: #e4e4e7;
+}
+
+/* Right Column: Verified Ledger Card + Milestone Card */
+.dbo-ledger-card {
+  border-radius: 14px;
+  background: var(--bg-card, #ffffff);
+  border: 1px solid var(--border, #e4e4e7);
+  overflow: hidden;
+  margin-bottom: 14px;
+}
+
+[data-theme="dark"] .dbo-ledger-card {
+  background: #0a0a0a;
+  border-color: #262626;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.dbo-feed-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+
+[data-theme="dark"] .dbo-feed-amt {
+  color: #ffffff;
+}
+
+[data-theme="dark"] .dbo-feed-link:hover {
+  color: #ffffff;
+}
+
+.dbo-ledger-footer-btn {
+  width: 100%;
+  padding: 12px 16px;
+  background: transparent;
+  border: none;
+  border-top: 1px solid var(--border, #e4e4e7);
+  color: var(--text-secondary, #52525b);
+  font-size: 0.76rem;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.dbo-ledger-footer-btn:hover {
+  background: var(--bg-inset, #f4f4f5);
+  color: var(--text-primary, #09090b);
+}
+
+[data-theme="dark"] .dbo-ledger-footer-btn {
+  border-top-color: #1a1a1a;
+  color: #a1a1aa;
+}
+
+[data-theme="dark"] .dbo-ledger-footer-btn:hover {
+  background: #111111;
+  color: #ffffff;
+}
+
+/* Honor Roll Milestone Card */
+.dbo-milestone-card {
+  width: 100%;
+  text-align: left;
+  font-family: inherit;
+  padding: 16px 18px;
+  border-radius: 14px;
+  background: var(--bg-card, #ffffff);
+  border: 1px solid var(--border, #e4e4e7);
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.dbo-milestone-card:hover {
+  border-color: var(--border-strong, #a1a1aa);
+}
+
+[data-theme="dark"] .dbo-milestone-card {
+  background: #0a0a0a;
+  border-color: #262626;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+[data-theme="dark"] .dbo-milestone-card:hover {
+  border-color: #3f3f46;
+  background: #0f0f0f;
+}
+
+.dbo-milestone-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.dbo-milestone-left {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.dbo-milestone-label {
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: var(--text-muted, #71717a);
+}
+
+.dbo-milestone-name {
+  font-size: 0.96rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--text-primary, #09090b);
+}
+
+[data-theme="dark"] .dbo-milestone-name {
+  color: #ffffff;
+}
+
+.dbo-milestone-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: var(--text-secondary, #a1a1aa);
+}
+
+.dbo-milestone-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 8px;
+  font-size: 0.72rem;
+  color: var(--text-muted, #71717a);
+}
+
+.dbo-milestone-foot strong {
+  color: var(--text-primary, #09090b);
+  font-weight: 600;
+}
+
+[data-theme="dark"] .dbo-milestone-foot strong {
+  color: #e4e4e7;
+}
+
+/* Responsive Breakpoints */
+@media (max-width: 1120px) {
+  .dbo-workspace-split {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 820px) {
+  .dbo-bare-stats,
+  .dbo-bare-stats.cols-3 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .dbo-bare-stat {
+    padding: 14px 12px;
+  }
+  .dbo-bare-stat + .dbo-bare-stat {
+    padding-left: 12px;
+  }
+  .dbo-bare-stat:nth-child(odd) {
+    padding-left: 0;
+    border-left: none;
+  }
+  .dbo-bare-stat:nth-child(1),
+  .dbo-bare-stat:nth-child(2) {
+    border-bottom: 1px solid var(--border, #1a1a1a);
+  }
+  .dbo-spotlight-card {
+    grid-template-columns: 1fr;
+  }
+  .dbo-spotlight-media {
+    min-height: 150px;
+  }
+  .dbo-spotlight-scrim {
+    background: linear-gradient(180deg, rgba(10, 10, 10, 0.1) 35%, rgba(10, 10, 10, 0.78) 100%);
+  }
+}
+
+@media (max-width: 560px) {
+  .dbo-hero-name {
+    font-size: 1.55rem;
+  }
+  .dbo-secondary-grid {
+    grid-template-columns: 1fr;
+  }
+}
