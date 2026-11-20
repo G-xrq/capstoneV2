@@ -1211,7 +1211,34 @@ export default function CampaignCard(props) {
   const [checkoutMode, setCheckoutMode] = useState('manual');
   const [activeIntent, setActiveIntent] = useState(null);
   const [instantLoading, setInstantLoading] = useState(false);
+  const [instantSimulating, setInstantSimulating] = useState(false);
   const [instantReceipt, setInstantReceipt] = useState(null);
+
+  const handleSimulateXenditQr = async () => {
+    if (!activeIntent?.intentId) return;
+    setInstantSimulating(true);
+    try {
+      const res = await fetch(`${API_URL}/api/payments/xendit-qrph/simulate/${activeIntent.intentId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Xendit test simulation failed.');
+      setInstantReceipt(data);
+      setTxHash(data.txHash || '');
+      showSuccess?.(
+        `₱${Number(data.amountPhp || activeIntent.amountPhp).toLocaleString('en-US')} verified via Xendit QR Ph & notarized on Sepolia!`,
+        'Dynamic QR Ph Verified'
+      );
+      window.dispatchEvent(new CustomEvent('bbdrts_donation_success'));
+      onDonated?.();
+      fetchHistory(true);
+    } catch (err) {
+      showWarning?.(err.message || 'Simulation failed.', 'Xendit Test Error');
+    } finally {
+      setInstantSimulating(false);
+    }
+  };
 
   useEffect(() => {
     fetch(`${API_URL}/api/payments/gateway-status`)
@@ -1286,7 +1313,7 @@ export default function CampaignCard(props) {
 
   // Auto-poll live Xendit / PayMongo checkout session until webhook or API confirms payment
   useEffect(() => {
-    if (donateStep !== 8 || !activeIntent?.intentId || (activeIntent?.provider !== 'paymongo' && activeIntent?.provider !== 'xendit') || instantReceipt) return;
+    if (donateStep !== 8 || !activeIntent?.intentId || !['paymongo', 'xendit', 'xendit_qrph'].includes(activeIntent?.provider) || instantReceipt) return;
     const iv = setInterval(async () => {
       try {
         const res = await fetch(`${API_URL}/api/payments/intent/${activeIntent.intentId}`);
@@ -6138,7 +6165,7 @@ export default function CampaignCard(props) {
                     <div>
                       <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '0.72rem', fontWeight: 700, color: '#10b981', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                         <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>bolt</span>
-                        <span>{activeIntent.provider === 'xendit' ? 'Xendit Payment Gateway' : 'PayMongo Payment Gateway'} · Auto-Webhook</span>
+                        <span>{activeIntent.provider === 'xendit_qrph' ? 'Embedded Dynamic QR Ph (Zero Redirect)' : (activeIntent.provider === 'xendit' ? 'Xendit Payment Gateway' : 'PayMongo Payment Gateway')} · Auto-Webhook</span>
                       </div>
                       <h3 style={{ margin: '3px 0 0', fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-primary, #fff)' }}>
                         {instantReceipt ? 'Donation Automatically Verified!' : `${activeIntent.paymentMethod} Instant Checkout`}
@@ -6212,7 +6239,38 @@ export default function CampaignCard(props) {
                         <strong style={{ color: '#10b981' }}>Zero-Loophole Guarantee:</strong> Once authorized, our signed payment webhook automatically credits <strong>{camp.title}</strong> and mints your Sepolia blockchain proof — even if you close your browser immediately.
                       </div>
 
-                      {activeIntent.checkoutUrl && (
+                      {activeIntent.provider === 'xendit_qrph' && activeIntent.qrString ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', padding: '16px', borderRadius: '12px', background: '#ffffff', color: '#09090b' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.78rem', fontWeight: 800, color: '#09090b' }}>
+                            <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#007DFE' }}>qr_code_2</span>
+                            <span>Scan with GCash, Maya, or Any PH Bank App (QR Ph)</span>
+                          </div>
+                          <img
+                            src={`https://api.qrserver.com/v1/create-qr-code/?size=210x210&data=${encodeURIComponent(activeIntent.qrString)}`}
+                            alt="Dynamic QR Ph Code"
+                            style={{ width: '210px', height: '210px', borderRadius: '8px', border: '1px solid #e4e4e7' }}
+                          />
+                          <div style={{ fontSize: '0.72rem', color: '#52525b', textAlign: 'center' }}>
+                            Single-use QR locked to <strong>₱{Number(activeIntent.amountPhp || 0).toLocaleString('en-US')}</strong> · Ref <code>{activeIntent.trackingCode}</code>
+                            <br />
+                            Waiting for automatic payment confirmation… (no screenshot needed)
+                          </div>
+                          {!activeIntent.liveMode && (
+                            <button
+                              type="button"
+                              disabled={instantSimulating}
+                              onClick={handleSimulateXenditQr}
+                              className="btn btn-primary btn-sm"
+                              style={{ marginTop: '2px', borderRadius: '8px', padding: '8px 14px', display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.76rem' }}
+                            >
+                              <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>
+                                {instantSimulating ? 'hourglass_top' : 'qr_code_scanner'}
+                              </span>
+                              <span>{instantSimulating ? 'Calling Xendit Test API & Notarizing…' : 'Simulate Xendit QR Ph Scan (Test Mode)'}</span>
+                            </button>
+                          )}
+                        </div>
+                      ) : activeIntent.checkoutUrl ? (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                           <a
                             href={activeIntent.checkoutUrl}
@@ -6228,7 +6286,7 @@ export default function CampaignCard(props) {
                             Waiting for automatic {activeIntent.provider === 'xendit' ? 'Xendit' : 'PayMongo'} payment confirmation…
                           </div>
                         </div>
-                      )}
+                      ) : null}
 
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <button

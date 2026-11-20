@@ -6729,17 +6729,12 @@ app.post('/api/payments/checkout-session', async (req, res) => {
 
     const origin = req.headers.origin || 'http://localhost:5173';
     const session = useXendit
-      ? await xenditService.createInvoice({
+      ? await xenditService.createDynamicQrPh({
           intentId,
           trackingCode,
           campaignId,
-          campaignTitle: camp.Campaign_Title,
           amountPhp,
-          paymentMethod: cleanMethod,
-          donorEmail: resolvedEmail,
-          donorName: resolvedName,
-          successUrl: `${origin}/?payment_status=success&intent=${intentId}`,
-          failureUrl: `${origin}/?payment_status=cancelled&intent=${intentId}`
+          paymentMethod: cleanMethod
         })
       : await paymongoService.createCheckoutSession({
           intentId,
@@ -6762,9 +6757,12 @@ app.post('/api/payments/checkout-session', async (req, res) => {
     res.json({
       intentId,
       trackingCode,
-      provider: session.provider, // 'paymongo' | 'sandbox'
+      provider: session.provider, // 'xendit_qrph' | 'paymongo'
       sessionId: session.sessionId,
-      checkoutUrl: session.checkoutUrl,
+      qrString: session.qrString || null,
+      expiresAt: session.expiresAt || null,
+      liveMode: Boolean(session.liveMode),
+      checkoutUrl: session.checkoutUrl || null,
       amountPhp,
       paymentMethod: cleanMethod,
       campaignTitle: camp.Campaign_Title
@@ -6830,24 +6828,27 @@ app.post('/api/webhooks/xendit', async (req, res) => {
     }
 
     const body = req.body || {};
-    const status = String(body.status || '').toUpperCase();
-    const invoiceId = body.id || null;
-    const externalId = String(body.external_id || '');
-    const metadata = body.metadata || {};
+    // Support both Xendit Dynamic QR Ph (`event === 'qr.payment'`) and Invoices (`status === 'PAID'`)
+    const isQrEvent = body.event === 'qr.payment' && body.data;
+    const qrData = isQrEvent ? body.data : null;
+    const status = String((qrData ? qrData.status : body.status) || '').toUpperCase();
+    const sessionId = (qrData ? qrData.qr_id : body.id) || null;
+    const externalId = String((qrData ? qrData.reference_id : body.external_id) || '');
+    const metadata = (qrData ? qrData.metadata : body.metadata) || {};
 
-    if (status === 'PAID' || status === 'SETTLED') {
+    if (status === 'PAID' || status === 'SETTLED' || status === 'SUCCEEDED') {
       let rows = [];
       if (metadata.intent_id) {
         [rows] = await db.query('SELECT * FROM PAYMENT_INTENT WHERE Intent_ID = ?', [Number(metadata.intent_id)]);
-      } else if (invoiceId) {
-        [rows] = await db.query('SELECT * FROM PAYMENT_INTENT WHERE Gateway_Session_ID = ?', [invoiceId]);
+      } else if (sessionId) {
+        [rows] = await db.query('SELECT * FROM PAYMENT_INTENT WHERE Gateway_Session_ID = ?', [sessionId]);
       } else if (externalId) {
         const trackingPart = externalId.split('-I')[0];
         [rows] = await db.query('SELECT * FROM PAYMENT_INTENT WHERE Tracking_Code = ?', [trackingPart]);
       }
 
       if (rows && rows.length > 0) {
-        const result = await settleGatewayIntent(rows[0], invoiceId || externalId);
+        const result = await settleGatewayIntent(rows[0], (qrData && qrData.id) || sessionId || externalId);
         return res.json({ received: true, settled: true, ...result });
       }
     }
@@ -6859,7 +6860,29 @@ app.post('/api/webhooks/xendit', async (req, res) => {
   }
 });
 
-// 4. Poll Payment Intent Status (also live-syncs Xendit Invoice API so localhost works without a tunnel!)
+// 3C. Official Xendit Test-Mode QR Ph Scan Simulator (strictly disabled in Live Mode)
+app.post('/api/payments/xendit-qrph/simulate/:intentId', async (req, res) => {
+  try {
+    if (!xenditService.isXenditConfigured() || xenditService.isXenditLive()) {
+      return res.status(403).json({ error: 'QR Ph test simulation is only available in Xendit Test Mode.' });
+    }
+    const intentId = Number(req.params.intentId);
+    const [rows] = await db.query('SELECT * FROM PAYMENT_INTENT WHERE Intent_ID = ?', [intentId]);
+    if (!rows || rows.length === 0) return res.status(404).json({ error: 'Intent not found.' });
+    const intent = rows[0];
+    if (!intent.Gateway_Session_ID || !String(intent.Gateway_Session_ID).startsWith('qr_')) {
+      return res.status(400).json({ error: 'This intent is not a Xendit Dynamic QR Ph session.' });
+    }
+    const sim = await xenditService.simulateQrPhPayment(intent.Gateway_Session_ID, intent.Amount_Php);
+    const settled = await settleGatewayIntent(intent, sim.id || intent.Gateway_Session_ID);
+    res.json({ success: true, simulated: true, ...settled });
+  } catch (err) {
+    console.error('Xendit QR Ph simulate error:', err);
+    res.status(500).json({ error: err.message || 'Failed to simulate Xendit QR Ph payment.' });
+  }
+});
+
+// 4. Poll Payment Intent Status (also live-syncs Xendit QR Ph / Invoice API so localhost works without a tunnel!)
 app.get('/api/payments/intent/:intentId', async (req, res) => {
   try {
     const intentId = Number(req.params.intentId);
@@ -6873,11 +6896,21 @@ app.get('/api/payments/intent/:intentId', async (req, res) => {
     if (!rows || rows.length === 0) return res.status(404).json({ error: 'Intent not found.' });
     let row = rows[0];
 
-    if (row.Status === 'PENDING_PAYMENT' && row.Gateway_Session_ID && xenditService.isXenditConfigured() && !String(row.Gateway_Session_ID).startsWith('cs_')) {
-      const inv = await xenditService.getInvoice(row.Gateway_Session_ID);
-      if (inv && (String(inv.status).toUpperCase() === 'PAID' || String(inv.status).toUpperCase() === 'SETTLED')) {
-        const settled = await settleGatewayIntent(row, inv.id);
-        row = { ...row, Status: 'COMPLETED', Tx_Hash: settled.txHash };
+    if (row.Status === 'PENDING_PAYMENT' && row.Gateway_Session_ID && xenditService.isXenditConfigured()) {
+      const sid = String(row.Gateway_Session_ID);
+      if (sid.startsWith('qr_')) {
+        const payments = await xenditService.getQrPhPayments(sid);
+        const paid = payments.find((p) => String(p.status || '').toUpperCase() === 'SUCCEEDED');
+        if (paid) {
+          const settled = await settleGatewayIntent(row, paid.id || sid);
+          row = { ...row, Status: 'COMPLETED', Tx_Hash: settled.txHash };
+        }
+      } else if (!sid.startsWith('cs_')) {
+        const inv = await xenditService.getInvoice(sid);
+        if (inv && (String(inv.status).toUpperCase() === 'PAID' || String(inv.status).toUpperCase() === 'SETTLED')) {
+          const settled = await settleGatewayIntent(row, inv.id);
+          row = { ...row, Status: 'COMPLETED', Tx_Hash: settled.txHash };
+        }
       }
     }
 

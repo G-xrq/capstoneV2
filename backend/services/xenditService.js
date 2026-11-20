@@ -134,10 +134,113 @@ function verifyWebhookToken(callbackTokenHeader) {
   return { valid: true, mode: 'token_verified' };
 }
 
+/**
+ * Create an Embedded Dynamic QR Ph code via Xendit QR Codes API (ZERO redirect — renders directly inside BBDRTS modal).
+ * Works with GCash, Maya, BPI, BDO, UnionBank, and all QR Ph-compliant Philippine apps.
+ */
+async function createDynamicQrPh({
+  intentId,
+  trackingCode,
+  campaignId,
+  amountPhp,
+  paymentMethod = 'GCash'
+}) {
+  if (!isXenditConfigured()) {
+    throw new Error('XENDIT_SECRET_KEY is not configured in backend/.env');
+  }
+  const numericPhp = Math.max(1, Math.round(Number(amountPhp) || 0));
+  const payload = {
+    reference_id: `${trackingCode}-I${intentId}`,
+    type: 'DYNAMIC',
+    currency: 'PHP',
+    amount: numericPhp,
+    channel_code: 'QRPH',
+    metadata: {
+      intent_id: String(intentId),
+      tracking_code: String(trackingCode),
+      campaign_id: String(campaignId),
+      payment_method: String(paymentMethod)
+    }
+  };
+
+  const resp = await fetch(`${XENDIT_API_BASE}/qr_codes`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+      'api-version': '2022-07-31',
+      Authorization: authHeader()
+    },
+    body: JSON.stringify(payload)
+  });
+
+  const json = await resp.json().catch(() => ({}));
+  if (!resp.ok || !json?.id || !json?.qr_string) {
+    const detail = json?.message || json?.error_code || `Xendit QR Ph HTTP ${resp.status}`;
+    throw new Error(`Xendit Dynamic QR Ph error: ${detail}`);
+  }
+
+  return {
+    provider: 'xendit_qrph',
+    sessionId: json.id,
+    qrString: json.qr_string,
+    expiresAt: json.expires_at || null,
+    checkoutUrl: null,
+    amountPhp: numericPhp,
+    status: json.status || 'ACTIVE',
+    liveMode: isXenditLive()
+  };
+}
+
+/**
+ * Fetch payments made against a Xendit Dynamic QR Ph code.
+ */
+async function getQrPhPayments(qrId) {
+  if (!isXenditConfigured() || !qrId) return [];
+  const resp = await fetch(`${XENDIT_API_BASE}/qr_codes/${encodeURIComponent(qrId)}/payments`, {
+    method: 'GET',
+    headers: {
+      Accept: 'application/json',
+      'api-version': '2022-07-31',
+      Authorization: authHeader()
+    }
+  });
+  if (!resp.ok) return [];
+  const json = await resp.json().catch(() => ({}));
+  return Array.isArray(json?.data) ? json.data : [];
+}
+
+/**
+ * Trigger Xendit's official Test-Mode QR Ph payment simulation (strictly disabled in Live Mode).
+ */
+async function simulateQrPhPayment(qrId, amountPhp) {
+  if (!isXenditConfigured() || isXenditLive()) {
+    throw new Error('QR Ph simulation is only available in Xendit Test Mode.');
+  }
+  const resp = await fetch(`${XENDIT_API_BASE}/qr_codes/${encodeURIComponent(qrId)}/payments/simulate`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+      'api-version': '2022-07-31',
+      Authorization: authHeader()
+    },
+    body: JSON.stringify({ amount: Math.max(1, Math.round(Number(amountPhp) || 0)) })
+  });
+  const json = await resp.json().catch(() => ({}));
+  if (!resp.ok) {
+    throw new Error(json?.message || `Xendit QR simulate HTTP ${resp.status}`);
+  }
+  return json;
+}
+
 module.exports = {
   isXenditConfigured,
   isXenditLive,
   createInvoice,
   getInvoice,
+  createDynamicQrPh,
+  getQrPhPayments,
+  simulateQrPhPayment,
   verifyWebhookToken
 };
