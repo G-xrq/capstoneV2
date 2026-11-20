@@ -1450,22 +1450,17 @@ body.has-modal-open .bbdrts-copilot-trigger-btn {
   .bbdrts-copilot-window.expanded {
     overscroll-behavior: contain;
     touch-action: pan-y;
+    z-index: 10050;
     bottom: 0;
     right: 0;
     left: 0;
-    top: 60px;
+    top: 0;
     width: 100%;
     max-width: 100%;
-    height: calc(100dvh - 60px);
-    max-height: calc(100dvh - 60px);
+    height: 100dvh;
+    max-height: 100dvh;
     border-radius: 0;
     border: none;
-    border-top: 1px solid #262626;
-  }
-
-  [data-theme="light"] .bbdrts-copilot-window,
-  [data-theme="light"] .bbdrts-copilot-window.expanded {
-    border-top-color: #e4e4e7;
   }
 
   .bbdrts-copilot-trigger-btn {

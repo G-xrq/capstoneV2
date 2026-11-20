@@ -39,15 +39,53 @@ export default function Header({
     if (!dbUser) setMobileSidebarOpen(false);
   }, [dbUser]);
 
-  // Lock background page scroll while public mobile navigation drawer is open
+  const [activeLandingSection, setActiveLandingSection] = useState('home');
+
+  // Track which landing page section the user is currently viewing (scroll-spy for desktop & mobile nav)
+  useEffect(() => {
+    if (dbUser || showAuth || typeof window === 'undefined') return;
+
+    const updateActiveSection = () => {
+      if (window.scrollY < 140) {
+        setActiveLandingSection('home');
+        return;
+      }
+      const sections = [
+        { id: 'how-it-works', key: 'transparency' },
+        { id: 'payment-rails', key: 'transparency' },
+        { id: 'faq', key: 'transparency' },
+        { id: 'campaigns', key: 'campaigns' },
+        { id: 'radar-heatmap', key: 'radar' }
+      ];
+      let matched = 'home';
+      let bestTop = -Infinity;
+      for (const sec of sections) {
+        const el = document.getElementById(sec.id);
+        if (!el) continue;
+        const top = el.getBoundingClientRect().top;
+        if (top <= 160 && top > bestTop) {
+          bestTop = top;
+          matched = sec.key;
+        }
+      }
+      setActiveLandingSection(matched);
+    };
+
+    updateActiveSection();
+    window.addEventListener('scroll', updateActiveSection, { passive: true });
+    window.addEventListener('resize', updateActiveSection, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', updateActiveSection);
+      window.removeEventListener('resize', updateActiveSection);
+    };
+  }, [dbUser, showAuth]);
+
+  // Lock background scroll without breaking sticky header (never set overflow:hidden on documentElement)
   useEffect(() => {
     if (!mobileMenuOpen || dbUser || typeof window === 'undefined') return;
-    const prevHtml = document.documentElement.style.overflow;
     const prevBody = document.body.style.overflow;
-    document.documentElement.style.overflow = 'hidden';
     document.body.style.overflow = 'hidden';
     return () => {
-      document.documentElement.style.overflow = prevHtml;
       document.body.style.overflow = prevBody;
     };
   }, [mobileMenuOpen, dbUser]);
@@ -256,7 +294,11 @@ export default function Header({
               <nav aria-label="Main Navigation" className="bbdrts-public-nav-wrap bbdrts-desktop-nav">
                 <ul className="bbdrts-nav-menu">
                   <li className="bbdrts-nav-item">
-                    <button type="button" className="bbdrts-nav-link" onClick={handleHomeClick}>
+                    <button
+                      type="button"
+                      className={`bbdrts-nav-link ${!showAuth && activeLandingSection === 'home' ? 'active' : ''}`}
+                      onClick={handleHomeClick}
+                    >
                       <span>Home</span>
                     </button>
                   </li>
@@ -269,7 +311,7 @@ export default function Header({
                   >
                     <button
                       type="button"
-                      className={`bbdrts-nav-link ${activeDropdown === 'campaigns' ? 'active' : ''}`}
+                      className={`bbdrts-nav-link ${activeDropdown === 'campaigns' || (!showAuth && activeLandingSection === 'campaigns') ? 'active' : ''}`}
                       onClick={() => handleCampaignsClick('ALL')}
                     >
                       <span>Campaigns</span>
@@ -343,7 +385,11 @@ export default function Header({
                   </li>
 
                   <li className="bbdrts-nav-item">
-                    <button type="button" className="bbdrts-nav-link" onClick={handleRadarClick}>
+                    <button
+                      type="button"
+                      className={`bbdrts-nav-link ${!showAuth && activeLandingSection === 'radar' ? 'active' : ''}`}
+                      onClick={handleRadarClick}
+                    >
                       <span>Radar</span>
                       <span className="bbdrts-nav-live-dot" title="Live PAGASA Doppler Telemetry" />
                     </button>
@@ -357,7 +403,7 @@ export default function Header({
                   >
                     <button
                       type="button"
-                      className={`bbdrts-nav-link ${activeDropdown === 'transparency' ? 'active' : ''}`}
+                      className={`bbdrts-nav-link ${activeDropdown === 'transparency' || (!showAuth && activeLandingSection === 'transparency') ? 'active' : ''}`}
                       onClick={() => setActiveDropdown(prev => prev === 'transparency' ? null : 'transparency')}
                     >
                       <span>Transparency</span>
@@ -748,11 +794,19 @@ export default function Header({
           <div className="bbdrts-mobile-drawer open">
             {!dbUser ? (
               <>
-                <button type="button" className="bbdrts-mobile-nav-link" onClick={handleHomeClick}>
+                <button
+                  type="button"
+                  className={`bbdrts-mobile-nav-link ${!showAuth && activeLandingSection === 'home' ? 'active' : ''}`}
+                  onClick={handleHomeClick}
+                >
                   <span className="material-symbols-outlined">home</span>
                   <span>Home</span>
                 </button>
-                <button type="button" className="bbdrts-mobile-nav-link" onClick={handleRadarClick}>
+                <button
+                  type="button"
+                  className={`bbdrts-mobile-nav-link ${!showAuth && activeLandingSection === 'radar' ? 'active' : ''}`}
+                  onClick={handleRadarClick}
+                >
                   <span className="material-symbols-outlined">radar</span>
                   <span>Relief Radar</span>
                   <span className="bbdrts-nav-live-dot" style={{ marginLeft: 'auto', background: '#10b981', boxShadow: '0 0 8px rgba(16, 185, 129, 0.7)' }} />
@@ -760,7 +814,11 @@ export default function Header({
 
                 <div className="bbdrts-mobile-nav-group">
                   <div className="bbdrts-mobile-group-title">Campaigns</div>
-                  <button type="button" className="bbdrts-mobile-nav-link" onClick={() => handleCampaignsClick('ALL')}>
+                  <button
+                    type="button"
+                    className={`bbdrts-mobile-nav-link ${!showAuth && activeLandingSection === 'campaigns' ? 'active' : ''}`}
+                    onClick={() => handleCampaignsClick('ALL')}
+                  >
                     <span className="material-symbols-outlined">grid_view</span>
                     <span>All Active Operations</span>
                   </button>
@@ -801,7 +859,11 @@ export default function Header({
                     <span className="material-symbols-outlined">receipt_long</span>
                     <span>Sepolia Public Ledger ↗</span>
                   </a>
-                  <button type="button" className="bbdrts-mobile-nav-link" onClick={handleHowItWorksClick}>
+                  <button
+                    type="button"
+                    className={`bbdrts-mobile-nav-link ${!showAuth && activeLandingSection === 'transparency' ? 'active' : ''}`}
+                    onClick={handleHowItWorksClick}
+                  >
                     <span className="material-symbols-outlined">schema</span>
                     <span>How Escrow Works</span>
                   </button>
