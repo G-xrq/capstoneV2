@@ -2244,35 +2244,12 @@ export default function OrganizationView({
 
     const ethEquivalent = (parsedPhp / 170000).toFixed(6);
 
-    // MetaMask requirement check: only enforced in production / live environments
-    if (!isLocalhost && !contract) {
-      return setTxModal({
-        show: true,
-        step: 0,
-        error: 'ACTION BLOCKED: You are not actively connected to MetaMask on this specific wallet address. Please go to Profile & Settings and click Connect MetaMask.'
-      });
-    }
-
-    const shouldBypassMetaMask = isLocalhost && (!contract || bypassMetaMaskLocal);
-
     try {
       setCreating(true);
-      let deployedHash = '';
-
-      if (shouldBypassMetaMask) {
-        deployedHash = `0xlocal_${Date.now()}_${Math.random().toString(16).substring(2, 10)}`;
-        setTxModal({ show: true, step: 1, hash: '', type: 'CREATE', error: '', isLocal: true });
-        await new Promise(r => setTimeout(r, 350));
-        setTxModal({ show: true, step: 2, hash: deployedHash, type: 'CREATE', error: '', isLocal: true });
-        await new Promise(r => setTimeout(r, 400));
-      } else {
-        const targetInWei = ethers.parseEther(ethEquivalent.toString());
-        setTxModal({ show: true, step: 1, hash: '', type: 'CREATE', error: '', isLocal: false });
-        const tx = await contract.createCampaign(title.trim(), targetInWei);
-        setTxModal({ show: true, step: 2, hash: tx.hash, type: 'CREATE', error: '', isLocal: false });
-        await tx.wait();
-        deployedHash = tx.hash;
-      }
+      let deployedHash = `BBDRTS-CAMP-${Date.now()}`;
+      setTxModal({ show: true, step: 1, hash: '', type: 'CREATE', error: '', isLocal: true });
+      await new Promise(r => setTimeout(r, 250));
+      setTxModal({ show: true, step: 2, hash: deployedHash, type: 'CREATE', error: '', isLocal: true });
 
       try {
         const token = localStorage.getItem('bbdrts_token');
@@ -2298,7 +2275,7 @@ export default function OrganizationView({
           targetAmount: ethEquivalent,
           target_amount_php: parsedPhp,
           targetAmountPhp: parsedPhp,
-          contract_address: (contract && Object(contract).target) ? Object(contract).target : '0xLocalSimulatedContract',
+          contract_address: '0xB8Effb4f0394946a01da9C5342fC2e70c1E99ddA',
           category: category,
           tags: selectedTags.join(', '),
           location_region: finalLocationRegion,
@@ -2344,15 +2321,17 @@ export default function OrganizationView({
           body: JSON.stringify(payload)
         });
 
+        const resData = await res.json().catch(() => ({}));
         if (!res.ok) {
-          const errData = await res.json().catch(() => ({}));
-          console.warn("Backend campaign sync notice:", errData);
+          throw new Error(resData.error || 'Failed to publish relief campaign.');
         }
+        if (resData.txHash) deployedHash = resData.txHash;
       } catch (err) {
         console.error("Failed to sync campaign to backend:", err);
+        throw err;
       }
 
-      setTxModal({ show: true, step: 3, hash: deployedHash, type: 'CREATE', error: '', isLocal: shouldBypassMetaMask });
+      setTxModal({ show: true, step: 3, hash: deployedHash, type: 'CREATE', error: '', isLocal: !String(deployedHash).startsWith('0x') });
       setTitle('');
       setTargetAmount('');
       setLocationRegion('');
@@ -2642,8 +2621,9 @@ export default function OrganizationView({
                           </span>
                           <span>{currentUser?.verification_status === 'Approved' ? 'SEC accredited' : 'Accreditation pending'}</span>
                         </span>
-                        <span>
-                          Wallet&nbsp;<code className="db-code">{shortAddr(walletAddress)}</code>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                          <span className="material-symbols-outlined" style={{ fontSize: '13px', color: '#10b981' }}>verified_user</span>
+                          <span>Gasless Sepolia Audit Active</span>
                         </span>
                       </div>
                     </div>
@@ -2659,7 +2639,7 @@ export default function OrganizationView({
                       <span className="db-impact-unit">PHP</span>
                     </div>
                     <div className="db-impact-sub">
-                      ≈ {totalRaisedByMe.toFixed(4)} ETH on-chain value · {myCampaigns.length} operation{myCampaigns.length !== 1 ? 's' : ''}
+                      Gasless Sepolia notarized · {myCampaigns.length} operation{myCampaigns.length !== 1 ? 's' : ''}
                     </div>
                   </div>
                 </div>
@@ -2759,7 +2739,7 @@ export default function OrganizationView({
                     ₱{(totalRaisedByMe * 170000).toLocaleString('en-US', { maximumFractionDigits: 0 })}
                   </div>
                   <p className="dbo-metric-caption">
-                    <span>Combined Multi-Rail Total (≈ {totalRaisedByMe.toFixed(4)} ETH)</span>
+                    <span>Combined Multi-Rail Total · Sepolia Notarized</span>
                   </p>
                 </div>
 
@@ -4174,8 +4154,7 @@ export default function OrganizationView({
                             </div>
                             {targetAmount && !isNaN(parseFloat(targetAmount)) && parseFloat(targetAmount) > 0 && (
                               <div style={{ marginTop: '4px', fontSize: '0.74rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                <span>≈ {(parseFloat(targetAmount) / 170000).toFixed(5)} ETH</span>
-                                <span>(Crypto Protocol Equivalent)</span>
+                                <span>PHP Goal · Automatically tracked on Sepolia audit ledger</span>
                               </div>
                             )}
                           </div>
@@ -6323,10 +6302,10 @@ export default function OrganizationView({
                   <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#10b981' }}>payments</span>
                 </div>
                 <div style={{ fontSize: '1.45rem', fontWeight: 800, color: '#ededed', fontFamily: 'var(--font-mono, monospace)', letterSpacing: '-0.02em' }}>
-                  {totalRaisedByMe.toFixed(4)} <span style={{ fontSize: '0.80rem', color: '#888888' }}>ETH</span>
+                  ₱{(totalRaisedByMe * 170000).toLocaleString('en-US', { maximumFractionDigits: 0 })} <span style={{ fontSize: '0.80rem', color: '#888888' }}>PHP</span>
                 </div>
                 <div style={{ fontSize: '0.74rem', color: '#10b981', fontWeight: 500 }}>
-                  ≈ ₱{(totalRaisedByMe * 170000).toLocaleString('en-US', { maximumFractionDigits: 0 })} PHP Total
+                  Gasless Sepolia Audited Total
                 </div>
               </div>
 
@@ -6355,10 +6334,10 @@ export default function OrganizationView({
                   <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#a78bfa' }}>account_balance_wallet</span>
                 </div>
                 <div style={{ fontSize: '1.45rem', fontWeight: 800, color: '#ededed', fontFamily: 'var(--font-mono, monospace)', letterSpacing: '-0.02em' }}>
-                  {ledgerTelemetry.railCounts.eth} Crypto · {ledgerTelemetry.railCounts.gcash + ledgerTelemetry.railCounts.maya + ledgerTelemetry.railCounts.bank} Fiat
+                  {ledgerTelemetry.railCounts.gcash + ledgerTelemetry.railCounts.maya + ledgerTelemetry.railCounts.bank} <span style={{ fontSize: '0.80rem', color: '#888888' }}>PHP Gifts</span>
                 </div>
                 <div style={{ fontSize: '0.74rem', color: '#888888' }}>
-                  GCash ({ledgerTelemetry.railCounts.gcash}) · Maya ({ledgerTelemetry.railCounts.maya}) · Bank ({ledgerTelemetry.railCounts.bank})
+                  GCash ({ledgerTelemetry.railCounts.gcash}) · Maya ({ledgerTelemetry.railCounts.maya}) · Bank/Card ({ledgerTelemetry.railCounts.bank})
                 </div>
               </div>
 
@@ -6491,7 +6470,7 @@ export default function OrganizationView({
                           <th style={{ padding: '8px 16px', textAlign: 'left', width: '20%' }}>Donor Identity</th>
                           <th style={{ padding: '8px 16px', textAlign: 'left', width: '24%' }}>Relief Campaign</th>
                           <th style={{ padding: '8px 16px', textAlign: 'left', width: '14%' }}>Payment Rail</th>
-                          <th style={{ padding: '8px 16px', textAlign: 'left', width: '15%' }}>Amount (ETH / PHP)</th>
+                          <th style={{ padding: '8px 16px', textAlign: 'left', width: '15%' }}>Amount (PHP)</th>
                           <th style={{ padding: '8px 16px', textAlign: 'center', width: '15%' }}>AI OCR Status</th>
                           <th style={{ padding: '8px 16px', textAlign: 'right', width: '12%' }}>Review Action</th>
                         </tr>
@@ -6559,10 +6538,10 @@ export default function OrganizationView({
                               <td style={{ padding: '14px 16px', verticalAlign: 'middle' }}>
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                                   <span style={{ color: '#16a34a', fontWeight: 850, fontSize: '0.94rem', letterSpacing: '-0.01em' }}>
-                                    {parseFloat(d.Amount).toFixed(4)} <span style={{ fontSize: '0.76rem' }}>ETH</span>
+                                    ₱{Math.round(parseFloat(d.Amount) * 170000).toLocaleString('en-US')} <span style={{ fontSize: '0.76rem' }}>PHP</span>
                                   </span>
-                                  <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600 }}>
-                                    ≈ ₱{(parseFloat(d.Amount) * 170000).toLocaleString('en-US')} PHP
+                                  <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 500 }}>
+                                    Awaiting NGO check
                                   </span>
                                 </div>
                               </td>
@@ -6815,8 +6794,7 @@ export default function OrganizationView({
                 { key: 'ALL', label: 'All Receipts', count: (orgDonations || []).length },
                 { key: 'GCASH', label: 'GCash', count: ledgerTelemetry?.railCounts?.gcash || 0 },
                 { key: 'MAYA', label: 'Maya', count: ledgerTelemetry?.railCounts?.maya || 0 },
-                { key: 'BANK', label: 'Card & Bank', count: ledgerTelemetry?.railCounts?.bank || 0 },
-                { key: 'ETH', label: 'Sepolia ETH', count: ledgerTelemetry?.railCounts?.eth || 0 }
+                { key: 'BANK', label: 'Card & Bank', count: ledgerTelemetry?.railCounts?.bank || 0 }
               ].map(rail => {
                 const isActive = ledgerRailFilter === rail.key;
                 return (
@@ -7284,10 +7262,10 @@ export default function OrganizationView({
                           letterSpacing: '-0.02em',
                           fontFamily: 'var(--font-mono)'
                         }}>
-                          {isFiat ? `+₱${phpVal.toLocaleString('en-US')}` : `+${ethVal} ETH`}
+                          +₱{phpVal.toLocaleString('en-US')}
                         </div>
                         <div style={{ fontSize: '0.74rem', color: '#888888', fontWeight: 500, marginTop: '2px' }}>
-                          {isFiat ? `≈ ${ethVal} ETH on-chain` : `≈ ₱${phpVal.toLocaleString('en-US')} PHP`}
+                          Sepolia Audited
                         </div>
                         {hasVariance && (
                           <div style={{
@@ -7520,7 +7498,7 @@ export default function OrganizationView({
                               )}
                             </td>
                             <td style={{ padding: '12px 14px', color: '#888888', fontSize: '0.75rem' }}>
-                              {isFiat ? `≈ ${ethVal} ETH on-chain` : `≈ ₱${phpVal.toLocaleString('en-US')} PHP`}
+                              Sepolia Audited
                             </td>
                             <td style={{ padding: '12px 14px', textAlign: 'right' }}>
                               <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
@@ -8807,7 +8785,7 @@ export default function OrganizationView({
                       ₱{Number(aiBudgetResult.totalBudgetPhp).toLocaleString()}
                     </div>
                     <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary, #a3a3a3)', marginTop: '2px' }}>
-                      ≈ {aiBudgetResult.totalBudgetEth} ETH
+                      PHP Recommended Target
                     </div>
                   </div>
 
@@ -8969,12 +8947,10 @@ export default function OrganizationView({
               <div className="fade-in" style={{ textAlign: 'center', padding: '40px 0' }}>
                 <div className="spinner" style={{ width: '40px', height: '40px', margin: '0 auto 20px', borderColor: 'var(--primary)', borderRightColor: 'transparent' }}></div>
                 <h3 style={{ marginBottom: '8px', color: 'var(--text)' }}>
-                  {txModal.isLocal ? 'Preparing Campaign' : 'Awaiting Signature'}
+                  Publishing Campaign
                 </h3>
                 <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-                  {txModal.isLocal
-                    ? 'Initializing relief campaign in local development database...'
-                    : 'Please open MetaMask and securely sign the transaction to deploy your new campaign.'}
+                  Validating campaign quota and preparing gasless Sepolia audit registration…
                 </p>
               </div>
             )}
@@ -8983,12 +8959,10 @@ export default function OrganizationView({
               <div className="fade-in" style={{ textAlign: 'center', padding: '40px 0' }}>
                 <div className="spinner" style={{ width: '40px', height: '40px', margin: '0 auto 20px', borderColor: 'var(--secondary)', borderRightColor: 'transparent' }}></div>
                 <h3 style={{ marginBottom: '8px', color: 'var(--text)' }}>
-                  {txModal.isLocal ? 'Saving to Database' : 'Deploying Campaign'}
+                  Activating Relief Drive
                 </h3>
                 <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginBottom: '20px' }}>
-                  {txModal.isLocal
-                    ? 'Registering relief campaign and allocation metrics on local server.'
-                    : 'Mining your structural contract across the Sepolia network.'}
+                  Saving campaign coordinates, payment channels, and audit proof…
                 </p>
                 <div style={{ padding: '10px', background: 'rgba(0,0,0,0.3)', borderRadius: '8px', fontSize: '0.75rem', wordBreak: 'break-all', border: '1px solid rgba(255,255,255,0.05)' }}>
                   <span style={{ color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>
@@ -9006,9 +8980,7 @@ export default function OrganizationView({
                 </div>
                 <h3 style={{ marginBottom: '8px', color: 'var(--text)' }}>Deployment Successful!</h3>
                 <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
-                  {txModal.isLocal
-                    ? 'Your relief campaign has been successfully deployed in Localhost Mode and saved to the database.'
-                    : 'Your relief campaign has been permanently deployed on the immutable blockchain.'}
+                  Your relief campaign is now live and accepting GCash, Maya, Card, and Bank donations with gasless Sepolia audit receipts.
                 </p>
                 <div style={{ margin: '24px 0', padding: '16px', background: 'rgba(0,0,0,0.2)', borderRadius: '8px', textAlign: 'left', border: '1px solid rgba(0,255,100,0.1)' }}>
                   <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '8px' }}>
@@ -9287,13 +9259,13 @@ export default function OrganizationView({
                             {isShortage ? 'Amount Credited (Altered)' : 'Amount Transferred'}
                           </div>
                           <div style={{ fontSize: '1.45rem', fontWeight: 850, color: isShortage ? '#ef4444' : 'var(--accent, #22c55e)' }}>
-                            {isFiat ? `+₱${amtPhp.toLocaleString('en-US')}` : `+${amtEth} ETH`}
+                            +₱{amtPhp.toLocaleString('en-US')} PHP
                           </div>
                         </div>
                         <div style={{ textAlign: 'right' }}>
-                          <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', fontWeight: 600 }}>{isFiat ? 'On-Chain Ledger Value' : 'Fiat Value (PHP)'}</div>
-                          <div style={{ fontSize: '1.2rem', fontWeight: 800, color: '#38bdf8' }}>
-                            {isFiat ? `≈ ${amtEth} ETH on Sepolia` : `≈ ₱${amtPhp.toLocaleString('en-US')}`}
+                          <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', fontWeight: 600 }}>Audit Verification</div>
+                          <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#38bdf8' }}>
+                            Gasless Sepolia Seal
                           </div>
                         </div>
                       </>
@@ -9554,9 +9526,6 @@ export default function OrganizationView({
                     <span style={{ fontSize: '0.72rem', color: '#888888', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Confirmed Value</span>
                     <span style={{ fontSize: '1.05rem', fontWeight: 700, color: '#10b981', fontFamily: 'var(--font-mono, monospace)' }}>
                       ₱{parseFloat(confirmedAmountPhp || 0).toLocaleString()} PHP
-                      <span style={{ fontSize: '0.75rem', color: '#888888', fontWeight: 500, marginLeft: '6px' }}>
-                        (≈ {((parseFloat(confirmedAmountPhp) || 0) / 170000).toFixed(6)} ETH)
-                      </span>
                     </span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -9717,9 +9686,6 @@ export default function OrganizationView({
                       <span style={{ color: '#888888', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Claimed Amount</span>
                       <span style={{ fontWeight: 700, color: '#10b981', fontFamily: 'var(--font-mono, monospace)' }}>
                         ₱{Math.round(parseFloat(verifyingDonation.Amount || 0) * 170000).toLocaleString()} PHP
-                        <span style={{ fontSize: '0.70rem', color: '#888888', fontWeight: 500, marginLeft: '5px' }}>
-                          ({parseFloat(verifyingDonation.Amount || 0).toFixed(4)} ETH)
-                        </span>
                       </span>
                     </div>
                   </div>
@@ -9800,11 +9766,11 @@ export default function OrganizationView({
                           </div>
                         )}
 
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '6px', fontSize: '0.72rem', color: '#888888', fontFamily: 'var(--font-mono, monospace)' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '6px', fontSize: '0.72rem', color: '#888888' }}>
                           <span>
-                            Minted to Campaign: <strong style={{ color: isLargeVariance ? '#f59e0b' : '#10b981' }}>{((parseFloat(confirmedAmountPhp) || 0) / 170000).toFixed(6)} ETH</strong>
+                            Credited to Campaign: <strong style={{ color: isLargeVariance ? '#f59e0b' : '#10b981' }}>₱{Math.round(parseFloat(confirmedAmountPhp) || 0).toLocaleString()} PHP</strong>
                           </span>
-                          <span>Rate: 1 ETH = ₱170,000</span>
+                          <span>Gasless Sepolia Notarization</span>
                         </div>
                       </div>
                     );

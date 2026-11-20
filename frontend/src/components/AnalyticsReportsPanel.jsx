@@ -25,9 +25,9 @@ const RANGE_OPTIONS = [
 
 const RAIL_COLORS = {
   'Bank / Card': 'var(--va-series-primary, #3291FF)',
-  'Sepolia ETH': 'var(--va-series-mono, #ededed)',
   GCash: '#10b981',
-  Maya: '#71717a'
+  Maya: '#a855f7',
+  'Legacy On-Chain': '#71717a'
 };
 
 export default function AnalyticsReportsPanel({ mode = 'admin', onNavigateTab }) {
@@ -142,7 +142,7 @@ export default function AnalyticsReportsPanel({ mode = 'admin', onNavigateTab })
     registered: Number(kpis.registeredDonors ?? kpis.totalDonors ?? 0),
     verified: Number(kpis.verifiedDonors || 0),
     registeredOnly: Number(kpis.registeredOnlyDonors || 0),
-    walletLinked: Number(kpis.walletVerifiedDonors || 0),
+    twoFactorEnabled: Number(kpis.twoFactorDonors || 0),
     contributing: Number(kpis.contributingDonors || 0),
     repeat: Number(kpis.repeatDonors || 0),
     verifiedRatePct: 0
@@ -152,7 +152,7 @@ export default function AnalyticsReportsPanel({ mode = 'admin', onNavigateTab })
     verified: Number(kpis.verifiedNgos ?? kpis.approvedOrgs ?? 0),
     pending: Number(kpis.pendingOrgs || 0),
     rejected: Number(kpis.rejectedOrgs || 0),
-    evmEnrolled: Number(kpis.evmEnrolledNgos || 0),
+    activeCampaignNgos: Number(kpis.activeCampaignNgos || 0),
     verifiedRatePct: 0
   };
   const supporterStats = analytics?.supporterStats || {
@@ -310,10 +310,9 @@ export default function AnalyticsReportsPanel({ mode = 'admin', onNavigateTab })
                     />
                   </div>
                   <div className="va-kpi-sub">
-                    <AnimatedNumber
-                      value={Number(kpis.totalMobilizedEth || 0)}
-                      format={(v) => `${v.toFixed(4)} ETH`}
-                    />
+                    {range === 'all'
+                      ? `${kpis.txCount || 0} verified donations`
+                      : `All-time ₱${Number(kpis.allTimeMobilizedPhp || 0).toLocaleString('en-US')}`}
                   </div>
                 </button>
 
@@ -441,7 +440,7 @@ export default function AnalyticsReportsPanel({ mode = 'admin', onNavigateTab })
                     key: r.rail,
                     label: r.rail,
                     value: r.php,
-                    meta: `${r.count} tx · ${r.eth} ETH`,
+                    meta: `${r.count} verified tx`,
                     displayValue: `₱${Number(r.php || 0).toLocaleString('en-US')}`,
                     color: RAIL_COLORS[r.rail]
                   }))}
@@ -549,7 +548,7 @@ export default function AnalyticsReportsPanel({ mode = 'admin', onNavigateTab })
                         Verified Donors
                       </span>
                       <strong>{donorStats.verified.toLocaleString('en-US')}</strong>
-                      <span className="va-eco-metric-sub">Wallet, 2FA, or donation verified</span>
+                      <span className="va-eco-metric-sub">2FA or verified donation</span>
                     </div>
                     <div className="va-eco-metric">
                       <span className="va-eco-metric-label">
@@ -562,7 +561,7 @@ export default function AnalyticsReportsPanel({ mode = 'admin', onNavigateTab })
                   </div>
 
                   <div className="va-eco-foot">
-                    <span>{donorStats.walletLinked} EVM wallets linked · {donorStats.contributing} active · {donorStats.repeat} repeat</span>
+                    <span>{donorStats.twoFactorEnabled || 0} with 2FA · {donorStats.contributing} active · {donorStats.repeat} repeat</span>
                   </div>
                 </div>
               )}
@@ -627,7 +626,7 @@ export default function AnalyticsReportsPanel({ mode = 'admin', onNavigateTab })
                   </div>
 
                   <div className="va-eco-foot va-eco-foot-split">
-                    <span>{ngoStats.evmEnrolled} approved NGOs on Sepolia EVM</span>
+                    <span>{ngoStats.verified} SEC-accredited · Gasless Sepolia audit active</span>
                     {onNavigateTab && (
                       <button type="button" className="va-card-action-link" onClick={() => onNavigateTab('approvals')}>
                         Review KYC
@@ -676,7 +675,7 @@ export default function AnalyticsReportsPanel({ mode = 'admin', onNavigateTab })
                         Verified Donors
                       </span>
                       <strong>{supporterStats.verifiedBackers.toLocaleString('en-US')}</strong>
-                      <span className="va-eco-metric-sub">Wallet / repeat</span>
+                      <span className="va-eco-metric-sub">2FA / repeat</span>
                     </div>
                     <div className="va-eco-metric">
                       <span className="va-eco-metric-label">
@@ -969,7 +968,7 @@ export default function AnalyticsReportsPanel({ mode = 'admin', onNavigateTab })
                     items={topContributors.map((d, i) => ({
                       key: `${d.name}-${i}`,
                       label: d.name,
-                      sub: `${d.count} donation${d.count === 1 ? '' : 's'} · ${d.eth} ETH`,
+                      sub: `${d.count} donation${d.count === 1 ? '' : 's'} · Sepolia verified`,
                       value: d.php,
                       badge: d.isAnonymous ? 'Anon' : `${d.count}×`
                     }))}

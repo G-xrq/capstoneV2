@@ -996,11 +996,10 @@ export function BadgeUpgradeModal({
  * Payment rail configuration for the Complete Ledger filter pills
  */
 export const LEDGER_RAILS = [
-  { id: 'ALL', label: 'All Rails', icon: 'hub', color: '#10b981', bg: 'rgba(16, 185, 129, 0.14)', glow: 'rgba(16, 185, 129, 0.25)' },
-  { id: 'CARD', label: 'Credit Card', icon: 'credit_card', color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.14)', glow: 'rgba(245, 158, 11, 0.25)' },
+  { id: 'ALL', label: 'All Channels', icon: 'hub', color: '#10b981', bg: 'rgba(16, 185, 129, 0.14)', glow: 'rgba(16, 185, 129, 0.25)' },
   { id: 'GCASH', label: 'GCash', icon: 'smartphone', color: '#0ea5e9', bg: 'rgba(14, 165, 233, 0.14)', glow: 'rgba(14, 165, 233, 0.25)' },
   { id: 'MAYA', label: 'Maya', icon: 'account_balance_wallet', color: '#00d68f', bg: 'rgba(0, 214, 143, 0.14)', glow: 'rgba(0, 214, 143, 0.25)' },
-  { id: 'ETH', label: 'Sepolia ETH', icon: 'token', color: '#8b5cf6', bg: 'rgba(139, 92, 246, 0.14)', glow: 'rgba(139, 92, 246, 0.25)' }
+  { id: 'CARD', label: 'Bank / Card', icon: 'credit_card', color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.14)', glow: 'rgba(245, 158, 11, 0.25)' }
 ];
 
 /**
@@ -1179,7 +1178,7 @@ export function DonorTierModal({
     const certText = `Verified Certificate of Appreciation\n` +
       `Donor: ${donorName}\n` +
       `Badge: ${activeTier ? activeTier.name : 'Community Contributor'}\n` +
-      `Total Donated: ₱${Math.round(totalPhp).toLocaleString('en-US')} (${effectiveEth.toFixed(4)} ETH)\n` +
+      `Total Donated: ₱${Math.round(totalPhp).toLocaleString('en-US')} PHP\n` +
       `Blockchain: Sepolia Ethereum\n` +
       `${isActualTx ? 'Latest Transaction Hash' : 'Wallet Address'}: ${displayHash}\n` +
       `Total Verified Donations: ${donorTransactions.length || 1} records\n` +
@@ -1299,7 +1298,7 @@ export function DonorTierModal({
 
                 <div className="donor-current-metric">
                   <div className="donor-metric-amt">₱{Math.round(totalPhp).toLocaleString('en-US')}</div>
-                  <div className="donor-metric-lbl">{effectiveEth.toFixed(4)} ETH Total Donated</div>
+                  <div className="donor-metric-lbl">Total Verified Relief</div>
                 </div>
               </div>
 
@@ -1352,7 +1351,7 @@ export function DonorTierModal({
                     <span className="material-symbols-outlined donor-kpi-icon">payments</span>
                   </div>
                   <div className="donor-kpi-val">₱{Math.round(totalPhp).toLocaleString('en-US')}</div>
-                  <div className="donor-kpi-sub">{effectiveEth.toFixed(4)} ETH disaster relief</div>
+                  <div className="donor-kpi-sub">Sepolia notarized relief</div>
                 </div>
 
                 <div className="donor-kpi-card">
@@ -1421,30 +1420,14 @@ export function DonorTierModal({
                         {activeTier ? activeTier.name : 'Community Contributor'}
                       </div>
                       <div className="donor-cert-society-meta">
-                        Total Donated: <strong>₱{Math.round(totalPhp).toLocaleString('en-US')}</strong> ({effectiveEth.toFixed(4)} ETH)
+                        Total Donated: <strong>₱{Math.round(totalPhp).toLocaleString('en-US')} PHP</strong>
                       </div>
                     </div>
                   </div>
 
                   <div className="donor-cert-footer-grid">
-                    {walletAddress && walletAddress !== '0x0000000000000000000000000000000000000000' && (
-                      <div className="donor-cert-col" style={{ textAlign: 'left' }}>
-                        <span className="donor-cert-meta-lbl">VERIFIED DONOR WALLET</span>
-                        <a
-                          href={`https://sepolia.etherscan.io/address/${walletAddress}`}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="donor-cert-hash-link"
-                          title="View Verified Wallet on Sepolia Etherscan"
-                        >
-                          {walletAddress.slice(0, 8)}...{walletAddress.slice(-6)}
-                          <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>open_in_new</span>
-                        </a>
-                      </div>
-                    )}
-
                     {isActualTx && (
-                      <div className="donor-cert-col" style={{ textAlign: walletAddress ? 'center' : 'left' }}>
+                      <div className="donor-cert-col" style={{ textAlign: 'left' }}>
                         <span className="donor-cert-meta-lbl">LATEST MINED TRANSACTION</span>
                         <a
                           href={`https://sepolia.etherscan.io/tx/${effectiveTxHash}`}
@@ -1678,7 +1661,6 @@ export function DonorTierModal({
                       {/* Right-aligned amounts */}
                       <div className="donor-ledger-amounts">
                         <div className="donor-ledger-php">₱{phpAmt.toLocaleString('en-US')}</div>
-                        <div className="donor-ledger-eth">({ethAmt.toFixed(4)} ETH)</div>
                       </div>
                     </div>
                   );
@@ -1758,7 +1740,7 @@ export function DonorTierModal({
                         </div>
                         <div className="donor-tier-row-sub">{t.subtitle}</div>
                         <div className="donor-tier-row-crit">
-                          ₱{t.minPhp.toLocaleString('en-US')}+ total donations ({t.minEth} ETH)
+                          ₱{t.minPhp.toLocaleString('en-US')}+ cumulative verified donations
                         </div>
                         <div className="donor-tier-row-desc">
                           {t.description}

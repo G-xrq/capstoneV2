@@ -4269,21 +4269,11 @@ const handleKycSubmission = async (req, res) => {
 app.post('/api/organization/kyc', authenticateToken, handleKycSubmission);
 app.post('/api/org/kyc-submit', authenticateToken, handleKycSubmission);
 
-// ── Routes: Update Wallet Address ─────────────────────────
+// ── Routes: Deprecated Wallet Linking (Replaced by Gasless Sepolia Relayer) ──
 app.post('/api/auth/wallet', authenticateToken, async (req, res) => {
-  const { wallet_address } = req.body;
-  if (wallet_address === undefined) return res.status(400).json({ error: 'Wallet address required.' });
-
-  const tableName = getRoleTable(req.user.role);
-  const idCol = getRoleIDColumn(req.user.role);
-  const targetAddress = wallet_address === '' ? null : wallet_address;
-
-  try {
-    await db.query(`UPDATE ${tableName} SET Wallet_Address = ? WHERE ${idCol} = ?`, [targetAddress, req.user.id]);
-    res.json({ message: 'Wallet address synchronized successfully.', wallet_address: targetAddress });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
+  res.status(410).json({
+    error: 'Personal cryptocurrency wallet linking has been retired. BBDRTS now records all verified PHP donations on Ethereum Sepolia gaslessly via our backend audit relayer.'
+  });
 });
 
 // ── Web3 Synchronization Routes ─────────────────────────────
@@ -4334,12 +4324,17 @@ app.post('/api/campaigns', authenticateToken, async (req, res) => {
     disaster_images
   } = req.body;
 
-  if (!title || !target_amount) return res.status(400).json({ error: 'Missing campaign data.' });
+  const parsedPhpGoal = parseFloat(target_amount_php);
+  const parsedLegacyTarget = parseFloat(target_amount);
+  if (!title || ((!parsedPhpGoal || parsedPhpGoal <= 0) && (!parsedLegacyTarget || parsedLegacyTarget <= 0))) {
+    return res.status(400).json({ error: 'Missing campaign title or PHP target goal.' });
+  }
 
   try {
     const rawImages = disaster_images_json || disaster_images || [];
     const serializedImages = typeof rawImages === 'string' ? rawImages : JSON.stringify(Array.isArray(rawImages) ? rawImages : []);
-    const targetPhpValue = target_amount_php ? parseFloat(target_amount_php) : Math.round(parseFloat(target_amount) * 170000);
+    const targetPhpValue = (parsedPhpGoal && parsedPhpGoal > 0) ? Math.round(parsedPhpGoal) : Math.round(parsedLegacyTarget * 170000);
+    const derivedTargetAmount = (parsedLegacyTarget && parsedLegacyTarget > 0) ? parsedLegacyTarget : Number((targetPhpValue / 170000).toFixed(6));
 
     await db.query(
       `INSERT INTO CAMPAIGN (
@@ -4375,7 +4370,7 @@ app.post('/api/campaigns', authenticateToken, async (req, res) => {
       [
         req.user.id,
         title,
-        target_amount,
+        derivedTargetAmount,
         targetPhpValue,
         contract_address || null,
         tags || '',
@@ -5268,7 +5263,7 @@ app.post('/api/manual-donations/:id/:action', authenticateToken, async (req, res
 
       res.json({
         success: true,
-        message: `Donation of ₱${parsedPhp.toLocaleString()} (${finalEth.toFixed(4)} ETH) verified and recorded to blockchain ledger.`,
+        message: `Donation of ₱${parsedPhp.toLocaleString()} verified and notarized on the Sepolia blockchain ledger.`,
         txHash: auditHash,
         amountPhp: parsedPhp,
         amountEth: finalEth
@@ -5327,6 +5322,9 @@ app.post('/api/manual-donations/:id/:action', authenticateToken, async (req, res
 });
 
 app.post('/api/donations', async (req, res) => {
+  return res.status(410).json({
+    error: 'Direct ETH / MetaMask donations have been retired. Please donate in Philippine Pesos via GCash, Maya, Bank Transfer, or Card — every verified gift is automatically notarized gaslessly on Ethereum Sepolia.'
+  });
   const maintGuard = await checkMaintenanceGuard('DONATIONS', req.user);
   if (maintGuard) return res.status(503).json(maintGuard);
 
@@ -5439,7 +5437,7 @@ app.get('/api/donations/me', authenticateToken, async (req, res) => {
         dt.Transaction_ID as id,
         dt.Tx_Hash as txHash,
         dt.Amount as amount,
-        COALESCE(dt.Payment_Method, 'ETH') as paymentMethod,
+        COALESCE(dt.Payment_Method, 'Legacy On-Chain') as paymentMethod,
         dt.Campaign_ID as campaignId,
         dt.Is_Anonymous as isAnonymous,
         c.Campaign_Title as campaignTitle,
@@ -5852,7 +5850,7 @@ async function loadCampaignsFromDb() {
         raised_php: Math.round(currentEth * 170000),
         target_php: (r.targetAmountPhp && parseFloat(r.targetAmountPhp) > 0) ? Math.round(parseFloat(r.targetAmountPhp)) : Math.round(parseFloat(r.targetAmount || 1) * 170000),
         orgName: r.orgName || 'BBDRTS Relief Foundation',
-        orgAddress: r.orgAddress || '0x206e022D47003B67Ee72bd67fDF2406d43aabC2C',
+        orgAddress: r.orgAddress || '',
         locationRegion: r.locationRegion || 'Southern Leyte, Philippines',
         gpsCoordinates: r.gpsCoordinates || '10.1335° N, 124.8732° E',
         beneficiariesImpact: r.beneficiariesImpact || 'Displaced Families & Affected Communities',
@@ -6093,7 +6091,7 @@ app.get('/api/donors/:identifier/transactions', async (req, res) => {
         dt.Transaction_ID as id,
         dt.Tx_Hash as txHash,
         dt.Amount as amount,
-        COALESCE(dt.Payment_Method, 'ETH') as paymentMethod,
+        COALESCE(dt.Payment_Method, 'Legacy On-Chain') as paymentMethod,
         dt.Campaign_ID as campaignId,
         dt.Is_Anonymous as isAnonymous,
         dt.Wallet_Address as walletAddress,
@@ -6286,15 +6284,15 @@ app.get('/api/leaderboard', async (req, res) => {
       const eth = parseFloat(w.totalDonatedEth) || 0;
       const wAddr = w.walletAddress ? w.walletAddress.toLowerCase().trim() : '';
       const isCurrent = authWallet && wAddr && authWallet === wAddr;
-      const shortAddr = wAddr ? `${wAddr.substring(0, 6)}...${wAddr.substring(wAddr.length - 4)}` : (w.donorId ? `Donor #${w.donorId}` : `Web3 Patron #${idx + 1}`);
+      const shortAddr = w.donorId ? `Donor #${w.donorId}` : `Supporter #${idx + 1}`;
       return {
         id: `unlinked-${w.donorId || idx}-${wAddr || 'anon'}`,
         donorId: w.donorId || null,
-        displayName: wAddr ? `Web3 Donor (${shortAddr})` : (w.donorId ? `Donor #${w.donorId}` : 'Anonymous Web3 Donor'),
+        displayName: w.donorId ? `Donor #${w.donorId}` : 'Verified Supporter',
         username: shortAddr,
         avatarUrl: '',
-        walletAddress: w.walletAddress || null,
-        location: 'Sepolia EVM Network',
+        walletAddress: null,
+        location: 'Philippines',
         bio: '',
         dedication: '',
         totalDonatedEth: parseFloat(eth.toFixed(5)),
@@ -6302,7 +6300,7 @@ app.get('/api/leaderboard', async (req, res) => {
         donationCount: parseInt(w.donationCount, 10) || 0,
         campaignsSupported: parseInt(w.campaignsSupported, 10) || 0,
         lastDonationDate: w.lastDonationDate,
-        topCause: 'On-Chain Relief Aid',
+        topCause: 'Verified Relief Aid',
         badge: calculateDonorTier(eth),
         isCurrentUser: Boolean(isCurrent)
       };
@@ -6850,7 +6848,7 @@ app.get('/api/donors/:identifier/transactions', async (req, res) => {
         dt.Transaction_ID as id,
         dt.Tx_Hash as txHash,
         dt.Amount as amount,
-        COALESCE(dt.Payment_Method, 'ETH') as paymentMethod,
+        COALESCE(dt.Payment_Method, 'Legacy On-Chain') as paymentMethod,
         dt.Campaign_ID as campaignId,
         dt.Is_Anonymous as isAnonymous,
         c.Campaign_Title as campaignTitle,
@@ -7218,7 +7216,7 @@ app.get('/api/admin/financial-ledger', authenticateToken, async (req, res) => {
         dt.Tx_Hash as txHash,
         dt.Amount as amountEth,
         ROUND(dt.Amount * 170000, 2) as amountPhp,
-        COALESCE(dt.Payment_Method, 'Sepolia ETH') as paymentMethod,
+        COALESCE(dt.Payment_Method, 'Legacy On-Chain') as paymentMethod,
         dt.Is_Anonymous as isAnonymous,
         COALESCE(dt.Wallet_Address, d.Wallet_Address, '') as wallet,
         COALESCE(d.Display_Name, d.Legal_Name, d.Name, 'Verified Donor') as donorName,
@@ -7479,8 +7477,8 @@ app.get('/api/notifications', async (req, res) => {
           userEmail,
           role: 'organization',
           type: 'SECURITY',
-          title: 'Treasury Wallet & Multi-Sig Escrow Active',
-          message: 'All campaign relief disbursements are protected via cryptographic smart contracts on Sepolia EVM.',
+          title: 'Gasless Blockchain Audit Trail Active',
+          message: 'All verified PHP donations and relief disbursements are notarized gaslessly on Ethereum Sepolia.',
           link: '#settings',
           createdAt: complianceTime
         });
@@ -8116,7 +8114,7 @@ app.get('/api/public/organizations/:id', async (req, res) => {
       stats: {
         totalCampaigns: campaignRows.length,
         totalRaisedEth: totalRaised.toFixed(4),
-        totalRaisedPhp: (totalRaised * 150000).toLocaleString('en-PH', { maximumFractionDigits: 0 })
+        totalRaisedPhp: Math.round(totalRaised * 170000).toLocaleString('en-PH', { maximumFractionDigits: 0 })
       }
     };
 
@@ -8533,6 +8531,7 @@ app.post(['/api/verify-receipt-ai', '/api/ai/inspect-receipt'], async (req, res)
   try {
     const { 
       receiptBase64, 
+      amountPhp,
       amountEth, 
       paymentMethod, 
       refNumber,
@@ -8540,9 +8539,10 @@ app.post(['/api/verify-receipt-ai', '/api/ai/inspect-receipt'], async (req, res)
       expectedRecipientPhone,
       expectedOrgName
     } = req.body || {};
+    const effectiveDeclaredAmt = amountPhp !== undefined && amountPhp !== null && amountPhp !== '' ? amountPhp : amountEth;
     
     // 1. Run AI Vision Audit with Recipient Credentials Cross-Check
-    const aiResult = await auditReceiptImage(receiptBase64, amountEth, paymentMethod, refNumber, {
+    const aiResult = await auditReceiptImage(receiptBase64, effectiveDeclaredAmt, paymentMethod, refNumber, {
       expectedRecipientName,
       expectedRecipientPhone,
       expectedOrgName

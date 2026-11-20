@@ -45,7 +45,7 @@ const MAINTENANCE_CATEGORIES = [
       },
       {
         id: 'DONATIONS',
-        label: 'Donation Gateway (Crypto Escrow & Manual Fiat)',
+        label: 'Donation Gateway (GCash, Maya, Card & Bank)',
         desc: 'Disable donation submission buttons and freeze escrow incoming contributions.',
         icon: 'payments'
       },

@@ -94,7 +94,7 @@ const getHeroStepDetails = (step, camp, raisedPhp, targetPhp, pct) => {
         stage: 'Step 1',
         status: 'Received',
         field1Label: 'Payment Rails',
-        field1Value: 'GCash · Maya · Bank · ETH',
+        field1Value: 'GCash · Maya · Bank · Card',
         field2Label: 'Recipient NGO',
         field2Value: orgName,
         isLedgerLink: false
@@ -818,7 +818,7 @@ export default function LandingView({
 
               {/* Lead Narrative */}
               <p className="bbdrts-hero-lead">
-                Support relief and charity campaigns across 82 Philippine provinces via GCash, Maya, bank, or ETH. Every peso is tracked publicly, and payouts require verified receipts and delivery photos.
+                Support relief and charity campaigns across 82 Philippine provinces via GCash, Maya, bank transfer, or card. Every verified peso is logged gaslessly on Ethereum Sepolia, and payouts require itemized receipts and delivery photos.
               </p>
 
               {/* Primary Action Buttons */}
@@ -1332,7 +1332,7 @@ export default function LandingView({
                 <li>
                   <span className="material-symbols-outlined icon-success">check_circle</span>
                   <div>
-                    <strong>Easy Ways to Donate:</strong> Donate using GCash, Maya, cards, bank transfer, or Sepolia ETH—all tracked clearly in one place.
+                    <strong>Everyday Filipino Payment Rails:</strong> Donate using GCash, Maya, cards, or Philippine bank transfer—automatically logged on-chain with zero crypto wallet required.
                   </div>
                 </li>
                 <li>
@@ -1695,7 +1695,7 @@ export default function LandingView({
               </div>
               <h3 className="bbdrts-step-title">Pick How to Pay</h3>
               <p className="bbdrts-step-desc">
-                Donate easily using GCash (QR Ph), Maya, Bank &amp; Credit Cards, or Ethereum Sepolia with 0% fees taken out.
+                Donate easily in Philippine Pesos using GCash (QR Ph), Maya, Credit/Debit Cards, or Bank Transfer with 0% platform fees.
               </p>
             </div>
 
@@ -1725,14 +1725,14 @@ export default function LandingView({
         </div>
       </section>
 
-      {/* ── 6. Payment Methods (GCash, Maya, Bank, Crypto) ── */}
+      {/* ── 6. Payment Methods & Gasless Blockchain Audit ── */}
       <section className="bbdrts-rails-section bbdrts-scroll-section" id="payment-rails">
         <div className="container">
           <div className="bbdrts-section-header-centered">
-            <div className="bbdrts-section-eyebrow">PAYMENT METHODS</div>
+            <div className="bbdrts-section-eyebrow">PAYMENT METHODS &amp; ON-CHAIN AUDIT</div>
             <h2 className="bbdrts-section-title">Pay Using Everyday Filipino Apps</h2>
             <p className="bbdrts-section-desc">
-              You don&apos;t need crypto to help. Donate using the same payment apps and banks Filipinos use every day.
+              Donate in Philippine Pesos using the apps and banks Filipinos use every day—while our gasless relayer anchors every verified record on Ethereum Sepolia.
             </p>
           </div>
 
@@ -1827,32 +1827,32 @@ export default function LandingView({
               </div>
             </div>
 
-            {/* Ethereum Web3 */}
+            {/* Gasless Blockchain Audit Layer */}
             <div className="bbdrts-rail-card crypto">
               <div className="bbdrts-rail-top">
                 <div className="bbdrts-rail-icon-box crypto">
-                  <span className="material-symbols-outlined">token</span>
+                  <span className="material-symbols-outlined">verified_user</span>
                 </div>
                 <div className="bbdrts-rail-identity">
                   <div className="bbdrts-rail-name-row">
                     <span className="bbdrts-rail-name">Sepolia EVM</span>
-                    <span className="bbdrts-rail-tag crypto">Blockchain</span>
+                    <span className="bbdrts-rail-tag crypto">Gasless Audit</span>
                   </div>
-                  <span className="bbdrts-rail-network">Direct Crypto Giving</span>
+                  <span className="bbdrts-rail-network">Automated On-Chain Relayer</span>
                 </div>
               </div>
-              <h4 className="bbdrts-rail-title">Direct Smart Contract</h4>
+              <h4 className="bbdrts-rail-title">Zero-Wallet Blockchain Proof</h4>
               <p className="bbdrts-rail-desc">
-                Send ETH directly via MetaMask. Funds route straight to the NGO&apos;s verified wallet and log publicly on Sepolia.
+                No cryptocurrency or wallet needed. Our gasless relayer automatically anchors every verified PHP gift and payout proof onto Ethereum Sepolia.
               </p>
               <div className="bbdrts-rail-features">
                 <div className="bbdrts-rail-feature-item">
                   <span className="material-symbols-outlined check-icon">check_circle</span>
-                  <span>Direct NGO wallet transfer</span>
+                  <span>Zero gas fees for donors &amp; NGOs</span>
                 </div>
                 <div className="bbdrts-rail-feature-item">
                   <span className="material-symbols-outlined check-icon">check_circle</span>
-                  <span>Open public record</span>
+                  <span>Publicly verifiable on Etherscan</span>
                 </div>
               </div>
               <div className="bbdrts-rail-footer">
@@ -1968,7 +1968,7 @@ export default function LandingView({
 
             <div className={`bbdrts-faq-item ${openFaqIndex === 1 ? 'open' : ''}`}>
               <button type="button" className="bbdrts-faq-question" onClick={() => toggleFaq(1)}>
-                <span>Can I donate using GCash or Maya without using crypto?</span>
+                <span>Do I need cryptocurrency or a digital wallet to donate?</span>
                 <span className="material-symbols-outlined faq-icon">
                   {openFaqIndex === 1 ? 'remove' : 'add'}
                 </span>
@@ -1976,7 +1976,7 @@ export default function LandingView({
               {openFaqIndex === 1 && (
                 <div className="bbdrts-faq-answer">
                   <p>
-                    <strong>Yes.</strong> You can donate using GCash (QR Ph), Maya, credit or debit cards, or Philippine bank transfers—no crypto wallet needed. Wallet donations check your uploaded slip before posting, while card and crypto payments record directly.
+                    <strong>No—100% of donations are in Philippine Pesos.</strong> You can donate using GCash (QR Ph), Maya, credit or debit cards, or Philippine bank transfers. Our gasless blockchain relayer automatically logs every verified donation onto Ethereum Sepolia for public auditing.
                   </p>
                 </div>
               )}

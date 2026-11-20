@@ -517,26 +517,7 @@ export default function Header({
               />
             )}
 
-            {/* Guest Wallet Connect */}
-            {!dbUser && !walletAddress && (
-              <button
-                type="button"
-                className="bbdrts-secondary-btn bbdrts-wallet-btn"
-                onClick={handleConnectWallet}
-                title="Connect Web3 Wallet (MetaMask / EVM)"
-              >
-                <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>account_balance_wallet</span>
-                <span>Connect Wallet</span>
-              </button>
-            )}
-
-            {/* Guest Wallet Connected Pill */}
-            {!dbUser && walletAddress && (
-              <div className="bbdrts-wallet-pill" title={`Connected to Sepolia EVM: ${walletAddress}`}>
-                <span className="bbdrts-status-dot" />
-                <span className="bbdrts-wallet-addr">{walletAddress.substring(0, 6)}…{walletAddress.substring(walletAddress.length - 4)}</span>
-              </div>
-            )}
+            {/* Gasless Sepolia audit runs automatically — no guest wallet button needed */}
 
             {/* Authenticated User Profile Hub */}
             {dbUser ? (
@@ -557,8 +538,8 @@ export default function Header({
                     </div>
                     <span
                       className="bbdrts-avatar-status-dot"
-                      style={{ background: walletAddress ? 'var(--accent)' : 'var(--warning)' }}
-                      title={walletAddress ? 'Web3 Wallet Connected' : 'Wallet Disconnected'}
+                      style={{ background: 'var(--accent)' }}
+                      title="Verified Session · Gasless Sepolia Audit Active"
                     />
                   </div>
                   <span className="bbdrts-profile-name">{userDisplayName}</span>
@@ -596,66 +577,46 @@ export default function Header({
                       </div>
                     </div>
 
-                    {walletAddress ? (
-                      <div className="bbdrts-dropdown-wallet-box">
-                        <div className="bbdrts-dropdown-wallet-status">
-                          <span className="bbdrts-status-dot-pulse" />
-                          <span className="bbdrts-dropdown-net-name">Sepolia Testnet</span>
-                          <span className="bbdrts-dropdown-chain-tag">11155111</span>
-                        </div>
-                        <div className="bbdrts-dropdown-addr-row">
-                          <span className="bbdrts-dropdown-addr-text" title={walletAddress}>
-                            {walletAddress.substring(0, 6)}…{walletAddress.substring(walletAddress.length - 4)}
-                          </span>
-                          <div className="bbdrts-dropdown-addr-actions">
-                            <button
-                              type="button"
-                              className={`bbdrts-dropdown-mini-btn ${copiedAddr ? 'copied' : ''}`}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                navigator.clipboard.writeText(walletAddress);
-                                setCopiedAddr(true);
-                                setTimeout(() => setCopiedAddr(false), 2000);
-                                showSuccess('Wallet address copied to clipboard.');
-                              }}
-                              title={copiedAddr ? 'Copied!' : 'Copy Wallet Address'}
-                            >
-                              <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>
-                                {copiedAddr ? 'check' : 'content_copy'}
-                              </span>
-                            </button>
-                            <a
-                              href={`https://sepolia.etherscan.io/address/${walletAddress}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="bbdrts-dropdown-mini-btn"
-                              title="View on Sepolia Etherscan"
-                              onClick={(e) => e.stopPropagation()}
-                            >
-                              <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>open_in_new</span>
-                            </a>
-                          </div>
+                    <div className="bbdrts-dropdown-wallet-box">
+                      <div className="bbdrts-dropdown-wallet-status">
+                        <span className="bbdrts-status-dot-pulse" />
+                        <span className="bbdrts-dropdown-net-name">Gasless Sepolia Audit</span>
+                        <span className="bbdrts-dropdown-chain-tag">11155111</span>
+                      </div>
+                      <div className="bbdrts-dropdown-addr-row">
+                        <span className="bbdrts-dropdown-addr-text" title={`Audit Contract: ${contractAddress}`}>
+                          {contractAddress.substring(0, 6)}…{contractAddress.substring(contractAddress.length - 4)}
+                        </span>
+                        <div className="bbdrts-dropdown-addr-actions">
+                          <button
+                            type="button"
+                            className={`bbdrts-dropdown-mini-btn ${copiedAddr ? 'copied' : ''}`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigator.clipboard.writeText(contractAddress);
+                              setCopiedAddr(true);
+                              setTimeout(() => setCopiedAddr(false), 2000);
+                              showSuccess('Audit contract address copied to clipboard.');
+                            }}
+                            title={copiedAddr ? 'Copied!' : 'Copy Sepolia Audit Contract'}
+                          >
+                            <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>
+                              {copiedAddr ? 'check' : 'content_copy'}
+                            </span>
+                          </button>
+                          <a
+                            href={`https://sepolia.etherscan.io/address/${contractAddress}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="bbdrts-dropdown-mini-btn"
+                            title="Inspect Audit Contract on Sepolia Etherscan"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>open_in_new</span>
+                          </a>
                         </div>
                       </div>
-                    ) : (
-                      <div className="bbdrts-dropdown-wallet-box disconnected">
-                        <div className="bbdrts-dropdown-wallet-status">
-                          <span className="bbdrts-status-dot" style={{ background: 'var(--warning)' }} />
-                          <span className="bbdrts-dropdown-net-name" style={{ color: 'var(--text-secondary)' }}>Wallet Not Linked</span>
-                        </div>
-                        <button
-                          type="button"
-                          className="bbdrts-dropdown-connect-btn"
-                          onClick={() => {
-                            setIsProfileOpen(false);
-                            handleConnectWallet();
-                          }}
-                        >
-                          <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>account_balance_wallet</span>
-                          <span>Connect MetaMask</span>
-                        </button>
-                      </div>
-                    )}
+                    </div>
 
                     <div className="bbdrts-dropdown-links">
                       <a href="#" className="bbdrts-dropdown-link" onClick={(e) => { e.preventDefault(); setShowSettingsModal(true); setIsProfileOpen(false); }}>
@@ -678,7 +639,7 @@ export default function Header({
                         </a>
                       )}
 
-                      <a href="https://sepolia.etherscan.io" target="_blank" rel="noopener noreferrer" className="bbdrts-dropdown-link">
+                      <a href={`https://sepolia.etherscan.io/address/${contractAddress}`} target="_blank" rel="noopener noreferrer" className="bbdrts-dropdown-link">
                         <span className="material-symbols-outlined bbdrts-dropdown-item-icon">receipt_long</span>
                         <span>Sepolia Etherscan ↗</span>
                       </a>
@@ -872,31 +833,7 @@ export default function Header({
               <span>Top Donors & Relief Partners</span>
             </button>
 
-            {!dbUser && (
-              <div className="bbdrts-mobile-nav-group">
-                <div className="bbdrts-mobile-group-title">Web3 Wallet</div>
-                {!walletAddress ? (
-                  <button
-                    type="button"
-                    className="bbdrts-mobile-nav-link"
-                    onClick={() => {
-                      setMobileMenuOpen(false);
-                      handleConnectWallet?.();
-                    }}
-                  >
-                    <span className="material-symbols-outlined">account_balance_wallet</span>
-                    <span>Connect Wallet (MetaMask / EVM)</span>
-                  </button>
-                ) : (
-                  <div className="bbdrts-mobile-nav-link" style={{ cursor: 'default' }}>
-                    <span className="bbdrts-wallet-dot" />
-                    <span style={{ fontFamily: 'var(--font-mono, monospace)', fontSize: '0.82rem' }}>
-                      Connected: {walletAddress.substring(0, 6)}…{walletAddress.substring(walletAddress.length - 4)}
-                    </span>
-                  </div>
-                )}
-              </div>
-            )}
+            {/* No personal wallet required — gasless relayer active */}
 
             {!dbUser && (
               <div className="bbdrts-mobile-auth-dock" style={{ display: 'flex', gap: '8px', marginTop: '12px', paddingTop: '12px', borderTop: '1px solid var(--border)' }}>
@@ -935,9 +872,13 @@ export default function Header({
         isOpen={showLeaderboardModal}
         onClose={() => setShowLeaderboardModal(false)}
         dbUser={dbUser}
-        walletAddress={walletAddress}
         theme={theme}
         onOpenNgoProfile={onOpenNgoProfile}
+        onLogin={() => {
+          setShowLeaderboardModal(false);
+          if (setAuthMode) setAuthMode('login');
+          setShowAuth(true);
+        }}
       />
 
       <SmartContractModal

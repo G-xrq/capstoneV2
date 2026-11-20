@@ -535,12 +535,7 @@ export default function AdminActiveUsersPanel({ onPresenceSummaryChange }) {
                               ) : (
                                 <span className="presence-mono">{s.visitorCode} · Anonymous Visitor</span>
                               )}
-                              {s.walletAddress && (
-                                <span className="presence-wallet-tag" title={`Connected Wallet: ${s.walletAddress}`}>
-                                  <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>account_balance_wallet</span>
-                                  {shortWallet(s.walletAddress)}
-                                </span>
-                              )}
+                              {/* Personal wallet tag removed — gasless audit mode */}
                             </div>
                           </div>
                         </div>
@@ -701,9 +696,9 @@ export default function AdminActiveUsersPanel({ onPresenceSummaryChange }) {
                   </span>
                 </div>
                 <div className="presence-detail-item">
-                  <span className="presence-detail-label">Web3 Wallet / Account Age</span>
-                  <span className="presence-detail-val presence-mono">
-                    {selectedSession.walletAddress ? shortWallet(selectedSession.walletAddress) : 'No wallet connected'}
+                  <span className="presence-detail-label">Account Status &amp; Age</span>
+                  <span className="presence-detail-val">
+                    {selectedSession.isAuthenticated ? 'Verified Account' : 'Guest Visitor'}
                   </span>
                   <span className="presence-detail-sub">
                     {selectedSession.accountCreatedAt

@@ -390,9 +390,7 @@ export default function LiveTrackerModal({ isOpen, onClose, theme }) {
                   React.createElement("span", { className: "ltm-kpi-value" },
                     "\u20B1", React.createElement(AnimatedNumber, { value: stats.totalPhp })
                   ),
-                  React.createElement("span", { className: "ltm-kpi-sub" },
-                    React.createElement(AnimatedNumber, { value: stats.totalEth, decimals: 4 }), " in ETH"
-                  )
+                  React.createElement("span", { className: "ltm-kpi-sub" }, "100% Gasless Sepolia Notarized")
                 )
               ),
               React.createElement("div", { className: "ltm-kpi-card" },
@@ -405,7 +403,7 @@ export default function LiveTrackerModal({ isOpen, onClose, theme }) {
                     React.createElement(AnimatedNumber, { value: stats.txCount }), " ",
                     React.createElement("span", { className: "ltm-kpi-unit" }, "donations")
                   ),
-                  React.createElement("span", { className: "ltm-kpi-sub" }, "Crypto, GCash, Maya & Cards")
+                  React.createElement("span", { className: "ltm-kpi-sub" }, "GCash, Maya & Bank / Cards")
                 )
               ),
               React.createElement("div", { className: "ltm-kpi-card" },
@@ -579,13 +577,8 @@ export default function LiveTrackerModal({ isOpen, onClose, theme }) {
                             ),
                             React.createElement("div", { style: { display: "flex", flexDirection: "column", alignItems: "flex-end" } },
                               React.createElement("span", { className: "ltm-tx-amount" },
-                                item.rail === "ONCHAIN" && item.amountEth > 0
-                                  ? `${Number(item.amountEth).toFixed(4)} ETH`
-                                  : `\u20B1${Number(item.amountPhp || 0).toLocaleString()}`
-                              ),
-                              item.rail === "ONCHAIN" && item.amountPhp > 0 && React.createElement("span", {
-                                style: { fontSize: "0.68rem", color: "var(--text-muted, #94a3b8)", fontWeight: 600 }
-                              }, `\u2248 \u20B1${Number(item.amountPhp).toLocaleString()}`)
+                                `\u20B1${Number(item.amountPhp || 0).toLocaleString()}`
+                              )
                             )
                           ),
                           React.createElement("div", { className: "ltm-tx-row ltm-tx-row--mid" },
@@ -595,7 +588,7 @@ export default function LiveTrackerModal({ isOpen, onClose, theme }) {
                           React.createElement("div", { className: "ltm-tx-row ltm-tx-row--btm" },
                             React.createElement("span", { className: `ltm-tx-rail ltm-tx-rail--${(item.rail || "").toLowerCase()}` },
                               React.createElement("span", { className: "material-symbols-outlined" }, railCfg.icon || "payments"),
-                              item.rail === "ONCHAIN" ? "Sepolia EVM" : item.rail
+                              item.rail === "ONCHAIN" ? "Verified Audit" : item.rail
                             ),
                             React.createElement("span", { className: "ltm-tx-time" },
                               `${formatExactTime(item.createdAt)} \u00b7 ${formatLiveTimeAgo(item.createdAt)}`

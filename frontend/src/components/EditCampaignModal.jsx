@@ -519,7 +519,7 @@ export default function EditCampaignModal({ camp, isOpen, onClose, onSaved }) {
           <div className="lock-left">
             <span className="material-symbols-outlined" style={{ fontSize: '15px', color: '#10b981' }}>lock</span>
             <span>
-              Target fund (<strong className="font-mono">₱{targetPhpFormatted}</strong> • {targetEthFormatted} ETH) is cryptographically locked on Sepolia EVM. Operational relief and field details below can be updated at any time.
+              Target fund (<strong className="font-mono">₱{targetPhpFormatted}</strong>) is cryptographically locked on the Sepolia audit ledger. Operational relief and field details below can be updated at any time.
             </span>
           </div>
           <span className="audited-pill">On-Chain Audited</span>

@@ -1845,7 +1845,7 @@ function DisasterRadarHeatmapInner({
           </div>
           <div class="prov-stat-cardlet">
             <span class="prov-stat-k">Funds Mobilized</span>
-            <span class="prov-stat-v"><strong>₱${Number(Math.round(totalEth * 170000)).toLocaleString('en-US')}</strong> <span style="font-size: 10px; color: var(--text-muted, #a3a3a3); font-weight: 500;">(≈ ${ethFormatted} ETH)</span></span>
+            <span class="prov-stat-v"><strong>₱${Number(Math.round(totalEth * 170000)).toLocaleString('en-US')}</strong></span>
           </div>
         </div>
         ${isHub && memberProvinces && memberProvinces.length > 0 ? `

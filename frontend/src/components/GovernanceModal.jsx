@@ -235,7 +235,7 @@ export default function GovernanceModal({ isOpen, onClose, initialTab = 'governa
               <div style={{ background: 'var(--bg-card-subtle, var(--bg-hover))', border: '1px solid var(--border)', borderRadius: '12px', padding: '14px', marginTop: '12px' }}>
                 <h5 style={{ color: 'var(--accent, #16a34a)', margin: '0 0 6px 0', fontSize: '0.88rem' }}>1. Monetary Contributions Exclusivity</h5>
                 <p style={{ margin: 0, fontSize: '0.82rem' }}>
-                  The BBDRTS protocol exclusively handles <strong>monetary relief donations</strong> (Philippine Peso via GCash, Maya, cards, bank transfer, and Ethereum cryptocurrency). The platform does not coordinate or accept physical in-kind goods collections (such as second-hand clothes or perishable groceries).
+                  The BBDRTS protocol exclusively handles <strong>Philippine Peso monetary relief donations</strong> (GCash, Maya, cards, and bank transfer), notarized gaslessly on Ethereum Sepolia. The platform does not coordinate or accept physical in-kind goods collections (such as second-hand clothes or perishable groceries).
                 </p>
               </div>
 
@@ -259,7 +259,7 @@ export default function GovernanceModal({ isOpen, onClose, initialTab = 'governa
               <ul style={{ paddingLeft: '20px', margin: '10px 0', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 <li><strong>Securities and Exchange Commission (SEC) Registration:</strong> Verified Certificate of Incorporation and Articles of Incorporation.</li>
                 <li><strong>DSWD Authority to Solicit:</strong> Official permit issued by the Department of Social Welfare and Development for charitable calamity drives.</li>
-                <li><strong>Cryptographic Multi-Signature Binding:</strong> Linking of an official institutional EVM wallet address to the vetted executive signatory.</li>
+                <li><strong>Verified Institutional Signatory &amp; Payout Accounts:</strong> Binding of verified official GCash, Maya, and bank accounts to the accredited NGO signatory.</li>
                 <li><strong>Quarterly Ground Audit:</strong> Mandatory posting of GPS-tagged field delivery photos, itemized receipts, and local barangay certificates of assistance.</li>
               </ul>
             </div>
@@ -306,7 +306,7 @@ export default function GovernanceModal({ isOpen, onClose, initialTab = 'governa
               </p>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '10px' }}>
                 <div style={{ padding: '10px 14px', background: 'var(--bg-card-subtle, var(--bg-hover))', borderRadius: '8px', border: '1px solid var(--border)' }}>
-                  <strong>Non-Custodial Escrow:</strong> Platform administrators have zero access to pool funds; funds move strictly between verified donors and accredited NGO multi-sig wallets.
+                  <strong>Zero-Intermediary Routing:</strong> Platform administrators never custody donor funds; contributions move directly to accredited NGO accounts while every record is sealed gaslessly on Ethereum Sepolia.
                 </div>
                 <div style={{ padding: '10px 14px', background: 'var(--bg-card-subtle, var(--bg-hover))', borderRadius: '8px', border: '1px solid var(--border)' }}>
                   <strong>Multi-Rail Cross-Ledger Hashing:</strong> Every GCash, Maya, and Card transaction receives a SHA-256 cryptographic hash anchored to the immutable ledger.

@@ -1175,7 +1175,7 @@ export default function SettingsPanel({
             Account & Settings
           </h2>
           <p className="bbdrts-settings-sub">
-            Manage your personal profile, connected Ethereum wallet, and system preferences.
+            Manage your personal profile, security controls, public blockchain audit contract, and preferences.
           </p>
         </div>
 
@@ -1227,8 +1227,8 @@ export default function SettingsPanel({
           className={`bbdrts-settings-tab-btn ${activeTab === 'wallet' ? 'active' : ''}`}
           onClick={() => setActiveTab('wallet')}
         >
-          <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>account_balance_wallet</span>
-          <span>Connected Wallet</span>
+          <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>verified_user</span>
+          <span>Blockchain Audit</span>
         </button>
 
         <button
@@ -1715,7 +1715,7 @@ export default function SettingsPanel({
                       Verified Supporter
                     </div>
                     <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                      ₱{Number(totalDonatedPhp).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} contributed · {Number(totalDonatedEth).toFixed(4)} ETH
+                      ₱{Number(totalDonatedPhp).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} verified relief contributed · Gasless Sepolia receipts
                     </div>
                   </div>
                 </div>
@@ -1726,8 +1726,8 @@ export default function SettingsPanel({
                     <div style={{ fontSize: '0.9rem', fontWeight: 700, color: '#16a34a' }}>₱{Number(totalDonatedPhp).toLocaleString()}</div>
                   </div>
                   <div style={{ textAlign: 'center', padding: '8px 14px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '6px' }}>
-                    <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Sepolia On-Chain</div>
-                    <div style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-primary)' }}>{Number(totalDonatedEth).toFixed(4)} ETH</div>
+                    <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Audit Ledger</div>
+                    <div style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-primary)' }}>Sepolia Verified</div>
                   </div>
                 </div>
               </div>
@@ -1903,15 +1903,11 @@ export default function SettingsPanel({
                     </div>
                   </div>
 
-                  <div className={`bbdrts-rail-chip ${(walletAddress || currentUser?.wallet_address) ? 'active' : ''}`}>
-                    <span className="material-symbols-outlined" style={{ fontSize: '20px', color: '#16a34a' }}>currency_exchange</span>
+                  <div className="bbdrts-rail-chip active">
+                    <span className="material-symbols-outlined" style={{ fontSize: '20px', color: '#16a34a' }}>verified_user</span>
                     <div>
-                      <div className="bbdrts-rail-title">Sepolia Escrow</div>
-                      <div className="bbdrts-rail-sub">
-                        {(walletAddress || currentUser?.wallet_address)
-                          ? shortAddr(walletAddress || currentUser?.wallet_address)
-                          : 'No wallet linked'}
-                      </div>
+                      <div className="bbdrts-rail-title">Gasless Sepolia Audit</div>
+                      <div className="bbdrts-rail-sub">Active · Zero Gas Fees</div>
                     </div>
                   </div>
                 </div>
@@ -2633,233 +2629,35 @@ export default function SettingsPanel({
       )}
 
       {/* ══════════════════════════════════════════════════════════════════
-          TAB 2: CONNECTED WALLET & WEB3
+          TAB 2: GASLESS BLOCKCHAIN AUDIT & PUBLIC CONTRACT
           ══════════════════════════════════════════════════════════════════ */}
       {activeTab === 'wallet' && (
         <div className="bbdrts-settings-pane">
-
-          {/* Active Wallet Connection Card */}
           <div className="bbdrts-settings-card">
             <div className="bbdrts-settings-card-header">
               <div className="bbdrts-settings-card-title-wrap">
                 <h4 className="bbdrts-settings-card-title">
-                  <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#16a34a' }}>account_balance_wallet</span>
-                  Ethereum Wallet Connection
+                  <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#16a34a' }}>verified</span>
+                  Gasless Sepolia Blockchain Audit Ledger
                 </h4>
                 <p className="bbdrts-settings-card-desc">
-                  Your wallet address authorizes cryptographic transactions and issues verifiable receipts on Sepolia.
+                  No MetaMask or cryptocurrency wallet is required. BBDRTS automatically notarizes every verified Philippine Peso donation and NGO disbursement proof onto Ethereum Sepolia via our gasless backend relayer.
                 </p>
               </div>
-
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                {isSepolia ? (
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '0.74rem', fontWeight: 600, color: '#16a34a', padding: '4px 8px', borderRadius: '4px', background: 'rgba(22, 163, 74, 0.1)', border: '1px solid rgba(22, 163, 74, 0.25)' }}>
-                    <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>check_circle</span>
-                    Sepolia Active
-                  </span>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={handleSwitchToSepolia}
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '5px',
-                      fontSize: '0.74rem',
-                      fontWeight: 600,
-                      color: '#b45309',
-                      background: 'rgba(245, 158, 11, 0.12)',
-                      border: '1px solid rgba(245, 158, 11, 0.35)',
-                      padding: '4px 10px',
-                      borderRadius: '4px',
-                      cursor: 'pointer'
-                    }}
-                    title="Switch your wallet network to Ethereum Sepolia Testnet"
-                  >
-                    <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>swap_horiz</span>
-                    Switch to Sepolia
-                  </button>
-                )}
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '0.74rem', fontWeight: 600, color: '#16a34a', padding: '4px 8px', borderRadius: '4px', background: 'rgba(22, 163, 74, 0.1)', border: '1px solid rgba(22, 163, 74, 0.25)' }}>
+                  <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>check_circle</span>
+                  Gasless Relayer Active
+                </span>
                 <span style={{ fontSize: '0.74rem', fontFamily: 'monospace', padding: '4px 8px', borderRadius: '4px', background: 'var(--bg-subcard)', border: '1px solid var(--border)' }}>
                   Chain ID: 11155111
                 </span>
               </div>
             </div>
 
-            <div className={`bbdrts-wallet-box ${walletAddress ? 'connected' : 'disconnected'}`}>
-              <div className="bbdrts-wallet-box-left">
-                <div className={`bbdrts-wallet-icon-box ${walletAddress ? 'connected' : ''}`}>
-                  <span className="material-symbols-outlined" style={{ fontSize: '24px' }}>
-                    {walletAddress ? 'link' : 'link_off'}
-                  </span>
-                </div>
-
-                <div className="bbdrts-wallet-details">
-                  <div className="bbdrts-wallet-status-row">
-                    <span className={`bbdrts-wallet-status-dot ${walletAddress ? 'connected' : 'disconnected'}`} />
-                    <span style={{ color: walletAddress ? '#16a34a' : '#ef4444' }}>
-                      {walletAddress ? 'Wallet Connected & Active' : 'No Wallet Connected'}
-                    </span>
-                  </div>
-
-                  {walletAddress ? (
-                    <div className="bbdrts-wallet-addr-row">
-                      <span className="bbdrts-wallet-addr-mono">{shortAddr(walletAddress)}</span>
-                      <button
-                        type="button"
-                        className="bbdrts-wallet-micro-btn"
-                        onClick={() => {
-                          navigator.clipboard.writeText(walletAddress);
-                          showSuccess('Wallet address copied to clipboard.', 'Address Copied');
-                        }}
-                      >
-                        <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>content_copy</span>
-                        <span>Copy</span>
-                      </button>
-                      <a
-                        href={`https://sepolia.etherscan.io/address/${walletAddress}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="bbdrts-wallet-micro-btn"
-                      >
-                        <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>open_in_new</span>
-                        <span>Etherscan</span>
-                      </a>
-                    </div>
-                  ) : (
-                    <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                      Connect MetaMask to sign transactions or link your wallet address manually below.
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              <div className="bbdrts-wallet-actions">
-                {walletAddress ? (
-                  <>
-                    {!contract && (
-                      <button
-                        type="button"
-                        className="bbdrts-btn-outline"
-                        onClick={() => handleConnectWallet(true)}
-                      >
-                        <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>sync</span>
-                        <span>Sync Wallet</span>
-                      </button>
-                    )}
-                    <button
-                      type="button"
-                      className="bbdrts-btn-outline"
-                      style={{ color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.4)' }}
-                      onClick={async () => {
-                        if (window.confirm("Are you sure you want to disconnect this wallet?")) {
-                          if (updateDbWallet) {
-                            await updateDbWallet('');
-                          }
-                          showSuccess('Wallet disconnected successfully.', 'Wallet Disconnected');
-                        }
-                      }}
-                    >
-                      <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>link_off</span>
-                      <span>Disconnect</span>
-                    </button>
-                  </>
-                ) : (
-                  <button
-                    type="button"
-                    className="bbdrts-btn-primary"
-                    onClick={() => handleConnectWallet(true)}
-                  >
-                    <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>account_balance_wallet</span>
-                    <span>Connect MetaMask</span>
-                  </button>
-                )}
-              </div>
-            </div>
-
-            {/* Network Mismatch Notice */}
-            {walletAddress && currentChainId && !isSepolia && (
-              <div style={{ margin: '0 20px 16px 20px', padding: '10px 14px', borderRadius: '6px', background: 'rgba(245, 158, 11, 0.08)', border: '1px solid rgba(245, 158, 11, 0.3)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.8rem', color: '#b45309' }}>
-                  <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>warning</span>
-                  <span>Wallet is connected to another network ({currentChainId}). Switch to Sepolia to transact.</span>
-                </div>
-                <button
-                  type="button"
-                  onClick={handleSwitchToSepolia}
-                  style={{
-                    fontSize: '0.74rem',
-                    fontWeight: 600,
-                    padding: '5px 12px',
-                    background: '#b45309',
-                    color: '#ffffff',
-                    border: 'none',
-                    borderRadius: '5px',
-                    cursor: 'pointer'
-                  }}
-                >
-                  Switch to Sepolia (11155111)
-                </button>
-              </div>
-            )}
-
-            {/* Manual Wallet Address Binding Card */}
-            <div className="bbdrts-manual-binding-box">
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                <strong style={{ fontSize: '0.86rem', color: 'var(--text-primary)' }}>
-                  Manual Wallet Address Binding
-                </strong>
-                <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                  If you are donating via external hardware wallet, mobile app, or paper key, enter your Ethereum address (0x...) to associate your public ledger receipts with this account.
-                </p>
-              </div>
-
-              <div className="bbdrts-input-btn-group">
-                <input
-                  type="text"
-                  className="bbdrts-settings-input"
-                  placeholder="0x71C... (42-character Ethereum address)"
-                  value={manualWallet}
-                  onChange={e => setManualWallet(e.target.value)}
-                />
-                <button
-                  type="button"
-                  className="bbdrts-btn-primary"
-                  onClick={async () => {
-                    if (manualWallet.startsWith('0x') && manualWallet.length >= 40) {
-                      if (updateDbWallet) {
-                        await updateDbWallet(manualWallet.trim());
-                        showSuccess('Wallet address linked successfully.', 'Wallet Bound');
-                        setManualWallet('');
-                      }
-                    } else {
-                      showError('Please enter a valid Ethereum address beginning with 0x.', 'Invalid Format');
-                    }
-                  }}
-                >
-                  Link Address
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Smart Contract Verification Card */}
-          <div className="bbdrts-settings-card">
-            <div className="bbdrts-settings-card-header">
-              <div className="bbdrts-settings-card-title-wrap">
-                <h4 className="bbdrts-settings-card-title">
-                  <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#16a34a' }}>verified</span>
-                  Sepolia Smart Contract Escrow
-                </h4>
-                <p className="bbdrts-settings-card-desc">
-                  All relief contributions are securely escrowed by our OpenZeppelin-verified smart contract.
-                </p>
-              </div>
-            </div>
-
             <div className="bbdrts-diag-list">
               <div className="bbdrts-diag-item">
-                <span className="bbdrts-diag-label">Active Contract Address:</span>
+                <span className="bbdrts-diag-label">Public Audit Contract:</span>
                 <a
                   href={`https://sepolia.etherscan.io/address/${contractAddress}`}
                   target="_blank"
@@ -2877,12 +2675,16 @@ export default function SettingsPanel({
               </div>
 
               <div className="bbdrts-diag-item">
-                <span className="bbdrts-diag-label">Escrow Standard:</span>
-                <span className="bbdrts-diag-value">Milestone-Based Humanitarian Release</span>
+                <span className="bbdrts-diag-label">Supported Payment Rails:</span>
+                <span className="bbdrts-diag-value">GCash (QR Ph) · Maya · Bank Transfer · Credit / Debit Card (PHP)</span>
+              </div>
+
+              <div className="bbdrts-diag-item">
+                <span className="bbdrts-diag-label">Gas Fees for Users:</span>
+                <span className="bbdrts-diag-value status-ok">₱0 (Sponsored by BBDRTS Gasless Relayer)</span>
               </div>
             </div>
           </div>
-
         </div>
       )}
 

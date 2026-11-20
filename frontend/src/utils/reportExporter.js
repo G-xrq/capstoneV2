@@ -22,10 +22,6 @@ function fmtPhp(val) {
   return `₱${Math.round(Number(val || 0)).toLocaleString('en-US')}`;
 }
 
-function fmtEth(val) {
-  return `${Number(val || 0).toFixed(4)} ETH`;
-}
-
 function autoSizeSheet(ws, rows, extraWidth = 4) {
   if (!Array.isArray(rows) || rows.length === 0) return;
   const maxCols = rows.reduce((m, r) => Math.max(m, Array.isArray(r) ? r.length : 0), 0);
@@ -43,7 +39,7 @@ function autoSizeSheet(ws, rows, extraWidth = 4) {
   ws['!cols'] = cols;
 }
 
-function applyPhpAndPctFormats(ws, phpCols = [], ethCols = [], pctCols = [], startRow = 1) {
+function applyPhpAndPctFormats(ws, phpCols = [], pctCols = [], startRow = 1) {
   if (!ws['!ref']) return;
   const range = XLSX.utils.decode_range(ws['!ref']);
   for (let R = startRow; R <= range.e.r; R++) {
@@ -52,7 +48,6 @@ function applyPhpAndPctFormats(ws, phpCols = [], ethCols = [], pctCols = [], sta
       const cell = ws[addr];
       if (!cell || cell.t !== 'n') continue;
       if (phpCols.includes(C)) cell.z = '₱#,##0';
-      else if (ethCols.includes(C)) cell.z = '0.0000';
       else if (pctCols.includes(C)) cell.z = '0.0"%"';
     }
   }
@@ -71,8 +66,8 @@ function buildExecutiveRows(analytics, isAdmin) {
     [],
     ['SECTION 1: KEY PERFORMANCE INDICATORS', '', '', ''],
     ['KPI Metric', 'Numeric Value', 'Formatted Display', 'Operational Context'],
-    ['Total Aid Mobilized (Period)', kpis.totalMobilizedPhp || 0, fmtPhp(kpis.totalMobilizedPhp), `${fmtEth(kpis.totalMobilizedEth)} across ${kpis.txCount || 0} verified donations`],
-    ['All-Time Mobilized Aid', kpis.allTimeMobilizedPhp || 0, fmtPhp(kpis.allTimeMobilizedPhp), fmtEth(kpis.allTimeMobilizedEth)],
+    ['Total Aid Mobilized (Period)', kpis.totalMobilizedPhp || 0, fmtPhp(kpis.totalMobilizedPhp), `${kpis.txCount || 0} verified donations notarized gaslessly on Sepolia`],
+    ['All-Time Mobilized Aid', kpis.allTimeMobilizedPhp || 0, fmtPhp(kpis.allTimeMobilizedPhp), 'Cumulative PHP relief mobilized across all campaigns'],
     ['Average Contribution Size', kpis.avgGiftPhp || 0, fmtPhp(kpis.avgGiftPhp), 'Per verified donation record in selected period'],
     ['Disbursed Humanitarian Aid', kpis.totalDisbursedPhp || 0, fmtPhp(kpis.totalDisbursedPhp), `${kpis.utilizationPct || 0}% utilization rate of total mobilized funds`],
     ['Relief Operations Count', kpis.totalCampaigns || 0, `${kpis.totalCampaigns || 0} Operations`, `${kpis.activeCampaigns || 0} active · ${kpis.concludedCampaigns || 0} concluded`],
@@ -81,13 +76,13 @@ function buildExecutiveRows(analytics, isAdmin) {
       ? ['Registered NGOs (Total)', kpis.registeredNgos ?? ((kpis.approvedOrgs || 0) + (kpis.pendingOrgs || 0) + (kpis.rejectedOrgs || 0)), `${kpis.registeredNgos ?? ((kpis.approvedOrgs || 0) + (kpis.pendingOrgs || 0) + (kpis.rejectedOrgs || 0))} NGOs`, `${kpis.approvedOrgs || 0} verified/accredited · ${kpis.pendingOrgs || 0} pending KYC · ${kpis.rejectedOrgs || 0} rejected`]
       : ['Remaining Unallocated Escrow', kpis.remainingEscrowPhp || 0, fmtPhp(kpis.remainingEscrowPhp), 'Available for upcoming milestone disbursements'],
     isAdmin
-      ? ['Verified / Accredited NGOs', kpis.verifiedNgos ?? kpis.approvedOrgs ?? 0, `${kpis.verifiedNgos ?? kpis.approvedOrgs ?? 0} Verified`, `${kpis.evmEnrolledNgos || 0} with active EVM wallet on Sepolia`]
-      : ['Verified Supporters', kpis.verifiedBackers || 0, `${kpis.verifiedBackers || 0} Verified`, `${kpis.repeatBackers || 0} repeat backers · wallet/on-chain verified`],
+      ? ['Verified / Accredited NGOs', kpis.verifiedNgos ?? kpis.approvedOrgs ?? 0, `${kpis.verifiedNgos ?? kpis.approvedOrgs ?? 0} Verified`, 'SEC-accredited · Gasless Sepolia audit active']
+      : ['Verified Supporters', kpis.verifiedBackers || 0, `${kpis.verifiedBackers || 0} Verified`, `${kpis.repeatBackers || 0} repeat backers · 2FA / verified contributors`],
     isAdmin
       ? ['Registered Platform Donors', kpis.registeredDonors ?? kpis.totalDonors ?? 0, `${kpis.registeredDonors ?? kpis.totalDonors ?? 0} Donors`, `${kpis.verifiedDonors || 0} verified · ${kpis.registeredOnlyDonors || 0} registered-only accounts`]
-      : ['Unique Identified Donors', kpis.uniqueDonors || 0, `${kpis.uniqueDonors || 0} Backers`, `${kpis.registeredBackers || 0} registered accounts · ${kpis.anonymousSharePct || 0}% anonymous gifts`],
+      : ['Unique Identified Donors', kpis.uniqueDonors || 0, `${kpis.uniqueDonors || 0} Backers`, `${kpis.registeredBackers || 0} registered accounts · ${kpis.anonymousSharePct || 0}% anonymous donations`],
     ...(isAdmin
-      ? [['Verified Platform Donors', kpis.verifiedDonors || 0, `${kpis.verifiedDonors || 0} Verified`, `${kpis.walletVerifiedDonors || 0} EVM wallet linked · ${kpis.contributingDonors || 0} active contributors`]]
+      ? [['Verified Platform Donors', kpis.verifiedDonors || 0, `${kpis.verifiedDonors || 0} Verified`, `${kpis.twoFactorDonors || 0} with 2FA · ${kpis.contributingDonors || 0} active contributors`]]
       : []),
     ['Manual Slip Verification Rate', kpis.approvalRatePct || 0, `${kpis.approvalRatePct || 0}%`, `${verificationFunnel.approved || 0} approved · ${verificationFunnel.pending || 0} pending · ${verificationFunnel.rejected || 0} rejected`],
     ['Avg AI OCR Verification Confidence', kpis.avgAiConfidence || 0, `${kpis.avgAiConfidence || 0}%`, 'Automated Gemini Vision & Tesseract slip audit score'],
@@ -129,7 +124,7 @@ export function exportExcelWorkbook(analytics, options = {}) {
     ...(sec3Idx >= 0 ? [{ s: { r: sec3Idx, c: 0 }, e: { r: sec3Idx, c: 3 } }] : [])
   ];
   autoSizeSheet(wsExec, execRows, 3);
-  applyPhpAndPctFormats(wsExec, [2], [], [3], sec3Idx >= 0 ? sec3Idx + 2 : 24);
+  applyPhpAndPctFormats(wsExec, [2], [3], sec3Idx >= 0 ? sec3Idx + 2 : 24);
   XLSX.utils.book_append_sheet(wb, wsExec, 'Executive Summary');
 
   // Sheet 2: Period Trends
@@ -138,45 +133,45 @@ export function exportExcelWorkbook(analytics, options = {}) {
     [isAdmin ? 'DAILY CONTRIBUTION & DISBURSEMENT TRENDS' : 'NGO DAILY INFLOW & DISBURSEMENT TRENDS'],
     [`Window: ${analytics?.meta?.rangeLabel || '30D'} · Generated: ${formatPhtNow(analytics?.meta?.generatedAt)}`],
     [],
-    ['Date (PHT)', 'Display Label', 'Verified Donations', 'Crypto Inflow (PHP)', 'Fiat Inflow (PHP)', 'Total Inflow (PHP)', 'ETH Volume', 'Disbursed Aid (PHP)']
+    ['Date (PHT)', 'Display Label', 'Verified Donations', 'E-Wallet Inflow (PHP)', 'Bank / Card Inflow (PHP)', 'Total Inflow (PHP)', 'Disbursed Aid (PHP)']
   ];
-  let sumTx = 0, sumCrypto = 0, sumFiat = 0, sumTotal = 0, sumEth = 0, sumDisb = 0;
+  let sumTx = 0, sumEwallet = 0, sumBankCard = 0, sumTotal = 0, sumDisb = 0;
   trends.forEach((t) => {
+    const ew = Number(t.ewalletPhp ?? t.fiatPhp ?? 0);
+    const bc = Number(t.bankCardPhp ?? t.cryptoPhp ?? 0);
     sumTx += t.txCount || 0;
-    sumCrypto += t.cryptoPhp || 0;
-    sumFiat += t.fiatPhp || 0;
+    sumEwallet += ew;
+    sumBankCard += bc;
     sumTotal += t.totalPhp || 0;
-    sumEth += Number(t.ethAmount || 0);
     sumDisb += t.disbursedPhp || 0;
-    trendRows.push([t.date, t.label, t.txCount, t.cryptoPhp, t.fiatPhp, t.totalPhp, Number(t.ethAmount || 0), t.disbursedPhp]);
+    trendRows.push([t.date, t.label, t.txCount, ew, bc, t.totalPhp, t.disbursedPhp]);
   });
-  trendRows.push(['TOTAL', `${trends.length} Days`, sumTx, sumCrypto, sumFiat, sumTotal, Number(sumEth.toFixed(4)), sumDisb]);
+  trendRows.push(['TOTAL', `${trends.length} Days`, sumTx, sumEwallet, sumBankCard, sumTotal, sumDisb]);
   const wsTrends = XLSX.utils.aoa_to_sheet(trendRows);
-  wsTrends['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 7 } }, { s: { r: 1, c: 0 }, e: { r: 1, c: 7 } }];
+  wsTrends['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 6 } }, { s: { r: 1, c: 0 }, e: { r: 1, c: 6 } }];
   autoSizeSheet(wsTrends, trendRows, 4);
-  applyPhpAndPctFormats(wsTrends, [3, 4, 5, 7], [6], [], 4);
+  applyPhpAndPctFormats(wsTrends, [3, 4, 5, 6], [], 4);
   XLSX.utils.book_append_sheet(wb, wsTrends, 'Daily Trends');
 
   // Sheet 3: Payment Rails
   const rails = analytics.paymentRails || [];
   const railRows = [
-    ['PAYMENT RAIL PERFORMANCE BREAKDOWN'],
-    [`Includes On-Chain Sepolia ETH & Philippine Multi-Rail Fiat Gateways`],
+    ['PAYMENT CHANNEL PERFORMANCE BREAKDOWN'],
+    ['Philippine Multi-Rail Payment Channels (Gaslessly Notarized on Sepolia)'],
     [],
-    ['Payment Rail', 'Verified Transactions', 'Volume (PHP)', 'ETH Equivalent', 'Portfolio Share (%)']
+    ['Payment Channel', 'Verified Transactions', 'Volume (PHP)', 'Portfolio Share (%)']
   ];
-  let rCount = 0, rPhp = 0, rEth = 0;
+  let rCount = 0, rPhp = 0;
   rails.forEach((r) => {
     rCount += r.count || 0;
     rPhp += r.php || 0;
-    rEth += Number(r.eth || 0);
-    railRows.push([r.rail, r.count, r.php, Number(r.eth || 0), r.sharePct]);
+    railRows.push([r.rail, r.count, r.php, r.sharePct]);
   });
-  railRows.push(['TOTAL', rCount, rPhp, Number(rEth.toFixed(4)), 100]);
+  railRows.push(['TOTAL', rCount, rPhp, 100]);
   const wsRails = XLSX.utils.aoa_to_sheet(railRows);
-  wsRails['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 4 } }, { s: { r: 1, c: 0 }, e: { r: 1, c: 4 } }];
+  wsRails['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 3 } }, { s: { r: 1, c: 0 }, e: { r: 1, c: 3 } }];
   autoSizeSheet(wsRails, railRows, 4);
-  applyPhpAndPctFormats(wsRails, [2], [3], [4], 4);
+  applyPhpAndPctFormats(wsRails, [2], [3], 4);
   XLSX.utils.book_append_sheet(wb, wsRails, 'Payment Rails');
 
   // Sheet 4: Campaign Performance
@@ -213,8 +208,8 @@ export function exportExcelWorkbook(analytics, options = {}) {
     { s: { r: 1, c: 0 }, e: { r: 1, c: campHeaders.length - 1 } }
   ];
   autoSizeSheet(wsCamps, campRows, 3);
-  if (isAdmin) applyPhpAndPctFormats(wsCamps, [7, 8, 10, 11], [], [9], 4);
-  else applyPhpAndPctFormats(wsCamps, [6, 7, 9, 10], [], [8], 4);
+  if (isAdmin) applyPhpAndPctFormats(wsCamps, [7, 8, 10, 11], [9], 4);
+  else applyPhpAndPctFormats(wsCamps, [6, 7, 9, 10], [8], 4);
   XLSX.utils.book_append_sheet(wb, wsCamps, 'Campaign Performance');
 
   // Sheet 5: Admin NGO Directory OR NGO Disbursements Log
@@ -237,7 +232,7 @@ export function exportExcelWorkbook(analytics, options = {}) {
     const wsOrgs = XLSX.utils.aoa_to_sheet(orgRows);
     wsOrgs['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 9 } }, { s: { r: 1, c: 0 }, e: { r: 1, c: 9 } }];
     autoSizeSheet(wsOrgs, orgRows, 3);
-    applyPhpAndPctFormats(wsOrgs, [6, 7, 9], [], [8], 4);
+    applyPhpAndPctFormats(wsOrgs, [6, 7, 9], [8], 4);
     XLSX.utils.book_append_sheet(wb, wsOrgs, 'NGO Governance');
   } else {
     const disbs = analytics.disbursements || [];
@@ -245,48 +240,46 @@ export function exportExcelWorkbook(analytics, options = {}) {
       ['RELIEF DISBURSEMENT & BENEFICIARY IMPACT MANIFESTS'],
       [`Recorded distribution milestones for ${analytics?.meta?.orgName || 'Organization'}`],
       [],
-      ['Disbursement ID', 'Campaign', 'Beneficiaries Reached', 'Amount Disbursed (PHP)', 'ETH Value', 'Impact Summary', 'Reference / Tx Hash', 'Disbursed Date (PHT)']
+      ['Disbursement ID', 'Campaign', 'Beneficiaries Reached', 'Amount Disbursed (PHP)', 'Impact Summary', 'Sepolia Audit Hash', 'Disbursed Date (PHT)']
     ];
-    let dPhp = 0, dEth = 0, dBen = 0;
+    let dPhp = 0, dBen = 0;
     disbs.forEach((d) => {
       dPhp += d.amountPhp || 0;
-      dEth += Number(d.amountEth || 0);
       dBen += Number(d.beneficiariesReached || 0);
-      disbRows.push([d.id, d.campaignTitle, d.beneficiariesReached || 0, d.amountPhp, Number(d.amountEth || 0), d.impactSummary, d.txHash, formatPhtNow(d.disbursedAt)]);
+      disbRows.push([d.id, d.campaignTitle, d.beneficiariesReached || 0, d.amountPhp, d.impactSummary, d.txHash, formatPhtNow(d.disbursedAt)]);
     });
-    disbRows.push(['TOTAL', `${disbs.length} Records`, dBen, dPhp, Number(dEth.toFixed(4)), '', '', '']);
+    disbRows.push(['TOTAL', `${disbs.length} Records`, dBen, dPhp, '', '', '']);
     const wsDisb = XLSX.utils.aoa_to_sheet(disbRows);
-    wsDisb['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 7 } }, { s: { r: 1, c: 0 }, e: { r: 1, c: 7 } }];
+    wsDisb['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 6 } }, { s: { r: 1, c: 0 }, e: { r: 1, c: 6 } }];
     autoSizeSheet(wsDisb, disbRows, 3);
-    applyPhpAndPctFormats(wsDisb, [3], [4], [], 4);
+    applyPhpAndPctFormats(wsDisb, [3], [], 4);
     XLSX.utils.book_append_sheet(wb, wsDisb, 'Disbursement Proofs');
   }
 
   // Sheet 6: Detailed Verified Ledger
   const txList = analytics.ledgerRows || [];
   const txHeaders = isAdmin
-    ? ['Tx ID', 'Timestamp (PHT)', 'Campaign', 'Operating NGO', 'Donor Identity', 'Payment Rail', 'Amount (PHP)', 'Amount (ETH)', 'Reference / Tx Hash', 'Status']
-    : ['Tx ID', 'Timestamp (PHT)', 'Campaign', 'Donor Identity', 'Payment Rail', 'Amount (PHP)', 'Amount (ETH)', 'Reference / Tx Hash', 'Status'];
+    ? ['Tx ID', 'Timestamp (PHT)', 'Campaign', 'Operating NGO', 'Donor Identity', 'Payment Channel', 'Amount (PHP)', 'Sepolia Audit Hash', 'Status']
+    : ['Tx ID', 'Timestamp (PHT)', 'Campaign', 'Donor Identity', 'Payment Channel', 'Amount (PHP)', 'Sepolia Audit Hash', 'Status'];
   const txRows = [
     ['VERIFIED CONTRIBUTION TRANSACTION LEDGER'],
     [`Showing ${txList.length} verified records in selected window (${analytics?.meta?.rangeLabel || '30D'})`],
     [],
     txHeaders
   ];
-  let lPhp = 0, lEth = 0;
+  let lPhp = 0;
   txList.forEach((tx) => {
     lPhp += tx.phpAmount || 0;
-    lEth += Number(tx.ethAmount || 0);
     txRows.push(
       isAdmin
-        ? [tx.id, formatPhtNow(tx.createdAt), tx.campaignTitle, tx.orgName, tx.donorName, tx.rail, tx.phpAmount, Number(tx.ethAmount || 0), tx.txHash, tx.status]
-        : [tx.id, formatPhtNow(tx.createdAt), tx.campaignTitle, tx.donorName, tx.rail, tx.phpAmount, Number(tx.ethAmount || 0), tx.txHash, tx.status]
+        ? [tx.id, formatPhtNow(tx.createdAt), tx.campaignTitle, tx.orgName, tx.donorName, tx.rail, tx.phpAmount, tx.txHash, tx.status]
+        : [tx.id, formatPhtNow(tx.createdAt), tx.campaignTitle, tx.donorName, tx.rail, tx.phpAmount, tx.txHash, tx.status]
     );
   });
   txRows.push(
     isAdmin
-      ? ['TOTAL', `${txList.length} Transactions`, '', '', '', '', lPhp, Number(lEth.toFixed(4)), '', '']
-      : ['TOTAL', `${txList.length} Transactions`, '', '', '', lPhp, Number(lEth.toFixed(4)), '', '']
+      ? ['TOTAL', `${txList.length} Transactions`, '', '', '', '', lPhp, '', '']
+      : ['TOTAL', `${txList.length} Transactions`, '', '', '', lPhp, '', '']
   );
   const wsLedger = XLSX.utils.aoa_to_sheet(txRows);
   wsLedger['!merges'] = [
@@ -294,8 +287,8 @@ export function exportExcelWorkbook(analytics, options = {}) {
     { s: { r: 1, c: 0 }, e: { r: 1, c: txHeaders.length - 1 } }
   ];
   autoSizeSheet(wsLedger, txRows, 3);
-  if (isAdmin) applyPhpAndPctFormats(wsLedger, [6], [7], [], 4);
-  else applyPhpAndPctFormats(wsLedger, [5], [6], [], 4);
+  if (isAdmin) applyPhpAndPctFormats(wsLedger, [6], [], 4);
+  else applyPhpAndPctFormats(wsLedger, [5], [], 4);
   XLSX.utils.book_append_sheet(wb, wsLedger, 'Transaction Ledger');
 
   const safePrefix = isAdmin
@@ -326,9 +319,9 @@ export function exportFormattedCsv(analytics, options = {}) {
 
   rows.push([]);
   rows.push(['SECTION 5: TRANSACTION LEDGER SUMMARY', '', '', '']);
-  rows.push(['Tx ID', 'Timestamp (PHT)', 'Campaign', 'Donor', 'Payment Rail', 'Amount (PHP)', 'Amount (ETH)', 'Reference / Hash']);
+  rows.push(['Tx ID', 'Timestamp (PHT)', 'Campaign', 'Donor', 'Payment Channel', 'Amount (PHP)', 'Sepolia Audit Hash']);
   (analytics.ledgerRows || []).forEach((t) => {
-    rows.push([t.id, formatPhtNow(t.createdAt), t.campaignTitle, t.donorName, t.rail, t.phpAmount, Number(t.ethAmount || 0).toFixed(4), t.txHash]);
+    rows.push([t.id, formatPhtNow(t.createdAt), t.campaignTitle, t.donorName, t.rail, t.phpAmount, t.txHash]);
   });
 
   const csvBody = rows.map((r) => r.map(escapeCsvCell).join(',')).join('\r\n');
@@ -490,7 +483,7 @@ export function exportPrintablePdfReport(analytics, options = {}) {
     </div>
     <div class="meta-right">
       <div><strong>Generated:</strong> ${esc(formatPhtNow(meta.generatedAt))}</div>
-      <div><strong>Ledger Network:</strong> Ethereum Sepolia + Multi-Rail Fiat</div>
+      <div><strong>Audit Ledger:</strong> Gasless Ethereum Sepolia · PHP Payment Rails</div>
     </div>
   </div>
 
@@ -498,7 +491,7 @@ export function exportPrintablePdfReport(analytics, options = {}) {
     <div class="kpi-box">
       <div class="kpi-lbl">Mobilized Aid (${esc(meta.rangeLabel)})</div>
       <div class="kpi-val">${esc(fmtPhp(kpis.totalMobilizedPhp))}</div>
-      <div class="kpi-sub">${esc(fmtEth(kpis.totalMobilizedEth))} · ${kpis.txCount || 0} gifts</div>
+      <div class="kpi-sub">${kpis.txCount || 0} verified donations · Sepolia notarized</div>
     </div>
     <div class="kpi-box">
       <div class="kpi-lbl">Disbursed Aid</div>

@@ -312,52 +312,41 @@ export default function TermsPolicyModal({ isOpen, onClose, initialTab = 'agreem
             {activeTab === 'terms' && (
               <div className="vercel-legal-prose">
                 <section className="vercel-legal-section">
-                  <h3>1. Non-Custodial Smart Contract Architecture</h3>
+                  <h3>1. Gasless Blockchain Audit Architecture</h3>
                   <p>
-                    BBDRTS leverages immutable Ethereum smart contracts (deployed on Sepolia EVM) to provide public auditability. 
-                    <strong> The BBDRTS platform is non-custodial:</strong> at no point does BBDRTS hold, custody, manage, 
-                    or take possession of users’ private cryptographic keys, seed phrases, or cryptocurrency assets.
+                    BBDRTS uses immutable Ethereum smart contracts (deployed on Sepolia EVM) strictly as a <strong>public, tamper-proof transparency ledger</strong>.
+                    All donations are processed in Philippine Pesos (PHP) — users are never required to purchase cryptocurrency, manage private keys, or install MetaMask.
                   </p>
                   <div className="vercel-legal-info-box">
-                    <VercelIcon name="lock" size={16} color="#f59e0b" />
+                    <VercelIcon name="lock" size={16} color="#10b981" />
                     <div>
-                      <strong>Cryptographic Responsibility Notice:</strong>
-                      <span> Donors and NGOs are solely responsible for safeguarding their private keys, hardware wallets, and Web3 connection credentials. Platform administrators can never recover a lost seed phrase or reverse a signed EVM transaction.</span>
+                      <strong>Zero-Wallet Gasless Relayer:</strong>
+                      <span> Our platform relayer automatically covers blockchain gas fees and anchors verified PHP donation receipts and NGO disbursement proofs onto Ethereum Sepolia for public verification.</span>
                     </div>
                   </div>
                 </section>
 
                 <section className="vercel-legal-section">
-                  <h3>2. Blockchain Donation Finality</h3>
+                  <h3>2. Immutable Audit Record Finality</h3>
                   <p>
-                    Due to the immutable nature of distributed ledger technology, all Ethereum smart contract transactions 
-                    broadcasted to the network are final, irreversible, and non-refundable once mined into a block. Donors 
-                    must carefully verify the target campaign contract address, donation amount, and gas limit prior to 
-                    signing any transaction payload in MetaMask or their Web3 provider.
+                    Once a verified donation or NGO disbursement milestone is notarized onto the Ethereum Sepolia ledger, its cryptographic audit hash is permanent and cannot be silently altered or deleted by any administrator or organization.
                   </p>
                 </section>
 
                 <section className="vercel-legal-section">
-                  <h3>3. Dual-Rail Philippine Fiat Processing (GCash, Maya, Bank)</h3>
+                  <h3>3. Philippine Multi-Rail Payment Processing (GCash, Maya, Bank &amp; Card)</h3>
                   <p>
-                    To ensure 100% financial inclusion for disaster responders across the Philippine archipelago, BBDRTS supports 
-                    direct fiat donations alongside Web3:
+                    To ensure 100% financial inclusion across the Philippine archipelago, BBDRTS operates natively in Philippine Pesos:
                   </p>
                   <ul className="vercel-legal-bullet-list">
                     <li>
-                      <strong>Direct Recipient Routing:</strong> Fiat donations made via QR Ph, GCash, Maya, or direct BDO/BPI 
-                      bank transfer go directly to the verified bank account or merchant wallet of the accredited NGO. BBDRTS 
-                      does not act as an escrow agent or intermediate money transmitter.
+                      <strong>Direct Recipient Routing:</strong> Donations made via QR Ph, GCash, Maya, credit/debit card, or direct Philippine bank transfer go to the verified account of the accredited NGO with 0% platform fees.
                     </li>
                     <li>
-                      <strong>Receipt Reference Deduplication:</strong> Every uploaded payment slip is parsed by our automated 
-                      OCR engine. Bank and e-wallet reference numbers are cryptographically hashed and indexed in our database. 
-                      Submitting a duplicate reference number or re-uploading an existing transaction slip is strictly prohibited 
-                      and flagged as fraudulent activity.
+                      <strong>Receipt Reference Deduplication:</strong> Every uploaded payment slip is parsed by our automated AI Vision OCR engine. Bank and e-wallet reference numbers are cryptographically hashed and deduplicated to prevent counterfeit or recycled slips.
                     </li>
                     <li>
-                      <strong>Audit Logging:</strong> All verified fiat donations are recorded in the dual-rail transparency ledger 
-                      alongside Sepolia blockchain events to ensure full reconciliation between crypto and fiat relief funds.
+                      <strong>Public On-Chain Reconciliation:</strong> Every verified donation and NGO field disbursement is anchored onto Sepolia with a public Etherscan verification link.
                     </li>
                   </ul>
                 </section>
@@ -434,9 +423,9 @@ export default function TermsPolicyModal({ isOpen, onClose, initialTab = 'agreem
                           <td>Geographic matching of relief donors to nearby regional calamity zones.</td>
                         </tr>
                         <tr>
-                          <td><strong>Financial &amp; Web3 Data</strong></td>
-                          <td>Ethereum Public Wallet Address, Transaction Hash, GCash/Maya Reference #</td>
-                          <td>Immutable on-chain donation logging and dual-rail audit reconciliation.</td>
+                          <td><strong>Financial &amp; Audit Data</strong></td>
+                          <td>GCash/Maya/Bank Reference #, Receipt Image, Sepolia Audit Transaction Hash</td>
+                          <td>AI receipt verification and immutable gasless on-chain audit reconciliation.</td>
                         </tr>
                         <tr>
                           <td><strong>Institutional Data</strong></td>
@@ -464,7 +453,7 @@ export default function TermsPolicyModal({ isOpen, onClose, initialTab = 'agreem
                   <ul className="vercel-legal-bullet-list">
                     <li><strong>Encryption at Rest &amp; in Transit:</strong> All database records are encrypted with AES-256; web traffic is secured exclusively via TLS 1.3 with strict HSTS headers.</li>
                     <li><strong>Cryptographic Salting:</strong> Passwords, OTP pins, and confidential references are hashed using industry-standard bcrypt with high cost factors.</li>
-                    <li><strong>Pseudonymous Public Ledger:</strong> Wallet addresses and on-chain events are pseudonymous by design. Personal identifiers like full names or telephone numbers are never published on the public EVM blockchain.</li>
+                    <li><strong>Privacy-Preserving Public Ledger:</strong> On-chain audit events record only anonymized campaign and donation hashes. Personal identifiers like full names, emails, or phone numbers are never published on the public blockchain.</li>
                     <li><strong>Zero Data Selling:</strong> We NEVER sell, lease, monetize, or disclose donor or user records to commercial advertising networks or third-party marketing entities.</li>
                   </ul>
                 </section>

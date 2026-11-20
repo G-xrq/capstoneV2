@@ -1149,7 +1149,7 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
                     onClick={() => setActiveTab('security')}
                   >
                     <span className="material-symbols-outlined">lock</span>
-                    <span>Security & Web3</span>
+                    <span>Security & Audit</span>
                   </button>
                 </>
               ) : (
@@ -1208,7 +1208,7 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
                     onClick={() => setActiveTab('security')}
                   >
                     <span className="material-symbols-outlined">lock</span>
-                    <span>Security & Web3</span>
+                    <span>Security & Audit</span>
                   </button>
                 </>
               )}
@@ -1387,7 +1387,7 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
                               setDisplayName(val);
                               setDisplayNameError(checkDisplayNameValidation(val));
                             }}
-                            placeholder="e.g. CryptoPatron, LeyteRelief, ShieldOfHope"
+                            placeholder="e.g. ReliefPatron, LeyteRelief, ShieldOfHope"
                             disabled={isCooldownActive}
                             required
                           />
@@ -1769,25 +1769,18 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
                           </span>
                         </div>
 
-                        {/* Web3 Wallet */}
+                        {/* Gasless Blockchain Audit Status */}
                         <div className="bbdrts-studio-cred-row">
                           <div className="bbdrts-studio-cred-meta">
-                            <span className="bbdrts-studio-cred-label">Web3 MetaMask Public Key (Sepolia)</span>
-                            <span className="bbdrts-studio-cred-val font-mono">
-                              {currentUser?.wallet_address || 'No wallet connected'}
+                            <span className="bbdrts-studio-cred-label">Blockchain Audit Trail</span>
+                            <span className="bbdrts-studio-cred-val">
+                              Gasless Ethereum Sepolia Notarization Active (No Wallet Required)
                             </span>
                           </div>
-                          {currentUser?.wallet_address && (
-                            <a
-                              href={`https://sepolia.etherscan.io/address/${currentUser.wallet_address}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="bbdrts-security-etherscan-link"
-                            >
-                              <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>open_in_new</span>
-                              <span>Etherscan</span>
-                            </a>
-                          )}
+                          <span className="bbdrts-verified-badge-inline">
+                            <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>verified</span>
+                            Active
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -1976,8 +1969,8 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
                             <span className="material-symbols-outlined">security</span>
                           </div>
                           <div>
-                            <h5>Web3 Security & Cryptographic Sessions</h5>
-                            <span>Manage cryptographic signing permissions and active protocol sessions.</span>
+                            <h5>Account Security &amp; Blockchain Audit Export</h5>
+                            <span>Inspect your active authentication session and download your Sepolia audit record.</span>
                           </div>
                         </div>
                       </div>
@@ -1985,8 +1978,8 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
                       <div className="bbdrts-studio-credentials-list">
                         <div className="bbdrts-studio-cred-row">
                           <div className="bbdrts-studio-cred-meta">
-                            <span className="bbdrts-studio-cred-label">EVM Cryptographic Protocol</span>
-                            <span className="bbdrts-studio-cred-val">EIP-712 Typed Data Signatures Active</span>
+                            <span className="bbdrts-studio-cred-label">Blockchain Notarization Engine</span>
+                            <span className="bbdrts-studio-cred-val">Gasless Ethereum Sepolia Audit Relayer Active</span>
                           </div>
                           <span className="bbdrts-verified-badge-inline">
                             <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>verified</span>
@@ -2014,7 +2007,7 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
                             const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({
                               entity: isOrg ? (orgName || currentUser?.name) : (currentUser?.name || currentUser?.email),
                               role: currentUser?.role || 'user',
-                              wallet: currentUser?.wallet_address || 'Unconnected',
+                              audit_mode: 'Gasless Sepolia Relayer (PHP Native)',
                               export_date: new Date().toISOString(),
                               protocol: "BBDRTS Sepolia Relief Ledger"
                             }, null, 2));

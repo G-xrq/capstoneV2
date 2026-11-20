@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { ethers } from 'ethers';
-import { connectWallet, hydrateContract, getReadOnlyContract } from './web3Connection';
+// All blockchain notarization is handled gaslessly by the backend Sepolia relayer.
 import { ROLES, ROLE_META } from './roleConfig';
 import LandingView from './views/LandingView';
 import AuthView from './views/AuthView';
@@ -22,11 +21,9 @@ import './App.css';
 import { isLocalhost, API_URL } from './config';
 
 export default function App() {
-  const contractRef = useRef(null);
-
-  /* ── Database Auth State (Web2) ─────────────────────── */
+  /* ── Database Auth State ────────────────────────────── */
   const [dbUser, setDbUser] = useState(null);
-  // dbUser = { id, name, email, role, wallet_address }
+  // dbUser = { id, name, email, role }
   const [authLoading, setAuthLoading] = useState(true);
   const [showAuth, setShowAuth] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -63,10 +60,7 @@ export default function App() {
 
 
 
-  /* ── Wallet State (Web3) ────────────────────────────── */
-  const [walletAddress, setWalletAddress] = useState('');
-  const [hasMetaMask, setHasMetaMask] = useState(true);
-  const [activeContract, setActiveContract] = useState(null);
+  /* ── Gasless Blockchain Audit Mode (No User Wallet Required) ── */
 
   const [campaigns, setCampaigns] = useState(() => {
     try {
@@ -364,10 +358,8 @@ export default function App() {
     clearLegacyGlobalPrefKeys();
   }, []);
 
-  /* ── 1. Init Session & Check MetaMask ───────────────── */
+  /* ── 1. Init Session ────────────────────────────────── */
   useEffect(() => {
-    setHasMetaMask(Boolean(window.ethereum));
-
     const token = localStorage.getItem('bbdrts_token');
     const failsafeTimer = setTimeout(() => {
       setAuthLoading(false);
@@ -388,9 +380,7 @@ export default function App() {
             if (data.user.id || data.user.email) {
               localStorage.setItem('bbdrts_anon_default_' + (data.user.id || data.user.email), String(userIsAnon));
             }
-            if (data.user.wallet_address) {
-              setWalletAddress(data.user.wallet_address);
-            }
+            // Gasless relayer active — no personal wallet required
             if (localStorage.getItem('bbdrts_needs_onboarding') === 'true' && data.user.role !== 'admin') {
               setShowOnboardingModal(true);
             }
@@ -494,79 +484,7 @@ export default function App() {
     };
   }, [dbUser]);
 
-  /* ── 2. Handle Wallet Changes ───────────────────────── */
-  useEffect(() => {
-    if (!window.ethereum) return;
-    const onChange = async (accounts) => {
-      if (accounts.length === 0) {
-        setWalletAddress('');
-        contractRef.current = null;
-        setActiveContract(null);
-      } else {
-        try {
-          const contract = await hydrateContract();
-          contractRef.current = contract;
-          setActiveContract(contract);
-          setWalletAddress(accounts[0]);
-          fetchCampaigns(contract);
-        } catch (err) {
-          console.error('Account change error:', err);
-        }
-      }
-    };
-    window.ethereum.on('accountsChanged', onChange);
-
-    if (dbUser && dbUser.wallet_address) {
-      window.ethereum.request({ method: 'eth_accounts' })
-        .then(async accounts => {
-          if (accounts.length > 0 && accounts[0].toLowerCase() === dbUser.wallet_address.toLowerCase()) {
-            try {
-              const contract = await hydrateContract();
-              contractRef.current = contract;
-              setActiveContract(contract);
-              fetchCampaigns(contract);
-            } catch (e) {
-              console.warn("Silent contract hydration prevented by MetaMask:", e);
-            }
-          }
-        });
-    }
-
-    return () => window.ethereum.removeListener('accountsChanged', onChange);
-  }, [dbUser]);
-
-  /* ── Update DB with connected wallet ────────────────── */
-  const updateDbWallet = async (address) => {
-    if (!dbUser || dbUser.wallet_address === address) return;
-    const token = localStorage.getItem('bbdrts_token');
-    if (!token) return;
-    try {
-      await fetch(`${API_URL}/api/auth/wallet`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({ wallet_address: address })
-      });
-      setDbUser(prev => ({ ...prev, wallet_address: address }));
-    } catch (err) {
-      console.error('Failed to link wallet to DB Profile:', err);
-    }
-  };
-
-  /* ── 3. Actions ─────────────────────────────────────── */
-  const handleConnectWallet = async (forcePrompt = false) => {
-    try {
-      const { signer, contract } = await connectWallet(forcePrompt);
-      contractRef.current = contract;
-      setActiveContract(contract);
-      const addr = await signer.getAddress();
-      setWalletAddress(addr);
-      fetchCampaigns(contract);
-      updateDbWallet(addr);
-    } catch (err) {
-      console.error('Wallet connection failed:', err);
-      if (err.message?.includes('MetaMask')) setHasMetaMask(false);
-    }
-  };
+  /* ── 2. Actions ─────────────────────────────────────── */
 
   const handleLoginSuccess = async (user, token, options = {}) => {
     const isNewSignup = Boolean(
@@ -644,18 +562,7 @@ export default function App() {
       if (user?.id || user?.email) {
         localStorage.setItem('bbdrts_anon_default_' + (user.id || user.email), String(userIsAnon));
       }
-      if (user?.wallet_address) setWalletAddress(user.wallet_address);
-
-      let contract = activeContract || contractRef.current;
-      if (!contract && window.ethereum && user?.wallet_address) {
-        try {
-          contract = await hydrateContract();
-          contractRef.current = contract;
-          setActiveContract(contract);
-        } catch (_) {}
-      }
-
-      fetchCampaigns(contract).catch(() => null);
+      fetchCampaigns().catch(() => null);
       await new Promise(r => setTimeout(r, 320));
 
       // ── Stage 4: Mounting Dashboard Workspace (~320ms) ──
@@ -733,17 +640,14 @@ export default function App() {
       type: 'logout',
       stage: 1,
       title: 'Ending Session',
-      subtitle: 'Closing active Web3 connection...',
+      subtitle: 'Closing authenticated session...',
       role: '',
       user: null,
       latencyMs: 24
     });
 
     try {
-      // ── Stage 1: Closing active Web3 connection (~280ms) ──
-      contractRef.current = null;
-      setActiveContract(null);
-      setWalletAddress('');
+      // ── Stage 1: Closing active session (~280ms) ──
       await new Promise(r => setTimeout(r, 280));
 
       // ── Stage 2: Clearing credentials & session cache (~280ms) ──
@@ -892,53 +796,7 @@ export default function App() {
         } catch (_) {}
       }
 
-      // Fast non-blocking background on-chain sync (runs silently without blocking the UI)
-      const contract = contractOverride !== undefined ? contractOverride : (contractRef.current || getReadOnlyContract());
-      if (contract && dbCampaigns.length > 0) {
-        (async () => {
-          try {
-            const count = Number(await contract.campaignCount());
-            if (!count || count <= 0) return;
-
-            const onChainBatch = await Promise.all(
-              Array.from({ length: Math.min(count, 30) }, (_, idx) =>
-                contract.campaigns(idx + 1).catch(() => null)
-              )
-            );
-
-            setCampaigns(prev => {
-              let changed = false;
-              const next = prev.map(dbCamp => {
-                let onChainData = (dbCamp.id && dbCamp.id <= count) ? onChainBatch[dbCamp.id - 1] : null;
-                if (!onChainData || !onChainData[1]) {
-                  onChainData = onChainBatch.find(c => c && c[1] && c[1].trim().toLowerCase() === (dbCamp.title || '').trim().toLowerCase()) || null;
-                }
-
-                if (onChainData && onChainData[1]) {
-                  const onChainEth = parseFloat(ethers.formatEther(onChainData[3])) || 0;
-                  const dbEth = parseFloat(dbCamp.currentAmount || 0) || 0;
-                  const finalCurrent = Math.max(onChainEth, dbEth);
-
-                  if (finalCurrent.toString() !== dbCamp.currentAmount || onChainData[4] !== dbCamp.isActive) {
-                    changed = true;
-                    return {
-                      ...dbCamp,
-                      orgAddress: onChainData[0] || dbCamp.orgAddress,
-                      targetAmount: ethers.formatEther(onChainData[2]),
-                      currentAmount: finalCurrent.toString(),
-                      isActive: onChainData[4]
-                    };
-                  }
-                }
-                return dbCamp;
-              });
-              return changed ? next : prev;
-            });
-          } catch (_) {
-            // Silently retain DB campaigns on RPC glitch
-          }
-        })();
-      }
+      // Campaigns & PHP totals are served directly from the audited DB + gasless Sepolia relayer ledger.
     } catch (err) {
       console.error('Campaign sync error:', err);
     } finally {
@@ -1004,22 +862,17 @@ export default function App() {
     dbUser,
     currentView: presenceView,
     currentSubpage: presenceSubpage,
-    walletAddress,
     eventHint: presenceEventHint,
     onEventHintConsumed: useCallback(() => setPresenceEventHint(null), [])
   });
 
   const sharedProps = {
-    contract: activeContract,
-    walletAddress,
     role: uiRole,
     campaigns,
     fetchCampaigns,
     fetchingCampaigns,
     currentUser: dbUser,
-    handleConnectWallet,
     handleLogout,
-    updateDbWallet,
     theme,
     themeMode,
     setTheme,
@@ -1062,8 +915,6 @@ export default function App() {
       {!(!dbUser && showAuth) && (
         <Header
           dbUser={dbUser}
-          walletAddress={walletAddress}
-          handleConnectWallet={handleConnectWallet}
           handleLogout={handleLogout}
           showAuth={showAuth}
           setShowAuth={setShowAuth}
@@ -1095,8 +946,6 @@ export default function App() {
               setAuthMode('register');
               setShowAuth(true);
             }}
-            hasMetaMask={hasMetaMask}
-            contract={activeContract}
             onOpenNgoProfile={(id) => setSelectedNgoForProfile(id || 3)}
             theme={theme}
           />
@@ -1105,8 +954,6 @@ export default function App() {
         {!dbUser && showAuth && (
           <AuthView
             onLoginSuccess={handleLoginSuccess}
-            onConnectWallet={handleConnectWallet}
-            hasMetaMask={hasMetaMask}
             onBack={() => setShowAuth(false)}
             theme={theme}
             onToggleTheme={toggleTheme}
@@ -1115,7 +962,7 @@ export default function App() {
           />
         )}
 
-        {/* ── Role-based Dashboards (Require Wallet for Actions) ── */}
+        {/* ── Role-based Dashboards (Gasless On-Chain Audit Enabled) ── */}
         {dbUser && (
           <div
             className="dashboard-enter-reveal"
@@ -1150,12 +997,8 @@ export default function App() {
               ×
             </button>
             <SettingsPanel
-              contract={activeContract}
               currentUser={dbUser}
-              walletAddress={walletAddress}
-              handleConnectWallet={handleConnectWallet}
               handleLogout={handleLogout}
-              updateDbWallet={updateDbWallet}
               theme={theme}
               themeMode={themeMode}
               setTheme={setTheme}
@@ -1297,7 +1140,6 @@ export default function App() {
       {/* ── "ReliefAI" Humanitarian Relief Copilot Floating Assistant (Module C) with Live Dashboard Intelligence ── */}
       <ReliefAiChat
         currentUser={dbUser}
-        walletAddress={walletAddress}
         userRole={dbUser?.role || 'donor'}
         campaigns={campaigns}
         activeView={

@@ -243,7 +243,7 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
       badge: 'Profile & Overview',
       placement: 'bottom',
       align: 'start',
-      description: 'Your dashboard header displays your verified wallet address and current donor recognition. Use the quick action buttons to explore your Recognition Circles, jump directly to active relief appeals, or verify the public ledger on Etherscan.'
+      description: 'Your dashboard header displays your verified account standing and current donor recognition. Use the quick action buttons to explore your Recognition Circles, jump directly to active relief appeals, or inspect the public ledger on Etherscan.'
     },
     {
       target: '#tour-donor-badge-card',
@@ -261,7 +261,7 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
       badge: 'Key Statistics',
       placement: 'bottom',
       align: 'center',
-      description: 'These four stat cards summarize your total contributions recorded on-chain, the number of active relief causes open for aid, the live Sepolia smart contract verification status, and your cumulative donation total in ETH and PHP.'
+      description: 'These stat cards summarize your total verified PHP contributions recorded on-chain, the number of active relief causes open for aid, and your gasless Sepolia audit status.'
     },
     {
       target: '#tour-donor-first-campaign, #tour-donor-featured-causes',
@@ -270,7 +270,7 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
       badge: 'Relief Causes',
       placement: 'bottom',
       align: 'center',
-      description: 'Review featured emergency disaster appeals posted by accredited organizations. Each card shows the disaster category, urgency level, funding goal, and progress. Click Donate to contribute using Sepolia ETH or Philippine e-wallets (GCash & Maya).'
+      description: 'Review featured emergency disaster appeals posted by accredited organizations. Each card shows the disaster category, urgency level, funding goal, and progress. Click Donate to contribute in PHP via GCash, Maya, Bank Transfer, or Card with gasless on-chain proof.'
     },
     {
       target: '#tour-donor-tab-campaigns',
@@ -1073,26 +1073,12 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
                         </span>
                       </div>
                       <div className="dbo-clean-subtext">
-                        {walletAddress ? (
-                          <span
-                            className="dbo-clean-wallet-pill"
-                            onClick={() => {
-                              if (navigator.clipboard) {
-                                navigator.clipboard.writeText(walletAddress);
-                                showSuccess('Wallet address copied to clipboard', 'Address Copied');
-                              }
-                            }}
-                            title="Click to copy full Sepolia wallet address"
-                          >
-                            <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>{interfaceMode === 'simplified' ? 'verified_user' : 'account_balance_wallet'}</span>
-                            <span>{interfaceMode === 'simplified' ? 'Sepolia Verified Contributor' : shortAddr(walletAddress)}</span>
-                            <span className="material-symbols-outlined" style={{ fontSize: '11px', opacity: 0.6 }}>content_copy</span>
-                          </span>
-                        ) : (
-                          <span style={{ color: 'var(--text-muted)' }}>Wallet not connected</span>
-                        )}
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', color: 'var(--text-secondary)' }}>
+                          <span className="material-symbols-outlined" style={{ fontSize: '13px', color: '#10b981' }}>verified_user</span>
+                          <span>Gasless Sepolia Receipts Active</span>
+                        </span>
                         <span>•</span>
-                        <span style={{ color: 'var(--text-muted)' }}>{interfaceMode === 'simplified' ? 'Active Relief Network' : 'Sepolia Testnet'}</span>
+                        <span style={{ color: 'var(--text-muted)' }}>Active Relief Network</span>
                       </div>
                     </div>
                   </div>
@@ -1180,7 +1166,7 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
                     ₱{Math.round(totalDonatedPhp).toLocaleString('en-US')}
                   </div>
                   <p className="dbo-metric-caption">
-                    <span>{interfaceMode === 'simplified' ? wt.metricTotalContributedSub : `${totalDonated} ETH · ${wt.metricVerifiedRecordsSub}`}</span>
+                    <span>{wt.metricTotalContributedSub} · {wt.metricVerifiedRecordsSub}</span>
                   </p>
                 </div>
 
@@ -1364,7 +1350,7 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
                     <div style={{ padding: '24px 20px', textAlign: 'center' }}>
                       <div style={{ fontSize: '0.88rem', fontWeight: 600, color: 'var(--text-secondary)' }}>{wt.noContributions}</div>
                       <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: '4px 0 12px' }}>
-                        Pledge relief via GCash, Maya, Bank Transfer, or Sepolia ETH to record your first on-chain proof.
+                        Pledge relief via GCash, Maya, Bank Transfer, or Card to record your first gasless on-chain proof.
                       </p>
                       <button
                         type="button"
@@ -1378,8 +1364,8 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
                   ) : (
                     <div>
                       {myDonations.slice(0, 4).map((d, dIdx) => {
-                        const rail = (d.paymentMethod || d.Payment_Method || 'ETH').toUpperCase();
-                        const railClass = rail.includes('GCASH') ? 'gcash' : rail.includes('MAYA') ? 'maya' : rail.includes('BANK') ? 'bank' : 'eth';
+                        const rail = (d.paymentMethod || d.Payment_Method || 'PHP').toUpperCase();
+                        const railClass = rail.includes('GCASH') ? 'gcash' : rail.includes('MAYA') ? 'maya' : (rail.includes('BANK') || rail.includes('CARD')) ? 'bank' : 'eth';
                         const ethAmt = parseFloat(d.amount || d.Amount || 0);
                         const phpVal = d.phpAmount || Math.round(ethAmt * 170000);
                         const txHash = d.txHash || d.Tx_Hash;
@@ -1389,7 +1375,7 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
                           <div className="dbo-feed-row" key={dIdx}>
                             <div className="dbo-feed-info">
                               <span className={`dbo-feed-rail ${railClass}`}>
-                                {rail.includes('GCASH') ? 'GCASH' : rail.includes('MAYA') ? 'MAYA' : rail.includes('BANK') ? 'BANK' : 'ETH'}
+                                {rail.includes('GCASH') ? 'GCASH' : rail.includes('MAYA') ? 'MAYA' : (rail.includes('BANK') || rail.includes('CARD')) ? 'BANK' : 'VERIFIED'}
                               </span>
                               <div className="dbo-feed-text">
                                 <div className="dbo-feed-title" title={campTitle}>{campTitle}</div>
@@ -2038,7 +2024,7 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
                     </div>
                     <div className="bbdrts-kpi-subtext" style={{ color: '#10b981' }}>
                       <span className="material-symbols-outlined">payments</span>
-                      <span>≈ {totalDonated} ETH on Sepolia</span>
+                      <span>Gaslessly notarized on Sepolia</span>
                     </div>
                   </div>
                 </div>
@@ -2169,8 +2155,7 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
                     onChange={(e) => setReceiptRailFilter(e.target.value)}
                     title="Filter by Payment Rail"
                   >
-                    <option value="ALL">All Payment Rails</option>
-                    <option value="ETH">Crypto / ETH</option>
+                    <option value="ALL">All Payment Channels</option>
                     <option value="GCASH">GCash</option>
                     <option value="MAYA">Maya</option>
                     <option value="CARD">Card / Bank</option>
@@ -2407,7 +2392,7 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
                                 title="Dual-Rail Payment Method"
                               >
                                 <span className="material-symbols-outlined">{railIcon}</span>
-                                <span>{d.paymentMethod || 'ETH'}</span>
+                                <span>{(d.paymentMethod && !/eth|crypto|metamask/i.test(d.paymentMethod)) ? d.paymentMethod : 'Verified Audit'}</span>
                               </div>
 
                               {d.referenceNumber && (
@@ -2431,7 +2416,7 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
                                   <span className="bbdrts-variance-tag">(-₱{Math.abs(d.variancePhp || 0).toLocaleString()})</span>
                                 </div>
                                 <div className="bbdrts-contrib-amount-eth">
-                                  ({ethAmt < 0.0001 ? ethAmt.toFixed(6) : ethAmt.toFixed(4)} ETH on-chain)
+                                  Notarized on Sepolia
                                 </div>
                               </>
                             ) : (
@@ -2440,7 +2425,7 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
                                   ₱{phpAmt.toLocaleString('en-US')}
                                 </div>
                                 <div className="bbdrts-contrib-amount-eth">
-                                  ≈ {ethAmt < 0.0001 ? ethAmt.toFixed(6) : ethAmt.toFixed(4)} ETH
+                                  Sepolia Verified
                                 </div>
                               </>
                             )}
@@ -3448,7 +3433,7 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
                         ₱{creditedPhp.toLocaleString('en-US')}
                       </div>
                       <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '4px' }}>
-                        ({amtEth.toFixed(4)} ETH on Sepolia ledger)
+                        Gaslessly sealed on Sepolia ledger
                       </div>
                     </div>
 

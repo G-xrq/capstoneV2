@@ -362,7 +362,7 @@ export default function DisburseModal({ camp, isOpen, onClose, onDisbursed }) {
       }
 
       showSuccess(
-        `Disbursed ₱${effectiveAmountPhp.toLocaleString()} (${approxEth} ETH)! Notarized with cryptographic audit proof.`,
+        `Disbursed ₱${effectiveAmountPhp.toLocaleString()}! Notarized gaslessly with cryptographic audit proof.`,
         'Funds Released'
       );
 
@@ -516,7 +516,7 @@ export default function DisburseModal({ camp, isOpen, onClose, onDisbursed }) {
                           required
                           autoFocus
                         />
-                        <span className="suffix">≈ {approxEth} ETH</span>
+                        <span className="suffix">PHP</span>
                       </div>
 
                       {availablePhp > 0 && (
@@ -645,7 +645,6 @@ export default function DisburseModal({ camp, isOpen, onClose, onDisbursed }) {
                     <div className="bbdrts-disb-total-line">
                       <span>Calculated Disbursement Amount:</span>
                       <strong className="text-emerald">₱{totalItemizedPhp.toLocaleString()}</strong>
-                      <span className="text-muted">≈ {approxEth} ETH</span>
                     </div>
                   </div>
                 )}
@@ -858,7 +857,7 @@ export default function DisburseModal({ camp, isOpen, onClose, onDisbursed }) {
                   <div className="bbdrts-review-card">
                     <span className="review-card-lbl">Releasing from Escrow</span>
                     <strong className="review-card-val text-emerald">₱{effectiveAmountPhp.toLocaleString()}</strong>
-                    <span className="review-card-sub">≈ {approxEth} ETH • Escrow Remaining: ₱{remainingInEscrow.toLocaleString()}</span>
+                    <span className="review-card-sub">Escrow Remaining: ₱{remainingInEscrow.toLocaleString()}</span>
                   </div>
 
                   <div className="bbdrts-review-card">
@@ -943,7 +942,6 @@ export default function DisburseModal({ camp, isOpen, onClose, onDisbursed }) {
             <div className="bbdrts-disb-footer-releasing">
               <span className="label">Releasing:</span>
               <strong className="amt">₱{effectiveAmountPhp.toLocaleString()}</strong>
-              <span className="eth">({approxEth} ETH)</span>
             </div>
 
             <div className="bbdrts-disb-footer-actions">

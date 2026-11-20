@@ -825,7 +825,7 @@ export default function LeaderboardModal({
                 </div>
               ) : (
                 <div className="bbdrts-user-banner-text">
-                  Log in or connect your wallet to verify your contributions and donor tier standing.
+                  Log in to verify your contributions and view your donor recognition tier.
                 </div>
               )}
             </div>
@@ -858,11 +858,11 @@ export default function LeaderboardModal({
                 className="bbdrts-user-banner-cta"
                 onClick={() => {
                   onClose();
-                  if (typeof onConnectWallet === 'function') onConnectWallet();
+                  if (typeof onLogin === 'function') onLogin();
                 }}
               >
-                <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>account_balance_wallet</span>
-                <span>Connect Wallet</span>
+                <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>login</span>
+                <span>Log In</span>
               </button>
             )}
           </div>

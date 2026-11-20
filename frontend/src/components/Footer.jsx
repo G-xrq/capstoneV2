@@ -157,7 +157,7 @@ export default function Footer({ onNavigate, theme, toggleTheme }) {
             </div>
 
             <p className="bbdrts-footer-mission">
-              An open, tamper-proof humanitarian platform for the Philippines. BBDRTS connects donors directly to verified disaster response operations through Ethereum Sepolia smart contracts, multi-rail giving (Crypto, GCash, Maya), and transparent milestone delivery proofs.
+              An open, tamper-proof humanitarian platform for the Philippines. BBDRTS connects donors directly to verified disaster response operations through Philippine payment rails (GCash, Maya, Cards, Bank Transfer), a gasless Ethereum Sepolia audit relayer, and public milestone delivery proofs.
             </p>
 
             {/* Verified Contract Address Chip & Explorer Link */}
@@ -264,7 +264,7 @@ export default function Footer({ onNavigate, theme, toggleTheme }) {
               </li>
               <li>
                 <button type="button" className="bbdrts-footer-link" onClick={() => openGov('security')}>
-                  Dual-Rail Audit (Crypto & Fiat)
+                  Blockchain Audit & Receipt Verification
                 </button>
               </li>
               <li>

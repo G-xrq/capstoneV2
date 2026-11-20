@@ -17,8 +17,8 @@ const QUICK_STARTER_PROMPTS = [
   {
     icon: 'account_balance_wallet',
     title: 'How to Donate',
-    sub: 'MetaMask (crypto) & GCash / Maya guide',
-    prompt: 'How can I donate through MetaMask (crypto) or GCash/Maya on BBDRTS?'
+    sub: 'GCash, Maya, Bank & Card guide',
+    prompt: 'How can I donate via GCash, Maya, Bank Transfer, or Card on BBDRTS?'
   },
   {
     icon: 'shield',
@@ -38,7 +38,7 @@ const DEFAULT_FOLLOW_UP_SUGGESTIONS = [
   'How do I verify my donation receipt on-chain?',
   'What is the live funding status of active campaigns?',
   'Who are the verified partner NGOs?',
-  'How to donate without cryptocurrency?'
+  'How does the gasless blockchain audit work?'
 ];
 
 /**
@@ -75,7 +75,7 @@ Lead Architect: Gester C. Macaldo; Development Team: Leslie Faye Baltazar, Reva 
 CRITICAL LANGUAGE DIRECTIVES:
 1. DEFAULT LANGUAGE: Speak in clear, professional, friendly, and natural ENGLISH by default for all responses and explanations.
 2. MULTILINGUAL CAPABILITY: You understand Tagalog/Filipino, Cebuano/Bisaya, and other languages. If and ONLY IF the user explicitly asks a question in Tagalog or Bisaya, reply thoughtfully in that language. Otherwise, strictly maintain ENGLISH as your default.
-3. BBDRTS CONTEXT: Ground explanations on Ethereum Sepolia smart contracts, on-chain public ledger transparency, zero-cut MetaMask donations, QR Ph GCash/Maya AI receipt verification, and disaster hotlines (NDRRMC 911, Red Cross 143).
+3. BBDRTS CONTEXT: Ground explanations on 100% Philippine Peso donations (GCash, Maya QR Ph, Bank Transfer, Card), AI Vision receipt verification, gasless Ethereum Sepolia blockchain notarization (no MetaMask or crypto required), and disaster hotlines (NDRRMC 911, Red Cross 143).
 ${dashboardNarrative}`;
 
         const contents = [];
@@ -123,7 +123,7 @@ CRITICAL LANGUAGE DIRECTIVES:
 1. Speak in clear, professional, and natural ENGLISH by default.
 2. If the user addresses you in Tagalog or Cebuano, understand and reply in their language, but default to ENGLISH.
 3. Explain blockchain without dense jargon: public ledger, transparent smart contracts, zero intermediary fees.
-4. Explain how donors can donate via BOTH MetaMask (direct Web3 crypto with zero gateway fee) and GCash/Maya/Bank (fiat QR Ph with automated AI receipt inspection and on-chain relayer notarization).
+4. Explain how donors donate natively in Philippine Pesos via GCash, Maya, Bank Transfer, or Card with automated AI receipt inspection and gasless Ethereum Sepolia notarization (zero crypto wallet or gas fees required).
 5. For emergency search and rescue, reference NDRRMC 911 and Red Cross 143.
 ${dashboardNarrative}`;
 
@@ -436,8 +436,8 @@ export default function ReliefAiChat({
       starters.push({
         icon: 'account_balance_wallet',
         title: 'How to Donate',
-        sub: 'MetaMask (crypto) & GCash / Maya guide',
-        prompt: 'How can I donate through MetaMask (crypto) or GCash/Maya on BBDRTS?'
+        sub: 'GCash, Maya, Bank & Card guide',
+        prompt: 'How can I donate via GCash, Maya, Bank Transfer, or Card on BBDRTS?'
       });
       starters.push({
         icon: 'filter_alt',
@@ -464,8 +464,8 @@ export default function ReliefAiChat({
       });
       starters.push({
         icon: 'post_add',
-        title: 'Campaign Deployment Guide',
-        sub: 'Smart contract target ETH & parameters',
+        title: 'Campaign Launch Guide',
+        sub: 'PHP goal & verification parameters',
         prompt: 'What information and verification details are required to deploy an emergency disaster appeal to the blockchain?'
       });
       starters.push({
@@ -476,9 +476,9 @@ export default function ReliefAiChat({
       });
       starters.push({
         icon: 'qr_code_2',
-        title: 'Dual-Rail Payments (QR Ph)',
-        sub: 'Setting up GCash/Maya recipient accounts',
-        prompt: 'How can our NGO configure QR Ph and GCash/Maya accounts so non-crypto donors can contribute?'
+        title: 'Payment Channels (QR Ph)',
+        sub: 'Setting up GCash, Maya & Bank accounts',
+        prompt: 'How can our NGO configure QR Ph, GCash, Maya, and Bank payout accounts for donors?'
       });
       return starters;
     }
@@ -539,9 +539,9 @@ export default function ReliefAiChat({
     if (sub.includes('setting') || sub.includes('profile') || tab === 'settings') {
       starters.push({
         icon: 'manage_accounts',
-        title: 'Profile & Web3 Wallet',
-        sub: 'Updating your connected address & identity',
-        prompt: 'How do I update my profile details and link my primary MetaMask Web3 wallet to this account?'
+        title: 'Profile & Security',
+        sub: 'Updating identity & 2FA protection',
+        prompt: 'How do I update my profile details and enable Two-Factor Authentication on this account?'
       });
       starters.push({
         icon: 'palette',
@@ -551,9 +551,9 @@ export default function ReliefAiChat({
       });
       starters.push({
         icon: 'lock',
-        title: 'Session & Cryptographic Security',
-        sub: 'JWT tokens & wallet signature security',
-        prompt: 'How does BBDRTS secure user sessions and protect wallet signatures against phishing or unauthorized access?'
+        title: 'Session & Audit Security',
+        sub: 'JWT tokens, 2FA & gasless Sepolia audit',
+        prompt: 'How does BBDRTS secure user sessions and protect on-chain audit integrity?'
       });
       return starters;
     }
@@ -593,8 +593,8 @@ export default function ReliefAiChat({
       starters.push({
         icon: 'account_balance_wallet',
         title: 'How to Donate',
-        sub: 'MetaMask (crypto) & GCash / Maya guide',
-        prompt: 'How can I donate through MetaMask (crypto) or GCash/Maya on BBDRTS?'
+        sub: 'GCash, Maya, Bank & Card guide',
+        prompt: 'How can I donate via GCash, Maya, Bank Transfer, or Card on BBDRTS?'
       });
     }
 

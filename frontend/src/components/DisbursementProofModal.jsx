@@ -172,7 +172,6 @@ export default function DisbursementProofModal({ camp, isOpen, onClose, theme })
                       <div className="metric-item">
                         <span className="metric-label">Amount Released</span>
                         <strong className="metric-val">₱{parseFloat(d.amountPhp || 0).toLocaleString()}</strong>
-                        <span className="metric-sub">≈ {parseFloat(d.amountEth || 0).toFixed(4)} ETH</span>
                       </div>
                       {d.beneficiariesReached > 0 && (
                         <div className="metric-item">

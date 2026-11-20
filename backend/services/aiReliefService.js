@@ -120,16 +120,16 @@ function generateContextualPrompts(query = '', reply = '', activeCampaigns = [])
   const combined = (query + ' ' + reply).toLowerCase();
   if (combined.includes('pintuyan') || combined.includes('sogod') || combined.includes('maasin') || combined.includes('deficit')) {
     return [
-      'How to donate via GCash or Maya QR?',
-      'How to donate using MetaMask (ETH)?',
+      'How to donate via GCash, Maya, or Bank?',
+      'How does the gasless blockchain audit work?',
       'Show all active calamity appeals',
       'How to verify my transaction hash?'
     ];
   }
   if (combined.includes('blockchain') || combined.includes('smart contract') || combined.includes('transparency') || combined.includes('ledger') || combined.includes('sepolia')) {
     return [
-      'How do smart contracts eliminate corruption?',
-      'What is the difference between Web2 and Web3 donations?',
+      'How does gasless blockchain notarization prevent corruption?',
+      'How does AI OCR verify GCash and Maya receipts?',
       'How to verify transactions on Sepolia Etherscan?',
       'Where is relief aid needed most right now?'
     ];
@@ -145,8 +145,8 @@ function generateContextualPrompts(query = '', reply = '', activeCampaigns = [])
   const topCampName = activeCampaigns[0]?.Campaign_Title ? activeCampaigns[0].Campaign_Title.slice(0, 24) : null;
   return [
     topCampName ? `What is the funding deficit of "${topCampName}"?` : 'Where is relief aid needed most right now?',
-    'How to donate via MetaMask or GCash?',
-    'How does blockchain transparency work?',
+    'How to donate via GCash, Maya, or Bank?',
+    'How does gasless blockchain transparency work?',
     'Philippine Emergency Hotlines (911 / 143)'
   ];
 }
@@ -351,43 +351,23 @@ async function chatWithReliefCopilot({
 
   // 2. Fetch User-Specific Ledger Contribution Summary from Dashboard Context
   let userDonationSummary = null;
-  const userWallet = dashboardContext?.walletAddress;
   const userEmail = dashboardContext?.userEmail;
 
-  if (userWallet || userEmail) {
+  if (userEmail) {
     try {
-      let totalCount = 0;
-      let totalEth = 0;
-
-      if (userWallet) {
-        const [txs] = await db.query(`
-          SELECT COUNT(*) as count, COALESCE(SUM(Amount), 0) as totalEth
-          FROM DONATION_TRANSACTION
-          WHERE LOWER(Donor_Address) = LOWER(?)
-        `, [userWallet]);
-        if (txs && txs.length > 0) {
-          totalCount += parseInt(txs[0].count || 0, 10);
-          totalEth += parseFloat(txs[0].totalEth || 0);
-        }
-      }
-
-      if (userEmail || userWallet) {
-        const [mans] = await db.query(`
-          SELECT COUNT(*) as count, COALESCE(SUM(Amount), 0) as totalEth
-          FROM MANUAL_DONATION
-          WHERE (LOWER(Donor_Email) = LOWER(?) OR LOWER(Wallet_Address) = LOWER(?)) AND Status = 'Approved'
-        `, [userEmail || '', userWallet || '']);
-        if (mans && mans.length > 0) {
-          totalCount += parseInt(mans[0].count || 0, 10);
-          totalEth += parseFloat(mans[0].totalEth || 0);
-        }
-      }
+      const [txs] = await db.query(`
+        SELECT COUNT(*) as count, COALESCE(SUM(dt.Amount), 0) as totalAmt
+        FROM DONATION_TRANSACTION dt
+        JOIN DONOR d ON dt.Donor_ID = d.Donor_ID
+        WHERE LOWER(d.Username) = LOWER(?)
+      `, [userEmail]);
+      const totalCount = parseInt(txs?.[0]?.count || 0, 10);
+      const totalPhp = Math.round((parseFloat(txs?.[0]?.totalAmt || 0) || 0) * ETH_TO_PHP_RATE);
 
       if (totalCount > 0) {
-        const phpApprox = Math.round(totalEth * ETH_TO_PHP_RATE).toLocaleString();
-        userDonationSummary = `User has made ${totalCount} verified on-chain donation(s) totaling ${totalEth.toFixed(4)} ETH (~₱${phpApprox} PHP).`;
+        userDonationSummary = `User has made ${totalCount} verified donation(s) totaling ₱${totalPhp.toLocaleString()} PHP (notarized on Ethereum Sepolia).`;
       } else {
-        userDonationSummary = `User currently has 0 recorded donations on this address.`;
+        userDonationSummary = `User currently has 0 recorded donations on this account.`;
       }
     } catch (_) {}
   }
@@ -410,7 +390,7 @@ async function chatWithReliefCopilot({
           LEFT JOIN ORGANIZATION o ON c.Org_ID = o.Org_ID
           WHERE t.Tx_Hash LIKE ? LIMIT 1
         `, [`%${targetHash}%`]);
-        if (txs && txs.length > 0) foundRecord = { type: 'WEB3_ETH', data: txs[0] };
+        if (txs && txs.length > 0) foundRecord = { type: 'SEPOLIA_AUDIT', data: txs[0] };
       }
 
       if (!foundRecord && targetRef) {
@@ -428,19 +408,19 @@ async function chatWithReliefCopilot({
         const d = foundRecord.data;
         const org = d.Org_Name || 'Verified Organization';
         const title = d.Campaign_Title || 'Disaster Campaign';
-        const amt = d.Amount ? Number(d.Amount).toFixed(4) : '0';
-        const phpApprox = (parseFloat(amt) * ETH_TO_PHP_RATE).toLocaleString();
+        const amt = parseFloat(d.Amount || 0) || 0;
+        const phpApprox = Math.round(amt * ETH_TO_PHP_RATE).toLocaleString();
 
         return {
-          reply: `✅ **Verified On-Chain on Public Ledger!**\n\nI have successfully verified the donation record in the BBDRTS public ledger:\n- **Campaign**: ${title}\n- **Organization**: ${org}\n- **Amount**: \`${amt} ETH\` (~₱${phpApprox} PHP)\n- **Status**: ${d.Status || 'Confirmed On-Chain'}\n- **Ledger Seal**: Permanently and immutably recorded on Ethereum Sepolia.\n\nThank you for your generous humanitarian support! 🙏`,
+          reply: `✅ **Verified On-Chain on Public Ledger!**\n\nI have successfully verified the donation record in the BBDRTS public ledger:\n- **Campaign**: ${title}\n- **Organization**: ${org}\n- **Amount**: **₱${phpApprox} PHP**\n- **Status**: ${d.Status || 'Confirmed On-Chain'}\n- **Ledger Seal**: Permanently and gaslessly notarized on Ethereum Sepolia.\n\nThank you for your generous humanitarian support! 🙏`,
           intent: 'TRANSACTION_VERIFICATION',
           isRealtimeAi: true,
           modelUsed: 'Blockchain Ledger Verifier',
           verifiedData: foundRecord,
           suggestedPrompts: [
-            'How does blockchain transparency work?',
+            'How does gasless blockchain transparency work?',
             'Where is aid needed most right now?',
-            'How to donate via MetaMask or GCash?'
+            'How to donate via GCash, Maya, or Bank?'
           ]
         };
       }
@@ -449,7 +429,7 @@ async function chatWithReliefCopilot({
 
   // 4. Grounding Context with Live Database Campaigns
   const activeContext = activeCampaigns.map(c => 
-    `- ID ${c.Campaign_ID}: "${c.Campaign_Title}" (${c.Location_Region}), Urgency: ${c.Urgency}, Raised: ${c.Raised_Eth}/${c.Target_Amount} ETH (${c.pctFunded}%), Org: ${c.Org_Name || 'Verified NGO'}, Deficit: ₱${c.deficitPhp.toLocaleString()} (${c.deficitEth} ETH)`
+    `- ID ${c.Campaign_ID}: "${c.Campaign_Title}" (${c.Location_Region}), Urgency: ${c.Urgency}, Raised: ₱${c.raisedPhp.toLocaleString()} / ₱${c.targetPhp.toLocaleString()} (${c.pctFunded}%), Org: ${c.Org_Name || 'Verified NGO'}, Deficit: ₱${c.deficitPhp.toLocaleString()}`
   ).join('\n');
 
   // 5. Parse Live Screen Content & Visible UI Elements
@@ -459,7 +439,7 @@ async function chatWithReliefCopilot({
     : activeCampaigns.slice(0, 4);
 
   const visibleCampsText = visibleCamps.map((c, i) => 
-    `  ${i + 1}. "${c.title || c.Campaign_Title}" (${c.region || c.Location_Region || 'Southern Leyte'}) — Goal: ${c.targetEth || c.Target_Amount || '0'} ETH | Raised: ${c.raisedEth || c.Raised_Eth || '0'} ETH | Deficit: ${c.deficitEth || 0} ETH (~₱${c.deficitPhp ? c.deficitPhp.toLocaleString() : (parseFloat(c.deficitEth || 0) * ETH_TO_PHP_RATE).toLocaleString()}) | Urgency: ${c.urgency || c.Urgency || 'HIGH'}`
+    `  ${i + 1}. "${c.title || c.Campaign_Title}" (${c.region || c.Location_Region || 'Southern Leyte'}) — Goal: ₱${Number(c.targetPhp || Math.round((parseFloat(c.targetEth || c.Target_Amount || 0)) * ETH_TO_PHP_RATE)).toLocaleString()} | Raised: ₱${Number(c.raisedPhp || Math.round((parseFloat(c.raisedEth || c.Raised_Eth || 0)) * ETH_TO_PHP_RATE)).toLocaleString()} | Deficit: ₱${Number(c.deficitPhp || 0).toLocaleString()} | Urgency: ${c.urgency || c.Urgency || 'HIGH'}`
   ).join('\n');
 
   const visibleDonations = Array.isArray(screenMeta.recentDonations) && screenMeta.recentDonations.length > 0
@@ -467,11 +447,11 @@ async function chatWithReliefCopilot({
     : [];
   const visibleDonationsText = visibleDonations.length > 0
     ? visibleDonations.map((d, i) =>
-        `  ${i + 1}. Drive: "${d.campaignTitle}" | Amount: ${d.amountEth} ETH | Status: ${d.status} | Tx Hash: ${d.txHash}`
+        `  ${i + 1}. Drive: "${d.campaignTitle}" | Amount: ₱${Number(d.amountPhp || Math.round((parseFloat(d.amountEth || 0)) * ETH_TO_PHP_RATE)).toLocaleString()} | Status: ${d.status} | Audit Hash: ${d.txHash}`
       ).join('\n')
     : '  • No individual donation vouchers currently displayed in table.';
 
-  const systemInstruction = `You are "ReliefAI", the intelligent, empathetic, and authoritative Web3 humanitarian assistant for BBDRTS (Blockchain-Based Donation & Relief Transparency System, developed by BSIT researchers at Saint Joseph College, Southern Leyte).
+  const systemInstruction = `You are "ReliefAI", the intelligent, empathetic, and authoritative humanitarian transparency assistant for BBDRTS (Blockchain-Based Donation & Relief Transparency System, developed by BSIT researchers at Saint Joseph College, Southern Leyte).
 Lead Architect: Gester C. Macaldo; Development Team: Leslie Faye Baltazar, Reva Grace Faith A. Saga, Edrian Jade Ambalong, Rainelyn C. Villaranda, Niño Carl Vincent Cas, Meldwin A. Bato; Faculty Adviser: Ma'am Teni.
 
 CRITICAL LANGUAGE DIRECTIVES:
@@ -484,7 +464,7 @@ You are equipped with REAL-TIME SCREEN SIGHT. The user is actively viewing:
 - Current Screen / Sub-Page: ${dashboardContext?.activeSubpage || 'Dashboard Overview'}
 - Section Tab Key: ${screenMeta.tab || 'dashboard'}
 ${screenMeta.tierTitle ? `- Visible Donor Tier Milestone: "${screenMeta.tierTitle}"` : ''}
-${screenMeta.totalDonatedEth ? `- Visible Cumulative Impact: ${screenMeta.totalDonatedEth} ETH (~₱${screenMeta.totalDonatedPhp} PHP)` : ''}
+${screenMeta.totalDonatedPhp ? `- Visible Cumulative Impact: ₱${screenMeta.totalDonatedPhp} PHP` : ''}
 ${screenMeta.donorReceiptsCount ? `- Visible Verified Audit Receipts Counter: ${screenMeta.donorReceiptsCount} transactions` : ''}
 ${screenMeta.activeCampaignsCount ? `- Visible Active Relief Appeals Counter: ${screenMeta.activeCampaignsCount} drives` : ''}
 ${screenMeta.categoryFilter ? `- Active Category Filter: "${screenMeta.categoryFilter}"` : ''}
@@ -505,9 +485,8 @@ When the user asks "What can you see here?", "What's on this page?", "What do yo
 2. Confirm you are looking directly at their live screen in real-time. Be specific, accurate, and completely grounded in the actual on-screen elements!
 
 STRICT BEHAVIORAL & ANTI-REPETITION CONSTRAINTS (MANDATORY):
-1. NEVER DUMP WALLET ADDRESS OR PROFILE UNPROMPTED:
-   - DO NOT recite their full wallet address or email in casual conversation unless they explicitly ask for identity ("Who am I?" or "What is my wallet address?").
-   - If referencing a wallet address, ALWAYS shorten it (e.g. 0xC205...0Dd1).
+1. NEVER DUMP PRIVATE ACCOUNT INFO UNPROMPTED:
+   - DO NOT recite their email or account metadata in casual conversation unless they explicitly ask for identity ("Who am I?").
 2. CONVERSATIONAL CONTINUATIONS ("What about now?", "What's next?"):
    - Recommend 2-3 specific, actionable steps (e.g., contributing to a high-deficit campaign, checking the Relief Radar weather map, or verifying an on-chain hash).
 3. STAY CONCISE & CONVERSATIONAL:
@@ -515,10 +494,10 @@ STRICT BEHAVIORAL & ANTI-REPETITION CONSTRAINTS (MANDATORY):
 
 CORE SYSTEM CONTEXT (BBDRTS):
 Everything you state must be grounded in the BBDRTS platform and humanitarian disaster relief:
-1. Smart Contract Transparency: Explain how BBDRTS uses Ethereum Sepolia smart contracts to eliminate intermediaries, diversion, and corruption. Every donation is publicly verifiable on-chain.
-2. Dual-Rail Donation Infrastructure:
-   - Web3 Crypto Rail: MetaMask donations directly interacting with the smart contract with zero gateway cuts and on-chain hash receipts.
-   - Fiat QR Ph Rail: GCash, Maya, and Bank Transfers using automated AI vision receipt audit and relayer notarization into the Ethereum blockchain.
+1. Gasless Blockchain Transparency: Explain how BBDRTS uses a gasless backend relayer to anchor every verified Philippine Peso donation and NGO disbursement onto Ethereum Sepolia smart contracts — eliminating corruption and opacity without requiring donors or NGOs to hold cryptocurrency or MetaMask wallets.
+2. Philippine Multi-Rail Donation Infrastructure (100% PHP Native):
+   - GCash & Maya (QR Ph): Direct e-wallet donations verified by automated AI Vision OCR receipt auditing and notarized gaslessly on Ethereum Sepolia.
+   - Philippine Bank Transfer & Credit/Debit Cards: Seamless PHP giving with instant verification and public Sepolia Etherscan transaction proofs.
 3. Live Campaign Grounding: Use the live database records provided below to answer where aid is needed most, always citing exact campaign names, regions, raised amounts, goals, and deficits.
 4. Emergency Assistance: For life-threatening emergencies and search & rescue, cite official Philippine hotlines: NDRRMC (911) and Philippine Red Cross (143).
 5. Presentation: Structure replies cleanly with markdown bolding, bullet points, and tables. Avoid dense walls of text.
@@ -647,27 +626,25 @@ function synthesizeConversationalReply({
   const roleTitle = (dashboardContext?.role || userRole || 'Donor').toUpperCase();
   const name = dashboardContext?.userName || 'Valued User';
   const email = dashboardContext?.userEmail || 'Not signed in';
-  const wallet = dashboardContext?.walletAddress ? `\`${dashboardContext.walletAddress.substring(0, 6)}...${dashboardContext.walletAddress.substring(38)}\`` : 'Not connected (Browsing mode)';
-
   // Follow-Up & Next-Step Guidance ("What about now?", "What's next?", "Now what?", "What should I do?", "Ano na ngayon?")
   if (/^(what (about( now)?|now|next|should i do|can i do)|now what|what's next|where to next|ano na( ngayon)?|anong susunod|anong gagawin( ko)?|saan na tayo)\b/i.test(lowerQuery)) {
     const topDeficitCamp = activeCampaigns.length > 0
-      ? [...activeCampaigns].sort((a, b) => (b.deficitEth || 0) - (a.deficitEth || 0))[0]
+      ? [...activeCampaigns].sort((a, b) => (b.deficitPhp || 0) - (a.deficitPhp || 0))[0]
       : null;
 
     const campHighlight = topDeficitCamp 
-      ? `\n- 🚨 **High-Priority Appeal**: **"${topDeficitCamp.Campaign_Title}"** (${topDeficitCamp.Location_Region}) has an active funding deficit of **${topDeficitCamp.deficitEth} ETH** (~₱${topDeficitCamp.deficitPhp.toLocaleString()} PHP).`
+      ? `\n- 🚨 **High-Priority Appeal**: **"${topDeficitCamp.Campaign_Title}"** (${topDeficitCamp.Location_Region}) has an active funding deficit of **₱${topDeficitCamp.deficitPhp.toLocaleString()} PHP**.`
       : '';
 
     return {
       reply: isTagalog
-        ? `Narito ang mga susunod na pinaka-epektibong hakbang na maari mong gawin sa BBDRTS ngayon:${campHighlight}\n- 🗺️ **Suriin ang Relief Radar**: Tingnan ang live PAGASA storm Doppler radar at disaster risk zones.\n- 🔍 **Mag-verify ng Donasyon**: I-paste ang anumang 0x hash o GCash reference number para ma-verify sa public ledger.\n- 🤝 **Mag-donate nang Walang Bawas**: Mag-contribute gamit ang MetaMask o QR Ph nang may 0% middleman fees.\n- 🛡️ **Magtanong tungkol sa Transparency**: Alamin paano pinipigilan ng Ethereum Sepolia smart contracts ang korapsyon.\n\nAlin sa mga ito ang nais mong unahin?`
-        : `Here are the most meaningful next steps you can explore right now on BBDRTS:${campHighlight}\n- 🗺️ **Inspect Relief Radar**: Track live PAGASA Doppler precipitation and active calamity zones across Southern Leyte.\n- 🔍 **Verify an On-Chain Receipt**: Paste any \`0x\` transaction hash or GCash/Maya reference number to audit its Sepolia ledger seal.\n- 🤝 **Support Active Relief Drives**: Explore disaster campaigns and donate directly via MetaMask or QR Ph with zero gateway cuts.\n- 🛡️ **Learn About Smart Contracts**: Ask me how immutable escrow and AI OCR receipt verification keep donations safe.\n\nWhat would you like to dive into next?`,
+        ? `Narito ang mga susunod na pinaka-epektibong hakbang na maari mong gawin sa BBDRTS ngayon:${campHighlight}\n- 🗺️ **Suriin ang Relief Radar**: Tingnan ang live PAGASA storm Doppler radar at disaster risk zones.\n- 🔍 **Mag-verify ng Donasyon**: I-paste ang anumang 0x hash o GCash reference number para ma-verify sa public ledger.\n- 🤝 **Mag-donate sa Piso**: Mag-contribute gamit ang GCash, Maya, Bank Transfer, o Card nang may 0% platform fees at gasless blockchain proof.\n- 🛡️ **Magtanong tungkol sa Transparency**: Alamin paano pinipigilan ng Ethereum Sepolia audit trail ang korapsyon.\n\nAlin sa mga ito ang nais mong unahin?`
+        : `Here are the most meaningful next steps you can explore right now on BBDRTS:${campHighlight}\n- 🗺️ **Inspect Relief Radar**: Track live PAGASA Doppler precipitation and active calamity zones across Southern Leyte.\n- 🔍 **Verify an On-Chain Receipt**: Paste any \`0x\` transaction hash or GCash/Maya reference number to audit its Sepolia ledger seal.\n- 🤝 **Support Active Relief Drives**: Donate directly in PHP via GCash, Maya, Bank Transfer, or Card with 0% platform fees and gasless on-chain receipts.\n- 🛡️ **Learn About Blockchain Auditing**: Ask me how our gasless relayer and AI OCR receipt verification keep donations tamper-proof.\n\nWhat would you like to dive into next?`,
       intent: 'NEXT_STEPS_GUIDANCE',
       suggestedPrompts: [
         'Which campaign has the highest deficit?',
-        'How does blockchain transparency work?',
-        'How to donate via MetaMask vs GCash?'
+        'How does gasless blockchain transparency work?',
+        'How to donate via GCash, Maya, or Bank?'
       ]
     };
   }
@@ -681,16 +658,16 @@ function synthesizeConversationalReply({
 
     let contentBullets = '';
     if (sub.includes('campaign')) {
-      contentBullets = `**Visible Relief Appeals on this Screen:**\n` + visibleCamps.map(c => `• **${c.title || c.Campaign_Title}** (${c.region || c.Location_Region || 'Philippines'}) — Goal: \`${c.targetEth || c.Target_Amount || '0'} ETH\` | Deficit: \`${c.deficitEth || 0} ETH\` | Urgency: **${c.urgency || c.Urgency || 'HIGH'}**`).join('\n') + `\n\n**Filters & Controls:** Category (\`${meta.categoryFilter || 'ALL'}\`), Urgency (\`${meta.urgencyFilter || 'ALL'}\`), Search Query (\`"${meta.searchQuery || ''}"\`).`;
+      contentBullets = `**Visible Relief Appeals on this Screen:**\n` + visibleCamps.map(c => `• **${c.title || c.Campaign_Title}** (${c.region || c.Location_Region || 'Philippines'}) — Goal: **₱${Number(c.targetPhp || 0).toLocaleString()}** | Deficit: **₱${Number(c.deficitPhp || 0).toLocaleString()}** | Urgency: **${c.urgency || c.Urgency || 'HIGH'}**`).join('\n') + `\n\n**Filters & Controls:** Category (\`${meta.categoryFilter || 'ALL'}\`), Urgency (\`${meta.urgencyFilter || 'ALL'}\`), Search Query (\`"${meta.searchQuery || ''}"\`).`;
     } else if (sub.includes('contribution') || sub.includes('receipt')) {
       contentBullets = `**Visible On-Chain Donation Records:**\n` + (Array.isArray(meta.recentDonations) && meta.recentDonations.length > 0 
-        ? meta.recentDonations.map(d => `• **${d.campaignTitle}** — \`${d.amountEth} ETH\` | Status: **${d.status}** | Tx: \`${d.txHash}\``).join('\n')
+        ? meta.recentDonations.map(d => `• **${d.campaignTitle}** — **₱${Number(d.amountPhp || 0).toLocaleString()}** | Status: **${d.status}** | Audit Hash: \`${d.txHash}\``).join('\n')
         : `• ${userDonationSummary || 'Live connection to Ethereum Sepolia ledger with official receipt verification.'}`);
     } else if (sub.includes('radar') || sub.includes('heatmap')) {
       contentBullets = `**Visible Map Layers & Weather Feeds:**\n• Interactive Philippine Leaflet Map with PAGASA Doppler Radar precipitation overlay.\n• Live storm tracks & emergency risk zones across Southern Leyte (Maasin City, Sogod, Pintuyan, Macrohon, Libagon).\n• Color-coded disaster severity pins linked to accredited humanitarian relief operations.`;
     } else {
       // Dashboard Home
-      contentBullets = `**Visible Summary Metrics & Cards:**\n• 🌟 **Donor Recognition Tier**: **${meta.tierTitle || 'Relief Supporter'}**\n• 💰 **Total Impact**: **${meta.totalDonatedEth || '0'} ETH** (~₱${meta.totalDonatedPhp || '0'} PHP)\n• 📜 **Verified Audit Receipts**: **${meta.donorReceiptsCount || '0'} transactions** sealed on Ethereum Sepolia\n• 📢 **Tracked Relief Drives**: **${meta.activeCampaignsCount || activeCampaigns.length} active campaigns**\n\n**Top Highlighted Appeals on Screen:**\n` + visibleCamps.slice(0, 3).map(c => `• **${c.title || c.Campaign_Title}** (${c.region || c.Location_Region || 'Southern Leyte'}) — Deficit: \`${c.deficitEth || 0} ETH\` (~₱${c.deficitPhp ? c.deficitPhp.toLocaleString() : '0'})`).join('\n');
+      contentBullets = `**Visible Summary Metrics & Cards:**\n• 🌟 **Donor Recognition Tier**: **${meta.tierTitle || 'Relief Supporter'}**\n• 💰 **Total Impact**: **₱${meta.totalDonatedPhp || '0'} PHP**\n• 📜 **Verified Audit Receipts**: **${meta.donorReceiptsCount || '0'} transactions** notarized gaslessly on Ethereum Sepolia\n• 📢 **Tracked Relief Drives**: **${meta.activeCampaignsCount || activeCampaigns.length} active campaigns**\n\n**Top Highlighted Appeals on Screen:**\n` + visibleCamps.slice(0, 3).map(c => `• **${c.title || c.Campaign_Title}** (${c.region || c.Location_Region || 'Southern Leyte'}) — Deficit: **₱${Number(c.deficitPhp || 0).toLocaleString()}**`).join('\n');
     }
 
     return {
@@ -732,18 +709,18 @@ function synthesizeConversationalReply({
     }
     if (sub.includes('campaign')) {
       return {
-        reply: `📢 **Live Screen: Relief Campaigns Explorer:**\n\nYou are browsing active disaster relief drives deployed by accredited organizations:\n- Filter appeals by **Disaster Relief (DR)** or **Charitable Aid (CD)**.\n- Sort by urgency level, newest drives, or highest funding deficit.\n- Contribute using either **MetaMask (Web3 Sepolia ETH)** or **QR Ph (GCash & Maya)** with automated AI receipt audit!\n\nEvery peso and wei donated is directly tracked on-chain with zero intermediary cuts.`,
+        reply: `📢 **Live Screen: Relief Campaigns Explorer:**\n\nYou are browsing active disaster relief drives deployed by accredited organizations:\n- Filter appeals by **Disaster Relief (DR)** or **Charitable Aid (CD)**.\n- Sort by urgency level, newest drives, or highest funding deficit.\n- Contribute seamlessly in PHP via **GCash, Maya (QR Ph), Bank Transfer, or Card** with automated AI receipt auditing and gasless Sepolia blockchain proofs!\n\nEvery peso donated is tracked on-chain with zero platform fees.`,
         intent: 'PAGE_GUIDANCE_CAMPAIGNS',
         suggestedPrompts: [
           'Which campaign has the highest deficit?',
-          'How to donate via MetaMask vs GCash / Maya?',
-          'How do smart contracts eliminate corruption?'
+          'How to donate via GCash, Maya, or Bank?',
+          'How does gasless blockchain auditing work?'
         ]
       };
     }
     if (sub.includes('create') || sub.includes('deploy')) {
       return {
-        reply: `🚀 **Live Screen: Deploy New Relief Campaign:**\n\nYou are in the campaign creation studio for accredited NGOs and administrators:\n- Utilize the **AI Smart Campaign Budget Generator** compliant with UN Sphere Project humanitarian standards.\n- Define target ETH, family beneficiary count, disaster category, and regional deployment.\n- Deploys immutable smart contract escrow rules on Ethereum Sepolia for 100% public transparency!`,
+        reply: `🚀 **Live Screen: Launch New Relief Campaign:**\n\nYou are in the campaign creation studio for accredited NGOs:\n- Utilize the **AI Smart Campaign Budget Generator** compliant with UN Sphere Project humanitarian standards.\n- Define your PHP target goal, family beneficiary count, disaster category, and regional deployment.\n- Automatically publishes your campaign with gasless Ethereum Sepolia audit notarization — no crypto wallet required!`,
         intent: 'PAGE_GUIDANCE_DEPLOY',
         suggestedPrompts: [
           'How does the AI smart budget calculator allocate funds?',
@@ -776,12 +753,12 @@ function synthesizeConversationalReply({
     }
     if (sub.includes('setting') || sub.includes('profile')) {
       return {
-        reply: `⚙️ **Live Screen: Profile & Account Settings:**\n\nHere you can manage your institutional profile and preferences:\n- Update your connected MetaMask Web3 wallet address.\n- Toggle visual accessibility themes (**Dark**, **Light**, **Cyber**).\n- Adjust typography scaling and review account security status.`,
+        reply: `⚙️ **Live Screen: Profile & Account Settings:**\n\nHere you can manage your profile, security, and preferences:\n- Configure Two-Factor Authentication (2FA) and active sessions.\n- Toggle visual themes (**Dark**, **Light**) and accessibility options.\n- Inspect the verified Ethereum Sepolia public audit contract.`,
         intent: 'PAGE_GUIDANCE_SETTINGS',
         suggestedPrompts: [
-          'How do I link my primary MetaMask Web3 wallet?',
           'How does BBDRTS secure user sessions?',
-          'How does blockchain transparency work?'
+          'How does gasless blockchain transparency work?',
+          'Where is aid needed most right now?'
         ]
       };
     }
@@ -790,7 +767,7 @@ function synthesizeConversationalReply({
   // Direct Dashboard & Identity Recognition
   if (/(who am i|sino ako|my name|my role|my account|my dashboard|read my dashboard|basahin mo dashboard|my wallet|wallet address|magkano na donate ko|how much did i donate|my contributions|what page|my screen)/i.test(lowerQuery)) {
     return {
-      reply: `📊 **Live Dashboard Summary for ${name}:**\n\n- 👤 **Role**: **${roleTitle}**\n- 📧 **Account Email**: ${email}\n- 🖥️ **Current Portal**: **${portal}**\n- 📍 **Active Sub-Page**: **${screen}**\n- 🦊 **Connected MetaMask**: ${wallet}\n- 📈 **Ledger Activity**: ${userDonationSummary || 'Connected to Sepolia Network'}\n\nI am continuously synced to your live screen. You can ask me to analyze any active campaign, check deficits, or guide you through donating!`,
+      reply: `📊 **Live Dashboard Summary for ${name}:**\n\n- 👤 **Role**: **${roleTitle}**\n- 📧 **Account Email**: ${email}\n- 🖥️ **Current Portal**: **${portal}**\n- 📍 **Active Sub-Page**: **${screen}**\n- 🛡️ **Audit Trail**: Gasless Ethereum Sepolia Relayer Active\n- 📈 **Ledger Activity**: ${userDonationSummary || 'Connected to Sepolia Audit Ledger'}\n\nI am continuously synced to your live screen. You can ask me to analyze any active campaign, check deficits, or guide you through donating!`,
       intent: 'DASHBOARD_SUMMARY',
       suggestedPrompts: [
         'Which campaign has the highest deficit?',
@@ -837,8 +814,8 @@ function synthesizeConversationalReply({
   if (matchedCamp && /(magkano|kailangan|deficit|status|target|pondo|details|tell me more|ano ang kailangan|sino ang org|pintuyan|sogod|maasin)/i.test(lowerQuery)) {
     return {
       reply: isTagalog
-        ? `📍 **Tungkol sa "${matchedCamp.Campaign_Title}":**\n\nNasa **${matchedCamp.pctFunded}% funded** na ito sa pamumuno ng **${matchedCamp.Org_Name || 'Verified NGO'}** para sa mga nasalanta sa **${matchedCamp.Location_Region}**:\n- 🎯 **Target na Pondo**: \`${matchedCamp.Target_Amount} ETH\` (~₱${matchedCamp.targetPhp.toLocaleString()} PHP)\n- 💰 **Nalikom na sa Ledger**: \`${matchedCamp.Raised_Eth} ETH\` (~₱${matchedCamp.raisedPhp.toLocaleString()} PHP)\n- ⏳ **Kakulangan Pa**: \`${matchedCamp.deficitEth} ETH\` (~₱${matchedCamp.deficitPhp.toLocaleString()} PHP)\n\nKung nais mong mag-donate, maaari kang mag-click sa campaign card sa explorer gamit ang **MetaMask** o mag-scan ng **GCash/Maya QR Ph**!`
-        : `📍 **Status for "${matchedCamp.Campaign_Title}":**\n\nCurrently at **${matchedCamp.pctFunded}% funded** led by **${matchedCamp.Org_Name || 'Verified NGO'}** in **${matchedCamp.Location_Region}**:\n- 🎯 **Target Goal**: \`${matchedCamp.Target_Amount} ETH\` (~₱${matchedCamp.targetPhp.toLocaleString()} PHP)\n- 💰 **Recorded On-Chain**: \`${matchedCamp.Raised_Eth} ETH\` (~₱${matchedCamp.raisedPhp.toLocaleString()} PHP)\n- ⏳ **Remaining Deficit**: \`${matchedCamp.deficitEth} ETH\` (~₱${matchedCamp.deficitPhp.toLocaleString()} PHP)\n\nYou can back this operation directly by clicking the campaign card via **MetaMask** or scanning their official **GCash/Maya QR Ph**!`,
+        ? `📍 **Tungkol sa "${matchedCamp.Campaign_Title}":**\n\nNasa **${matchedCamp.pctFunded}% funded** na ito sa pamumuno ng **${matchedCamp.Org_Name || 'Verified NGO'}** para sa mga nasalanta sa **${matchedCamp.Location_Region}**:\n- 🎯 **Target na Pondo**: **₱${matchedCamp.targetPhp.toLocaleString()} PHP**\n- 💰 **Nalikom na sa Ledger**: **₱${matchedCamp.raisedPhp.toLocaleString()} PHP**\n- ⏳ **Kakulangan Pa**: **₱${matchedCamp.deficitPhp.toLocaleString()} PHP**\n\nKung nais mong mag-donate, maaari kang mag-click sa campaign card gamit ang **GCash, Maya QR Ph, Bank Transfer, o Card** — awtomatikong naka-record on-chain nang walang gas fees!`
+        : `📍 **Status for "${matchedCamp.Campaign_Title}":**\n\nCurrently at **${matchedCamp.pctFunded}% funded** led by **${matchedCamp.Org_Name || 'Verified NGO'}** in **${matchedCamp.Location_Region}**:\n- 🎯 **Target Goal**: **₱${matchedCamp.targetPhp.toLocaleString()} PHP**\n- 💰 **Recorded On-Chain**: **₱${matchedCamp.raisedPhp.toLocaleString()} PHP**\n- ⏳ **Remaining Deficit**: **₱${matchedCamp.deficitPhp.toLocaleString()} PHP**\n\nYou can back this operation directly by clicking the campaign card via **GCash, Maya QR Ph, Bank Transfer, or Card** — automatically notarized gaslessly on Ethereum Sepolia!`,
       intent: 'CAMPAIGN_DETAIL',
       campaigns: [matchedCamp],
       suggestedPrompts: [
@@ -854,17 +831,17 @@ function synthesizeConversationalReply({
     if (activeCampaigns.length > 0) {
       const topCamps = [...activeCampaigns].sort((a, b) => a.pctFunded - b.pctFunded).slice(0, 3);
       const campSummaries = topCamps.map((c, i) => {
-        return `${i + 1}. **${c.Campaign_Title}** (${c.Location_Region || 'Philippines'})\n   - Organisasyon: *${c.Org_Name || 'Verified NGO'}*\n   - Pondo: **${c.pctFunded}% funded** (Kulang pa: ~₱${c.deficitPhp.toLocaleString()} PHP / ${c.deficitEth} ETH)`;
+        return `${i + 1}. **${c.Campaign_Title}** (${c.Location_Region || 'Philippines'})\n   - Organisasyon: *${c.Org_Name || 'Verified NGO'}*\n   - Pondo: **${c.pctFunded}% funded** (Kulang pa: **₱${c.deficitPhp.toLocaleString()} PHP**)`;
       }).join('\n\n');
 
       return {
         reply: isTagalog
-          ? `📍 **Mga Prayoridad na Disaster Relief Operations Ngayon:**\n\nNarito ang mga aktibong relief drives sa database na may pinakamalaking kakulangan sa pondo:\n\n${campSummaries}\n\nMaaari kang mag-donate agad sa pamamagitan ng pag-click sa campaign card sa ibaba gamit ang **MetaMask ETH** o **GCash/Maya QR Ph**!`
-          : `📍 **Top Priority Disaster Relief Operations:**\n\nHere are the active relief campaigns currently experiencing the greatest funding deficits:\n\n${campSummaries}\n\nYou can back any of these operations immediately via **MetaMask (Crypto)** or **GCash/Maya (Fiat)** by selecting their card below!`,
+          ? `📍 **Mga Prayoridad na Disaster Relief Operations Ngayon:**\n\nNarito ang mga aktibong relief drives sa database na may pinakamalaking kakulangan sa pondo:\n\n${campSummaries}\n\nMaaari kang mag-donate agad gamit ang **GCash, Maya QR Ph, Bank Transfer, o Card** — awtomatikong naka-audit sa blockchain!`
+          : `📍 **Top Priority Disaster Relief Operations:**\n\nHere are the active relief campaigns currently experiencing the greatest funding deficits:\n\n${campSummaries}\n\nYou can back any of these operations immediately via **GCash, Maya, Bank Transfer, or Card** by selecting their card below!`,
         intent: 'RECOMMEND_CAMPAIGNS',
         campaigns: topCamps,
         suggestedPrompts: [
-          'Paano mag-donate via MetaMask o GCash?',
+          'Paano mag-donate via GCash, Maya, o Bank?',
           'Paano gumagana ang Blockchain transparency?',
           'Philippine Emergency Hotlines (911 / 143)'
         ]
@@ -872,17 +849,17 @@ function synthesizeConversationalReply({
     }
   }
 
-  // ── Scenario 3: How to Donate (Web3 vs Philippine E-Wallets) ──
+  // ── Scenario 3: How to Donate (Philippine E-Wallets, Cards & Banks + Gasless Audit) ──
   if (/(paano.*(mag-donate|magdonate|mag donate|magbigay|tumulong|magpadala|send|bayad)|how.*to.*donate|paraan.*ng.*donasyon|steps|proseso)/i.test(lowerQuery)) {
     return {
       reply: isTagalog
-        ? `🤝 **Madaling Gabay sa Pag-Donate sa BBDRTS (May Dalawang Ligtas na Paraan):**\n\n1. **MetaMask (Web3 Crypto):**\n   - I-click ang **"Donate ETH"** sa campaign card.\n   - Awtomatikong magbubukas ang iyong MetaMask extension upang humingi ng kumpirmasyon.\n   - Diretso ang ETH sa verified wallet ng NGO nang walang 3-5% payment gateway cut!\n\n2. **Philippine E-Wallets (GCash, Maya, Bank Transfer):**\n   - Piliin ang **GCash** o **Maya** sa donation modal.\n   - I-scan ang official QR Ph code ng organisasyon at ipadala ang donasyon sa piso.\n   - I-upload ang screenshot ng resibo. Awtomatiko itong susuriin ng ating **AI Vision OCR** upang i-verify ang 13-digit reference number at i-record sa public ledger.`
-        : `🤝 **How to Donate on BBDRTS (Two Transparent Channels):**\n\n1. **Web3 Crypto (MetaMask):**\n   - Click **"Donate ETH"** on any active campaign card.\n   - Confirm the transaction prompt directly inside your MetaMask extension.\n   - 100% of the funds route directly to the accredited NGO's wallet with zero middleman deductions.\n\n2. **Philippine E-Wallets (GCash, Maya, Bank Transfer):**\n   - Select **GCash** or **Maya** in the donation modal.\n   - Scan the verified organization's official QR Ph code and send your pledge.\n   - Upload your transaction slip screenshot. Our **AI Vision OCR** audits the 13-digit reference number and notarizes the contribution permanently on-chain.`,
+        ? `🤝 **Madaling Gabay sa Pag-Donate sa BBDRTS (100% Piso — Walang Crypto o Wallet na Kailangan):**\n\n1. **GCash & Maya (QR Ph):**\n   - I-click ang **"Donate Now"** sa campaign card at piliin ang **GCash** o **Maya**.\n   - I-scan ang official QR Ph code ng accredited NGO at ipadala ang donasyon sa piso.\n   - I-upload ang screenshot ng resibo — awtomatikong susuriin ng **AI Vision OCR** ang reference number at ire-record sa Ethereum Sepolia gamit ang aming gasless relayer.\n\n2. **Credit / Debit Card & Bank Transfer:**\n   - Piliin ang **Bank / Card** sa donation modal para sa mabilis at beripikadong donasyon sa piso na may permanenteng Etherscan proof.`
+        : `🤝 **How to Donate on BBDRTS (100% PHP Native — Zero Crypto or Wallet Needed):**\n\n1. **GCash & Maya (QR Ph):**\n   - Click **"Donate Now"** on any active campaign card and choose **GCash** or **Maya**.\n   - Scan the verified NGO's official QR Ph code and send your contribution in Philippine Pesos.\n   - Upload your receipt screenshot — our **AI Vision OCR** audits the reference number and our gasless relayer permanently notarizes it on Ethereum Sepolia.\n\n2. **Bank Transfer & Credit / Debit Card:**\n   - Choose **Bank / Card** in the donation modal for direct peso giving with instant verification and an immutable public Sepolia Etherscan proof.`,
       intent: 'HOW_TO_DONATE',
       suggestedPrompts: [
         'Saan pinaka-kailangan ng tulong ngayon?',
         'Paano gumagana ang Blockchain transparency?',
-        'Ano ang gagawin kung wala akong MetaMask?'
+        'Paano sinusuri ng AI ang mga resibo?'
       ]
     };
   }
@@ -902,12 +879,12 @@ function synthesizeConversationalReply({
     };
   }
 
-  // ── Scenario 4B: MetaMask & Crypto Wallet Guidance ──
-  if (/(ano ang metamask|what is metamask|metamask.*guide|private key|public key|gas fee|paano gamitin ang metamask)/i.test(lowerQuery)) {
+  // ── Scenario 4B: Crypto / MetaMask Questions -> Explain Gasless PHP Architecture ──
+  if (/(ano ang metamask|what is metamask|metamask.*guide|private key|public key|gas fee|paano gamitin ang metamask|crypto|ethereum wallet)/i.test(lowerQuery)) {
     return {
       reply: isTagalog
-        ? `🦊 **Ano ang MetaMask at Bakit Ito Ginagamit sa BBDRTS?**\n\nAng MetaMask ay ang iyong **personal na digital wallet** sa web browser:\n- **Self-Custody (Ikaw ang May Kontrol):** Hindi hawak ng aming platform ang pondo mo. Ikaw lamang ang may hawak ng iyong Private Key.\n- **Zero Gateway Intermediary:** Kapag nag-donate ka gamit ang ETH, 100% ng tulong ay dumidiretso sa smart contract nang walang 3-5% deductions.\n- **Sepolia Testnet:** Kasalukuyang tumatakbo ang system sa Ethereum Sepolia network para sa mabilis at ligtas na testnet simulations.`
-        : `🦊 **What is MetaMask and Why Do We Use It?**\n\nMetaMask acts as your **personal secure digital vault** in your browser:\n- **Self-Custody:** BBDRTS never holds or controls your funds. Only you possess the private keys to authorize transactions.\n- **Zero Gateway Deductions:** Eliminates standard 3-5% middleman processing fees so maximum aid reaches disaster victims.\n- **Sepolia Testnet:** The platform runs on the Ethereum Sepolia network for zero-risk, transparent, and auditable relief testing!`,
+        ? `🛡️ **Hindi Kailangan ng MetaMask o Cryptocurrency sa BBDRTS!**\n\nDinisenyo ang BBDRTS para sa bawat Pilipino gamit ang **Gasless Blockchain Relayer**:\n- **100% Piso ang Donasyon:** Gamitin ang **GCash, Maya, Bank Transfer, o Card** — hindi mo kailangang bumili ng ETH o mag-install ng MetaMask.\n- **Zero Gas Fees:** Ang aming backend relayer ang awtomatikong nagbabayad ng gas at nagtatala ng bawat beripikadong donasyon sa **Ethereum Sepolia public ledger**.\n- **Buong Transparency:** Makukuha mo pa rin ang permanenteng Transaction Hash at Sepolia Etherscan link!`
+        : `🛡️ **No MetaMask or Cryptocurrency Needed on BBDRTS!**\n\nBBDRTS is built for everyday Filipino donors using a **Gasless Blockchain Audit Relayer**:\n- **100% PHP Donations:** Donate seamlessly via **GCash, Maya, Bank Transfer, or Card** — no ETH purchases or browser wallet extensions required.\n- **Zero Gas Fees for Users:** Our secure backend relayer automatically covers network gas fees and anchors every verified donation and NGO disbursement onto **Ethereum Sepolia**.\n- **Full Public Verifiability:** Every verified contribution still receives an immutable Transaction Hash you can verify on Sepolia Etherscan 24/7!`,
       intent: 'EXPLAIN_WALLET',
       suggestedPrompts: [
         'Paano mag-donate gamit ang GCash o Maya?',
@@ -921,13 +898,13 @@ function synthesizeConversationalReply({
   if (/(blockchain|smart contract|transparency|transparent|vending|panloloko|nakaw|kurakot|middleman|safe|legit|bakit blockchain|paano gumagana|corruption|corrupt|protect|secure|security|auditable|audit)/i.test(lowerQuery)) {
     return {
       reply: isTagalog
-        ? `🛡️ **Bakit Ligtas at Hindi Mananakaw ang Donasyon sa BBDRTS:**\n\nIsipin ang blockchain na parang **isang higanteng record book** na hawak ng libu-libong computers nang sabay-sabay:\n1. **Hindi Nabubura o Nababago:** Kapag na-record na ang donasyon mo, kahit sino (maging admin o opisyal) ay hindi makakapagbago o makakapagtago nito.\n2. **Smart Contracts (Digital Vending Machine):** Kusa nitong ipinapasa ang pondo diretso sa wallet ng accredited NGO nang walang humahawak na middleman.\n3. **Public Auditing:** Bawat donor ay may **Transaction Hash** na pwedeng i-verify kahit sino sa internet 24/7.`
-        : `🛡️ **Why Relief Funds on BBDRTS are 100% Safe from Corruption:**\n\nThink of the blockchain as an **immutable, shared public ledger** distributed across thousands of validator nodes:\n1. **Tamper-Proof:** Once a donation is sealed on-chain, no administrator, official, or bad actor can alter or delete the record.\n2. **Smart Contracts (Automated Escrow):** Funds are routed directly into the verified NGO wallet without human gatekeepers or escrow fees.\n3. **Radical Transparency:** Every contribution produces a cryptographic **Transaction Hash** auditable by the public anytime on Etherscan.`,
+        ? `🛡️ **Bakit Ligtas at Hindi Mananakaw ang Donasyon sa BBDRTS:**\n\nIsipin ang blockchain na parang **isang higanteng record book** na hawak ng libu-libong computers nang sabay-sabay:\n1. **Hindi Nabubura o Nababago:** Kapag na-record na ng aming gasless relayer ang donasyon mo, kahit sino (maging admin o opisyal) ay hindi makakapagbago o makakapagtago nito.\n2. **AI OCR + Smart Contract Audit:** Bawat GCash, Maya, Bank, at Card receipt ay sinusuri at permanente nang nakatatak sa Ethereum Sepolia kasama ang mga ulat ng paggastos ng NGO.\n3. **Public Auditing:** Bawat donor ay may **Transaction Hash** na pwedeng i-verify kahit sino sa Sepolia Etherscan 24/7.`
+        : `🛡️ **Why Relief Funds on BBDRTS are Transparent & Tamper-Proof:**\n\nThink of the blockchain as an **immutable, shared public ledger** distributed across thousands of validator nodes:\n1. **Tamper-Proof Audit Trail:** Once our gasless relayer seals a verified PHP donation or NGO disbursement on Ethereum Sepolia, no admin or bad actor can silently edit or hide it.\n2. **Zero Wallet Friction:** Donors give in Philippine Pesos (GCash, Maya, Bank, Card) while still getting full cryptographic accountability.\n3. **Radical Transparency:** Every verified contribution produces a **Transaction Hash** auditable by anyone on Sepolia Etherscan 24/7.`,
       intent: 'EXPLAIN_BLOCKCHAIN',
       suggestedPrompts: [
         'Saan pinaka-kailangan ng tulong ngayon?',
-        'Paano mag-donate via MetaMask o GCash?',
-        'Ano ang MetaMask at paano gamitin?'
+        'Paano mag-donate via GCash, Maya, o Bank?',
+        'Paano sinusuri ng AI ang mga resibo?'
       ]
     };
   }
@@ -972,7 +949,7 @@ function synthesizeConversationalReply({
       intent: 'HOTLINES',
       suggestedPrompts: [
         'Saan pinaka-kailangan ng tulong ngayon?',
-        'Paano mag-donate via MetaMask o GCash?',
+        'Paano mag-donate via GCash, Maya, o Bank?',
         'Paano gumagana ang Blockchain transparency?'
       ]
     };
@@ -988,7 +965,7 @@ function synthesizeConversationalReply({
       suggestedPrompts: [
         'Saan pinaka-kailangan ng tulong ngayon?',
         'Paano gumagana ang Blockchain transparency?',
-        'Paano mag-donate via MetaMask o GCash?'
+        'Paano mag-donate via GCash, Maya, o Bank?'
       ]
     };
   }
@@ -1012,13 +989,13 @@ function synthesizeConversationalReply({
   if (/(^hi|^hello|^kamusta|^kumusta|mabuhay|good morning|good afternoon|good evening|hey|greetings)/i.test(lowerQuery)) {
     return {
       reply: isTagalog
-        ? `Mabuhay! Ako ang iyong **ReliefAI**, ang AI & Web3 disaster relief assistant ng BBDRTS. Maari kitang gabayan sa:\n- 📍 **Pagsusuri ng mga urgent disaster relief drives**\n- 🤝 **Paraan ng pag-donate gamit ang MetaMask (Crypto) o GCash/Maya**\n- 🔍 **Pag-audit ng iyong Transaction Hash o e-wallet receipt**\n- 🛡️ **Paliwanag kung bakit tamper-proof at ligtas sa korapsyon ang sistema**\n\nAno ang nais mong talakayin ngayon?`
-        : `Greetings! I am **ReliefAI**, your Web3 disaster relief assistant for BBDRTS. I can guide you with:\n- 📍 **Exploring urgent disaster relief drives in the Philippines**\n- 🤝 **Step-by-step donation via MetaMask (Crypto) or GCash/Maya (Fiat)**\n- 🔍 **Verifying transaction hashes and transfer slips on the public ledger**\n- 🛡️ **Understanding how smart contracts ensure 100% transparency**\n\nWhat would you like to explore today?`,
+        ? `Mabuhay! Ako ang iyong **ReliefAI**, ang AI & blockchain transparency assistant ng BBDRTS. Maari kitang gabayan sa:\n- 📍 **Pagsusuri ng mga urgent disaster relief drives**\n- 🤝 **Paraan ng pag-donate gamit ang GCash, Maya, Bank Transfer, o Card**\n- 🔍 **Pag-audit ng iyong Transaction Hash o e-wallet receipt**\n- 🛡️ **Paliwanag kung paano gumagana ang gasless blockchain audit trail**\n\nAno ang nais mong talakayin ngayon?`
+        : `Greetings! I am **ReliefAI**, your humanitarian transparency assistant for BBDRTS. I can guide you with:\n- 📍 **Exploring urgent disaster relief drives in the Philippines**\n- 🤝 **Step-by-step PHP donation via GCash, Maya, Bank Transfer, or Card**\n- 🔍 **Verifying transaction hashes and transfer slips on the public ledger**\n- 🛡️ **Understanding how our gasless Ethereum Sepolia audit ensures 100% transparency**\n\nWhat would you like to explore today?`,
       intent: 'GREETING',
       suggestedPrompts: [
         'Saan pinaka-kailangan ng tulong ngayon?',
         'Paano gumagana ang Blockchain transparency?',
-        'Paano mag-donate via MetaMask o GCash?',
+        'Paano mag-donate via GCash, Maya, o Bank?',
         'Philippine Emergency Hotlines (911 / 143)'
       ]
     };
@@ -1027,13 +1004,13 @@ function synthesizeConversationalReply({
   // ── Scenario 12: Contextual Conversational Synthesis Fallback ──
   return {
     reply: isTagalog
-      ? `Naiintindihan ko ang iyong katanungan. Bilang iyong **ReliefAI**, narito ang mga pangunahing tulong na maari kong ibigay:\n\n1. 📍 **"Saan pinaka-kailangan ng tulong ngayon?"** — Ipapakita ko ang mga verified relief drives na may kritikal na kakulangan sa pondo.\n2. 🤝 **"Paano mag-donate via GCash o MetaMask?"** — Step-by-step na gabay sa donasyon.\n3. 🛡️ **"Paano gumagana ang blockchain transparency?"** — Paliwanag kung bakit ligtas sa korapsyon ang pondo.\n4. 🚨 **"Philippine Emergency Hotlines"** — Listahan ng mga opisyal na numero tulad ng 911 at Red Cross 143.\n\n*Maaari ka ring mag-paste ng anumang 0x hash o GCash reference number upang ma-verify ko agad sa public ledger!*`
-      : `I understand your inquiry. As your **ReliefAI** assistant, here is what I can assist you with right now:\n\n1. 📍 **"Where is aid most needed now?"** — Highlights active campaigns with critical funding deficits.\n2. 🤝 **"How to donate via GCash or MetaMask?"** — Step-by-step donation guide.\n3. 🛡️ **"How does blockchain transparency work?"** — How smart contracts ensure funds cannot be diverted.\n4. 🚨 **"Philippine Emergency Hotlines"** — Verified emergency contacts for 911 and Red Cross 143.\n\n*You can also paste any 0x transaction hash or reference number to verify a contribution on-chain!*`,
+      ? `Naiintindihan ko ang iyong katanungan. Bilang iyong **ReliefAI**, narito ang mga pangunahing tulong na maari kong ibigay:\n\n1. 📍 **"Saan pinaka-kailangan ng tulong ngayon?"** — Ipapakita ko ang mga verified relief drives na may kritikal na kakulangan sa pondo.\n2. 🤝 **"Paano mag-donate via GCash, Maya, o Bank?"** — Step-by-step na gabay sa donasyon sa piso.\n3. 🛡️ **"Paano gumagana ang blockchain transparency?"** — Paliwanag kung bakit ligtas sa korapsyon ang pondo.\n4. 🚨 **"Philippine Emergency Hotlines"** — Listahan ng mga opisyal na numero tulad ng 911 at Red Cross 143.\n\n*Maaari ka ring mag-paste ng anumang 0x hash o GCash reference number upang ma-verify ko agad sa public ledger!*`
+      : `I understand your inquiry. As your **ReliefAI** assistant, here is what I can assist you with right now:\n\n1. 📍 **"Where is aid most needed now?"** — Highlights active campaigns with critical funding deficits.\n2. 🤝 **"How to donate via GCash, Maya, or Bank?"** — Step-by-step PHP donation guide.\n3. 🛡️ **"How does blockchain transparency work?"** — How our gasless Sepolia audit ensures funds cannot be diverted.\n4. 🚨 **"Philippine Emergency Hotlines"** — Verified emergency contacts for 911 and Red Cross 143.\n\n*You can also paste any 0x transaction hash or reference number to verify a contribution on-chain!*`,
     intent: 'ASSIST_OPTIONS',
     suggestedPrompts: [
       'Saan pinaka-kailangan ng tulong ngayon?',
       'Paano gumagana ang Blockchain transparency?',
-      'Paano mag-donate via MetaMask o GCash?',
+      'Paano mag-donate via GCash, Maya, o Bank?',
       'Philippine Emergency Hotlines (911 / 143)'
     ]
   };

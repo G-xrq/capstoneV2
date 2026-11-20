@@ -1755,8 +1755,8 @@ export default function AuthView({ onLoginSuccess, onBack, theme, onToggleTheme,
                         ? 'Register with SEC or DSWD credentials for admin approval before posting drives and logging spending reports.'
                         : 'Run approved campaigns, verify pending wallet slips, and upload itemized store receipts and delivery proof for donors.')
                     : (isRegistering
-                        ? 'Donate to checked organizations via GCash, Maya, bank/card, or Sepolia ETH, and follow public spending updates with 0% platform fees.'
-                        : 'Browse verified campaigns, give via GCash, Maya, cards, banks, or Sepolia ETH, and view blockchain records alongside NGO spending proof.')}
+                        ? 'Donate in Philippine Pesos via GCash, Maya, cards, or bank transfer—with gasless Sepolia blockchain records and 0% platform fees.'
+                        : 'Browse verified campaigns, give via GCash, Maya, cards, or bank transfer, and inspect gasless blockchain records alongside NGO spending proof.')}
                 </p>
               </div>
 

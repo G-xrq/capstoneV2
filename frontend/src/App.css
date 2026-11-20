@@ -7350,6 +7350,10 @@ input:-webkit-autofill:active {
   margin-bottom: 18px;
 }
 
+.payment-rails-grid > .payment-option-btn:nth-child(3):last-child {
+  grid-column: 1 / -1;
+}
+
 @media (max-width: 680px) {
   .payment-rails-grid {
     grid-template-columns: 1fr;

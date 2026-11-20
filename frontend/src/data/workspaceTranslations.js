@@ -16,7 +16,7 @@ export const WORKSPACE_TRANSLATIONS = {
     concludedBadge: 'Concluded',
     distributionBadge: 'Distribution in Progress',
     verifiedWorkspace: 'Verified Workspace',
-    walletConnected: 'Wallet Connected',
+    walletConnected: 'Sepolia Audited',
     verifiedEmail: 'Verified Email',
     verifiedNgo: 'Verified NGO',
 
@@ -43,7 +43,7 @@ export const WORKSPACE_TRANSLATIONS = {
 
     // Donor Metrics
     metricTotalContributed: 'Total Contributed',
-    metricTotalContributedSub: 'Combined PHP & Sepolia impact',
+    metricTotalContributedSub: 'Verified PHP relief impact',
     metricCampaignsSupported: 'Campaigns Supported',
     metricCampaignsSupportedSub: 'Distinct verified drives',
     metricVerifiedRecords: 'Verified Records',
@@ -53,11 +53,11 @@ export const WORKSPACE_TRANSLATIONS = {
 
     // Donor Sub-tabs
     allCampaignsTitle: 'Verified Philippine Relief Drives',
-    allCampaignsSub: 'Browse vetted NGO campaigns, inspect receipts, and contribute through GCash, Maya, Cards, or ETH.',
+    allCampaignsSub: 'Browse vetted NGO campaigns, inspect receipts, and contribute through GCash, Maya, Cards, or Bank Transfer.',
     radarTitle: 'Live Operations Map',
     radarSub: 'Explore affected Philippine provinces and click any active relief corridor to support ongoing drives.',
     contributionsTitle: 'My Donation Receipts & History',
-    contributionsSub: 'Complete verified log of your GCash, Maya, Card, Bank, and Sepolia ETH contributions.',
+    contributionsSub: 'Complete verified log of your GCash, Maya, Card, and Bank contributions notarized on Sepolia.',
 
     // NGO / Organization View
     orgPortal: 'NGO Portal',
@@ -112,7 +112,7 @@ export const WORKSPACE_TRANSLATIONS = {
     concludedBadge: 'Tapos na',
     distributionBadge: 'Ipinapamahagi na',
     verifiedWorkspace: 'Beripikadong Account',
-    walletConnected: 'Konektado ang Wallet',
+    walletConnected: 'Naka-audit sa Sepolia',
     verifiedEmail: 'Beripikadong Email',
     verifiedNgo: 'Beripikadong NGO',
 
@@ -137,7 +137,7 @@ export const WORKSPACE_TRANSLATIONS = {
     funded: 'nalikom',
 
     metricTotalContributed: 'Kabuuang Naibigay',
-    metricTotalContributedSub: 'Pinagsamang PHP at Sepolia',
+    metricTotalContributedSub: 'Beripikadong tulong sa PHP',
     metricCampaignsSupported: 'Sinuportahang Kampanya',
     metricCampaignsSupportedSub: 'Mga natatanging kampanya',
     metricVerifiedRecords: 'Beripikadong Tala',
@@ -146,11 +146,11 @@ export const WORKSPACE_TRANSLATIONS = {
     metricLiveAppealsSub: 'Mga beripikadong NGO',
 
     allCampaignsTitle: 'Mga Beripikadong Relief Drive',
-    allCampaignsSub: 'Magbigay sa mga sinusuring NGO gamit ang GCash, Maya, Card, Banko, o ETH.',
+    allCampaignsSub: 'Magbigay sa mga sinusuring NGO gamit ang GCash, Maya, Card, o Bank Transfer.',
     radarTitle: 'Mapa ng Live na Operasyon',
     radarSub: 'Suriin ang mga apektadong lalawigan sa Pilipinas at pumili ng kampanyang susuportahan.',
     contributionsTitle: 'Mga Resibo at Kasaysayan ng Donasyon',
-    contributionsSub: 'Kompletong talaan ng iyong tulong sa GCash, Maya, Card, Banko, at Sepolia ETH.',
+    contributionsSub: 'Kompletong talaan ng iyong tulong sa GCash, Maya, Card, at Bank Transfer na naka-audit sa Sepolia.',
 
     orgPortal: 'Portal ng NGO',
     deployCampaign: 'Maglunsad ng Kampanya',
@@ -202,7 +202,7 @@ export const WORKSPACE_TRANSLATIONS = {
     concludedBadge: 'Nahuman na',
     distributionBadge: 'Giapod-apod na',
     verifiedWorkspace: 'Beripikadong Account',
-    walletConnected: 'Konektado ang Wallet',
+    walletConnected: 'Naka-audit sa Sepolia',
     verifiedEmail: 'Beripikadong Email',
     verifiedNgo: 'Beripikadong NGO',
 
@@ -227,7 +227,7 @@ export const WORKSPACE_TRANSLATIONS = {
     funded: 'natigom',
 
     metricTotalContributed: 'Kinatibuk-ang Nahatag',
-    metricTotalContributedSub: 'Gihiusang PHP ug Sepolia',
+    metricTotalContributedSub: 'Beripikadong tabang sa PHP',
     metricCampaignsSupported: 'Gisuportahang Kampanya',
     metricCampaignsSupportedSub: 'Mga lahi-lahing kampanya',
     metricVerifiedRecords: 'Beripikadong Rekord',
@@ -236,11 +236,11 @@ export const WORKSPACE_TRANSLATIONS = {
     metricLiveAppealsSub: 'Mga beripikadong NGO',
 
     allCampaignsTitle: 'Mga Beripikadong Relief Drive',
-    allCampaignsSub: 'Tabangi ang gisusi nga mga NGO pinaagi sa GCash, Maya, Card, Bangko, o ETH.',
+    allCampaignsSub: 'Tabangi ang gisusi nga mga NGO pinaagi sa GCash, Maya, Card, o Bank Transfer.',
     radarTitle: 'Mapa sa Live nga Operasyon',
     radarSub: 'Susiha ang apektadong probinsya sa Pilipinas ug pili og kampanya nga suportahan.',
     contributionsTitle: 'Mga Resibo ug Kasaysayan sa Donasyon',
-    contributionsSub: 'Kompleto nga rekord sa imong donasyon sa GCash, Maya, Card, Bangko, ug Sepolia ETH.',
+    contributionsSub: 'Kompleto nga rekord sa imong donasyon sa GCash, Maya, Card, ug Bank Transfer nga gi-audit sa Sepolia.',
 
     orgPortal: 'Portal sa NGO',
     deployCampaign: 'Paglunsad og Kampanya',

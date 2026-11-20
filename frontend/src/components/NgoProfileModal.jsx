@@ -900,42 +900,12 @@ export default function NgoProfileModal({ orgId, orgData, onClose, onSelectCampa
                         <div>
                           <h4 className="vercel-card-box-title">Audited Multi-Rail Treasury Coordinates</h4>
                           <p className="vercel-card-box-desc">
-                            All cryptocurrency and fiat contributions are verified on immutable public ledgers and routed through institutional accounts.
+                            All Philippine Peso donations (GCash, Maya, Cards, and Bank Transfer) are verified and notarized gaslessly onto the public Ethereum Sepolia audit ledger.
                           </p>
                         </div>
                       </div>
 
                       <div className="vercel-rails-grid">
-                        {/* Sepolia EVM Rail (Stored safely here in payment rails) */}
-                        <div className="vercel-rail-card">
-                          <div className="vercel-rail-top">
-                            <span className="vercel-rail-name">Sepolia Ethereum Multi-Sig Escrow</span>
-                            <span className="vercel-rail-tag eth">On-Chain</span>
-                          </div>
-                          <code className="vercel-rail-code">{walletAddr || '0x206e022D47003B67Ee72bd67fDF2406d43aabC2C'}</code>
-                          <span className="vercel-rail-caption">Solidity 0.8.20 Smart Contract Escrow</span>
-                          <div className="vercel-rail-actions">
-                            <button
-                              type="button"
-                              className="vercel-btn-pill"
-                              onClick={handleCopyWallet}
-                            >
-                              <VercelIcon name={copiedWallet ? 'check' : 'content_copy'} size={13} />
-                              <span>{copiedWallet ? 'Copied' : 'Copy Address'}</span>
-                            </button>
-                            {walletAddr && (
-                              <a
-                                href={`https://sepolia.etherscan.io/address/${walletAddr}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="vercel-btn-pill"
-                              >
-                                <span>Etherscan</span>
-                                <VercelIcon name="open_in_new" size={12} />
-                              </a>
-                            )}
-                          </div>
-                        </div>
 
                         {/* GCash Rail */}
                         <div className="vercel-rail-card">

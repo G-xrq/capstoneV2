@@ -130,7 +130,7 @@ export default function SmartContractModal({ isOpen, onClose, theme }) {
               <div>
                 <strong style={{ fontSize: '0.84rem', color: isLight ? '#0f172a' : '#ffffff' }}>0% Platform Fees:</strong>
                 <span style={{ fontSize: '0.8rem', color: isLight ? '#64748b' : '#94a3b8', marginLeft: '6px' }}>
-                  100% of all received donations (crypto, e-wallets, and bank transfers) settle directly to verified NGO accounts with zero middleman deductions.
+                  100% of all received PHP donations (GCash, Maya, cards, and bank transfers) settle directly to verified NGO accounts with zero platform fees, anchored gaslessly on Ethereum Sepolia.
                 </span>
               </div>
             </div>

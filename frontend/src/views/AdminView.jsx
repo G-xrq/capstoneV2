@@ -900,16 +900,26 @@ export default function AdminView({
       ...ledgerData.onChain.map(tx => {
         const amtEth = parseFloat(tx.amountEth || tx.Amount || 0);
         const amtPhp = tx.amountPhp ? Number(tx.amountPhp) : Math.round(amtEth * 170000);
-        const formattedEth = amtEth < 0.0001 ? '<0.0001 ETH' : `${amtEth.toFixed(4)} ETH`;
+        const rawPm = String(tx.paymentMethod || tx.Payment_Method || '').trim();
+        const normalizedRail = /gcash/i.test(rawPm)
+          ? 'GCash'
+          : /maya/i.test(rawPm)
+            ? 'Maya'
+            : /card|bank/i.test(rawPm)
+              ? 'Bank / Card'
+              : 'Notarized (Legacy)';
+        const txHashStr = String(tx.txHash || tx.Tx_Hash || '');
+        const hasEtherscanTx = txHashStr.startsWith('0x') && txHashStr.length === 66;
         return {
           ...tx,
-          isCrypto: true,
+          isCrypto: hasEtherscanTx,
+          isNotarized: true,
           amountEth: amtEth,
-          rail: tx.paymentMethod || tx.Payment_Method || 'Crypto (ETH)',
-          displayAmount: formattedEth,
+          rail: normalizedRail,
+          displayAmount: `₱${amtPhp.toLocaleString()} PHP`,
           phpAmount: amtPhp,
           status: 'Verified (On-Chain)',
-          refCode: tx.txHash || tx.Tx_Hash,
+          refCode: txHashStr,
           timestamp: tx.createdAt || tx.Timestamp || tx.Created_At,
           Donor_Name: tx.donorName || tx.Donor_Name || 'Verified Donor',
           Donor_Email: tx.donorEmail || tx.Donor_Email || '',
@@ -940,7 +950,7 @@ export default function AdminView({
     list.sort((a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0));
 
     return list.filter(item => {
-      if (ledgerRailFilter === 'CRYPTO' && !item.isCrypto) return false;
+      if (ledgerRailFilter === 'NOTARIZED' && !item.isNotarized) return false;
       if (ledgerRailFilter === 'GCASH' && !item.rail.toLowerCase().includes('gcash')) return false;
       if (ledgerRailFilter === 'MAYA' && !item.rail.toLowerCase().includes('maya')) return false;
       if (ledgerRailFilter === 'CARD' && !item.rail.toLowerCase().includes('card') && !item.rail.toLowerCase().includes('bank')) return false;
@@ -1323,43 +1333,16 @@ export default function AdminView({
   const concludedCampaigns = (campaigns || []).length - activeCampaigns;
 
   const dedupedAccreditedList = useMemo(() => {
-    const map = new Map();
-    // 1. First add on-chain moderators
-    moderators.forEach(m => {
-      const key = (m.address || '').toLowerCase();
-      if (key && !map.has(key)) {
-        map.set(key, {
-          id: m.address,
-          name: m.name || 'Accredited Partner NGO',
-          email: m.email || '',
-          wallet: m.address,
-          balance: m.balance || '0.0000',
-          verified: m.verified ?? true,
-          isOnChain: true
-        });
-      }
-    });
-    // 2. Then add database-approved organizations
-    organizations
+    return (organizations || [])
       .filter(o => String(o.Verification_Status || '').toLowerCase() === 'approved')
-      .forEach(org => {
-        const walletKey = (org.Wallet_Address || '').toLowerCase();
-        const nameKey = (org.Org_Name || org.Name || '').toLowerCase().trim();
-        const key = walletKey || nameKey || String(org.Org_ID);
-        if (!map.has(key)) {
-          map.set(key, {
-            id: org.Org_ID,
-            name: getOrgName(org),
-            email: getOrgEmail(org),
-            wallet: org.Wallet_Address || '',
-            balance: '0.0000',
-            verified: true,
-            isOnChain: Boolean(org.Wallet_Address)
-          });
-        }
-      });
-    return Array.from(map.values());
-  }, [moderators, organizations]);
+      .map(org => ({
+        id: org.Org_ID,
+        name: getOrgName(org),
+        email: getOrgEmail(org),
+        verified: true,
+        isOnChain: true
+      }));
+  }, [organizations]);
 
   const effectiveModCount = dedupedAccreditedList.length;
 
@@ -1742,15 +1725,7 @@ export default function AdminView({
                     <span>Analytics &amp; Reports</span>
                   </button>
 
-                  <button
-                    type="button"
-                    onClick={() => setPauseModalOpen(true)}
-                    className="admin-header-btn danger"
-                    title="Halt or resume smart contract operations"
-                  >
-                    <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>pause_circle</span>
-                    <span>Emergency Circuit Breaker</span>
-                  </button>
+                  {/* Maintenance controls live in System & Alerts (no MetaMask wallet required) */}
 
                   <a
                     href={`https://sepolia.etherscan.io/address/${contract?.target || CONTRACT_ADDRESS}`}
@@ -1776,7 +1751,7 @@ export default function AdminView({
                     ₱{totalRaisedPhp.toLocaleString('en-US')}
                   </div>
                   <div className="admin-metric-sub">
-                    ≈ {totalRaisedEth} ETH Multi-Rail Total
+                    Gasless Sepolia Audited Total
                   </div>
                 </div>
 
@@ -2793,11 +2768,9 @@ export default function AdminView({
                               }}>
                                 ₱{Number(selectedAuditLog.details?.amountPhp || 0).toLocaleString()}
                               </div>
-                              {selectedAuditLog.details?.amountEth !== undefined && (
-                                <div style={{ fontSize: '0.78rem', color: 'var(--text-muted, #71717a)', fontFamily: 'var(--font-mono)', marginTop: '4px' }}>
-                                  ≈ {parseFloat(selectedAuditLog.details.amountEth).toFixed(4)} ETH on Sepolia
-                                </div>
-                              )}
+                              <div style={{ fontSize: '0.74rem', color: 'var(--text-muted, #71717a)', marginTop: '4px' }}>
+                                Gasless Sepolia Audit Entry
+                              </div>
                             </div>
 
                             {selectedAuditLog.details?.paymentMethod && (
@@ -3192,7 +3165,7 @@ export default function AdminView({
                     Financial Ledger
                   </h2>
                   <p className="admin-page-sub">
-                    Reconciled dual-rail transaction ledger spanning Ethereum Sepolia on-chain smart contracts, GCash, Maya, and direct banking settlements.
+                    Reconciled Philippine payment ledger spanning GCash, Maya, Card, and Bank donations notarized gaslessly on Ethereum Sepolia.
                   </p>
                 </div>
 
@@ -3225,7 +3198,7 @@ export default function AdminView({
                     ₱{totalLedgerPhp.toLocaleString()}
                   </div>
                   <div className="admin-metric-sub">
-                    ≈ {totalLedgerEth.toFixed(4)} ETH Blockchain Audited
+                    Gasless Sepolia Blockchain Audited
                   </div>
                 </div>
 
@@ -3248,10 +3221,10 @@ export default function AdminView({
                     <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#c084fc' }}>account_balance_wallet</span>
                   </div>
                   <div className="admin-metric-value">
-                    {ledgerData.onChain.length} <span style={{ fontSize: '0.80rem', color: 'var(--text-muted)' }}>Crypto · {ledgerData.manual.length} Fiat</span>
+                    {ledgerData.onChain.length} <span style={{ fontSize: '0.80rem', color: 'var(--text-muted)' }}>Notarized · {ledgerData.manual.length} Slips</span>
                   </div>
                   <div className="admin-metric-sub">
-                    GCash, Maya, Sepolia ETH, Card
+                    GCash, Maya, Bank &amp; Card (PHP)
                   </div>
                 </div>
 
@@ -3284,9 +3257,9 @@ export default function AdminView({
                     <div className="vercel-pill-group">
                       {[
                         { key: 'ALL', label: `All (${ledgerData.onChain.length + ledgerData.manual.length})` },
-                        { key: 'CRYPTO', label: `Crypto (${ledgerData.onChain.length})` },
-                        { key: 'GCASH', label: `GCash (${ledgerData.manual.filter(m => (m.paymentMethod || m.Payment_Method || '').toLowerCase().includes('gcash')).length})` },
-                        { key: 'MAYA', label: `Maya (${ledgerData.manual.filter(m => (m.paymentMethod || m.Payment_Method || '').toLowerCase().includes('maya')).length})` },
+                        { key: 'NOTARIZED', label: `On-Chain (${ledgerData.onChain.length})` },
+                        { key: 'GCASH', label: 'GCash' },
+                        { key: 'MAYA', label: 'Maya' },
                         { key: 'CARD', label: 'Card & Bank' }
                       ].map(tab => (
                         <button
@@ -3467,7 +3440,7 @@ export default function AdminView({
                                   +₱{Number(tx.phpAmount || 0).toLocaleString()}
                                 </div>
                                 <div className="cell-amount-eth">
-                                  {isCrypto ? tx.displayAmount : `≈ ${Number(tx.amountEth || 0).toFixed(4)} ETH`}
+                                  {tx.isNotarized ? 'Sepolia Sealed' : 'PHP Receipt'}
                                 </div>
                               </td>
 
@@ -3538,7 +3511,7 @@ export default function AdminView({
                               {isCrypto ? 'token' : isGcash ? 'payments' : isMaya ? 'account_balance_wallet' : 'credit_card'}
                             </span>
                             <span style={{ fontSize: '0.50rem', fontWeight: 700, color: 'var(--text-muted)' }}>
-                              {isCrypto ? 'ETH' : isGcash ? 'GCASH' : isMaya ? 'MAYA' : 'CARD'}
+                              {isGcash ? 'GCASH' : isMaya ? 'MAYA' : 'BANK'}
                             </span>
                           </div>
 
@@ -4044,12 +4017,10 @@ export default function AdminView({
 
                               <td className="cell-mono">
                                 <div className="cell-amount-php">₱{Math.round(target * 170000).toLocaleString()}</div>
-                                <div className="cell-amount-eth">{target.toFixed(3)} ETH</div>
                               </td>
 
                               <td className="cell-mono">
                                 <div className="cell-amount-php">₱{Math.round(current * 170000).toLocaleString()}</div>
-                                <div className="cell-amount-eth">{current.toFixed(4)} ETH</div>
                               </td>
 
                               <td>
@@ -4278,7 +4249,6 @@ export default function AdminView({
                           <th>Non-Profit Organization</th>
                           <th>SEC Registration #</th>
                           <th>Entity Charter</th>
-                          <th>Ethereum Wallet</th>
                           <th>SEC Certificate</th>
                           <th>KYC Status</th>
                           <th style={{ textAlign: 'right' }}>Actions</th>
@@ -4329,33 +4299,6 @@ export default function AdminView({
 
                               <td style={{ color: 'var(--text-secondary)', fontSize: '0.76rem' }}>
                                 {org.Entity_Type || 'Non-Stock, Non-Profit'}
-                              </td>
-
-                              <td>
-                                {org.Wallet_Address ? (
-                                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                                    <button
-                                      type="button"
-                                      onClick={() => handleCopy(org.Wallet_Address, 'Wallet Address')}
-                                      className="btn-copy-hash"
-                                      title="Copy Wallet Address"
-                                    >
-                                      <span>{shortAddr(org.Wallet_Address)}</span>
-                                      <span className="material-symbols-outlined" style={{ fontSize: '12px', opacity: 0.7 }}>content_copy</span>
-                                    </button>
-                                    <a
-                                      href={`https://sepolia.etherscan.io/address/${org.Wallet_Address}`}
-                                      target="_blank"
-                                      rel="noreferrer"
-                                      style={{ color: 'var(--text-muted)', display: 'inline-flex', alignItems: 'center', textDecoration: 'none' }}
-                                      title="View on Sepolia Etherscan"
-                                    >
-                                      <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>open_in_new</span>
-                                    </a>
-                                  </div>
-                                ) : (
-                                  <span style={{ color: 'var(--text-muted)', fontSize: '0.74rem' }}>Pending Link</span>
-                                )}
                               </td>
 
                               <td>
@@ -4485,41 +4428,9 @@ export default function AdminView({
                     </span>
                     <span className="badge-status success">
                       <span className="dot" />
-                      <span>Sepolia EVM Active</span>
+                      <span>Gasless Sepolia Audit Active</span>
                     </span>
                   </div>
-
-                  <form onSubmit={handleAddModerator} style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center', marginLeft: 'auto' }}>
-                    <div className="campaign-toolbar-search-box" style={{ width: '280px', flex: 'none' }}>
-                      <span className="material-symbols-outlined filter-search-icon-ref">wallet</span>
-                      <input
-                        type="text"
-                        placeholder="0x... Ethereum address"
-                        value={newModAddr}
-                        onChange={(e) => setNewModAddr(e.target.value)}
-                        className="filter-search-input-ref"
-                        style={{ fontFamily: 'var(--font-mono)' }}
-                      />
-                    </div>
-                    <button
-                      type="submit"
-                      className="admin-header-btn primary"
-                      disabled={modTxPending || effectiveModCount >= MAX_ORGANIZATIONS || contractPaused}
-                      style={{ whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '6px 14px', fontSize: '0.74rem' }}
-                    >
-                      {modTxPending ? (
-                        <>
-                          <div className="spinner spinner-light" style={{ width: '12px', height: '12px' }} />
-                          <span>Broadcasting...</span>
-                        </>
-                      ) : (
-                        <>
-                          <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>add_moderator</span>
-                          <span>Authorize on Sepolia</span>
-                        </>
-                      )}
-                    </button>
-                  </form>
                 </div>
               </div>
 
@@ -4547,20 +4458,18 @@ export default function AdminView({
                     <thead>
                       <tr>
                         <th>Authorized Organization</th>
-                        <th>Ethereum Wallet Address</th>
-                        <th>On-Chain Treasury</th>
                         <th>Regulatory Compliance</th>
-                        <th>Smart Contract Status</th>
-                        <th style={{ textAlign: 'right' }}>Actions</th>
+                        <th>Audit Ledger Status</th>
+                        <th style={{ textAlign: 'right' }}>Standing</th>
                       </tr>
                     </thead>
                     <tbody>
                       {dedupedAccreditedList.length === 0 ? (
                         <tr>
-                          <td colSpan="6" style={{ padding: '48px 16px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                          <td colSpan="4" style={{ padding: '48px 16px', textAlign: 'center', color: 'var(--text-muted)' }}>
                             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
                               <span className="material-symbols-outlined" style={{ fontSize: '32px', color: 'var(--text-muted)' }}>corporate_fare</span>
-                              <div>No accredited non-profit organizations registered. Accredit an organization in KYC Approvals to enroll on-chain.</div>
+                              <div>No accredited non-profit organizations registered yet. Approve organizations in KYC Approvals.</div>
                             </div>
                           </td>
                         </tr>
@@ -4586,39 +4495,6 @@ export default function AdminView({
                             </td>
 
                             <td>
-                              {item.wallet ? (
-                                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleCopy(item.wallet, 'Wallet Address')}
-                                    className="btn-copy-hash"
-                                    title="Copy Wallet Address"
-                                  >
-                                    <span>{shortAddr(item.wallet)}</span>
-                                    <span className="material-symbols-outlined" style={{ fontSize: '12px', opacity: 0.7 }}>content_copy</span>
-                                  </button>
-                                  <a
-                                    href={`https://sepolia.etherscan.io/address/${item.wallet}`}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    style={{ color: 'var(--text-muted)', display: 'inline-flex', alignItems: 'center', textDecoration: 'none' }}
-                                    title="View on Sepolia Etherscan"
-                                  >
-                                    <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>open_in_new</span>
-                                  </a>
-                                </div>
-                              ) : (
-                                <span style={{ color: 'var(--text-muted)', fontSize: '0.74rem' }}>Pending Enrollment</span>
-                              )}
-                            </td>
-
-                            <td style={{ fontSize: '0.76rem' }}>
-                              <span style={{ color: 'var(--accent, #10b981)', fontWeight: 600 }}>
-                                {item.balance} ETH
-                              </span>
-                            </td>
-
-                            <td>
                               <span className="badge-status success">
                                 <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>verified</span>
                                 <span>SEC Accredited</span>
@@ -4626,25 +4502,14 @@ export default function AdminView({
                             </td>
 
                             <td>
-                              <span className={`badge-status ${item.isOnChain ? 'sky' : 'warning'}`}>
+                              <span className="badge-status sky">
                                 <span className="dot" />
-                                <span>{item.isOnChain ? 'Active On-Chain' : 'Off-Chain Verified'}</span>
+                                <span>Gasless Sepolia Audited</span>
                               </span>
                             </td>
 
                             <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
-                              {item.wallet ? (
-                                <button
-                                  type="button"
-                                  className="admin-header-btn secondary"
-                                  onClick={() => triggerRemoveOrganization(item.wallet)}
-                                  style={{ color: '#f43f5e', borderColor: 'rgba(244, 63, 94, 0.3)', fontSize: '0.70rem', padding: '3px 8px' }}
-                                >
-                                  Revoke Access
-                                </button>
-                              ) : (
-                                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Authorized</span>
-                              )}
+                              <span style={{ fontSize: '0.74rem', color: '#10b981', fontWeight: 600 }}>Authorized</span>
                             </td>
                           </tr>
                         ))
@@ -4923,11 +4788,9 @@ export default function AdminView({
                   <div style={{ fontWeight: 800, color: '#10b981', fontFamily: 'var(--font-mono)', fontSize: '1.05rem', marginTop: '2px' }}>
                     ₱{Number(selectedTx.phpAmount || 0).toLocaleString()} PHP
                   </div>
-                  {selectedTx.amountEth && (
-                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', marginTop: '2px' }}>
-                      ≈ {parseFloat(selectedTx.amountEth).toFixed(4)} ETH on Sepolia
-                    </div>
-                  )}
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                    Gasless Sepolia Audit Verified
+                  </div>
                 </div>
 
                 <div style={{ background: 'var(--bg-subcard)', padding: '12px 14px', borderRadius: '8px', border: '1px solid var(--border)' }}>

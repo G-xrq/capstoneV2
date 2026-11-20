@@ -31,7 +31,7 @@ function normalizePaymentRail(paymentMethod = '', txHash = '') {
   if (pm.includes('GCASH') || hash.startsWith('FIAT-GCAS') || hash.includes('GCASH')) return 'GCash';
   if (pm.includes('MAYA') || hash.startsWith('FIAT-MAYA') || hash.includes('MAYA')) return 'Maya';
   if (pm.includes('BANK') || pm.includes('CARD') || pm.includes('CREDIT') || hash.startsWith('FIAT-BANK') || hash.startsWith('FIAT-CRED')) return 'Bank / Card';
-  return 'Sepolia ETH';
+  return 'Legacy On-Chain';
 }
 
 function extractRegion(rawLoc) {
@@ -120,10 +120,9 @@ function buildTrendSeries(txRows, disbRows, rangeDays, nowMs) {
         date: dayKey,
         label: formatShortDay(dayKey),
         totalPhp: 0,
-        ethAmount: 0,
         txCount: 0,
-        cryptoPhp: 0,
-        fiatPhp: 0,
+        ewalletPhp: 0,
+        bankCardPhp: 0,
         disbursedPhp: 0
       });
     }
@@ -146,10 +145,9 @@ function buildTrendSeries(txRows, disbRows, rangeDays, nowMs) {
     }
     const bucket = ensureDay(k);
     bucket.totalPhp += tx.phpAmount;
-    bucket.ethAmount += tx.ethAmount;
     bucket.txCount += 1;
-    if (tx.rail === 'Sepolia ETH') bucket.cryptoPhp += tx.phpAmount;
-    else bucket.fiatPhp += tx.phpAmount;
+    if (tx.rail === 'GCash' || tx.rail === 'Maya') bucket.ewalletPhp += tx.phpAmount;
+    else bucket.bankCardPhp += tx.phpAmount;
   });
 
   disbRows.forEach((d) => {
@@ -167,28 +165,25 @@ function buildTrendSeries(txRows, disbRows, rangeDays, nowMs) {
   return sorted.map((b) => ({
     ...b,
     totalPhp: Math.round(b.totalPhp),
-    ethAmount: Number(b.ethAmount.toFixed(4)),
-    cryptoPhp: Math.round(b.cryptoPhp),
-    fiatPhp: Math.round(b.fiatPhp),
+    ewalletPhp: Math.round(b.ewalletPhp),
+    bankCardPhp: Math.round(b.bankCardPhp),
     disbursedPhp: Math.round(b.disbursedPhp)
   }));
 }
 
 function aggregatePaymentRails(txRows) {
   const railMap = new Map([
-    ['GCash', { rail: 'GCash', php: 0, eth: 0, count: 0 }],
-    ['Maya', { rail: 'Maya', php: 0, eth: 0, count: 0 }],
-    ['Bank / Card', { rail: 'Bank / Card', php: 0, eth: 0, count: 0 }],
-    ['Sepolia ETH', { rail: 'Sepolia ETH', php: 0, eth: 0, count: 0 }]
+    ['GCash', { rail: 'GCash', php: 0, count: 0 }],
+    ['Maya', { rail: 'Maya', php: 0, count: 0 }],
+    ['Bank / Card', { rail: 'Bank / Card', php: 0, count: 0 }]
   ]);
 
   let totalPhp = 0;
   txRows.forEach((tx) => {
-    const r = tx.rail || 'Sepolia ETH';
-    if (!railMap.has(r)) railMap.set(r, { rail: r, php: 0, eth: 0, count: 0 });
+    const r = tx.rail || 'Legacy On-Chain';
+    if (!railMap.has(r)) railMap.set(r, { rail: r, php: 0, count: 0 });
     const entry = railMap.get(r);
     entry.php += tx.phpAmount;
-    entry.eth += tx.ethAmount;
     entry.count += 1;
     totalPhp += tx.phpAmount;
   });
@@ -197,7 +192,6 @@ function aggregatePaymentRails(txRows) {
     .map((item) => ({
       ...item,
       php: Math.round(item.php),
-      eth: Number(item.eth.toFixed(4)),
       sharePct: totalPhp > 0 ? Number(((item.php / totalPhp) * 100).toFixed(1)) : 0
     }))
     .sort((a, b) => b.php - a.php);
@@ -462,7 +456,7 @@ async function buildAdminAnalytics(db, { range = '30d', category = 'ALL' } = {})
         dt.Transaction_ID as id,
         dt.Tx_Hash as txHash,
         dt.Amount as amount,
-        COALESCE(dt.Payment_Method, 'Sepolia ETH') as paymentMethod,
+        COALESCE(dt.Payment_Method, 'Legacy On-Chain') as paymentMethod,
         dt.Campaign_ID as campaignId,
         dt.Org_ID as orgId,
         dt.Donor_ID as donorId,
@@ -649,11 +643,12 @@ async function buildAdminAnalytics(db, { range = '30d', category = 'ALL' } = {})
   const pendingOrgs = (orgRows || []).filter((o) => String(o.status).toLowerCase() === 'pending').length;
   const rejectedOrgs = (orgRows || []).filter((o) => String(o.status).toLowerCase() === 'rejected').length;
   const registeredNgos = (orgRows || []).length;
-  const evmEnrolledNgos = (orgRows || []).filter(
-    (o) => String(o.status).toLowerCase() === 'approved' && o.walletAddress && String(o.walletAddress).trim().length > 0
+  const activeCampaignOrgIds = new Set(campaignPerf.filter((c) => c.isActive).map((c) => Number(c.orgId)));
+  const activeCampaignNgos = (orgRows || []).filter(
+    (o) => String(o.status).toLowerCase() === 'approved' && activeCampaignOrgIds.has(Number(o.id))
   ).length;
 
-  // Donor Cohorts: Registered Donors vs Verified Donors (confirmed contribution, EVM wallet linked, or 2FA enabled)
+  // Donor Cohorts: Registered Donors vs Verified Donors (confirmed contribution or 2FA enabled)
   const txCountByDonor = new Map();
   allNormalizedTx.forEach((tx) => {
     if (tx.donorId) {
@@ -663,19 +658,18 @@ async function buildAdminAnalytics(db, { range = '30d', category = 'ALL' } = {})
   const activeDonorRows = (donorRows || []).filter((d) => Number(d.isDeleted || 0) !== 1);
   const registeredDonors = activeDonorRows.length;
   let verifiedDonors = 0;
-  let walletVerifiedDonors = 0;
+  let twoFactorDonors = 0;
   let contributingDonors = 0;
   let repeatDonors = 0;
   activeDonorRows.forEach((d) => {
     const id = Number(d.id);
     const txCnt = txCountByDonor.get(id) || 0;
-    const hasWallet = Boolean(d.walletAddress && String(d.walletAddress).trim().length > 0);
     const hasGift = txCnt > 0 || Number(d.totalDonated || 0) > 0;
     const has2fa = Number(d.twoFactorEnabled || 0) === 1;
-    if (hasWallet) walletVerifiedDonors += 1;
+    if (has2fa) twoFactorDonors += 1;
     if (hasGift) contributingDonors += 1;
     if (txCnt >= 2) repeatDonors += 1;
-    if (hasWallet || hasGift || has2fa) verifiedDonors += 1;
+    if (hasGift || has2fa) verifiedDonors += 1;
   });
   const registeredOnlyDonors = Math.max(0, registeredDonors - verifiedDonors);
 
@@ -684,7 +678,7 @@ async function buildAdminAnalytics(db, { range = '30d', category = 'ALL' } = {})
       registered: registeredDonors,
       verified: verifiedDonors,
       registeredOnly: registeredOnlyDonors,
-      walletLinked: walletVerifiedDonors,
+      twoFactorEnabled: twoFactorDonors,
       contributing: contributingDonors,
       repeat: repeatDonors,
       verifiedRatePct: registeredDonors > 0 ? Number(((verifiedDonors / registeredDonors) * 100).toFixed(1)) : 0
@@ -694,7 +688,7 @@ async function buildAdminAnalytics(db, { range = '30d', category = 'ALL' } = {})
       verified: approvedOrgs,
       pending: pendingOrgs,
       rejected: rejectedOrgs,
-      evmEnrolled: evmEnrolledNgos,
+      activeCampaignNgos,
       verifiedRatePct: registeredNgos > 0 ? Number(((approvedOrgs / registeredNgos) * 100).toFixed(1)) : 0
     }
   };
@@ -781,7 +775,7 @@ async function buildAdminAnalytics(db, { range = '30d', category = 'ALL' } = {})
       registeredDonors,
       verifiedDonors,
       registeredOnlyDonors,
-      walletVerifiedDonors,
+      twoFactorDonors,
       contributingDonors,
       repeatDonors,
       registeredNgos,
@@ -789,7 +783,7 @@ async function buildAdminAnalytics(db, { range = '30d', category = 'ALL' } = {})
       approvedOrgs,
       pendingOrgs,
       rejectedOrgs,
-      evmEnrolledNgos,
+      activeCampaignNgos,
       approvalRatePct: verificationFunnel.approvalRatePct,
       avgAiConfidence: verificationFunnel.avgAiConfidence,
       pendingManualCount: verificationFunnel.pending
@@ -856,7 +850,7 @@ async function buildOrganizationAnalytics(db, { userId, userWallet = '', range =
         dt.Transaction_ID as id,
         dt.Tx_Hash as txHash,
         dt.Amount as amount,
-        COALESCE(dt.Payment_Method, 'Sepolia ETH') as paymentMethod,
+        COALESCE(dt.Payment_Method, 'Legacy On-Chain') as paymentMethod,
         dt.Campaign_ID as campaignId,
         dt.Org_ID as orgId,
         dt.Donor_ID as donorId,
@@ -970,7 +964,7 @@ async function buildOrganizationAnalytics(db, { userId, userWallet = '', range =
       registeredBackerIds.add(dId);
       backerGiftCounts.set(dId, (backerGiftCounts.get(dId) || 0) + 1);
       const dm = donorMetaById.get(dId);
-      if (dm?.hasWallet || dm?.has2fa || tx.rail === 'Sepolia ETH') {
+      if (dm?.has2fa) {
         verifiedBackerIds.add(dId);
       }
     } else {

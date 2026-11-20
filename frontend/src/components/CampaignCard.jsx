@@ -2747,36 +2747,20 @@ export default function CampaignCard(props) {
       setDeactivating(true);
       setDeactivateModal({ show: true, step: 2, hash: '', error: '' });
 
-      let finalHash = '';
-      if (contract && typeof contract.deactivateCampaign === 'function') {
-        try {
-          const tx = await contract.deactivateCampaign(camp.id);
-          setDeactivateModal({ show: true, step: 3, hash: tx.hash, error: '' });
-          await tx.wait();
-          finalHash = tx.hash;
-        } catch (onChainErr) {
-          console.warn('On-chain deactivation error, falling back to database sync:', onChainErr);
-        }
+      const token = localStorage.getItem('bbdrts_token');
+      if (!token) {
+        throw new Error('Authentication session required to deactivate this campaign.');
+      }
+      const res = await fetch(`${API_URL}/api/campaigns/${camp.id}/deactivate`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const resData = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(resData.error || 'Failed to deactivate campaign.');
       }
 
-      // Synchronize deactivation with the database
-      try {
-        const token = localStorage.getItem('bbdrts_token');
-        if (token) {
-          const res = await fetch(`${API_URL}/api/campaigns/${camp.id}/deactivate`, {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${token}` }
-          });
-          if (!res.ok && !finalHash) {
-            const errData = await res.json().catch(() => ({}));
-            throw new Error(errData.error || 'Failed to deactivate campaign in database.');
-          }
-        }
-      } catch (dbErr) {
-        if (!finalHash) throw dbErr;
-      }
-
-      setDeactivateModal({ show: true, step: 4, hash: finalHash || 'OFF-CHAIN-SYNCED', error: '' });
+      setDeactivateModal({ show: true, step: 4, hash: resData.txHash || 'OFF-CHAIN-SYNCED', error: '' });
       onDeactivated?.();
     } catch (err) {
       console.error(err);
@@ -3178,16 +3162,18 @@ export default function CampaignCard(props) {
                     </div>
 
                     <div className="drawer-compact-list">
-                      <div className="drawer-compact-row">
-                        <div className="drawer-compact-left">
-                          <span className="drawer-compact-pip pip-eth"></span>
-                          <span className="drawer-compact-name">Ethereum</span>
+                      {breakdown.eth.php > 0 && (
+                        <div className="drawer-compact-row">
+                          <div className="drawer-compact-left">
+                            <span className="drawer-compact-pip pip-eth"></span>
+                            <span className="drawer-compact-name">Legacy Verified</span>
+                          </div>
+                          <div className="drawer-compact-right">
+                            <span className="drawer-compact-val">₱{breakdown.eth.php.toLocaleString()}</span>
+                            <span className="drawer-compact-pct">{ethShare}%</span>
+                          </div>
                         </div>
-                        <div className="drawer-compact-right">
-                          <span className="drawer-compact-val">{formatEthAmt(breakdown.eth.amount)} ETH</span>
-                          <span className="drawer-compact-pct">{ethShare}%</span>
-                        </div>
-                      </div>
+                      )}
                       <div className="drawer-compact-row">
                         <div className="drawer-compact-left">
                           <span className="drawer-compact-pip pip-gcash"></span>
@@ -3283,15 +3269,14 @@ export default function CampaignCard(props) {
               </div>
 
               {/* Direct Segment Tooltips Positioned Right Above The Active Segment */}
-              {hoveredRail === 'eth' && (
+              {hoveredRail === 'eth' && breakdown.eth.php > 0 && (
                 <div 
                   className="rail-pill-tooltip rail-pill-tooltip-eth is-visible"
                   style={{ left: `${Math.max(12, Math.min(88, ethSegmentPct / 2))}%`, bottom: 'calc(100% + 8px)' }}
                 >
-                  <div className="rpt-header"><span className="rpt-pip" style={{ background: '#22c55e' }}></span>Ethereum</div>
-                  <div className="rpt-amount" style={{ color: '#22c55e' }}>{formatEthAmt(breakdown.eth.amount)} ETH</div>
-                  <div className="rpt-sub">≈ ₱{breakdown.eth.php.toLocaleString()}</div>
-                  <div className="rpt-meta">{breakdown.eth.count || 0} on-chain tx{breakdown.eth.count !== 1 ? 's' : ''} · {ethShare}% of total</div>
+                  <div className="rpt-header"><span className="rpt-pip" style={{ background: '#22c55e' }}></span>Legacy Verified</div>
+                  <div className="rpt-amount" style={{ color: '#22c55e' }}>₱{breakdown.eth.php.toLocaleString()}</div>
+                  <div className="rpt-meta">{breakdown.eth.count || 0} verified tx{breakdown.eth.count !== 1 ? 's' : ''} · {ethShare}% of total</div>
                 </div>
               )}
               {hoveredRail === 'gcash' && (
@@ -3746,7 +3731,7 @@ export default function CampaignCard(props) {
                     </div>
                   </div>
                   <span className="ledger-header-subtitle">
-                    Public, tamper-proof record of verified crypto, e-wallet, and bank donations
+                    Public, tamper-proof record of verified GCash, Maya, card, and bank donations notarized on Sepolia
                   </span>
                 </div>
               </div>
@@ -3788,7 +3773,7 @@ export default function CampaignCard(props) {
                   <div className="ledger-kpi-value-row">
                     <span className="ledger-kpi-primary-val">₱{ledgerTelemetry.totalPhp.toLocaleString('en-US')}</span>
                     <span className="ledger-kpi-secondary-val">
-                      ≈ {ledgerTelemetry.totalEth < 0.0001 ? ledgerTelemetry.totalEth.toFixed(6) : ledgerTelemetry.totalEth.toFixed(4)} ETH
+                      Gasless Sepolia Audited
                     </span>
                   </div>
                 </div>
@@ -3803,7 +3788,7 @@ export default function CampaignCard(props) {
                   <div className="ledger-kpi-value-row">
                     <span className="ledger-kpi-primary-val">{ledgerTelemetry.onchainCount + ledgerTelemetry.gatewayCount} Receipts</span>
                     <span className="ledger-kpi-badge-val">
-                      {ledgerTelemetry.onchainCount} On-Chain · {ledgerTelemetry.gatewayCount} Gateway
+                      100% Verified &amp; Notarized
                     </span>
                   </div>
                 </div>
@@ -3853,15 +3838,17 @@ export default function CampaignCard(props) {
                         <span className="ledger-pill-count">{ledgerCounts.all}</span>
                       </button>
 
-                      <button
-                        type="button"
-                        className={`ledger-rail-tab ${ledgerRailFilter === 'ONCHAIN' ? 'active tab-onchain' : ''}`}
-                        onClick={() => setLedgerRailFilter('ONCHAIN')}
-                      >
-                        <span className="ledger-rail-dot onchain-dot" />
-                        <span>Sepolia EVM</span>
-                        <span className="ledger-pill-count">{ledgerCounts.onchain}</span>
-                      </button>
+                      {ledgerCounts.onchain > 0 && (
+                        <button
+                          type="button"
+                          className={`ledger-rail-tab ${ledgerRailFilter === 'ONCHAIN' ? 'active tab-onchain' : ''}`}
+                          onClick={() => setLedgerRailFilter('ONCHAIN')}
+                        >
+                          <span className="ledger-rail-dot onchain-dot" />
+                          <span>Legacy Audited</span>
+                          <span className="ledger-pill-count">{ledgerCounts.onchain}</span>
+                        </button>
+                      )}
 
                       {ledgerCounts.gcash > 0 && (
                         <button
@@ -4292,23 +4279,7 @@ export default function CampaignCard(props) {
                                         />
                                       )}
                                     </div>
-                                    {rec.wallet && !isAnon && rec.wallet !== '0x0000000000000000000000000000000000000000' ? (
-                                      <div className="ledger-wallet-inline">
-                                        <span className="ledger-wallet-mono" title={rec.wallet}>
-                                          {shortAddr(rec.wallet)}
-                                        </span>
-                                        <button
-                                          type="button"
-                                          className="ledger-copy-inline-icon"
-                                          onClick={(e) => handleCopyHash(e, rec.wallet, 'Wallet address')}
-                                          title="Copy wallet address"
-                                        >
-                                          <span className="material-symbols-outlined" style={{ fontSize: '11px' }}>
-                                            {copiedHashKey === rec.wallet ? 'check' : 'content_copy'}
-                                          </span>
-                                        </button>
-                                      </div>
-                                    ) : isAnon ? (
+                                    {isAnon ? (
                                       <span className="ledger-anon-tag">Private Donor</span>
                                     ) : isGuest ? (
                                       <span className="ledger-guest-tag">Guest Supporter</span>
@@ -4383,7 +4354,7 @@ export default function CampaignCard(props) {
                                       ? 'View on Etherscan'
                                       : (railMeta.railKey === 'ONCHAIN' ? 'Sepolia Explorer' : 'Contract Proof');
                                     const linkTitle = isRealMinedTx
-                                      ? `Inspect mined ${railMeta.name} transaction on Sepolia Etherscan (On-chain ETH valuation)`
+                                      ? `Inspect notarized ${railMeta.name} audit proof on Sepolia Etherscan`
                                       : 'Inspect multi-sig escrow contract on Sepolia Etherscan';
 
                                     return (
@@ -4409,7 +4380,7 @@ export default function CampaignCard(props) {
                                     ₱{(rec.phpAmount || Math.round((rec.rawAmount || parseFloat(rec.amount || 0)) * 170000)).toLocaleString('en-US')}
                                   </span>
                                   <span className="ledger-amount-secondary">
-                                    +{rec.amount} ETH
+                                    PHP Verified
                                   </span>
                                 </div>
                               </td>
@@ -4534,7 +4505,7 @@ export default function CampaignCard(props) {
                 let title = 'Processing GCash Transfer';
                 let subtitle = 'Cross-referencing payment slip reference with official GCash gateway and recording to on-chain ledger.';
                 let primaryAmount = `₱${parseFloat(amount || 0).toLocaleString()} PHP`;
-                let secondaryAmount = `≈ ${(parseFloat(amount || 0) / 170000).toFixed(6)} ETH`;
+                let secondaryAmount = 'Gasless Sepolia Audit Proof';
                 let traceLabel = 'GCash Reference No.';
                 let traceValue = (refNumber || gatewayRefNo || 'Analyzing slip...').trim();
                 let step1Text = 'Payment Slip & Reference Ingested';
@@ -4549,7 +4520,7 @@ export default function CampaignCard(props) {
                   title = `Processing ${railName} Transfer`;
                   subtitle = `Cross-referencing payment slip reference with official ${railName} gateway and recording to on-chain ledger.`;
                   primaryAmount = `₱${parseFloat(amount || 0).toLocaleString()} PHP`;
-                  secondaryAmount = `≈ ${(parseFloat(amount || 0) / 170000).toFixed(6)} ETH`;
+                  secondaryAmount = 'Gasless Sepolia Audit Proof';
                   traceLabel = `${railName} Reference No.`;
                   traceValue = (refNumber || gatewayRefNo || 'Analyzing slip...').trim();
                   step1Text = 'Payment Slip & Reference Ingested';
@@ -4564,7 +4535,7 @@ export default function CampaignCard(props) {
                   title = 'Authorizing Card Payment';
                   subtitle = 'Transmitting 256-bit encrypted card payload to direct banking clearing gateway.';
                   primaryAmount = `₱${parseFloat(amount || 0).toLocaleString()} PHP`;
-                  secondaryAmount = `≈ ${(parseFloat(amount || 0) / 170000).toFixed(6)} ETH`;
+                  secondaryAmount = 'Gasless Sepolia Audit Proof';
                   traceLabel = 'Payment Instrument';
                   traceValue = `${brand} •••• ${cardNumber ? cardNumber.replace(/\D/g, '').slice(-4) : '••••'}`;
                   step1Text = 'Card Details Tokenized & Encrypted';
@@ -4858,8 +4829,8 @@ export default function CampaignCard(props) {
                           <span className="material-symbols-outlined" style={{ fontSize: '15px', color: '#22c55e' }}>corporate_fare</span>
                           <span style={{ color: 'var(--text-secondary)' }}>Beneficiary: {getOrgDisplayName(camp)}</span>
                         </div>
-                        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', marginTop: '2px' }}>
-                          ≈ {((Number(amount || 0)) / 170000).toFixed(5)} ETH
+                        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                          0% platform fee · Gasless Sepolia audit receipt
                         </div>
                       </div>
                     </div>
@@ -4937,37 +4908,8 @@ export default function CampaignCard(props) {
                     Choose how you would like to securely transfer your disaster relief aid:
                   </p>
 
-                  {/* 2x2 Grid of the 4 Payment Rails */}
+                  {/* Philippine Multi-Rail Payment Channels (100% PHP + Gasless Sepolia Notarization) */}
                   <div className="payment-rails-grid">
-
-                    {/* Option 1: Web3 MetaMask */}
-                    <button
-                      onClick={() => {
-                        if (!contract) {
-                          if (typeof window !== 'undefined' && !window.ethereum) {
-                            return showWarning(
-                              "Please install the MetaMask browser extension to connect your Web3 wallet.",
-                              "MetaMask Required"
-                            );
-                          }
-                          return showWarning("MetaMask is not actively connected. Please connect your wallet first.", "Wallet Not Connected");
-                        }
-                        setDonateStep(1);
-                      }}
-                      className="payment-option-btn"
-                    >
-                      <div className="payment-option-icon-box" style={{ background: 'rgba(245, 158, 11, 0.12)', border: '1px solid rgba(245, 158, 11, 0.3)' }}>
-                        <span className="material-symbols-outlined" style={{ fontSize: '20px', color: '#f59e0b' }}>account_balance_wallet</span>
-                      </div>
-                      <div className="payment-option-meta">
-                        <div className="payment-option-title-row">
-                          <span className="payment-option-title">Web3 MetaMask Key</span>
-                          <span className="payment-option-badge">100% On-Chain</span>
-                        </div>
-                        <div className="payment-option-desc">Direct Sepolia smart contract dispatch &amp; immutable blockchain ledger entry</div>
-                      </div>
-                      <span className="material-symbols-outlined" style={{ color: 'var(--text-muted, #94a3b8)', fontSize: '20px' }}>chevron_right</span>
-                    </button>
 
                     {/* Option 2: GCash E-Wallet */}
                     <button
@@ -5291,7 +5233,7 @@ export default function CampaignCard(props) {
 
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
                       <span style={{ fontSize: '0.82rem', color: 'var(--text-muted, #94a3b8)' }}>Amount:</span>
-                      <strong style={{ fontSize: '0.96rem', color: '#22c55e' }}>₱{Number(amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })} <span style={{ fontSize: '0.76rem', color: 'var(--text-muted, #94a3b8)' }}>(≈ {((Number(amount || 0)) / 170000).toFixed(5)} ETH)</span></strong>
+                      <strong style={{ fontSize: '0.96rem', color: '#22c55e' }}>₱{Number(amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })} PHP</strong>
                     </div>
 
                     {txHash && (() => {
@@ -5649,8 +5591,8 @@ export default function CampaignCard(props) {
                             <label style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary, #cbd5e1)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                               Donation Amount (PHP)
                             </label>
-                            <span style={{ fontSize: '0.72rem', color: 'var(--text-muted, #94a3b8)', fontFamily: 'var(--font-mono, monospace)', fontWeight: 600 }}>
-                              ≈ {((parseFloat(amount || 0)) / 170000).toFixed(6)} ETH
+                            <span style={{ fontSize: '0.72rem', color: '#10b981', fontWeight: 600 }}>
+                              0% Fee · Sepolia Audited
                             </span>
                           </div>
 
@@ -5716,7 +5658,7 @@ export default function CampaignCard(props) {
                           <span style={{ fontSize: '0.84rem', fontWeight: 700, color: 'var(--text-primary, #fff)' }}>Total Settlement:</span>
                           <div style={{ textAlign: 'right' }}>
                             <div style={{ color: '#22c55e', fontWeight: 800, fontSize: '1.05rem', lineHeight: '1.2' }}>₱{parseFloat(amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })} PHP</div>
-                            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted, #94a3b8)', fontFamily: 'var(--font-mono, monospace)' }}>≈ {(parseFloat(amount || 0) / 170000).toFixed(6)} ETH</div>
+                            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted, #94a3b8)' }}>Gasless on-chain receipt</div>
                           </div>
                         </div>
                       </div>
@@ -6215,8 +6157,8 @@ export default function CampaignCard(props) {
                                 <label style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                                   1. Donation Amount (PHP)
                                 </label>
-                                <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontWeight: 600 }}>
-                                  ≈ {((parseFloat(amount || 0)) / 170000).toFixed(6)} ETH
+                                <span style={{ fontSize: '0.74rem', color: '#10b981', fontWeight: 600 }}>
+                                  0% Fee · Sepolia Audited
                                 </span>
                               </div>
 
@@ -7063,8 +7005,8 @@ export default function CampaignCard(props) {
             {deactivateModal.step === 2 && (
               <div className="fade-in" style={{ textAlign: 'center', padding: '40px 0' }}>
                 <div className="spinner" style={{ width: '40px', height: '40px', margin: '0 auto 20px', borderColor: 'var(--primary)', borderRightColor: 'transparent' }}></div>
-                <h3 style={{ marginBottom: '8px', color: 'var(--text)' }}>Awaiting Signature</h3>
-                <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Please sign the transaction in MetaMask to deactivate this campaign.</p>
+                <h3 style={{ marginBottom: '8px', color: 'var(--text)' }}>Deactivating Campaign</h3>
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Updating campaign status and sealing closure in the BBDRTS audit ledger…</p>
               </div>
             )}
 

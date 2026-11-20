@@ -113,8 +113,8 @@ const DONOR_HIGHLIGHTS = [
   },
   {
     icon: 'currency_exchange',
-    title: 'Crypto & Philippine E-Wallets',
-    desc: 'Donate via Ethereum crypto or Philippine QR (GCash & Maya) with instant digital receipt verification.'
+    title: 'Philippine E-Wallets, Cards & Banks',
+    desc: 'Donate in PHP via GCash, Maya, cards, or bank transfer with AI receipt checks and gasless Sepolia blockchain proofs.'
   },
   {
     icon: 'volunteer_activism',
@@ -162,8 +162,8 @@ const NGO_HIGHLIGHTS = [
   },
   {
     icon: 'payments',
-    title: 'Dual Currency Disbursements',
-    desc: 'Receive both Sepolia ETH crypto donations and direct Philippine e-wallet (GCash / Maya) funds for rapid local procurement.'
+    title: 'Multi-Channel PHP Disbursements',
+    desc: 'Receive GCash, Maya, card, and bank donations with automated gasless Sepolia blockchain audit records.'
   },
   {
     icon: 'assignment_turned_in',
@@ -182,7 +182,7 @@ const ADMIN_HIGHLIGHTS = [
   {
     icon: 'account_balance',
     title: 'Financial Ledger Reconciliation',
-    desc: 'Reconcile on-chain crypto transactions against Philippine GCash and Maya e-wallet receipts with automated verification.'
+    desc: 'Reconcile verified Philippine GCash, Maya, card, and bank receipts against immutable gasless Sepolia audit records.'
   },
   {
     icon: 'verified_user',

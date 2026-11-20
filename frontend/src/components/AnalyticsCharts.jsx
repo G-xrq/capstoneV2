@@ -220,7 +220,7 @@ export function VercelAreaLineChart({
       } else if (activeMode === 'disbursed') {
         rawMax = Math.max(rawMax, Number(d.disbursedPhp || 0), Number(d.totalPhp || 0) * 0.15);
       } else if (activeMode === 'split') {
-        rawMax = Math.max(rawMax, Number(d.fiatPhp || 0), Number(d.cryptoPhp || 0));
+        rawMax = Math.max(rawMax, Number(d.ewalletPhp ?? d.fiatPhp ?? 0), Number(d.bankCardPhp ?? d.cryptoPhp ?? 0));
       } else {
         rawMax = Math.max(rawMax, Number(d.totalPhp || 0), Number(d.disbursedPhp || 0));
       }
@@ -233,14 +233,14 @@ export function VercelAreaLineChart({
     const rawPrimary = data.map((d) => {
       if (activeMode === 'volume') return Number(d.txCount || 0) / niceMax;
       if (activeMode === 'disbursed') return Number(d.disbursedPhp || 0) / niceMax;
-      if (activeMode === 'split') return Number(d.fiatPhp || 0) / niceMax;
+      if (activeMode === 'split') return Number(d.ewalletPhp ?? d.fiatPhp ?? 0) / niceMax;
       return Number(d.totalPhp || 0) / niceMax;
     });
 
     const hasAnyDisb = data.some((d) => Number(d.disbursedPhp || 0) > 0);
     const showSec = activeMode === 'split' || (activeMode === 'combined' && hasAnyDisb);
     const rawSecondary = showSec
-      ? data.map((d) => (activeMode === 'split' ? Number(d.cryptoPhp || 0) : Number(d.disbursedPhp || 0)) / niceMax)
+      ? data.map((d) => (activeMode === 'split' ? Number(d.bankCardPhp ?? d.cryptoPhp ?? 0) : Number(d.disbursedPhp || 0)) / niceMax)
       : data.map(() => 0);
 
     const pts = data.map((d, i) => {
@@ -249,10 +249,10 @@ export function VercelAreaLineChart({
         : pad.left + (i / (data.length - 1)) * plotW;
       const yTotal = pad.top + plotH - ((Number(d.totalPhp || 0) / niceMax) * plotH);
       const yDisb = pad.top + plotH - ((Number(d.disbursedPhp || 0) / niceMax) * plotH);
-      const yFiat = pad.top + plotH - ((Number(d.fiatPhp || 0) / niceMax) * plotH);
-      const yCrypto = pad.top + plotH - ((Number(d.cryptoPhp || 0) / niceMax) * plotH);
+      const yEwallet = pad.top + plotH - ((Number(d.ewalletPhp ?? d.fiatPhp ?? 0) / niceMax) * plotH);
+      const yBankCard = pad.top + plotH - ((Number(d.bankCardPhp ?? d.cryptoPhp ?? 0) / niceMax) * plotH);
       const yTx = pad.top + plotH - ((Number(d.txCount || 0) / niceMax) * plotH);
-      return { ...d, i, x, yTotal, yDisb, yFiat, yCrypto, yTx };
+      return { ...d, i, x, yTotal, yDisb, yEwallet, yBankCard, yTx };
     });
 
     return {
@@ -463,11 +463,11 @@ export function VercelAreaLineChart({
               <>
                 <span className="va-legend-item">
                   <span className="va-legend-swatch va-swatch-blue" />
-                  Fiat
+                  E-Wallets (GCash / Maya)
                 </span>
                 <span className="va-legend-item">
                   <span className="va-legend-swatch va-swatch-neutral" />
-                  Sepolia ETH
+                  Bank / Card
                 </span>
               </>
             )}
@@ -500,7 +500,7 @@ export function VercelAreaLineChart({
               className={`va-seg-mini-btn ${activeMode === 'split' ? 'active' : ''}`}
               onClick={() => setMode('split')}
             >
-              Fiat vs Crypto
+              E-Wallet vs Bank
             </button>
             <button
               type="button"
@@ -609,7 +609,7 @@ export function VercelAreaLineChart({
                 cy={
                   activeMode === 'volume' ? activePt.yTx
                     : activeMode === 'disbursed' ? activePt.yDisb
-                      : activeMode === 'split' ? activePt.yFiat
+                      : activeMode === 'split' ? activePt.yEwallet
                         : activePt.yTotal
                 }
                 r="4"
@@ -620,7 +620,7 @@ export function VercelAreaLineChart({
               {activeMode === 'split' && (
                 <circle
                   cx={activePt.x}
-                  cy={activePt.yCrypto}
+                  cy={activePt.yBankCard}
                   r="3.5"
                   fill="var(--va-surface, #0a0a0a)"
                   stroke="var(--va-series-mono, #a1a1aa)"
@@ -680,13 +680,13 @@ export function VercelAreaLineChart({
               <>
                 <div className="va-tooltip-row">
                   <span className="va-legend-swatch va-swatch-blue" />
-                  <span>Fiat Rails</span>
-                  <strong>₱{Number(activePt.fiatPhp || 0).toLocaleString('en-US')}</strong>
+                  <span>E-Wallets</span>
+                  <strong>₱{Number(activePt.ewalletPhp ?? activePt.fiatPhp ?? 0).toLocaleString('en-US')}</strong>
                 </div>
                 <div className="va-tooltip-row">
                   <span className="va-legend-swatch va-swatch-neutral" />
-                  <span>Sepolia ETH</span>
-                  <strong>₱{Number(activePt.cryptoPhp || 0).toLocaleString('en-US')}</strong>
+                  <span>Bank / Card</span>
+                  <strong>₱{Number(activePt.bankCardPhp ?? activePt.cryptoPhp ?? 0).toLocaleString('en-US')}</strong>
                 </div>
               </>
             ) : activeMode === 'disbursed' ? (
@@ -718,7 +718,7 @@ export function VercelAreaLineChart({
               </>
             )}
             <div className="va-tooltip-foot">
-              {activePt.txCount} donation{activePt.txCount === 1 ? '' : 's'} · {Number(activePt.ethAmount || 0).toFixed(4)} ETH
+              {activePt.txCount} verified donation{activePt.txCount === 1 ? '' : 's'}
             </div>
           </div>
         )}
@@ -729,13 +729,13 @@ export function VercelAreaLineChart({
 
 const GEIST_DONUT_COLORS = [
   'var(--va-series-primary, #3291FF)',
-  'var(--va-series-mono, #ededed)',
   '#10b981',
+  '#a855f7',
   '#71717a'
 ];
 
 // Stable canonical ring order so segments glide smoothly around the circumference without jumping
-const CANONICAL_RAIL_ORDER = ['Bank / Card', 'Sepolia ETH', 'GCash', 'Maya'];
+const CANONICAL_RAIL_ORDER = ['Bank / Card', 'GCash', 'Maya', 'Legacy On-Chain'];
 
 export function VercelDonutChart({
   items = [],

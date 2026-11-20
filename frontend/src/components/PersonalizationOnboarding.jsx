@@ -15,7 +15,7 @@ const previewTranslations = {
     dashboardTitle: 'Dashboard Overview',
     dashboardSub: 'Real-time relief contributions, verified digital receipts, and humanitarian impact tracking.',
     verifiedDonor: 'Verified Donor',
-    walletStatus: 'Wallet not connected',
+    walletStatus: 'Gasless Sepolia Audit',
     sepoliaNet: 'Sepolia Testnet',
     lifetimeGiving: 'LIFETIME GIVING',
     newContributor: 'New Contributor',
@@ -24,7 +24,7 @@ const previewTranslations = {
     reliefRadar: 'Relief Radar',
     publicLedger: 'Public Ledger',
     totalDonated: 'TOTAL DONATED',
-    onChainVerified: '0.0000 ETH · On-chain verified',
+    onChainVerified: 'PHP · On-chain verified',
     reliefCamp: 'RELIEF CAMPAIGNS',
     criticalPriority: '16 critical priority',
     familiesReached: 'FAMILIES REACHED',
@@ -44,7 +44,7 @@ const previewTranslations = {
     active15Sub: 'Open for public aid across the Philippines',
     direct100: '100% Direct to Ground Relief',
     direct100Sub: 'Zero platform cuts · Verified on public ledger',
-    simplifiedBanner: 'Simplified Mode Active: Essential overview for new donors. Technical Web3 telemetry and empty zero-metrics are hidden.',
+    simplifiedBanner: 'Simplified Mode Active: Essential overview for new donors. Advanced audit telemetry and empty zero-metrics are hidden.',
     // Sidebar
     navOverview: 'Dashboard Overview',
     navExplore: 'Explore Campaigns',
@@ -63,7 +63,7 @@ const previewTranslations = {
     dashboardTitle: 'Pangkalahatang-ideya ng Dashboard',
     dashboardSub: 'Real-time na tulong, beripikadong digital resibo, at pagsubaybay sa humanitarian impact.',
     verifiedDonor: 'Beripikadong Donor',
-    walletStatus: 'Hindi nakakonekta ang pitaka',
+    walletStatus: 'Gasless Sepolia Audit',
     sepoliaNet: 'Sepolia Testnet',
     lifetimeGiving: 'KABUUANG NAIBIGAY',
     newContributor: 'Bagong Tagapag-ambag',
@@ -72,7 +72,7 @@ const previewTranslations = {
     reliefRadar: 'Relief Radar',
     publicLedger: 'Pampublikong Ledger',
     totalDonated: 'KABUUANG NAIDONASYON',
-    onChainVerified: '0.0000 ETH · Beripikado sa blockchain',
+    onChainVerified: 'PHP · Beripikado sa blockchain',
     reliefCamp: 'MGA KAMPANYA NG RELIEF',
     criticalPriority: '16 kritikal na prayoridad',
     familiesReached: 'MGA PAMILYANG NATULUNGAN',
@@ -92,7 +92,7 @@ const previewTranslations = {
     active15Sub: 'Bukas para sa tulong sa buong Pilipinas',
     direct100: '100% Direktang Tulong sa Lapag',
     direct100Sub: 'Walang kaltas ang plataporma · Beripikado sa blockchain',
-    simplifiedBanner: 'Aktibo ang Simplified Mode: Naka-focus para sa mga bagong donor. Nakatago ang komplikadong Web3 telemetry.',
+    simplifiedBanner: 'Aktibo ang Simplified Mode: Naka-focus para sa mga bagong donor. Nakatago ang advanced na audit telemetry.',
     // Sidebar
     navOverview: 'Pangkalahatang-ideya',
     navExplore: 'Tuklasin ang Kampanya',
@@ -111,7 +111,7 @@ const previewTranslations = {
     dashboardTitle: 'Kinatibuk-ang Pagtan-aw sa Dashboard',
     dashboardSub: 'Tinuod-nga-panahon nga donasyon, beripikado nga resibo, ug pagsubay sa humanitarian nga tabang.',
     verifiedDonor: 'Beripikadong Maghahatag',
-    walletStatus: 'Wala nakakonektar ang pitaka',
+    walletStatus: 'Gasless Sepolia Audit',
     sepoliaNet: 'Sepolia Testnet',
     lifetimeGiving: 'TIBUOK NGA NAHATAG',
     newContributor: 'Bag-ong Mag-aambag',
@@ -120,7 +120,7 @@ const previewTranslations = {
     reliefRadar: 'Relief Radar',
     publicLedger: 'Publikong Ledger',
     totalDonated: 'TIBUOK NGA NADONAR',
-    onChainVerified: '0.0000 ETH · Beripikado sa blockchain',
+    onChainVerified: 'PHP · Beripikado sa blockchain',
     reliefCamp: 'MGA KAMPANYA SA RELIEF',
     criticalPriority: '16 ka kritikal nga prayoridad',
     familiesReached: 'MGA PAMILYA NGA NATABANGAN',
@@ -140,7 +140,7 @@ const previewTranslations = {
     active15Sub: 'Bukas alang sa tabang sa tibuok Pilipinas',
     direct100: '100% Direkta sa Yuta nga Hinabang',
     direct100Sub: 'Walang kaltas ang plataporma · Beripikado sa blockchain',
-    simplifiedBanner: 'Aktibo ang Simplified Mode: Gipasimple alang sa mga bag-ong maghahatag. Gitago ang komplikadong Web3 telemetry.',
+    simplifiedBanner: 'Aktibo ang Simplified Mode: Gipasimple alang sa mga bag-ong maghahatag. Gitago ang advanced nga audit telemetry.',
     // Sidebar
     navOverview: 'Kinatibuk-ang Pagtan-aw',
     navExplore: 'Susiha ang Kampanya',
@@ -1065,14 +1065,14 @@ export default function PersonalizationOnboarding({
                     {prefs.experienceMode === 'standard' ? (
                       <ul className="onboarding-diff-list">
                         <li><strong>Dual Aligned Buttons:</strong> Every campaign card features aligned Donate and Details &amp; Map action buttons.</li>
-                        <li><strong>4-Card Telemetry Grid:</strong> Shows 0.0000 ETH status, priority counts, and honor roll tier.</li>
-                        <li><strong>Web3 Connection Telemetry:</strong> Displays wallet connection state and Sepolia network tag.</li>
+                        <li><strong>4-Card Telemetry Grid:</strong> Shows verified PHP totals, priority counts, and honor roll tier.</li>
+                        <li><strong>Blockchain Audit Telemetry:</strong> Displays live Sepolia notarization status and audit ledger tag.</li>
                         <li><strong>Full Navigation:</strong> Complete 5-item sidebar with audit access and advanced tools.</li>
                       </ul>
                     ) : (
                       <ul className="onboarding-diff-list">
                         <li><strong>Direct Action Button:</strong> Essential card layout with one prominent "Donate Relief" action.</li>
-                        <li><strong>Clean Welcome Hero:</strong> Replaces wallet warnings &amp; 4 utility buttons with a simple direct start button.</li>
+                        <li><strong>Clean Welcome Hero:</strong> Replaces dense telemetry banners &amp; 4 utility buttons with a simple direct start button.</li>
                         <li><strong>Lightweight Reassurance Strip:</strong> Replaces 4 zero-metric boxes with a clean 2-pill status bar.</li>
                         <li><strong>Essential Navigation:</strong> Focused 3-item sidebar reducing cognitive load for new donors.</li>
                       </ul>
