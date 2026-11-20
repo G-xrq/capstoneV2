@@ -15,7 +15,7 @@ export const WORKSPACE_TRANSLATIONS = {
     activeBadge: 'Active',
     concludedBadge: 'Concluded',
     distributionBadge: 'Distribution in Progress',
-    verifiedWorkspace: 'Verified Workspace',
+    verifiedWorkspace: 'Verified Donor',
     walletConnected: 'Sepolia Audited',
     verifiedEmail: 'Verified Email',
     verifiedNgo: 'Verified NGO',
@@ -32,7 +32,7 @@ export const WORKSPACE_TRANSLATIONS = {
     viewReceipts: 'My Donation Receipts',
     exploreMap: 'Relief Radar Map',
     honorRoll: 'Donor Honor Roll',
-    activeAppeals: 'Featured Appeals',
+    activeAppeals: 'Featured Campaigns',
     recentContributions: 'My Recent Contributions',
     noContributions: 'No personal contributions recorded yet.',
     browseCampaigns: 'Browse Campaigns',
@@ -48,7 +48,7 @@ export const WORKSPACE_TRANSLATIONS = {
     metricCampaignsSupportedSub: 'Distinct verified drives',
     metricVerifiedRecords: 'Verified Records',
     metricVerifiedRecordsSub: 'On-chain & AI-verified',
-    metricLiveAppeals: 'Active Appeals',
+    metricLiveAppeals: 'Active Campaigns',
     metricLiveAppealsSub: 'Verified Philippine NGOs',
 
     // Donor Sub-tabs

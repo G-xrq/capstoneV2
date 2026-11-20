@@ -758,10 +758,12 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
   }, [totalDonated, totalDonatedPhp]);
 
   // Real-time calculated platform & donor metrics (100% accurate to current system state)
-  const activeCampaignsCount = useMemo(() => {
-    if (!Array.isArray(campaigns) || campaigns.length === 0) return 0;
-    return campaigns.filter(c => c.isActive !== false && !c.isClosed).length;
+  const activeCampaigns = useMemo(() => {
+    if (!Array.isArray(campaigns) || campaigns.length === 0) return [];
+    return campaigns.filter(c => c.isActive !== false && !c.isClosed);
   }, [campaigns]);
+
+  const activeCampaignsCount = activeCampaigns.length;
 
   const donorReceiptsCount = useMemo(() => {
     const listLen = Array.isArray(myDonations) ? myDonations.length : 0;
@@ -804,12 +806,12 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
   }, [myDonations, campaigns]);
 
   const criticalUrgencyCount = useMemo(() => {
-    if (!Array.isArray(campaigns) || campaigns.length === 0) return 0;
-    return campaigns.filter(c => {
+    if (!Array.isArray(activeCampaigns) || activeCampaigns.length === 0) return 0;
+    return activeCampaigns.filter(c => {
       const u = (c.audit?.urgency || c.urgency || '').toUpperCase();
       return u.includes('CRITICAL') || u.includes('HIGH') || u.includes('URGENT');
     }).length;
-  }, [campaigns]);
+  }, [activeCampaigns]);
 
   const estimatedFamiliesAided = useMemo(() => {
     const php = totalDonatedPhp || 0;
@@ -1075,7 +1077,7 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
                 <div className="dbo-hero-eyebrow-row" id="tour-donor-dashboard-header">
                   <span className="dbo-hero-status-pill">
                     <span className="dbo-emerald-dot" />
-                    <span className="dbo-pill-strong">{wt.verifiedWorkspace}</span>
+                    <span className="dbo-pill-strong">{wt.donorPortal}</span>
                     <span className="dbo-pill-slash">/</span>
                     <span className="dbo-pill-muted">Sepolia Gasless Ledger Active</span>
                   </span>
@@ -1093,7 +1095,16 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
                       )}
                     </div>
                     <div className="dbo-hero-title-group">
-                      <h1 className="dbo-hero-name">{userDisplayName || 'Donor Dashboard'}</h1>
+                      <div className="dbo-hero-name-row">
+                        <h1 className="dbo-hero-name">{userDisplayName || 'Donor Dashboard'}</h1>
+                        <span
+                          className="material-symbols-outlined dbo-hero-verified-icon"
+                          title={wt.verifiedWorkspace}
+                          aria-label={wt.verifiedWorkspace}
+                        >
+                          verified
+                        </span>
+                      </div>
                       <p className="dbo-hero-sub">{wt.donorOverviewSub}</p>
                     </div>
                   </div>
@@ -1234,7 +1245,7 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
                   <div className="dbo-section-bar">
                     <div className="dbo-section-title-group">
                       <h2 className="dbo-section-title">{wt.activeAppeals}</h2>
-                      <span className="dbo-count-pill">{campaigns?.length || 0}</span>
+                      <span className="dbo-count-pill">{activeCampaignsCount}</span>
                     </div>
                     <button type="button" className="dbo-clean-link" onClick={() => setActiveTab('campaigns')}>
                       <span>{wt.viewAll}</span>
@@ -1257,7 +1268,8 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
                     <div className="dbo-bento-appeals">
                       {/* Lead Spotlight Campaign (#1) */}
                       {(() => {
-                        const camp = campaigns[0];
+                        const featuredList = activeCampaigns.length > 0 ? activeCampaigns : campaigns;
+                        const camp = featuredList[0];
                         if (!camp) return null;
                         const pct = progressPct(camp.currentAmount, camp.targetAmount);
                         const cover = getCampaignCoverData(camp);
@@ -1341,10 +1353,10 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
                         );
                       })()}
 
-                      {/* Secondary 2-Column Compact Appeals (#2 & #3) */}
-                      {campaigns.length > 1 && (
+                      {/* Secondary 2-Column Compact Campaigns (#2 & #3) */}
+                      {(activeCampaigns.length > 0 ? activeCampaigns : campaigns).length > 1 && (
                         <div className="dbo-secondary-grid">
-                          {campaigns.slice(1, 3).map((camp) => {
+                          {(activeCampaigns.length > 0 ? activeCampaigns : campaigns).slice(1, 3).map((camp) => {
                             const pct = progressPct(camp.currentAmount, camp.targetAmount);
                             const cover = getCampaignCoverData(camp);
                             const catInfo = getCampaignCategoryInfo(camp);
