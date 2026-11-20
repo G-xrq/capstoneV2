@@ -6897,11 +6897,20 @@ function getLocalLanIp() {
   try {
     const os = require('os');
     const nets = os.networkInterfaces();
+    const candidates = [];
     for (const name of Object.keys(nets)) {
+      if (/vethernet|wsl|docker|virtualbox|vmware|hyper-v|loopback|tailscale/i.test(name)) continue;
       for (const net of nets[name] || []) {
-        if (net.family === 'IPv4' && !net.internal) return net.address;
+        if (net.family === 'IPv4' && !net.internal && !net.address.startsWith('169.254.')) {
+          candidates.push({ name, address: net.address });
+        }
       }
     }
+    const wifi = candidates.find((c) => /wi-?fi|wlan/i.test(c.name) && c.address.startsWith('192.168.'));
+    if (wifi) return wifi.address;
+    const lan192 = candidates.find((c) => c.address.startsWith('192.168.'));
+    if (lan192) return lan192.address;
+    if (candidates.length > 0) return candidates[0].address;
   } catch (_) {}
   return 'localhost';
 }
