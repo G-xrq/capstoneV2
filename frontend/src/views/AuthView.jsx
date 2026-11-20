@@ -121,7 +121,7 @@ export default function AuthView({ onLoginSuccess, onBack, theme, onToggleTheme,
   const [twoFactorCode, setTwoFactorCode] = useState('');
   const [twoFactorRecoveryCode, setTwoFactorRecoveryCode] = useState('');
   const [twoFactorUseBackup, setTwoFactorUseBackup] = useState(false);
-  const [twoFactorTrustDevice, setTwoFactorTrustDevice] = useState(true);
+  const [twoFactorTrustDevice, setTwoFactorTrustDevice] = useState(false);
   const [twoFactorLoading, setTwoFactorLoading] = useState(false);
   const [twoFactorError, setTwoFactorError] = useState('');
 
@@ -621,7 +621,11 @@ export default function AuthView({ onLoginSuccess, onBack, theme, onToggleTheme,
     // Standard Login
     setLoading(true);
     try {
-      const clientTrustToken = localStorage.getItem(`bbdrts_trusted_device_${email.trim().toLowerCase()}`);
+      const cleanLoginEmail = email.trim().toLowerCase();
+      const normalizedRole = String(role || 'donor').toLowerCase();
+      const scopedTrustKey = `bbdrts_trusted_device_${normalizedRole}_${cleanLoginEmail}`;
+      const legacyTrustKey = `bbdrts_trusted_device_${cleanLoginEmail}`;
+      const clientTrustToken = localStorage.getItem(scopedTrustKey) || localStorage.getItem(legacyTrustKey) || null;
       const response = await apiFetch(`${API_URL}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -631,12 +635,18 @@ export default function AuthView({ onLoginSuccess, onBack, theme, onToggleTheme,
 
       // Feature 4: Two-Factor Authentication Check
       if (data.requires2FA) {
+        if (clientTrustToken) {
+          try {
+            localStorage.removeItem(scopedTrustKey);
+            localStorage.removeItem(legacyTrustKey);
+          } catch (_) {}
+        }
         setTwoFactorTempToken(data.tempToken);
         setTwoFactorEmail(data.email || email);
         setTwoFactorCode('');
         setTwoFactorRecoveryCode('');
         setTwoFactorUseBackup(false);
-        setTwoFactorTrustDevice(true);
+        setTwoFactorTrustDevice(false);
         setTwoFactorError('');
         setTwoFactorModalOpen(true);
         setLoading(false);
@@ -692,7 +702,9 @@ export default function AuthView({ onLoginSuccess, onBack, theme, onToggleTheme,
       const data = await parseApiResponse(response);
 
       if (data.trustedDeviceToken) {
-        localStorage.setItem(`bbdrts_trusted_device_${(data.user?.email || twoFactorEmail).toLowerCase()}`, data.trustedDeviceToken);
+        const resolvedEmail = String(data.user?.email || twoFactorEmail || email).trim().toLowerCase();
+        const resolvedRole = String(data.user?.role || role || 'donor').toLowerCase();
+        localStorage.setItem(`bbdrts_trusted_device_${resolvedRole}_${resolvedEmail}`, data.trustedDeviceToken);
       }
 
       setTwoFactorModalOpen(false);
@@ -2991,36 +3003,31 @@ export default function AuthView({ onLoginSuccess, onBack, theme, onToggleTheme,
             <form onSubmit={handleVerify2FA} className="forgot-form-body">
               {!twoFactorUseBackup ? (
                 <div>
-                  {/* Boxes ONLY, NO label - exactly as requested */}
+                  {/* Boxes ONLY, NO label - do not auto-submit so the user can optionally check "Trust this device" */}
                   <div style={{ display: 'flex', justifyContent: 'center', margin: '14px 0 14px 0' }}>
                     <OtpPinBoxes
                       value={twoFactorCode}
                       onChange={setTwoFactorCode}
-                      onComplete={(fullCode) => {
-                        if (!twoFactorLoading) {
-                          handleVerify2FA(null, fullCode);
-                        }
-                      }}
                       autoFocus={true}
                       onSubmit={(e, code) => handleVerify2FA(e, code || twoFactorCode)}
                     />
                   </div>
 
                   {/* Trust This Device Checkbox & Lost Device Link */}
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '8px 0 14px 0' }}>
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', userSelect: 'none', margin: 0 }}>
+                  <div className="twofa-trust-row">
+                    <label className="twofa-trust-label">
                       <input
                         type="checkbox"
+                        className="twofa-trust-checkbox"
                         checked={twoFactorTrustDevice}
                         onChange={e => setTwoFactorTrustDevice(e.target.checked)}
-                        style={{ accentColor: '#10b981', width: '15px', height: '15px', cursor: 'pointer', borderRadius: '3px' }}
                       />
-                      <span style={{ fontSize: '0.8rem', color: '#d4d4d8' }}>Trust this device for 30 days</span>
+                      <span>Trust this device for 30 days</span>
                     </label>
 
                     <button
                       type="button"
-                      style={{ background: 'none', border: 'none', fontSize: '11px', color: '#a1a1aa', cursor: 'pointer', textDecoration: 'underline' }}
+                      className="twofa-link-btn"
                       onClick={() => {
                         setTwoFactorUseBackup(true);
                         setTwoFactorError('');
@@ -3052,7 +3059,7 @@ export default function AuthView({ onLoginSuccess, onBack, theme, onToggleTheme,
                   <div style={{ textAlign: 'right', marginTop: '6px' }}>
                     <button
                       type="button"
-                      style={{ background: 'none', border: 'none', fontSize: '11px', color: '#a1a1aa', cursor: 'pointer', textDecoration: 'underline' }}
+                      className="twofa-link-btn"
                       onClick={() => {
                         setTwoFactorUseBackup(false);
                         setTwoFactorError('');

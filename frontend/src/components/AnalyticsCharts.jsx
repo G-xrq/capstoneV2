@@ -289,13 +289,23 @@ export function VercelAreaLineChart({
     morphStartTs: 0,
     morphDuration: 720,
     isCountAxis: false,
-    initialized: false
+    initialized: false,
+    lastWaveSig: ''
   });
 
-  // Trigger silky staggered wave morph on filter/mode change and rest completely still once settled
+  const waveSig = useMemo(
+    () => `${activeMode}|${isCountAxis ? 1 : 0}|${targetMaxY}|${hasSecondary ? 1 : 0}|${targetPrimary.map((v) => v.toFixed(4)).join(',')}|${targetSecondary.map((v) => v.toFixed(4)).join(',')}`,
+    [activeMode, isCountAxis, targetMaxY, hasSecondary, targetPrimary, targetSecondary]
+  );
+
+  // Trigger silky staggered wave morph ONLY when chart data/mode actually changes, and rest completely still once settled
   useEffect(() => {
-    setHoverIdx(null);
     const st = waveStateRef.current;
+    if (st.initialized && st.lastWaveSig === waveSig) {
+      return;
+    }
+    st.lastWaveSig = waveSig;
+    setHoverIdx(null);
     const now = performance.now();
     const reduced = prefersReducedMotion();
 
@@ -800,6 +810,9 @@ export function VercelDonutChart({
   const currTotalRef = useRef(0);
   const rafRef = useRef(null);
   const hasInitRef = useRef(false);
+  const lastAnimSigRef = useRef(null);
+  const canonicalSlicesRef = useRef(canonicalSlices);
+  canonicalSlicesRef.current = canonicalSlices;
 
   const [animDonut, setAnimDonut] = useState(() => {
     const map = {};
@@ -812,11 +825,18 @@ export function VercelDonutChart({
   const targetSig = canonicalSlices.map((s) => `${s.key}:${s.value}`).join('|');
 
   useEffect(() => {
+    const slices = canonicalSlicesRef.current;
+    const animSig = `${targetSig}::${totalVal}`;
+    if (hasInitRef.current && lastAnimSigRef.current === animSig) {
+      return;
+    }
+    lastAnimSigRef.current = animSig;
+
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
 
     if (prefersReducedMotion()) {
       const snap = {};
-      canonicalSlices.forEach((s) => {
+      slices.forEach((s) => {
         snap[s.key] = { startFrac: s.startFrac, sweepFrac: s.sweepFrac, opacity: s.opacity };
       });
       currSlicesRef.current = snap;
@@ -827,7 +847,7 @@ export function VercelDonutChart({
     }
 
     const fromSlices = {};
-    canonicalSlices.forEach((s) => {
+    slices.forEach((s) => {
       if (hasInitRef.current && currSlicesRef.current[s.key]) {
         fromSlices[s.key] = { ...currSlicesRef.current[s.key] };
       } else {
@@ -848,7 +868,7 @@ export function VercelDonutChart({
       const nextMap = {};
 
       // Synchronized clockwork interpolation guarantees adjacent slices NEVER overlap mid-transition
-      canonicalSlices.forEach((s) => {
+      slices.forEach((s) => {
         const f = fromSlices[s.key] || { startFrac: s.startFrac, sweepFrac: 0, opacity: 0 };
         nextMap[s.key] = {
           startFrac: f.startFrac + (s.startFrac - f.startFrac) * eased,
@@ -877,7 +897,7 @@ export function VercelDonutChart({
     return () => {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
-  }, [targetSig, totalVal, canonicalSlices]);
+  }, [targetSig, totalVal]);
 
   const activeSlice = hoveredKey ? legendSlices.find((s) => s.key === hoveredKey) : null;
   const animatedCenterDisplay = `₱${Number(animDonut.displayTotal || 0).toLocaleString('en-US')}`;

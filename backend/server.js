@@ -1276,7 +1276,9 @@ app.post('/api/auth/login', rateLimiter(100, 15 * 60 * 1000), async (req, res) =
     if (clientTrustedToken) {
       try {
         const decodedTrust = jwt.verify(clientTrustedToken, secretKey);
-        if (decodedTrust && decodedTrust.isTrustedDevice && String(decodedTrust.id) === String(user[idCol])) {
+        const roleMatches = !decodedTrust?.role || String(decodedTrust.role).toLowerCase() === String(requestedRole).toLowerCase();
+        const emailMatches = !decodedTrust?.email || String(decodedTrust.email).trim().toLowerCase() === String(user.Username || '').trim().toLowerCase();
+        if (decodedTrust && decodedTrust.isTrustedDevice && String(decodedTrust.id) === String(user[idCol]) && roleMatches && emailMatches) {
           isDeviceTrusted = true;
         }
       } catch (_) {}
