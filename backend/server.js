@@ -6572,6 +6572,21 @@ async function settleGatewayIntent(intentRow, externalRef = '') {
     return { alreadyCompleted: true, txHash: intentRow.Tx_Hash, intentId: intentRow.Intent_ID, trackingCode: intentRow.Tracking_Code };
   }
 
+  // Atomic MySQL idempotency lock: prevents concurrent webhook + poll + simulate from double-minting on Sepolia
+  const [claimRes] = await db.query(
+    `UPDATE PAYMENT_INTENT SET Status = 'SETTLING' WHERE Intent_ID = ? AND Status = 'PENDING_PAYMENT'`,
+    [intentRow.Intent_ID]
+  );
+  if (!claimRes || claimRes.affectedRows === 0) {
+    const [fresh] = await db.query('SELECT Status, Tx_Hash, Tracking_Code FROM PAYMENT_INTENT WHERE Intent_ID = ?', [intentRow.Intent_ID]);
+    return {
+      alreadyCompleted: true,
+      txHash: fresh?.[0]?.Tx_Hash || intentRow.Tx_Hash || null,
+      intentId: intentRow.Intent_ID,
+      trackingCode: fresh?.[0]?.Tracking_Code || intentRow.Tracking_Code
+    };
+  }
+
   const amountPhp = Math.round(parseFloat(intentRow.Amount_Php || 0));
   const amountEth = Number((amountPhp / 170000).toFixed(8));
   const cleanMethod = intentRow.Payment_Method || 'GCash';
