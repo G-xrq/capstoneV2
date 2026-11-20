@@ -6163,17 +6163,36 @@ export default function CampaignCard(props) {
 
               )}
 
-              {/* ── STEP 8: Instant Auto-Verified Gateway Checkout (PayMongo / Sandbox Webhook) ── */}
+              {/* ── STEP 8: Instant Auto-Verified Gateway Checkout (Strict Vercel Geist UI) ── */}
               {!isPaymentProcessing && donateStep === 8 && activeIntent && (
-                <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--border, rgba(255,255,255,0.08))', paddingBottom: '12px' }}>
-                    <div>
-                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '0.72rem', fontWeight: 700, color: '#10b981', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                        <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>bolt</span>
-                        <span>{activeIntent.provider === 'xendit_qrph' ? 'Embedded Dynamic QR Ph (Zero Redirect)' : (activeIntent.provider === 'xendit' ? 'Xendit Payment Gateway' : 'PayMongo Payment Gateway')} · Auto-Webhook</span>
+                <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '16px', fontFamily: 'var(--font-sans, inherit)' }}>
+                  <style>{`
+                    @keyframes vaReveal {
+                      0% { opacity: 0; transform: translateY(6px); }
+                      100% { opacity: 1; transform: translateY(0); }
+                    }
+                    @keyframes vaCheckDraw {
+                      0% { stroke-dashoffset: 36; }
+                      100% { stroke-dashoffset: 0; }
+                    }
+                    @keyframes vaSpin {
+                      to { transform: rotate(360deg); }
+                    }
+                  `}</style>
+
+                  {/* Minimal Geist Header */}
+                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px', borderBottom: '1px solid var(--border, #222)', paddingBottom: '14px' }}>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.72rem', fontWeight: 500, color: 'var(--text-muted, #888)', marginBottom: '4px' }}>
+                        <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: instantReceipt ? '#10b981' : '#3291FF', display: 'inline-block' }} />
+                        <span>{activeIntent.provider === 'xendit_qrph' ? 'QR Ph · Auto-Verified' : 'Gateway · Auto-Verified'}</span>
                       </div>
-                      <h3 style={{ margin: '3px 0 0', fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-primary, #fff)' }}>
-                        {instantReceipt ? 'Donation Automatically Verified!' : `${activeIntent.paymentMethod} Instant Checkout`}
+                      <h3 style={{ margin: 0, fontSize: '1.06rem', fontWeight: 600, letterSpacing: '-0.02em', color: 'var(--text-primary, #ededed)' }}>
+                        {instantReceipt
+                          ? 'Donation verified'
+                          : instantSettlingOnChain
+                            ? 'Finalizing on-chain proof'
+                            : `${activeIntent.paymentMethod} Instant Checkout`}
                       </h3>
                     </div>
                     <button
@@ -6188,127 +6207,175 @@ export default function CampaignCard(props) {
                         setInstantReceipt(null);
                         setInstantSettlingOnChain(false);
                       }}
-                      style={{ background: 'var(--bg-input, rgba(255,255,255,0.05))', border: '1px solid var(--border, rgba(255,255,255,0.1))', color: 'var(--text-muted, #94a3b8)', width: '32px', height: '32px', borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                      style={{
+                        background: 'transparent',
+                        border: '1px solid var(--border, #262626)',
+                        color: 'var(--text-muted, #888)',
+                        width: '30px',
+                        height: '30px',
+                        borderRadius: '6px',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexShrink: 0
+                      }}
                       title="Close"
                     >
-                      <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>close</span>
+                      <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>close</span>
                     </button>
                   </div>
 
                   {instantReceipt ? (
-                    <div
-                      style={{
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        gap: '12px',
-                        padding: '24px 20px',
-                        borderRadius: '14px',
-                        background: 'linear-gradient(180deg, rgba(16, 185, 129, 0.12) 0%, rgba(16, 185, 129, 0.03) 100%)',
-                        border: '1px solid rgba(16, 185, 129, 0.35)',
-                        textAlign: 'center',
-                        animation: 'bbdrtsSuccessPop 0.48s cubic-bezier(0.16, 1, 0.3, 1) both'
-                      }}
-                    >
-                      <style>{`
-                        @keyframes bbdrtsSuccessPop {
-                          0% { opacity: 0; transform: translateY(10px) scale(0.96); }
-                          100% { opacity: 1; transform: translateY(0) scale(1); }
-                        }
-                        @keyframes bbdrtsRingPulse {
-                          0% { transform: scale(0.82); opacity: 0.7; }
-                          100% { transform: scale(1.42); opacity: 0; }
-                        }
-                        @keyframes bbdrtsCheckDraw {
-                          0% { stroke-dashoffset: 48; }
-                          100% { stroke-dashoffset: 0; }
-                        }
-                      `}</style>
-
-                      <div style={{ position: 'relative', width: '64px', height: '64px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <span style={{ position: 'absolute', inset: 0, borderRadius: '50%', border: '2px solid rgba(16, 185, 129, 0.55)', animation: 'bbdrtsRingPulse 1.4s cubic-bezier(0.16, 1, 0.3, 1) infinite' }} />
-                        <div style={{ width: '58px', height: '58px', borderRadius: '50%', background: 'rgba(16, 185, 129, 0.16)', border: '1.5px solid #10b981', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                          <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', animation: 'vaReveal 0.36s cubic-bezier(0.16, 1, 0.3, 1) both' }}>
+                      {/* Crisp Monochrome Hero Confirmation */}
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', padding: '10px 0 4px', gap: '10px' }}>
+                        <div style={{
+                          width: '44px',
+                          height: '44px',
+                          borderRadius: '50%',
+                          background: 'rgba(16, 185, 129, 0.1)',
+                          border: '1px solid rgba(16, 185, 129, 0.35)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center'
+                        }}>
+                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
                             <path
-                              d="M6.5 14.5L11.5 19.5L21.5 9"
+                              d="M5 13l4 4L19 7"
                               stroke="#10b981"
-                              strokeWidth="3"
+                              strokeWidth="2.2"
                               strokeLinecap="round"
                               strokeLinejoin="round"
-                              style={{ strokeDasharray: 48, strokeDashoffset: 0, animation: 'bbdrtsCheckDraw 0.55s cubic-bezier(0.22, 1, 0.36, 1) 0.12s both' }}
+                              style={{ strokeDasharray: 36, strokeDashoffset: 0, animation: 'vaCheckDraw 0.45s cubic-bezier(0.22, 1, 0.36, 1) 0.08s both' }}
                             />
                           </svg>
                         </div>
+                        <div style={{ fontSize: '2.1rem', fontWeight: 600, letterSpacing: '-0.04em', fontVariantNumeric: 'tabular-nums', color: 'var(--text-primary, #ededed)', lineHeight: 1.05 }}>
+                          ₱{Number(instantReceipt.amountPhp || activeIntent.amountPhp).toLocaleString('en-US')}
+                        </div>
+                        <div style={{ fontSize: '0.78rem', color: 'var(--text-muted, #888)' }}>
+                          Credited to campaign and sealed gaslessly on Ethereum Sepolia
+                        </div>
                       </div>
 
-                      <div style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#10b981' }}>
-                        Payment Confirmed · Sealed on Ethereum Sepolia
+                      {/* Vercel Geist Key-Value Receipt Table */}
+                      <div style={{ border: '1px solid var(--border, #222)', borderRadius: '8px', background: 'var(--bg-inset, #0a0a0a)', overflow: 'hidden' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', padding: '10px 14px', borderBottom: '1px solid var(--border, #1f1f1f)', fontSize: '0.78rem' }}>
+                          <span style={{ color: 'var(--text-muted, #888)' }}>Campaign</span>
+                          <span style={{ color: 'var(--text-primary, #ededed)', fontWeight: 500, textAlign: 'right', maxWidth: '68%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{camp.title}</span>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', padding: '10px 14px', borderBottom: '1px solid var(--border, #1f1f1f)', fontSize: '0.78rem' }}>
+                          <span style={{ color: 'var(--text-muted, #888)' }}>Channel</span>
+                          <span style={{ color: 'var(--text-primary, #ededed)', fontWeight: 500 }}>{instantReceipt.paymentMethod || activeIntent.paymentMethod} · QR Ph</span>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', padding: '10px 14px', borderBottom: '1px solid var(--border, #1f1f1f)', fontSize: '0.78rem' }}>
+                          <span style={{ color: 'var(--text-muted, #888)' }}>Reference</span>
+                          <span style={{ color: 'var(--text-primary, #ededed)', fontFamily: 'var(--font-mono, monospace)', fontSize: '0.75rem' }}>{instantReceipt.trackingCode || activeIntent.trackingCode}</span>
+                        </div>
+                        {instantReceipt.txHash && (
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', padding: '10px 14px', borderBottom: '1px solid var(--border, #1f1f1f)', fontSize: '0.78rem' }}>
+                            <span style={{ color: 'var(--text-muted, #888)' }}>Audit Proof</span>
+                            <a
+                              href={`https://sepolia.etherscan.io/tx/${instantReceipt.txHash}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              style={{ color: '#3291FF', fontFamily: 'var(--font-mono, monospace)', fontSize: '0.74rem', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                            >
+                              <span>{instantReceipt.txHash.slice(0, 10)}…{instantReceipt.txHash.slice(-6)}</span>
+                              <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>north_east</span>
+                            </a>
+                          </div>
+                        )}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', padding: '10px 14px', fontSize: '0.78rem' }}>
+                          <span style={{ color: 'var(--text-muted, #888)' }}>Status</span>
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', color: '#10b981', fontWeight: 500 }}>
+                            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10b981' }} />
+                            <span>Verified On-Chain</span>
+                          </span>
+                        </div>
                       </div>
 
-                      <div style={{ fontSize: '2rem', fontWeight: 800, letterSpacing: '-0.03em', color: 'var(--text-primary, #fff)', lineHeight: 1.1 }}>
-                        ₱{Number(instantReceipt.amountPhp || activeIntent.amountPhp).toLocaleString('en-US')}
-                      </div>
-
-                      <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary, #cbd5e1)', maxWidth: '380px' }}>
-                        Donated to <strong style={{ color: 'var(--text-primary, #fff)' }}>{camp.title}</strong> via{' '}
-                        <strong>{instantReceipt.paymentMethod || activeIntent.paymentMethod}</strong> · Ref{' '}
-                        <code style={{ color: '#38bdf8' }}>{instantReceipt.trackingCode || activeIntent.trackingCode}</code>
-                      </div>
-
-                      <div style={{ fontSize: '0.73rem', color: 'var(--text-muted, #94a3b8)', maxWidth: '380px', lineHeight: 1.45 }}>
-                        Automatically verified and recorded in the public ledger — zero receipt upload required.
-                      </div>
-
-                      {instantReceipt.txHash && (
-                        <a
-                          href={`https://sepolia.etherscan.io/tx/${instantReceipt.txHash}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="btn btn-outline btn-sm"
-                          style={{ marginTop: '4px', display: 'inline-flex', alignItems: 'center', gap: '6px', borderRadius: '8px', padding: '7px 14px' }}
+                      {/* Geist Footer Actions */}
+                      <div style={{ display: 'grid', gridTemplateColumns: instantReceipt.txHash ? '1fr 1fr' : '1fr', gap: '8px', paddingTop: '2px' }}>
+                        {instantReceipt.txHash && (
+                          <a
+                            href={`https://sepolia.etherscan.io/tx/${instantReceipt.txHash}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{
+                              height: '38px',
+                              borderRadius: '6px',
+                              border: '1px solid var(--border, #262626)',
+                              background: 'transparent',
+                              color: 'var(--text-primary, #ededed)',
+                              fontSize: '0.8rem',
+                              fontWeight: 500,
+                              textDecoration: 'none',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              gap: '6px'
+                            }}
+                          >
+                            <span>Etherscan</span>
+                            <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>north_east</span>
+                          </a>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            window.dispatchEvent(new CustomEvent('bbdrts_donation_success'));
+                            onDonated?.();
+                            setModalOpen(false);
+                            setDonateStep(0);
+                            setInstantReceipt(null);
+                            setInstantSettlingOnChain(false);
+                          }}
+                          style={{
+                            height: '38px',
+                            borderRadius: '6px',
+                            border: 'none',
+                            background: 'var(--text-primary, #ededed)',
+                            color: 'var(--bg-card, #0a0a0a)',
+                            fontSize: '0.8rem',
+                            fontWeight: 600,
+                            cursor: 'pointer'
+                          }}
                         >
-                          <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>open_in_new</span>
-                          <span>Inspect Proof on Sepolia Etherscan</span>
-                        </a>
-                      )}
-
-                      <button
-                        type="button"
-                        className="btn btn-primary"
-                        onClick={() => {
-                          window.dispatchEvent(new CustomEvent('bbdrts_donation_success'));
-                          onDonated?.();
-                          setModalOpen(false);
-                          setDonateStep(0);
-                          setInstantReceipt(null);
-                          setInstantSettlingOnChain(false);
-                        }}
-                        style={{ marginTop: '6px', width: '100%', padding: '11px', borderRadius: '10px', fontWeight: 700 }}
-                      >
-                        Done
-                      </button>
+                          Done
+                        </button>
+                      </div>
                     </div>
                   ) : instantSettlingOnChain ? (
-                    <div
-                      style={{
-                        display: 'flex',
-                        flexDirection: 'column',
-                        alignItems: 'center',
-                        gap: '12px',
-                        padding: '32px 20px',
-                        borderRadius: '14px',
-                        background: 'rgba(56, 189, 248, 0.06)',
-                        border: '1px solid rgba(56, 189, 248, 0.28)',
-                        textAlign: 'center',
-                        animation: 'bbdrtsSuccessPop 0.35s ease both'
-                      }}
-                    >
-                      <div className="spinner spinner-light" style={{ width: '36px', height: '36px', borderWidth: '3px' }} />
-                      <div style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary, #fff)' }}>
-                        Payment Received! Sealing Proof on Ethereum Sepolia…
-                      </div>
-                      <div style={{ fontSize: '0.78rem', color: 'var(--text-muted, #94a3b8)', maxWidth: '340px' }}>
-                        Your ₱{Number(activeIntent.amountPhp || 0).toLocaleString('en-US')} {activeIntent.paymentMethod} contribution is being notarized gaslessly on-chain.
+                    /* Vercel Deployment-Style 2-Step Live Progress */
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', animation: 'vaReveal 0.28s ease both' }}>
+                      <div style={{ border: '1px solid var(--border, #222)', borderRadius: '8px', background: 'var(--bg-inset, #0a0a0a)', overflow: 'hidden' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px', borderBottom: '1px solid var(--border, #1f1f1f)' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            <span style={{ width: '18px', height: '18px', borderRadius: '50%', background: 'rgba(16, 185, 129, 0.14)', border: '1px solid rgba(16, 185, 129, 0.4)', color: '#10b981', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px' }}>
+                              <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>check</span>
+                            </span>
+                            <div>
+                              <div style={{ fontSize: '0.8rem', fontWeight: 500, color: 'var(--text-primary, #ededed)' }}>Payment received</div>
+                              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted, #888)' }}>
+                                ₱{Number(activeIntent.amountPhp || 0).toLocaleString('en-US')} via {activeIntent.paymentMethod} · Ref {activeIntent.trackingCode}
+                              </div>
+                            </div>
+                          </div>
+                          <span style={{ fontSize: '0.7rem', color: '#10b981', fontWeight: 500 }}>Confirmed</span>
+                        </div>
+
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            <span style={{ width: '18px', height: '18px', borderRadius: '50%', border: '1.5px solid var(--border, #333)', borderTopColor: 'var(--text-primary, #ededed)', display: 'inline-block', animation: 'vaSpin 0.8s linear infinite' }} />
+                            <div>
+                              <div style={{ fontSize: '0.8rem', fontWeight: 500, color: 'var(--text-primary, #ededed)' }}>Sealing proof on Ethereum Sepolia</div>
+                              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted, #888)' }}>Gasless relayer notarizing transaction hash…</div>
+                            </div>
+                          </div>
+                          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted, #888)', fontFamily: 'var(--font-mono, monospace)' }}>In progress</span>
+                        </div>
                       </div>
                     </div>
                   ) : (
