@@ -1,0 +1,757 @@
+/* ==========================================================================
+   BBDRTS Donate Checkout Modal — Authentic Vercel Geist UI
+   Matches Profile & Settings (.vercel-modal-card) in Dark & Light Mode
+   ========================================================================== */
+
+.vc-donate-shell {
+  padding: 0 !important;
+  background: #000000 !important;
+  border: 1px solid #27272a !important;
+  border-radius: 12px !important;
+  box-shadow: 0 24px 48px -12px rgba(0, 0, 0, 0.9), 0 0 0 1px rgba(255, 255, 255, 0.05) !important;
+  overflow: hidden;
+  font-family: var(--font-sans);
+  color: #ededed;
+}
+
+.vc-donate-shell--qr {
+  padding: 24px !important;
+}
+
+[data-theme="light"] .vc-donate-shell {
+  background: #ffffff !important;
+  border-color: #e4e4e7 !important;
+  box-shadow: 0 24px 48px -12px rgba(0, 0, 0, 0.14), 0 0 0 1px rgba(0, 0, 0, 0.04) !important;
+  color: #09090b;
+}
+
+/* Scrollbar inside checkout modal */
+.vc-donate-shell::-webkit-scrollbar {
+  width: 5px;
+}
+
+/* ── Edge-to-Edge Header ── */
+.vc-donate-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 24px;
+  border-bottom: 1px solid #1f1f23;
+  background: #000000;
+}
+
+[data-theme="light"] .vc-donate-header {
+  border-bottom-color: #ececee;
+  background: #ffffff;
+}
+
+.vc-donate-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  flex: 1;
+}
+
+.vc-donate-thumb {
+  width: 38px;
+  height: 38px;
+  border-radius: 8px;
+  object-fit: cover;
+  border: 1px solid #27272a;
+  background: #09090b;
+  flex-shrink: 0;
+}
+
+[data-theme="light"] .vc-donate-thumb {
+  border-color: #e4e4e7;
+  background: #f4f4f5;
+}
+
+.vc-donate-title-group {
+  min-width: 0;
+  flex: 1;
+}
+
+.vc-donate-title {
+  margin: 0;
+  font-size: 0.98rem;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  line-height: 1.3;
+  color: #ededed;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+[data-theme="light"] .vc-donate-title {
+  color: #09090b;
+}
+
+.vc-donate-sub {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.76rem;
+  color: #888888;
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+[data-theme="light"] .vc-donate-sub {
+  color: #71717a;
+}
+
+.vc-donate-sub strong {
+  font-weight: 500;
+  color: #a1a1aa;
+}
+
+[data-theme="light"] .vc-donate-sub strong {
+  color: #3f3f46;
+}
+
+.vc-donate-close-btn {
+  width: 30px;
+  height: 30px;
+  border-radius: 6px;
+  background: transparent;
+  border: 1px solid transparent;
+  color: #71717a;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 120ms ease, color 120ms ease, border-color 120ms ease;
+}
+
+.vc-donate-close-btn:hover {
+  background: #141416;
+  border-color: #27272a;
+  color: #ffffff;
+}
+
+[data-theme="light"] .vc-donate-close-btn:hover {
+  background: #f4f4f5;
+  border-color: #e4e4e7;
+  color: #09090b;
+}
+
+/* ── Split 2-Column Checkout Body ── */
+.vc-donate-grid {
+  display: grid;
+  grid-template-columns: 1.15fr 0.85fr;
+  align-items: stretch;
+}
+
+@media (max-width: 680px) {
+  .vc-donate-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.vc-donate-main {
+  padding: 22px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  border-right: 1px solid #1f1f23;
+  background: #000000;
+}
+
+[data-theme="light"] .vc-donate-main {
+  border-right-color: #ececee;
+  background: #ffffff;
+}
+
+@media (max-width: 680px) {
+  .vc-donate-main {
+    border-right: none;
+    border-bottom: 1px solid #1f1f23;
+  }
+  [data-theme="light"] .vc-donate-main {
+    border-bottom-color: #ececee;
+  }
+}
+
+/* ── Section Labels ── */
+.vc-field-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.vc-field-label {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: #a1a1aa;
+}
+
+[data-theme="light"] .vc-field-label {
+  color: #52525b;
+}
+
+.vc-text-action {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #71717a;
+  cursor: pointer;
+  transition: color 120ms ease;
+}
+
+.vc-text-action:hover {
+  color: #ededed;
+}
+
+[data-theme="light"] .vc-text-action:hover {
+  color: #09090b;
+}
+
+/* ── Amount Input & Connected Presets ── */
+.vc-amount-field {
+  height: 46px;
+  padding: 0 12px;
+  border-radius: 8px;
+  background: #000000;
+  border: 1px solid #27272a;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: border-color 140ms ease, box-shadow 140ms ease;
+}
+
+.vc-amount-field:hover {
+  border-color: #3f3f46;
+}
+
+.vc-amount-field:focus-within {
+  border-color: #ededed;
+  box-shadow: 0 0 0 1px #ededed;
+}
+
+.vc-amount-field.has-error {
+  border-color: #ef4444;
+  box-shadow: 0 0 0 1px rgba(239, 68, 68, 0.35);
+}
+
+[data-theme="light"] .vc-amount-field {
+  background: #ffffff;
+  border-color: #e4e4e7;
+}
+
+[data-theme="light"] .vc-amount-field:hover {
+  border-color: #d4d4d8;
+}
+
+[data-theme="light"] .vc-amount-field:focus-within {
+  border-color: #09090b;
+  box-shadow: 0 0 0 1px #09090b;
+}
+
+.vc-currency-symbol {
+  font-size: 1.05rem;
+  font-weight: 500;
+  color: #71717a;
+  user-select: none;
+}
+
+.vc-amount-input {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #ffffff;
+  font-size: 1.25rem;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  font-variant-numeric: tabular-nums;
+  padding: 0;
+}
+
+.vc-amount-input::placeholder {
+  color: #3f3f46;
+}
+
+[data-theme="light"] .vc-amount-input {
+  color: #09090b;
+}
+
+[data-theme="light"] .vc-amount-input::placeholder {
+  color: #d4d4d8;
+}
+
+.vc-currency-badge {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: #141416;
+  border: 1px solid #27272a;
+  color: #888888;
+  user-select: none;
+}
+
+[data-theme="light"] .vc-currency-badge {
+  background: #f4f4f5;
+  border-color: #e4e4e7;
+  color: #71717a;
+}
+
+/* Connected Segmented Preset Strip */
+.vc-preset-bar {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  margin-top: 8px;
+  border: 1px solid #27272a;
+  border-radius: 7px;
+  background: #09090b;
+  overflow: hidden;
+}
+
+[data-theme="light"] .vc-preset-bar {
+  border-color: #e4e4e7;
+  background: #fafafa;
+}
+
+.vc-preset-btn {
+  height: 32px;
+  border: none;
+  border-left: 1px solid #1f1f23;
+  background: transparent;
+  color: #a1a1aa;
+  font-size: 0.77rem;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
+}
+
+.vc-preset-btn:first-child {
+  border-left: none;
+}
+
+.vc-preset-btn:hover {
+  background: #141416;
+  color: #ededed;
+}
+
+.vc-preset-btn.active {
+  background: #ffffff;
+  color: #000000;
+  font-weight: 600;
+}
+
+[data-theme="light"] .vc-preset-btn {
+  border-left-color: #ececee;
+  color: #52525b;
+}
+
+[data-theme="light"] .vc-preset-btn:hover {
+  background: #f4f4f5;
+  color: #09090b;
+}
+
+[data-theme="light"] .vc-preset-btn.active {
+  background: #09090b;
+  color: #ffffff;
+}
+
+/* ── Inline Verification Mode Segmented Control ── */
+.vc-mode-tabs {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 6px;
+  background: #09090b;
+  border: 1px solid #27272a;
+}
+
+[data-theme="light"] .vc-mode-tabs {
+  background: #f4f4f5;
+  border-color: #e4e4e7;
+}
+
+.vc-mode-tab {
+  height: 24px;
+  padding: 0 9px;
+  border-radius: 4px;
+  border: none;
+  background: transparent;
+  color: #71717a;
+  font-size: 0.72rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 120ms ease, color 120ms ease;
+  white-space: nowrap;
+}
+
+.vc-mode-tab:hover {
+  color: #ededed;
+}
+
+.vc-mode-tab.active {
+  background: #27272a;
+  color: #ffffff;
+  font-weight: 600;
+}
+
+[data-theme="light"] .vc-mode-tab {
+  color: #71717a;
+}
+
+[data-theme="light"] .vc-mode-tab:hover {
+  color: #09090b;
+}
+
+[data-theme="light"] .vc-mode-tab.active {
+  background: #ffffff;
+  color: #09090b;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+
+/* ── Grouped Hairline Payment Channels ── */
+.vc-channel-list {
+  border: 1px solid #27272a;
+  border-radius: 8px;
+  background: #000000;
+  overflow: hidden;
+}
+
+[data-theme="light"] .vc-channel-list {
+  border-color: #e4e4e7;
+  background: #ffffff;
+}
+
+.vc-channel-row {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 14px;
+  background: transparent;
+  border: none;
+  border-top: 1px solid #1c1c20;
+  cursor: pointer;
+  text-align: left;
+  transition: background 120ms ease;
+}
+
+.vc-channel-row:first-child {
+  border-top: none;
+}
+
+.vc-channel-row:hover {
+  background: #09090b;
+}
+
+.vc-channel-row.active {
+  background: #111114;
+}
+
+[data-theme="light"] .vc-channel-row {
+  border-top-color: #f4f4f5;
+}
+
+[data-theme="light"] .vc-channel-row:hover {
+  background: #fafafa;
+}
+
+[data-theme="light"] .vc-channel-row.active {
+  background: #f4f4f5;
+}
+
+.vc-channel-icon {
+  width: 30px;
+  height: 30px;
+  border-radius: 7px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.vc-channel-icon.gcash {
+  background: #0052FF;
+  color: #ffffff;
+  font-weight: 800;
+  font-size: 0.88rem;
+}
+
+.vc-channel-icon.maya {
+  background: #00D68F;
+  color: #000000;
+  font-weight: 800;
+  font-size: 0.58rem;
+  letter-spacing: -0.02em;
+}
+
+.vc-channel-icon.bank {
+  background: #141416;
+  border: 1px solid #27272a;
+  color: #d4d4d8;
+}
+
+[data-theme="light"] .vc-channel-icon.bank {
+  background: #f4f4f5;
+  border-color: #e4e4e7;
+  color: #3f3f46;
+}
+
+.vc-channel-meta {
+  flex: 1;
+  min-width: 0;
+}
+
+.vc-channel-name {
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: #d4d4d8;
+  line-height: 1.25;
+}
+
+.vc-channel-row.active .vc-channel-name {
+  color: #ffffff;
+}
+
+[data-theme="light"] .vc-channel-name {
+  color: #3f3f46;
+}
+
+[data-theme="light"] .vc-channel-row.active .vc-channel-name {
+  color: #09090b;
+}
+
+.vc-channel-desc {
+  font-size: 0.72rem;
+  color: #71717a;
+  margin-top: 1px;
+}
+
+.vc-channel-radio {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 1.5px solid #3f3f46;
+  background: transparent;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all 140ms ease;
+}
+
+.vc-channel-row.active .vc-channel-radio {
+  border-color: #ffffff;
+  background: #ffffff;
+}
+
+.vc-channel-row.active .vc-channel-radio::after {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #000000;
+}
+
+[data-theme="light"] .vc-channel-radio {
+  border-color: #d4d4d8;
+}
+
+[data-theme="light"] .vc-channel-row.active .vc-channel-radio {
+  border-color: #09090b;
+  background: #09090b;
+}
+
+[data-theme="light"] .vc-channel-row.active .vc-channel-radio::after {
+  background: #ffffff;
+}
+
+/* ── Right Column: Summary & CTA ── */
+.vc-donate-summary {
+  padding: 22px 24px;
+  background: #070709;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+[data-theme="light"] .vc-donate-summary {
+  background: #fafafa;
+}
+
+.vc-summary-rows {
+  display: flex;
+  flex-direction: column;
+  margin-top: 4px;
+}
+
+.vc-summary-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 0;
+  border-bottom: 1px solid #18181b;
+  font-size: 0.78rem;
+}
+
+.vc-summary-row:last-child {
+  border-bottom: none;
+}
+
+[data-theme="light"] .vc-summary-row {
+  border-bottom-color: #ececee;
+}
+
+.vc-summary-k {
+  color: #71717a;
+}
+
+.vc-summary-v {
+  color: #ededed;
+  font-weight: 500;
+  text-align: right;
+  max-width: 170px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+[data-theme="light"] .vc-summary-v {
+  color: #09090b;
+}
+
+.vc-summary-v.free {
+  color: #10b981;
+  font-weight: 500;
+}
+
+.vc-summary-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  display: inline-block;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+
+.vc-summary-total {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  padding-top: 14px;
+  margin-top: 6px;
+  border-top: 1px solid #27272a;
+}
+
+[data-theme="light"] .vc-summary-total {
+  border-top-color: #e4e4e7;
+}
+
+.vc-summary-total-label {
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: #a1a1aa;
+}
+
+[data-theme="light"] .vc-summary-total-label {
+  color: #52525b;
+}
+
+.vc-summary-total-val {
+  font-size: 1.4rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  color: #ffffff;
+}
+
+.vc-summary-total-val.empty {
+  color: #52525b;
+}
+
+[data-theme="light"] .vc-summary-total-val {
+  color: #09090b;
+}
+
+[data-theme="light"] .vc-summary-total-val.empty {
+  color: #a1a1aa;
+}
+
+.vc-summary-note {
+  margin-top: 14px;
+  padding: 10px 12px;
+  border-radius: 6px;
+  border: 1px solid #1f1f23;
+  background: #000000;
+  font-size: 0.74rem;
+  line-height: 1.45;
+  color: #888888;
+}
+
+[data-theme="light"] .vc-summary-note {
+  background: #ffffff;
+  border-color: #e4e4e7;
+  color: #71717a;
+}
+
+.vc-donate-cta {
+  width: 100%;
+  height: 40px;
+  border-radius: 6px;
+  border: 1px solid #ffffff;
+  background: #ffffff;
+  color: #000000;
+  font-size: 0.84rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: background 140ms ease, opacity 140ms ease, transform 140ms ease;
+}
+
+.vc-donate-cta:hover:not(:disabled) {
+  background: #e4e4e7;
+  border-color: #e4e4e7;
+}
+
+.vc-donate-cta:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+
+[data-theme="light"] .vc-donate-cta {
+  background: #09090b;
+  border-color: #09090b;
+  color: #ffffff;
+}
+
+[data-theme="light"] .vc-donate-cta:hover:not(:disabled) {
+  background: #27272a;
+  border-color: #27272a;
+}
+
+.vc-donate-micro {
+  text-align: center;
+  font-size: 0.71rem;
+  color: #71717a;
+  margin-top: 9px;
+}

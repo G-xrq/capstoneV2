@@ -51,7 +51,7 @@ html:not(.bbdrts-icons-ready) .material-symbols-outlined {
 /* --- Default & Light Theme: Clean White, Crisp Neutral Borders, Minimalist SaaS Polish --- */
 :root,
 [data-theme="light"] {
-  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, system-ui, sans-serif;
+  --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Inter', system-ui, sans-serif;
   --font-mono: ui-monospace, 'SF Mono', 'Geist Mono', Menlo, Consolas, monospace;
 
   /* Vercel Light Canvas & Layered Surfaces */

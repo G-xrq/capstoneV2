@@ -15,6 +15,7 @@ import { formatPhoneNumber } from '../utils/formatters';
 import { getWorkspaceStrings } from '../data/workspaceTranslations';
 import './MultiRailProgress.css';
 import './CampaignDetailsModal.css';
+import './DonateCheckoutModal.css';
 
 const SEPOLIA_EXPLORER = 'https://sepolia.etherscan.io/tx/';
 
@@ -4592,18 +4593,18 @@ export default function CampaignCard(props) {
 
             <div
               ref={modalCardRef}
-              className="card bounce-in"
+              className={`card bounce-in${!isPaymentProcessing && donateStep === 0 ? ' vc-donate-shell' : ''}${!isPaymentProcessing && donateStep === 8 ? ' vc-donate-shell vc-donate-shell--qr' : ''}`}
               style={{
                 position: 'relative',
-                width: isPaymentProcessing ? '540px' : ((donateStep === 6 || donateStep === 7) ? '880px' : ((donateStep === 0 || (donateStep === 8 && !instantReceipt && !instantSettlingOnChain)) ? '720px' : '460px')),
+                width: isPaymentProcessing ? '540px' : ((donateStep === 6 || donateStep === 7) ? '880px' : ((donateStep === 0 || (donateStep === 8 && !instantReceipt && !instantSettlingOnChain)) ? '740px' : '460px')),
                 maxWidth: '94vw',
                 maxHeight: '92vh',
                 overflowY: 'auto',
-                padding: isPaymentProcessing ? '32px 24px' : '24px',
+                padding: isPaymentProcessing ? '32px 24px' : (!isPaymentProcessing && donateStep === 0 ? '0px' : '24px'),
                 background: isPaymentProcessing ? '#0a0a0a' : 'var(--surface)',
                 border: isPaymentProcessing ? '1px solid #222222' : '1px solid var(--border)',
                 boxShadow: isPaymentProcessing ? '0 25px 65px rgba(0, 0, 0, 0.9)' : 'var(--shadow-card, 0 25px 50px -12px rgba(0, 0, 0, 0.7))',
-                borderRadius: '18px',
+                borderRadius: (!isPaymentProcessing && (donateStep === 0 || donateStep === 8)) ? '12px' : '18px',
                 transition: 'width 0.25s ease'
               }}
             >
@@ -4898,11 +4899,21 @@ export default function CampaignCard(props) {
                 );
               })()}
 
-              {/* ── STEP 0: Select Payment Method (Vercel Geist 2-Column 720px) ── */}
+              {/* ── STEP 0: Vercel Geist Split Checkout ── */}
               {!isPaymentProcessing && donateStep === 0 && (() => {
                 const selectedChannel = gatewayMethod || 'GCash';
+                const isInstant = Boolean(paymongoEnabled && checkoutMode === 'instant');
+                const parsedAmount = parseFloat(amount || 0);
+                const hasAmount = !isNaN(parsedAmount) && parsedAmount > 0;
+                const channelLabel = selectedChannel === 'Bank / Card' ? 'Bank & Cards' : selectedChannel;
+                const orgDisplay = getOrgDisplayName(camp.orgAddress, camp.orgName, camp.id);
+                const campDisplay = formatCampaignTitle(camp.title, camp.id);
+
                 const handleContinue = () => {
-                  if (paymongoEnabled && checkoutMode === 'instant') {
+                  if (isInstant) {
+                    if (!hasAmount || Math.round(parsedAmount) < 1) {
+                      document.getElementById('vc-donate-amount-input')?.focus();
+                    }
                     startInstantCheckout(selectedChannel);
                     return;
                   }
@@ -4923,352 +4934,263 @@ export default function CampaignCard(props) {
                 const channels = [
                   {
                     id: 'GCash',
-                    label: 'GCash',
-                    sub: 'QR Ph · E-Wallet',
-                    icon: (
-                      <div style={{ width: '32px', height: '32px', borderRadius: '7px', background: '#0052FF', color: '#fff', fontWeight: 800, fontSize: '0.92rem', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                        G
-                      </div>
-                    )
+                    name: 'GCash',
+                    desc: isInstant ? 'Dynamic QR Ph · Instant e-wallet transfer' : 'Direct NGO GCash QR · AI slip scan',
+                    badgeClass: 'gcash',
+                    icon: 'G'
                   },
                   {
                     id: 'Maya',
-                    label: 'Maya',
-                    sub: 'QR Ph · E-Wallet',
-                    icon: (
-                      <div style={{ width: '32px', height: '32px', borderRadius: '7px', background: '#00D68F', color: '#000', fontWeight: 900, fontSize: '0.62rem', letterSpacing: '-0.02em', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                        maya
-                      </div>
-                    )
+                    name: 'Maya',
+                    desc: isInstant ? 'Dynamic QR Ph · Maya wallet checkout' : 'Direct NGO Maya QR · AI slip scan',
+                    badgeClass: 'maya',
+                    icon: 'maya'
                   },
                   {
                     id: 'Bank / Card',
-                    label: 'Bank & Cards',
-                    sub: 'InstaPay · Visa · Mastercard',
-                    icon: (
-                      <div style={{ width: '32px', height: '32px', borderRadius: '7px', background: '#161616', border: '1px solid #2a2a2a', color: '#d4d4d8', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                        <span className="material-symbols-outlined" style={{ fontSize: '17px' }}>credit_card</span>
-                      </div>
-                    )
+                    name: 'Bank & Cards',
+                    desc: isInstant ? 'Dynamic QR Ph · InstaPay bank transfer' : 'Visa, Mastercard, or direct bank transfer',
+                    badgeClass: 'bank',
+                    icon: <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>credit_card</span>
                   }
                 ];
 
-                return (
-                  <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '20px', fontFamily: 'var(--font-sans, inherit)' }}>
+                const presets = [
+                  { val: '100', label: '₱100' },
+                  { val: '500', label: '₱500' },
+                  { val: '1000', label: '₱1,000' },
+                  { val: '2500', label: '₱2,500' },
+                  { val: '5000', label: '₱5,000' }
+                ];
 
-                    {/* Geist Header (matches Step 8) */}
-                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px', borderBottom: '1px solid var(--border, #1f1f1f)', paddingBottom: '16px' }}>
-                      <div style={{ minWidth: 0 }}>
-                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', fontSize: '0.76rem', fontWeight: 500, color: 'var(--text-muted, #888)', marginBottom: '4px' }}>
-                          <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10b981', display: 'inline-block', flexShrink: 0 }} />
-                          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '520px' }}>
-                            {camp.title} · {getOrgDisplayName(camp)}
-                          </span>
+                return (
+                  <div className="fade-in">
+                    {/* Edge-to-edge Header */}
+                    <div className="vc-donate-header">
+                      <div className="vc-donate-header-left">
+                        <img
+                          src={coverData.imageUrl}
+                          alt={campDisplay}
+                          className="vc-donate-thumb"
+                          onError={(e) => {
+                            e.currentTarget.onerror = null;
+                            e.currentTarget.src = 'https://images.unsplash.com/photo-1532629345422-7515f3d16bb6?auto=format&fit=crop&w=200&q=80';
+                          }}
+                        />
+                        <div className="vc-donate-title-group">
+                          <h2 className="vc-donate-title" title={campDisplay}>
+                            Donate to {campDisplay}
+                          </h2>
+                          <div className="vc-donate-sub">
+                            <strong>{orgDisplay}</strong>
+                            <span className="material-symbols-outlined" style={{ fontSize: '13px', color: '#10b981' }}>verified</span>
+                            <span>·</span>
+                            <span style={{ fontVariantNumeric: 'tabular-nums' }}>
+                              {goalReached ? 'Goal reached' : `${pct}% funded`}
+                            </span>
+                          </div>
                         </div>
-                        <h2 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 600, letterSpacing: '-0.025em', color: 'var(--text-primary, #ededed)' }}>
-                          Make a donation
-                        </h2>
                       </div>
+
                       <button
                         type="button"
+                        className="vc-donate-close-btn"
                         onClick={() => {
                           setMagnifierActive(false);
                           setModalOpen(false);
                         }}
-                        style={{
-                          background: 'transparent',
-                          border: '1px solid var(--border, #262626)',
-                          color: 'var(--text-muted, #888)',
-                          width: '32px',
-                          height: '32px',
-                          borderRadius: '6px',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          flexShrink: 0
-                        }}
                         title="Close"
+                        aria-label="Close"
                       >
-                        <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>close</span>
+                        <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>close</span>
                       </button>
                     </div>
 
-                    {/* 2-Column Balanced Geist Body */}
-                    <div style={{ display: 'grid', gridTemplateColumns: '1.1fr 0.9fr', gap: '24px', alignItems: 'stretch' }}>
-
-                      {/* Left Column: Amount & Verification Mode */}
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
-
-                        {/* Hero Amount Input */}
+                    {/* Two-Column Split Checkout Grid */}
+                    <div className="vc-donate-grid">
+                      {/* Left Column: Amount + Payment Channel */}
+                      <div className="vc-donate-main">
+                        {/* Amount Field & Connected Presets */}
                         <div>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                            <label style={{ fontSize: '0.7rem', fontWeight: 500, color: 'var(--text-muted, #737373)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                              Amount
+                          <div className="vc-field-header">
+                            <label htmlFor="vc-donate-amount-input" className="vc-field-label">
+                              Contribution amount
                             </label>
                             {amount && Number(amount) > 0 && (
                               <button
                                 type="button"
+                                className="vc-text-action"
                                 onClick={() => setAmount('')}
-                                style={{ background: 'none', border: 'none', color: 'var(--text-muted, #737373)', fontSize: '0.72rem', cursor: 'pointer', padding: 0 }}
                               >
                                 Clear
                               </button>
                             )}
                           </div>
 
-                          <div
-                            style={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '8px',
-                              padding: '10px 14px',
-                              background: 'var(--bg-inset, #0a0a0a)',
-                              border: '1px solid var(--border, #262626)',
-                              borderRadius: '10px'
-                            }}
-                          >
-                            <span style={{ color: 'var(--text-muted, #666)', fontSize: '1.45rem', fontWeight: 500, fontVariantNumeric: 'tabular-nums' }}>₱</span>
+                          <div className="vc-amount-field">
+                            <span className="vc-currency-symbol">₱</span>
                             <input
-                              type="number"
-                              step="1"
-                              min="1"
+                              id="vc-donate-amount-input"
+                              type="text"
+                              inputMode="decimal"
+                              className="vc-amount-input"
                               value={amount}
-                              onChange={(e) => setAmount(e.target.value)}
-                              placeholder="0"
-                              style={{
-                                width: '100%',
-                                background: 'transparent',
-                                border: 'none',
-                                color: 'var(--text-primary, #ededed)',
-                                fontSize: '1.65rem',
-                                fontWeight: 600,
-                                letterSpacing: '-0.03em',
-                                fontVariantNumeric: 'tabular-nums',
-                                outline: 'none',
-                                padding: 0
+                              onChange={(e) => {
+                                const cleaned = e.target.value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');
+                                setAmount(cleaned);
                               }}
+                              placeholder="500"
+                              autoComplete="off"
                             />
-                            <span style={{ fontSize: '0.72rem', fontFamily: 'var(--font-mono, monospace)', color: 'var(--text-muted, #666)', fontWeight: 500 }}>
-                              PHP
-                            </span>
+                            <span className="vc-currency-badge">PHP</span>
                           </div>
 
-                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '6px', marginTop: '10px' }}>
-                            {[
-                              { val: '100', label: '₱100' },
-                              { val: '500', label: '₱500' },
-                              { val: '1000', label: '₱1k' },
-                              { val: '2500', label: '₱2.5k' },
-                              { val: '5000', label: '₱5k' }
-                            ].map((preset) => {
-                              const isSel = String(amount) === preset.val;
+                          <div className="vc-preset-bar" role="group" aria-label="Quick amount presets">
+                            {presets.map((p) => {
+                              const isSel = String(amount) === p.val;
                               return (
                                 <button
-                                  key={preset.val}
+                                  key={p.val}
                                   type="button"
-                                  onClick={() => setAmount(preset.val)}
-                                  style={{
-                                    height: '32px',
-                                    borderRadius: '6px',
-                                    fontSize: '0.74rem',
-                                    fontWeight: isSel ? 600 : 500,
-                                    fontVariantNumeric: 'tabular-nums',
-                                    cursor: 'pointer',
-                                    background: isSel ? '#ededed' : 'var(--bg-inset, #0a0a0a)',
-                                    color: isSel ? '#000' : 'var(--text-secondary, #a1a1aa)',
-                                    border: `1px solid ${isSel ? '#ededed' : 'var(--border, #262626)'}`,
-                                    transition: 'all 0.14s ease'
-                                  }}
+                                  className={`vc-preset-btn${isSel ? ' active' : ''}`}
+                                  onClick={() => setAmount(p.val)}
                                 >
-                                  {preset.label}
+                                  {p.label}
                                 </button>
                               );
                             })}
                           </div>
                         </div>
 
-                        {/* Verification Mode Switcher */}
-                        {paymongoEnabled && (
-                          <div>
-                            <div style={{ fontSize: '0.7rem', fontWeight: 500, color: 'var(--text-muted, #737373)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '8px' }}>
-                              Verification
-                            </div>
-                            <div
-                              role="tablist"
-                              aria-label="Donation verification mode"
-                              style={{
-                                display: 'grid',
-                                gridTemplateColumns: '1fr 1fr',
-                                gap: '3px',
-                                padding: '3px',
-                                borderRadius: '8px',
-                                background: 'var(--bg-inset, #0a0a0a)',
-                                border: '1px solid var(--border, #222)'
-                              }}
-                            >
-                              <button
-                                type="button"
-                                role="tab"
-                                aria-selected={checkoutMode === 'instant'}
-                                onClick={() => setCheckoutMode('instant')}
-                                style={{
-                                  height: '32px',
-                                  borderRadius: '6px',
-                                  border: checkoutMode === 'instant' ? '1px solid #333' : '1px solid transparent',
-                                  background: checkoutMode === 'instant' ? '#1c1c1c' : 'transparent',
-                                  color: checkoutMode === 'instant' ? '#ededed' : '#737373',
-                                  fontSize: '0.76rem',
-                                  fontWeight: checkoutMode === 'instant' ? 600 : 500,
-                                  cursor: 'pointer',
-                                  transition: 'all 0.14s ease'
-                                }}
-                              >
-                                Instant QR Ph
-                              </button>
-                              <button
-                                type="button"
-                                role="tab"
-                                aria-selected={checkoutMode === 'manual'}
-                                onClick={() => setCheckoutMode('manual')}
-                                style={{
-                                  height: '32px',
-                                  borderRadius: '6px',
-                                  border: checkoutMode === 'manual' ? '1px solid #333' : '1px solid transparent',
-                                  background: checkoutMode === 'manual' ? '#1c1c1c' : 'transparent',
-                                  color: checkoutMode === 'manual' ? '#ededed' : '#737373',
-                                  fontSize: '0.76rem',
-                                  fontWeight: checkoutMode === 'manual' ? 600 : 500,
-                                  cursor: 'pointer',
-                                  transition: 'all 0.14s ease'
-                                }}
-                              >
-                                Direct QR &amp; Slip
-                              </button>
-                            </div>
-                            <p style={{ margin: '8px 0 0', fontSize: '0.74rem', color: 'var(--text-muted, #737373)', lineHeight: 1.45 }}>
-                              {checkoutMode === 'instant'
-                                ? 'Auto-verified via webhook and sealed on Ethereum Sepolia. No receipt upload needed.'
-                                : 'Transfer directly to the NGO QR with a BB-XXXX tracking code and AI receipt scan.'}
-                            </p>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Right Column: Payment Method & Primary CTA */}
-                      <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: '16px' }}>
+                        {/* Payment Channel + Inline Verification Switcher */}
                         <div>
-                          <div style={{ fontSize: '0.7rem', fontWeight: 500, color: 'var(--text-muted, #737373)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '8px' }}>
-                            Payment Method
+                          <div className="vc-field-header">
+                            <span className="vc-field-label">Payment method</span>
+                            {paymongoEnabled && (
+                              <div className="vc-mode-tabs" role="tablist" aria-label="Verification mode">
+                                <button
+                                  type="button"
+                                  role="tab"
+                                  aria-selected={checkoutMode === 'instant'}
+                                  className={`vc-mode-tab${checkoutMode === 'instant' ? ' active' : ''}`}
+                                  onClick={() => setCheckoutMode('instant')}
+                                >
+                                  Instant QR Ph
+                                </button>
+                                <button
+                                  type="button"
+                                  role="tab"
+                                  aria-selected={checkoutMode === 'manual'}
+                                  className={`vc-mode-tab${checkoutMode === 'manual' ? ' active' : ''}`}
+                                  onClick={() => setCheckoutMode('manual')}
+                                >
+                                  Direct QR &amp; Slip
+                                </button>
+                              </div>
+                            )}
                           </div>
 
-                          <div style={{ border: '1px solid var(--border, #222)', borderRadius: '10px', background: 'var(--bg-inset, #0a0a0a)', overflow: 'hidden' }}>
-                            {channels.map((ch, idx) => {
-                              const isSelected = selectedChannel === ch.id;
+                          <div className="vc-channel-list" role="radiogroup" aria-label="Payment channel">
+                            {channels.map((ch) => {
+                              const isSel = selectedChannel === ch.id;
                               return (
                                 <button
                                   key={ch.id}
                                   type="button"
+                                  role="radio"
+                                  aria-checked={isSel}
                                   disabled={instantLoading}
+                                  className={`vc-channel-row${isSel ? ' active' : ''}`}
                                   onClick={() => setGatewayMethod(ch.id)}
-                                  style={{
-                                    width: '100%',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '12px',
-                                    padding: '12px 14px',
-                                    background: isSelected ? '#141414' : 'transparent',
-                                    border: 'none',
-                                    borderTop: idx > 0 ? '1px solid var(--border, #1e1e1e)' : 'none',
-                                    cursor: instantLoading ? 'wait' : 'pointer',
-                                    textAlign: 'left',
-                                    transition: 'background 0.14s ease'
-                                  }}
                                 >
-                                  {ch.icon}
-                                  <div style={{ flex: 1, minWidth: 0 }}>
-                                    <div style={{ fontSize: '0.84rem', fontWeight: 600, color: isSelected ? '#ededed' : '#a1a1aa' }}>
-                                      {ch.label}
-                                    </div>
-                                    <div style={{ fontSize: '0.71rem', color: '#666', marginTop: '1px' }}>
-                                      {ch.sub}
-                                    </div>
+                                  <div className={`vc-channel-icon ${ch.badgeClass}`}>
+                                    {ch.icon}
                                   </div>
-                                  <span
-                                    style={{
-                                      width: '16px',
-                                      height: '16px',
-                                      borderRadius: '50%',
-                                      border: isSelected ? '5px solid #ededed' : '1.5px solid #333',
-                                      background: isSelected ? '#000' : 'transparent',
-                                      flexShrink: 0,
-                                      transition: 'all 0.14s ease'
-                                    }}
-                                  />
+                                  <div className="vc-channel-meta">
+                                    <div className="vc-channel-name">{ch.name}</div>
+                                    <div className="vc-channel-desc">{ch.desc}</div>
+                                  </div>
+                                  <span className="vc-channel-radio" aria-hidden="true" />
                                 </button>
                               );
                             })}
                           </div>
                         </div>
-
-                        {/* Vercel Primary White CTA */}
-                        <button
-                          type="button"
-                          disabled={instantLoading}
-                          onClick={handleContinue}
-                          style={{
-                            width: '100%',
-                            height: '42px',
-                            borderRadius: '8px',
-                            border: 'none',
-                            background: '#ededed',
-                            color: '#000',
-                            fontSize: '0.84rem',
-                            fontWeight: 600,
-                            cursor: instantLoading ? 'wait' : 'pointer',
-                            opacity: instantLoading ? 0.65 : 1,
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: '6px',
-                            transition: 'opacity 0.14s ease'
-                          }}
-                        >
-                          <span>
-                            {instantLoading
-                              ? 'Generating QR Ph...'
-                              : `Continue with ${selectedChannel === 'Bank / Card' ? 'Bank & Cards' : selectedChannel}`}
-                          </span>
-                          {!instantLoading && <span style={{ fontSize: '0.95rem' }}>→</span>}
-                        </button>
                       </div>
-                    </div>
 
-                    {/* Quiet Geist Footer */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--border, #1f1f1f)', paddingTop: '14px' }}>
-                      <span style={{ fontSize: '0.73rem', color: 'var(--text-muted, #666)' }}>
-                        0% platform fee · Gasless Sepolia audit proof
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setMagnifierActive(false);
-                          setModalOpen(false);
-                        }}
-                        style={{
-                          height: '30px',
-                          padding: '0 12px',
-                          borderRadius: '6px',
-                          border: '1px solid var(--border, #262626)',
-                          background: 'transparent',
-                          color: 'var(--text-secondary, #a1a1aa)',
-                          fontSize: '0.76rem',
-                          fontWeight: 500,
-                          cursor: 'pointer'
-                        }}
-                      >
-                        Cancel
-                      </button>
+                      {/* Right Column: Order Summary & CTA */}
+                      <div className="vc-donate-summary">
+                        <div>
+                          <div className="vc-field-label">Summary</div>
+
+                          <div className="vc-summary-rows">
+                            <div className="vc-summary-row">
+                              <span className="vc-summary-k">Method</span>
+                              <span className="vc-summary-v">{channelLabel}</span>
+                            </div>
+                            <div className="vc-summary-row">
+                              <span className="vc-summary-k">Verification</span>
+                              <span className="vc-summary-v">
+                                <span
+                                  className="vc-summary-dot"
+                                  style={{ background: isInstant ? '#10b981' : '#3b82f6' }}
+                                />
+                                {isInstant ? 'Auto-Webhook' : 'Direct QR · AI Scan'}
+                              </span>
+                            </div>
+                            <div className="vc-summary-row">
+                              <span className="vc-summary-k">Platform fee</span>
+                              <span className="vc-summary-v free">₱0.00</span>
+                            </div>
+                            <div className="vc-summary-row">
+                              <span className="vc-summary-k">Audit ledger</span>
+                              <span className="vc-summary-v">Sepolia · Gasless</span>
+                            </div>
+                          </div>
+
+                          <div className="vc-summary-total">
+                            <span className="vc-summary-total-label">Total</span>
+                            <span className={`vc-summary-total-val${hasAmount ? '' : ' empty'}`}>
+                              ₱{hasAmount
+                                ? parsedAmount.toLocaleString('en-US', {
+                                    minimumFractionDigits: parsedAmount % 1 ? 2 : 0,
+                                    maximumFractionDigits: 2
+                                  })
+                                : '0.00'}
+                            </span>
+                          </div>
+
+                          <div className="vc-summary-note">
+                            {isInstant
+                              ? 'Generates a single-use QR Ph code. Automatically verified via webhook and sealed on Sepolia—no screenshot upload needed.'
+                              : 'Displays the NGO QR code and a unique BB-XXXX tracking note code for fast AI receipt verification.'}
+                          </div>
+                        </div>
+
+                        <div>
+                          <button
+                            type="button"
+                            disabled={instantLoading}
+                            className="vc-donate-cta"
+                            onClick={handleContinue}
+                          >
+                            {instantLoading ? (
+                              <>
+                                <div className="spinner" style={{ width: '14px', height: '14px', borderWidth: '2px' }} />
+                                <span>Preparing QR Ph...</span>
+                              </>
+                            ) : (
+                              <span>
+                                Continue with {channelLabel}
+                                {hasAmount ? ` · ₱${parsedAmount.toLocaleString('en-US', { maximumFractionDigits: 2 })}` : ''}
+                              </span>
+                            )}
+                          </button>
+                          <div className="vc-donate-micro">
+                            100% goes to verified humanitarian relief
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 );
