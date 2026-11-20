@@ -4595,7 +4595,7 @@ export default function CampaignCard(props) {
               className="card bounce-in"
               style={{
                 position: 'relative',
-                width: isPaymentProcessing ? '540px' : ((donateStep === 0 || donateStep === 6 || donateStep === 7) ? '880px' : '500px'),
+                width: isPaymentProcessing ? '540px' : ((donateStep === 0 || donateStep === 6 || donateStep === 7) ? '880px' : (donateStep === 8 && !instantReceipt && !instantSettlingOnChain ? '720px' : '460px')),
                 maxWidth: '94vw',
                 maxHeight: '92vh',
                 overflowY: 'auto',
@@ -6380,95 +6380,159 @@ export default function CampaignCard(props) {
                     </div>
                   ) : (
                     <>
-                      <div style={{ padding: '16px', borderRadius: '12px', background: 'var(--bg-input, rgba(255,255,255,0.03))', border: '1px solid var(--border, rgba(255,255,255,0.09))', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem' }}>
-                          <span style={{ color: 'var(--text-muted, #94a3b8)' }}>Campaign</span>
-                          <strong style={{ color: 'var(--text-primary, #fff)', textAlign: 'right', maxWidth: '65%' }}>{camp.title}</strong>
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem' }}>
-                          <span style={{ color: 'var(--text-muted, #94a3b8)' }}>Channel</span>
-                          <strong style={{ color: '#38bdf8' }}>{activeIntent.paymentMethod} (Dynamic QR Ph / Checkout)</strong>
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem' }}>
-                          <span style={{ color: 'var(--text-muted, #94a3b8)' }}>Tracking Reference</span>
-                          <code style={{ color: '#10b981', fontWeight: 700 }}>{activeIntent.trackingCode}</code>
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', borderTop: '1px solid var(--border, rgba(255,255,255,0.08))', paddingTop: '10px' }}>
-                          <span style={{ fontSize: '0.8rem', color: 'var(--text-muted, #94a3b8)' }}>Total Contribution</span>
-                          <strong style={{ fontSize: '1.35rem', color: '#10b981' }}>₱{Number(activeIntent.amountPhp || 0).toLocaleString('en-US')}</strong>
-                        </div>
-                      </div>
-
-                      <div style={{ padding: '10px 12px', borderRadius: '8px', background: 'rgba(16, 185, 129, 0.08)', border: '1px solid rgba(16, 185, 129, 0.22)', fontSize: '0.73rem', color: 'var(--text-secondary, #cbd5e1)', lineHeight: 1.45 }}>
-                        <strong style={{ color: '#10b981' }}>Zero-Loophole Guarantee:</strong> Once authorized, our signed payment webhook automatically credits <strong>{camp.title}</strong> and mints your Sepolia blockchain proof — even if you close your browser immediately.
-                      </div>
-
-                      {activeIntent.provider === 'xendit_qrph' && activeIntent.qrString ? (
-                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', padding: '16px', borderRadius: '12px', background: '#ffffff', color: '#09090b' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.78rem', fontWeight: 800, color: '#09090b' }}>
-                            <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#007DFE' }}>qr_code_2</span>
-                            <span>{activeIntent.liveMode ? 'Scan with GCash, Maya, or Any PH Bank App (QR Ph)' : 'Scan with Your Phone Camera (Xendit QR Ph Test Wallet)'}</span>
+                      {/* Balanced 2-Column Vercel Geist Checkout Grid (Zero Scroll, Zero Tinted Clutter) */}
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '18px', alignItems: 'stretch' }}>
+                        {/* Left Column: Monochrome Framed Dynamic QR Ph */}
+                        {activeIntent.provider === 'xendit_qrph' && activeIntent.qrString ? (
+                          <div style={{
+                            border: '1px solid var(--border, #222)',
+                            borderRadius: '10px',
+                            background: 'var(--bg-inset, #0a0a0a)',
+                            padding: '18px',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '12px'
+                          }}>
+                            <div style={{ background: '#ffffff', padding: '12px', borderRadius: '8px', lineHeight: 0 }}>
+                              <img
+                                src={`https://api.qrserver.com/v1/create-qr-code/?size=188x188&data=${encodeURIComponent(activeIntent.liveMode ? activeIntent.qrString : (activeIntent.mobilePayUrl || activeIntent.qrString))}`}
+                                alt="Dynamic QR Ph Code"
+                                style={{ width: '188px', height: '188px', display: 'block' }}
+                              />
+                            </div>
+                            <div style={{ textAlign: 'center' }}>
+                              <div style={{ fontSize: '0.76rem', fontWeight: 500, color: 'var(--text-primary, #ededed)' }}>
+                                {activeIntent.liveMode ? 'Scan with GCash, Maya, or Bank App' : 'Scan with phone camera'}
+                              </div>
+                              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', marginTop: '4px', fontSize: '0.71rem', color: 'var(--text-muted, #888)' }}>
+                                <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#3291FF', display: 'inline-block' }} />
+                                <span>Listening for confirmation…</span>
+                              </div>
+                            </div>
                           </div>
-                          <img
-                            src={`https://api.qrserver.com/v1/create-qr-code/?size=210x210&data=${encodeURIComponent(activeIntent.liveMode ? activeIntent.qrString : (activeIntent.mobilePayUrl || activeIntent.qrString))}`}
-                            alt="Dynamic QR Ph Code"
-                            style={{ width: '210px', height: '210px', borderRadius: '8px', border: '1px solid #e4e4e7' }}
-                          />
-                          <div style={{ fontSize: '0.72rem', color: '#52525b', textAlign: 'center' }}>
-                            Single-use QR locked to <strong>₱{Number(activeIntent.amountPhp || 0).toLocaleString('en-US')}</strong> · Ref <code>{activeIntent.trackingCode}</code>
-                            <br />
-                            Waiting for automatic payment confirmation… (no screenshot needed)
-                          </div>
-                          {!activeIntent.liveMode && (
-                            <button
-                              type="button"
-                              disabled={instantSimulating}
-                              onClick={handleSimulateXenditQr}
-                              className="btn btn-primary btn-sm"
-                              style={{ marginTop: '2px', borderRadius: '8px', padding: '8px 14px', display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.76rem' }}
+                        ) : activeIntent.checkoutUrl ? (
+                          <div style={{
+                            border: '1px solid var(--border, #222)',
+                            borderRadius: '10px',
+                            background: 'var(--bg-inset, #0a0a0a)',
+                            padding: '20px',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '12px',
+                            textAlign: 'center'
+                          }}>
+                            <a
+                              href={activeIntent.checkoutUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              style={{
+                                width: '100%',
+                                height: '38px',
+                                borderRadius: '6px',
+                                background: 'var(--text-primary, #ededed)',
+                                color: 'var(--bg-card, #0a0a0a)',
+                                fontSize: '0.8rem',
+                                fontWeight: 600,
+                                textDecoration: 'none',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '6px'
+                              }}
                             >
-                              <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>
-                                {instantSimulating ? 'hourglass_top' : 'qr_code_scanner'}
-                              </span>
-                              <span>{instantSimulating ? 'Calling Xendit Test API & Notarizing…' : 'Simulate Xendit QR Ph Scan (Test Mode)'}</span>
-                            </button>
-                          )}
-                        </div>
-                      ) : activeIntent.checkoutUrl ? (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                          <a
-                            href={activeIntent.checkoutUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="btn btn-primary"
-                            style={{ width: '100%', textAlign: 'center', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '12px' }}
-                          >
-                            <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>open_in_new</span>
-                            <span>Open {activeIntent.provider === 'xendit' ? 'Xendit' : 'PayMongo'} {activeIntent.paymentMethod} Checkout</span>
-                          </a>
-                          <div style={{ textAlign: 'center', fontSize: '0.74rem', color: 'var(--text-muted, #94a3b8)' }}>
-                            Waiting for automatic {activeIntent.provider === 'xendit' ? 'Xendit' : 'PayMongo'} payment confirmation…
+                              <span>Open {activeIntent.provider === 'xendit' ? 'Xendit' : 'PayMongo'} Checkout</span>
+                              <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>north_east</span>
+                            </a>
+                            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted, #888)' }}>
+                              Waiting for automatic payment confirmation…
+                            </div>
+                          </div>
+                        ) : null}
+
+                        {/* Right Column: Crisp Geist Summary Table & Actions */}
+                        <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: '12px' }}>
+                          <div>
+                            <div style={{ fontSize: '0.7rem', fontWeight: 500, color: 'var(--text-muted, #888)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '4px' }}>
+                              Total Contribution
+                            </div>
+                            <div style={{ fontSize: '1.9rem', fontWeight: 600, letterSpacing: '-0.04em', fontVariantNumeric: 'tabular-nums', color: 'var(--text-primary, #ededed)', lineHeight: 1.05, marginBottom: '14px' }}>
+                              ₱{Number(activeIntent.amountPhp || 0).toLocaleString('en-US')}
+                            </div>
+
+                            <div style={{ border: '1px solid var(--border, #222)', borderRadius: '8px', background: 'var(--bg-inset, #0a0a0a)', overflow: 'hidden' }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', padding: '9px 12px', borderBottom: '1px solid var(--border, #1f1f1f)', fontSize: '0.76rem' }}>
+                                <span style={{ color: 'var(--text-muted, #888)' }}>Campaign</span>
+                                <span style={{ color: 'var(--text-primary, #ededed)', fontWeight: 500, textAlign: 'right', maxWidth: '65%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{camp.title}</span>
+                              </div>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', padding: '9px 12px', borderBottom: '1px solid var(--border, #1f1f1f)', fontSize: '0.76rem' }}>
+                                <span style={{ color: 'var(--text-muted, #888)' }}>Channel</span>
+                                <span style={{ color: 'var(--text-primary, #ededed)', fontWeight: 500 }}>{activeIntent.paymentMethod} · QR Ph</span>
+                              </div>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', padding: '9px 12px', borderBottom: '1px solid var(--border, #1f1f1f)', fontSize: '0.76rem' }}>
+                                <span style={{ color: 'var(--text-muted, #888)' }}>Reference</span>
+                                <span style={{ color: 'var(--text-primary, #ededed)', fontFamily: 'var(--font-mono, monospace)', fontSize: '0.73rem' }}>{activeIntent.trackingCode}</span>
+                              </div>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', padding: '9px 12px', fontSize: '0.76rem' }}>
+                                <span style={{ color: 'var(--text-muted, #888)' }}>Verification</span>
+                                <span style={{ color: '#10b981', fontWeight: 500 }}>Auto-Webhook · Sepolia</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                            <p style={{ margin: 0, fontSize: '0.72rem', color: 'var(--text-muted, #888)', lineHeight: 1.45 }}>
+                              Single-use QR locked to this campaign. No screenshot upload needed — proof seals automatically on-chain once paid.
+                            </p>
+                            {!activeIntent.liveMode && activeIntent.provider === 'xendit_qrph' && (
+                              <button
+                                type="button"
+                                disabled={instantSimulating}
+                                onClick={handleSimulateXenditQr}
+                                style={{
+                                  height: '36px',
+                                  borderRadius: '6px',
+                                  border: '1px solid var(--border, #2a2a2a)',
+                                  background: 'var(--bg-inset, #111)',
+                                  color: 'var(--text-primary, #ededed)',
+                                  fontSize: '0.76rem',
+                                  fontWeight: 500,
+                                  cursor: instantSimulating ? 'wait' : 'pointer',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  gap: '6px'
+                                }}
+                              >
+                                <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>
+                                  {instantSimulating ? 'hourglass_top' : 'qr_code_scanner'}
+                                </span>
+                                <span>{instantSimulating ? 'Confirming via Xendit Test API…' : 'Simulate Scan (Test Mode)'}</span>
+                              </button>
+                            )}
                           </div>
                         </div>
-                      ) : null}
+                      </div>
 
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      {/* Quiet Geist Footer */}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--border, #222)', paddingTop: '12px' }}>
                         <button
                           type="button"
-                          className="btn btn-ghost btn-sm"
                           onClick={() => {
                             setCheckoutMode('manual');
                             setDonateStep(0);
                           }}
-                          style={{ fontSize: '0.74rem' }}
+                          style={{ background: 'transparent', border: 'none', color: 'var(--text-muted, #888)', fontSize: '0.74rem', cursor: 'pointer', padding: 0 }}
                         >
-                          Switch to Direct QR &amp; Receipt Upload
+                          Use Direct QR &amp; Receipt Upload →
                         </button>
                         <button
                           type="button"
-                          className="btn btn-ghost btn-sm"
                           onClick={() => setDonateStep(0)}
-                          style={{ fontSize: '0.74rem' }}
+                          style={{ height: '32px', padding: '0 12px', borderRadius: '6px', border: '1px solid var(--border, #262626)', background: 'transparent', color: 'var(--text-secondary, #a1a1aa)', fontSize: '0.75rem', fontWeight: 500, cursor: 'pointer' }}
                         >
                           Back
                         </button>
