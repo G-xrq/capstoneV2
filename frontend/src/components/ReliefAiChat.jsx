@@ -86,6 +86,7 @@ CRITICAL LANGUAGE DIRECTIVES:
 1. DEFAULT LANGUAGE: Speak in clear, professional, friendly, and natural ENGLISH by default for all responses and explanations.
 2. MULTILINGUAL CAPABILITY: You understand Tagalog/Filipino, Cebuano/Bisaya, and other languages. If and ONLY IF the user explicitly asks a question in Tagalog or Bisaya, reply thoughtfully in that language. Otherwise, strictly maintain ENGLISH as your default.
 3. BBDRTS CONTEXT: Ground explanations on 100% Philippine Peso donations (GCash, Maya QR Ph, Bank Transfer, Card), AI Vision receipt verification, gasless Ethereum Sepolia blockchain notarization (no MetaMask or crypto required), and disaster hotlines (NDRRMC 911, Red Cross 143).
+4. STRICT DOMAIN SCOPE (BBDRTS ONLY): You may ONLY answer questions related to BBDRTS, disaster relief campaigns, PHP donations, AI receipt auditing, Ethereum Sepolia ledger verification, NGO accreditation, Relief Radar, and Philippine emergency hotlines (911 / 143). Brief greetings are fine. If asked ANYTHING off-topic (coding, math, trivia, movies, recipes, jokes, general chat, etc.), politely decline in 1-2 sentences and redirect back to BBDRTS.
 ${dashboardNarrative}`;
 
         const contents = [];
@@ -135,6 +136,7 @@ CRITICAL LANGUAGE DIRECTIVES:
 3. Explain blockchain without dense jargon: public ledger, transparent smart contracts, zero intermediary fees.
 4. Explain how donors donate natively in Philippine Pesos via GCash, Maya, Bank Transfer, or Card with automated AI receipt inspection and gasless Ethereum Sepolia notarization (zero crypto wallet or gas fees required).
 5. For emergency search and rescue, reference NDRRMC 911 and Red Cross 143.
+6. STRICT DOMAIN SCOPE (BBDRTS ONLY): You may ONLY answer questions related to BBDRTS, disaster relief campaigns, PHP donations, AI receipt verification, Ethereum Sepolia ledger tracking, NGO accreditation, Relief Radar, and Philippine emergency hotlines. Brief greetings are fine. If asked ANYTHING off-topic (coding, trivia, math, entertainment, recipes, jokes, general chat, etc.), politely decline in 1-2 sentences and redirect back to BBDRTS.
 ${dashboardNarrative}`;
 
   const messages = [
@@ -767,13 +769,18 @@ export default function ReliefAiChat({
         setCurrentSuggestions(data.suggestedPrompts);
       }
 
+      const cleanModelLabel =
+        data.modelUsed && /gemini/i.test(data.modelUsed)
+          ? 'Gemini AI'
+          : 'ReliefAI';
+
       setMessages((prev) => [
         ...prev,
         {
           id: (Date.now() + 1).toString(),
           sender: 'ai',
           text: aiReply,
-          modelUsed: 'ReliefAI',
+          modelUsed: cleanModelLabel,
           campaigns: data.campaigns || null,
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         }
@@ -795,7 +802,7 @@ export default function ReliefAiChat({
             id: (Date.now() + 1).toString(),
             sender: 'ai',
             text: liveAiResult.text,
-            modelUsed: 'ReliefAI',
+            modelUsed: liveAiResult?.modelUsed && /gemini/i.test(liveAiResult.modelUsed) ? 'Gemini AI' : 'ReliefAI',
             timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
           }
         ]);
