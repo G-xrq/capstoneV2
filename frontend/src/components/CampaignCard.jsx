@@ -6396,41 +6396,48 @@ export default function CampaignCard(props) {
                             gap: '12px'
                           }}>
                             {(() => {
-                              const m = String(activeIntent.paymentMethod || '').toLowerCase();
-                              const isGcash = m.includes('gcash');
-                              const isMaya = m.includes('maya');
-                              const qrColor = isGcash ? '0052FF' : isMaya ? '047857' : '18181b';
-                              const badgeBg = isGcash ? '#0052FF' : isMaya ? '#00D68F' : '#18181b';
-                              const badgeFg = isMaya ? '#052e16' : '#ffffff';
-                              const badgeTxt = isGcash ? 'G' : isMaya ? 'M' : 'QR';
                               const qrPayload = activeIntent.liveMode ? activeIntent.qrString : (activeIntent.mobilePayUrl || activeIntent.qrString);
                               return (
-                                <div style={{ background: '#ffffff', padding: '12px', borderRadius: '10px', lineHeight: 0, position: 'relative', boxShadow: '0 2px 12px rgba(0,0,0,0.25)' }}>
-                                  <img
-                                    src={`https://api.qrserver.com/v1/create-qr-code/?size=192x192&ecc=H&margin=2&color=${qrColor}&bgcolor=ffffff&data=${encodeURIComponent(qrPayload)}`}
-                                    alt="Dynamic QR Ph Code"
-                                    style={{ width: '192px', height: '192px', display: 'block', borderRadius: '4px' }}
-                                  />
-                                  <div style={{
-                                    position: 'absolute',
-                                    top: '50%',
-                                    left: '50%',
-                                    transform: 'translate(-50%, -50%)',
-                                    width: '36px',
-                                    height: '36px',
-                                    borderRadius: '9px',
-                                    background: badgeBg,
-                                    color: badgeFg,
-                                    border: '3px solid #ffffff',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    fontWeight: 800,
-                                    fontSize: isGcash ? '1rem' : '0.82rem',
-                                    letterSpacing: '-0.02em',
-                                    boxShadow: '0 2px 6px rgba(0,0,0,0.2)'
-                                  }}>
-                                    {badgeTxt}
+                                <div style={{ background: '#ffffff', padding: '12px 14px 14px', borderRadius: '12px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', boxShadow: '0 2px 12px rgba(0,0,0,0.28)' }}>
+                                  {/* Authentic Philippine QR Ph Header Mark */}
+                                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', lineHeight: 1 }}>
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                      <path d="M4 13V6.5A2.5 2.5 0 0 1 6.5 4H13" stroke="#0038A8" strokeWidth="3.2" strokeLinecap="round" />
+                                      <path d="M20 11v6.5a2.5 2.5 0 0 1-2.5 2.5H11" stroke="#CE1126" strokeWidth="3.2" strokeLinecap="round" />
+                                      <circle cx="12" cy="12" r="3.4" fill="#FCD116" />
+                                    </svg>
+                                    <span style={{ fontWeight: 800, fontSize: '0.92rem', letterSpacing: '-0.03em' }}>
+                                      <span style={{ color: '#CE1126' }}>QR</span>
+                                      <span style={{ color: '#0038A8' }}> Ph</span>
+                                    </span>
+                                  </div>
+                                  <div style={{ position: 'relative', lineHeight: 0 }}>
+                                    <img
+                                      src={`https://api.qrserver.com/v1/create-qr-code/?size=192x192&ecc=H&margin=2&color=000000&bgcolor=ffffff&data=${encodeURIComponent(qrPayload)}`}
+                                      alt="Dynamic QR Ph Code"
+                                      style={{ width: '192px', height: '192px', display: 'block', borderRadius: '4px' }}
+                                    />
+                                    {/* Centered Official QR Ph Tricolor Emblem */}
+                                    <div style={{
+                                      position: 'absolute',
+                                      top: '50%',
+                                      left: '50%',
+                                      transform: 'translate(-50%, -50%)',
+                                      width: '38px',
+                                      height: '38px',
+                                      borderRadius: '9px',
+                                      background: '#ffffff',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      boxShadow: '0 1px 4px rgba(0,0,0,0.14)'
+                                    }}>
+                                      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-label="QR Ph">
+                                        <path d="M4 13.5V6.5A2.5 2.5 0 0 1 6.5 4H13.5" stroke="#0038A8" strokeWidth="3.4" strokeLinecap="round" />
+                                        <path d="M20 10.5v7a2.5 2.5 0 0 1-2.5 2.5h-7" stroke="#CE1126" strokeWidth="3.4" strokeLinecap="round" />
+                                        <circle cx="12" cy="12" r="3.8" fill="#FCD116" />
+                                      </svg>
+                                    </div>
                                   </div>
                                 </div>
                               );
