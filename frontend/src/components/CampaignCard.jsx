@@ -6395,13 +6395,46 @@ export default function CampaignCard(props) {
                             justifyContent: 'center',
                             gap: '12px'
                           }}>
-                            <div style={{ background: '#ffffff', padding: '12px', borderRadius: '8px', lineHeight: 0 }}>
-                              <img
-                                src={`https://api.qrserver.com/v1/create-qr-code/?size=188x188&data=${encodeURIComponent(activeIntent.liveMode ? activeIntent.qrString : (activeIntent.mobilePayUrl || activeIntent.qrString))}`}
-                                alt="Dynamic QR Ph Code"
-                                style={{ width: '188px', height: '188px', display: 'block' }}
-                              />
-                            </div>
+                            {(() => {
+                              const m = String(activeIntent.paymentMethod || '').toLowerCase();
+                              const isGcash = m.includes('gcash');
+                              const isMaya = m.includes('maya');
+                              const qrColor = isGcash ? '0052FF' : isMaya ? '047857' : '18181b';
+                              const badgeBg = isGcash ? '#0052FF' : isMaya ? '#00D68F' : '#18181b';
+                              const badgeFg = isMaya ? '#052e16' : '#ffffff';
+                              const badgeTxt = isGcash ? 'G' : isMaya ? 'M' : 'QR';
+                              const qrPayload = activeIntent.liveMode ? activeIntent.qrString : (activeIntent.mobilePayUrl || activeIntent.qrString);
+                              return (
+                                <div style={{ background: '#ffffff', padding: '12px', borderRadius: '10px', lineHeight: 0, position: 'relative', boxShadow: '0 2px 12px rgba(0,0,0,0.25)' }}>
+                                  <img
+                                    src={`https://api.qrserver.com/v1/create-qr-code/?size=192x192&ecc=H&margin=2&color=${qrColor}&bgcolor=ffffff&data=${encodeURIComponent(qrPayload)}`}
+                                    alt="Dynamic QR Ph Code"
+                                    style={{ width: '192px', height: '192px', display: 'block', borderRadius: '4px' }}
+                                  />
+                                  <div style={{
+                                    position: 'absolute',
+                                    top: '50%',
+                                    left: '50%',
+                                    transform: 'translate(-50%, -50%)',
+                                    width: '36px',
+                                    height: '36px',
+                                    borderRadius: '9px',
+                                    background: badgeBg,
+                                    color: badgeFg,
+                                    border: '3px solid #ffffff',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    fontWeight: 800,
+                                    fontSize: isGcash ? '1rem' : '0.82rem',
+                                    letterSpacing: '-0.02em',
+                                    boxShadow: '0 2px 6px rgba(0,0,0,0.2)'
+                                  }}>
+                                    {badgeTxt}
+                                  </div>
+                                </div>
+                              );
+                            })()}
                             <div style={{ textAlign: 'center' }}>
                               <div style={{ fontSize: '0.76rem', fontWeight: 500, color: 'var(--text-primary, #ededed)' }}>
                                 {activeIntent.liveMode ? 'Scan with GCash, Maya, or Bank App' : 'Scan with phone camera'}

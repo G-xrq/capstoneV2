@@ -7049,53 +7049,137 @@ app.get('/api/payments/xendit-qrph/mobile-pay/:intentId', async (req, res) => {
     const method = String(row.Payment_Method || 'GCash').replace(/[<>&"]/g, '');
     const code = String(row.Tracking_Code || '').replace(/[<>&"]/g, '');
 
+    const rawAmt = Math.round(Number(row.Amount_Php || 0));
+    const isGcash = /gcash/i.test(method);
+    const isMaya = /maya/i.test(method);
+    const accent = isGcash ? '#007DFE' : isMaya ? '#00D68F' : '#a855f7';
+    const walletBrand = isGcash ? 'GCash Test Wallet' : isMaya ? 'Maya Test Wallet' : 'QR Ph Test Wallet';
+
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     res.send(`<!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1" />
-  <title>QR Ph Test Wallet · BBDRTS</title>
+  <title>${walletBrand} · BBDRTS</title>
   <style>
-    * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-    body { margin: 0; min-height: 100vh; background: #09090b; color: #fafafa; display: flex; align-items: center; justify-content: center; padding: 18px; }
-    .card { width: 100%; max-width: 400px; background: #111113; border: 1px solid #27272a; border-radius: 18px; padding: 22px; box-shadow: 0 20px 50px rgba(0,0,0,0.6); }
-    .pill { display: inline-block; font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: #38bdf8; background: rgba(56,189,248,.12); border: 1px solid rgba(56,189,248,.3); padding: 4px 10px; border-radius: 999px; }
-    h1 { margin: 12px 0 4px; font-size: 20px; }
-    .sub { color: #a1a1aa; font-size: 13px; margin: 0 0 18px; }
-    .amt-box { background: #18181b; border: 1px solid #27272a; border-radius: 12px; padding: 16px; text-align: center; margin-bottom: 16px; }
-    .amt-lbl { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: #a1a1aa; }
-    .amt { font-size: 34px; font-weight: 800; color: #10b981; margin-top: 4px; }
-    .row { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; padding: 8px 0; border-bottom: 1px solid #27272a; }
-    .row:last-of-type { border-bottom: none; }
-    .k { color: #a1a1aa; }
-    .v { font-weight: 600; text-align: right; }
-    .btn { width: 100%; margin-top: 18px; padding: 14px; border: none; border-radius: 12px; background: #10b981; color: #052e16; font-size: 15px; font-weight: 800; cursor: pointer; }
-    .btn:disabled { opacity: .6; cursor: wait; }
-    .done { text-align: center; padding: 16px; border-radius: 12px; background: rgba(16,185,129,.12); border: 1px solid rgba(16,185,129,.35); color: #d1fae5; margin-top: 14px; }
-    .err { color: #fca5a5; font-size: 13px; margin-top: 10px; text-align: center; }
+    * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif; }
+    body { margin: 0; min-height: 100vh; background: #000; color: #ededed; display: flex; align-items: center; justify-content: center; padding: 16px; }
+    .card { width: 100%; max-width: 410px; background: #0a0a0a; border: 1px solid #222; border-radius: 14px; padding: 20px; }
+    .top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+    .brand { display: inline-flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 600; color: #a1a1aa; }
+    .dot { width: 7px; height: 7px; border-radius: 50%; background: ${accent}; }
+    .bal-card { background: #111; border: 1px solid #222; border-radius: 10px; padding: 14px; margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    .bal-lbl { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: .05em; }
+    .bal-val { font-size: 22px; font-weight: 600; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; color: #ededed; margin-top: 2px; }
+    .topup-btn { height: 30px; padding: 0 10px; border-radius: 6px; border: 1px solid #2a2a2a; background: #18181b; color: #ededed; font-size: 11px; font-weight: 500; cursor: pointer; white-space: nowrap; }
+    .amt-sec { text-align: center; padding: 8px 0 14px; }
+    .amt-lbl { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: .06em; }
+    .amt { font-size: 34px; font-weight: 600; letter-spacing: -0.04em; font-variant-numeric: tabular-nums; color: #ededed; margin-top: 4px; }
+    .table { border: 1px solid #222; border-radius: 8px; background: #0f0f0f; overflow: hidden; margin-bottom: 14px; }
+    .row { display: flex; justify-content: space-between; gap: 12px; font-size: 12.5px; padding: 9px 12px; border-bottom: 1px solid #1e1e1e; }
+    .row:last-child { border-bottom: none; }
+    .k { color: #888; }
+    .v { font-weight: 500; text-align: right; color: #ededed; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
+    .btn { width: 100%; height: 42px; border: none; border-radius: 8px; background: #ededed; color: #0a0a0a; font-size: 14px; font-weight: 600; cursor: pointer; }
+    .btn:disabled { opacity: .45; cursor: not-allowed; }
+    .warn { padding: 10px 12px; border-radius: 8px; background: rgba(239,68,68,.1); border: 1px solid rgba(239,68,68,.3); color: #fca5a5; font-size: 12px; margin-bottom: 12px; display: none; }
+    .done { padding: 14px; border-radius: 8px; background: rgba(16,185,129,.08); border: 1px solid rgba(16,185,129,.3); color: #d1fae5; font-size: 13px; text-align: center; }
+    .hist { margin-top: 16px; border-top: 1px solid #1f1f1f; padding-top: 12px; }
+    .hist-hdr { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 8px; }
+    .hist-item { display: flex; justify-content: space-between; font-size: 12px; padding: 6px 0; border-bottom: 1px solid #161616; color: #a1a1aa; }
+    .hist-item:last-child { border-bottom: none; }
   </style>
 </head>
 <body>
   <div class="card">
-    <span class="pill">Xendit QR Ph · Test Wallet</span>
-    <h1>Confirm Relief Donation</h1>
-    <p class="sub">Real Xendit Test API settlement → Gasless Sepolia Proof</p>
-    <div class="amt-box">
+    <div class="top">
+      <div class="brand"><span class="dot"></span><span>${walletBrand}</span></div>
+      <span class="mono" style="color:#666;">Xendit Sandbox</span>
+    </div>
+
+    <div class="bal-card">
+      <div>
+        <div class="bal-lbl">Available Balance</div>
+        <div id="balVal" class="bal-val">₱100,000</div>
+      </div>
+      <button type="button" class="topup-btn" onclick="topUp()">+ Top Up ₱50k</button>
+    </div>
+
+    <div class="amt-sec">
       <div class="amt-lbl">Amount to Pay</div>
       <div class="amt">₱${amt}</div>
     </div>
-    <div class="row"><span class="k">Campaign</span><span class="v">${title}</span></div>
-    <div class="row"><span class="k">Channel</span><span class="v">${method} (QR Ph)</span></div>
-    <div class="row"><span class="k">Reference</span><span class="v">${code}</span></div>
+
+    <div class="table">
+      <div class="row"><span class="k">Campaign</span><span class="v">${title}</span></div>
+      <div class="row"><span class="k">Channel</span><span class="v">${method} · QR Ph</span></div>
+      <div class="row"><span class="k">Reference</span><span class="v mono">${code}</span></div>
+    </div>
+
+    <div id="warnBox" class="warn">Insufficient test wallet balance. Tap <strong>+ Top Up ₱50k</strong> above to add test funds.</div>
+
     ${alreadyPaid
-      ? `<div class="done"><strong>Already Paid &amp; Verified!</strong><br/><span style="font-size:12px;">Your laptop screen has been updated and notarized on Sepolia.</span></div>`
+      ? `<div class="done"><strong>Already Paid &amp; Verified</strong><br/><span style="font-size:12px;color:#86efac;">Sealed on Ethereum Sepolia.</span></div>`
       : `<button id="payBtn" class="btn" onclick="payNow()">Pay ₱${amt} Now</button>
-         <div id="statusBox"></div>`
+         <div id="statusBox" style="margin-top:10px;"></div>`
     }
+
+    <div id="histWrap" class="hist" style="display:none;">
+      <div class="hist-hdr">Recent Test Wallet Activity</div>
+      <div id="histList"></div>
+    </div>
   </div>
+
   <script>
+    const PAY_AMT = ${rawAmt};
+    const BAL_KEY = 'bbdrts_test_wallet_balance_php';
+    const HIST_KEY = 'bbdrts_test_wallet_history';
+
+    function getBalance() {
+      const saved = localStorage.getItem(BAL_KEY);
+      if (saved === null) {
+        localStorage.setItem(BAL_KEY, '100000');
+        return 100000;
+      }
+      return Math.max(0, Number(saved) || 0);
+    }
+
+    function renderWallet() {
+      const bal = getBalance();
+      document.getElementById('balVal').textContent = '₱' + bal.toLocaleString('en-US');
+      const btn = document.getElementById('payBtn');
+      const warn = document.getElementById('warnBox');
+      if (btn) {
+        if (bal < PAY_AMT) {
+          btn.disabled = true;
+          warn.style.display = 'block';
+        } else {
+          btn.disabled = false;
+          warn.style.display = 'none';
+        }
+      }
+      try {
+        const hist = JSON.parse(localStorage.getItem(HIST_KEY) || '[]');
+        if (hist.length > 0) {
+          document.getElementById('histWrap').style.display = 'block';
+          document.getElementById('histList').innerHTML = hist.slice(0, 4).map(h =>
+            '<div class="hist-item"><span>' + h.title.slice(0, 26) + '</span><strong style="color:#ededed;">-₱' + Number(h.amt).toLocaleString('en-US') + '</strong></div>'
+          ).join('');
+        }
+      } catch (_) {}
+    }
+
+    function topUp() {
+      const next = getBalance() + 50000;
+      localStorage.setItem(BAL_KEY, String(next));
+      renderWallet();
+    }
+
     async function payNow() {
+      const bal = getBalance();
+      if (bal < PAY_AMT) { renderWallet(); return; }
       const btn = document.getElementById('payBtn');
       const box = document.getElementById('statusBox');
       btn.disabled = true;
@@ -7104,14 +7188,24 @@ app.get('/api/payments/xendit-qrph/mobile-pay/:intentId', async (req, res) => {
         const res = await fetch('/api/payments/xendit-qrph/simulate/${intentId}', { method: 'POST' });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Payment failed');
+        const newBal = Math.max(0, bal - PAY_AMT);
+        localStorage.setItem(BAL_KEY, String(newBal));
+        try {
+          const hist = JSON.parse(localStorage.getItem(HIST_KEY) || '[]');
+          hist.unshift({ title: '${title}', amt: PAY_AMT, ref: '${code}', ts: Date.now() });
+          localStorage.setItem(HIST_KEY, JSON.stringify(hist.slice(0, 10)));
+        } catch (_) {}
+        renderWallet();
         btn.style.display = 'none';
-        box.innerHTML = '<div class="done"><strong>✓ Payment Confirmed!</strong><br/><span style="font-size:12px;">Look at your laptop screen — your donation is now verified &amp; sealed on Ethereum Sepolia.</span></div>';
+        box.innerHTML = '<div class="done"><strong>✓ Payment Confirmed</strong><br/><span style="font-size:12px;color:#86efac;">New Balance: ₱' + newBal.toLocaleString('en-US') + ' · Sealed on Ethereum Sepolia</span></div>';
       } catch (e) {
         btn.disabled = false;
         btn.textContent = 'Pay ₱${amt} Now';
-        box.innerHTML = '<div class="err">' + (e.message || 'Error') + '</div>';
+        box.innerHTML = '<div class="warn" style="display:block;">' + (e.message || 'Error') + '</div>';
       }
     }
+
+    renderWallet();
   </script>
 </body>
 </html>`);
