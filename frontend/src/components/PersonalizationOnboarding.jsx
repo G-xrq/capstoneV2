@@ -481,274 +481,208 @@ export default function PersonalizationOnboarding({
               <p className="preview-page-sub">{t.dashboardSub}</p>
             </div>
 
-            {/* Hero Banner */}
-            {prefs.experienceMode === 'standard' ? (
-              <div className="preview-hero-card">
-                <div className="preview-hero-top">
-                  <div className="preview-hero-user">
-                    <div className="preview-hero-avatar-photo">
-                      <span className="preview-hero-avatar-initials">{userInitials}</span>
+            {/* ── 1. Borderless Vercel Geist Editorial Hero + Matte Isometric Mesh ── */}
+            <div className="prv-geist-hero">
+              <div className="prv-geist-mesh" aria-hidden="true" />
+
+              <div className="prv-geist-hero-inner">
+                <div className="prv-geist-hero-top">
+                  <div className="prv-geist-identity">
+                    <div className="prv-geist-avatar">
+                      <span>{userInitials}</span>
                     </div>
-                    <div className="preview-hero-meta">
-                      <div className="preview-hero-name-row">
-                        <h3 className="preview-hero-name">{displayName}</h3>
-                        <span className="preview-verified-badge">
-                          <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>verified</span>
-                          <span>{isOrgUser ? 'Verified NGO' : t.verifiedDonor}</span>
+                    <div className="prv-geist-meta">
+                      <div className="prv-geist-name-row">
+                        <h3 className="prv-geist-name">{displayName}</h3>
+                        <span
+                          className="material-symbols-outlined prv-geist-verified"
+                          title={isOrgUser ? 'Verified NGO' : t.verifiedDonor}
+                        >
+                          verified
                         </span>
                       </div>
-
-                      <div className="preview-hero-subtext" style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
-                        <span>{t.walletStatus}</span>
-                        <span>•</span>
-                        <span>{t.sepoliaNet}</span>
-                        
-                      </div>
+                      <p className="prv-geist-sub">
+                        {prefs.experienceMode === 'standard'
+                          ? `${t.walletStatus} · ${t.sepoliaNet}`
+                          : t.simplifiedSub}
+                      </p>
                     </div>
                   </div>
 
-                  <div className="preview-hero-stat">
-                    <span className="preview-stat-label">{t.lifetimeGiving}</span>
-                    <span className="preview-stat-val">₱0</span>
-                    <span className="preview-stat-sub gray">
-                      <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>military_tech</span>
-                      <span>{t.newContributor} &gt;</span>
-                    </span>
+                  <div className="prv-geist-actions">
+                    {prefs.experienceMode === 'standard' ? (
+                      <>
+                        <button type="button" className="prv-geist-btn primary">
+                          <span>{t.browseCamp}</span>
+                          <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>arrow_forward</span>
+                        </button>
+                        <button type="button" className="prv-geist-btn">
+                          <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>map</span>
+                          <span>{t.reliefRadar}</span>
+                        </button>
+                        <span className="prv-geist-ghost">
+                          <span>{t.publicLedger}</span>
+                          <span className="material-symbols-outlined" style={{ fontSize: '11px' }}>north_east</span>
+                        </span>
+                      </>
+                    ) : (
+                      <button type="button" className="prv-geist-btn primary">
+                        <span>{t.startGiving}</span>
+                        <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>arrow_forward</span>
+                      </button>
+                    )}
                   </div>
                 </div>
 
-                {/* Action Buttons Row */}
-                <div className="preview-hero-actions">
-                  <button type="button" className="preview-action-btn">
-                    <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>campaign</span>
-                    <span>{t.browseCamp}</span>
-                  </button>
-                  <button type="button" className="preview-action-btn">
-                    <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>receipt_long</span>
-                    <span>{t.donationReceipts}</span>
-                  </button>
-                  <button type="button" className="preview-action-btn">
-                    <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>radar</span>
-                    <span>{t.reliefRadar}</span>
-                  </button>
-                  <button type="button" className="preview-action-btn public-ledger-btn">
-                    <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>analytics</span>
-                    <span>{t.publicLedger}</span>
-                    <span className="material-symbols-outlined" style={{ fontSize: '12px', opacity: 0.7 }}>open_in_new</span>
-                    
-                  </button>
+                {/* Bare Hairline Stat Strip with Left Icons */}
+                <div className={`prv-geist-stats ${prefs.experienceMode === 'simplified' ? 'cols-3' : 'cols-4'}`}>
+                  <div className="prv-geist-stat">
+                    <span className="prv-geist-stat-icon">
+                      <span className="material-symbols-outlined">payments</span>
+                    </span>
+                    <div className="prv-geist-stat-text">
+                      <span className="prv-geist-stat-val">₱0</span>
+                      <span className="prv-geist-stat-lbl">{t.totalDonated}</span>
+                    </div>
+                  </div>
+
+                  <div className="prv-geist-stat">
+                    <span className="prv-geist-stat-icon">
+                      <span className="material-symbols-outlined">campaign</span>
+                    </span>
+                    <div className="prv-geist-stat-text">
+                      <span className="prv-geist-stat-val">{activeCampaignsCount}</span>
+                      <span className="prv-geist-stat-lbl">{t.reliefCamp}</span>
+                    </div>
+                  </div>
+
+                  <div className="prv-geist-stat">
+                    <span className="prv-geist-stat-icon">
+                      <span className="material-symbols-outlined">groups</span>
+                    </span>
+                    <div className="prv-geist-stat-text">
+                      <span className="prv-geist-stat-val">0</span>
+                      <span className="prv-geist-stat-lbl">{t.familiesReached}</span>
+                    </div>
+                  </div>
+
+                  {prefs.experienceMode === 'standard' && (
+                    <div className="prv-geist-stat">
+                      <span className="prv-geist-stat-icon is-badge">
+                        <span className="material-symbols-outlined" style={{ color: '#a855f7' }}>workspace_premium</span>
+                      </span>
+                      <div className="prv-geist-stat-text">
+                        <span className="prv-geist-stat-val is-tier">
+                          <span>{t.newContributor}</span>
+                          <span className="material-symbols-outlined" style={{ fontSize: '11px', opacity: 0.55 }}>north_east</span>
+                        </span>
+                        <span className="prv-geist-stat-lbl">{t.pledgeFirst}</span>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
-            ) : (
-              <div className="preview-hero-card preview-simplified-welcome-card">
-                <div className="preview-simplified-welcome-wrap">
-                  <div className="preview-simplified-welcome-avatar">
-                    <span className="preview-hero-avatar-initials">{userInitials}</span>
+            </div>
+
+            {/* ── 2. Asymmetric Bento Split (1+2 Featured Campaigns + Recent Contributions Ledger) ── */}
+            <div className="prv-geist-split">
+              {/* Left Column: Featured Campaigns (1 Spotlight + 2 Compact Cards) */}
+              <div className="prv-geist-col">
+                <div className="prv-geist-sec-bar">
+                  <div className="prv-geist-sec-left">
+                    <span className="prv-geist-sec-title">{t.activeAppeals}</span>
+                    <span className="prv-geist-count-pill">{activeCampaignsCount}</span>
                   </div>
-                  <div className="preview-simplified-welcome-body">
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <h3 className="preview-simplified-welcome-title">{t.welcomeUser}, {displayName} 👋</h3>
-                      <span className="preview-verified-badge">
-                        <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>verified</span>
-                        <span>{isOrgUser ? 'Verified NGO' : t.verifiedDonor}</span>
+                  <span className="prv-geist-sec-link">
+                    <span>{t.viewAllCamp.replace(/\s*\(\d+\)/, '')}</span>
+                  </span>
+                </div>
+
+                {/* Lead Spotlight Card (#1) */}
+                <div className="prv-geist-spotlight">
+                  <div className="prv-geist-spot-media">
+                    <span className="preview-skeleton-bar is-tag" style={{ width: '68px', height: '15px', borderRadius: '999px' }} />
+                  </div>
+                  <div className="prv-geist-spot-body">
+                    <span className="preview-skeleton-bar is-tag" style={{ width: '74px', height: '14px', borderRadius: '999px' }} />
+                    <div className="preview-skeleton-bar is-title" style={{ width: '78%', height: '13px', borderRadius: '4px' }} />
+                    <div className="prv-geist-prog-track">
+                      <div className="prv-geist-prog-fill" style={{ width: '72%' }} />
+                    </div>
+                    <div className="prv-geist-spot-foot">
+                      <span className="preview-skeleton-bar is-line" style={{ width: '42%', height: '8px', borderRadius: '4px' }} />
+                      <div className="prv-geist-row-btns">
+                        {prefs.experienceMode === 'standard' && (
+                          <span className="prv-geist-icon-sm">
+                            <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>map</span>
+                          </span>
+                        )}
+                        <button type="button" className="prv-geist-donate-sm">
+                          <span>{prefs.experienceMode === 'standard' ? t.donate : t.donateRelief}</span>
+                          <span className="material-symbols-outlined" style={{ fontSize: '11px' }}>arrow_forward</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Secondary 2-Col Compact Cards (#2 & #3) */}
+                <div className="prv-geist-mini-grid">
+                  {[0, 1].map((idx) => (
+                    <div className="prv-geist-mini-card" key={idx}>
+                      <div className="prv-geist-mini-media">
+                        <span className="preview-skeleton-bar is-tag" style={{ width: '64px', height: '14px', borderRadius: '999px' }} />
+                      </div>
+                      <div className="prv-geist-mini-body">
+                        <div className="preview-skeleton-bar is-title" style={{ width: idx === 0 ? '82%' : '74%', height: '11px', borderRadius: '4px' }} />
+                        <div className="prv-geist-prog-track">
+                          <div className="prv-geist-prog-fill" style={{ width: idx === 0 ? '58%' : '32%' }} />
+                        </div>
+                        <div className="prv-geist-spot-foot">
+                          <span className="preview-skeleton-bar is-line" style={{ width: '38%', height: '7px', borderRadius: '4px' }} />
+                          <button type="button" className="prv-geist-donate-sm">
+                            <span>{t.donate}</span>
+                            <span className="material-symbols-outlined" style={{ fontSize: '10px' }}>arrow_forward</span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Right Column: Recent Contributions Ledger */}
+              <div className="prv-geist-col">
+                <div className="prv-geist-sec-bar">
+                  <div className="prv-geist-sec-left">
+                    <span className="prv-geist-sec-title">{t.donationReceipts}</span>
+                  </div>
+                  <span className="prv-geist-sec-link">→</span>
+                </div>
+
+                <div className="prv-geist-ledger">
+                  {['GCASH', 'GCASH', 'MAYA'].map((rail, rIdx) => (
+                    <div className="prv-geist-ledger-row" key={rIdx}>
+                      <div className="prv-geist-ledger-left">
+                        <span className="prv-geist-rail-pill">{rail}</span>
+                        <div className="prv-geist-ledger-lines">
+                          <span className="preview-skeleton-bar is-title" style={{ width: rIdx === 1 ? '86%' : '72%', height: '9px', borderRadius: '3px' }} />
+                          <span className="prv-geist-onchain">
+                            <span className="prv-geist-dot" />
+                            <span>On-Chain</span>
+                          </span>
+                        </div>
+                      </div>
+                      <span className="prv-geist-amt">
+                        {rIdx === 0 ? '+₱1,000' : rIdx === 1 ? '+₱5,000' : '+₱2,500'}
                       </span>
                     </div>
-                    <p className="preview-simplified-welcome-desc">{t.simplifiedSub}</p>
-                  </div>
-                  <button type="button" className="preview-simplified-primary-cta">
-                    <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>volunteer_activism</span>
-                    <span>{t.startGiving}</span>
-                    <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>arrow_forward</span>
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* Metrics Section */}
-            {prefs.experienceMode === 'standard' ? (
-              <div className="preview-metrics-row">
-                <div className="preview-metric-card">
-                  <div className="preview-metric-head">
-                    <span className="preview-metric-title">{t.totalDonated}</span>
-                    <span className="material-symbols-outlined preview-metric-icon">payments</span>
-                  </div>
-                  <div className="preview-metric-num accent">₱0</div>
-                  <p className="preview-metric-cap" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '4px' }}>
-                    <span>{t.onChainVerified}</span>
-                    
-                  </p>
-                </div>
-
-                <div className="preview-metric-card">
-                  <div className="preview-metric-head">
-                    <span className="preview-metric-title">{t.reliefCamp}</span>
-                    <span className="material-symbols-outlined preview-metric-icon">campaign</span>
-                  </div>
-                  <div className="preview-metric-num">{activeCampaignsCount}</div>
-                  <p className="preview-metric-cap">
-                    {criticalUrgencyCount > 0 ? t.criticalPriority.replace('16', String(criticalUrgencyCount)) : t.activeAppeals}
-                  </p>
-                </div>
-
-                <div className="preview-metric-card">
-                  <div className="preview-metric-head">
-                    <span className="preview-metric-title">{t.familiesReached}</span>
-                    <span className="material-symbols-outlined preview-metric-icon">groups</span>
-                  </div>
-                  <div className="preview-metric-num">0</div>
-                  <p className="preview-metric-cap">{t.awaitingPledge}</p>
-                </div>
-
-                <div className="preview-metric-card">
-                  <div className="preview-metric-head">
-                    <span className="preview-metric-title">{t.honorRoll}</span>
-                    <span className="material-symbols-outlined preview-metric-icon">workspace_premium</span>
-                  </div>
-                  <div className="preview-metric-num">{t.newContributor}</div>
-                  <p className="preview-metric-cap">{t.pledgeFirst}</p>
-                </div>
-              </div>
-            ) : (
-              <div className="preview-simplified-strip">
-                <div className="preview-simple-pill">
-                  <span className="material-symbols-outlined" style={{ color: '#10b981', fontSize: '18px', flexShrink: 0 }}>campaign</span>
-                  <div>
-                    <strong>{t.active15.replace('15', String(activeCampaignsCount))}</strong>
-                    <span className="preview-pill-sub">{t.active15Sub}</span>
+                  ))}
+                  <div className="prv-geist-ledger-foot">
+                    <span>{t.donationReceipts}</span>
+                    <span>→</span>
                   </div>
                 </div>
-                <div className="preview-simple-pill">
-                  <span className="material-symbols-outlined" style={{ color: '#10b981', fontSize: '18px', flexShrink: 0 }}>verified</span>
-                  <div>
-                    <strong>{t.direct100}</strong>
-                    <span className="preview-pill-sub">{t.direct100Sub}</span>
-                  </div>
-                  
-                </div>
-              </div>
-            )}
-
-            {/* Active Disaster Relief Appeals Section */}
-            <div className="preview-section-wrap">
-              <div className="preview-section-head">
-                <div className="preview-section-title">
-                  <span className="preview-asterisk">*</span>
-                  <span>{t.activeAppeals}</span>
-                </div>
-                <span className="preview-section-link">{t.viewAllCamp.replace('17', String(activeCampaignsCount))}</span>
-              </div>
-
-              {/* 3 Campaign Cards (All Skeleton Content + Perfectly Aligned Buttons) */}
-              <div className="preview-campaigns-grid-row">
-                
-                {/* Card 1 */}
-                <div className="preview-camp-card-item">
-                  <div className="preview-camp-card-header">
-                    <span className="preview-skeleton-bar is-tag" style={{ width: '84px', height: '18px', borderRadius: '4px' }} />
-                  </div>
-                  <div className="preview-camp-card-content">
-                    <div className="preview-skeleton-bar is-title" style={{ width: '76%', borderRadius: '4px', marginBottom: '10px' }} />
-                    <div className="preview-skeleton-bar is-line" style={{ width: '92%', borderRadius: '4px', marginBottom: '5px' }} />
-                    <div className="preview-skeleton-bar is-line" style={{ width: '58%', borderRadius: '4px', marginBottom: '10px' }} />
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '5px' }}>
-                      <span className="preview-skeleton-bar is-line" style={{ width: '42%', borderRadius: '4px' }} />
-                      <span className="preview-skeleton-bar is-line" style={{ width: '16%', borderRadius: '4px' }} />
-                    </div>
-                    <div className="preview-skeleton-bar is-track" style={{ width: '100%', height: '5px', borderRadius: '999px', marginBottom: '8px' }} />
-                    {prefs.experienceMode === 'standard' ? (
-                      <div className="preview-camp-btn-row">
-                        <button type="button" className="preview-camp-donate-btn">
-                          <span>{t.donate}</span>
-                          <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>arrow_forward</span>
-                        </button>
-                        <button type="button" className="preview-camp-details-btn">
-                          <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>map</span>
-                          <span>{t.detailsMap}</span>
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="preview-camp-btn-row-simple">
-                        <button type="button" className="preview-simplified-donate-cta">
-                          <span>{t.donateRelief}</span>
-                          <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>arrow_forward</span>
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Card 2 */}
-                <div className="preview-camp-card-item">
-                  <div className="preview-camp-card-header">
-                    <span className="preview-skeleton-bar is-tag" style={{ width: '92px', height: '18px', borderRadius: '4px' }} />
-                  </div>
-                  <div className="preview-camp-card-content">
-                    <div className="preview-skeleton-bar is-title" style={{ width: '84%', borderRadius: '4px', marginBottom: '10px' }} />
-                    <div className="preview-skeleton-bar is-line" style={{ width: '90%', borderRadius: '4px', marginBottom: '5px' }} />
-                    <div className="preview-skeleton-bar is-line" style={{ width: '64%', borderRadius: '4px', marginBottom: '10px' }} />
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '5px' }}>
-                      <span className="preview-skeleton-bar is-line" style={{ width: '38%', borderRadius: '4px' }} />
-                      <span className="preview-skeleton-bar is-line" style={{ width: '20%', borderRadius: '4px' }} />
-                    </div>
-                    <div className="preview-skeleton-bar is-track" style={{ width: '100%', height: '5px', borderRadius: '999px', marginBottom: '8px' }} />
-                    {prefs.experienceMode === 'standard' ? (
-                      <div className="preview-camp-btn-row">
-                        <button type="button" className="preview-camp-donate-btn">
-                          <span>{t.donate}</span>
-                          <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>arrow_forward</span>
-                        </button>
-                        <button type="button" className="preview-camp-details-btn">
-                          <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>map</span>
-                          <span>{t.detailsMap}</span>
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="preview-camp-btn-row-simple">
-                        <button type="button" className="preview-simplified-donate-cta">
-                          <span>{t.donateRelief}</span>
-                          <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>arrow_forward</span>
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Card 3 */}
-                <div className="preview-camp-card-item">
-                  <div className="preview-camp-card-header">
-                    <span className="preview-skeleton-bar is-tag" style={{ width: '80px', height: '18px', borderRadius: '4px' }} />
-                  </div>
-                  <div className="preview-camp-card-content">
-                    <div className="preview-skeleton-bar is-title" style={{ width: '80%', borderRadius: '4px', marginBottom: '10px' }} />
-                    <div className="preview-skeleton-bar is-line" style={{ width: '94%', borderRadius: '4px', marginBottom: '5px' }} />
-                    <div className="preview-skeleton-bar is-line" style={{ width: '52%', borderRadius: '4px', marginBottom: '10px' }} />
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '5px' }}>
-                      <span className="preview-skeleton-bar is-line" style={{ width: '44%', borderRadius: '4px' }} />
-                      <span className="preview-skeleton-bar is-line" style={{ width: '15%', borderRadius: '4px' }} />
-                    </div>
-                    <div className="preview-skeleton-bar is-track" style={{ width: '100%', height: '5px', borderRadius: '999px', marginBottom: '8px' }} />
-                    {prefs.experienceMode === 'standard' ? (
-                      <div className="preview-camp-btn-row">
-                        <button type="button" className="preview-camp-donate-btn">
-                          <span>{t.donate}</span>
-                          <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>arrow_forward</span>
-                        </button>
-                        <button type="button" className="preview-camp-details-btn">
-                          <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>map</span>
-                          <span>{t.detailsMap}</span>
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="preview-camp-btn-row-simple">
-                        <button type="button" className="preview-simplified-donate-cta">
-                          <span>{t.donateRelief}</span>
-                          <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>arrow_forward</span>
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
               </div>
             </div>
 

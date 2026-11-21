@@ -3259,3 +3259,576 @@
   border-color: rgba(5, 150, 105, 0.35);
   color: #059669;
 }
+
+/* ── Vercel Geist Donor Overview Preview Canvas (.prv-geist-*) ── */
+.onboarding-preview-window.dark .preview-desktop-canvas,
+.onboarding-preview-window.dark .preview-app-main {
+  background: #000000 !important;
+}
+
+.onboarding-preview-window.light .preview-desktop-canvas,
+.onboarding-preview-window.light .preview-app-main {
+  background: #ffffff !important;
+}
+
+.prv-geist-hero {
+  position: relative;
+  margin-bottom: 18px;
+  padding-top: 6px;
+  overflow: visible;
+}
+
+.prv-geist-mesh {
+  position: absolute;
+  top: -78px;
+  right: -4px;
+  bottom: 16px;
+  left: 0;
+  pointer-events: none;
+  z-index: 0;
+  background-image: url('/donor-hero-mesh-light.png');
+  background-size: contain;
+  background-position: right top;
+  background-repeat: no-repeat;
+  mix-blend-mode: multiply;
+  opacity: 0.28;
+  -webkit-mask-image: linear-gradient(242deg, rgba(0, 0, 0, 1) 0%, rgba(0, 0, 0, 1) 48%, rgba(0, 0, 0, 0.42) 66%, rgba(0, 0, 0, 0) 82%);
+  mask-image: linear-gradient(242deg, rgba(0, 0, 0, 1) 0%, rgba(0, 0, 0, 1) 48%, rgba(0, 0, 0, 0.42) 66%, rgba(0, 0, 0, 0) 82%);
+}
+
+.onboarding-preview-window.dark .prv-geist-mesh {
+  background-image: url('/donor-hero-mesh-dark.png');
+  mix-blend-mode: screen;
+  opacity: 0.24;
+}
+
+.prv-geist-hero-inner {
+  position: relative;
+  z-index: 1;
+}
+
+.prv-geist-hero-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.prv-geist-identity {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-width: 0;
+}
+
+.prv-geist-avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: #f4f4f5;
+  border: 1px solid #d4d4d8;
+  color: #09090b;
+  font-weight: 700;
+  font-size: 0.8rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.onboarding-preview-window.dark .prv-geist-avatar {
+  background: #141414;
+  border-color: #2e2e2e;
+  color: #ffffff;
+}
+
+.prv-geist-meta {
+  min-width: 0;
+}
+
+.prv-geist-name-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.prv-geist-name {
+  margin: 0;
+  font-size: 1.32em;
+  font-weight: 700;
+  letter-spacing: -0.035em;
+  color: #09090b;
+  line-height: 1.15;
+}
+
+.onboarding-preview-window.dark .prv-geist-name {
+  color: #ffffff;
+}
+
+.prv-geist-verified {
+  font-size: 16px;
+  color: #10b981;
+  font-variation-settings: 'FILL' 1, 'wght' 500, 'GRAD' 0, 'opsz' 24;
+}
+
+.prv-geist-sub {
+  margin: 2px 0 0;
+  font-size: 0.72em;
+  color: #71717a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.onboarding-preview-window.dark .prv-geist-sub {
+  color: #a1a1aa;
+}
+
+.prv-geist-actions {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-shrink: 0;
+}
+
+.prv-geist-btn {
+  height: 29px;
+  padding: 0 11px;
+  border-radius: 7px;
+  border: 1px solid #e4e4e7;
+  background: #ffffff;
+  color: #09090b;
+  font-size: 0.7em;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+
+.onboarding-preview-window.dark .prv-geist-btn {
+  background: #0a0a0a;
+  border-color: #262626;
+  color: #ededed;
+}
+
+.prv-geist-btn.primary {
+  background: #09090b;
+  border-color: #09090b;
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.onboarding-preview-window.dark .prv-geist-btn.primary {
+  background: #ffffff;
+  border-color: #ffffff;
+  color: #000000;
+}
+
+.prv-geist-ghost {
+  font-size: 0.68em;
+  font-weight: 500;
+  color: #71717a;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  white-space: nowrap;
+}
+
+.onboarding-preview-window.dark .prv-geist-ghost {
+  color: #a1a1aa;
+}
+
+/* Bare Hairline Stat Strip */
+.prv-geist-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  border-top: 1px solid #e4e4e7;
+  border-bottom: 1px solid #e4e4e7;
+}
+
+.prv-geist-stats.cols-3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.onboarding-preview-window.dark .prv-geist-stats {
+  border-top-color: #1f1f1f;
+  border-bottom-color: #1f1f1f;
+}
+
+.prv-geist-stat {
+  padding: 12px 10px 12px 0;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+}
+
+.prv-geist-stat + .prv-geist-stat {
+  padding-left: 12px;
+  border-left: 1px solid #e4e4e7;
+}
+
+.onboarding-preview-window.dark .prv-geist-stat + .prv-geist-stat {
+  border-left-color: #1a1a1a;
+}
+
+.prv-geist-stat-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+  background: #f4f4f5;
+  border: 1px solid #e4e4e7;
+  color: #52525b;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.prv-geist-stat-icon.is-badge {
+  border-radius: 50%;
+  background: #ffffff;
+}
+
+.prv-geist-stat-icon .material-symbols-outlined {
+  font-size: 15px;
+}
+
+.onboarding-preview-window.dark .prv-geist-stat-icon {
+  background: #0a0a0a;
+  border-color: #262626;
+  color: #a1a1aa;
+}
+
+.prv-geist-stat-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.prv-geist-stat-val {
+  font-size: 1.05em;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: #09090b;
+  line-height: 1.15;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.prv-geist-stat-val.is-tier {
+  font-size: 0.85em;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.onboarding-preview-window.dark .prv-geist-stat-val {
+  color: #ffffff;
+}
+
+.prv-geist-stat-lbl {
+  font-size: 0.65em;
+  color: #71717a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Asymmetric Bento Split */
+.prv-geist-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.prv-geist-col {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.prv-geist-sec-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 9px;
+}
+
+.prv-geist-sec-left {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.prv-geist-sec-title {
+  font-size: 0.82em;
+  font-weight: 600;
+  color: #09090b;
+  letter-spacing: -0.015em;
+}
+
+.onboarding-preview-window.dark .prv-geist-sec-title {
+  color: #ffffff;
+}
+
+.prv-geist-count-pill {
+  font-size: 0.62em;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 9999px;
+  background: #f4f4f5;
+  border: 1px solid #e4e4e7;
+  color: #52525b;
+}
+
+.onboarding-preview-window.dark .prv-geist-count-pill {
+  background: #141414;
+  border-color: #262626;
+  color: #a1a1aa;
+}
+
+.prv-geist-sec-link {
+  font-size: 0.68em;
+  font-weight: 500;
+  color: #71717a;
+}
+
+/* Lead Spotlight Card */
+.prv-geist-spotlight {
+  display: grid;
+  grid-template-columns: 120px minmax(0, 1fr);
+  border-radius: 10px;
+  background: #ffffff;
+  border: 1px solid #e4e4e7;
+  overflow: hidden;
+  margin-bottom: 10px;
+}
+
+.onboarding-preview-window.dark .prv-geist-spotlight {
+  background: #0a0a0a;
+  border-color: #262626;
+}
+
+.prv-geist-spot-media {
+  min-height: 98px;
+  background: linear-gradient(135deg, #f4f4f5 0%, #e4e4e7 100%);
+  padding: 8px;
+}
+
+.onboarding-preview-window.dark .prv-geist-spot-media {
+  background: linear-gradient(135deg, #141414 0%, #0d0d0d 100%);
+}
+
+.prv-geist-spot-body {
+  padding: 11px 13px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.prv-geist-prog-track {
+  width: 100%;
+  height: 4px;
+  border-radius: 999px;
+  background: #e4e4e7;
+  overflow: hidden;
+}
+
+.onboarding-preview-window.dark .prv-geist-prog-track {
+  background: #1f1f1f;
+}
+
+.prv-geist-prog-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #0d9488 0%, #10b981 100%);
+}
+
+.prv-geist-spot-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.prv-geist-row-btns {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.prv-geist-icon-sm {
+  width: 22px;
+  height: 22px;
+  border-radius: 5px;
+  border: 1px solid #e4e4e7;
+  color: #71717a;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.onboarding-preview-window.dark .prv-geist-icon-sm {
+  border-color: #262626;
+  color: #a1a1aa;
+}
+
+.prv-geist-donate-sm {
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 5px;
+  border: none;
+  background: #09090b;
+  color: #ffffff;
+  font-size: 0.62em;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.onboarding-preview-window.dark .prv-geist-donate-sm {
+  background: #ffffff;
+  color: #000000;
+}
+
+/* Secondary 2-Col Compact Cards */
+.prv-geist-mini-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.prv-geist-mini-card {
+  border-radius: 10px;
+  background: #ffffff;
+  border: 1px solid #e4e4e7;
+  overflow: hidden;
+}
+
+.onboarding-preview-window.dark .prv-geist-mini-card {
+  background: #0a0a0a;
+  border-color: #262626;
+}
+
+.prv-geist-mini-media {
+  height: 52px;
+  background: linear-gradient(135deg, #f4f4f5 0%, #e4e4e7 100%);
+  padding: 7px;
+}
+
+.onboarding-preview-window.dark .prv-geist-mini-media {
+  background: linear-gradient(135deg, #141414 0%, #0d0d0d 100%);
+}
+
+.prv-geist-mini-body {
+  padding: 9px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+/* Right Column: Recent Contributions Ledger */
+.prv-geist-ledger {
+  border-radius: 10px;
+  background: #ffffff;
+  border: 1px solid #e4e4e7;
+  overflow: hidden;
+}
+
+.onboarding-preview-window.dark .prv-geist-ledger {
+  background: #0a0a0a;
+  border-color: #262626;
+}
+
+.prv-geist-ledger-row {
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border-bottom: 1px solid #e4e4e7;
+}
+
+.onboarding-preview-window.dark .prv-geist-ledger-row {
+  border-bottom-color: #18181b;
+}
+
+.prv-geist-ledger-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+.prv-geist-rail-pill {
+  min-width: 38px;
+  padding: 2px 5px;
+  border-radius: 5px;
+  font-size: 0.56em;
+  font-weight: 600;
+  text-align: center;
+  background: #f4f4f5;
+  border: 1px solid #e4e4e7;
+  color: #52525b;
+  flex-shrink: 0;
+}
+
+.onboarding-preview-window.dark .prv-geist-rail-pill {
+  background: #141414;
+  border-color: #262626;
+  color: #a1a1aa;
+}
+
+.prv-geist-ledger-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex: 1;
+  min-width: 0;
+}
+
+.prv-geist-onchain {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.6em;
+  color: #71717a;
+}
+
+.prv-geist-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #10b981;
+}
+
+.prv-geist-amt {
+  font-size: 0.72em;
+  font-weight: 600;
+  color: #09090b;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.onboarding-preview-window.dark .prv-geist-amt {
+  color: #ffffff;
+}
+
+.prv-geist-ledger-foot {
+  padding: 9px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.64em;
+  font-weight: 500;
+  color: #71717a;
+}
