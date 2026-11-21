@@ -1,13 +1,14 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
 
 const RANGES = [
-  { id: 'TODAY', label: 'Today', days: 1, buckets: 8 },
-  { id: 'WEEK', label: 'Week', days: 7, buckets: 7 },
-  { id: 'MONTH', label: 'Month', days: 30, buckets: 10 },
-  { id: 'YEAR', label: 'Year', days: 365, buckets: 12 }
+  { id: 'TODAY', label: 'Today' },
+  { id: 'WEEK', label: 'Week' },
+  { id: 'MONTH', label: 'Month' },
+  { id: 'YEAR', label: 'Year' },
+  { id: 'ALL', label: 'All' }
 ];
 
-const SAMPLES = 48; // Fixed sample resolution for seamless continuous morphing across any bucket count
+const SAMPLES = 64; // Dense uniform curve resolution for continuous zero-break directional morphing
 
 function formatCompactPhp(val) {
   const n = Number(val) || 0;
@@ -17,16 +18,14 @@ function formatCompactPhp(val) {
   return `₱${Math.round(n)}`;
 }
 
-// Compute Fritsch-Carlson monotone Hermite tangents for a discrete set of (x, y) points
+// Fritsch-Carlson monotone Hermite tangents (guarantees zero below-zero overshoot)
 function computeMonotoneTangents(pts) {
   const n = pts.length;
   if (n < 2) return new Array(n).fill(0);
 
-  const dx = [];
   const slopes = [];
   for (let i = 0; i < n - 1; i++) {
     const dxi = pts[i + 1].x - pts[i].x;
-    dx.push(dxi);
     slopes.push(dxi !== 0 ? (pts[i + 1].y - pts[i].y) / dxi : 0);
   }
 
@@ -56,7 +55,7 @@ function computeMonotoneTangents(pts) {
   return m;
 }
 
-// Sample a monotone Hermite curve defined on normalized [0, 1] x-domain at `sampleCount` evenly spaced points
+// Evaluate monotone spline across [0..1] into `sampleCount` uniform points
 function sampleMonotoneY(normalizedValues, sampleCount) {
   const n = normalizedValues.length;
   if (n === 0) return new Array(sampleCount).fill(0);
@@ -90,7 +89,6 @@ function sampleMonotoneY(normalizedValues, sampleCount) {
   return out;
 }
 
-// Build smooth SVG path from dense resampled normalized values [0..1]
 function buildPathFromSamples(normSamples, padL, innerW, baselineY, innerH) {
   const n = normSamples.length;
   if (n === 0) return '';
@@ -112,7 +110,6 @@ function buildPathFromSamples(normSamples, padL, innerW, baselineY, innerH) {
   return d;
 }
 
-// Read live interpolated normalized Y at any normalized X position u ∈ [0, 1]
 function sampleAtU(normSamples, u) {
   const n = normSamples.length;
   if (n === 0) return 0;
@@ -127,14 +124,235 @@ function easeOutCubic(t) {
   return 1 - Math.pow(1 - t, 3);
 }
 
+function smoothstep(edge0, edge1, x) {
+  const t = Math.max(0, Math.min(1, (x - edge0) / (edge1 - edge0)));
+  return t * t * (3 - 2 * t);
+}
+
+// Build exact calendar-aligned buckets for Today / Week / Month / Year / All
+function buildCalendarBuckets(rangeId, parsedDonations) {
+  const now = new Date();
+  const buckets = [];
+
+  if (rangeId === 'TODAY') {
+    // 12:00 AM – 11:59 PM today, 24 hourly intervals
+    const year = now.getFullYear();
+    const month = now.getMonth();
+    const day = now.getDate();
+    for (let h = 0; h < 24; h++) {
+      const start = new Date(year, month, day, h, 0, 0, 0);
+      const end = new Date(year, month, day, h, 59, 59, 999);
+      const hourLabel = h === 0 ? '12AM' : h === 12 ? '12PM' : h < 12 ? `${h}AM` : `${h - 12}PM`;
+      const showTick = h === 0 || h === 4 || h === 8 || h === 12 || h === 16 || h === 20 || h === 23;
+      buckets.push({
+        startMs: start.getTime(),
+        endMs: end.getTime(),
+        shortLabel: hourLabel,
+        showTick,
+        fullDate: `${start.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} · ${hourLabel}`,
+        totalPhp: 0,
+        count: 0
+      });
+    }
+  } else if (rangeId === 'WEEK') {
+    // Monday – Sunday of current week, 7 daily intervals
+    const dayOfWeek = now.getDay(); // 0=Sun, 1=Mon, ...
+    const diffToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+    const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() + diffToMonday, 0, 0, 0, 0);
+    for (let d = 0; d < 7; d++) {
+      const start = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + d, 0, 0, 0, 0);
+      const end = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + d, 23, 59, 59, 999);
+      buckets.push({
+        startMs: start.getTime(),
+        endMs: end.getTime(),
+        shortLabel: start.toLocaleDateString('en-US', { weekday: 'short' }),
+        showTick: true,
+        fullDate: start.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }),
+        totalPhp: 0,
+        count: 0
+      });
+    }
+  } else if (rangeId === 'MONTH') {
+    // 1st – last day of current month, daily intervals
+    const year = now.getFullYear();
+    const month = now.getMonth();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const monthShort = now.toLocaleDateString('en-US', { month: 'short' });
+    for (let d = 1; d <= daysInMonth; d++) {
+      const start = new Date(year, month, d, 0, 0, 0, 0);
+      const end = new Date(year, month, d, 23, 59, 59, 999);
+      const showTick = d === 1 || d === 5 || d === 10 || d === 15 || d === 20 || d === 25 || d === daysInMonth;
+      buckets.push({
+        startMs: start.getTime(),
+        endMs: end.getTime(),
+        shortLabel: d === 1 || d === daysInMonth ? `${monthShort} ${d}` : `${d}`,
+        showTick,
+        fullDate: start.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+        totalPhp: 0,
+        count: 0
+      });
+    }
+  } else if (rangeId === 'YEAR') {
+    // January – December of current year, 12 monthly intervals
+    const year = now.getFullYear();
+    for (let m = 0; m < 12; m++) {
+      const start = new Date(year, m, 1, 0, 0, 0, 0);
+      const end = new Date(year, m + 1, 0, 23, 59, 59, 999);
+      buckets.push({
+        startMs: start.getTime(),
+        endMs: end.getTime(),
+        shortLabel: start.toLocaleDateString('en-US', { month: 'short' }),
+        showTick: m % 2 === 0 || m === 11,
+        fullDate: start.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+        totalPhp: 0,
+        count: 0
+      });
+    }
+  } else {
+    // ALL: Adaptive historical timeline spanning earliest donation -> latest donation (or today)
+    if (parsedDonations.length === 0) {
+      const year = now.getFullYear();
+      for (let i = 5; i >= 0; i--) {
+        const start = new Date(year, now.getMonth() - i, 1, 0, 0, 0, 0);
+        const end = new Date(year, now.getMonth() - i + 1, 0, 23, 59, 59, 999);
+        buckets.push({
+          startMs: start.getTime(),
+          endMs: end.getTime(),
+          shortLabel: start.toLocaleDateString('en-US', { month: 'short' }),
+          showTick: true,
+          fullDate: start.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
+          totalPhp: 0,
+          count: 0
+        });
+      }
+    } else {
+      const minTs = Math.min(...parsedDonations.map(p => p.ts));
+      const maxTs = Math.max(now.getTime(), ...parsedDonations.map(p => p.ts));
+      const spanDays = Math.max(1, (maxTs - minTs) / 86_400_000);
+      const minD = new Date(minTs);
+      const maxD = new Date(maxTs);
+
+      if (spanDays <= 35) {
+        // Daily intervals across the full historical range
+        const startDay = new Date(minD.getFullYear(), minD.getMonth(), minD.getDate(), 0, 0, 0, 0);
+        const endDay = new Date(maxD.getFullYear(), maxD.getMonth(), maxD.getDate(), 23, 59, 59, 999);
+        const totalDays = Math.max(2, Math.round((endDay - startDay) / 86_400_000));
+        const tickStep = Math.max(1, Math.ceil(totalDays / 6));
+        for (let d = 0; d < totalDays; d++) {
+          const s = new Date(startDay.getFullYear(), startDay.getMonth(), startDay.getDate() + d, 0, 0, 0, 0);
+          const e = new Date(startDay.getFullYear(), startDay.getMonth(), startDay.getDate() + d, 23, 59, 59, 999);
+          buckets.push({
+            startMs: s.getTime(),
+            endMs: e.getTime(),
+            shortLabel: s.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+            showTick: d === 0 || d === totalDays - 1 || d % tickStep === 0,
+            fullDate: s.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+            totalPhp: 0,
+            count: 0
+          });
+        }
+      } else if (spanDays <= 180) {
+        // Weekly intervals
+        const startDay = new Date(minD.getFullYear(), minD.getMonth(), minD.getDate(), 0, 0, 0, 0);
+        const endMs = new Date(maxD.getFullYear(), maxD.getMonth(), maxD.getDate(), 23, 59, 59, 999).getTime();
+        let cur = startDay.getTime();
+        while (cur <= endMs) {
+          const s = new Date(cur);
+          const e = new Date(Math.min(endMs, cur + 7 * 86_400_000 - 1));
+          buckets.push({
+            startMs: s.getTime(),
+            endMs: e.getTime(),
+            shortLabel: s.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+            showTick: false,
+            fullDate: `${s.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} – ${e.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`,
+            totalPhp: 0,
+            count: 0
+          });
+          cur += 7 * 86_400_000;
+        }
+        const tickStep = Math.max(1, Math.ceil(buckets.length / 6));
+        buckets.forEach((b, i) => {
+          b.showTick = i === 0 || i === buckets.length - 1 || i % tickStep === 0;
+        });
+      } else if (spanDays <= 760) {
+        // Monthly intervals
+        let y = minD.getFullYear();
+        let m = minD.getMonth();
+        const endY = maxD.getFullYear();
+        const endM = maxD.getMonth();
+        while (y < endY || (y === endY && m <= endM)) {
+          const s = new Date(y, m, 1, 0, 0, 0, 0);
+          const e = new Date(y, m + 1, 0, 23, 59, 59, 999);
+          buckets.push({
+            startMs: s.getTime(),
+            endMs: e.getTime(),
+            shortLabel: s.toLocaleDateString('en-US', { month: 'short', year: endY !== minD.getFullYear() ? '2-digit' : undefined }),
+            showTick: false,
+            fullDate: s.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+            totalPhp: 0,
+            count: 0
+          });
+          m += 1;
+          if (m > 11) { m = 0; y += 1; }
+        }
+        if (buckets.length === 1) {
+          // Ensure at least 2 points for a line
+          const prevS = new Date(minD.getFullYear(), minD.getMonth() - 1, 1, 0, 0, 0, 0);
+          const prevE = new Date(minD.getFullYear(), minD.getMonth(), 0, 23, 59, 59, 999);
+          buckets.unshift({
+            startMs: prevS.getTime(),
+            endMs: prevE.getTime(),
+            shortLabel: prevS.toLocaleDateString('en-US', { month: 'short' }),
+            showTick: true,
+            fullDate: prevS.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+            totalPhp: 0,
+            count: 0
+          });
+        }
+        const tickStep = Math.max(1, Math.ceil(buckets.length / 6));
+        buckets.forEach((b, i) => {
+          b.showTick = i === 0 || i === buckets.length - 1 || i % tickStep === 0;
+        });
+      } else {
+        // Quarterly intervals for multi-year history
+        let y = minD.getFullYear();
+        let q = Math.floor(minD.getMonth() / 3);
+        const endY = maxD.getFullYear();
+        const endQ = Math.floor(maxD.getMonth() / 3);
+        while (y < endY || (y === endY && q <= endQ)) {
+          const s = new Date(y, q * 3, 1, 0, 0, 0, 0);
+          const e = new Date(y, q * 3 + 3, 0, 23, 59, 59, 999);
+          buckets.push({
+            startMs: s.getTime(),
+            endMs: e.getTime(),
+            shortLabel: `Q${q + 1} '${String(y).slice(-2)}`,
+            showTick: false,
+            fullDate: `Q${q + 1} ${y}`,
+            totalPhp: 0,
+            count: 0
+          });
+          q += 1;
+          if (q > 3) { q = 0; y += 1; }
+        }
+        const tickStep = Math.max(1, Math.ceil(buckets.length / 6));
+        buckets.forEach((b, i) => {
+          b.showTick = i === 0 || i === buckets.length - 1 || i % tickStep === 0;
+        });
+      }
+    }
+  }
+
+  return buckets;
+}
+
 export default function DonationAnalyticsChart({ donations = [] }) {
-  const [rangeId, setRangeId] = useState('MONTH');
+  const [rangeId, setRangeId] = useState('YEAR');
   const [hoveredIdx, setHoveredIdx] = useState(null);
-  const [transitionDir, setTransitionDir] = useState(1); // +1 forward (right entry), -1 backward (left entry)
+  const [transitionDir, setTransitionDir] = useState(1); // +1: Today->All (enters from right), -1: All->Today (enters from left)
   const stageRef = useRef(null);
   const [chartWidth, setChartWidth] = useState(560);
 
-  // Measure container width for 1:1 non-distorted SVG rendering
+  // Measure live width for crisp 1:1 SVG geometry
   useEffect(() => {
     const el = stageRef.current;
     if (!el) return;
@@ -153,7 +371,7 @@ export default function DonationAnalyticsChart({ donations = [] }) {
   }, []);
 
   const rangeIndex = Math.max(0, RANGES.findIndex(r => r.id === rangeId));
-  const rangeConfig = RANGES[rangeIndex] || RANGES[2];
+  const rangeConfig = RANGES[rangeIndex] || RANGES[3];
 
   const handleSelectRange = (nextId) => {
     if (nextId === rangeId) return;
@@ -163,59 +381,33 @@ export default function DonationAnalyticsChart({ donations = [] }) {
     setRangeId(nextId);
   };
 
-  // Compute bucketed real data for the selected timeframe
+  // Compute exact calendar-bucketed data for the selected range
   const targetData = useMemo(() => {
     const list = Array.isArray(donations) ? donations : [];
-    const parsed = list.map(d => {
-      const ts = d.createdAt ? new Date(d.createdAt).getTime() : Date.now();
-      const validTs = Number.isFinite(ts) ? ts : Date.now();
-      const eth = parseFloat(d.amount || d.Amount || 0) || 0;
-      const php = Number(d.phpAmount || d.amountPhp) || Math.round(eth * 170000);
-      return { ts: validTs, php: Math.max(0, php) };
-    });
+    const parsed = list
+      .map(d => {
+        const ts = d.createdAt ? new Date(d.createdAt).getTime() : NaN;
+        if (!Number.isFinite(ts)) return null;
+        const eth = parseFloat(d.amount || d.Amount || 0) || 0;
+        const php = Number(d.phpAmount || d.amountPhp) || Math.round(eth * 170000);
+        return { ts, php: Math.max(0, php) };
+      })
+      .filter(Boolean);
 
-    const latestDonationTs = parsed.length > 0 ? Math.max(...parsed.map(p => p.ts)) : Date.now();
-    const anchorEnd = new Date(Math.max(Date.now(), latestDonationTs));
-    if (rangeConfig.id !== 'TODAY') {
-      anchorEnd.setHours(23, 59, 59, 999);
-    }
-    const endMs = anchorEnd.getTime();
-    const spanMs = rangeConfig.days * 86_400_000;
-    const startMs = endMs - spanMs;
-    const bucketMs = spanMs / rangeConfig.buckets;
-
-    const buckets = Array.from({ length: rangeConfig.buckets }, (_, idx) => {
-      const bStart = startMs + idx * bucketMs;
-      const bEnd = bStart + bucketMs;
-      const midDate = new Date(bEnd - 1000);
-      let shortLabel;
-      let fullDate;
-
-      if (rangeConfig.id === 'TODAY') {
-        shortLabel = midDate.toLocaleTimeString('en-US', { hour: 'numeric', hour12: true }).replace(' ', '');
-        fullDate = midDate.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
-      } else if (rangeConfig.id === 'YEAR') {
-        shortLabel = midDate.toLocaleDateString('en-US', { month: 'short' });
-        fullDate = midDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-      } else {
-        shortLabel = midDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-        fullDate = midDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-      }
-
-      return { bStart, bEnd, shortLabel, fullDate, totalPhp: 0, count: 0 };
-    });
+    const buckets = buildCalendarBuckets(rangeId, parsed);
 
     let pTotal = 0;
     let pCount = 0;
 
     for (const item of parsed) {
-      if (item.ts >= startMs && item.ts <= endMs) {
-        const rawIdx = Math.floor((item.ts - startMs) / bucketMs);
-        const idx = Math.max(0, Math.min(buckets.length - 1, rawIdx));
-        buckets[idx].totalPhp += item.php;
-        buckets[idx].count += 1;
-        pTotal += item.php;
-        pCount += 1;
+      for (let i = 0; i < buckets.length; i++) {
+        if (item.ts >= buckets[i].startMs && item.ts <= buckets[i].endMs) {
+          buckets[i].totalPhp += item.php;
+          buckets[i].count += 1;
+          pTotal += item.php;
+          pCount += 1;
+          break;
+        }
       }
     }
 
@@ -246,14 +438,13 @@ export default function DonationAnalyticsChart({ donations = [] }) {
       defaultActiveIdx: peakIdx,
       denseSamples
     };
-  }, [donations, rangeConfig]);
+  }, [donations, rangeId]);
 
-  // Continuous direction-aware animation state
+  // Continuous direction-aware timeline shift morph (NO fade, NO chart sliding!)
   const [animState, setAnimState] = useState(() => ({
     samples: targetData.denseSamples,
     maxVal: targetData.maxVal,
-    periodTotal: targetData.periodTotal,
-    progress: 1
+    periodTotal: targetData.periodTotal
   }));
 
   const currentRef = useRef(animState);
@@ -270,8 +461,7 @@ export default function DonationAnalyticsChart({ donations = [] }) {
       setAnimState({
         samples: targetData.denseSamples,
         maxVal: targetData.maxVal,
-        periodTotal: targetData.periodTotal,
-        progress: 1
+        periodTotal: targetData.periodTotal
       });
       return;
     }
@@ -288,8 +478,8 @@ export default function DonationAnalyticsChart({ donations = [] }) {
 
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
 
-    const duration = 520; // Silky fluid morph duration
-    const waveSpread = 0.34; // Staggered directional wave sweep across the curve
+    const duration = 560;
+    const bandWidth = 0.36; // Smooth travelling horizon width across [0..1]
     const startTime = performance.now();
 
     const tick = (now) => {
@@ -299,24 +489,38 @@ export default function DonationAnalyticsChart({ donations = [] }) {
       const nextSamples = new Array(SAMPLES);
       for (let i = 0; i < SAMPLES; i++) {
         const u = i / (SAMPLES - 1);
-        // Forward (+1): new trend progressively enters from RIGHT (u=1 leads, sweeping to u=0)
-        // Backward (-1): new trend progressively enters from LEFT (u=0 leads, sweeping to u=1)
-        const delay = dir > 0 ? (1 - u) * waveSpread : u * waveSpread;
-        const localRaw = Math.max(0, Math.min(1, (rawT - delay) / (1 - waveSpread)));
-        const localEase = easeOutCubic(localRaw);
-        nextSamples[i] = fromSamples[i] + (toSamples[i] - fromSamples[i]) * localEase;
+        // Forward (+1, Today -> All): travelling front sweeps from RIGHT (u=1) -> LEFT (u=0)
+        // Backward (-1, All -> Today): travelling front sweeps from LEFT (u=0) -> RIGHT (u=1)
+        const waveFront = dir > 0
+          ? 1 + bandWidth - globalEase * (1 + bandWidth * 2)
+          : -bandWidth + globalEase * (1 + bandWidth * 2);
+
+        const blend = dir > 0
+          ? smoothstep(waveFront - bandWidth, waveFront + bandWidth, u)
+          : 1 - smoothstep(waveFront - bandWidth, waveFront + bandWidth, u);
+
+        // Subtle continuous timeline-flow drift inside the active wave band (never detaches endpoints)
+        const drift = Math.sin(blend * Math.PI) * 0.08 * dir;
+        const fromVal = sampleAtU(fromSamples, u + drift);
+        const toVal = sampleAtU(toSamples, u - drift * 0.5);
+
+        nextSamples[i] = Math.max(0, Math.min(1, fromVal * (1 - blend) + toVal * blend));
       }
 
       setAnimState({
         samples: nextSamples,
         maxVal: fromMax + (toMax - fromMax) * globalEase,
-        periodTotal: fromTotal + (toTotal - fromTotal) * globalEase,
-        progress: globalEase
+        periodTotal: fromTotal + (toTotal - fromTotal) * globalEase
       });
 
       if (rawT < 1) {
         rafRef.current = requestAnimationFrame(tick);
       } else {
+        setAnimState({
+          samples: toSamples,
+          maxVal: toMax,
+          periodTotal: toTotal
+        });
         rafRef.current = null;
       }
     };
@@ -328,7 +532,7 @@ export default function DonationAnalyticsChart({ donations = [] }) {
     };
   }, [targetData, transitionDir]);
 
-  // True 1:1 Pixel Coordinates
+  // Fixed 1:1 Chart Dimensions (Never moves or resizes on filter change)
   const W = chartWidth;
   const H = 148;
   const padL = 48;
@@ -344,7 +548,7 @@ export default function DonationAnalyticsChart({ donations = [] }) {
     ? `${linePath} L ${(padL + innerW).toFixed(2)} ${baselineY.toFixed(2)} L ${padL.toFixed(2)} ${baselineY.toFixed(2)} Z`
     : '';
 
-  // Discrete interactive points ride smoothly ON the animated curve at their exact normalized X
+  // Discrete interactive points ride smoothly on the continuous morphing spline
   const coords = targetData.points.map((pt, i) => {
     const u = targetData.points.length > 1 ? i / (targetData.points.length - 1) : 0.5;
     const x = padL + u * innerW;
@@ -356,7 +560,7 @@ export default function DonationAnalyticsChart({ donations = [] }) {
   const activeIdx = hoveredIdx !== null && coords[hoveredIdx] ? hoveredIdx : targetData.defaultActiveIdx;
   const activePt = coords[activeIdx] || null;
 
-  const tooltipLeft = activePt ? Math.max(66, Math.min(W - 66, activePt.x)) : W / 2;
+  const tooltipLeft = activePt ? Math.max(70, Math.min(W - 70, activePt.x)) : W / 2;
   const placeBelow = activePt ? activePt.y < 54 : false;
   const tooltipTop = activePt ? (placeBelow ? activePt.y + 14 : activePt.y - 12) : 20;
 
@@ -375,8 +579,8 @@ export default function DonationAnalyticsChart({ donations = [] }) {
           </div>
         </div>
 
-        {/* Direction-Aware Sliding Time Filter Selector (Today · Week · Month · Year) */}
-        <div className="da-range-group" role="tablist" aria-label="Analytics timeframe">
+        {/* 5-Range Sliding Selector: Today · Week · Month · Year · All */}
+        <div className="da-range-group" role="tablist" aria-label="Analytics time range">
           <span
             className="da-range-indicator"
             style={{
@@ -404,11 +608,7 @@ export default function DonationAnalyticsChart({ donations = [] }) {
         {activePt && (
           <div
             className={`da-tooltip ${placeBelow ? 'is-below' : ''}`}
-            style={{
-              left: `${tooltipLeft}px`,
-              top: `${tooltipTop}px`,
-              opacity: 0.35 + 0.65 * animState.progress
-            }}
+            style={{ left: `${tooltipLeft}px`, top: `${tooltipTop}px` }}
           >
             <div className="da-tooltip-val">₱{Math.round(activePt.totalPhp).toLocaleString('en-US')}</div>
             <div className="da-tooltip-sub">
@@ -437,7 +637,7 @@ export default function DonationAnalyticsChart({ donations = [] }) {
             </linearGradient>
           </defs>
 
-          {/* Synchronized Y-Axis Scale & Horizontal Gridlines */}
+          {/* Y-Axis Scale & Horizontal Gridlines */}
           {[0, 0.5, 1].map((t, idx) => {
             const gy = baselineY - t * innerH;
             return (
@@ -450,24 +650,24 @@ export default function DonationAnalyticsChart({ donations = [] }) {
             );
           })}
 
-          {/* Synchronized Vertical Guides & X-Axis Labels */}
-          <g className="da-x-axis-group" style={{ opacity: 0.25 + 0.75 * animState.progress }}>
-            {coords.map((pt, i) => (
-              <g key={`${rangeId}-${i}`}>
-                <line x1={pt.x} y1={padT} x2={pt.x} y2={baselineY} className={`da-v-guide ${i === activeIdx ? 'is-active' : ''}`} />
-                {(coords.length <= 7 || i % 2 === 0 || i === coords.length - 1) && (
-                  <text x={pt.x} y={H - 5} textAnchor="middle" className="da-axis-lbl">
-                    {pt.shortLabel}
-                  </text>
-                )}
-              </g>
-            ))}
-          </g>
+          {/* Calendar X-Axis Ticks & Active Vertical Guide (Solid, Zero Fade) */}
+          {coords.map((pt, i) => (
+            <g key={i}>
+              {i === activeIdx && (
+                <line x1={pt.x} y1={padT} x2={pt.x} y2={baselineY} className="da-v-guide is-active" />
+              )}
+              {pt.showTick && (
+                <text x={pt.x} y={H - 5} textAnchor="middle" className="da-axis-lbl">
+                  {pt.shortLabel}
+                </text>
+              )}
+            </g>
+          ))}
 
           {/* Continuous Morphing Area Fill */}
           {areaPath && <path d={areaPath} fill="url(#daTealArea)" />}
 
-          {/* Continuous Morphing Teal-Emerald Spline */}
+          {/* Continuous Morphing Teal-Emerald Trend Line */}
           {linePath && (
             <path
               d={linePath}
@@ -482,6 +682,7 @@ export default function DonationAnalyticsChart({ donations = [] }) {
           {/* Synchronized Interactive Nodes Riding on the Live Curve */}
           {coords.map((pt, i) => {
             const isActive = i === activeIdx;
+            const showDot = isActive || coords.length <= 12 || pt.totalPhp > 0;
             return (
               <g
                 key={i}
@@ -490,7 +691,9 @@ export default function DonationAnalyticsChart({ donations = [] }) {
                 onClick={() => setHoveredIdx(i)}
               >
                 {isActive && <circle cx={pt.x} cy={pt.y} r="8" fill="#10b981" fillOpacity="0.16" />}
-                <circle cx={pt.x} cy={pt.y} r={isActive ? 4 : 2.5} className={`da-node ${isActive ? 'is-active' : ''}`} />
+                {showDot && (
+                  <circle cx={pt.x} cy={pt.y} r={isActive ? 4 : 2.4} className={`da-node ${isActive ? 'is-active' : ''}`} />
+                )}
                 <rect
                   x={pt.x - (innerW / Math.max(coords.length, 1)) / 2}
                   y={padT}
