@@ -1226,9 +1226,9 @@
    gradually along a diagonal axis toward the lower-left donor identity area. */
 .dbo-hero-bg-mesh {
   position: absolute;
-  top: -118px;
+  top: -134px;
   right: -6px;
-  bottom: 24px;
+  bottom: 34px;
   left: 0;
   pointer-events: none;
   user-select: none;
@@ -1246,7 +1246,7 @@
 [data-theme="dark"] .dbo-hero-bg-mesh {
   background-image: url('/donor-hero-mesh-dark.png');
   mix-blend-mode: screen;
-  opacity: 0.30;
+  opacity: 0.22;
 }
 
 .dbo-hero-eyebrow-row {
@@ -2181,14 +2181,14 @@
 
 @media (max-width: 640px) {
   .dbo-hero-bg-mesh {
-    top: -34px;
-    right: -52px;
+    top: 8px;
+    right: -18px;
     bottom: auto;
     height: 175px;
     opacity: 0.22;
   }
   [data-theme="dark"] .dbo-hero-bg-mesh {
-    opacity: 0.24;
+    opacity: 0.22;
   }
   .dbo-hero-name {
     font-size: 1.5rem;
