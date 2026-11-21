@@ -3487,3 +3487,306 @@
     animation: none;
   }
 }
+
+/* ============================================================
+   INLINE SPARKLINE (DASHBOARD OVERVIEW) & DONATION ANALYTICS CHART
+   Vercel Geist Obsidian / Light + #0d9488 -> #10b981 Teal-Emerald
+   ============================================================ */
+
+.dbo-bare-stat--spark {
+  justify-content: flex-start;
+}
+
+.dbo-spark-wrap {
+  margin-left: auto;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  flex-shrink: 0;
+  padding-left: 6px;
+}
+
+.dbo-spark-delta {
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: #0d9488;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+[data-theme="dark"] .dbo-spark-delta {
+  color: #10b981;
+}
+
+.dbo-spark-svg {
+  width: 68px;
+  height: 22px;
+  display: block;
+  overflow: visible;
+}
+
+@media (max-width: 1180px) {
+  .dbo-spark-wrap {
+    display: none;
+  }
+}
+
+/* Interactive Donation Analytics Card (My Contributions) */
+.da-card {
+  border-radius: 14px;
+  background: var(--bg-card, #ffffff);
+  border: 1px solid var(--border, #e4e4e7);
+  padding: 18px 22px 16px;
+  margin-bottom: 16px;
+}
+
+[data-theme="dark"] .da-card {
+  background: #0a0a0a;
+  border-color: #262626;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.da-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+
+.da-title-group {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+
+.da-icon-box {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: rgba(16, 185, 129, 0.1);
+  border: 1px solid rgba(16, 185, 129, 0.28);
+  color: #0d9488;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+[data-theme="dark"] .da-icon-box {
+  color: #10b981;
+}
+
+.da-icon-box .material-symbols-outlined {
+  font-size: 18px;
+}
+
+.da-title-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.da-title {
+  margin: 0;
+  font-size: 0.94rem;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  color: var(--text-primary, #09090b);
+}
+
+[data-theme="dark"] .da-title {
+  color: #ffffff;
+}
+
+.da-period-summary {
+  font-size: 0.72rem;
+  color: var(--text-muted, #71717a);
+  font-variant-numeric: tabular-nums;
+}
+
+.da-period-summary strong {
+  color: var(--text-primary, #09090b);
+  font-weight: 600;
+}
+
+[data-theme="dark"] .da-period-summary strong {
+  color: #e4e4e7;
+}
+
+.da-range-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px;
+  border-radius: 9px;
+  background: var(--bg-inset, #f4f4f5);
+  border: 1px solid var(--border, #e4e4e7);
+}
+
+[data-theme="dark"] .da-range-group {
+  background: #050505;
+  border-color: #1f1f1f;
+}
+
+.da-range-btn {
+  height: 26px;
+  padding: 0 11px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-secondary, #52525b);
+  font-size: 0.72rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+[data-theme="dark"] .da-range-btn {
+  color: #a1a1aa;
+}
+
+.da-range-btn:hover {
+  color: var(--text-primary, #09090b);
+}
+
+[data-theme="dark"] .da-range-btn:hover {
+  color: #ffffff;
+}
+
+.da-range-btn.active {
+  background: rgba(13, 148, 136, 0.12);
+  border-color: rgba(16, 185, 129, 0.38);
+  color: #0f766e;
+}
+
+[data-theme="dark"] .da-range-btn.active {
+  background: rgba(16, 185, 129, 0.14);
+  border-color: rgba(16, 185, 129, 0.36);
+  color: #34d399;
+}
+
+.da-chart-stage {
+  position: relative;
+  width: 100%;
+  height: 196px;
+}
+
+.da-svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  overflow: visible;
+}
+
+.da-grid-line {
+  stroke: #e4e4e7;
+  stroke-width: 1;
+  stroke-dasharray: 2 4;
+}
+
+[data-theme="dark"] .da-grid-line {
+  stroke: #1c1c1e;
+}
+
+.da-v-guide {
+  stroke: transparent;
+  stroke-width: 1;
+  transition: stroke 0.15s ease;
+}
+
+.da-v-guide.is-active {
+  stroke: rgba(16, 185, 129, 0.32);
+  stroke-dasharray: 3 3;
+}
+
+.da-axis-lbl {
+  font-size: 10.5px;
+  fill: #71717a;
+  font-family: inherit;
+  font-variant-numeric: tabular-nums;
+}
+
+.da-point-group {
+  cursor: pointer;
+}
+
+.da-node {
+  fill: #0d9488;
+  stroke: #ffffff;
+  stroke-width: 1.5;
+  transition: r 0.15s ease, fill 0.15s ease;
+}
+
+[data-theme="dark"] .da-node {
+  fill: #10b981;
+  stroke: #0a0a0a;
+}
+
+.da-node.is-active {
+  fill: #10b981;
+  stroke: #ffffff;
+  stroke-width: 2;
+}
+
+[data-theme="dark"] .da-node.is-active {
+  fill: #34d399;
+  stroke: #000000;
+}
+
+.da-tooltip {
+  position: absolute;
+  transform: translate(-50%, -100%);
+  pointer-events: none;
+  z-index: 3;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: #ffffff;
+  border: 1px solid #e4e4e7;
+  box-shadow: 0 8px 20px -8px rgba(0, 0, 0, 0.18);
+  white-space: nowrap;
+  text-align: center;
+  transition: left 0.16s cubic-bezier(0.16, 1, 0.3, 1), top 0.16s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+[data-theme="dark"] .da-tooltip {
+  background: #111111;
+  border-color: #2e2e2e;
+  box-shadow: 0 10px 24px -8px rgba(0, 0, 0, 0.85);
+}
+
+.da-tooltip-val {
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: #09090b;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.2;
+}
+
+[data-theme="dark"] .da-tooltip-val {
+  color: #ffffff;
+}
+
+.da-tooltip-sub {
+  font-size: 0.66rem;
+  color: #71717a;
+  margin-top: 1px;
+}
+
+[data-theme="dark"] .da-tooltip-sub {
+  color: #a1a1aa;
+}
+
+@media (max-width: 640px) {
+  .da-card {
+    padding: 14px 14px 12px;
+  }
+  .da-chart-stage {
+    height: 168px;
+  }
+}

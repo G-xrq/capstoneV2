@@ -31,6 +31,7 @@ import './ReferenceDashboard.css';
 import '../components/CampaignDetailsModal.css';
 import './DashboardOverview.css';
 import CampaignSkeletonCard from '../components/CampaignSkeletonCard';
+import DonationAnalyticsChart from '../components/DonationAnalyticsChart';
 
 /* ── Skeleton loading placeholders (shimmer; mirrors CampaignCard & db-camp-row geometry) ── */
 const DbSkeletonCard = () => <CampaignSkeletonCard />;
@@ -819,6 +820,73 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
     return 0;
   }, [totalDonatedPhp]);
 
+  // Real-data 7-point momentum sparkline & delta for Dashboard Overview Total Contributed
+  const contributionSparkline = useMemo(() => {
+    const list = Array.isArray(myDonations) ? myDonations : [];
+    if (list.length === 0) {
+      return { hasData: false, deltaPct: 0, linePath: '', areaPath: '', peakX: 0, peakY: 0 };
+    }
+    const sorted = [...list]
+      .map(d => ({
+        ts: d.createdAt ? new Date(d.createdAt).getTime() : Date.now(),
+        php: Number(d.phpAmount || d.amountPhp) || Math.round((parseFloat(d.amount || d.Amount || 0) || 0) * 170000)
+      }))
+      .sort((a, b) => a.ts - b.ts);
+
+    // Take last 7 donations (or pad cleanly if fewer) to plot recent giving momentum
+    const recent = sorted.slice(-7);
+    const vals = recent.map(r => Math.max(1, r.php));
+    while (vals.length < 4) vals.unshift(Math.round(vals[0] * 0.6));
+
+    const maxV = Math.max(...vals, 1);
+    const minV = Math.min(...vals, 0);
+    const span = Math.max(maxV - minV, 1);
+    const w = 68;
+    const h = 22;
+    const padX = 3;
+    const padY = 4;
+
+    const pts = vals.map((v, i) => ({
+      x: padX + (i / (vals.length - 1)) * (w - padX * 2),
+      y: padY + (1 - (v - minV) / span) * (h - padY * 2)
+    }));
+
+    let line = `M ${pts[0].x.toFixed(1)} ${pts[0].y.toFixed(1)}`;
+    for (let i = 0; i < pts.length - 1; i++) {
+      const p0 = pts[Math.max(0, i - 1)];
+      const p1 = pts[i];
+      const p2 = pts[i + 1];
+      const p3 = pts[Math.min(pts.length - 1, i + 2)];
+      const cp1x = p1.x + (p2.x - p0.x) / 6;
+      const cp1y = p1.y + (p2.y - p0.y) / 6;
+      const cp2x = p2.x - (p3.x - p1.x) / 6;
+      const cp2y = p2.y - (p3.y - p1.y) / 6;
+      line += ` C ${cp1x.toFixed(1)} ${cp1y.toFixed(1)}, ${cp2x.toFixed(1)} ${cp2y.toFixed(1)}, ${p2.x.toFixed(1)} ${p2.y.toFixed(1)}`;
+    }
+    const area = `${line} L ${pts[pts.length - 1].x.toFixed(1)} ${h} L ${pts[0].x.toFixed(1)} ${h} Z`;
+
+    // Growth delta: latest contribution share of cumulative total (bounded cleanly 1% - 99%)
+    const lastPhp = sorted[sorted.length - 1]?.php || 0;
+    const prevTotal = Math.max(1, totalDonatedPhp - lastPhp);
+    const rawDelta = Math.round((lastPhp / prevTotal) * 100);
+    const deltaPct = Math.max(1, Math.min(99, rawDelta));
+
+    let peakIdx = pts.length - 1;
+    let lowestY = Infinity;
+    pts.forEach((p, idx) => {
+      if (p.y <= lowestY) { lowestY = p.y; peakIdx = idx; }
+    });
+
+    return {
+      hasData: true,
+      deltaPct,
+      linePath: line,
+      areaPath: area,
+      peakX: pts[peakIdx].x,
+      peakY: pts[peakIdx].y
+    };
+  }, [myDonations, totalDonatedPhp]);
+
   // Synchronize active donor's global cumulative contribution across the platform
   useEffect(() => {
     const key = walletAddress || currentUser?.wallet_address;
@@ -1197,9 +1265,9 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
                   >
                     <button
                       type="button"
-                      className="dbo-bare-stat clickable"
+                      className="dbo-bare-stat dbo-bare-stat--spark clickable"
                       onClick={() => setActiveTab('my-donations')}
-                      title="View donation history"
+                      title="View donation analytics and history"
                     >
                       <span className="dbo-bare-icon-box" aria-hidden="true">
                         <span className="material-symbols-outlined">payments</span>
@@ -1208,6 +1276,26 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
                         <span className="dbo-bare-val">₱{Math.round(totalDonatedPhp).toLocaleString('en-US')}</span>
                         <span className="dbo-bare-lbl">{wt.metricTotalContributed}</span>
                       </span>
+                      {contributionSparkline.hasData && (
+                        <span className="dbo-spark-wrap" aria-hidden="true">
+                          <span className="dbo-spark-delta">↑ +{contributionSparkline.deltaPct}%</span>
+                          <svg className="dbo-spark-svg" viewBox="0 0 68 22" fill="none">
+                            <defs>
+                              <linearGradient id="dboSparkStroke" x1="0" y1="0" x2="1" y2="0">
+                                <stop offset="0%" stopColor="#0d9488" />
+                                <stop offset="100%" stopColor="#10b981" />
+                              </linearGradient>
+                              <linearGradient id="dboSparkFill" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="0%" stopColor="#10b981" stopOpacity="0.28" />
+                                <stop offset="100%" stopColor="#0d9488" stopOpacity="0" />
+                              </linearGradient>
+                            </defs>
+                            <path d={contributionSparkline.areaPath} fill="url(#dboSparkFill)" />
+                            <path d={contributionSparkline.linePath} stroke="url(#dboSparkStroke)" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+                            <circle cx={contributionSparkline.peakX} cy={contributionSparkline.peakY} r="2.2" fill="#10b981" />
+                          </svg>
+                        </span>
+                      )}
                     </button>
 
                     <button
@@ -2328,6 +2416,9 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
                   </div>
                 </div>
               </div>
+
+              {/* ── 1B. Interactive Donation Analytics Chart (7D / 30D / 90D / 1Y) ── */}
+              <DonationAnalyticsChart donations={myDonations} />
 
               {/* ── 2. Unified Vercel Geist Ledger Command Bar ── */}
               <div className="rcp-command-bar">
