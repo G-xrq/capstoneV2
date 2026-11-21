@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import './SettingsPanel.css';
 import { ROLES, ROLE_META } from '../roleConfig';
@@ -414,15 +414,17 @@ export default function SettingsPanel({
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [newPasswordFocused, setNewPasswordFocused] = useState(false);
 
-  // Password Strength Evaluator (matches AuthView standards)
+  // Password Strength Evaluator (Exact 1:1 match with AuthView Sign Up)
   const getPasswordStrength = (pwd) => {
     if (!pwd) return { score: 0, label: 'None', color: '#64748b', percent: 0 };
     let score = 0;
     if (pwd.length >= 8) score += 1;
     if (/[a-z]/.test(pwd) && /[A-Z]/.test(pwd)) score += 1;
     if (/\d/.test(pwd)) score += 1;
-    if (/[^A-Za-z0-9]/.test(pwd)) score += 1;
+    if (/[!@#$%^&*(),.?":{}|<>]/.test(pwd)) score += 1;
+
     switch (score) {
       case 1:
         return { score: 1, label: 'Weak', color: '#ef4444', percent: 25 };
@@ -433,11 +435,19 @@ export default function SettingsPanel({
       case 4:
         return { score: 4, label: 'Strong', color: '#22c55e', percent: 100 };
       default:
-        return { score: 0, label: 'Too short (min 6)', color: '#ef4444', percent: 15 };
+        return { score: 0, label: 'Weak', color: '#ef4444', percent: 15 };
     }
   };
 
   const newPwdStrength = getPasswordStrength(newPassword);
+  const newPasswordRequirements = useMemo(() => [
+    { id: 'length', label: 'At least 8 characters', met: newPassword.length >= 8 },
+    { id: 'uppercase', label: 'At least 1 uppercase letter (A–Z)', met: /[A-Z]/.test(newPassword) },
+    { id: 'lowercase', label: 'At least 1 lowercase letter (a–z)', met: /[a-z]/.test(newPassword) },
+    { id: 'number', label: 'At least 1 number (0–9)', met: /\d/.test(newPassword) },
+    { id: 'symbol', label: 'At least 1 special symbol (@$!%*?)', met: /[!@#$%^&*(),.?":{}|<>]/.test(newPassword) }
+  ], [newPassword]);
+  const newPwdMetCount = useMemo(() => newPasswordRequirements.filter(r => r.met).length, [newPasswordRequirements]);
   const passwordsMatch = confirmPassword.length > 0 && newPassword === confirmPassword;
   const passwordsMismatch = confirmPassword.length > 0 && newPassword !== confirmPassword;
 
@@ -447,8 +457,8 @@ export default function SettingsPanel({
       showError('Please enter your current password.', 'Validation Error');
       return;
     }
-    if (newPassword.length < 6) {
-      showError('New password must be at least 6 characters long.', 'Validation Error');
+    if (newPwdMetCount < 5) {
+      showError('New password must meet all 5 requirements (8+ chars, uppercase, lowercase, number, and special symbol).', 'Password Requirements');
       return;
     }
     if (newPassword !== confirmPassword) {
@@ -2913,7 +2923,7 @@ export default function SettingsPanel({
           )}
 
           {/* Card 1: Sign-In & Credentials (Primary Email + Change Password) */}
-          <div className="vs-card">
+          <div className="vs-card vs-card--dropdown-safe">
             <div className="vs-card-head">
               <div>
                 <h4 className="vs-card-title">Sign-In &amp; Credentials</h4>
@@ -2982,28 +2992,33 @@ export default function SettingsPanel({
                 </div>
 
                 <div className="vs-form-grid-2">
-                  <div className="vs-form-field">
+                  {/* New Password — Exact 1:1 Sign Up Connected Bar & Floating 5-Rule Requirements */}
+                  <div className="vs-form-field vs-pwd-group">
                     <div className="vs-field-lbl-row">
-                      <label className="vs-field-lbl">New Password</label>
-                      <span
-                        className="vs-strength-lbl"
-                        style={{ color: newPassword ? newPwdStrength.color : 'var(--text-muted, #71717a)' }}
-                      >
-                        {newPassword ? newPwdStrength.label : 'Enter password'}
-                      </span>
+                      <label htmlFor="settings-new-password" className="vs-field-lbl">New Password</label>
+                      {newPassword && (
+                        <span className="vs-strength-lbl" style={{ color: newPwdStrength.color }}>
+                          {newPwdStrength.label}
+                        </span>
+                      )}
                     </div>
                     <div className="vs-input-wrap">
                       <input
+                        id="settings-new-password"
                         type={showNewPassword ? 'text' : 'password'}
                         className="vs-input"
-                        placeholder="Min. 8 characters"
+                        placeholder="Create new password"
                         value={newPassword}
                         onChange={(e) => setNewPassword(e.target.value)}
+                        onFocus={() => setNewPasswordFocused(true)}
+                        onBlur={() => setNewPasswordFocused(false)}
                         autoComplete="new-password"
+                        aria-describedby={newPasswordFocused ? 'settings-pwd-requirements-panel' : undefined}
                       />
                       <button
                         type="button"
                         className="vs-input-eye"
+                        onMouseDown={(e) => e.preventDefault()}
                         onClick={() => setShowNewPassword(p => !p)}
                         tabIndex="-1"
                         aria-label={showNewPassword ? 'Hide password' : 'Show password'}
@@ -3014,60 +3029,69 @@ export default function SettingsPanel({
                       </button>
                     </div>
 
-                    {/* Permanent 4-Segment Horizontal Strength Indicator */}
-                    <div className="vs-strength-bars" aria-label="Password strength">
-                      {[1, 2, 3, 4].map((seg) => {
-                        const isFilled = newPassword.length > 0 && (newPwdStrength.score >= seg || (newPwdStrength.score === 0 && seg === 1));
-                        return (
-                          <span
-                            key={seg}
-                            className="vs-strength-seg"
-                            style={{ backgroundColor: isFilled ? newPwdStrength.color : undefined }}
-                          />
-                        );
-                      })}
+                    {/* Permanent Connected Horizontal Password Strength Indicator (Exact AuthView Match) */}
+                    <div className="vs-pwd-strength-track" aria-hidden="true">
+                      <div
+                        className="vs-pwd-strength-fill"
+                        style={{
+                          width: newPassword ? `${newPwdStrength.percent}%` : '0%',
+                          backgroundColor: newPassword ? newPwdStrength.color : 'transparent'
+                        }}
+                      />
                     </div>
 
-                    {/* Permanent Password Requirements Checklist */}
-                    <div className="vs-pwd-reqs">
-                      <div className="vs-pwd-reqs-title">Password requirements</div>
-                      <ul className="vs-pwd-reqs-list">
-                        <li className={newPassword.length >= 8 ? 'is-met' : ''}>
-                          <span className="material-symbols-outlined">
-                            {newPassword.length >= 8 ? 'check_circle' : 'radio_button_unchecked'}
+                    {/* Floating Real-Time Password Requirements Dropdown Panel (Zero layout shift) */}
+                    {newPasswordFocused && (
+                      <div
+                        id="settings-pwd-requirements-panel"
+                        className="vs-pwd-dropdown"
+                        onMouseDown={(e) => e.preventDefault()}
+                        role="tooltip"
+                        aria-live="polite"
+                      >
+                        <div className="vs-pwd-dropdown-header">
+                          <span className="vs-pwd-dropdown-title">PASSWORD REQUIREMENTS</span>
+                          <span className={`vs-pwd-dropdown-counter ${newPwdMetCount === 5 ? 'all-met' : ''}`}>
+                            {newPwdMetCount}/5 met
                           </span>
-                          <span>At least 8 characters</span>
-                        </li>
-                        <li className={/[a-z]/.test(newPassword) && /[A-Z]/.test(newPassword) ? 'is-met' : ''}>
-                          <span className="material-symbols-outlined">
-                            {/[a-z]/.test(newPassword) && /[A-Z]/.test(newPassword) ? 'check_circle' : 'radio_button_unchecked'}
-                          </span>
-                          <span>Uppercase &amp; lowercase letters (A–Z, a–z)</span>
-                        </li>
-                        <li className={/\d/.test(newPassword) ? 'is-met' : ''}>
-                          <span className="material-symbols-outlined">
-                            {/\d/.test(newPassword) ? 'check_circle' : 'radio_button_unchecked'}
-                          </span>
-                          <span>At least one number (0–9)</span>
-                        </li>
-                        <li className={/[^A-Za-z0-9]/.test(newPassword) ? 'is-met' : ''}>
-                          <span className="material-symbols-outlined">
-                            {/[^A-Za-z0-9]/.test(newPassword) ? 'check_circle' : 'radio_button_unchecked'}
-                          </span>
-                          <span>At least one special symbol (!@#$%)</span>
-                        </li>
-                      </ul>
-                    </div>
+                        </div>
+                        <ul className="vs-pwd-dropdown-list">
+                          {newPasswordRequirements.map((req) => (
+                            <li
+                              key={req.id}
+                              className={`vs-pwd-dropdown-item ${req.met ? 'is-met' : 'is-unmet'}`}
+                            >
+                              <span className="material-symbols-outlined vs-pwd-dropdown-icon">
+                                {req.met ? 'check_circle' : 'radio_button_unchecked'}
+                              </span>
+                              <span>{req.label}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
                   </div>
 
+                  {/* Confirm New Password — Exact 1:1 Sign Up Match Indicators */}
                   <div className="vs-form-field">
                     <div className="vs-field-lbl-row">
-                      <label className="vs-field-lbl">Confirm New Password</label>
-                      {passwordsMatch && <span className="vs-match-tag is-ok">Match</span>}
-                      {passwordsMismatch && <span className="vs-match-tag is-err">Does not match</span>}
+                      <label htmlFor="settings-confirm-password" className="vs-field-lbl">Confirm New Password</label>
+                      {passwordsMatch && (
+                        <span className="vs-match-tag is-ok">
+                          <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>check_circle</span>
+                          <span>Passwords Match</span>
+                        </span>
+                      )}
+                      {passwordsMismatch && (
+                        <span className="vs-match-tag is-err">
+                          <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>error</span>
+                          <span>Passwords Do Not Match</span>
+                        </span>
+                      )}
                     </div>
                     <div className="vs-input-wrap">
                       <input
+                        id="settings-confirm-password"
                         type={showConfirmPassword ? 'text' : 'password'}
                         className="vs-input"
                         placeholder="Repeat new password"
@@ -3078,6 +3102,7 @@ export default function SettingsPanel({
                       <button
                         type="button"
                         className="vs-input-eye"
+                        onMouseDown={(e) => e.preventDefault()}
                         onClick={() => setShowConfirmPassword(p => !p)}
                         tabIndex="-1"
                         aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
@@ -3114,7 +3139,7 @@ export default function SettingsPanel({
                 <button
                   type="submit"
                   className="vs-primary-btn vs-primary-btn--sm"
-                  disabled={savingPassword || !currentPassword || !newPassword || passwordsMismatch}
+                  disabled={savingPassword || !currentPassword || newPwdMetCount < 5 || !passwordsMatch}
                 >
                   <span>{savingPassword ? 'Updating...' : 'Update Password'}</span>
                 </button>
