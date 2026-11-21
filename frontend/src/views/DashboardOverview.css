@@ -2347,3 +2347,49 @@
     grid-template-columns: 1fr;
   }
 }
+
+
+/* ── My Donation Receipts Hero Polish (Matches Dashboard Overview) ── */
+.dbo-receipts-badge-hero {
+  width: 50px;
+  height: 50px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.dbo-receipts-next-inline strong {
+  color: var(--text-primary, #09090b);
+  font-weight: 600;
+}
+
+[data-theme="dark"] .dbo-receipts-next-inline strong {
+  color: #e4e4e7;
+}
+
+.dbo-cmd-ghost-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.dbo-bare-icon-box.is-alert {
+  color: #f87171;
+  border-color: rgba(239, 68, 68, 0.35);
+  background: rgba(239, 68, 68, 0.08);
+}
+
+.dbo-bare-val.is-alert {
+  color: #ef4444;
+}
+
+[data-theme="dark"] .dbo-bare-val.is-alert {
+  color: #f87171;
+}
+
+[data-theme="dark"] .bbdrts-filter-toolbar {
+  background: #0a0a0a;
+  border-color: #262626;
+}

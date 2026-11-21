@@ -2151,7 +2151,7 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
               <div className="admin-page-header" id="tour-donations-header">
                 <div className="admin-page-title-wrap">
                   <h2 className="admin-page-title">
-                    <span className="material-symbols-outlined icon text-emerald">receipt_long</span>
+                    <span className="material-symbols-outlined icon" style={{ color: 'var(--text-primary)' }}>receipt_long</span>
                     <span>{wt.contributionsTitle}</span>
                   </h2>
                   <p className="admin-page-sub">
@@ -2162,7 +2162,7 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
                 <div className="admin-page-header-actions">
                   <button
                     type="button"
-                    className="admin-header-btn secondary"
+                    className="dbo-cmd-btn"
                     onClick={() => window.print()}
                     title="Export or print tamper-proof audit report"
                   >
@@ -2172,7 +2172,7 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
 
                   <button
                     type="button"
-                    className="admin-header-btn secondary"
+                    className="dbo-cmd-btn"
                     onClick={fetchMyDonations}
                     disabled={loadingMyDonations}
                     title="Sync receipts directly from smart contract and database"
@@ -2185,95 +2185,119 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
                 </div>
               </div>
 
-              {/* 2. Donor Tier Progress & Giving Societies Card */}
-              <DonorProgressCard
-                walletAddress={walletAddress || currentUser?.wallet_address}
-                donorId={currentUser?.id}
-                amountEth={totalDonated}
-                amountPhp={totalDonatedPhp}
-                onOpenLadder={() => setShowTierModal(true)}
-              />
+              {/* ── Borderless Editorial Recognition Hero + Bare Hairline Stat Strip (Matches Dashboard Overview) ── */}
+              <div className="dbo-editorial-hero dbo-receipts-hero">
+                <div className="dbo-hero-bg-mesh" aria-hidden="true" />
 
-              {/* 3. 4-Stat Metric Cards Grid */}
-              <div className="bbdrts-kpi-grid">
-                {/* 1. Total Contributed */}
-                <div className="bbdrts-kpi-card">
-                  <div className="bbdrts-kpi-header">
-                    <span className="bbdrts-kpi-label">Total Contributed</span>
-                    <div className="bbdrts-kpi-icon-wrap" style={{ color: '#10b981' }}>
-                      <span className="material-symbols-outlined">volunteer_activism</span>
+                <div className="dbo-hero-content">
+                  <div className="dbo-hero-main-row">
+                    <div className="dbo-hero-identity">
+                      <div className="dbo-receipts-badge-hero">
+                        {activeTierInfo?.tier?.IconComponent ? (
+                          <activeTierInfo.tier.IconComponent size={48} />
+                        ) : (
+                          <span className="dbo-bare-icon-box" style={{ width: '48px', height: '48px', borderRadius: '50%' }}>
+                            <span className="material-symbols-outlined" style={{ fontSize: '22px' }}>workspace_premium</span>
+                          </span>
+                        )}
+                      </div>
+                      <div className="dbo-hero-title-group">
+                        <div className="dbo-hero-name-row">
+                          <h1 className="dbo-hero-name">
+                            {activeTierInfo?.tier ? activeTierInfo.tier.name : 'New Contributor'}
+                          </h1>
+                          <span
+                            className="material-symbols-outlined dbo-hero-verified-icon"
+                            title={wt.verifiedWorkspace}
+                            aria-label={wt.verifiedWorkspace}
+                          >
+                            verified
+                          </span>
+                        </div>
+                        <p className="dbo-hero-sub">
+                          {activeTierInfo?.nextTier ? (
+                            <>
+                              <span>{activeTierInfo?.tier?.description || 'Every verified PHP contribution is anchored gaslessly on Ethereum Sepolia.'}</span>
+                              <span className="dbo-receipts-next-inline">
+                                {' · '}Next: <strong>{activeTierInfo.nextTier.name}</strong> (₱{Math.max(0, Math.round(activeTierInfo.remainingPhp || 0)).toLocaleString('en-US')} to go)
+                              </span>
+                            </>
+                          ) : (
+                            activeTierInfo?.tier?.description || 'Highest Recognition Circle achieved — 100% gaslessly notarized on Ethereum Sepolia.'
+                          )}
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                  <div className="bbdrts-kpi-value-block">
-                    <div className="bbdrts-kpi-value">
-                      ₱{Math.round(totalDonatedPhp).toLocaleString('en-US')}
-                    </div>
-                    <div className="bbdrts-kpi-subtext" style={{ color: '#10b981' }}>
-                      <span className="material-symbols-outlined">payments</span>
-                      <span>Gaslessly notarized on Sepolia</span>
-                    </div>
-                  </div>
-                </div>
 
-                {/* 2. Verified Receipts */}
-                <div className="bbdrts-kpi-card">
-                  <div className="bbdrts-kpi-header">
-                    <span className="bbdrts-kpi-label">Verified Receipts</span>
-                    <div className="bbdrts-kpi-icon-wrap" style={{ color: '#0070f3' }}>
-                      <span className="material-symbols-outlined">receipt_long</span>
-                    </div>
-                  </div>
-                  <div className="bbdrts-kpi-value-block">
-                    <div className="bbdrts-kpi-value">
-                      {myDonations ? myDonations.length : 0}
-                      <span className="bbdrts-kpi-unit">Recorded</span>
-                    </div>
-                    <div className="bbdrts-kpi-subtext">
-                      <span className="material-symbols-outlined">verified</span>
-                      <span>100% Cryptographic Audit</span>
-                    </div>
-                  </div>
-                </div>
+                    <div className="dbo-hero-actions">
+                      <button
+                        type="button"
+                        className="dbo-cmd-btn dbo-cmd-btn--primary"
+                        onClick={() => setShowTierModal(true)}
+                        title="View Certificate of Appreciation"
+                      >
+                        <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>workspace_premium</span>
+                        <span>View Certificate</span>
+                      </button>
 
-                {/* 3. Causes Supported */}
-                <div className="bbdrts-kpi-card">
-                  <div className="bbdrts-kpi-header">
-                    <span className="bbdrts-kpi-label">Causes Supported</span>
-                    <div className="bbdrts-kpi-icon-wrap" style={{ color: '#f59e0b' }}>
-                      <span className="material-symbols-outlined">campaign</span>
+                      <button
+                        type="button"
+                        className="dbo-cmd-ghost dbo-cmd-ghost-btn"
+                        onClick={() => setShowTierModal(true)}
+                        title="Explore all 15 Donor Tiers"
+                      >
+                        <span>Donor Tiers</span>
+                        <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>north_east</span>
+                      </button>
                     </div>
                   </div>
-                  <div className="bbdrts-kpi-value-block">
-                    <div className="bbdrts-kpi-value">
-                      {uniqueCausesCount}
-                      <span className="bbdrts-kpi-unit">Drives</span>
-                    </div>
-                    <div className="bbdrts-kpi-subtext">
-                      <span className="material-symbols-outlined">handshake</span>
-                      <span>Direct Relief Impact</span>
-                    </div>
-                  </div>
-                </div>
 
-                {/* 4. Audit Integrity */}
-                <div className="bbdrts-kpi-card">
-                  <div className="bbdrts-kpi-header">
-                    <span className="bbdrts-kpi-label">Audit Reconciliation</span>
-                    <div className="bbdrts-kpi-icon-wrap" style={{ color: hasAnyShortage ? '#ef4444' : '#10b981' }}>
-                      <span className="material-symbols-outlined">
-                        {hasAnyShortage ? 'gavel' : 'verified_user'}
+                  {/* Bare Hairline 4-Column Stat Strip (Zero Duplicate Totals / Zero Rainbow Boxes) */}
+                  <div className="dbo-bare-stats cols-4">
+                    <div className="dbo-bare-stat">
+                      <span className="dbo-bare-icon-box" aria-hidden="true">
+                        <span className="material-symbols-outlined">payments</span>
+                      </span>
+                      <span className="dbo-bare-text">
+                        <span className="dbo-bare-val">₱{Math.round(totalDonatedPhp).toLocaleString('en-US')}</span>
+                        <span className="dbo-bare-lbl">Total Contributed</span>
                       </span>
                     </div>
-                  </div>
-                  <div className="bbdrts-kpi-value-block">
-                    <div className="bbdrts-kpi-value" style={{ color: hasAnyShortage ? '#ef4444' : 'var(--text-primary)' }}>
-                      {hasAnyShortage ? 'Shortage Notarized' : '100% Balanced'}
-                    </div>
-                    <div className="bbdrts-kpi-subtext" style={{ color: hasAnyShortage ? '#ef4444' : '#10b981' }}>
-                      <span className="material-symbols-outlined">
-                        {hasAnyShortage ? 'warning' : 'check_circle'}
+
+                    <div className="dbo-bare-stat">
+                      <span className="dbo-bare-icon-box" aria-hidden="true">
+                        <span className="material-symbols-outlined">receipt_long</span>
                       </span>
-                      <span>{hasAnyShortage ? 'Investigation Active' : 'Zero Discrepancies'}</span>
+                      <span className="dbo-bare-text">
+                        <span className="dbo-bare-val">{myDonations ? myDonations.length : 0}</span>
+                        <span className="dbo-bare-lbl">Verified Receipts</span>
+                      </span>
+                    </div>
+
+                    <div className="dbo-bare-stat">
+                      <span className="dbo-bare-icon-box" aria-hidden="true">
+                        <span className="material-symbols-outlined">campaign</span>
+                      </span>
+                      <span className="dbo-bare-text">
+                        <span className="dbo-bare-val">{uniqueCausesCount}</span>
+                        <span className="dbo-bare-lbl">Causes Supported</span>
+                      </span>
+                    </div>
+
+                    <div className="dbo-bare-stat">
+                      <span className={`dbo-bare-icon-box ${hasAnyShortage ? 'is-alert' : ''}`} aria-hidden="true">
+                        <span className="material-symbols-outlined">
+                          {hasAnyShortage ? 'gavel' : 'verified_user'}
+                        </span>
+                      </span>
+                      <span className="dbo-bare-text">
+                        <span className={`dbo-bare-val dbo-bare-val--tier ${hasAnyShortage ? 'is-alert' : ''}`}>
+                          {hasAnyShortage ? 'Shortage Notarized' : '100% Balanced'}
+                        </span>
+                        <span className="dbo-bare-lbl">
+                          {hasAnyShortage ? 'Audit Investigation Active' : 'Audit Reconciliation'}
+                        </span>
+                      </span>
                     </div>
                   </div>
                 </div>
