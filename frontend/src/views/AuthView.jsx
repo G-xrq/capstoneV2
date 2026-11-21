@@ -1720,17 +1720,17 @@ export default function AuthView({ onLoginSuccess, onBack, theme, onToggleTheme,
                 <div className="brand-metrics-glass-card">
                   <div className="metric-col">
                     <span className="metric-val">{stats.donors}</span>
-                    <span className="metric-lbl">ACTIVE DONORS</span>
+                    <span className="metric-lbl">TOTAL DONORS</span>
                   </div>
                   <div className="metric-divider"></div>
                   <div className="metric-col">
                     <span className="metric-val">{stats.orgs}</span>
-                    <span className="metric-lbl">VERIFIED NGOS</span>
+                    <span className="metric-lbl">ACCREDITED NGOS</span>
                   </div>
                   <div className="metric-divider"></div>
                   <div className="metric-col">
                     <span className="metric-val">{stats.campaigns}</span>
-                    <span className="metric-lbl">CAMPAIGNS</span>
+                    <span className="metric-lbl">TOTAL CAMPAIGNS</span>
                   </div>
                 </div>
               </div>
