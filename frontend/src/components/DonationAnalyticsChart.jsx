@@ -478,8 +478,8 @@ export default function DonationAnalyticsChart({ donations = [] }) {
 
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
 
-    const duration = 560;
-    const bandWidth = 0.36; // Smooth travelling horizon width across [0..1]
+    const duration = 950;
+    const bandWidth = 0.40; // Smooth travelling horizon width across [0..1]
     const startTime = performance.now();
 
     const tick = (now) => {
@@ -561,7 +561,7 @@ export default function DonationAnalyticsChart({ donations = [] }) {
   const activePt = coords[activeIdx] || null;
 
   const tooltipLeft = activePt ? Math.max(70, Math.min(W - 70, activePt.x)) : W / 2;
-  const placeBelow = activePt ? activePt.y < 54 : false;
+  const placeBelow = activePt ? activePt.y < 30 : false;
   const tooltipTop = activePt ? (placeBelow ? activePt.y + 14 : activePt.y - 12) : 20;
 
   return (

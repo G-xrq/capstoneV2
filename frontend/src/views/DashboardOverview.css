@@ -3624,13 +3624,13 @@
 .da-range-group {
   position: relative;
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   align-items: center;
   padding: 3px;
   border-radius: 9px;
   background: var(--bg-inset, #f4f4f5);
   border: 1px solid var(--border, #e4e4e7);
-  min-width: 268px;
+  min-width: 276px;
 }
 
 [data-theme="dark"] .da-range-group {
@@ -3646,7 +3646,7 @@
   border-radius: 6px;
   background: rgba(13, 148, 136, 0.12);
   border: 1px solid rgba(16, 185, 129, 0.38);
-  transition: transform 0.32s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform 0.48s cubic-bezier(0.22, 1, 0.36, 1);
   pointer-events: none;
   z-index: 0;
 }
