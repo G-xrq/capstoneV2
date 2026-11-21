@@ -1226,27 +1226,27 @@
    gradually along a diagonal axis toward the lower-left donor identity area. */
 .dbo-hero-bg-mesh {
   position: absolute;
-  top: -46px;
-  right: -8px;
-  bottom: 18px;
+  top: -44px;
+  right: -6px;
+  bottom: -14px;
   left: 0;
   pointer-events: none;
   user-select: none;
   z-index: 0;
   background-image: url('/donor-hero-mesh-light.png');
-  background-size: auto 108%;
+  background-size: contain;
   background-position: right top;
   background-repeat: no-repeat;
   mix-blend-mode: multiply;
-  opacity: 0.42;
-  -webkit-mask-image: linear-gradient(242deg, rgba(0, 0, 0, 1) 0%, rgba(0, 0, 0, 1) 44%, rgba(0, 0, 0, 0.48) 62%, rgba(0, 0, 0, 0) 80%);
-  mask-image: linear-gradient(242deg, rgba(0, 0, 0, 1) 0%, rgba(0, 0, 0, 1) 44%, rgba(0, 0, 0, 0.48) 62%, rgba(0, 0, 0, 0) 80%);
+  opacity: 0.44;
+  -webkit-mask-image: linear-gradient(242deg, rgba(0, 0, 0, 1) 0%, rgba(0, 0, 0, 1) 48%, rgba(0, 0, 0, 0.42) 66%, rgba(0, 0, 0, 0) 82%);
+  mask-image: linear-gradient(242deg, rgba(0, 0, 0, 1) 0%, rgba(0, 0, 0, 1) 48%, rgba(0, 0, 0, 0.42) 66%, rgba(0, 0, 0, 0) 82%);
 }
 
 [data-theme="dark"] .dbo-hero-bg-mesh {
   background-image: url('/donor-hero-mesh-dark.png');
   mix-blend-mode: screen;
-  opacity: 0.46;
+  opacity: 0.48;
 }
 
 .dbo-hero-eyebrow-row {
