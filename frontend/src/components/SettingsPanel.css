@@ -2176,3 +2176,765 @@
   opacity: 0.4;
   cursor: not-allowed;
 }
+
+/* ============================================================
+   VERCEL GEIST SETTINGS ARCHITECTURE (.vs-*) & GLOBAL RESTYLE
+   ============================================================ */
+
+.vs-primary-btn {
+  height: 36px;
+  padding: 0 14px;
+  border-radius: 8px;
+  border: 1px solid #09090b;
+  background: #09090b;
+  color: #ffffff;
+  font-size: 0.8rem;
+  font-weight: 600;
+  font-family: inherit;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+
+.vs-primary-btn:hover {
+  background: #27272a;
+}
+
+[data-theme="dark"] .vs-primary-btn {
+  background: #ffffff;
+  color: #000000;
+  border-color: #ffffff;
+}
+
+[data-theme="dark"] .vs-primary-btn:hover {
+  background: #e4e4e7;
+}
+
+.vs-mono-val {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.78rem;
+  word-break: break-all;
+}
+
+.vs-inline-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+
+.vs-shell {
+  display: grid;
+  grid-template-columns: 224px minmax(0, 1fr);
+  gap: 28px;
+  align-items: start;
+}
+
+.vs-rail {
+  position: sticky;
+  top: 76px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.vs-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.vs-nav-item {
+  width: 100%;
+  height: 36px;
+  padding: 0 12px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-secondary, #52525b);
+  font-size: 0.82rem;
+  font-weight: 500;
+  font-family: inherit;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.vs-nav-item .material-symbols-outlined {
+  font-size: 18px;
+  opacity: 0.72;
+}
+
+[data-theme="dark"] .vs-nav-item {
+  color: #a1a1aa;
+}
+
+.vs-nav-item:hover {
+  background: var(--bg-inset, #f4f4f5);
+  color: var(--text-primary, #09090b);
+}
+
+[data-theme="dark"] .vs-nav-item:hover {
+  background: #111111;
+  color: #ffffff;
+}
+
+.vs-nav-item.active {
+  background: var(--bg-inset, #f4f4f5);
+  border-color: var(--border, #e4e4e7);
+  color: var(--text-primary, #09090b);
+  font-weight: 600;
+}
+
+.vs-nav-item.active .material-symbols-outlined {
+  opacity: 1;
+}
+
+[data-theme="dark"] .vs-nav-item.active {
+  background: #141414;
+  border-color: #262626;
+  color: #ffffff;
+}
+
+.vs-nav-badge {
+  margin-left: auto;
+  font-size: 0.66rem;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 9999px;
+  background: var(--bg-card, #ffffff);
+  border: 1px solid var(--border, #e4e4e7);
+  color: var(--text-secondary, #52525b);
+}
+
+[data-theme="dark"] .vs-nav-badge {
+  background: #0a0a0a;
+  border-color: #262626;
+  color: #a1a1aa;
+}
+
+/* Subtle Left Rail Status Metadata */
+.vs-rail-meta {
+  padding-top: 14px;
+  border-top: 1px solid var(--border, #e4e4e7);
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+[data-theme="dark"] .vs-rail-meta {
+  border-top-color: #1c1c1e;
+}
+
+.vs-rail-meta-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 0.72rem;
+}
+
+.vs-rail-meta-lbl {
+  color: var(--text-muted, #71717a);
+}
+
+.vs-rail-meta-val {
+  font-weight: 600;
+  color: var(--text-primary, #09090b);
+}
+
+[data-theme="dark"] .vs-rail-meta-val {
+  color: #ededed;
+}
+
+.vs-rail-meta-mono {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.66rem;
+  color: var(--text-secondary, #52525b);
+  max-width: 126px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+[data-theme="dark"] .vs-rail-meta-mono {
+  color: #a1a1aa;
+}
+
+.vs-rail-meta-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-weight: 500;
+  color: var(--text-primary, #09090b);
+}
+
+[data-theme="dark"] .vs-rail-meta-status {
+  color: #d4d4d8;
+}
+
+.vs-live-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #10b981;
+  flex-shrink: 0;
+}
+
+.vs-live-dot.is-off {
+  background: #71717a;
+}
+
+/* Right Content Pane with Smooth Transition */
+@keyframes vsPaneFade {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.vs-content {
+  min-width: 0;
+  animation: vsPaneFade 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vs-content {
+    animation: none;
+  }
+}
+
+.vs-pane {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+/* Borderless Identity Band */
+.vs-identity-band {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 4px 0 18px;
+  border-bottom: 1px solid var(--border, #e4e4e7);
+}
+
+[data-theme="dark"] .vs-identity-band {
+  border-bottom-color: #1f1f1f;
+}
+
+.vs-identity-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-width: 0;
+}
+
+.vs-avatar {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: 1px solid var(--border-strong, #d4d4d8);
+  background: var(--bg-inset, #f4f4f5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-primary, #09090b);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+[data-theme="dark"] .vs-avatar {
+  background: #141414;
+  border-color: #2e2e2e;
+  color: #ffffff;
+}
+
+.vs-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.vs-identity-info {
+  min-width: 0;
+}
+
+.vs-identity-name-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 4px;
+}
+
+.vs-identity-name {
+  margin: 0;
+  font-size: 1.45rem;
+  font-weight: 700;
+  letter-spacing: -0.035em;
+  line-height: 1.15;
+  color: var(--text-primary, #09090b);
+}
+
+[data-theme="dark"] .vs-identity-name {
+  color: #ffffff;
+}
+
+.vs-verified-check {
+  font-size: 18px;
+  color: #10b981;
+  font-variation-settings: 'FILL' 1, 'wght' 500, 'GRAD' 0, 'opsz' 24;
+}
+
+.vs-identity-meta {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-wrap: wrap;
+  font-size: 0.78rem;
+  color: var(--text-muted, #71717a);
+}
+
+.vs-dot-sep {
+  opacity: 0.4;
+}
+
+.vs-id-code {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.72rem;
+}
+
+.vs-ghost-action {
+  background: transparent;
+  border: none;
+  padding: 6px 2px;
+  font-family: inherit;
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--text-secondary, #52525b);
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+[data-theme="dark"] .vs-ghost-action {
+  color: #a1a1aa;
+}
+
+.vs-ghost-action:hover {
+  color: var(--text-primary, #09090b);
+}
+
+[data-theme="dark"] .vs-ghost-action:hover {
+  color: #ffffff;
+}
+
+/* Vercel Hairline Settings Card */
+.vs-card {
+  border-radius: 12px;
+  background: var(--bg-card, #ffffff);
+  border: 1px solid var(--border, #e4e4e7);
+  overflow: hidden;
+}
+
+[data-theme="dark"] .vs-card {
+  background: #0a0a0a;
+  border-color: #262626;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.vs-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 18px 20px 14px;
+  border-bottom: 1px solid var(--border, #e4e4e7);
+}
+
+[data-theme="dark"] .vs-card-head {
+  border-bottom-color: #18181b;
+}
+
+.vs-card-title {
+  margin: 0 0 3px 0;
+  font-size: 0.94rem;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  color: var(--text-primary, #09090b);
+}
+
+[data-theme="dark"] .vs-card-title {
+  color: #ffffff;
+}
+
+.vs-card-desc {
+  margin: 0;
+  font-size: 0.76rem;
+  color: var(--text-muted, #71717a);
+  line-height: 1.45;
+}
+
+.vs-subtle-btn {
+  height: 30px;
+  padding: 0 11px;
+  border-radius: 7px;
+  border: 1px solid var(--border, #e4e4e7);
+  background: transparent;
+  color: var(--text-primary, #09090b);
+  font-size: 0.75rem;
+  font-weight: 500;
+  font-family: inherit;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+[data-theme="dark"] .vs-subtle-btn {
+  border-color: #262626;
+  color: #ededed;
+}
+
+.vs-subtle-btn:hover {
+  background: var(--bg-inset, #f4f4f5);
+  border-color: var(--border-strong, #a1a1aa);
+}
+
+[data-theme="dark"] .vs-subtle-btn:hover {
+  background: #141414;
+  border-color: #404040;
+}
+
+/* Hairline Key-Value List (Replaces 10 Empty Grey Sub-Boxes) */
+.vs-kv-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.vs-kv-row {
+  display: grid;
+  grid-template-columns: 185px minmax(0, 1fr);
+  gap: 16px;
+  align-items: center;
+  padding: 13px 20px;
+  border-bottom: 1px solid var(--border, #e4e4e7);
+}
+
+.vs-kv-row:last-child {
+  border-bottom: none;
+}
+
+.vs-kv-row.is-multiline {
+  align-items: start;
+}
+
+[data-theme="dark"] .vs-kv-row {
+  border-bottom-color: #161618;
+}
+
+.vs-kv-key {
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--text-muted, #71717a);
+}
+
+.vs-kv-val {
+  font-size: 0.84rem;
+  font-weight: 500;
+  color: var(--text-primary, #09090b);
+  line-height: 1.45;
+  min-width: 0;
+  word-break: break-word;
+}
+
+[data-theme="dark"] .vs-kv-val {
+  color: #ededed;
+}
+
+.vs-add-link {
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: inherit;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--text-muted, #71717a);
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+.vs-add-link:hover {
+  color: var(--text-primary, #09090b);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+[data-theme="dark"] .vs-add-link:hover {
+  color: #ffffff;
+}
+
+.vs-muted-val {
+  color: var(--text-muted, #71717a);
+  font-weight: 400;
+}
+
+.vs-ext-link {
+  color: #0d9488;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+[data-theme="dark"] .vs-ext-link {
+  color: #34d399;
+}
+
+.vs-ext-link:hover {
+  text-decoration: underline;
+}
+
+/* Balanced 2-Column Hairline Grid for Optional Fields */
+.vs-kv-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.vs-kv-cell {
+  padding: 13px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border-bottom: 1px solid var(--border, #e4e4e7);
+  border-right: 1px solid var(--border, #e4e4e7);
+}
+
+.vs-kv-cell:nth-child(2n) {
+  border-right: none;
+}
+
+.vs-kv-cell.is-full {
+  grid-column: 1 / -1;
+  border-right: none;
+  border-bottom: none;
+}
+
+[data-theme="dark"] .vs-kv-cell {
+  border-bottom-color: #161618;
+  border-right-color: #161618;
+}
+
+/* Clean Recognition Standing Row */
+.vs-standing-row {
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.vs-standing-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.vs-standing-amt {
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: var(--text-primary, #09090b);
+  font-variant-numeric: tabular-nums;
+}
+
+[data-theme="dark"] .vs-standing-amt {
+  color: #ffffff;
+}
+
+.vs-standing-sub {
+  font-size: 0.75rem;
+  color: var(--text-muted, #71717a);
+  margin-top: 2px;
+}
+
+.vs-standing-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  background: var(--bg-inset, #f4f4f5);
+  border: 1px solid var(--border, #e4e4e7);
+  color: var(--text-primary, #09090b);
+}
+
+[data-theme="dark"] .vs-standing-pill {
+  background: #141414;
+  border-color: #262626;
+  color: #ededed;
+}
+
+/* Global Vercel Geist Upgrade for Remaining Settings Tabs (Blockchain, Preferences, Security, QR) */
+[data-theme="dark"] .vs-content .bbdrts-settings-card {
+  background: #0a0a0a;
+  border-color: #262626;
+  border-radius: 12px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.vs-content .bbdrts-settings-card {
+  border-radius: 12px;
+}
+
+[data-theme="dark"] .vs-content .bbdrts-settings-card-title .material-symbols-outlined {
+  color: #a1a1aa !important;
+}
+
+[data-theme="dark"] .vs-content .bbdrts-danger-card {
+  border-color: rgba(239, 68, 68, 0.3) !important;
+  background: rgba(239, 68, 68, 0.03) !important;
+}
+
+[data-theme="dark"] .vs-content .bbdrts-danger-card .bbdrts-settings-card-title .material-symbols-outlined {
+  color: #f87171 !important;
+}
+
+[data-theme="dark"] .vs-content .bbdrts-btn-primary-action,
+[data-theme="dark"] .vs-content .bbdrts-btn-primary {
+  background: #ffffff;
+  color: #000000;
+  border-color: #ffffff;
+}
+
+[data-theme="dark"] .vs-content .bbdrts-btn-primary-action:hover,
+[data-theme="dark"] .vs-content .bbdrts-btn-primary:hover {
+  background: #e4e4e7;
+}
+
+/* Harmonize Preferences Toggles & Sub-rows with Vercel Hairlines */
+.vs-content .bbdrts-pref-list {
+  gap: 0;
+  border: 1px solid var(--border, #e4e4e7);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+[data-theme="dark"] .vs-content .bbdrts-pref-list {
+  border-color: #1f1f1f;
+}
+
+.vs-content .bbdrts-pref-item {
+  border-radius: 0;
+  border: none;
+  border-bottom: 1px solid var(--border, #e4e4e7);
+  background: transparent;
+  padding: 13px 16px;
+}
+
+.vs-content .bbdrts-pref-item:last-child {
+  border-bottom: none;
+}
+
+[data-theme="dark"] .vs-content .bbdrts-pref-item {
+  background: transparent;
+  border-bottom-color: #18181b;
+}
+
+[data-theme="dark"] .vs-content .bbdrts-pref-item:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.vs-content .bbdrts-toggle-track.active {
+  background: #10b981;
+}
+
+[data-theme="dark"] .vs-content .bbdrts-toggle-track.active {
+  background: #10b981;
+}
+
+[data-theme="dark"] .vs-content .bbdrts-settings-input,
+[data-theme="dark"] .vs-content .bbdrts-settings-textarea {
+  background: #000000;
+  border-color: #262626;
+  border-radius: 8px;
+}
+
+[data-theme="dark"] .vs-content .bbdrts-settings-input:focus,
+[data-theme="dark"] .vs-content .bbdrts-settings-textarea:focus {
+  border-color: #52525b;
+}
+
+/* Responsive: Collapse Left Rail into Horizontal Scrollable Tab Strip on Tablet/Mobile */
+@media (max-width: 960px) {
+  .vs-shell {
+    grid-template-columns: 1fr;
+    gap: 18px;
+  }
+  .vs-rail {
+    position: static;
+    gap: 0;
+  }
+  .vs-nav {
+    flex-direction: row;
+    overflow-x: auto;
+    gap: 6px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border, #e4e4e7);
+    scrollbar-width: none;
+  }
+  [data-theme="dark"] .vs-nav {
+    border-bottom-color: #1f1f1f;
+  }
+  .vs-nav::-webkit-scrollbar {
+    display: none;
+  }
+  .vs-nav-item {
+    width: auto;
+    flex-shrink: 0;
+    height: 34px;
+    padding: 0 12px;
+  }
+  .vs-rail-meta {
+    display: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .vs-kv-row {
+    grid-template-columns: 1fr;
+    gap: 4px;
+    padding: 12px 16px;
+  }
+  .vs-kv-grid {
+    grid-template-columns: 1fr;
+  }
+  .vs-kv-cell {
+    border-right: none;
+    padding: 12px 16px;
+  }
+  .vs-card-head {
+    padding: 15px 16px 12px;
+  }
+}

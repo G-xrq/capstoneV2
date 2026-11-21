@@ -593,6 +593,21 @@ export default function SettingsPanel({
   };
 
   useEffect(() => {
+    let active = true;
+    const token = localStorage.getItem('bbdrts_token') || localStorage.getItem('token');
+    if (!token) return;
+    fetch(`${API_URL}/api/auth/2fa/status`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (active && data) setTfaStatus(data);
+      })
+      .catch(() => {});
+    return () => { active = false; };
+  }, []);
+
+  useEffect(() => {
     if (activeTab === 'security') {
       loadSecurityData();
     }
@@ -1148,263 +1163,302 @@ export default function SettingsPanel({
         </div>
 
         <div className="admin-page-header-actions">
-          <span className="bbdrts-settings-role-badge">
-            <span className="material-symbols-outlined" style={{ fontSize: '15px', color: roleMeta.color }}>{roleMeta.icon}</span>
-            <span>{isOrg ? 'Accredited NGO' : isAdmin ? 'Administrator' : 'Verified Donor'}</span>
-          </span>
-
           <button
             type="button"
-            className="bbdrts-settings-edit-btn"
+            className="vs-primary-btn"
             onClick={() => setEditModalOpen(true)}
             title="Edit your display name, contact information, location, bio, and avatar"
           >
-            <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>edit</span>
+            <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>edit</span>
             <span>Edit Profile</span>
           </button>
         </div>
       </div>
 
-      {/* ── Segmented Navigation Tabs ── */}
-      <nav className="bbdrts-settings-tabs" aria-label="Settings categories">
-        <button
-          type="button"
-          className={`bbdrts-settings-tab-btn ${activeTab === 'profile' ? 'active' : ''}`}
-          onClick={() => setActiveTab('profile')}
-        >
-          <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>person</span>
-          <span>Profile & Identity</span>
-        </button>
+      {/* ── Vercel Two-Column Settings Shell (Sticky Left Rail + Right Content Pane) ── */}
+      <div className="vs-shell">
+        <aside className="vs-rail" aria-label="Settings categories">
+          <nav className="vs-nav">
+            <button
+              type="button"
+              className={`vs-nav-item ${activeTab === 'profile' ? 'active' : ''}`}
+              onClick={() => setActiveTab('profile')}
+            >
+              <span className="material-symbols-outlined">person</span>
+              <span>Profile &amp; Identity</span>
+            </button>
 
-        {(isOrg || showNgoInputs) && (
-          <button
-            type="button"
-            className={`bbdrts-settings-tab-btn ${activeTab === 'qr_library' ? 'active' : ''}`}
-            onClick={() => setActiveTab('qr_library')}
-          >
-            <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>qr_code_2</span>
-            <span>QR Codes &amp; Payout Rails</span>
-            {savedQrList.length > 0 && (
-              <span className="bbdrts-qr-tab-count-badge">{savedQrList.length}</span>
+            {(isOrg || showNgoInputs) && (
+              <button
+                type="button"
+                className={`vs-nav-item ${activeTab === 'qr_library' ? 'active' : ''}`}
+                onClick={() => setActiveTab('qr_library')}
+              >
+                <span className="material-symbols-outlined">qr_code_2</span>
+                <span>QR &amp; Payout Rails</span>
+                {savedQrList.length > 0 && (
+                  <span className="vs-nav-badge">{savedQrList.length}</span>
+                )}
+              </button>
             )}
-          </button>
-        )}
 
-        <button
-          type="button"
-          className={`bbdrts-settings-tab-btn ${activeTab === 'wallet' ? 'active' : ''}`}
-          onClick={() => setActiveTab('wallet')}
-        >
-          <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>verified_user</span>
-          <span>Blockchain Audit</span>
-        </button>
+            <button
+              type="button"
+              className={`vs-nav-item ${activeTab === 'wallet' ? 'active' : ''}`}
+              onClick={() => setActiveTab('wallet')}
+            >
+              <span className="material-symbols-outlined">verified_user</span>
+              <span>Blockchain Audit</span>
+            </button>
 
-        <button
-          type="button"
-          className={`bbdrts-settings-tab-btn ${activeTab === 'preferences' ? 'active' : ''}`}
-          onClick={() => setActiveTab('preferences')}
-        >
-          <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>tune</span>
-          <span>Preferences & Theme</span>
-        </button>
+            <button
+              type="button"
+              className={`vs-nav-item ${activeTab === 'preferences' ? 'active' : ''}`}
+              onClick={() => setActiveTab('preferences')}
+            >
+              <span className="material-symbols-outlined">tune</span>
+              <span>Preferences</span>
+            </button>
 
-        <button
-          type="button"
-          className={`bbdrts-settings-tab-btn ${activeTab === 'security' ? 'active' : ''}`}
-          onClick={() => setActiveTab('security')}
-        >
-          <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>shield</span>
-          <span>Security & System</span>
-        </button>
-      </nav>
+            <button
+              type="button"
+              className={`vs-nav-item ${activeTab === 'security' ? 'active' : ''}`}
+              onClick={() => setActiveTab('security')}
+            >
+              <span className="material-symbols-outlined">shield</span>
+              <span>Security &amp; System</span>
+            </button>
+          </nav>
 
+          {/* Subtle Account Status Summary in Left Rail */}
+          <div className="vs-rail-meta">
+            <div className="vs-rail-meta-row">
+              <span className="vs-rail-meta-lbl">Role</span>
+              <span className="vs-rail-meta-val">
+                {isOrg ? 'Accredited NGO' : isAdmin ? 'Administrator' : 'Verified Donor'}
+              </span>
+            </div>
+            <div className="vs-rail-meta-row">
+              <span className="vs-rail-meta-lbl">Account ID</span>
+              <span className="vs-rail-meta-mono" title={systemId}>{systemId}</span>
+            </div>
+            <div className="vs-rail-meta-row">
+              <span className="vs-rail-meta-lbl">Ledger</span>
+              <span className="vs-rail-meta-status">
+                <span className="vs-live-dot" />
+                <span>Sepolia Active</span>
+              </span>
+            </div>
+            <div className="vs-rail-meta-row">
+              <span className="vs-rail-meta-lbl">2FA Guard</span>
+              <span className="vs-rail-meta-status">
+                <span className={`vs-live-dot ${tfaStatus?.enabled ? '' : 'is-off'}`} />
+                <span>{tfaStatus?.enabled ? 'Enabled' : 'Off'}</span>
+              </span>
+            </div>
+          </div>
+        </aside>
+
+        <div className="vs-content" key={activeTab}>
       {/* ══════════════════════════════════════════════════════════════════
           TAB 1: PROFILE & IDENTITY
           ══════════════════════════════════════════════════════════════════ */}
       {activeTab === 'profile' && (
-        <div className="bbdrts-settings-pane">
-          
-          {/* Hero Identity Pass */}
-          <div className="bbdrts-profile-hero">
-            <div className="bbdrts-profile-hero-left">
-              <div className="bbdrts-profile-avatar-wrap">
+        <div className="bbdrts-settings-pane vs-pane">
+
+          {/* Borderless Identity Band (Matches Dashboard Overview Aesthetic) */}
+          <div className="vs-identity-band">
+            <div className="vs-identity-left">
+              <div className="vs-avatar">
                 {currentUser?.avatar_url && (currentUser.avatar_url.startsWith('data:') || currentUser.avatar_url.startsWith('http')) ? (
                   <img src={currentUser.avatar_url} alt="Profile Avatar" />
                 ) : currentUser?.avatar_url && currentUser.avatar_url.length < 30 ? (
-                  <span className="material-symbols-outlined" style={{ fontSize: '28px' }}>{currentUser.avatar_url}</span>
+                  <span className="material-symbols-outlined" style={{ fontSize: '26px' }}>{currentUser.avatar_url}</span>
                 ) : (
                   userInitials
                 )}
               </div>
 
-              <div className="bbdrts-profile-hero-info">
-                <div className="bbdrts-profile-name-row">
-                  <h3 className="bbdrts-profile-hero-name">{displayName}</h3>
-                  <span className="bbdrts-profile-badge-pill">
-                    <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>
-                      verified
-                    </span>
-                    {isOrg ? 'Verified NGO' : isAdmin ? 'Verified Admin' : 'Verified Donor'}
+              <div className="vs-identity-info">
+                <div className="vs-identity-name-row">
+                  <h3 className="vs-identity-name">{displayName}</h3>
+                  <span
+                    className="material-symbols-outlined vs-verified-check"
+                    title={isOrg ? 'Accredited NGO' : isAdmin ? 'Verified Admin' : 'Verified Donor'}
+                  >
+                    verified
                   </span>
                 </div>
+                <div className="vs-identity-meta">
+                  <span>{currentUser.email || `${displayName.toLowerCase().replace(/\s+/g, '')}@bbdrts.org`}</span>
+                  <span className="vs-dot-sep">·</span>
+                  <span>Member since {formatMemberSince(currentUser?.created_at || currentUser?.Created_At)}</span>
+                  <span className="vs-dot-sep">·</span>
+                  <span className="vs-id-code">{systemId}</span>
+                </div>
+              </div>
+            </div>
 
-                <div className="bbdrts-profile-hero-sub">
-                  <span>
-                    <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>mail</span>
-                    {currentUser.email || `${displayName.toLowerCase().replace(/\s+/g, '')}@bbdrts.org`}
-                  </span>
-                  <span>
-                    <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>location_on</span>
-                    {currentUser.location || <span className="bbdrts-field-not-set">Location not set</span>}
-                  </span>
-                  <span>
-                    <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>badge</span>
-                    {systemId}
-                  </span>
-                  <span>
-                    <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>calendar_today</span>
-                    Member since {formatMemberSince(currentUser?.created_at || currentUser?.Created_At)}
-                  </span>
-                </div>
+            <button
+              type="button"
+              className="vs-ghost-action"
+              onClick={() => setEditModalOpen(true)}
+            >
+              <span>Update avatar &amp; bio</span>
+              <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>arrow_forward</span>
+            </button>
+          </div>
+
+          {/* Core Public Profile — Clean Hairline Key-Value List (Zero Nested Boxes) */}
+          <div className="vs-card">
+            <div className="vs-card-head">
+              <div>
+                <h4 className="vs-card-title">Public Profile</h4>
+                <p className="vs-card-desc">
+                  Details displayed on your verified donation receipts and appreciation certificates.
+                </p>
+              </div>
+              <button
+                type="button"
+                className="vs-subtle-btn"
+                onClick={() => setEditModalOpen(true)}
+              >
+                Edit
+              </button>
+            </div>
+
+            <div className="vs-kv-list">
+              <div className="vs-kv-row">
+                <span className="vs-kv-key">Display Name</span>
+                <span className="vs-kv-val">{displayName}</span>
+              </div>
+
+              <div className="vs-kv-row">
+                <span className="vs-kv-key">Email Address</span>
+                <span className="vs-kv-val">{currentUser.email || '—'}</span>
+              </div>
+
+              <div className="vs-kv-row">
+                <span className="vs-kv-key">Contact Number</span>
+                <span className="vs-kv-val">
+                  {currentUser?.phone || (
+                    <button type="button" className="vs-add-link" onClick={() => setEditModalOpen(true)}>+ Add contact number</button>
+                  )}
+                </span>
+              </div>
+
+              <div className="vs-kv-row">
+                <span className="vs-kv-key">Registered Location</span>
+                <span className="vs-kv-val">
+                  {currentUser?.location || (
+                    <button type="button" className="vs-add-link" onClick={() => setEditModalOpen(true)}>+ Add location</button>
+                  )}
+                </span>
+              </div>
+
+              <div className="vs-kv-row is-multiline">
+                <span className="vs-kv-key">About / Bio</span>
+                <span className="vs-kv-val">
+                  {currentUser?.bio || (
+                    <button type="button" className="vs-add-link" onClick={() => setEditModalOpen(true)}>+ Add a short bio</button>
+                  )}
+                </span>
               </div>
             </div>
           </div>
 
-          {/* Profile Information Card */}
-          <div className="bbdrts-settings-card">
-            <div className="bbdrts-settings-card-header">
-              <div className="bbdrts-settings-card-title-wrap">
-                <h4 className="bbdrts-settings-card-title">
-                  <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#16a34a' }}>id_card</span>
-                  Public Profile Information
+          {/* Additional Profile Details — Balanced 2-Column Hairline Grid (No Orphan Row) */}
+          <div className="vs-card">
+            <div className="vs-card-head">
+              <div>
+                <h4 className="vs-card-title">
+                  {isOrg ? 'Organization Details' : 'Humanitarian Background'}
                 </h4>
-                <p className="bbdrts-settings-card-desc">
-                  Information displayed on your verified relief contribution receipts and certificates.
+                <p className="vs-card-desc">
+                  {isOrg
+                    ? 'Public links, operational focus areas, and mission statement.'
+                    : 'Optional context for disaster relief coordination and certificates.'}
                 </p>
               </div>
             </div>
 
-            <div className="bbdrts-profile-fields-grid">
-              <div className="bbdrts-profile-field-item">
-                <span className="bbdrts-profile-field-label">Display Name</span>
-                <span className="bbdrts-profile-field-value">{displayName}</span>
+            {!isOrg ? (
+              <div className="vs-kv-grid">
+                <div className="vs-kv-cell">
+                  <span className="vs-kv-key">Occupation</span>
+                  <span className="vs-kv-val">
+                    {userPrefs.occupation || <span className="vs-muted-val">Not set</span>}
+                  </span>
+                </div>
+                <div className="vs-kv-cell">
+                  <span className="vs-kv-key">Preferred Causes</span>
+                  <span className="vs-kv-val">
+                    {userPrefs.preferredCauses || <span className="vs-muted-val">Not set</span>}
+                  </span>
+                </div>
+                <div className="vs-kv-cell">
+                  <span className="vs-kv-key">Personal Website</span>
+                  <span className="vs-kv-val">
+                    {userPrefs.website || currentUser?.website ? (
+                      <a href={userPrefs.website || currentUser?.website} target="_blank" rel="noopener noreferrer" className="vs-ext-link">
+                        <span>{userPrefs.website || currentUser?.website}</span>
+                        <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>north_east</span>
+                      </a>
+                    ) : <span className="vs-muted-val">Not set</span>}
+                  </span>
+                </div>
+                <div className="vs-kv-cell">
+                  <span className="vs-kv-key">Social Profile</span>
+                  <span className="vs-kv-val">
+                    {userPrefs.socialLink || <span className="vs-muted-val">Not set</span>}
+                  </span>
+                </div>
+                <div className="vs-kv-cell is-full">
+                  <span className="vs-kv-key">Emergency Contact</span>
+                  <span className="vs-kv-val">
+                    {userPrefs.emergencyContact || <span className="vs-muted-val">Not set</span>}
+                  </span>
+                </div>
               </div>
-
-              <div className="bbdrts-profile-field-item">
-                <span className="bbdrts-profile-field-label">Account Role</span>
-                <span className="bbdrts-profile-field-value">{isOrg ? 'Accredited NGO Organization' : isAdmin ? 'System Administrator' : 'Verified Donor'}</span>
+            ) : (
+              <div className="vs-kv-grid">
+                <div className="vs-kv-cell">
+                  <span className="vs-kv-key">Official Website</span>
+                  <span className="vs-kv-val">
+                    {ngoWebsite || userPrefs.website || currentUser?.website ? (
+                      <a href={ngoWebsite || userPrefs.website || currentUser?.website} target="_blank" rel="noopener noreferrer" className="vs-ext-link">
+                        <span>{ngoWebsite || userPrefs.website || currentUser?.website}</span>
+                        <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>north_east</span>
+                      </a>
+                    ) : <span className="vs-muted-val">Not set</span>}
+                  </span>
+                </div>
+                <div className="vs-kv-cell">
+                  <span className="vs-kv-key">Social Media Page</span>
+                  <span className="vs-kv-val">
+                    {ngoSocialLink || userPrefs.socialLink || <span className="vs-muted-val">Not set</span>}
+                  </span>
+                </div>
+                <div className="vs-kv-cell">
+                  <span className="vs-kv-key">Disaster Focus Areas</span>
+                  <span className="vs-kv-val">
+                    {ngoFocusAreas || userPrefs.focusAreas || <span className="vs-muted-val">Not set</span>}
+                  </span>
+                </div>
+                <div className="vs-kv-cell">
+                  <span className="vs-kv-key">HQ Landmark</span>
+                  <span className="vs-kv-val">
+                    {ngoLandmark || userPrefs.hqLandmark || <span className="vs-muted-val">Not set</span>}
+                  </span>
+                </div>
+                <div className="vs-kv-cell is-full">
+                  <span className="vs-kv-key">Mission Statement</span>
+                  <span className="vs-kv-val">
+                    {ngoMission || userPrefs.missionStatement || <span className="vs-muted-val">Not set</span>}
+                  </span>
+                </div>
               </div>
-
-              <div className="bbdrts-profile-field-item">
-                <span className="bbdrts-profile-field-label">Contact Number</span>
-                <span className="bbdrts-profile-field-value">
-                  {currentUser?.phone || <span className="bbdrts-field-not-set">Not provided</span>}
-                </span>
-              </div>
-
-              <div className="bbdrts-profile-field-item">
-                <span className="bbdrts-profile-field-label">Registered Location</span>
-                <span className="bbdrts-profile-field-value">
-                  {currentUser?.location || <span className="bbdrts-field-not-set">Not provided</span>}
-                </span>
-              </div>
-
-              <div className="bbdrts-profile-field-item" style={{ gridColumn: '1 / -1' }}>
-                <span className="bbdrts-profile-field-label">About / Bio</span>
-                <span className="bbdrts-profile-field-value">
-                  {currentUser?.bio || <span className="bbdrts-field-not-set">No bio provided yet. Click "Edit Profile" to add one.</span>}
-                </span>
-              </div>
-
-              {/* Optional Additional Humanitarian Background */}
-              {!isOrg && (
-                <>
-                  <div className="bbdrts-profile-field-item">
-                    <span className="bbdrts-profile-field-label">Occupation / Profession</span>
-                    <span className="bbdrts-profile-field-value">
-                      {userPrefs.occupation || <span className="bbdrts-field-not-set">Not provided (Optional)</span>}
-                    </span>
-                  </div>
-
-                  <div className="bbdrts-profile-field-item">
-                    <span className="bbdrts-profile-field-label">Preferred Relief Causes</span>
-                    <span className="bbdrts-profile-field-value">
-                      {userPrefs.preferredCauses || <span className="bbdrts-field-not-set">Not provided (Optional)</span>}
-                    </span>
-                  </div>
-
-                  <div className="bbdrts-profile-field-item">
-                    <span className="bbdrts-profile-field-label">Personal Website</span>
-                    <span className="bbdrts-profile-field-value">
-                      {userPrefs.website || currentUser?.website ? (
-                        <a href={userPrefs.website || currentUser?.website} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent, #16a34a)', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                          <span>{userPrefs.website || currentUser?.website}</span>
-                          <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>open_in_new</span>
-                        </a>
-                      ) : <span className="bbdrts-field-not-set">Not provided (Optional)</span>}
-                    </span>
-                  </div>
-
-                  <div className="bbdrts-profile-field-item">
-                    <span className="bbdrts-profile-field-label">Social Profile</span>
-                    <span className="bbdrts-profile-field-value">
-                      {userPrefs.socialLink || <span className="bbdrts-field-not-set">Not provided (Optional)</span>}
-                    </span>
-                  </div>
-
-                  <div className="bbdrts-profile-field-item">
-                    <span className="bbdrts-profile-field-label">Emergency Contact</span>
-                    <span className="bbdrts-profile-field-value">
-                      {userPrefs.emergencyContact || <span className="bbdrts-field-not-set">Not provided (Optional)</span>}
-                    </span>
-                  </div>
-                </>
-              )}
-
-              {isOrg && (
-                <>
-                  <div className="bbdrts-profile-field-item">
-                    <span className="bbdrts-profile-field-label">Official Website</span>
-                    <span className="bbdrts-profile-field-value">
-                      {ngoWebsite || userPrefs.website || currentUser?.website ? (
-                        <a href={ngoWebsite || userPrefs.website || currentUser?.website} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent, #16a34a)', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                          <span>{ngoWebsite || userPrefs.website || currentUser?.website}</span>
-                          <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>open_in_new</span>
-                        </a>
-                      ) : <span className="bbdrts-field-not-set">Not provided (Optional)</span>}
-                    </span>
-                  </div>
-
-                  <div className="bbdrts-profile-field-item">
-                    <span className="bbdrts-profile-field-label">Social Media Page</span>
-                    <span className="bbdrts-profile-field-value">
-                      {ngoSocialLink || userPrefs.socialLink || <span className="bbdrts-field-not-set">Not provided (Optional)</span>}
-                    </span>
-                  </div>
-
-                  <div className="bbdrts-profile-field-item">
-                    <span className="bbdrts-profile-field-label">Disaster Focus Areas</span>
-                    <span className="bbdrts-profile-field-value">
-                      {ngoFocusAreas || userPrefs.focusAreas || <span className="bbdrts-field-not-set">Not provided (Optional)</span>}
-                    </span>
-                  </div>
-
-                  <div className="bbdrts-profile-field-item">
-                    <span className="bbdrts-profile-field-label">HQ Landmark</span>
-                    <span className="bbdrts-profile-field-value">
-                      {ngoLandmark || userPrefs.hqLandmark || <span className="bbdrts-field-not-set">Not provided (Optional)</span>}
-                    </span>
-                  </div>
-
-                  <div className="bbdrts-profile-field-item" style={{ gridColumn: '1 / -1' }}>
-                    <span className="bbdrts-profile-field-label">Mission Statement</span>
-                    <span className="bbdrts-profile-field-value">
-                      {ngoMission || userPrefs.missionStatement || <span className="bbdrts-field-not-set">Not provided (Optional)</span>}
-                    </span>
-                  </div>
-                </>
-              )}
-            </div>
+            )}
           </div>
 
           {/* NGO Profile Inputs & Information Studio (Dedicated In-Place Inputs) */}
@@ -1643,32 +1697,28 @@ export default function SettingsPanel({
 
           {/* Donor Philanthropic Standing Card (Donors Only) */}
           {!isOrg && !isAdmin && (
-            <div className="bbdrts-settings-card">
-              <div className="bbdrts-settings-card-header">
-                <div className="bbdrts-settings-card-title-wrap">
-                  <h4 className="bbdrts-settings-card-title">
-                    <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#16a34a' }}>military_tech</span>
-                    Philanthropic Standing & Recognition
-                  </h4>
-                  <p className="bbdrts-settings-card-desc">
-                    Your cumulative humanitarian contributions recorded on the immutable ledger.
+            <div className="vs-card">
+              <div className="vs-card-head">
+                <div>
+                  <h4 className="vs-card-title">Recognition Standing</h4>
+                  <p className="vs-card-desc">
+                    Cumulative humanitarian giving notarized on Ethereum Sepolia.
                   </p>
                 </div>
-
                 {onOpenHonorsLadder && (
                   <button
                     type="button"
-                    className="bbdrts-btn-outline"
+                    className="vs-subtle-btn"
                     onClick={onOpenHonorsLadder}
                   >
-                    <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>leaderboard</span>
-                    <span>View Honors Ladder</span>
+                    <span>15 Tiers</span>
+                    <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>north_east</span>
                   </button>
                 )}
               </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap', padding: '14px', background: 'var(--bg-subcard, #fafafa)', border: '1px solid var(--border, #eaeaea)', borderRadius: '8px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+              <div className="vs-standing-row">
+                <div className="vs-standing-left">
                   <DonorBadge
                     size="lg"
                     walletAddress={walletAddress || currentUser?.wallet_address}
@@ -1679,24 +1729,18 @@ export default function SettingsPanel({
                     onClick={onOpenHonorsLadder}
                   />
                   <div>
-                    <div style={{ fontSize: '0.92rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                      Verified Supporter
+                    <div className="vs-standing-amt">
+                      ₱{Math.round(Number(totalDonatedPhp) || 0).toLocaleString('en-US')}
                     </div>
-                    <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                      ₱{Number(totalDonatedPhp).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} verified relief contributed · Gasless Sepolia receipts
+                    <div className="vs-standing-sub">
+                      Verified PHP relief impact · Gasless Sepolia receipts
                     </div>
                   </div>
                 </div>
 
-                <div style={{ display: 'flex', gap: '12px' }}>
-                  <div style={{ textAlign: 'center', padding: '8px 14px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '6px' }}>
-                    <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Total Donated</div>
-                    <div style={{ fontSize: '0.9rem', fontWeight: 700, color: '#16a34a' }}>₱{Number(totalDonatedPhp).toLocaleString()}</div>
-                  </div>
-                  <div style={{ textAlign: 'center', padding: '8px 14px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: '6px' }}>
-                    <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Audit Ledger</div>
-                    <div style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-primary)' }}>Sepolia Verified</div>
-                  </div>
+                <div className="vs-standing-pill">
+                  <span className="vs-live-dot" />
+                  <span>Sepolia Verified</span>
                 </div>
               </div>
             </div>
@@ -2600,56 +2644,54 @@ export default function SettingsPanel({
           TAB 2: GASLESS BLOCKCHAIN AUDIT & PUBLIC CONTRACT
           ══════════════════════════════════════════════════════════════════ */}
       {activeTab === 'wallet' && (
-        <div className="bbdrts-settings-pane">
-          <div className="bbdrts-settings-card">
-            <div className="bbdrts-settings-card-header">
-              <div className="bbdrts-settings-card-title-wrap">
-                <h4 className="bbdrts-settings-card-title">
-                  <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#16a34a' }}>verified</span>
-                  Gasless Sepolia Blockchain Audit Ledger
-                </h4>
-                <p className="bbdrts-settings-card-desc">
+        <div className="bbdrts-settings-pane vs-pane">
+          <div className="vs-card">
+            <div className="vs-card-head">
+              <div>
+                <h4 className="vs-card-title">Gasless Sepolia Blockchain Audit Ledger</h4>
+                <p className="vs-card-desc">
                   No MetaMask or cryptocurrency wallet is required. BBDRTS automatically notarizes every verified Philippine Peso donation and NGO disbursement proof onto Ethereum Sepolia via our gasless backend relayer.
                 </p>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '0.74rem', fontWeight: 600, color: '#16a34a', padding: '4px 8px', borderRadius: '4px', background: 'rgba(22, 163, 74, 0.1)', border: '1px solid rgba(22, 163, 74, 0.25)' }}>
-                  <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>check_circle</span>
-                  Gasless Relayer Active
-                </span>
-                <span style={{ fontSize: '0.74rem', fontFamily: 'monospace', padding: '4px 8px', borderRadius: '4px', background: 'var(--bg-subcard)', border: '1px solid var(--border)' }}>
-                  Chain ID: 11155111
-                </span>
+              <div className="vs-standing-pill">
+                <span className="vs-live-dot" />
+                <span>Relayer Active</span>
               </div>
             </div>
 
-            <div className="bbdrts-diag-list">
-              <div className="bbdrts-diag-item">
-                <span className="bbdrts-diag-label">Public Audit Contract:</span>
-                <a
-                  href={`https://sepolia.etherscan.io/address/${contractAddress}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{ color: '#16a34a', fontFamily: 'monospace', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
-                >
-                  <span>{contractAddress}</span>
-                  <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>open_in_new</span>
-                </a>
+            <div className="vs-kv-list">
+              <div className="vs-kv-row">
+                <span className="vs-kv-key">Public Audit Contract</span>
+                <span className="vs-kv-val">
+                  <a
+                    href={`https://sepolia.etherscan.io/address/${contractAddress}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="vs-ext-link vs-mono-val"
+                  >
+                    <span>{contractAddress}</span>
+                    <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>north_east</span>
+                  </a>
+                </span>
               </div>
 
-              <div className="bbdrts-diag-item">
-                <span className="bbdrts-diag-label">Network Protocol:</span>
-                <span className="bbdrts-diag-value status-ok">● Ethereum Sepolia (Chain ID 11155111)</span>
+              <div className="vs-kv-row">
+                <span className="vs-kv-key">Network Protocol</span>
+                <span className="vs-kv-val vs-inline-status">
+                  <span className="vs-live-dot" />
+                  <span>Ethereum Sepolia</span>
+                  <span className="vs-id-code">(Chain ID 11155111)</span>
+                </span>
               </div>
 
-              <div className="bbdrts-diag-item">
-                <span className="bbdrts-diag-label">Supported Payment Rails:</span>
-                <span className="bbdrts-diag-value">GCash (QR Ph) · Maya · Bank Transfer · Credit / Debit Card (PHP)</span>
+              <div className="vs-kv-row">
+                <span className="vs-kv-key">Supported Payment Rails</span>
+                <span className="vs-kv-val">GCash (QR Ph) · Maya · Bank Transfer · Credit / Debit Card (PHP)</span>
               </div>
 
-              <div className="bbdrts-diag-item">
-                <span className="bbdrts-diag-label">Gas Fees for Users:</span>
-                <span className="bbdrts-diag-value status-ok">₱0 (Sponsored by BBDRTS Gasless Relayer)</span>
+              <div className="vs-kv-row">
+                <span className="vs-kv-key">Gas Fees for Users</span>
+                <span className="vs-kv-val">₱0 · Sponsored by BBDRTS Gasless Relayer</span>
               </div>
             </div>
           </div>
@@ -3668,6 +3710,9 @@ export default function SettingsPanel({
 
         </div>
       )}
+
+        </div>
+      </div>
 
       {/* ── Edit Profile Modal (Single Source of Truth) ── */}
       {editModalOpen && (
