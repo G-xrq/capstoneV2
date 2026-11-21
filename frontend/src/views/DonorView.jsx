@@ -2283,142 +2283,114 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
                 </div>
               </div>
 
-              {/* ── 1. Unique Cryptographic Audit Vault Summary (Asymmetric 1.45fr / 1fr Bento) ── */}
-              <div className="rcp-vault-grid">
-                {/* Left Card: Verified Lifetime Ledger + Channel Telemetry */}
-                <div className="rcp-vault-card rcp-vault-ledger-card">
-                  <div className="rcp-vault-top">
-                    <div className="rcp-vault-kicker">
-                      <span className={`rcp-live-dot ${hasAnyShortage ? 'is-alert' : ''}`} />
-                      <span>Sepolia Cryptographic Ledger</span>
-                    </div>
+              {/* ── 1. Borderless Ledger Summary Band (Directly on Canvas — Zero Heavy Boxes) ── */}
+              <div className="rcp-summary-band">
+                <div className="rcp-band-cell rcp-band-cell--primary">
+                  <div className="rcp-band-val-row">
+                    <span className="rcp-band-total">₱{Math.round(totalDonatedPhp).toLocaleString('en-US')}</span>
                     <span className={`rcp-audit-pill ${hasAnyShortage ? 'is-alert' : 'is-ok'}`}>
-                      <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>
-                        {hasAnyShortage ? 'gavel' : 'verified_user'}
-                      </span>
-                      <span>{hasAnyShortage ? 'Shortage Notarized · Investigation Active' : '100% Balanced Audit'}</span>
+                      <span className={`rcp-live-dot ${hasAnyShortage ? 'is-alert' : ''}`} />
+                      <span>{hasAnyShortage ? 'Shortage Notarized' : '100% Balanced'}</span>
                     </span>
                   </div>
-
-                  <div className="rcp-vault-amount-row">
-                    <div className="rcp-vault-total">₱{Math.round(totalDonatedPhp).toLocaleString('en-US')}</div>
-                    <span className="rcp-vault-currency">PHP · Gasless Sepolia Notarized</span>
-                  </div>
-
-                  {/* Inline 3-Cell Hairline Telemetry Strip */}
-                  <div className="rcp-vault-mini-stats">
-                    <div className="rcp-mini-stat">
-                      <span className="rcp-mini-val">{totalReceiptsLen}</span>
-                      <span className="rcp-mini-lbl">Verified Receipts</span>
-                    </div>
-                    <div className="rcp-mini-stat">
-                      <span className="rcp-mini-val">{uniqueCausesCount}</span>
-                      <span className="rcp-mini-lbl">Campaigns Supported</span>
-                    </div>
-                    <div className="rcp-mini-stat">
-                      <span className="rcp-mini-val">{drReceiptsCount} / {cdReceiptsCount}</span>
-                      <span className="rcp-mini-lbl">Disaster / Charitable</span>
-                    </div>
-                  </div>
-
-                  {/* Unique Payment-Rail Distribution Bar */}
-                  <div className="rcp-rail-dist">
-                    <div className="rcp-rail-dist-bar" title="Distribution across payment channels">
-                      {gcashPct > 0 && <span className="rcp-rail-seg seg-primary" style={{ width: `${gcashPct}%` }} />}
-                      {mayaPct > 0 && <span className="rcp-rail-seg seg-emerald" style={{ width: `${mayaPct}%` }} />}
-                      {otherPct > 0 && <span className="rcp-rail-seg seg-muted" style={{ width: `${otherPct}%` }} />}
-                      {totalReceiptsLen === 0 && <span className="rcp-rail-seg seg-muted" style={{ width: '100%' }} />}
-                    </div>
-                    <div className="rcp-rail-legend">
-                      <span className="rcp-legend-item">
-                        <span className="rcp-legend-swatch sw-primary" />
-                        <span>GCash ({gcashCount})</span>
-                      </span>
-                      <span className="rcp-legend-item">
-                        <span className="rcp-legend-swatch sw-emerald" />
-                        <span>Maya ({mayaCount})</span>
-                      </span>
-                      <span className="rcp-legend-item">
-                        <span className="rcp-legend-swatch sw-muted" />
-                        <span>Card / Bank ({otherRailCount})</span>
-                      </span>
-                    </div>
-                  </div>
+                  <span className="rcp-band-lbl">Total Contributed · Gasless Sepolia Notarized</span>
                 </div>
 
-                {/* Right Card: Donor Recognition & Certificate Vault */}
-                <div className="rcp-vault-card rcp-vault-tier-card">
-                  <div className="rcp-tier-head">
-                    <div className="rcp-tier-badge-wrap">
+                <div className="rcp-band-cell">
+                  <span className="rcp-band-num">{totalReceiptsLen}</span>
+                  <span className="rcp-band-lbl">Receipts ({drReceiptsCount} DR · {cdReceiptsCount} CD)</span>
+                </div>
+
+                <div className="rcp-band-cell">
+                  <span className="rcp-band-num">{uniqueCausesCount}</span>
+                  <span className="rcp-band-lbl">Campaigns Supported</span>
+                </div>
+
+                <div className="rcp-band-cell rcp-band-cell--tier">
+                  <button
+                    type="button"
+                    className="rcp-band-tier-btn"
+                    onClick={() => setShowTierModal(true)}
+                    title="View Certificate & all 15 Donor Tiers"
+                  >
+                    <span className="rcp-band-badge">
                       {activeTierInfo?.tier?.IconComponent ? (
-                        <activeTierInfo.tier.IconComponent size={44} />
+                        <activeTierInfo.tier.IconComponent size={36} />
                       ) : (
-                        <span className="dbo-bare-icon-box" style={{ width: '44px', height: '44px', borderRadius: '50%' }}>
-                          <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>workspace_premium</span>
+                        <span className="dbo-bare-icon-box" style={{ width: '36px', height: '36px', borderRadius: '50%' }}>
+                          <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>workspace_premium</span>
                         </span>
                       )}
-                    </div>
-                    <div className="rcp-tier-title-col">
-                      <span className="rcp-tier-eyebrow">Recognition Standing</span>
-                      <div className="rcp-tier-name-row">
-                        <h3 className="rcp-tier-name">
-                          {activeTierInfo?.tier ? activeTierInfo.tier.name : 'Donor'}
-                        </h3>
-                        <span className="material-symbols-outlined rcp-tier-check" title={wt.verifiedWorkspace}>verified</span>
-                      </div>
-                    </div>
-                  </div>
+                    </span>
+                    <span className="rcp-band-tier-info">
+                      <span className="rcp-band-tier-name">
+                        <span>{activeTierInfo?.tier ? activeTierInfo.tier.name : 'Donor'}</span>
+                        <span className="material-symbols-outlined" style={{ fontSize: '13px', opacity: 0.6 }}>north_east</span>
+                      </span>
+                      <span className="rcp-band-tier-bar">
+                        <span className="rcp-band-tier-fill" style={{ width: `${tierPct}%` }} />
+                      </span>
+                      <span className="rcp-band-lbl">
+                        {activeTierInfo?.nextTier
+                          ? `Next: ${activeTierInfo.nextTier.name} (${tierPct}%)`
+                          : 'Highest Circle Achieved'}
+                      </span>
+                    </span>
+                  </button>
 
-                  <p className="rcp-tier-desc">
-                    {activeTierInfo?.tier?.description || 'Every verified PHP contribution is anchored gaslessly on Ethereum Sepolia.'}
-                  </p>
-
-                  <div className="rcp-tier-progress-wrap">
-                    <div className="dbo-clean-progress-bar">
-                      <div className="dbo-clean-progress-fill" style={{ width: `${tierPct}%` }} />
-                    </div>
-                    <div className="rcp-tier-progress-meta">
-                      {activeTierInfo?.nextTier ? (
-                        <>
-                          <span>Next: <strong>{activeTierInfo.nextTier.name}</strong></span>
-                          <span>₱{Math.max(0, Math.round(activeTierInfo.remainingPhp || 0)).toLocaleString('en-US')} to go</span>
-                        </>
-                      ) : (
-                        <>
-                          <span>Highest Circle Achieved</span>
-                          <span>100%</span>
-                        </>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="rcp-tier-actions">
-                    <button
-                      type="button"
-                      className="dbo-cmd-btn dbo-cmd-btn--primary"
-                      onClick={() => setShowTierModal(true)}
-                      title="View Certificate of Appreciation"
-                      style={{ flex: 1, justifyContent: 'center', height: '34px', fontSize: '0.78rem' }}
-                    >
-                      <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>workspace_premium</span>
-                      <span>View Certificate</span>
-                    </button>
-                    <button
-                      type="button"
-                      className="dbo-cmd-btn"
-                      onClick={() => setShowTierModal(true)}
-                      title="Explore all 15 Donor Recognition Circles"
-                      style={{ height: '34px', fontSize: '0.78rem', padding: '0 12px' }}
-                    >
-                      <span>15 Tiers</span>
-                      <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>north_east</span>
-                    </button>
-                  </div>
+                  <button
+                    type="button"
+                    className="dbo-cmd-btn dbo-cmd-btn--primary rcp-cert-compact-btn"
+                    onClick={() => setShowTierModal(true)}
+                    title="View Certificate of Appreciation"
+                  >
+                    <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>workspace_premium</span>
+                    <span>Certificate</span>
+                  </button>
                 </div>
               </div>
 
-              {/* ── 1B. Interactive Donation Analytics Chart (7D / 30D / 90D / 1Y) ── */}
-              <DonationAnalyticsChart donations={myDonations} />
+              {/* ── 1B. Compact Asymmetric Analytics Split (Chart 1.75fr + Payment Channels 1fr) ── */}
+              <div className="rcp-analytics-split">
+                <DonationAnalyticsChart donations={myDonations} />
+
+                <div className="rcp-channels-card">
+                  <div className="rcp-ch-header">
+                    <div className="rcp-ch-title-row">
+                      <span className="rcp-ch-icon" aria-hidden="true">
+                        <span className="material-symbols-outlined">account_balance_wallet</span>
+                      </span>
+                      <h3 className="da-title">Payment Channels</h3>
+                    </div>
+                    <span className="rcp-ch-count">{totalReceiptsLen} tx</span>
+                  </div>
+
+                  <div className="rcp-ch-list">
+                    {[
+                      { label: 'GCash', count: gcashCount, pct: gcashPct, barClass: 'is-teal' },
+                      { label: 'Card / Bank', count: otherRailCount, pct: otherPct, barClass: 'is-mono' },
+                      { label: 'Maya', count: mayaCount, pct: mayaPct, barClass: 'is-emerald' }
+                    ].map((ch) => (
+                      <div className="rcp-ch-row" key={ch.label}>
+                        <div className="rcp-ch-row-top">
+                          <span className="rcp-ch-name">{ch.label}</span>
+                          <span className="rcp-ch-meta">
+                            <strong>{ch.count}</strong> · {ch.pct}%
+                          </span>
+                        </div>
+                        <div className="rcp-ch-track">
+                          <div className={`rcp-ch-fill ${ch.barClass}`} style={{ width: `${ch.pct}%` }} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="rcp-ch-footer">
+                    <span className="rcp-live-dot" />
+                    <span>0% Platform Fee · Gasless Sepolia Relay</span>
+                  </div>
+                </div>
+              </div>
 
               {/* ── 2. Unified Vercel Geist Ledger Command Bar ── */}
               <div className="rcp-command-bar">
