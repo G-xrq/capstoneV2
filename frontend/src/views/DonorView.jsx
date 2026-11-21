@@ -2145,8 +2145,18 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
           )}
 
           {/* ── 3. MY CONTRIBUTIONS TAB (Vercel-Standard Redesign) ── */}
-          {activeTab === 'my-donations' && (
-            <div className="bbdrts-contributions-tab fade-in">
+          {activeTab === 'my-donations' && (() => {
+            const totalReceiptsLen = myDonations ? myDonations.length : 0;
+            const gcashCount = (myDonations || []).filter(d => String(d.paymentMethod || '').toUpperCase().includes('GCASH')).length;
+            const mayaCount = (myDonations || []).filter(d => String(d.paymentMethod || '').toUpperCase().includes('MAYA')).length;
+            const otherRailCount = Math.max(0, totalReceiptsLen - gcashCount - mayaCount);
+            const gcashPct = totalReceiptsLen > 0 ? Math.round((gcashCount / totalReceiptsLen) * 100) : 0;
+            const mayaPct = totalReceiptsLen > 0 ? Math.round((mayaCount / totalReceiptsLen) * 100) : 0;
+            const otherPct = totalReceiptsLen > 0 ? Math.max(0, 100 - gcashPct - mayaPct) : 0;
+            const tierPct = activeTierInfo?.nextTier ? Math.min(100, Math.max(4, Math.round(activeTierInfo.progressPct || 0))) : 100;
+
+            return (
+            <div className="bbdrts-contributions-tab rcp-vault-page fade-in">
               {/* Institutional Vercel Page Header */}
               <div className="admin-page-header" id="tour-donations-header">
                 <div className="admin-page-title-wrap">
@@ -2185,140 +2195,155 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
                 </div>
               </div>
 
-              {/* ── Borderless Editorial Recognition Hero + Bare Hairline Stat Strip (Matches Dashboard Overview) ── */}
-              <div className="dbo-editorial-hero dbo-receipts-hero">
-                <div className="dbo-hero-bg-mesh" aria-hidden="true" />
-
-                <div className="dbo-hero-content">
-                  <div className="dbo-hero-main-row">
-                    <div className="dbo-hero-identity">
-                      <div className="dbo-receipts-badge-hero">
-                        {activeTierInfo?.tier?.IconComponent ? (
-                          <activeTierInfo.tier.IconComponent size={48} />
-                        ) : (
-                          <span className="dbo-bare-icon-box" style={{ width: '48px', height: '48px', borderRadius: '50%' }}>
-                            <span className="material-symbols-outlined" style={{ fontSize: '22px' }}>workspace_premium</span>
-                          </span>
-                        )}
-                      </div>
-                      <div className="dbo-hero-title-group">
-                        <div className="dbo-hero-name-row">
-                          <h1 className="dbo-hero-name">
-                            {activeTierInfo?.tier ? activeTierInfo.tier.name : 'New Contributor'}
-                          </h1>
-                          <span
-                            className="material-symbols-outlined dbo-hero-verified-icon"
-                            title={wt.verifiedWorkspace}
-                            aria-label={wt.verifiedWorkspace}
-                          >
-                            verified
-                          </span>
-                        </div>
-                        <p className="dbo-hero-sub">
-                          {activeTierInfo?.nextTier ? (
-                            <>
-                              <span>{activeTierInfo?.tier?.description || 'Every verified PHP contribution is anchored gaslessly on Ethereum Sepolia.'}</span>
-                              <span className="dbo-receipts-next-inline">
-                                {' · '}Next: <strong>{activeTierInfo.nextTier.name}</strong> (₱{Math.max(0, Math.round(activeTierInfo.remainingPhp || 0)).toLocaleString('en-US')} to go)
-                              </span>
-                            </>
-                          ) : (
-                            activeTierInfo?.tier?.description || 'Highest Recognition Circle achieved — 100% gaslessly notarized on Ethereum Sepolia.'
-                          )}
-                        </p>
-                      </div>
+              {/* ── 1. Unique Cryptographic Audit Vault Summary (Asymmetric 1.45fr / 1fr Bento) ── */}
+              <div className="rcp-vault-grid">
+                {/* Left Card: Verified Lifetime Ledger + Channel Telemetry */}
+                <div className="rcp-vault-card rcp-vault-ledger-card">
+                  <div className="rcp-vault-top">
+                    <div className="rcp-vault-kicker">
+                      <span className={`rcp-live-dot ${hasAnyShortage ? 'is-alert' : ''}`} />
+                      <span>Sepolia Cryptographic Ledger</span>
                     </div>
+                    <span className={`rcp-audit-pill ${hasAnyShortage ? 'is-alert' : 'is-ok'}`}>
+                      <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>
+                        {hasAnyShortage ? 'gavel' : 'verified_user'}
+                      </span>
+                      <span>{hasAnyShortage ? 'Shortage Notarized · Investigation Active' : '100% Balanced Audit'}</span>
+                    </span>
+                  </div>
 
-                    <div className="dbo-hero-actions">
-                      <button
-                        type="button"
-                        className="dbo-cmd-btn dbo-cmd-btn--primary"
-                        onClick={() => setShowTierModal(true)}
-                        title="View Certificate of Appreciation"
-                      >
-                        <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>workspace_premium</span>
-                        <span>View Certificate</span>
-                      </button>
+                  <div className="rcp-vault-amount-row">
+                    <div className="rcp-vault-total">₱{Math.round(totalDonatedPhp).toLocaleString('en-US')}</div>
+                    <span className="rcp-vault-currency">PHP · Gasless Sepolia Notarized</span>
+                  </div>
 
-                      <button
-                        type="button"
-                        className="dbo-cmd-ghost dbo-cmd-ghost-btn"
-                        onClick={() => setShowTierModal(true)}
-                        title="Explore all 15 Donor Tiers"
-                      >
-                        <span>Donor Tiers</span>
-                        <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>north_east</span>
-                      </button>
+                  {/* Inline 3-Cell Hairline Telemetry Strip */}
+                  <div className="rcp-vault-mini-stats">
+                    <div className="rcp-mini-stat">
+                      <span className="rcp-mini-val">{totalReceiptsLen}</span>
+                      <span className="rcp-mini-lbl">Verified Receipts</span>
+                    </div>
+                    <div className="rcp-mini-stat">
+                      <span className="rcp-mini-val">{uniqueCausesCount}</span>
+                      <span className="rcp-mini-lbl">Campaigns Supported</span>
+                    </div>
+                    <div className="rcp-mini-stat">
+                      <span className="rcp-mini-val">{drReceiptsCount} / {cdReceiptsCount}</span>
+                      <span className="rcp-mini-lbl">Disaster / Charitable</span>
                     </div>
                   </div>
 
-                  {/* Bare Hairline 4-Column Stat Strip (Zero Duplicate Totals / Zero Rainbow Boxes) */}
-                  <div className="dbo-bare-stats cols-4">
-                    <div className="dbo-bare-stat">
-                      <span className="dbo-bare-icon-box" aria-hidden="true">
-                        <span className="material-symbols-outlined">payments</span>
-                      </span>
-                      <span className="dbo-bare-text">
-                        <span className="dbo-bare-val">₱{Math.round(totalDonatedPhp).toLocaleString('en-US')}</span>
-                        <span className="dbo-bare-lbl">Total Contributed</span>
-                      </span>
+                  {/* Unique Payment-Rail Distribution Bar */}
+                  <div className="rcp-rail-dist">
+                    <div className="rcp-rail-dist-bar" title="Distribution across payment channels">
+                      {gcashPct > 0 && <span className="rcp-rail-seg seg-primary" style={{ width: `${gcashPct}%` }} />}
+                      {mayaPct > 0 && <span className="rcp-rail-seg seg-emerald" style={{ width: `${mayaPct}%` }} />}
+                      {otherPct > 0 && <span className="rcp-rail-seg seg-muted" style={{ width: `${otherPct}%` }} />}
+                      {totalReceiptsLen === 0 && <span className="rcp-rail-seg seg-muted" style={{ width: '100%' }} />}
                     </div>
-
-                    <div className="dbo-bare-stat">
-                      <span className="dbo-bare-icon-box" aria-hidden="true">
-                        <span className="material-symbols-outlined">receipt_long</span>
+                    <div className="rcp-rail-legend">
+                      <span className="rcp-legend-item">
+                        <span className="rcp-legend-swatch sw-primary" />
+                        <span>GCash ({gcashCount})</span>
                       </span>
-                      <span className="dbo-bare-text">
-                        <span className="dbo-bare-val">{myDonations ? myDonations.length : 0}</span>
-                        <span className="dbo-bare-lbl">Verified Receipts</span>
+                      <span className="rcp-legend-item">
+                        <span className="rcp-legend-swatch sw-emerald" />
+                        <span>Maya ({mayaCount})</span>
                       </span>
-                    </div>
-
-                    <div className="dbo-bare-stat">
-                      <span className="dbo-bare-icon-box" aria-hidden="true">
-                        <span className="material-symbols-outlined">campaign</span>
-                      </span>
-                      <span className="dbo-bare-text">
-                        <span className="dbo-bare-val">{uniqueCausesCount}</span>
-                        <span className="dbo-bare-lbl">Causes Supported</span>
-                      </span>
-                    </div>
-
-                    <div className="dbo-bare-stat">
-                      <span className={`dbo-bare-icon-box ${hasAnyShortage ? 'is-alert' : ''}`} aria-hidden="true">
-                        <span className="material-symbols-outlined">
-                          {hasAnyShortage ? 'gavel' : 'verified_user'}
-                        </span>
-                      </span>
-                      <span className="dbo-bare-text">
-                        <span className={`dbo-bare-val dbo-bare-val--tier ${hasAnyShortage ? 'is-alert' : ''}`}>
-                          {hasAnyShortage ? 'Shortage Notarized' : '100% Balanced'}
-                        </span>
-                        <span className="dbo-bare-lbl">
-                          {hasAnyShortage ? 'Audit Investigation Active' : 'Audit Reconciliation'}
-                        </span>
+                      <span className="rcp-legend-item">
+                        <span className="rcp-legend-swatch sw-muted" />
+                        <span>Card / Bank ({otherRailCount})</span>
                       </span>
                     </div>
                   </div>
                 </div>
+
+                {/* Right Card: Donor Recognition & Certificate Vault */}
+                <div className="rcp-vault-card rcp-vault-tier-card">
+                  <div className="rcp-tier-head">
+                    <div className="rcp-tier-badge-wrap">
+                      {activeTierInfo?.tier?.IconComponent ? (
+                        <activeTierInfo.tier.IconComponent size={44} />
+                      ) : (
+                        <span className="dbo-bare-icon-box" style={{ width: '44px', height: '44px', borderRadius: '50%' }}>
+                          <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>workspace_premium</span>
+                        </span>
+                      )}
+                    </div>
+                    <div className="rcp-tier-title-col">
+                      <span className="rcp-tier-eyebrow">Recognition Standing</span>
+                      <div className="rcp-tier-name-row">
+                        <h3 className="rcp-tier-name">
+                          {activeTierInfo?.tier ? activeTierInfo.tier.name : 'Donor'}
+                        </h3>
+                        <span className="material-symbols-outlined rcp-tier-check" title={wt.verifiedWorkspace}>verified</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <p className="rcp-tier-desc">
+                    {activeTierInfo?.tier?.description || 'Every verified PHP contribution is anchored gaslessly on Ethereum Sepolia.'}
+                  </p>
+
+                  <div className="rcp-tier-progress-wrap">
+                    <div className="dbo-clean-progress-bar">
+                      <div className="dbo-clean-progress-fill" style={{ width: `${tierPct}%` }} />
+                    </div>
+                    <div className="rcp-tier-progress-meta">
+                      {activeTierInfo?.nextTier ? (
+                        <>
+                          <span>Next: <strong>{activeTierInfo.nextTier.name}</strong></span>
+                          <span>₱{Math.max(0, Math.round(activeTierInfo.remainingPhp || 0)).toLocaleString('en-US')} to go</span>
+                        </>
+                      ) : (
+                        <>
+                          <span>Highest Circle Achieved</span>
+                          <span>100%</span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="rcp-tier-actions">
+                    <button
+                      type="button"
+                      className="dbo-cmd-btn dbo-cmd-btn--primary"
+                      onClick={() => setShowTierModal(true)}
+                      title="View Certificate of Appreciation"
+                      style={{ flex: 1, justifyContent: 'center', height: '34px', fontSize: '0.78rem' }}
+                    >
+                      <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>workspace_premium</span>
+                      <span>View Certificate</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="dbo-cmd-btn"
+                      onClick={() => setShowTierModal(true)}
+                      title="Explore all 15 Donor Recognition Circles"
+                      style={{ height: '34px', fontSize: '0.78rem', padding: '0 12px' }}
+                    >
+                      <span>15 Tiers</span>
+                      <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>north_east</span>
+                    </button>
+                  </div>
+                </div>
               </div>
 
-              {/* 4. Filter & Sort Control Toolbar */}
-              <div className="bbdrts-filter-toolbar">
-                {/* Live Search Input */}
-                <div className="bbdrts-search-wrapper">
-                  <span className="material-symbols-outlined bbdrts-search-icon">search</span>
+              {/* ── 2. Unified Vercel Geist Ledger Command Bar ── */}
+              <div className="rcp-command-bar">
+                <div className="rcp-search-box">
+                  <span className="material-symbols-outlined rcp-search-icon">search</span>
                   <input
                     type="text"
-                    className="bbdrts-search-input"
-                    placeholder="Search by campaign, TX hash, or reference..."
+                    className="rcp-search-input"
+                    placeholder="Search campaign, TX hash, or reference..."
                     value={searchQueryReceipts}
                     onChange={(e) => setSearchQueryReceipts(e.target.value)}
                   />
                   {searchQueryReceipts && (
                     <button
                       type="button"
-                      className="bbdrts-search-clear"
+                      className="rcp-search-clear"
                       onClick={() => setSearchQueryReceipts('')}
                       title="Clear search"
                     >
@@ -2327,52 +2352,48 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
                   )}
                 </div>
 
-                {/* Category Segmented Filter Pills */}
-                <div className="bbdrts-filter-pills-row">
+                <div className="rcp-filter-seg">
                   <button
                     type="button"
-                    className={`bbdrts-filter-pill-btn ${receiptFilter === 'ALL' ? 'active' : ''}`}
+                    className={`rcp-seg-btn ${receiptFilter === 'ALL' ? 'active' : ''}`}
                     onClick={() => setReceiptFilter('ALL')}
                   >
-                    <span>All Causes</span>
-                    <span className="bbdrts-filter-pill-count">{myDonations ? myDonations.length : 0}</span>
+                    <span>All</span>
+                    <span className="rcp-seg-cnt">{totalReceiptsLen}</span>
                   </button>
-
                   <button
                     type="button"
-                    className={`bbdrts-filter-pill-btn ${receiptFilter === 'DR' ? 'active' : ''}`}
+                    className={`rcp-seg-btn ${receiptFilter === 'DR' ? 'active' : ''}`}
                     onClick={() => setReceiptFilter('DR')}
                   >
                     <span>Disaster Relief</span>
-                    <span className="bbdrts-filter-pill-count">{drReceiptsCount}</span>
+                    <span className="rcp-seg-cnt">{drReceiptsCount}</span>
                   </button>
-
                   <button
                     type="button"
-                    className={`bbdrts-filter-pill-btn ${receiptFilter === 'CD' ? 'active' : ''}`}
+                    className={`rcp-seg-btn ${receiptFilter === 'CD' ? 'active' : ''}`}
                     onClick={() => setReceiptFilter('CD')}
                   >
                     <span>Charitable Aid</span>
-                    <span className="bbdrts-filter-pill-count">{cdReceiptsCount}</span>
+                    <span className="rcp-seg-cnt">{cdReceiptsCount}</span>
                   </button>
                 </div>
 
-                {/* Dropdown Filters (Payment Rail + Sort) */}
-                <div className="bbdrts-select-group">
+                <div className="rcp-select-cluster">
                   <select
-                    className="bbdrts-select-control"
+                    className="rcp-select"
                     value={receiptRailFilter}
                     onChange={(e) => setReceiptRailFilter(e.target.value)}
-                    title="Filter by Payment Rail"
+                    title="Filter by Payment Channel"
                   >
-                    <option value="ALL">All Payment Channels</option>
+                    <option value="ALL">All Channels</option>
                     <option value="GCASH">GCash</option>
                     <option value="MAYA">Maya</option>
                     <option value="CARD">Card / Bank</option>
                   </select>
 
                   <select
-                    className="bbdrts-select-control"
+                    className="rcp-select"
                     value={receiptSort}
                     onChange={(e) => setReceiptSort(e.target.value)}
                     title="Sort Contributions"
@@ -2386,60 +2407,39 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
               </div>
 
               {/* Dynamic Results Counter Bar */}
-              <div className="bbdrts-results-counter">
+              <div className="rcp-results-bar">
                 <span>
-                  Showing {filteredMyDonations.length} of {myDonations ? myDonations.length : 0} contribution receipts
+                  Showing <strong>{filteredMyDonations.length}</strong> of {totalReceiptsLen} notarized receipts
                 </span>
                 {(receiptFilter !== 'ALL' || receiptRailFilter !== 'ALL' || searchQueryReceipts.trim() !== '') && (
                   <button
                     type="button"
+                    className="rcp-reset-link"
                     onClick={() => {
                       setReceiptFilter('ALL');
                       setReceiptRailFilter('ALL');
                       setSearchQueryReceipts('');
                     }}
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      color: 'var(--accent-blue, #0070f3)',
-                      fontSize: '0.74rem',
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                      padding: 0
-                    }}
                   >
-                    Reset All Filters
+                    Reset filters
                   </button>
                 )}
               </div>
 
-              {/* 5. Content Area: Skeleton Loader | Empty State | Contribution Cards List */}
+              {/* ── 3. Cryptographic Receipt Ledger (Unified Hairline Obsidian Container) ── */}
               {loadingMyDonations ? (
-                <div className="bbdrts-contributions-list">
-                  {[1, 2, 3].map((i) => (
-                    <div key={i} className="bbdrts-contrib-skeleton">
-                      <div className="bbdrts-skel-top">
-                        <span className="db-skel" style={{ width: '140px', height: '18px', borderRadius: '4px' }} />
-                        <span className="db-skel" style={{ width: '100px', height: '18px', borderRadius: '4px' }} />
+                <div className="rcp-ledger-container">
+                  {[1, 2, 3, 4].map((i) => (
+                    <div key={i} className="rcp-row rcp-row-skel">
+                      <div className="rcp-skel-thumb db-skel" />
+                      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        <span className="db-skel" style={{ width: '48%', height: '15px', borderRadius: '4px' }} />
+                        <span className="db-skel" style={{ width: '68%', height: '11px', borderRadius: '4px' }} />
+                        <span className="db-skel" style={{ width: '36%', height: '11px', borderRadius: '4px' }} />
                       </div>
-                      <div className="bbdrts-skel-mid">
-                        <div className="bbdrts-skel-thumb db-skel" />
-                        <div className="bbdrts-skel-lines">
-                          <span className="db-skel" style={{ width: '60%', height: '18px', borderRadius: '4px' }} />
-                          <span className="db-skel" style={{ width: '40%', height: '14px', borderRadius: '4px' }} />
-                          <span className="db-skel" style={{ width: '25%', height: '14px', borderRadius: '4px' }} />
-                        </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '6px' }}>
-                          <span className="db-skel" style={{ width: '90px', height: '24px', borderRadius: '4px' }} />
-                          <span className="db-skel" style={{ width: '60px', height: '12px', borderRadius: '4px' }} />
-                        </div>
-                      </div>
-                      <div className="bbdrts-skel-btm">
-                        <span className="db-skel" style={{ width: '180px', height: '22px', borderRadius: '6px' }} />
-                        <div style={{ display: 'flex', gap: '8px' }}>
-                          <span className="db-skel" style={{ width: '100px', height: '30px', borderRadius: '6px' }} />
-                          <span className="db-skel" style={{ width: '130px', height: '30px', borderRadius: '6px' }} />
-                        </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
+                        <span className="db-skel" style={{ width: '82px', height: '18px', borderRadius: '4px' }} />
+                        <span className="db-skel" style={{ width: '130px', height: '26px', borderRadius: '6px' }} />
                       </div>
                     </div>
                   ))}
@@ -2456,11 +2456,11 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
                   <div className="db-empty-action">
                     <button
                       type="button"
-                      className="bbdrts-btn bbdrts-btn-pri"
+                      className="dbo-cmd-btn dbo-cmd-btn--primary"
                       onClick={() => setActiveTab('campaigns')}
                     >
-                      <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>volunteer_activism</span>
                       <span>Explore Relief Campaigns</span>
+                      <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>arrow_forward</span>
                     </button>
                   </div>
                 </div>
@@ -2471,12 +2471,12 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
                   </div>
                   <h3 className="db-empty-title">No receipts match your search</h3>
                   <p className="db-empty-desc">
-                    No contributions match your current filter combination. Try selecting "All Payment Rails" or clearing your search term.
+                    No contributions match your current filter combination. Try selecting "All Channels" or clearing your search term.
                   </p>
                   <div className="db-empty-action">
                     <button
                       type="button"
-                      className="bbdrts-btn bbdrts-btn-outline"
+                      className="dbo-cmd-btn"
                       onClick={() => {
                         setReceiptFilter('ALL');
                         setReceiptRailFilter('ALL');
@@ -2488,171 +2488,199 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
                   </div>
                 </div>
               ) : (
-                <div className="bbdrts-contributions-list">
+                <div className="rcp-ledger-container">
                   {filteredMyDonations.map((d, idx) => {
                     const matchCamp = campaigns.find(c => String(c.id) === String(d.campaignId)) || { id: d.campaignId, title: `Disaster Relief Campaign #${d.campaignId}` };
-                    const rawTitle  = matchCamp ? matchCamp.title : `Disaster Relief Campaign #${d.campaignId}`;
+                    const rawTitle = matchCamp ? matchCamp.title : `Disaster Relief Campaign #${d.campaignId}`;
                     const campTitle = formatCampaignTitle(rawTitle, d.campaignId);
-                    const catInfo   = getCampaignCategoryInfo(matchCamp);
+                    const catInfo = getCampaignCategoryInfo(matchCamp);
                     const coverData = getCampaignCoverData(matchCamp);
-                    const orgName   = getOrgDisplayName(matchCamp.orgAddress, matchCamp.orgName, d.campaignId);
+                    const orgName = getOrgDisplayName(matchCamp.orgAddress, matchCamp.orgName, d.campaignId);
 
                     const pm = (d.paymentMethod || 'CARD').toUpperCase();
-                    const isGcash = pm.includes('GCASH');
-                    const isMaya = pm.includes('MAYA');
-                    const railColor = isGcash ? '#007DFE' : isMaya ? '#10b981' : '#a855f7';
-                    const railBg = isGcash ? 'rgba(0, 125, 254, 0.1)' : isMaya ? 'rgba(16, 185, 129, 0.1)' : 'rgba(168, 85, 247, 0.1)';
-                    const railIcon = isGcash ? 'smartphone' : isMaya ? 'account_balance_wallet' : 'credit_card';
+                    const railLabel = pm.includes('GCASH') ? 'GCASH' : pm.includes('MAYA') ? 'MAYA' : (pm.includes('BANK') || pm.includes('CARD')) ? 'CARD / BANK' : ((d.paymentMethod && !/eth|crypto|metamask/i.test(d.paymentMethod)) ? d.paymentMethod.toUpperCase() : 'PHP');
                     const ethAmt = parseFloat(d.amount || 0);
                     const phpAmt = Math.round(ethAmt * 170000);
                     const isShortage = d.auditStatus === 'SHORTAGE';
+                    const isDisbursed = matchCamp.disbursementStatus === 'DISBURSED' || (matchCamp.disbursedAmountPhp || 0) > 0;
+                    const dateLabel = d.createdAt
+                      ? new Date(d.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                      : 'Recent';
 
                     return (
-                      <div key={idx} className={`bbdrts-contrib-card ${isShortage ? 'has-shortage' : ''} fade-in`}>
-                        {/* 1. Card Top Bar: Organization + Category + Timestamp + Verification Dot */}
-                        <div className="bbdrts-contrib-topbar">
-                          <div className="bbdrts-contrib-org-cluster">
-                            <button
-                              type="button"
-                              className="bbdrts-contrib-org-btn"
-                              onClick={() => onOpenNgoProfile && onOpenNgoProfile(matchCamp.orgId || 3)}
-                              title="Click to view verified NGO credentials"
-                            >
-                              <span className="material-symbols-outlined">domain</span>
-                              <span>{orgName}</span>
-                              <span className="material-symbols-outlined verified-badge">verified</span>
-                            </button>
+                      <div key={idx} className={`rcp-row ${isShortage ? 'is-shortage' : ''}`}>
+                        <div className="rcp-row-main">
+                          {/* Left Thumbnail */}
+                          <button
+                            type="button"
+                            className="rcp-thumb-btn"
+                            onClick={() => setSelectedCampaignForProof(matchCamp)}
+                            title="Inspect campaign details"
+                          >
+                            <img src={coverData.imageUrl} alt={campTitle} className="rcp-thumb-img" />
+                          </button>
 
-                            <span style={{ color: 'var(--border-strong)', fontSize: '0.8rem' }}>•</span>
+                          {/* Center Info */}
+                          <div className="rcp-row-center">
+                            <div className="rcp-row-title-line">
+                              <h3
+                                className="rcp-row-title"
+                                onClick={() => setSelectedCampaignForProof(matchCamp)}
+                                title={campTitle}
+                              >
+                                {campTitle}
+                              </h3>
 
-                            <span className="bbdrts-contrib-category-chip">
-                              <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>{catInfo.icon || 'folder'}</span>
-                              <span>{catInfo.label}</span>
-                            </span>
-                          </div>
+                              {isDisbursed ? (
+                                <button
+                                  type="button"
+                                  className="rcp-status-pill is-disbursed"
+                                  onClick={() => setSelectedProofCamp(matchCamp)}
+                                  title="View verified beneficiary distribution receipts"
+                                >
+                                  <span className="rcp-status-dot ok" />
+                                  <span>Relief Disbursed</span>
+                                </button>
+                              ) : isShortage ? (
+                                <span className="rcp-status-pill is-shortage">
+                                  <span className="rcp-status-dot alert" />
+                                  <span>Shortage Detected</span>
+                                </span>
+                              ) : (
+                                <span className="rcp-status-pill">
+                                  <span className="rcp-status-dot ok" />
+                                  <span>Confirmed On-Chain</span>
+                                </span>
+                              )}
+                            </div>
 
-                          <div className="bbdrts-contrib-org-cluster">
-                            <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                              <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>calendar_today</span>
-                              <span>{d.createdAt ? new Date(d.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Recent'}</span>
-                            </span>
-
-                            {matchCamp.disbursementStatus === 'DISBURSED' || (matchCamp.disbursedAmountPhp || 0) > 0 ? (
+                            <div className="rcp-row-meta">
                               <button
                                 type="button"
-                                className="bbdrts-contrib-status-chip"
-                                onClick={() => setSelectedProofCamp(matchCamp)}
-                                title="Click to view verified beneficiary distribution receipts"
-                                style={{
-                                  background: 'rgba(34, 197, 94, 0.15)',
-                                  color: 'var(--accent, #22c55e)',
-                                  border: '1px solid rgba(34, 197, 94, 0.35)',
-                                  cursor: 'pointer'
-                                }}
+                                className="rcp-org-link"
+                                onClick={() => onOpenNgoProfile && onOpenNgoProfile(matchCamp.orgId || 3)}
+                                title="View verified NGO credentials"
                               >
-                                <span className="bbdrts-status-dot" style={{ background: 'var(--accent, #22c55e)' }} />
-                                <span>Relief Disbursed to Beneficiaries</span>
+                                <span>{orgName}</span>
+                                <span className="material-symbols-outlined rcp-org-check">verified</span>
                               </button>
-                            ) : isShortage ? (
-                              <span className="bbdrts-contrib-status-chip shortage">
-                                <span className="bbdrts-status-dot shortage" />
-                                <span>Shortage Detected</span>
-                              </span>
-                            ) : (
-                              <span className="bbdrts-contrib-status-chip">
-                                <span className="bbdrts-live-pulse" />
-                                <span>Confirmed On-Chain</span>
-                              </span>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* 2. Main Body: Thumbnail + Title + Meta Cluster + Amount Block */}
-                        <div className="bbdrts-contrib-body">
-                          {/* Thumbnail */}
-                          <div className="bbdrts-contrib-thumb-wrap">
-                            <img src={coverData.imageUrl} alt={campTitle} className="bbdrts-contrib-thumb-img" />
-                            <div className="bbdrts-contrib-thumb-icon" title={catInfo.label}>
-                              <span className="material-symbols-outlined">{catInfo.icon || 'volunteer_activism'}</span>
-                            </div>
-                          </div>
-
-                          {/* Center Details */}
-                          <div className="bbdrts-contrib-details">
-                            <h3
-                              className="bbdrts-contrib-title"
-                              onClick={() => setSelectedCampaignForProof(matchCamp)}
-                              title="Click to view campaign details"
-                            >
-                              {campTitle}
-                            </h3>
-
-                            <div className="bbdrts-contrib-meta-row">
+                              <span className="rcp-dot-sep">·</span>
+                              <span>{catInfo.label}</span>
+                              <span className="rcp-dot-sep">·</span>
+                              <span>{dateLabel}</span>
                               {coverData.locationTag && (
-                                <span className="bbdrts-meta-pill" title="Relief Operation Location">
-                                  <span className="material-symbols-outlined">location_on</span>
-                                  <span>{coverData.locationTag}</span>
-                                </span>
+                                <>
+                                  <span className="rcp-dot-sep">·</span>
+                                  <span className="rcp-loc-clip">{coverData.locationTag}</span>
+                                </>
                               )}
+                            </div>
 
-                              <div
-                                className="bbdrts-rail-pill"
-                                style={{ color: railColor, background: railBg, borderColor: railColor }}
-                                title="Dual-Rail Payment Method"
-                              >
-                                <span className="material-symbols-outlined">{railIcon}</span>
-                                <span>{(d.paymentMethod && !/eth|crypto|metamask/i.test(d.paymentMethod)) ? d.paymentMethod : 'Verified Audit'}</span>
-                              </div>
+                            <div className="rcp-proof-strip">
+                              <span className="rcp-rail-badge">{railLabel}</span>
 
                               {d.referenceNumber && (
-                                <span className="bbdrts-meta-pill" title="Payment Reference Number">
-                                  <span className="material-symbols-outlined">tag</span>
-                                  <span style={{ fontFamily: 'var(--font-mono)' }}>Ref: {d.referenceNumber}</span>
+                                <span className="rcp-ref-tag" title="Payment Reference Number">
+                                  Ref: {d.referenceNumber}
                                 </span>
                               )}
+
+                              <span className="rcp-hash-chip">
+                                <span className="rcp-hash-prefix">TX</span>
+                                <span className="rcp-hash-val">
+                                  {d.txHash ? `${d.txHash.slice(0, 8)}...${d.txHash.slice(-6)}` : 'Verified'}
+                                </span>
+                                {d.txHash && (
+                                  <button
+                                    type="button"
+                                    className="rcp-hash-action"
+                                    onClick={() => {
+                                      navigator.clipboard.writeText(d.txHash);
+                                      showSuccess('Transaction hash copied to clipboard!', 'Hash Copied');
+                                    }}
+                                    title="Copy Transaction Hash"
+                                  >
+                                    <span className="material-symbols-outlined">content_copy</span>
+                                  </button>
+                                )}
+                                {d.txHash && (
+                                  <a
+                                    href={`https://sepolia.etherscan.io/tx/${d.txHash}`}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="rcp-hash-action"
+                                    title="Inspect on Sepolia Etherscan"
+                                  >
+                                    <span className="material-symbols-outlined">north_east</span>
+                                  </a>
+                                )}
+                              </span>
                             </div>
                           </div>
 
-                          {/* Right Amount Block */}
-                          <div className="bbdrts-contrib-amount-col">
-                            {isShortage && d.declaredPhp ? (
-                              <>
-                                <div className="bbdrts-contrib-amount-php alert">
-                                  ₱{phpAmt.toLocaleString('en-US')}
+                          {/* Right Amount & Compact Actions */}
+                          <div className="rcp-row-right">
+                            <div className="rcp-amt-block">
+                              <div className={`rcp-amt-val ${isShortage ? 'is-alert' : ''}`}>
+                                +₱{phpAmt.toLocaleString('en-US')}
+                              </div>
+                              {isShortage && d.declaredPhp ? (
+                                <div className="rcp-amt-variance">
+                                  <span className="rcp-struck">₱{Number(d.declaredPhp).toLocaleString('en-US')}</span>
+                                  <span className="rcp-var-diff">-₱{Math.abs(d.variancePhp || 0).toLocaleString()}</span>
                                 </div>
-                                <div className="bbdrts-shortage-row">
-                                  <span className="bbdrts-declared-struck">₱{Number(d.declaredPhp).toLocaleString('en-US')}</span>
-                                  <span className="bbdrts-variance-tag">(-₱{Math.abs(d.variancePhp || 0).toLocaleString()})</span>
-                                </div>
-                                <div className="bbdrts-contrib-amount-eth">
-                                  Notarized on Sepolia
-                                </div>
-                              </>
-                            ) : (
-                              <>
-                                <div className="bbdrts-contrib-amount-php">
-                                  ₱{phpAmt.toLocaleString('en-US')}
-                                </div>
-                                <div className="bbdrts-contrib-amount-eth">
-                                  Sepolia Verified
-                                </div>
-                              </>
-                            )}
+                              ) : (
+                                <div className="rcp-amt-sub">Sepolia Verified</div>
+                              )}
+                            </div>
+
+                            <div className="rcp-row-actions">
+                              {isDisbursed && (
+                                <button
+                                  type="button"
+                                  className="rcp-btn-subtle is-emerald"
+                                  onClick={() => setSelectedProofCamp(matchCamp)}
+                                  title="Inspect audited ground distribution receipts and proof"
+                                >
+                                  <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>verified</span>
+                                  <span>Proof</span>
+                                </button>
+                              )}
+
+                              <button
+                                type="button"
+                                className="rcp-btn-subtle"
+                                onClick={() => setSelectedCampaignForProof(matchCamp)}
+                                title="View Campaign Details & Map"
+                              >
+                                <span>Details</span>
+                              </button>
+
+                              <button
+                                type="button"
+                                className={`rcp-btn-primary ${isShortage ? 'is-alert' : ''}`}
+                                onClick={() => setSelectedVoucherTx(d)}
+                                title="Open Blockchain Verification Certificate"
+                              >
+                                <span>{isShortage ? 'Audit' : 'Certificate'}</span>
+                                <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>arrow_forward</span>
+                              </button>
+                            </div>
                           </div>
                         </div>
 
-                        {/* 3. Sleek Discrepancy Alert Banner (Only if shortage detected) */}
+                        {/* Inline Discrepancy Alert (Only when shortage detected) */}
                         {isShortage && (
-                          <div className="bbdrts-discrepancy-card">
-                            <div className="bbdrts-discrepancy-left">
-                              <span className="material-symbols-outlined">gavel</span>
-                              <div className="bbdrts-discrepancy-msg">
-                                <strong>Audit Discrepancy Notarized on Sepolia:</strong> You declared ₱{Number(d.declaredPhp || 0).toLocaleString()}, but NGO credited ₱{Number(d.creditedPhp || 0).toLocaleString()} (<strong>-₱{Math.abs(d.variancePhp || 0).toLocaleString()} PHP shortage</strong>).
-                              </div>
+                          <div className="rcp-shortage-bar">
+                            <div className="rcp-shortage-left">
+                              <span className="material-symbols-outlined" style={{ fontSize: '16px', flexShrink: 0 }}>gavel</span>
+                              <span>
+                                <strong>Audit Discrepancy Notarized:</strong> Declared ₱{Number(d.declaredPhp || 0).toLocaleString()}, NGO credited ₱{Number(d.creditedPhp || 0).toLocaleString()} (<strong>-₱{Math.abs(d.variancePhp || 0).toLocaleString()} PHP</strong>).
+                              </span>
                             </div>
                             <button
                               type="button"
-                              className="bbdrts-dispute-action-btn"
+                              className="rcp-dispute-btn"
                               onClick={() => showSuccess(`Dispute filed for TX ${d.txHash?.slice(0, 10)}... Admin audit investigation initiated against ${orgName}.`, 'Audit Dispute Filed')}
                             >
                               <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>flag</span>
@@ -2660,96 +2688,14 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
                             </button>
                           </div>
                         )}
-
-                        {/* 4. Card Footer: Hash Chip + Action Buttons */}
-                        <div className="bbdrts-contrib-footer">
-                          {/* Left: Transaction Hash Chip */}
-                          <div className="bbdrts-tx-hash-chip">
-                            <span className="material-symbols-outlined" style={{ fontSize: '13px', color: 'var(--accent)' }}>token</span>
-                            <span className="tx-tag">TX</span>
-                            <span className="tx-val">
-                              {d.txHash ? `${d.txHash.slice(0, 10)}...${d.txHash.slice(-8)}` : 'On-Chain Verified'}
-                            </span>
-                            {d.txHash && (
-                              <button
-                                type="button"
-                                className="bbdrts-tx-icon-btn"
-                                onClick={() => {
-                                  navigator.clipboard.writeText(d.txHash);
-                                  showSuccess('Transaction hash copied to clipboard!', 'Hash Copied');
-                                }}
-                                title="Copy Transaction Hash"
-                              >
-                                <span className="material-symbols-outlined">content_copy</span>
-                              </button>
-                            )}
-                            {d.txHash && (
-                              <a
-                                href={`https://sepolia.etherscan.io/tx/${d.txHash}`}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="bbdrts-tx-icon-btn"
-                                title="Inspect on Sepolia Etherscan"
-                              >
-                                <span className="material-symbols-outlined">open_in_new</span>
-                              </a>
-                            )}
-                          </div>
-
-                          {/* Right: Consolidated Action Buttons */}
-                          <div className="bbdrts-contrib-actions">
-                            {(matchCamp.disbursementStatus === 'DISBURSED' || (matchCamp.disbursedAmountPhp || 0) > 0) && (
-                              <button
-                                type="button"
-                                className="bbdrts-btn-sm"
-                                onClick={() => setSelectedProofCamp(matchCamp)}
-                                title="Inspect audited ground distribution receipts and proof"
-                                style={{
-                                  background: 'rgba(34, 197, 94, 0.15)',
-                                  color: 'var(--accent, #22c55e)',
-                                  border: '1px solid rgba(34, 197, 94, 0.35)',
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: '4px'
-                                }}
-                              >
-                                <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>verified</span>
-                                <span>Relief Proof</span>
-                              </button>
-                            )}
-
-                            <button
-                              type="button"
-                              className="bbdrts-btn-sm bbdrts-btn-sec"
-                              onClick={() => setSelectedCampaignForProof(matchCamp)}
-                              title="View Campaign Accomplishments, Budget Breakdown & Map"
-                            >
-                              <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>info</span>
-                              <span>Cause Details</span>
-                            </button>
-
-                            <button
-                              type="button"
-                              className={`bbdrts-btn-sm bbdrts-btn-pri ${isShortage ? 'shortage' : ''}`}
-                              onClick={() => setSelectedVoucherTx(d)}
-                              title="Open Plain-English Blockchain Verification Certificate"
-                            >
-                              <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>
-                                {isShortage ? 'warning' : 'verified_user'}
-                              </span>
-                              <span>
-                                {isShortage ? 'View Audit Certificate' : 'Verify Certificate'}
-                              </span>
-                            </button>
-                          </div>
-                        </div>
                       </div>
                     );
                   })}
                 </div>
               )}
             </div>
-          )}
+            );
+          })()}
 
           {/* ── Direct Campaign Accomplishment Proof & Audit Modal ── */}
           {selectedCampaignForProof && (() => {
