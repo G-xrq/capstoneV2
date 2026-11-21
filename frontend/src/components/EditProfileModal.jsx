@@ -1064,116 +1064,178 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
     <div className={`bbdrts-edit-profile-backdrop ${isClosing ? 'closing' : ''}`} onClick={handleAttemptClose} data-theme={theme}>
       <div className="bbdrts-profile-studio-modal" onClick={e => e.stopPropagation()}>
 
-        {/* ── Minimal Vercel Dialog Header ── */}
-        <div className="epm-header">
-          <div className="epm-header-text">
-            <h3>{isOrg ? 'Edit Organization Profile' : 'Edit Profile'}</h3>
-            <p>
-              {isOrg
-                ? 'Update your organization identity, hotlines, payout rails, and accreditation.'
-                : 'Update your public display name, photo, contact details, and relief profile.'}
-            </p>
+        {/* ── Studio Top Header (Vercel Style) ── */}
+        <div className="bbdrts-studio-header">
+          <div className="bbdrts-studio-header-title">
+            <div className="bbdrts-studio-header-icon-box">
+              <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>
+                {isOrg ? 'domain' : 'account_circle'}
+              </span>
+            </div>
+            <div>
+              <h3>{isOrg ? 'Organization Settings & Institutional Profile' : 'Profile & Account Settings'}</h3>
+              <span>{isOrg ? 'Manage verified non-profit credentials and emergency response channels' : 'Manage your public persona, verified credentials, and regional settings'}</span>
+            </div>
           </div>
-          <button type="button" className="epm-close-btn" onClick={handleAttemptClose} aria-label="Close">
-            <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>close</span>
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span className="bbdrts-studio-kbd" title="Press ESC to close">ESC</span>
+            <button type="button" className="bbdrts-studio-close-btn" onClick={handleAttemptClose} aria-label="Close">
+              <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>close</span>
+            </button>
+          </div>
         </div>
 
-        {/* ── Horizontal Underline Tab Navigation (Zero Cramped Inner Sidebar) ── */}
-        <nav className="epm-tabs" role="tablist" aria-label="Profile sections">
-          {!isOrg && !isAdmin ? (
-            <>
-              <button
-                type="button"
-                role="tab"
-                aria-selected={activeTab === 'persona'}
-                className={`epm-tab ${activeTab === 'persona' ? 'active' : ''}`}
-                onClick={() => setActiveTab('persona')}
-              >
-                Profile
-              </button>
-              <button
-                type="button"
-                role="tab"
-                aria-selected={activeTab === 'contact'}
-                className={`epm-tab ${activeTab === 'contact' ? 'active' : ''}`}
-                onClick={() => setActiveTab('contact')}
-              >
-                Contact &amp; Location
-              </button>
-              <button
-                type="button"
-                role="tab"
-                aria-selected={activeTab === 'additional'}
-                className={`epm-tab ${activeTab === 'additional' ? 'active' : ''}`}
-                onClick={() => setActiveTab('additional')}
-              >
-                Additional Info
-              </button>
-              <button
-                type="button"
-                role="tab"
-                aria-selected={activeTab === 'verified'}
-                className={`epm-tab ${activeTab === 'verified' ? 'active' : ''}`}
-                onClick={() => setActiveTab('verified')}
-              >
-                Identity
-              </button>
-            </>
-          ) : (
-            <>
-              <button
-                type="button"
-                role="tab"
-                aria-selected={activeTab === 'org_details'}
-                className={`epm-tab ${activeTab === 'org_details' ? 'active' : ''}`}
-                onClick={() => setActiveTab('org_details')}
-              >
-                Organization
-              </button>
-              <button
-                type="button"
-                role="tab"
-                aria-selected={activeTab === 'org_contact'}
-                className={`epm-tab ${activeTab === 'org_contact' ? 'active' : ''}`}
-                onClick={() => setActiveTab('org_contact')}
-              >
-                Hotlines &amp; Location
-              </button>
-              <button
-                type="button"
-                role="tab"
-                aria-selected={activeTab === 'org_additional'}
-                className={`epm-tab ${activeTab === 'org_additional' ? 'active' : ''}`}
-                onClick={() => setActiveTab('org_additional')}
-              >
-                Details
-              </button>
-              <button
-                type="button"
-                role="tab"
-                aria-selected={activeTab === 'org_payments'}
-                className={`epm-tab ${activeTab === 'org_payments' ? 'active' : ''}`}
-                onClick={() => setActiveTab('org_payments')}
-              >
-                Payout Rails
-              </button>
-              <button
-                type="button"
-                role="tab"
-                aria-selected={activeTab === 'org_kyc'}
-                className={`epm-tab ${activeTab === 'org_kyc' ? 'active' : ''}`}
-                onClick={() => setActiveTab('org_kyc')}
-              >
-                Accreditation
-              </button>
-            </>
-          )}
-        </nav>
+        {/* ── Studio 2-Column Layout ── */}
+        <div className="bbdrts-studio-body">
 
-        {/* ── Single-Column Modal Form Body ── */}
-        <div className="epm-body">
-          <main className="bbdrts-studio-main epm-main">
+          {/* ── Left Sidebar Navigation ── */}
+          <aside className="bbdrts-studio-sidebar">
+            <div className="bbdrts-studio-sidebar-group">
+              <span className="bbdrts-studio-sidebar-group-title">Account Settings</span>
+
+              {!isOrg && !isAdmin ? (
+                <>
+                  <button
+                    type="button"
+                    className={`bbdrts-studio-nav-item ${activeTab === 'persona' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('persona')}
+                  >
+                    <span className="material-symbols-outlined">person</span>
+                    <span>Public Profile</span>
+                  </button>
+                  <button
+                    type="button"
+                    className={`bbdrts-studio-nav-item ${activeTab === 'contact' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('contact')}
+                  >
+                    <span className="material-symbols-outlined">call</span>
+                    <span>Contact & Region</span>
+                  </button>
+                  <button
+                    type="button"
+                    className={`bbdrts-studio-nav-item ${activeTab === 'additional' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('additional')}
+                  >
+                    <span className="material-symbols-outlined">badge</span>
+                    <span>Additional Info</span>
+                  </button>
+                  <button
+                    type="button"
+                    className={`bbdrts-studio-nav-item ${activeTab === 'verified' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('verified')}
+                  >
+                    <span className="material-symbols-outlined">verified_user</span>
+                    <span>Verified Identity</span>
+                  </button>
+                  <button
+                    type="button"
+                    className={`bbdrts-studio-nav-item ${activeTab === 'notifications' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('notifications')}
+                  >
+                    <span className="material-symbols-outlined">notifications</span>
+                    <span>Notifications</span>
+                  </button>
+                  <button
+                    type="button"
+                    className={`bbdrts-studio-nav-item ${activeTab === 'appearance' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('appearance')}
+                  >
+                    <span className="material-symbols-outlined">palette</span>
+                    <span>Appearance</span>
+                  </button>
+                  <button
+                    type="button"
+                    className={`bbdrts-studio-nav-item ${activeTab === 'security' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('security')}
+                  >
+                    <span className="material-symbols-outlined">lock</span>
+                    <span>Security & Audit</span>
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    className={`bbdrts-studio-nav-item ${activeTab === 'org_details' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('org_details')}
+                  >
+                    <span className="material-symbols-outlined">corporate_fare</span>
+                    <span>Organization Profile</span>
+                  </button>
+                  <button
+                    type="button"
+                    className={`bbdrts-studio-nav-item ${activeTab === 'org_contact' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('org_contact')}
+                  >
+                    <span className="material-symbols-outlined">support_agent</span>
+                    <span>Hotlines & Region</span>
+                  </button>
+                  <button
+                    type="button"
+                    className={`bbdrts-studio-nav-item ${activeTab === 'org_additional' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('org_additional')}
+                  >
+                    <span className="material-symbols-outlined">info</span>
+                    <span>Additional Info</span>
+                  </button>
+                  <button
+                    type="button"
+                    className={`bbdrts-studio-nav-item ${activeTab === 'org_payments' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('org_payments')}
+                  >
+                    <span className="material-symbols-outlined">account_balance_wallet</span>
+                    <span>Relief Channels</span>
+                  </button>
+                  <button
+                    type="button"
+                    className={`bbdrts-studio-nav-item ${activeTab === 'org_kyc' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('org_kyc')}
+                  >
+                    <span className="material-symbols-outlined">verified</span>
+                    <span>Accreditation</span>
+                  </button>
+                  <button
+                    type="button"
+                    className={`bbdrts-studio-nav-item ${activeTab === 'appearance' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('appearance')}
+                  >
+                    <span className="material-symbols-outlined">palette</span>
+                    <span>Appearance</span>
+                  </button>
+                  <button
+                    type="button"
+                    className={`bbdrts-studio-nav-item ${activeTab === 'security' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('security')}
+                  >
+                    <span className="material-symbols-outlined">lock</span>
+                    <span>Security & Audit</span>
+                  </button>
+                </>
+              )}
+            </div>
+
+            {/* Sidebar Protocol Badge */}
+            <div className="bbdrts-studio-sidebar-footer">
+              <div className="bbdrts-sidebar-user-card">
+                <div className="bbdrts-sidebar-user-avatar">
+                  {avatarUrl && (avatarUrl.startsWith('data:') || avatarUrl.startsWith('http')) ? (
+                    <img src={avatarUrl} alt="Avatar" />
+                  ) : avatarUrl && avatarUrl.length < 30 ? (
+                    <span className="material-symbols-outlined" style={{ fontSize: '18px', color: 'var(--accent, #22c55e)' }}>{avatarUrl}</span>
+                  ) : (
+                    userInitials
+                  )}
+                </div>
+                <div className="bbdrts-sidebar-user-info">
+                  <strong title={isOrg ? (orgName || displayName) : displayName}>{isOrg ? (orgName || displayName) : displayName}</strong>
+                  <span>BBDRTS-{isOrg ? 'NGO' : 'DONOR'}-2026</span>
+                </div>
+              </div>
+            </div>
+          </aside>
+
+          {/* ── Right Content Canvas ── */}
+          <main className="bbdrts-studio-main">
             <form onSubmit={handleSubmit} className="bbdrts-studio-form">
 
               {/* Hidden Global File Inputs (Always Mounted & Available Across All Tabs) */}
@@ -1192,157 +1254,184 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
                 style={{ display: 'none' }}
               />
 
-              <div className="bbdrts-studio-scroll-area epm-scroll">
+              <div className="bbdrts-studio-scroll-area">
                 {/* ══════════════════════════════════════════════════
-                    DONOR: PROFILE TAB (CLEAN VERCEL GEIST REWORK)
+                    DONOR: PUBLIC PERSONA TAB
                    ══════════════════════════════════════════════════ */}
                 {!isOrg && !isAdmin && activeTab === 'persona' && (
-                  <div className="epm-pane" key="epm-persona">
+                  <div className="bbdrts-studio-pane fade-in">
 
-                    {/* Borderless Avatar Identity Section */}
-                    <div className="epm-avatar-section">
-                      <div className="epm-avatar-row">
-                        <button
-                          type="button"
-                          className="epm-avatar-btn"
-                          onClick={() => fileInputRef.current?.click()}
-                          title="Upload profile photo"
-                        >
-                          <div className="epm-avatar-circle">
-                            {avatarUrl && (avatarUrl.startsWith('data:') || avatarUrl.startsWith('http')) ? (
-                              <img src={avatarUrl} alt="Avatar" />
-                            ) : avatarUrl && avatarUrl.length < 30 ? (
-                              <span className="material-symbols-outlined" style={{ fontSize: '28px' }}>{avatarUrl}</span>
-                            ) : (
-                              <span>{userInitials}</span>
-                            )}
+                    {/* Clean Humanitarian Donor Avatar Studio Card */}
+                    <div className="bbdrts-studio-avatar-card">
+                      <div className="bbdrts-studio-avatar-content">
+                        <div className="bbdrts-studio-avatar-wrap">
+                          {avatarUrl && (avatarUrl.startsWith('data:') || avatarUrl.startsWith('http')) ? (
+                            <img src={avatarUrl} alt="Avatar" className="bbdrts-studio-avatar-img" />
+                          ) : avatarUrl && avatarUrl.length < 30 ? (
+                            <div className="bbdrts-studio-avatar-icon">
+                              <span className="material-symbols-outlined">{avatarUrl}</span>
+                            </div>
+                          ) : (
+                            <div className="bbdrts-studio-avatar-initials">{userInitials}</div>
+                          )}
+                          <button
+                            type="button"
+                            className="bbdrts-studio-avatar-cam-btn"
+                            onClick={() => fileInputRef.current?.click()}
+                            title="Upload new profile picture"
+                          >
+                            <span className="material-symbols-outlined">photo_camera</span>
+                          </button>
+                        </div>
+
+                        <div className="bbdrts-studio-avatar-meta">
+                          <div className="bbdrts-studio-avatar-name-row">
+                            <h4>{displayName}</h4>
+                            <span className="bbdrts-studio-role-pill">
+                              <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>verified</span>
+                              Verified Donor
+                            </span>
                           </div>
-                          <span className="epm-avatar-overlay">
-                            <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>photo_camera</span>
-                          </span>
-                        </button>
+                          <p className="bbdrts-studio-avatar-sub">PNG, JPG, or WEBP up to 15MB • 1:1 square ratio recommended</p>
 
-                        <div className="epm-avatar-meta">
-                          <div className="epm-name-line">
-                            <h4>{displayName || 'Donor'}</h4>
-                            <span className="material-symbols-outlined epm-verified-icon" title="Verified Donor">verified</span>
-                          </div>
-                          <p className="epm-hint-line">PNG, JPG, or WEBP up to 15MB · 1:1 square recommended</p>
-
-                          <div className="epm-btn-row">
+                          <div className="bbdrts-studio-avatar-actions">
                             <button
                               type="button"
-                              className="epm-btn epm-btn--solid"
+                              className="bbdrts-studio-btn-sm primary"
                               onClick={() => fileInputRef.current?.click()}
                             >
-                              Upload Photo
+                              <span className="material-symbols-outlined">upload</span>
+                              <span>Upload Photo</span>
                             </button>
 
                             {(avatarUrl || originalImageSrc) && (avatarUrl?.startsWith('data:') || avatarUrl?.startsWith('http') || originalImageSrc?.startsWith('data:') || originalImageSrc?.startsWith('http')) && (
                               <button
                                 type="button"
-                                className="epm-btn epm-btn--outline"
+                                className="bbdrts-studio-btn-sm outline"
                                 onClick={handleOpenAdjuster}
-                                title="Adjust zoom, pan, and rotation"
+                                title="Re-adjust zoom, pan, and rotation"
                               >
-                                Adjust Framing
+                                <span className="material-symbols-outlined">tune</span>
+                                <span>Adjust Framing</span>
                               </button>
                             )}
 
                             {avatarUrl && (
                               <button
                                 type="button"
-                                className="epm-btn epm-btn--ghost-danger"
+                                className="bbdrts-studio-btn-sm danger"
                                 onClick={handleRemovePhoto}
+                                title="Remove current photo"
                               >
-                                Remove
+                                <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>delete</span>
+                                <span>Remove</span>
                               </button>
                             )}
                           </div>
                         </div>
                       </div>
 
-                      {/* Subtle Monochrome Preset Badges */}
-                      <div className="epm-preset-row">
-                        <span className="epm-preset-label">Or choose an icon badge</span>
-                        <div className="epm-preset-list">
+                      {/* Preset Badges Selector */}
+                      <div className="bbdrts-studio-preset-bar">
+                        <span className="bbdrts-studio-preset-title">Or select a supporter avatar badge:</span>
+                        <div className="bbdrts-studio-preset-grid">
                           {DONOR_AVATAR_PRESETS.map((p) => (
                             <button
                               key={p.id}
                               type="button"
-                              className={`epm-preset-btn ${avatarUrl === p.icon ? 'active' : ''}`}
+                              className={`bbdrts-studio-preset-btn ${avatarUrl === p.icon ? 'active' : ''}`}
                               onClick={() => setAvatarUrl(p.icon)}
                               title={p.label}
                             >
-                              <span className="material-symbols-outlined">{p.icon}</span>
+                              <span className="material-symbols-outlined" style={{ color: p.color }}>
+                                {p.icon}
+                              </span>
                             </button>
                           ))}
                         </div>
                       </div>
                     </div>
 
-                    {/* Public Display Name Section */}
-                    <div className="epm-field-section">
-                      <div className="epm-field-head">
-                        <div>
-                          <label htmlFor="epm-donor-name" className="epm-field-title">Public Display Name</label>
-                          <p className="epm-field-sub">Shown on public campaign donor lists, passes, and certificates.</p>
+                    {/* Public Display Name Section Card */}
+                    <div className="bbdrts-studio-card">
+                      <div className="bbdrts-studio-card-header">
+                        <div className="bbdrts-studio-card-title-wrap">
+                          <span className="material-symbols-outlined" style={{ color: 'var(--accent, #22c55e)' }}>badge</span>
+                          <div>
+                            <h5>Public Display Name</h5>
+                            <span>Shown on public campaign leaderboards, donor passes, and receipts.</span>
+                          </div>
                         </div>
                         {isCooldownActive ? (
-                          <span className="epm-status-tag is-warn" title={`Cooldown in effect until ${nextAvailableDateStr}`}>
-                            <span className="epm-dot is-warn" />
-                            <span>Cooldown · {nextAvailableDateStr}</span>
+                          <span className="bbdrts-cooldown-pill" title={`Cooldown in effect until ${nextAvailableDateStr}`}>
+                            <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>lock_clock</span>
+                            <span>14d Cooldown • {nextAvailableDateStr}</span>
                           </span>
                         ) : (
-                          <span className="epm-status-tag">
-                            <span className="epm-dot" />
-                            <span>Editable</span>
+                          <span className="bbdrts-ready-pill">
+                            <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>check_circle</span>
+                            <span>Ready to update</span>
                           </span>
                         )}
                       </div>
 
-                      <input
-                        id="epm-donor-name"
-                        type="text"
-                        className={`epm-input ${isCooldownActive ? 'is-disabled' : ''} ${displayNameError ? 'is-error' : ''}`}
-                        value={displayName}
-                        onChange={e => {
-                          const val = e.target.value;
-                          setDisplayName(val);
-                          setDisplayNameError(checkDisplayNameValidation(val));
-                        }}
-                        placeholder="e.g. ReliefPatron, LeyteRelief"
-                        disabled={isCooldownActive}
-                        required
-                      />
+                      <div className="bbdrts-studio-field-box">
+                        <div className="bbdrts-input-icon-wrap">
+                          <span className="material-symbols-outlined bbdrts-input-icon">person</span>
+                          <input
+                            type="text"
+                            className={`bbdrts-studio-input ${isCooldownActive ? 'disabled' : ''} ${displayNameError ? 'error' : ''}`}
+                            value={displayName}
+                            onChange={e => {
+                              const val = e.target.value;
+                              setDisplayName(val);
+                              setDisplayNameError(checkDisplayNameValidation(val));
+                            }}
+                            placeholder="e.g. ReliefPatron, LeyteRelief, ShieldOfHope"
+                            disabled={isCooldownActive}
+                            required
+                          />
+                        </div>
 
-                      {displayNameError ? (
-                        <p className="epm-error-text">{displayNameError}</p>
-                      ) : (
-                        <p className="epm-field-note">
-                          {isCooldownActive
-                            ? `Display name changes are limited to once every ${COOLDOWN_DAYS} days. Photos can be changed anytime.`
-                            : `3–35 characters. Updating starts a ${COOLDOWN_DAYS}-day cooldown.`}
-                        </p>
-                      )}
-                    </div>
-
-                    {/* Personal Bio Section */}
-                    <div className="epm-field-section">
-                      <div className="epm-field-head">
-                        <div>
-                          <label htmlFor="epm-donor-bio" className="epm-field-title">Bio / Supporter Note</label>
-                          <p className="epm-field-sub">Optional short note about your humanitarian focus.</p>
+                        {/* Error & Cooldown Feedback Slot */}
+                        <div className="bbdrts-field-feedback-slot">
+                          {displayNameError ? (
+                            <div className="bbdrts-status-error">
+                              <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>warning</span>
+                              <span>{displayNameError}</span>
+                            </div>
+                          ) : (
+                            <span className="bbdrts-status-hint">
+                              {isCooldownActive
+                                ? `Display name changes are limited to once every ${COOLDOWN_DAYS} days. Profile photos can be changed freely anytime.`
+                                : `Must be 3–30 characters long. Modifying this starts a ${COOLDOWN_DAYS}-day security cooldown.`}
+                            </span>
+                          )}
                         </div>
                       </div>
-                      <textarea
-                        id="epm-donor-bio"
-                        className="epm-textarea"
-                        rows="3"
-                        value={bio}
-                        onChange={e => setBio(e.target.value)}
-                        placeholder="e.g. Supporting transparent disaster relief across Eastern Visayas..."
-                      />
+                    </div>
+
+                    {/* Personal Bio Card */}
+                    <div className="bbdrts-studio-card">
+                      <div className="bbdrts-studio-card-header">
+                        <div className="bbdrts-studio-card-title-wrap">
+                          <span className="material-symbols-outlined" style={{ color: 'var(--accent, #22c55e)' }}>edit_note</span>
+                          <div>
+                            <h5>Personal Bio / Supporter Note</h5>
+                            <span>Share your humanitarian focus or a message with the relief community.</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="bbdrts-studio-field-box">
+                        <textarea
+                          className="bbdrts-studio-textarea"
+                          rows="2"
+                          value={bio}
+                          onChange={e => setBio(e.target.value)}
+                          placeholder="e.g. Committed to transparent, verified, and rapid disaster response across Eastern Visayas..."
+                        />
+                      </div>
                     </div>
 
                   </div>
@@ -1944,29 +2033,32 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
                   ORGANIZATION TABS: PROFILE & COVER BANNER STUDIO
                  ══════════════════════════════════════════════════ */}
                 {isOrg && activeTab === 'org_details' && (
-                  <div className="epm-pane" key="epm-org-details">
+                  <div className="bbdrts-studio-pane fade-in">
 
-                    {/* Clean Cover Banner + Overlapping Logo Studio */}
-                    <div className="epm-ngo-hero">
+                    {/* ── Unified Organization Profile & Banner Card (Vercel Style) ── */}
+                    <div className="bbdrts-ngo-header-card">
+                      {/* Top Half: Cover Banner */}
                       <div
-                        className="epm-ngo-banner"
+                        className="bbdrts-ngo-banner-cover"
                         onClick={() => bannerInputRef.current?.click()}
                       >
+                        {/* High-Performance Dedicated Background Image Layer */}
                         <div
-                          className="epm-ngo-banner-img"
+                          className="bbdrts-ngo-banner-bg"
                           style={
                             bannerUrl && (bannerUrl.startsWith('data:') || bannerUrl.startsWith('http') || bannerUrl.startsWith('/') || bannerUrl.includes('.jpg') || bannerUrl.includes('.png'))
                               ? { backgroundImage: `url(${bannerUrl})` }
                               : bannerUrl && bannerUrl.startsWith('linear-gradient')
                                 ? { background: bannerUrl }
-                                : { background: 'linear-gradient(135deg, #0d0d0f 0%, #18181b 100%)' }
+                                : { background: 'linear-gradient(135deg, #111111 0%, #1a1a1a 100%)' }
                           }
                         />
-                        <div className="epm-ngo-banner-scrim" />
-                        <div className="epm-ngo-banner-actions">
+
+                        {/* Top-Right Sleek Floating Banner Controls */}
+                        <div className="bbdrts-banner-controls-bar">
                           <button
                             type="button"
-                            className="epm-banner-pill"
+                            className="bbdrts-banner-action-btn"
                             onClick={(e) => {
                               e.stopPropagation();
                               bannerInputRef.current?.click();
@@ -1978,7 +2070,7 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
                           {bannerUrl && (
                             <button
                               type="button"
-                              className="epm-banner-pill is-danger"
+                              className="bbdrts-banner-action-btn danger"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setBannerUrl('');
@@ -1992,119 +2084,127 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
                         </div>
                       </div>
 
-                      <div className="epm-ngo-identity-bar">
-                        <div className="epm-ngo-identity-left">
-                          <button
-                            type="button"
-                            className="epm-avatar-btn epm-ngo-logo-overlap"
-                            onClick={() => fileInputRef.current?.click()}
-                            title="Change organization logo"
-                          >
-                            <div className="epm-avatar-circle epm-avatar-circle--ngo">
-                              {avatarUrl && (avatarUrl.startsWith('data:') || avatarUrl.startsWith('http')) ? (
-                                <img src={avatarUrl} alt="Logo" />
-                              ) : avatarUrl && avatarUrl.length < 30 ? (
-                                <span className="material-symbols-outlined" style={{ fontSize: '30px' }}>{avatarUrl}</span>
-                              ) : (
-                                <span>{userInitials}</span>
-                              )}
-                            </div>
-                            <span className="epm-avatar-overlay">
-                              <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>photo_camera</span>
-                            </span>
-                          </button>
+                      {/* Bottom Half: Profile Lower Space with Clean Avatar & Organization Info */}
+                      <div className="bbdrts-ngo-profile-lower">
+                        <div className="bbdrts-ngo-identity-row">
+                          {/* Clean Overlapping Logo Avatar Circle */}
+                          <div className="bbdrts-ngo-avatar-overlap-wrap">
+                            <div
+                              className="bbdrts-ngo-avatar-circle"
+                              onClick={() => fileInputRef.current?.click()}
+                              title="Click to change organization logo"
+                            >
+                              <div className="bbdrts-ngo-avatar-inner">
+                                {avatarUrl && (avatarUrl.startsWith('data:') || avatarUrl.startsWith('http')) ? (
+                                  <img src={avatarUrl} alt="Logo" className="bbdrts-ngo-avatar-img" />
+                                ) : avatarUrl && avatarUrl.length < 30 ? (
+                                  <span className="material-symbols-outlined" style={{ fontSize: '38px', color: '#10b981' }}>{avatarUrl}</span>
+                                ) : (
+                                  userInitials
+                                )}
 
-                          <div className="epm-avatar-meta">
-                            <div className="epm-name-line">
+                                {/* Subtle Vercel Hover Overlay (Camera Icon Only) */}
+                                <div className="bbdrts-ngo-avatar-hover-shroud">
+                                  <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>photo_camera</span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Organization Name, Badges & Action Buttons (Side by Side) */}
+                          <div className="bbdrts-ngo-meta-section">
+                            <div className="bbdrts-ngo-name-row">
                               <h4>{orgName || 'Organization Profile'}</h4>
                               {(currentUser?.verification_status === 'Approved' || currentUser?.Verification_Status === 'Approved') && (
                                 <span
-                                  className="material-symbols-outlined epm-verified-icon"
-                                  title={`SEC Verified NGO · Verified ${verifiedDateStr}`}
+                                  className="bbdrts-verified-badge-icon"
+                                  title={`SEC Verified NGO • Verified ${verifiedDateStr}`}
+                                  aria-label={`SEC Verified NGO • Verified ${verifiedDateStr}`}
                                 >
-                                  verified
+                                  <VercelIcon name="verified" size={15} color="#10b981" />
                                 </span>
                               )}
                             </div>
-                            <p className="epm-hint-line">
+                            <p className="bbdrts-ngo-subtext">
                               {(currentUser?.verification_status === 'Approved' || currentUser?.Verification_Status === 'Approved')
-                                ? `SEC & DSWD Accredited NGO · ${verifiedDateStr}`
+                                ? `SEC & DSWD Accredited NGO • Accredited ${verifiedDateStr}`
                                 : (currentUser?.verification_status === 'Pending' || currentUser?.Verification_Status === 'Pending')
-                                  ? `Accreditation Pending · ${verifiedDateStr}`
+                                  ? `Accreditation Pending Review • Submitted ${verifiedDateStr}`
                                   : 'Registered Humanitarian Entity'}
                             </p>
+
+                            {/* Clean Vercel Action Row for Avatar */}
+                            <div className="bbdrts-avatar-controls-row">
+                              <button
+                                type="button"
+                                className="bbdrts-avatar-action-btn"
+                                onClick={() => fileInputRef.current?.click()}
+                              >
+                                <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>upload</span>
+                                <span>{avatarUrl ? 'Change Logo' : 'Upload Logo'}</span>
+                              </button>
+                              {avatarUrl && (
+                                <button
+                                  type="button"
+                                  className="bbdrts-avatar-action-btn danger"
+                                  onClick={handleRemovePhoto}
+                                >
+                                  <span>Remove</span>
+                                </button>
+                              )}
+                              <span className="bbdrts-avatar-hint">Square PNG/JPG, recommended 400×400px</span>
+                            </div>
                           </div>
                         </div>
-
-                        <div className="epm-btn-row">
-                          <button
-                            type="button"
-                            className="epm-btn epm-btn--outline"
-                            onClick={() => fileInputRef.current?.click()}
-                          >
-                            {avatarUrl ? 'Change Logo' : 'Upload Logo'}
-                          </button>
-                          {avatarUrl && (
-                            <button
-                              type="button"
-                              className="epm-btn epm-btn--ghost-danger"
-                              onClick={handleRemovePhoto}
-                            >
-                              Remove
-                            </button>
-                          )}
-                        </div>
                       </div>
                     </div>
 
-                    {/* Clean 2-Column Official Organization Info */}
-                    <div className="epm-field-section">
-                      <div className="epm-grid-2">
-                        <div className="epm-field">
-                          <label htmlFor="epm-org-name" className="epm-field-title">Official Organization Name</label>
-                          <input
-                            id="epm-org-name"
-                            type="text"
-                            className="epm-input"
-                            value={orgName}
-                            onChange={e => setOrgName(e.target.value)}
-                            placeholder="e.g. Philippine Red Cross - Southern Leyte"
-                            required
-                          />
-                        </div>
-
-                        <div className="epm-field">
-                          <label htmlFor="epm-org-web" className="epm-field-title">Official Website</label>
-                          <input
-                            id="epm-org-web"
-                            type="url"
-                            className="epm-input"
-                            value={website}
-                            onChange={e => setWebsite(e.target.value)}
-                            placeholder="https://redcross.org.ph"
-                          />
+                    {/* ── Official Institutional Information ── */}
+                    <div className="bbdrts-studio-card" style={{ marginTop: '14px' }}>
+                      <div className="bbdrts-studio-card-header">
+                        <div className="bbdrts-studio-card-title-wrap">
+                          <span className="material-symbols-outlined" style={{ color: 'var(--accent, #22c55e)' }}>corporate_fare</span>
+                          <div>
+                            <h5>Official Non-Profit Information</h5>
+                            <span>Institutional credentials displayed across relief campaigns and public ledger.</span>
+                          </div>
                         </div>
                       </div>
-                    </div>
 
-                    {/* Humanitarian Mission Statement */}
-                    <div className="epm-field-section">
-                      <div className="epm-field-head">
-                        <div>
-                          <label htmlFor="epm-org-bio" className="epm-field-title">Humanitarian Mission Statement</label>
-                          <p className="epm-field-sub">Displayed on your public NGO audit profile and active relief campaigns.</p>
-                        </div>
+                      <div className="bbdrts-studio-field-box">
+                        <label className="bbdrts-studio-label">Official Non-Profit / NGO Name</label>
+                        <input
+                          type="text"
+                          className="bbdrts-studio-input"
+                          value={orgName}
+                          onChange={e => setOrgName(e.target.value)}
+                          placeholder="e.g. Philippine Red Cross - Southern Leyte Chapter"
+                          required
+                        />
                       </div>
-                      <textarea
-                        id="epm-org-bio"
-                        className="epm-textarea"
-                        rows="3"
-                        value={bio}
-                        onChange={e => setBio(e.target.value)}
-                        placeholder="Describe your organization's mission, emergency focus, and disaster response capabilities..."
-                      />
-                    </div>
 
+                      <div className="bbdrts-studio-field-box">
+                        <label className="bbdrts-studio-label">Official Website Portal</label>
+                        <input
+                          type="url"
+                          className="bbdrts-studio-input"
+                          value={website}
+                          onChange={e => setWebsite(e.target.value)}
+                          placeholder="https://redcross.org.ph"
+                        />
+                      </div>
+
+                      <div className="bbdrts-studio-field-box">
+                        <label className="bbdrts-studio-label">Humanitarian Mission Statement</label>
+                        <textarea
+                          className="bbdrts-studio-textarea"
+                          rows="3"
+                          value={bio}
+                          onChange={e => setBio(e.target.value)}
+                          placeholder="Describe your organization's mission, emergency response focus, and disaster relief capabilities..."
+                        />
+                      </div>
+                    </div>
                   </div>
                 )}
 
@@ -3012,16 +3112,16 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
 
               </div>
 
-              {/* ── Minimal Vercel Dialog Footer ── */}
-              <div className="epm-footer">
-                <div className="epm-footer-meta">
-                  <span className="epm-dot" />
-                  <span>Syncs with registry &amp; Sepolia receipts</span>
+              {/* ── Studio Fixed Bottom Footer (Vercel Style) ── */}
+              <div className="bbdrts-studio-footer">
+                <div className="bbdrts-studio-footer-meta">
+                  <span className="material-symbols-outlined" style={{ fontSize: '15px', color: '#10b981' }}>verified</span>
+                  <span>Changes automatically synchronize with official registry and public ledger.</span>
                 </div>
-                <div className="epm-footer-actions">
+                <div className="bbdrts-studio-footer-actions">
                   <button
                     type="button"
-                    className="epm-btn epm-btn--outline"
+                    className="bbdrts-studio-btn-cancel"
                     onClick={handleSmoothClose}
                     disabled={saveState === 'saving' || saveState === 'success'}
                   >
@@ -3029,22 +3129,27 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
                   </button>
                   <button
                     type="submit"
-                    className={`epm-btn epm-btn--solid ${saveState === 'success' ? 'is-saved' : ''}`}
+                    className={`bbdrts-studio-btn-save ${saveState === 'success' ? 'success' : ''}`}
                     disabled={saveState === 'saving' || saveState === 'success'}
                   >
                     {saveState === 'saving' && (
                       <>
-                        <div className="spinner" style={{ width: '13px', height: '13px' }} />
-                        <span>Saving...</span>
+                        <div className="spinner" style={{ width: '14px', height: '14px' }} />
+                        <span>Saving Changes...</span>
                       </>
                     )}
                     {saveState === 'success' && (
                       <>
-                        <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>check</span>
+                        <span className="material-symbols-outlined bbdrts-success-pop-icon" style={{ fontSize: '16px' }}>check_circle</span>
                         <span>Saved</span>
                       </>
                     )}
-                    {saveState === 'idle' && <span>Save Changes</span>}
+                    {saveState === 'idle' && (
+                      <>
+                        <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>save</span>
+                        <span>Save Changes</span>
+                      </>
+                    )}
                   </button>
                 </div>
               </div>
