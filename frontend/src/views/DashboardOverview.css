@@ -1226,9 +1226,9 @@
    gradually along a diagonal axis toward the lower-left donor identity area. */
 .dbo-hero-bg-mesh {
   position: absolute;
-  top: -66px;
+  top: -118px;
   right: -6px;
-  bottom: 4px;
+  bottom: 24px;
   left: 0;
   pointer-events: none;
   user-select: none;
@@ -1238,7 +1238,7 @@
   background-position: right top;
   background-repeat: no-repeat;
   mix-blend-mode: multiply;
-  opacity: 0.34;
+  opacity: 0.28;
   -webkit-mask-image: linear-gradient(242deg, rgba(0, 0, 0, 1) 0%, rgba(0, 0, 0, 1) 48%, rgba(0, 0, 0, 0.42) 66%, rgba(0, 0, 0, 0) 82%);
   mask-image: linear-gradient(242deg, rgba(0, 0, 0, 1) 0%, rgba(0, 0, 0, 1) 48%, rgba(0, 0, 0, 0.42) 66%, rgba(0, 0, 0, 0) 82%);
 }
@@ -1246,7 +1246,7 @@
 [data-theme="dark"] .dbo-hero-bg-mesh {
   background-image: url('/donor-hero-mesh-dark.png');
   mix-blend-mode: screen;
-  opacity: 0.38;
+  opacity: 0.30;
 }
 
 .dbo-hero-eyebrow-row {
@@ -2181,14 +2181,14 @@
 
 @media (max-width: 640px) {
   .dbo-hero-bg-mesh {
-    top: -26px;
-    right: -10px;
+    top: -34px;
+    right: -52px;
     bottom: auto;
-    height: 180px;
-    opacity: 0.24;
+    height: 175px;
+    opacity: 0.22;
   }
   [data-theme="dark"] .dbo-hero-bg-mesh {
-    opacity: 0.26;
+    opacity: 0.24;
   }
   .dbo-hero-name {
     font-size: 1.5rem;
