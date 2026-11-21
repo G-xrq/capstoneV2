@@ -95,6 +95,9 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
   const [receiptRailFilter, setReceiptRailFilter] = useState('ALL');
   const [receiptSort, setReceiptSort] = useState('NEWEST');
   const [searchQueryReceipts, setSearchQueryReceipts] = useState('');
+  const [receiptsPage, setReceiptsPage] = useState(1);
+  const receiptsLedgerRef = useRef(null);
+  const RECEIPTS_PER_PAGE = 10;
   const [selectedCampaignForProof, setSelectedCampaignForProof] = useState(null);
   const [selectedProofCamp, setSelectedProofCamp] = useState(null);
   const [showAllProofTags, setShowAllProofTags] = useState(false);
@@ -1032,6 +1035,10 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
         return timeB - timeA;
       });
   }, [myDonations, receiptFilter, receiptRailFilter, searchQueryReceipts, receiptSort, campaigns]);
+
+  useEffect(() => {
+    setReceiptsPage(1);
+  }, [receiptFilter, receiptRailFilter, searchQueryReceipts, receiptSort]);
 
   return (
     <div className="ref-dashboard-container" data-interface-mode={interfaceMode}>
@@ -2392,370 +2399,449 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
                 </div>
               </div>
 
-              {/* ── 2. Unified Vercel Geist Ledger Command Bar ── */}
-              <div className="rcp-command-bar">
-                <div className="rcp-search-box">
-                  <span className="material-symbols-outlined rcp-search-icon">search</span>
-                  <input
-                    type="text"
-                    className="rcp-search-input"
-                    placeholder="Search campaign, TX hash, or reference..."
-                    value={searchQueryReceipts}
-                    onChange={(e) => setSearchQueryReceipts(e.target.value)}
-                  />
-                  {searchQueryReceipts && (
-                    <button
-                      type="button"
-                      className="rcp-search-clear"
-                      onClick={() => setSearchQueryReceipts('')}
-                      title="Clear search"
-                    >
-                      <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>close</span>
-                    </button>
-                  )}
-                </div>
+              {/* ── 2. Unified Vercel Geist Receipt Ledger Panel (Integrated Filters + 10-Row Pagination) ── */}
+              {(() => {
+                const totalFiltered = filteredMyDonations.length;
+                const totalReceiptPages = Math.max(1, Math.ceil(totalFiltered / RECEIPTS_PER_PAGE));
+                const safeReceiptsPage = Math.min(receiptsPage, totalReceiptPages);
+                const startIdx = (safeReceiptsPage - 1) * RECEIPTS_PER_PAGE;
+                const endIdx = Math.min(startIdx + RECEIPTS_PER_PAGE, totalFiltered);
+                const paginatedReceipts = filteredMyDonations.slice(startIdx, endIdx);
+                const hasActiveFilters = receiptFilter !== 'ALL' || receiptRailFilter !== 'ALL' || searchQueryReceipts.trim() !== '';
 
-                <div className="rcp-filter-seg">
-                  <button
-                    type="button"
-                    className={`rcp-seg-btn ${receiptFilter === 'ALL' ? 'active' : ''}`}
-                    onClick={() => setReceiptFilter('ALL')}
-                  >
-                    <span>All</span>
-                    <span className="rcp-seg-cnt">{totalReceiptsLen}</span>
-                  </button>
-                  <button
-                    type="button"
-                    className={`rcp-seg-btn ${receiptFilter === 'DR' ? 'active' : ''}`}
-                    onClick={() => setReceiptFilter('DR')}
-                  >
-                    <span>Disaster Relief</span>
-                    <span className="rcp-seg-cnt">{drReceiptsCount}</span>
-                  </button>
-                  <button
-                    type="button"
-                    className={`rcp-seg-btn ${receiptFilter === 'CD' ? 'active' : ''}`}
-                    onClick={() => setReceiptFilter('CD')}
-                  >
-                    <span>Charitable Aid</span>
-                    <span className="rcp-seg-cnt">{cdReceiptsCount}</span>
-                  </button>
-                </div>
+                const goToReceiptPage = (nextPage) => {
+                  const clamped = Math.max(1, Math.min(totalReceiptPages, nextPage));
+                  setReceiptsPage(clamped);
+                  if (receiptsLedgerRef.current) {
+                    const top = receiptsLedgerRef.current.getBoundingClientRect().top + window.scrollY - 76;
+                    window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+                  }
+                };
 
-                <div className="rcp-select-cluster">
-                  <select
-                    className="rcp-select"
-                    value={receiptRailFilter}
-                    onChange={(e) => setReceiptRailFilter(e.target.value)}
-                    title="Filter by Payment Channel"
-                  >
-                    <option value="ALL">All Channels</option>
-                    <option value="GCASH">GCash</option>
-                    <option value="MAYA">Maya</option>
-                    <option value="CARD">Card / Bank</option>
-                  </select>
-
-                  <select
-                    className="rcp-select"
-                    value={receiptSort}
-                    onChange={(e) => setReceiptSort(e.target.value)}
-                    title="Sort Contributions"
-                  >
-                    <option value="NEWEST">Newest First</option>
-                    <option value="AMOUNT_HIGH">Highest Amount</option>
-                    <option value="AMOUNT_LOW">Lowest Amount</option>
-                    <option value="OLDEST">Oldest First</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Dynamic Results Counter Bar */}
-              <div className="rcp-results-bar">
-                <span>
-                  Showing <strong>{filteredMyDonations.length}</strong> of {totalReceiptsLen} notarized receipts
-                </span>
-                {(receiptFilter !== 'ALL' || receiptRailFilter !== 'ALL' || searchQueryReceipts.trim() !== '') && (
-                  <button
-                    type="button"
-                    className="rcp-reset-link"
-                    onClick={() => {
-                      setReceiptFilter('ALL');
-                      setReceiptRailFilter('ALL');
-                      setSearchQueryReceipts('');
-                    }}
-                  >
-                    Reset filters
-                  </button>
-                )}
-              </div>
-
-              {/* ── 3. Cryptographic Receipt Ledger (Unified Hairline Obsidian Container) ── */}
-              {loadingMyDonations ? (
-                <div className="rcp-ledger-container">
-                  {[1, 2, 3, 4].map((i) => (
-                    <div key={i} className="rcp-row rcp-row-skel">
-                      <div className="rcp-skel-thumb db-skel" />
-                      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                        <span className="db-skel" style={{ width: '48%', height: '15px', borderRadius: '4px' }} />
-                        <span className="db-skel" style={{ width: '68%', height: '11px', borderRadius: '4px' }} />
-                        <span className="db-skel" style={{ width: '36%', height: '11px', borderRadius: '4px' }} />
-                      </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
-                        <span className="db-skel" style={{ width: '82px', height: '18px', borderRadius: '4px' }} />
-                        <span className="db-skel" style={{ width: '130px', height: '26px', borderRadius: '6px' }} />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : !myDonations || myDonations.length === 0 ? (
-                <div className="db-empty-state">
-                  <div className="db-empty-icon-wrap">
-                    <span className="material-symbols-outlined">receipt_long</span>
-                  </div>
-                  <h3 className="db-empty-title">No contributions recorded yet</h3>
-                  <p className="db-empty-desc">
-                    When you support any active disaster relief campaign using GCash, Maya, Card, or Bank Transfer, your digital receipts and gasless Sepolia audit proofs will appear here.
-                  </p>
-                  <div className="db-empty-action">
-                    <button
-                      type="button"
-                      className="dbo-cmd-btn dbo-cmd-btn--primary"
-                      onClick={() => setActiveTab('campaigns')}
-                    >
-                      <span>Explore Relief Campaigns</span>
-                      <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>arrow_forward</span>
-                    </button>
-                  </div>
-                </div>
-              ) : filteredMyDonations.length === 0 ? (
-                <div className="db-empty-state">
-                  <div className="db-empty-icon-wrap">
-                    <span className="material-symbols-outlined">filter_list_off</span>
-                  </div>
-                  <h3 className="db-empty-title">No receipts match your search</h3>
-                  <p className="db-empty-desc">
-                    No contributions match your current filter combination. Try selecting "All Channels" or clearing your search term.
-                  </p>
-                  <div className="db-empty-action">
-                    <button
-                      type="button"
-                      className="dbo-cmd-btn"
-                      onClick={() => {
-                        setReceiptFilter('ALL');
-                        setReceiptRailFilter('ALL');
-                        setSearchQueryReceipts('');
-                      }}
-                    >
-                      <span>Reset Filters</span>
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div className="rcp-ledger-container">
-                  {filteredMyDonations.map((d, idx) => {
-                    const matchCamp = campaigns.find(c => String(c.id) === String(d.campaignId)) || { id: d.campaignId, title: `Disaster Relief Campaign #${d.campaignId}` };
-                    const rawTitle = matchCamp ? matchCamp.title : `Disaster Relief Campaign #${d.campaignId}`;
-                    const campTitle = formatCampaignTitle(rawTitle, d.campaignId);
-                    const catInfo = getCampaignCategoryInfo(matchCamp);
-                    const coverData = getCampaignCoverData(matchCamp);
-                    const orgName = getOrgDisplayName(matchCamp.orgAddress, matchCamp.orgName, d.campaignId);
-
-                    const pm = (d.paymentMethod || 'CARD').toUpperCase();
-                    const railLabel = pm.includes('GCASH') ? 'GCASH' : pm.includes('MAYA') ? 'MAYA' : (pm.includes('BANK') || pm.includes('CARD')) ? 'CARD / BANK' : ((d.paymentMethod && !/eth|crypto|metamask/i.test(d.paymentMethod)) ? d.paymentMethod.toUpperCase() : 'PHP');
-                    const ethAmt = parseFloat(d.amount || 0);
-                    const phpAmt = Math.round(ethAmt * 170000);
-                    const isShortage = d.auditStatus === 'SHORTAGE';
-                    const isDisbursed = matchCamp.disbursementStatus === 'DISBURSED' || (matchCamp.disbursedAmountPhp || 0) > 0;
-                    const dateLabel = d.createdAt
-                      ? new Date(d.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-                      : 'Recent';
-
-                    return (
-                      <div key={idx} className={`rcp-row ${isShortage ? 'is-shortage' : ''}`}>
-                        <div className="rcp-row-main">
-                          {/* Left Thumbnail */}
+                return (
+                  <div className="rcp-ledger-panel" ref={receiptsLedgerRef}>
+                    {/* Integrated Filter & Search Toolbar */}
+                    <div className="rcp-panel-toolbar">
+                      <div className="rcp-search-box">
+                        <span className="material-symbols-outlined rcp-search-icon">search</span>
+                        <input
+                          type="text"
+                          className="rcp-search-input"
+                          placeholder="Search campaign, TX hash, or reference..."
+                          value={searchQueryReceipts}
+                          onChange={(e) => setSearchQueryReceipts(e.target.value)}
+                        />
+                        {searchQueryReceipts && (
                           <button
                             type="button"
-                            className="rcp-thumb-btn"
-                            onClick={() => setSelectedCampaignForProof(matchCamp)}
-                            title="Inspect campaign details"
+                            className="rcp-search-clear"
+                            onClick={() => setSearchQueryReceipts('')}
+                            title="Clear search"
                           >
-                            <img src={coverData.imageUrl} alt={campTitle} className="rcp-thumb-img" />
+                            <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>close</span>
                           </button>
-
-                          {/* Center Info */}
-                          <div className="rcp-row-center">
-                            <div className="rcp-row-title-line">
-                              <h3
-                                className="rcp-row-title"
-                                onClick={() => setSelectedCampaignForProof(matchCamp)}
-                                title={campTitle}
-                              >
-                                {campTitle}
-                              </h3>
-
-                              {isDisbursed ? (
-                                <button
-                                  type="button"
-                                  className="rcp-status-pill is-disbursed"
-                                  onClick={() => setSelectedProofCamp(matchCamp)}
-                                  title="View verified beneficiary distribution receipts"
-                                >
-                                  <span className="rcp-status-dot ok" />
-                                  <span>Relief Disbursed</span>
-                                </button>
-                              ) : isShortage ? (
-                                <span className="rcp-status-pill is-shortage">
-                                  <span className="rcp-status-dot alert" />
-                                  <span>Shortage Detected</span>
-                                </span>
-                              ) : (
-                                <span className="rcp-status-pill">
-                                  <span className="rcp-status-dot ok" />
-                                  <span>Confirmed On-Chain</span>
-                                </span>
-                              )}
-                            </div>
-
-                            <div className="rcp-row-meta">
-                              <button
-                                type="button"
-                                className="rcp-org-link"
-                                onClick={() => onOpenNgoProfile && onOpenNgoProfile(matchCamp.orgId || 3)}
-                                title="View verified NGO credentials"
-                              >
-                                <span>{orgName}</span>
-                                <span className="material-symbols-outlined rcp-org-check">verified</span>
-                              </button>
-                              <span className="rcp-dot-sep">·</span>
-                              <span>{catInfo.label}</span>
-                              <span className="rcp-dot-sep">·</span>
-                              <span>{dateLabel}</span>
-                              {coverData.locationTag && (
-                                <>
-                                  <span className="rcp-dot-sep">·</span>
-                                  <span className="rcp-loc-clip">{coverData.locationTag}</span>
-                                </>
-                              )}
-                            </div>
-
-                            <div className="rcp-proof-strip">
-                              <span className="rcp-rail-badge">{railLabel}</span>
-
-                              {d.referenceNumber && (
-                                <span className="rcp-ref-tag" title="Payment Reference Number">
-                                  Ref: {d.referenceNumber}
-                                </span>
-                              )}
-
-                              <span className="rcp-hash-chip">
-                                <span className="rcp-hash-prefix">TX</span>
-                                <span className="rcp-hash-val">
-                                  {d.txHash ? `${d.txHash.slice(0, 8)}...${d.txHash.slice(-6)}` : 'Verified'}
-                                </span>
-                                {d.txHash && (
-                                  <button
-                                    type="button"
-                                    className="rcp-hash-action"
-                                    onClick={() => {
-                                      navigator.clipboard.writeText(d.txHash);
-                                      showSuccess('Transaction hash copied to clipboard!', 'Hash Copied');
-                                    }}
-                                    title="Copy Transaction Hash"
-                                  >
-                                    <span className="material-symbols-outlined">content_copy</span>
-                                  </button>
-                                )}
-                                {d.txHash && (
-                                  <a
-                                    href={`https://sepolia.etherscan.io/tx/${d.txHash}`}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="rcp-hash-action"
-                                    title="Inspect on Sepolia Etherscan"
-                                  >
-                                    <span className="material-symbols-outlined">north_east</span>
-                                  </a>
-                                )}
-                              </span>
-                            </div>
-                          </div>
-
-                          {/* Right Amount & Compact Actions */}
-                          <div className="rcp-row-right">
-                            <div className="rcp-amt-block">
-                              <div className={`rcp-amt-val ${isShortage ? 'is-alert' : ''}`}>
-                                +₱{phpAmt.toLocaleString('en-US')}
-                              </div>
-                              {isShortage && d.declaredPhp ? (
-                                <div className="rcp-amt-variance">
-                                  <span className="rcp-struck">₱{Number(d.declaredPhp).toLocaleString('en-US')}</span>
-                                  <span className="rcp-var-diff">-₱{Math.abs(d.variancePhp || 0).toLocaleString()}</span>
-                                </div>
-                              ) : (
-                                <div className="rcp-amt-sub">Sepolia Verified</div>
-                              )}
-                            </div>
-
-                            <div className="rcp-row-actions">
-                              {isDisbursed && (
-                                <button
-                                  type="button"
-                                  className="rcp-btn-subtle is-emerald"
-                                  onClick={() => setSelectedProofCamp(matchCamp)}
-                                  title="Inspect audited ground distribution receipts and proof"
-                                >
-                                  <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>verified</span>
-                                  <span>Proof</span>
-                                </button>
-                              )}
-
-                              <button
-                                type="button"
-                                className="rcp-btn-subtle"
-                                onClick={() => setSelectedCampaignForProof(matchCamp)}
-                                title="View Campaign Details & Map"
-                              >
-                                <span>Details</span>
-                              </button>
-
-                              <button
-                                type="button"
-                                className={`rcp-btn-primary ${isShortage ? 'is-alert' : ''}`}
-                                onClick={() => setSelectedVoucherTx(d)}
-                                title="Open Blockchain Verification Certificate"
-                              >
-                                <span>{isShortage ? 'Audit' : 'Certificate'}</span>
-                                <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>arrow_forward</span>
-                              </button>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Inline Discrepancy Alert (Only when shortage detected) */}
-                        {isShortage && (
-                          <div className="rcp-shortage-bar">
-                            <div className="rcp-shortage-left">
-                              <span className="material-symbols-outlined" style={{ fontSize: '16px', flexShrink: 0 }}>gavel</span>
-                              <span>
-                                <strong>Audit Discrepancy Notarized:</strong> Declared ₱{Number(d.declaredPhp || 0).toLocaleString()}, NGO credited ₱{Number(d.creditedPhp || 0).toLocaleString()} (<strong>-₱{Math.abs(d.variancePhp || 0).toLocaleString()} PHP</strong>).
-                              </span>
-                            </div>
-                            <button
-                              type="button"
-                              className="rcp-dispute-btn"
-                              onClick={() => showSuccess(`Dispute filed for TX ${d.txHash?.slice(0, 10)}... Admin audit investigation initiated against ${orgName}.`, 'Audit Dispute Filed')}
-                            >
-                              <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>flag</span>
-                              <span>File Dispute</span>
-                            </button>
-                          </div>
                         )}
                       </div>
-                    );
-                  })}
-                </div>
-              )}
+
+                      <div className="rcp-filter-seg">
+                        <button
+                          type="button"
+                          className={`rcp-seg-btn ${receiptFilter === 'ALL' ? 'active' : ''}`}
+                          onClick={() => setReceiptFilter('ALL')}
+                        >
+                          <span>All</span>
+                          <span className="rcp-seg-cnt">{totalReceiptsLen}</span>
+                        </button>
+                        <button
+                          type="button"
+                          className={`rcp-seg-btn ${receiptFilter === 'DR' ? 'active' : ''}`}
+                          onClick={() => setReceiptFilter('DR')}
+                        >
+                          <span>Disaster Relief</span>
+                          <span className="rcp-seg-cnt">{drReceiptsCount}</span>
+                        </button>
+                        <button
+                          type="button"
+                          className={`rcp-seg-btn ${receiptFilter === 'CD' ? 'active' : ''}`}
+                          onClick={() => setReceiptFilter('CD')}
+                        >
+                          <span>Charitable Aid</span>
+                          <span className="rcp-seg-cnt">{cdReceiptsCount}</span>
+                        </button>
+                      </div>
+
+                      <div className="rcp-select-cluster">
+                        <div className="rcp-select-wrap">
+                          <select
+                            className="rcp-select"
+                            value={receiptRailFilter}
+                            onChange={(e) => setReceiptRailFilter(e.target.value)}
+                            title="Filter by Payment Channel"
+                          >
+                            <option value="ALL">All Channels</option>
+                            <option value="GCASH">GCash</option>
+                            <option value="MAYA">Maya</option>
+                            <option value="CARD">Card / Bank</option>
+                          </select>
+                          <span className="material-symbols-outlined rcp-select-chevron" aria-hidden="true">expand_more</span>
+                        </div>
+
+                        <div className="rcp-select-wrap">
+                          <select
+                            className="rcp-select"
+                            value={receiptSort}
+                            onChange={(e) => setReceiptSort(e.target.value)}
+                            title="Sort Contributions"
+                          >
+                            <option value="NEWEST">Newest First</option>
+                            <option value="AMOUNT_HIGH">Highest Amount</option>
+                            <option value="AMOUNT_LOW">Lowest Amount</option>
+                            <option value="OLDEST">Oldest First</option>
+                          </select>
+                          <span className="material-symbols-outlined rcp-select-chevron" aria-hidden="true">expand_more</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Crisp Ledger Sub-Header */}
+                    <div className="rcp-ledger-subhead">
+                      <span>Campaign &amp; Cryptographic Proof</span>
+                      <div className="rcp-subhead-right">
+                        {hasActiveFilters && (
+                          <button
+                            type="button"
+                            className="rcp-reset-link"
+                            onClick={() => {
+                              setReceiptFilter('ALL');
+                              setReceiptRailFilter('ALL');
+                              setSearchQueryReceipts('');
+                            }}
+                          >
+                            Reset filters
+                          </button>
+                        )}
+                        <span className="rcp-subhead-count">
+                          {totalFiltered > 0 ? `${startIdx + 1}–${endIdx} of ${totalFiltered}` : '0 receipts'}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Ledger Rows: Skeleton | Empty | Paginated 10 Rows */}
+                    {loadingMyDonations ? (
+                      <div>
+                        {[1, 2, 3, 4].map((i) => (
+                          <div key={i} className="rcp-row rcp-row-skel">
+                            <div className="rcp-skel-thumb db-skel" />
+                            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                              <span className="db-skel" style={{ width: '48%', height: '15px', borderRadius: '4px' }} />
+                              <span className="db-skel" style={{ width: '68%', height: '11px', borderRadius: '4px' }} />
+                              <span className="db-skel" style={{ width: '36%', height: '11px', borderRadius: '4px' }} />
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px' }}>
+                              <span className="db-skel" style={{ width: '82px', height: '18px', borderRadius: '4px' }} />
+                              <span className="db-skel" style={{ width: '130px', height: '26px', borderRadius: '6px' }} />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : !myDonations || myDonations.length === 0 ? (
+                      <div className="rcp-empty-inner">
+                        <div className="db-empty-icon-wrap">
+                          <span className="material-symbols-outlined">receipt_long</span>
+                        </div>
+                        <h3 className="db-empty-title">No contributions recorded yet</h3>
+                        <p className="db-empty-desc">
+                          When you support any active disaster relief campaign using GCash, Maya, Card, or Bank Transfer, your digital receipts and gasless Sepolia audit proofs will appear here.
+                        </p>
+                        <div className="db-empty-action">
+                          <button
+                            type="button"
+                            className="dbo-cmd-btn dbo-cmd-btn--primary"
+                            onClick={() => setActiveTab('campaigns')}
+                          >
+                            <span>Explore Relief Campaigns</span>
+                            <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>arrow_forward</span>
+                          </button>
+                        </div>
+                      </div>
+                    ) : totalFiltered === 0 ? (
+                      <div className="rcp-empty-inner">
+                        <div className="db-empty-icon-wrap">
+                          <span className="material-symbols-outlined">filter_list_off</span>
+                        </div>
+                        <h3 className="db-empty-title">No receipts match your search</h3>
+                        <p className="db-empty-desc">
+                          No contributions match your current filter combination. Try selecting "All Channels" or clearing your search term.
+                        </p>
+                        <div className="db-empty-action">
+                          <button
+                            type="button"
+                            className="dbo-cmd-btn"
+                            onClick={() => {
+                              setReceiptFilter('ALL');
+                              setReceiptRailFilter('ALL');
+                              setSearchQueryReceipts('');
+                            }}
+                          >
+                            <span>Reset Filters</span>
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        <div>
+                          {paginatedReceipts.map((d, idx) => {
+                            const matchCamp = campaigns.find(c => String(c.id) === String(d.campaignId)) || { id: d.campaignId, title: `Disaster Relief Campaign #${d.campaignId}` };
+                            const rawTitle = matchCamp ? matchCamp.title : `Disaster Relief Campaign #${d.campaignId}`;
+                            const campTitle = formatCampaignTitle(rawTitle, d.campaignId);
+                            const catInfo = getCampaignCategoryInfo(matchCamp);
+                            const coverData = getCampaignCoverData(matchCamp);
+                            const orgName = getOrgDisplayName(matchCamp.orgAddress, matchCamp.orgName, d.campaignId);
+
+                            const pm = (d.paymentMethod || 'CARD').toUpperCase();
+                            const railLabel = pm.includes('GCASH') ? 'GCASH' : pm.includes('MAYA') ? 'MAYA' : (pm.includes('BANK') || pm.includes('CARD')) ? 'CARD / BANK' : ((d.paymentMethod && !/eth|crypto|metamask/i.test(d.paymentMethod)) ? d.paymentMethod.toUpperCase() : 'PHP');
+                            const ethAmt = parseFloat(d.amount || 0);
+                            const phpAmt = Math.round(ethAmt * 170000);
+                            const isShortage = d.auditStatus === 'SHORTAGE';
+                            const isDisbursed = matchCamp.disbursementStatus === 'DISBURSED' || (matchCamp.disbursedAmountPhp || 0) > 0;
+                            const dateLabel = d.createdAt
+                              ? new Date(d.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                              : 'Recent';
+
+                            return (
+                              <div key={d.txHash || `${startIdx + idx}`} className={`rcp-row ${isShortage ? 'is-shortage' : ''}`}>
+                                <div className="rcp-row-main">
+                                  <button
+                                    type="button"
+                                    className="rcp-thumb-btn"
+                                    onClick={() => setSelectedCampaignForProof(matchCamp)}
+                                    title="Inspect campaign details"
+                                  >
+                                    <img src={coverData.imageUrl} alt={campTitle} className="rcp-thumb-img" loading="lazy" />
+                                  </button>
+
+                                  <div className="rcp-row-center">
+                                    <div className="rcp-row-title-line">
+                                      <h3
+                                        className="rcp-row-title"
+                                        onClick={() => setSelectedCampaignForProof(matchCamp)}
+                                        title={campTitle}
+                                      >
+                                        {campTitle}
+                                      </h3>
+
+                                      {isDisbursed ? (
+                                        <button
+                                          type="button"
+                                          className="rcp-status-pill is-disbursed"
+                                          onClick={() => setSelectedProofCamp(matchCamp)}
+                                          title="View verified beneficiary distribution receipts"
+                                        >
+                                          <span className="rcp-status-dot ok" />
+                                          <span>Relief Disbursed</span>
+                                        </button>
+                                      ) : isShortage ? (
+                                        <span className="rcp-status-pill is-shortage">
+                                          <span className="rcp-status-dot alert" />
+                                          <span>Shortage Detected</span>
+                                        </span>
+                                      ) : (
+                                        <span className="rcp-status-pill">
+                                          <span className="rcp-status-dot ok" />
+                                          <span>Confirmed On-Chain</span>
+                                        </span>
+                                      )}
+                                    </div>
+
+                                    <div className="rcp-row-meta">
+                                      <button
+                                        type="button"
+                                        className="rcp-org-link"
+                                        onClick={() => onOpenNgoProfile && onOpenNgoProfile(matchCamp.orgId || 3)}
+                                        title="View verified NGO credentials"
+                                      >
+                                        <span>{orgName}</span>
+                                        <span className="material-symbols-outlined rcp-org-check">verified</span>
+                                      </button>
+                                      <span className="rcp-dot-sep">·</span>
+                                      <span>{catInfo.label}</span>
+                                      <span className="rcp-dot-sep">·</span>
+                                      <span>{dateLabel}</span>
+                                      {coverData.locationTag && (
+                                        <>
+                                          <span className="rcp-dot-sep">·</span>
+                                          <span className="rcp-loc-clip">{coverData.locationTag}</span>
+                                        </>
+                                      )}
+                                    </div>
+
+                                    <div className="rcp-proof-strip">
+                                      <span className="rcp-rail-badge">{railLabel}</span>
+
+                                      {d.referenceNumber && (
+                                        <span className="rcp-ref-tag" title="Payment Reference Number">
+                                          Ref: {d.referenceNumber}
+                                        </span>
+                                      )}
+
+                                      <span className="rcp-hash-chip">
+                                        <span className="rcp-hash-prefix">TX</span>
+                                        <span className="rcp-hash-val">
+                                          {d.txHash ? `${d.txHash.slice(0, 8)}...${d.txHash.slice(-6)}` : 'Verified'}
+                                        </span>
+                                        {d.txHash && (
+                                          <button
+                                            type="button"
+                                            className="rcp-hash-action"
+                                            onClick={() => {
+                                              navigator.clipboard.writeText(d.txHash);
+                                              showSuccess('Transaction hash copied to clipboard!', 'Hash Copied');
+                                            }}
+                                            title="Copy Transaction Hash"
+                                          >
+                                            <span className="material-symbols-outlined">content_copy</span>
+                                          </button>
+                                        )}
+                                        {d.txHash && (
+                                          <a
+                                            href={`https://sepolia.etherscan.io/tx/${d.txHash}`}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                            className="rcp-hash-action"
+                                            title="Inspect on Sepolia Etherscan"
+                                          >
+                                            <span className="material-symbols-outlined">north_east</span>
+                                          </a>
+                                        )}
+                                      </span>
+                                    </div>
+                                  </div>
+
+                                  <div className="rcp-row-right">
+                                    <div className="rcp-amt-block">
+                                      <div className={`rcp-amt-val ${isShortage ? 'is-alert' : ''}`}>
+                                        +₱{phpAmt.toLocaleString('en-US')}
+                                      </div>
+                                      {isShortage && d.declaredPhp ? (
+                                        <div className="rcp-amt-variance">
+                                          <span className="rcp-struck">₱{Number(d.declaredPhp).toLocaleString('en-US')}</span>
+                                          <span className="rcp-var-diff">-₱{Math.abs(d.variancePhp || 0).toLocaleString()}</span>
+                                        </div>
+                                      ) : (
+                                        <div className="rcp-amt-sub">Sepolia Verified</div>
+                                      )}
+                                    </div>
+
+                                    <div className="rcp-row-actions">
+                                      {isDisbursed && (
+                                        <button
+                                          type="button"
+                                          className="rcp-btn-subtle is-emerald"
+                                          onClick={() => setSelectedProofCamp(matchCamp)}
+                                          title="Inspect audited ground distribution receipts and proof"
+                                        >
+                                          <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>verified</span>
+                                          <span>Proof</span>
+                                        </button>
+                                      )}
+
+                                      <button
+                                        type="button"
+                                        className="rcp-btn-subtle"
+                                        onClick={() => setSelectedCampaignForProof(matchCamp)}
+                                        title="View Campaign Details & Map"
+                                      >
+                                        <span>Details</span>
+                                      </button>
+
+                                      <button
+                                        type="button"
+                                        className={`rcp-btn-primary ${isShortage ? 'is-alert' : ''}`}
+                                        onClick={() => setSelectedVoucherTx(d)}
+                                        title="Open Blockchain Verification Certificate"
+                                      >
+                                        <span>{isShortage ? 'Audit' : 'Certificate'}</span>
+                                        <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>arrow_forward</span>
+                                      </button>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                {isShortage && (
+                                  <div className="rcp-shortage-bar">
+                                    <div className="rcp-shortage-left">
+                                      <span className="material-symbols-outlined" style={{ fontSize: '16px', flexShrink: 0 }}>gavel</span>
+                                      <span>
+                                        <strong>Audit Discrepancy Notarized:</strong> Declared ₱{Number(d.declaredPhp || 0).toLocaleString()}, NGO credited ₱{Number(d.creditedPhp || 0).toLocaleString()} (<strong>-₱{Math.abs(d.variancePhp || 0).toLocaleString()} PHP</strong>).
+                                      </span>
+                                    </div>
+                                    <button
+                                      type="button"
+                                      className="rcp-dispute-btn"
+                                      onClick={() => showSuccess(`Dispute filed for TX ${d.txHash?.slice(0, 10)}... Admin audit investigation initiated against ${orgName}.`, 'Audit Dispute Filed')}
+                                    >
+                                      <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>flag</span>
+                                      <span>File Dispute</span>
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+
+                        {/* Built-in Vercel Geist Pagination Footer (10 per page) */}
+                        <div className="rcp-pagination-bar">
+                          <span className="rcp-page-summary">
+                            Showing <strong>{startIdx + 1}–{endIdx}</strong> of <strong>{totalFiltered}</strong> notarized receipts
+                          </span>
+
+                          {totalReceiptPages > 1 && (
+                            <div className="rcp-page-controls" role="navigation" aria-label="Receipts pagination">
+                              <button
+                                type="button"
+                                className="rcp-page-btn"
+                                disabled={safeReceiptsPage <= 1}
+                                onClick={() => goToReceiptPage(safeReceiptsPage - 1)}
+                              >
+                                <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>chevron_left</span>
+                                <span>Prev</span>
+                              </button>
+
+                              <div className="rcp-page-nums">
+                                {getPaginationItems(safeReceiptsPage, totalReceiptPages).map((item, pIdx) =>
+                                  item === '...' ? (
+                                    <span key={`ell-${pIdx}`} className="rcp-page-ellipsis">…</span>
+                                  ) : (
+                                    <button
+                                      key={item}
+                                      type="button"
+                                      className={`rcp-page-num ${item === safeReceiptsPage ? 'active' : ''}`}
+                                      onClick={() => goToReceiptPage(item)}
+                                    >
+                                      {item}
+                                    </button>
+                                  )
+                                )}
+                              </div>
+
+                              <button
+                                type="button"
+                                className="rcp-page-btn"
+                                disabled={safeReceiptsPage >= totalReceiptPages}
+                                onClick={() => goToReceiptPage(safeReceiptsPage + 1)}
+                              >
+                                <span>Next</span>
+                                <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>chevron_right</span>
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
             );
           })()}
