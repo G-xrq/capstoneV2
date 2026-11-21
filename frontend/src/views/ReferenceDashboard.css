@@ -3129,7 +3129,11 @@ textarea.deploy-field-input {
   display: flex;
   flex-direction: column;
   gap: 20px;
-  margin-top: 6px;
+  margin-top: 0;
+}
+
+.bbdrts-contributions-tab > .admin-page-header {
+  margin-bottom: 0;
 }
 
 /* ── 1. Tab Header & Control Bar ── */
@@ -4977,6 +4981,7 @@ textarea.deploy-field-input {
   justify-content: space-between;
   gap: 20px;
   flex-wrap: nowrap;
+  min-height: 70px;
   padding-bottom: 18px;
   margin-bottom: 20px;
   border-bottom: 1px solid var(--border, #eaeaea);

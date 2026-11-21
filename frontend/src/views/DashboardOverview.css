@@ -3460,3 +3460,30 @@
     flex: 1;
   }
 }
+
+/* Smooth Vercel Geist Page-Switch Transition */
+@keyframes donorTabEnter {
+  0% {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.donor-tab-transition {
+  animation: donorTabEnter 0.26s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: opacity, transform;
+}
+
+[data-reduced-motion="true"] .donor-tab-transition {
+  animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .donor-tab-transition {
+    animation: none;
+  }
+}

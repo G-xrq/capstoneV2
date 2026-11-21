@@ -1071,7 +1071,7 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
 
           {/* ── 1. DASHBOARD OVERVIEW TAB ONLY (Shows Welcome Banner + 4 Metric Cards) ── */}
           {activeTab === 'dashboard' && (
-            <>
+            <div key="tab-dashboard" className="donor-tab-transition">
               {/* Institutional Vercel Page Header */}
               <div className="admin-page-header" id="tour-donor-dashboard-header">
                 <div className="admin-page-title-wrap">
@@ -1590,12 +1590,12 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
                   )}
                 </div>
               </div>
-            </>
+            </div>
           )}
 
           {/* ── 2. DEDICATED RELIEF CAMPAIGNS TAB (Hides 4 boxes & welcome card) ── */}
           {activeTab === 'campaigns' && (
-            <div id="tour-campaigns-container">
+            <div key="tab-campaigns" id="tour-campaigns-container" className="donor-tab-transition">
               <div className="admin-page-header" id="tour-campaigns-header">
                 <div className="admin-page-title-wrap">
                   <h2 className="admin-page-title">
@@ -2156,7 +2156,7 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
             const tierPct = activeTierInfo?.nextTier ? Math.min(100, Math.max(4, Math.round(activeTierInfo.progressPct || 0))) : 100;
 
             return (
-            <div className="bbdrts-contributions-tab rcp-vault-page fade-in">
+            <div key="tab-my-donations" className="bbdrts-contributions-tab rcp-vault-page donor-tab-transition">
               {/* Institutional Vercel Page Header */}
               <div className="admin-page-header" id="tour-donations-header">
                 <div className="admin-page-title-wrap">
@@ -3289,7 +3289,7 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
 
           {/* ── 3.5. DISASTER RELIEF RADAR HEATMAP TAB ── */}
           {activeTab === 'radar-heatmap' && (
-            <div>
+            <div key="tab-radar" className="donor-tab-transition">
               <div className="admin-page-header" id="tour-radar-header">
                 <div className="admin-page-title-wrap">
                   <h2 className="admin-page-title">
@@ -3320,7 +3320,7 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
 
           {/* ── 4. SETTINGS TAB (Hides 4 boxes & welcome card) ── */}
           {activeTab === 'settings' && (
-            <div>
+            <div key="tab-settings" className="donor-tab-transition">
               <SettingsPanel
                 pageTitle={wt.profileSettings} 
                 contract={contract}
