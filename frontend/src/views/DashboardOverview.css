@@ -4164,11 +4164,36 @@
 
 @media (max-width: 600px) {
   .rcp-summary-band {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0;
   }
-  .rcp-band-cell + .rcp-band-cell {
+  .rcp-band-cell--primary,
+  .rcp-band-cell--tier {
+    grid-column: 1 / -1;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+    border-left: none !important;
+  }
+  .rcp-band-cell--primary {
+    padding-bottom: 12px;
+  }
+  .rcp-band-cell:nth-child(2),
+  .rcp-band-cell:nth-child(3) {
+    padding-top: 12px;
+    padding-bottom: 12px;
+    border-top: 1px solid var(--border, #1a1a1a);
+  }
+  .rcp-band-cell:nth-child(2) {
     padding-left: 0;
+    padding-right: 12px;
     border-left: none;
+  }
+  .rcp-band-cell:nth-child(3) {
+    padding-left: 14px;
+    padding-right: 0;
+    border-left: 1px solid var(--border, #1a1a1a);
+  }
+  .rcp-band-cell--tier {
     padding-top: 12px;
     border-top: 1px solid var(--border, #1a1a1a);
   }

@@ -1506,9 +1506,9 @@
 
   .bbdrts-profile-chip {
     height: 32px;
-    padding: 3px 4px 3px 7px;
+    padding: 3px 7px 3px 4px;
     gap: 4px;
-    flex-direction: row-reverse;
+    flex-direction: row;
     box-sizing: border-box;
   }
 
@@ -1554,9 +1554,9 @@
   /* Compact aligned avatar chip with left dropdown chevron on logged-in phones */
   .bbdrts-profile-chip {
     height: 32px;
-    padding: 3px 4px 3px 6px;
+    padding: 3px 6px 3px 4px;
     gap: 3px;
-    flex-direction: row-reverse;
+    flex-direction: row;
   }
 }
 
