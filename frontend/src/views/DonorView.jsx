@@ -1091,15 +1091,6 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
                 <div className="dbo-hero-bg-mesh" aria-hidden="true" />
 
                 <div className="dbo-hero-content">
-                  <div className="dbo-hero-eyebrow-row">
-                    <span className="dbo-hero-status-pill">
-                      <span className="dbo-emerald-dot" />
-                      <span className="dbo-pill-strong">{wt.donorPortal}</span>
-                      <span className="dbo-pill-slash">/</span>
-                      <span className="dbo-pill-muted">Sepolia Gasless Ledger Active</span>
-                    </span>
-                  </div>
-
                   <div className="dbo-hero-main-row">
                     <div className="dbo-hero-identity" id="tour-donor-identity">
                       <div className="dbo-hero-avatar">

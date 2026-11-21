@@ -2750,3 +2750,56 @@
   padding: 0 4px !important;
   font-variant-numeric: tabular-nums !important;
 }
+
+
+/* ── Vercel Geist Architectural Donor Badges (All 15 Tiers) ── */
+/* Replaces pastel sticker disks with sleek frosted (light) & obsidian (dark)
+   Geist medallions while preserving distinctive semantic tier colors. */
+.custom-donor-badge-svg {
+  border-radius: 50%;
+}
+
+/* Light Mode: crisp pure white frosted medallion with hairline zinc ring */
+.custom-donor-badge-svg > circle:first-of-type {
+  fill: #ffffff !important;
+  stroke: #e4e4e7 !important;
+  stroke-width: 1.5 !important;
+}
+
+/* Dark Mode: pitch obsidian medallion with crisp #2e2e2e hairline ring */
+[data-theme="dark"] .custom-donor-badge-svg > circle:first-of-type {
+  fill: #0a0a0a !important;
+  stroke: #2e2e2e !important;
+  stroke-width: 1.5 !important;
+}
+
+/* Dark Mode: convert any inner bright pastel medal disks to deep obsidian glass */
+[data-theme="dark"] .custom-donor-badge-svg circle[fill^="#f"],
+[data-theme="dark"] .custom-donor-badge-svg circle[fill^="#e"],
+[data-theme="dark"] .custom-donor-badge-svg circle[fill="#ffffff"] {
+  fill: #121212 !important;
+}
+
+/* Preserve crisp dark-mode legibility for deeper tier strokes/fills */
+[data-theme="dark"] .badge-svg-t11 [stroke="#7e22ce"] {
+  stroke: #c084fc !important;
+}
+[data-theme="dark"] .badge-svg-t11 [fill="#9333ea"] {
+  fill: #a855f7 !important;
+}
+[data-theme="dark"] .badge-svg-t9 [stroke="#1d4ed8"] {
+  stroke: #60a5fa !important;
+}
+[data-theme="dark"] .badge-svg-t10 [stroke="#0284c7"] {
+  stroke: #38bdf8 !important;
+}
+[data-theme="dark"] .badge-svg-t12 [stroke="#059669"] {
+  stroke: #10b981 !important;
+}
+
+/* Harmonize pill badge wrappers in Vercel Geist style */
+[data-theme="dark"] .donor-badge-emblem {
+  background: #0a0a0a !important;
+  border-color: #262626 !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04) !important;
+}
