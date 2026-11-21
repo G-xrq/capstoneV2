@@ -1221,30 +1221,32 @@
   z-index: 1;
 }
 
-/* Vercel Geist Theme-Reactive Exact-Reference 3D Glass Isometric Blockchain Backdrop */
+/* Vercel Geist Theme-Reactive Exact-Reference 3D Glass Isometric Blockchain Backdrop
+   Asymmetrical oblique sweep: stays 100% crisp across upper-right & right, dissolving
+   gradually along a diagonal axis toward the lower-left donor identity area. */
 .dbo-hero-bg-mesh {
   position: absolute;
-  top: -26px;
+  top: -46px;
   right: -8px;
-  bottom: 10px;
+  bottom: 18px;
   left: 0;
   pointer-events: none;
   user-select: none;
   z-index: 0;
   background-image: url('/donor-hero-mesh-light.png');
-  background-size: auto 104%;
+  background-size: auto 108%;
   background-position: right top;
   background-repeat: no-repeat;
   mix-blend-mode: multiply;
-  opacity: 0.46;
-  -webkit-mask-image: radial-gradient(ellipse 44% 76% at 75% 38%, rgba(0, 0, 0, 1) 0%, rgba(0, 0, 0, 0.88) 32%, rgba(0, 0, 0, 0.34) 64%, rgba(0, 0, 0, 0) 92%);
-  mask-image: radial-gradient(ellipse 44% 76% at 75% 38%, rgba(0, 0, 0, 1) 0%, rgba(0, 0, 0, 0.88) 32%, rgba(0, 0, 0, 0.34) 64%, rgba(0, 0, 0, 0) 92%);
+  opacity: 0.42;
+  -webkit-mask-image: linear-gradient(242deg, rgba(0, 0, 0, 1) 0%, rgba(0, 0, 0, 1) 44%, rgba(0, 0, 0, 0.48) 62%, rgba(0, 0, 0, 0) 80%);
+  mask-image: linear-gradient(242deg, rgba(0, 0, 0, 1) 0%, rgba(0, 0, 0, 1) 44%, rgba(0, 0, 0, 0.48) 62%, rgba(0, 0, 0, 0) 80%);
 }
 
 [data-theme="dark"] .dbo-hero-bg-mesh {
   background-image: url('/donor-hero-mesh-dark.png');
   mix-blend-mode: screen;
-  opacity: 0.5;
+  opacity: 0.46;
 }
 
 .dbo-hero-eyebrow-row {
