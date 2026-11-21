@@ -1213,8 +1213,7 @@
   position: relative;
   margin-bottom: 28px;
   padding-top: 4px;
-  overflow: hidden;
-  border-radius: 14px;
+  overflow: visible;
 }
 
 .dbo-hero-content {
@@ -1225,26 +1224,27 @@
 /* Vercel Geist Theme-Reactive Exact-Reference 3D Glass Isometric Blockchain Backdrop */
 .dbo-hero-bg-mesh {
   position: absolute;
-  inset: 0;
+  top: -26px;
+  right: -8px;
+  bottom: 10px;
+  left: 0;
   pointer-events: none;
   user-select: none;
   z-index: 0;
   background-image: url('/donor-hero-mesh-light.png');
-  background-size: auto 96%;
-  background-position: right center;
+  background-size: auto 104%;
+  background-position: right top;
   background-repeat: no-repeat;
   mix-blend-mode: multiply;
-  opacity: 0.44;
-  -webkit-mask-image: linear-gradient(90deg, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.06) 28%, rgba(0, 0, 0, 0.82) 62%, rgba(0, 0, 0, 0.95) 90%, rgba(0, 0, 0, 0) 100%), linear-gradient(180deg, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 1) 16%, rgba(0, 0, 0, 1) 82%, rgba(0, 0, 0, 0) 100%);
-  -webkit-mask-composite: source-in;
-  mask-image: linear-gradient(90deg, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.06) 28%, rgba(0, 0, 0, 0.82) 62%, rgba(0, 0, 0, 0.95) 90%, rgba(0, 0, 0, 0) 100%), linear-gradient(180deg, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 1) 16%, rgba(0, 0, 0, 1) 82%, rgba(0, 0, 0, 0) 100%);
-  mask-composite: intersect;
+  opacity: 0.46;
+  -webkit-mask-image: radial-gradient(ellipse 44% 76% at 75% 38%, rgba(0, 0, 0, 1) 0%, rgba(0, 0, 0, 0.88) 32%, rgba(0, 0, 0, 0.34) 64%, rgba(0, 0, 0, 0) 92%);
+  mask-image: radial-gradient(ellipse 44% 76% at 75% 38%, rgba(0, 0, 0, 1) 0%, rgba(0, 0, 0, 0.88) 32%, rgba(0, 0, 0, 0.34) 64%, rgba(0, 0, 0, 0) 92%);
 }
 
 [data-theme="dark"] .dbo-hero-bg-mesh {
   background-image: url('/donor-hero-mesh-dark.png');
   mix-blend-mode: screen;
-  opacity: 0.48;
+  opacity: 0.5;
 }
 
 .dbo-hero-eyebrow-row {
