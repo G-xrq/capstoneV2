@@ -1230,12 +1230,7 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
                       </span>
                       <span className="dbo-bare-text">
                         <span className="dbo-bare-val">{activeCampaignsCount}</span>
-                        <span className="dbo-bare-lbl">
-                          {wt.metricLiveAppeals}
-                          {interfaceMode !== 'simplified' && criticalUrgencyCount > 0 && (
-                            <span className="dbo-bare-accent"> · {criticalUrgencyCount} urgent</span>
-                          )}
-                        </span>
+                        <span className="dbo-bare-lbl">{wt.metricLiveAppeals}</span>
                       </span>
                     </button>
 
