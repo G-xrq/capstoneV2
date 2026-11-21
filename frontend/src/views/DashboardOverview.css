@@ -1210,7 +1210,43 @@
    ============================================================ */
 
 .dbo-editorial-hero {
+  position: relative;
   margin-bottom: 28px;
+  padding-top: 4px;
+  overflow: hidden;
+  border-radius: 14px;
+}
+
+.dbo-hero-content {
+  position: relative;
+  z-index: 1;
+}
+
+/* Vercel Geist Theme-Reactive Isometric Blockchain Backdrop */
+.dbo-hero-bg-mesh {
+  position: absolute;
+  top: -18px;
+  right: -24px;
+  width: min(680px, 78%);
+  height: 270px;
+  pointer-events: none;
+  user-select: none;
+  z-index: 0;
+  color: #71717a;
+  opacity: 0.24;
+  -webkit-mask-image: radial-gradient(ellipse 68% 76% at 72% 40%, rgba(0, 0, 0, 1) 12%, rgba(0, 0, 0, 0.48) 50%, rgba(0, 0, 0, 0) 84%);
+  mask-image: radial-gradient(ellipse 68% 76% at 72% 40%, rgba(0, 0, 0, 1) 12%, rgba(0, 0, 0, 0.48) 50%, rgba(0, 0, 0, 0) 84%);
+}
+
+[data-theme="dark"] .dbo-hero-bg-mesh {
+  color: #e4e4e7;
+  opacity: 0.28;
+}
+
+.dbo-hero-bg-mesh svg {
+  width: 100%;
+  height: 100%;
+  display: block;
 }
 
 .dbo-hero-eyebrow-row {
@@ -1474,16 +1510,57 @@
 }
 
 .dbo-bare-stat {
-  padding: 18px 20px 18px 0;
+  padding: 18px 18px 18px 0;
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 4px;
+  flex-direction: row;
+  align-items: center;
+  gap: 13px;
   background: transparent;
   border: none;
   text-align: left;
   font-family: inherit;
   transition: opacity 0.15s ease;
+  min-width: 0;
+}
+
+.dbo-bare-icon-box {
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: var(--bg-inset, #f4f4f5);
+  border: 1px solid var(--border, #e4e4e7);
+  color: var(--text-secondary, #52525b);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.dbo-bare-icon-box .material-symbols-outlined {
+  font-size: 19px;
+}
+
+[data-theme="dark"] .dbo-bare-icon-box {
+  background: #0a0a0a;
+  border-color: #262626;
+  color: #a1a1aa;
+}
+
+.dbo-bare-badge-wrap {
+  width: 38px;
+  height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.dbo-bare-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  min-width: 0;
 }
 
 .dbo-bare-stat + .dbo-bare-stat {

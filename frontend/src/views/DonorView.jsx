@@ -1072,169 +1072,297 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
           {/* ── 1. DASHBOARD OVERVIEW TAB ONLY (Shows Welcome Banner + 4 Metric Cards) ── */}
           {activeTab === 'dashboard' && (
             <>
-              {/* ── 1. Borderless Editorial Hero (Vercel Geist Canvas) ── */}
+              {/* Institutional Vercel Page Header */}
+              <div className="admin-page-header" id="tour-donor-dashboard-header">
+                <div className="admin-page-title-wrap">
+                  <h2 className="admin-page-title">
+                    <span className="material-symbols-outlined icon" style={{ color: 'var(--text-primary)' }}>space_dashboard</span>
+                    <span>{wt.donorOverviewTitle}</span>
+                  </h2>
+                  <p className="admin-page-sub">
+                    {wt.donorOverviewSub}
+                  </p>
+                </div>
+              </div>
+
+              {/* ── 1. Borderless Editorial Hero with Vercel Geist Isometric Blockchain Backdrop ── */}
               <div className="dbo-editorial-hero" id="tour-donor-welcome">
-                <div className="dbo-hero-eyebrow-row" id="tour-donor-dashboard-header">
-                  <span className="dbo-hero-status-pill">
-                    <span className="dbo-emerald-dot" />
-                    <span className="dbo-pill-strong">{wt.donorPortal}</span>
-                    <span className="dbo-pill-slash">/</span>
-                    <span className="dbo-pill-muted">Sepolia Gasless Ledger Active</span>
-                  </span>
+                {/* Theme-reactive Isometric Blockchain Network Backdrop (smoothly faded) */}
+                <div className="dbo-hero-bg-mesh" aria-hidden="true">
+                  <svg viewBox="0 0 760 320" fill="none" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice">
+                    <defs>
+                      <linearGradient id="dboCubeTop" x1="0" y1="0" x2="1" y2="1">
+                        <stop offset="0%" stopColor="currentColor" stopOpacity="0.22" />
+                        <stop offset="100%" stopColor="currentColor" stopOpacity="0.04" />
+                      </linearGradient>
+                      <linearGradient id="dboCubeSideL" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="currentColor" stopOpacity="0.14" />
+                        <stop offset="100%" stopColor="currentColor" stopOpacity="0.01" />
+                      </linearGradient>
+                      <linearGradient id="dboCubeSideR" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="currentColor" stopOpacity="0.09" />
+                        <stop offset="100%" stopColor="currentColor" stopOpacity="0.01" />
+                      </linearGradient>
+                      <linearGradient id="dboAccentTop" x1="0" y1="0" x2="1" y2="1">
+                        <stop offset="0%" stopColor="#10b981" stopOpacity="0.32" />
+                        <stop offset="100%" stopColor="currentColor" stopOpacity="0.05" />
+                      </linearGradient>
+                    </defs>
+
+                    {/* Faint Isometric Network Rails */}
+                    <g stroke="currentColor" strokeWidth="1" strokeOpacity="0.22">
+                      <path d="M120 190 L260 110 L420 202 L580 110 L720 190" />
+                      <path d="M180 275 L340 183 L490 270 L660 172" />
+                      <path d="M260 110 L340 64 L495 154 L580 105" />
+                      <path d="M420 202 L420 290" strokeDasharray="3 4" />
+                      <path d="M260 110 L170 58" strokeDasharray="3 4" />
+                      <path d="M580 110 L655 66" strokeDasharray="3 4" />
+                    </g>
+
+                    {/* Junction Nodes (Monochrome + Surgical Emerald) */}
+                    <circle cx="260" cy="110" r="3" fill="currentColor" fillOpacity="0.45" />
+                    <circle cx="340" cy="183" r="3" fill="#10b981" fillOpacity="0.7" />
+                    <circle cx="495" cy="154" r="2.5" fill="currentColor" fillOpacity="0.4" />
+                    <circle cx="490" cy="270" r="2.5" fill="#10b981" fillOpacity="0.6" />
+                    <circle cx="580" cy="110" r="3" fill="currentColor" fillOpacity="0.45" />
+
+                    {/* Back-Left Small Cube */}
+                    <g transform="translate(212, 32)" stroke="currentColor" strokeWidth="0.9" strokeOpacity="0.28">
+                      <polygon points="32,0 64,18 32,36 0,18" fill="url(#dboCubeTop)" />
+                      <polygon points="0,18 32,36 32,72 0,54" fill="url(#dboCubeSideL)" />
+                      <polygon points="64,18 32,36 32,72 64,54" fill="url(#dboCubeSideR)" />
+                    </g>
+
+                    {/* Far-Left Cube */}
+                    <g transform="translate(88, 134)" stroke="currentColor" strokeWidth="0.9" strokeOpacity="0.26">
+                      <polygon points="36,0 72,21 36,42 0,21" fill="url(#dboCubeTop)" />
+                      <polygon points="0,21 36,42 36,84 0,63" fill="url(#dboCubeSideL)" />
+                      <polygon points="72,21 36,42 36,84 72,63" fill="url(#dboCubeSideR)" />
+                    </g>
+
+                    {/* Front-Left Small Accent Cube */}
+                    <g transform="translate(216, 206)" stroke="currentColor" strokeWidth="1" strokeOpacity="0.34">
+                      <polygon points="32,0 64,18 32,36 0,18" fill="url(#dboCubeTop)" />
+                      <polygon points="0,18 32,36 32,72 0,54" fill="url(#dboCubeSideL)" />
+                      <polygon points="64,18 32,36 32,72 64,54" fill="url(#dboCubeSideR)" />
+                      <polygon points="32,10 44,17 32,24 20,17" fill="#10b981" fillOpacity="0.45" stroke="none" />
+                    </g>
+
+                    {/* Central Hero Isometric Block */}
+                    <g transform="translate(346, 56)" stroke="currentColor" strokeWidth="1.2" strokeOpacity="0.48">
+                      <polygon points="68,0 136,39 68,78 0,39" fill="url(#dboAccentTop)" />
+                      <polygon points="0,39 68,78 68,156 0,117" fill="url(#dboCubeSideL)" />
+                      <polygon points="136,39 68,78 68,156 136,117" fill="url(#dboCubeSideR)" />
+                      <polygon points="68,24 90,37 68,50 46,37" fill="#10b981" fillOpacity="0.55" stroke="#10b981" strokeOpacity="0.7" strokeWidth="0.8" />
+                    </g>
+
+                    {/* Upper-Right Cube */}
+                    <g transform="translate(534, 48)" stroke="currentColor" strokeWidth="0.9" strokeOpacity="0.3">
+                      <polygon points="34,0 68,20 34,40 0,20" fill="url(#dboCubeTop)" />
+                      <polygon points="0,20 34,40 34,78 0,58" fill="url(#dboCubeSideL)" />
+                      <polygon points="68,20 34,40 34,78 68,58" fill="url(#dboCubeSideR)" />
+                    </g>
+
+                    {/* Lower-Right Large Glass Cube */}
+                    <g transform="translate(536, 162)" stroke="currentColor" strokeWidth="1.1" strokeOpacity="0.38">
+                      <polygon points="52,0 104,30 52,60 0,30" fill="url(#dboCubeTop)" />
+                      <polygon points="0,30 52,60 52,120 0,90" fill="url(#dboCubeSideL)" />
+                      <polygon points="104,30 52,60 52,120 104,90" fill="url(#dboCubeSideR)" />
+                    </g>
+                  </svg>
                 </div>
 
-                <div className="dbo-hero-main-row">
-                  <div className="dbo-hero-identity" id="tour-donor-identity">
-                    <div className="dbo-hero-avatar">
-                      {currentUser?.avatar_url && (currentUser.avatar_url.startsWith('data:') || currentUser.avatar_url.startsWith('http')) ? (
-                        <img src={currentUser.avatar_url} alt="Profile" />
-                      ) : currentUser?.avatar_url && currentUser.avatar_url.length < 30 ? (
-                        <span className="material-symbols-outlined" style={{ fontSize: '24px', color: 'var(--text-primary)' }}>{currentUser.avatar_url}</span>
-                      ) : (
-                        userInitials
-                      )}
-                    </div>
-                    <div className="dbo-hero-title-group">
-                      <div className="dbo-hero-name-row">
-                        <h1 className="dbo-hero-name">{userDisplayName || 'Donor Dashboard'}</h1>
-                        <span
-                          className="material-symbols-outlined dbo-hero-verified-icon"
-                          title={wt.verifiedWorkspace}
-                          aria-label={wt.verifiedWorkspace}
-                        >
-                          verified
-                        </span>
-                      </div>
-                      <p className="dbo-hero-sub">{wt.donorOverviewSub}</p>
-                    </div>
+                <div className="dbo-hero-content">
+                  <div className="dbo-hero-eyebrow-row">
+                    <span className="dbo-hero-status-pill">
+                      <span className="dbo-emerald-dot" />
+                      <span className="dbo-pill-strong">{wt.donorPortal}</span>
+                      <span className="dbo-pill-slash">/</span>
+                      <span className="dbo-pill-muted">Sepolia Gasless Ledger Active</span>
+                    </span>
                   </div>
 
-                  <div className="dbo-hero-actions" id="tour-donor-actions">
-                    <button
-                      type="button"
-                      className="dbo-cmd-btn dbo-cmd-btn--primary"
-                      onClick={() => setActiveTab('campaigns')}
-                      title="Explore active disaster relief campaigns"
-                    >
-                      <span>{interfaceMode === 'simplified' ? wt.donateRelief : wt.browseCampaigns}</span>
-                      <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>arrow_forward</span>
-                    </button>
-
-                    {interfaceMode !== 'simplified' && (
-                      <button
-                        type="button"
-                        className="dbo-cmd-btn"
-                        onClick={() => setActiveTab('radar-heatmap')}
-                        title="Inspect Philippine disaster relief radar"
-                      >
-                        <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>map</span>
-                        <span>{wt.exploreMap}</span>
-                      </button>
-                    )}
-
-                    {interfaceMode !== 'simplified' && (
-                      <a
-                        href="https://sepolia.etherscan.io"
-                        target="_blank"
-                        rel="noreferrer"
-                        className="dbo-cmd-ghost"
-                        title="View Sepolia network explorer"
-                      >
-                        <span>{wt.publicLedger}</span>
-                        <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>north_east</span>
-                      </a>
-                    )}
-                  </div>
-                </div>
-
-                {pendingIntents.length > 0 && (
-                  <div className="dbo-pending-banner">
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
-                      <span className="material-symbols-outlined" style={{ color: '#f59e0b', fontSize: '19px', flexShrink: 0 }}>
-                        pending_actions
-                      </span>
-                      <div style={{ fontSize: '0.78rem', color: 'var(--text-primary)' }}>
-                        <strong>Unfinished Direct-QR Donation ({pendingIntents[0].trackingCode}):</strong>{' '}
-                        You started a <strong>₱{Number(pendingIntents[0].amountPhp || 0).toLocaleString('en-US')}</strong> {pendingIntents[0].paymentMethod} transfer to{' '}
-                        <strong>{pendingIntents[0].campaignTitle}</strong> without uploading a receipt.
+                  <div className="dbo-hero-main-row">
+                    <div className="dbo-hero-identity" id="tour-donor-identity">
+                      <div className="dbo-hero-avatar">
+                        {currentUser?.avatar_url && (currentUser.avatar_url.startsWith('data:') || currentUser.avatar_url.startsWith('http')) ? (
+                          <img src={currentUser.avatar_url} alt="Profile" />
+                        ) : currentUser?.avatar_url && currentUser.avatar_url.length < 30 ? (
+                          <span className="material-symbols-outlined" style={{ fontSize: '24px', color: 'var(--text-primary)' }}>{currentUser.avatar_url}</span>
+                        ) : (
+                          userInitials
+                        )}
+                      </div>
+                      <div className="dbo-hero-title-group">
+                        <div className="dbo-hero-name-row">
+                          <h1 className="dbo-hero-name">{userDisplayName || 'Donor Dashboard'}</h1>
+                          <span
+                            className="material-symbols-outlined dbo-hero-verified-icon"
+                            title={wt.verifiedWorkspace}
+                            aria-label={wt.verifiedWorkspace}
+                          >
+                            verified
+                          </span>
+                        </div>
+                        <p className="dbo-hero-sub">
+                          Verified PHP relief contributions anchored gaslessly on Ethereum Sepolia.
+                        </p>
                       </div>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+
+                    <div className="dbo-hero-actions" id="tour-donor-actions">
                       <button
                         type="button"
                         className="dbo-cmd-btn dbo-cmd-btn--primary"
                         onClick={() => setActiveTab('campaigns')}
-                        style={{ height: '30px', padding: '0 12px', fontSize: '0.74rem' }}
+                        title="Explore active disaster relief campaigns"
                       >
-                        Upload Receipt
+                        <span>{interfaceMode === 'simplified' ? wt.donateRelief : wt.browseCampaigns}</span>
+                        <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>arrow_forward</span>
                       </button>
-                      <button
-                        type="button"
-                        className="dbo-cmd-btn"
-                        onClick={() => handleDismissPendingIntent(pendingIntents[0].intentId)}
-                        style={{ height: '30px', padding: '0 10px', fontSize: '0.74rem' }}
-                      >
-                        I didn&apos;t pay
-                      </button>
+
+                      {interfaceMode !== 'simplified' && (
+                        <button
+                          type="button"
+                          className="dbo-cmd-btn"
+                          onClick={() => setActiveTab('radar-heatmap')}
+                          title="Inspect Philippine disaster relief radar"
+                        >
+                          <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>map</span>
+                          <span>{wt.exploreMap}</span>
+                        </button>
+                      )}
+
+                      {interfaceMode !== 'simplified' && (
+                        <a
+                          href="https://sepolia.etherscan.io"
+                          target="_blank"
+                          rel="noreferrer"
+                          className="dbo-cmd-ghost"
+                          title="View Sepolia network explorer"
+                        >
+                          <span>{wt.publicLedger}</span>
+                          <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>north_east</span>
+                        </a>
+                      )}
                     </div>
                   </div>
-                )}
 
-                {/* Bare Hairline Stat Strip (Landing-Page Rhythm) */}
-                <div
-                  className={`dbo-bare-stats ${interfaceMode === 'simplified' ? 'cols-3' : 'cols-4'}`}
-                  id="tour-donor-metrics"
-                >
-                  <button
-                    type="button"
-                    className="dbo-bare-stat clickable"
-                    onClick={() => setActiveTab('my-donations')}
-                    title="View donation history"
+                  {pendingIntents.length > 0 && (
+                    <div className="dbo-pending-banner">
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+                        <span className="material-symbols-outlined" style={{ color: '#f59e0b', fontSize: '19px', flexShrink: 0 }}>
+                          pending_actions
+                        </span>
+                        <div style={{ fontSize: '0.78rem', color: 'var(--text-primary)' }}>
+                          <strong>Unfinished Direct-QR Donation ({pendingIntents[0].trackingCode}):</strong>{' '}
+                          You started a <strong>₱{Number(pendingIntents[0].amountPhp || 0).toLocaleString('en-US')}</strong> {pendingIntents[0].paymentMethod} transfer to{' '}
+                          <strong>{pendingIntents[0].campaignTitle}</strong> without uploading a receipt.
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                        <button
+                          type="button"
+                          className="dbo-cmd-btn dbo-cmd-btn--primary"
+                          onClick={() => setActiveTab('campaigns')}
+                          style={{ height: '30px', padding: '0 12px', fontSize: '0.74rem' }}
+                        >
+                          Upload Receipt
+                        </button>
+                        <button
+                          type="button"
+                          className="dbo-cmd-btn"
+                          onClick={() => handleDismissPendingIntent(pendingIntents[0].intentId)}
+                          style={{ height: '30px', padding: '0 10px', fontSize: '0.74rem' }}
+                        >
+                          I didn&apos;t pay
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Bare Hairline Stat Strip with Left Icons + Donor Tier Badge */}
+                  <div
+                    className={`dbo-bare-stats ${interfaceMode === 'simplified' ? 'cols-3' : 'cols-4'}`}
+                    id="tour-donor-metrics"
                   >
-                    <span className="dbo-bare-val">₱{Math.round(totalDonatedPhp).toLocaleString('en-US')}</span>
-                    <span className="dbo-bare-lbl">{wt.metricTotalContributed}</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    className="dbo-bare-stat clickable"
-                    onClick={() => setActiveTab('campaigns')}
-                    title="Browse relief campaigns"
-                  >
-                    <span className="dbo-bare-val">{activeCampaignsCount}</span>
-                    <span className="dbo-bare-lbl">
-                      {wt.metricLiveAppeals}
-                      {interfaceMode !== 'simplified' && criticalUrgencyCount > 0 && (
-                        <span className="dbo-bare-accent"> · {criticalUrgencyCount} urgent</span>
-                      )}
-                    </span>
-                  </button>
-
-                  <div className="dbo-bare-stat">
-                    <span className="dbo-bare-val">
-                      {estimatedFamiliesAided > 0 ? `~${estimatedFamiliesAided.toLocaleString()}` : '0'}
-                    </span>
-                    <span className="dbo-bare-lbl">
-                      {interfaceMode === 'simplified' ? 'People & Families Aided' : 'Families Reached'}
-                    </span>
-                  </div>
-
-                  {interfaceMode !== 'simplified' && (
                     <button
                       type="button"
                       className="dbo-bare-stat clickable"
-                      onClick={() => setShowTierModal(true)}
-                      title="View Philanthropic Honor Roll"
+                      onClick={() => setActiveTab('my-donations')}
+                      title="View donation history"
                     >
-                      <span className="dbo-bare-val dbo-bare-val--tier">
-                        <span>{activeTierInfo?.tier ? activeTierInfo.tier.name : 'New Contributor'}</span>
-                        <span className="material-symbols-outlined" style={{ fontSize: '14px', opacity: 0.55 }}>north_east</span>
+                      <span className="dbo-bare-icon-box" aria-hidden="true">
+                        <span className="material-symbols-outlined">payments</span>
                       </span>
-                      <span className="dbo-bare-lbl">
-                        {donorReceiptsCount > 0 ? `${donorReceiptsCount} verified receipts` : 'Honor Roll Standing'}
+                      <span className="dbo-bare-text">
+                        <span className="dbo-bare-val">₱{Math.round(totalDonatedPhp).toLocaleString('en-US')}</span>
+                        <span className="dbo-bare-lbl">{wt.metricTotalContributed}</span>
                       </span>
                     </button>
-                  )}
+
+                    <button
+                      type="button"
+                      className="dbo-bare-stat clickable"
+                      onClick={() => setActiveTab('campaigns')}
+                      title="Browse relief campaigns"
+                    >
+                      <span className="dbo-bare-icon-box" aria-hidden="true">
+                        <span className="material-symbols-outlined">campaign</span>
+                      </span>
+                      <span className="dbo-bare-text">
+                        <span className="dbo-bare-val">{activeCampaignsCount}</span>
+                        <span className="dbo-bare-lbl">
+                          {wt.metricLiveAppeals}
+                          {interfaceMode !== 'simplified' && criticalUrgencyCount > 0 && (
+                            <span className="dbo-bare-accent"> · {criticalUrgencyCount} urgent</span>
+                          )}
+                        </span>
+                      </span>
+                    </button>
+
+                    <div className="dbo-bare-stat">
+                      <span className="dbo-bare-icon-box" aria-hidden="true">
+                        <span className="material-symbols-outlined">groups</span>
+                      </span>
+                      <span className="dbo-bare-text">
+                        <span className="dbo-bare-val">
+                          {estimatedFamiliesAided > 0 ? `~${estimatedFamiliesAided.toLocaleString()}` : '0'}
+                        </span>
+                        <span className="dbo-bare-lbl">
+                          {interfaceMode === 'simplified' ? 'People & Families Aided' : 'Families Reached'}
+                        </span>
+                      </span>
+                    </div>
+
+                    {interfaceMode !== 'simplified' && (
+                      <button
+                        type="button"
+                        className="dbo-bare-stat clickable"
+                        onClick={() => setShowTierModal(true)}
+                        title="View Philanthropic Honor Roll"
+                      >
+                        <span className="dbo-bare-badge-wrap" aria-hidden="true">
+                          {activeTierInfo?.tier?.IconComponent ? (
+                            <activeTierInfo.tier.IconComponent size={36} />
+                          ) : (
+                            <span className="dbo-bare-icon-box">
+                              <span className="material-symbols-outlined">workspace_premium</span>
+                            </span>
+                          )}
+                        </span>
+                        <span className="dbo-bare-text">
+                          <span className="dbo-bare-val dbo-bare-val--tier">
+                            <span>{activeTierInfo?.tier ? activeTierInfo.tier.name : 'New Contributor'}</span>
+                            <span className="material-symbols-outlined" style={{ fontSize: '14px', opacity: 0.55 }}>north_east</span>
+                          </span>
+                          <span className="dbo-bare-lbl">
+                            {donorReceiptsCount > 0 ? `${donorReceiptsCount} verified receipts` : 'Honor Roll Standing'}
+                          </span>
+                        </span>
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
 
