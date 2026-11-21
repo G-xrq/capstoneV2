@@ -1174,6 +1174,13 @@ export default function SettingsPanel({
     } catch (_) {}
   };
 
+  const handleCopyContract = () => {
+    try {
+      navigator.clipboard.writeText(contractAddress);
+      showSuccess('Public audit contract address copied.', 'Copied');
+    } catch (_) {}
+  };
+
   return (
     <div className="bbdrts-settings-root">
 
@@ -1185,7 +1192,7 @@ export default function SettingsPanel({
             <span>{pageTitle || 'Profile & Settings'}</span>
           </h2>
           <p className="admin-page-sub">
-            Manage your personal profile, security controls, public blockchain audit contract, and preferences.
+            Manage your profile identity, workspace preferences, account security, and blockchain audit ledger.
           </p>
         </div>
 
@@ -1202,7 +1209,7 @@ export default function SettingsPanel({
         </div>
       </div>
 
-      {/* ── Vercel Horizontal Underline Navigation Tabs (Zero Double-Sidebar) ── */}
+      {/* ── Vercel Horizontal Underline Navigation Tabs ── */}
       <nav className="vs-tabs" role="tablist" aria-label="Settings sections">
         <button
           type="button"
@@ -1211,7 +1218,7 @@ export default function SettingsPanel({
           className={`vs-tab ${activeTab === 'profile' ? 'active' : ''}`}
           onClick={() => setActiveTab('profile')}
         >
-          <span>Profile &amp; Identity</span>
+          <span>Profile</span>
         </button>
 
         {(isOrg || showNgoInputs) && (
@@ -1232,16 +1239,6 @@ export default function SettingsPanel({
         <button
           type="button"
           role="tab"
-          aria-selected={activeTab === 'wallet'}
-          className={`vs-tab ${activeTab === 'wallet' ? 'active' : ''}`}
-          onClick={() => setActiveTab('wallet')}
-        >
-          <span>Blockchain Audit</span>
-        </button>
-
-        <button
-          type="button"
-          role="tab"
           aria-selected={activeTab === 'preferences'}
           className={`vs-tab ${activeTab === 'preferences' ? 'active' : ''}`}
           onClick={() => setActiveTab('preferences')}
@@ -1256,7 +1253,17 @@ export default function SettingsPanel({
           className={`vs-tab ${activeTab === 'security' ? 'active' : ''}`}
           onClick={() => setActiveTab('security')}
         >
-          <span>Security &amp; System</span>
+          <span>Security</span>
+        </button>
+
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'wallet'}
+          className={`vs-tab ${activeTab === 'wallet' ? 'active' : ''}`}
+          onClick={() => setActiveTab('wallet')}
+        >
+          <span>Ledger &amp; System</span>
         </button>
       </nav>
 
@@ -1504,63 +1511,53 @@ export default function SettingsPanel({
                 </div>
               )}
 
-              {/* Quick Navigation Overview Card */}
-              <div className="vs-card">
-                <div className="vs-card-head">
-                  <div>
-                    <h4 className="vs-card-title">Account Overview</h4>
-                    <p className="vs-card-desc">
-                      Audit ledger, security controls, and workspace display.
-                    </p>
+              {/* Public Visibility & Privacy Controls (Directly governs how your Public Profile appears) */}
+              {!isOrg && (
+                <div className="vs-card">
+                  <div className="vs-card-head">
+                    <div>
+                      <h4 className="vs-card-title">Public Visibility</h4>
+                      <p className="vs-card-desc">
+                        Control how your identity appears on campaign donor logs and leaderboards.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="vs-toggle-list">
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={anonDefault}
+                      className="vs-toggle-row"
+                      onClick={handleToggleAnonymous}
+                    >
+                      <div className="vs-toggle-info">
+                        <span className="vs-toggle-label">Anonymous Donor Mode</span>
+                        <span className="vs-toggle-desc">Mask your name on public donor feeds.</span>
+                      </div>
+                      <span className={`vs-switch ${anonDefault ? 'is-on' : ''}`}>
+                        <span className="vs-switch-thumb" />
+                      </span>
+                    </button>
+
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={showBadge}
+                      className="vs-toggle-row"
+                      onClick={handleToggleBadgeVisibility}
+                    >
+                      <div className="vs-toggle-info">
+                        <span className="vs-toggle-label">Recognition Badge</span>
+                        <span className="vs-toggle-desc">Show your tier insignia beside contributions.</span>
+                      </div>
+                      <span className={`vs-switch ${showBadge ? 'is-on' : ''}`}>
+                        <span className="vs-switch-thumb" />
+                      </span>
+                    </button>
                   </div>
                 </div>
-
-                <div className="vs-quick-list">
-                  <button
-                    type="button"
-                    className="vs-quick-row"
-                    onClick={() => setActiveTab('wallet')}
-                  >
-                    <div className="vs-quick-info">
-                      <span className="vs-quick-title">Sepolia Audit Contract</span>
-                      <span className="vs-quick-sub">
-                        <span className="vs-live-dot" />
-                        <span>Gasless Relayer Active · Chain 11155111</span>
-                      </span>
-                    </div>
-                    <span className="material-symbols-outlined vs-quick-chev">chevron_right</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    className="vs-quick-row"
-                    onClick={() => setActiveTab('security')}
-                  >
-                    <div className="vs-quick-info">
-                      <span className="vs-quick-title">Two-Factor Authentication</span>
-                      <span className="vs-quick-sub">
-                        <span className={`vs-live-dot ${tfaStatus?.enabled ? '' : 'is-off'}`} />
-                        <span>{tfaStatus?.enabled ? 'Protected with authenticator app' : 'Off · Recommended for account security'}</span>
-                      </span>
-                    </div>
-                    <span className="material-symbols-outlined vs-quick-chev">chevron_right</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    className="vs-quick-row"
-                    onClick={() => setActiveTab('preferences')}
-                  >
-                    <div className="vs-quick-info">
-                      <span className="vs-quick-title">Workspace Preferences</span>
-                      <span className="vs-quick-sub">
-                        <span>{theme === 'dark' ? 'Dark Mode' : 'Light Mode'} · {String(language || 'en').toUpperCase()}</span>
-                      </span>
-                    </div>
-                    <span className="material-symbols-outlined vs-quick-chev">chevron_right</span>
-                  </button>
-                </div>
-              </div>
+              )}
             </div>
           </div>
 
@@ -2610,16 +2607,16 @@ export default function SettingsPanel({
       )}
 
       {/* ══════════════════════════════════════════════════════════════════
-          TAB 2: GASLESS BLOCKCHAIN AUDIT & PUBLIC CONTRACT
+          TAB 2: LEDGER & SYSTEM (BLOCKCHAIN AUDIT + INFRASTRUCTURE HEALTH)
           ══════════════════════════════════════════════════════════════════ */}
       {activeTab === 'wallet' && (
         <div className="bbdrts-settings-pane vs-pane">
           <div className="vs-card">
             <div className="vs-card-head">
               <div>
-                <h4 className="vs-card-title">Gasless Sepolia Blockchain Audit Ledger</h4>
+                <h4 className="vs-card-title">Gasless Sepolia Audit Contract</h4>
                 <p className="vs-card-desc">
-                  No MetaMask or cryptocurrency wallet is required. BBDRTS automatically notarizes every verified Philippine Peso donation and NGO disbursement proof onto Ethereum Sepolia via our gasless backend relayer.
+                  No MetaMask or cryptocurrency wallet is required. Every verified PHP contribution and NGO disbursement proof is notarized on Ethereum Sepolia via our gasless backend relayer.
                 </p>
               </div>
               <div className="vs-standing-pill">
@@ -2631,16 +2628,16 @@ export default function SettingsPanel({
             <div className="vs-kv-list">
               <div className="vs-kv-row">
                 <span className="vs-kv-key">Public Audit Contract</span>
-                <span className="vs-kv-val">
-                  <a
-                    href={`https://sepolia.etherscan.io/address/${contractAddress}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="vs-ext-link vs-mono-val"
+                <span className="vs-kv-val vs-inline-status">
+                  <span className="vs-mono-val">{contractAddress}</span>
+                  <button
+                    type="button"
+                    className="vs-icon-copy-btn"
+                    onClick={handleCopyContract}
+                    title="Copy contract address"
                   >
-                    <span>{contractAddress}</span>
-                    <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>north_east</span>
-                  </a>
+                    <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>content_copy</span>
+                  </button>
                 </span>
               </div>
 
@@ -2649,18 +2646,79 @@ export default function SettingsPanel({
                 <span className="vs-kv-val vs-inline-status">
                   <span className="vs-live-dot" />
                   <span>Ethereum Sepolia</span>
-                  <span className="vs-id-code">(Chain ID 11155111)</span>
+                  <span className="vs-id-code">Chain ID 11155111</span>
                 </span>
               </div>
 
               <div className="vs-kv-row">
-                <span className="vs-kv-key">Supported Payment Rails</span>
-                <span className="vs-kv-val">GCash (QR Ph) · Maya · Bank Transfer · Credit / Debit Card (PHP)</span>
+                <span className="vs-kv-key">Supported PHP Rails</span>
+                <span className="vs-kv-val">GCash (QR Ph) · Maya · Bank Transfer · Credit / Debit Card</span>
               </div>
 
               <div className="vs-kv-row">
                 <span className="vs-kv-key">Gas Fees for Users</span>
-                <span className="vs-kv-val">₱0 · Sponsored by BBDRTS Gasless Relayer</span>
+                <span className="vs-kv-val">₱0 · Sponsored by BBDRTS Relayer</span>
+              </div>
+            </div>
+
+            <div className="vs-card-foot">
+              <span className="vs-card-foot-note">
+                Independently verifiable public ledger powered by OpenZeppelin smart contracts.
+              </span>
+              <a
+                href={`https://sepolia.etherscan.io/address/${contractAddress}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="vs-subtle-btn vs-link-btn"
+              >
+                <span>View on Etherscan</span>
+                <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>north_east</span>
+              </a>
+            </div>
+          </div>
+
+          <div className="vs-card">
+            <div className="vs-card-head">
+              <div>
+                <h4 className="vs-card-title">System &amp; Infrastructure Health</h4>
+                <p className="vs-card-desc">
+                  Real-time operational status of RPC gateways, smart contracts, and ledger databases.
+                </p>
+              </div>
+              <div className="vs-standing-pill">
+                <span className="vs-live-dot" />
+                <span>All Systems Operational</span>
+              </div>
+            </div>
+
+            <div className="vs-health-grid">
+              <div className="vs-health-cell">
+                <span className="vs-health-lbl">Sepolia EVM RPC Gateway</span>
+                <span className="vs-health-val">
+                  <span className="vs-live-dot" />
+                  <span>Connected &amp; Operational</span>
+                </span>
+              </div>
+              <div className="vs-health-cell">
+                <span className="vs-health-lbl">Milestone Smart Contract</span>
+                <span className="vs-health-val">
+                  <span className="vs-live-dot" />
+                  <span>Active · OpenZeppelin</span>
+                </span>
+              </div>
+              <div className="vs-health-cell">
+                <span className="vs-health-lbl">Relief Ledger Database</span>
+                <span className="vs-health-val">
+                  <span className="vs-live-dot" />
+                  <span>Synchronized</span>
+                </span>
+              </div>
+              <div className="vs-health-cell">
+                <span className="vs-health-lbl">Authentication Session</span>
+                <span className="vs-health-val">
+                  <span className="vs-live-dot" />
+                  <span>JWT Encrypted · Active</span>
+                </span>
               </div>
             </div>
           </div>
@@ -2668,418 +2726,346 @@ export default function SettingsPanel({
       )}
 
       {/* ══════════════════════════════════════════════════════════════════
-          TAB 3: PREFERENCES & THEME
+          TAB 3: PREFERENCES (APPEARANCE, ACCESSIBILITY, NOTIFICATIONS)
           ══════════════════════════════════════════════════════════════════ */}
       {activeTab === 'preferences' && (
-        <div className="bbdrts-settings-pane">
+        <div className="bbdrts-settings-pane vs-pane">
 
-          {/* Visual Appearance & Theme Selection */}
-          <div className="bbdrts-settings-card">
-            <div className="bbdrts-settings-card-header">
-              <div className="bbdrts-settings-card-title-wrap">
-                <h4 className="bbdrts-settings-card-title">
-                  <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#16a34a' }}>palette</span>
-                  Visual Appearance & Theme
-                </h4>
-                <p className="bbdrts-settings-card-desc">
-                  Choose your interface theme. Preferences are saved automatically.
+          {/* Card 1: Appearance & Interface (Theme + Density + Text Scale + Language) */}
+          <div className="vs-card">
+            <div className="vs-card-head">
+              <div>
+                <h4 className="vs-card-title">Appearance &amp; Interface</h4>
+                <p className="vs-card-desc">
+                  Customize theme, dashboard density, text scaling, and display language. Saved automatically.
                 </p>
               </div>
             </div>
 
-            <div className="bbdrts-theme-cards-grid">
-              {/* Option 1: Light Mode */}
-              <div
-                className={`bbdrts-theme-card-option ${activeThemeChoice === 'light' ? 'active' : ''}`}
-                onClick={() => {
-                  if (setTheme) setTheme('light');
-                  showSuccess('Light Mode enabled.', 'Theme Updated');
-                }}
-              >
-                <div className="bbdrts-theme-preview-icon">
-                  <span className="material-symbols-outlined">light_mode</span>
+            {/* Section A: Theme Picker with Mini UI Previews */}
+            <div className="vs-section-block">
+              <div className="vs-section-label-row">
+                <div>
+                  <div className="vs-section-label">Theme</div>
+                  <div className="vs-section-hint">Select how BBDRTS renders across your workspace.</div>
                 </div>
-                <div className="bbdrts-theme-option-text">
-                  <span className="bbdrts-theme-option-title">Light Mode</span>
-                  <span className="bbdrts-theme-option-desc">Clean white canvas with soft borders and high-contrast typography.</span>
-                </div>
-                {activeThemeChoice === 'light' && (
-                  <span className="material-symbols-outlined bbdrts-theme-active-icon">check_circle</span>
-                )}
               </div>
 
-              {/* Option 2: Dark Mode */}
-              <div
-                className={`bbdrts-theme-card-option ${activeThemeChoice === 'dark' ? 'active' : ''}`}
-                onClick={() => {
-                  if (setTheme) setTheme('dark');
-                  showSuccess('Dark Mode enabled.', 'Theme Updated');
-                }}
-              >
-                <div className="bbdrts-theme-preview-icon">
-                  <span className="material-symbols-outlined">dark_mode</span>
-                </div>
-                <div className="bbdrts-theme-option-text">
-                  <span className="bbdrts-theme-option-title">Dark Mode</span>
-                  <span className="bbdrts-theme-option-desc">Deep charcoal and obsidian theme with comfortable contrast.</span>
-                </div>
-                {activeThemeChoice === 'dark' && (
-                  <span className="material-symbols-outlined bbdrts-theme-active-icon">check_circle</span>
-                )}
-              </div>
-
-              {/* Option 3: System Preference */}
-              <div
-                className={`bbdrts-theme-card-option ${activeThemeChoice === 'system' ? 'active' : ''}`}
-                onClick={() => {
-                  if (setTheme) setTheme('system');
-                  showSuccess('System Preference theme tracking enabled.', 'Theme Updated');
-                }}
-              >
-                <div className="bbdrts-theme-preview-icon">
-                  <span className="material-symbols-outlined">devices</span>
-                </div>
-                <div className="bbdrts-theme-option-text">
-                  <span className="bbdrts-theme-option-title">{wt.systemPreference}</span>
-                  <span className="bbdrts-theme-option-desc">{wt.systemPreferenceDesc}</span>
-                </div>
-                {activeThemeChoice === 'system' && (
-                  <span className="material-symbols-outlined bbdrts-theme-active-icon">check_circle</span>
-                )}
+              <div className="vs-theme-grid">
+                {[
+                  { id: 'light', title: 'Light', desc: 'Crisp white canvas', previewClass: 'is-light' },
+                  { id: 'dark', title: 'Dark', desc: 'Pitch-black Vercel Geist', previewClass: 'is-dark' },
+                  { id: 'system', title: wt.systemPreference || 'System', desc: 'Match OS appearance', previewClass: 'is-system' }
+                ].map((opt) => {
+                  const isActive = activeThemeChoice === opt.id;
+                  return (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      className={`vs-theme-tile ${isActive ? 'active' : ''}`}
+                      onClick={() => {
+                        if (setTheme) setTheme(opt.id);
+                        showSuccess(`${opt.title} theme enabled.`, 'Theme Updated');
+                      }}
+                    >
+                      <div className={`vs-theme-mini ${opt.previewClass}`}>
+                        <span className="vs-mini-sidebar" />
+                        <span className="vs-mini-main">
+                          <span className="vs-mini-bar" />
+                          <span className="vs-mini-cards">
+                            <span />
+                            <span />
+                          </span>
+                        </span>
+                      </div>
+                      <div className="vs-theme-tile-foot">
+                        <div>
+                          <div className="vs-theme-tile-name">{opt.title}</div>
+                          <div className="vs-theme-tile-desc">{opt.desc}</div>
+                        </div>
+                        <span className={`vs-radio-dot ${isActive ? 'is-on' : ''}`} />
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
             </div>
-          </div>
 
-          {/* Interface Presentation Mode (Standard vs Simplified) */}
-          <div className="bbdrts-settings-card">
-            <div className="bbdrts-settings-card-header">
-              <div className="bbdrts-settings-card-title-wrap">
-                <h4 className="bbdrts-settings-card-title">
-                  <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#16a34a' }}>tune</span>
-                  Interface Presentation Mode
-                </h4>
-                <p className="bbdrts-settings-card-desc">
-                  Select your preferred information density and dashboard layout structure. Both modes belong to the same BBDRTS application and retain full functionality.
-                </p>
-              </div>
-              <span style={{ fontSize: '0.74rem', fontWeight: 600, color: '#16a34a' }}>
-                Active: {interfaceMode === 'simplified' ? 'Simplified Mode' : 'Standard Mode'}
-              </span>
-            </div>
-
-            <div className="bbdrts-theme-cards-grid">
-              {/* Option 1: Standard Mode */}
-              <div
-                className={`bbdrts-theme-card-option ${interfaceMode === 'standard' ? 'active' : ''}`}
-                onClick={() => {
-                  if (setInterfaceMode) setInterfaceMode('standard');
-                  showSuccess('Standard Mode enabled with full operational telemetry.', 'Interface Mode Updated');
-                }}
-              >
-                <div className="bbdrts-theme-preview-icon">
-                  <span className="material-symbols-outlined">dashboard</span>
+            {/* Section B: Interface Mode */}
+            <div className="vs-section-block">
+              <div className="vs-section-label-row">
+                <div>
+                  <div className="vs-section-label">Interface Density</div>
+                  <div className="vs-section-hint">Choose full telemetry or a streamlined plain-language view.</div>
                 </div>
-                <div className="bbdrts-theme-option-text">
-                  <span className="bbdrts-theme-option-title">Standard Mode (Default)</span>
-                  <span className="bbdrts-theme-option-desc">Complete platform capabilities, comprehensive metric telemetry, on-chain contract hashes, and advanced operational controls.</span>
-                </div>
-                {interfaceMode === 'standard' && (
-                  <span className="material-symbols-outlined bbdrts-theme-active-icon">check_circle</span>
-                )}
               </div>
 
-              {/* Option 2: Simplified Mode */}
-              <div
-                className={`bbdrts-theme-card-option ${interfaceMode === 'simplified' ? 'active' : ''}`}
-                onClick={() => {
-                  if (setInterfaceMode) setInterfaceMode('simplified');
-                  showSuccess('Simplified Mode enabled with streamlined presentation.', 'Interface Mode Updated');
-                }}
-              >
-                <div className="bbdrts-theme-preview-icon">
-                  <span className="material-symbols-outlined">volunteer_activism</span>
-                </div>
-                <div className="bbdrts-theme-option-text">
-                  <span className="bbdrts-theme-option-title">Simplified Mode</span>
-                  <span className="bbdrts-theme-option-desc">Streamlined presentation with intuitive content hierarchy, plain-language summaries, and prominent primary actions with reduced visual clutter.</span>
-                </div>
-                {interfaceMode === 'simplified' && (
-                  <span className="material-symbols-outlined bbdrts-theme-active-icon">check_circle</span>
-                )}
+              <div className="vs-mode-grid">
+                <button
+                  type="button"
+                  className={`vs-mode-card ${interfaceMode === 'standard' ? 'active' : ''}`}
+                  onClick={() => {
+                    if (setInterfaceMode) setInterfaceMode('standard');
+                    showSuccess('Standard Mode enabled with full operational telemetry.', 'Interface Updated');
+                  }}
+                >
+                  <div className="vs-mode-top">
+                    <span className="vs-mode-title">Standard</span>
+                    <span className={`vs-radio-dot ${interfaceMode === 'standard' ? 'is-on' : ''}`} />
+                  </div>
+                  <p className="vs-mode-desc">
+                    Full telemetry, on-chain contract hashes, analytics charts, and detailed ledger views.
+                  </p>
+                </button>
+
+                <button
+                  type="button"
+                  className={`vs-mode-card ${interfaceMode === 'simplified' ? 'active' : ''}`}
+                  onClick={() => {
+                    if (setInterfaceMode) setInterfaceMode('simplified');
+                    showSuccess('Simplified Mode enabled with streamlined presentation.', 'Interface Updated');
+                  }}
+                >
+                  <div className="vs-mode-top">
+                    <span className="vs-mode-title">Simplified</span>
+                    <span className={`vs-radio-dot ${interfaceMode === 'simplified' ? 'is-on' : ''}`} />
+                  </div>
+                  <p className="vs-mode-desc">
+                    Plain-language summaries, calmer visual hierarchy, and prominent primary actions.
+                  </p>
+                </button>
               </div>
             </div>
-          </div>
 
-          {/* Typography Scaling Card */}
-          <div className="bbdrts-settings-card">
-            <div className="bbdrts-settings-card-header">
-              <div className="bbdrts-settings-card-title-wrap">
-                <h4 className="bbdrts-settings-card-title">
-                  <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#16a34a' }}>format_size</span>
-                  Interface Typography Sizing
-                </h4>
-                <p className="bbdrts-settings-card-desc">
-                  Scale text sizes across dashboards, campaign cards, tables, and dialogs.
-                </p>
+            {/* Section C: Typography Scale (Inline Segmented Control) */}
+            <div className="vs-section-block vs-inline-control-row">
+              <div>
+                <div className="vs-section-label">Text Size</div>
+                <div className="vs-section-hint">Scale typography across dashboards, tables, and dialogs.</div>
               </div>
-
-              <span style={{ fontSize: '0.74rem', fontWeight: 600, color: '#16a34a' }}>
-                Active: {TEXT_SIZE_OPTIONS.find(o => o.id === activeTextSize)?.name || 'Standard'}
-              </span>
-            </div>
-
-            <div className="bbdrts-type-scale-grid">
-              {TEXT_SIZE_OPTIONS.map((opt) => {
-                const isActive = activeTextSize === opt.id;
-                return (
-                  <div
+              <div className="vs-seg-group" role="radiogroup" aria-label="Text size">
+                {TEXT_SIZE_OPTIONS.map((opt) => (
+                  <button
                     key={opt.id}
-                    className={`bbdrts-type-scale-card ${isActive ? 'active' : ''}`}
+                    type="button"
+                    role="radio"
+                    aria-checked={activeTextSize === opt.id}
+                    className={`vs-seg-btn ${activeTextSize === opt.id ? 'active' : ''}`}
                     onClick={() => handleSelectTextSize(opt.id)}
                   >
-                    <div className="bbdrts-type-scale-info">
-                      <span className="bbdrts-type-scale-name">{opt.name}</span>
-                      <span className="bbdrts-type-scale-pct">{opt.scale} scale</span>
-                    </div>
-                    {isActive && (
-                      <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#16a34a' }}>check</span>
-                    )}
-                  </div>
-                );
-              })}
+                    <span>{opt.name}</span>
+                    <span className="vs-seg-meta">{opt.scale}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Section D: Language (Inline Segmented Control) */}
+            <div className="vs-section-block vs-inline-control-row">
+              <div>
+                <div className="vs-section-label">{wt.platformLanguageTitle || 'Language'}</div>
+                <div className="vs-section-hint">Switch interface terminology across supported Philippine languages.</div>
+              </div>
+              <div className="vs-seg-group" role="radiogroup" aria-label="Language">
+                {[
+                  { id: 'en', label: 'English (PH)' },
+                  { id: 'fil', label: 'Filipino' },
+                  { id: 'ceb', label: 'Cebuano' }
+                ].map((opt) => (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={language === opt.id}
+                    className={`vs-seg-btn ${language === opt.id ? 'active' : ''}`}
+                    onClick={() => {
+                      if (setLanguage) setLanguage(opt.id);
+                      showSuccess(`${opt.label} selected.`, 'Language Updated');
+                    }}
+                  >
+                    <span>{opt.label}</span>
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 
-          {/* Platform Language Preference */}
-          <div className="bbdrts-settings-card">
-            <div className="bbdrts-settings-card-header">
-              <div className="bbdrts-settings-card-title-wrap">
-                <h4 className="bbdrts-settings-card-title">
-                  <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#16a34a' }}>translate</span>
-                  {wt.platformLanguageTitle}
-                </h4>
-                <p className="bbdrts-settings-card-desc">
-                  {wt.platformLanguageDesc}
-                </p>
+          {/* Card 2 & 3 side-by-side on desktop, stacked on mobile */}
+          <div className="vs-two-col">
+            {/* Accessibility & Display */}
+            <div className="vs-card">
+              <div className="vs-card-head">
+                <div>
+                  <h4 className="vs-card-title">{wt.accessibilityControlsTitle || 'Accessibility & Display'}</h4>
+                  <p className="vs-card-desc">
+                    Motion, contrast, and bandwidth controls for comfortable viewing.
+                  </p>
+                </div>
               </div>
-              <span style={{ fontSize: '0.74rem', fontWeight: 600, color: '#16a34a' }}>
-                {wt.langName}
-              </span>
-            </div>
 
-            <div className="bbdrts-theme-cards-grid">
-              {[
-                { id: 'en', title: 'English (Philippines)', desc: 'Standard operational & legal relief terminology.' },
-                { id: 'fil', title: 'Filipino / Tagalog', desc: 'Salin sa Filipino para sa mas madaling paggamit.' },
-                { id: 'ceb', title: 'Bisaya / Cebuano', desc: 'Gihubad sa Cebuano alang sa Visayas ug Mindanao.' }
-              ].map((opt) => (
-                <div
-                  key={opt.id}
-                  className={`bbdrts-theme-card-option ${language === opt.id ? 'active' : ''}`}
+              <div className="vs-toggle-list">
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={reducedMotion}
+                  className="vs-toggle-row"
                   onClick={() => {
-                    if (setLanguage) setLanguage(opt.id);
-                    showSuccess(`${opt.title} selected.`, 'Language Updated');
+                    const next = !reducedMotion;
+                    if (setReducedMotion) setReducedMotion(next);
+                    showSuccess(`Reduced Motion ${next ? 'enabled' : 'disabled'}.`, 'Workspace Updated');
                   }}
                 >
-                  <div className="bbdrts-theme-preview-icon">
-                    <span className="material-symbols-outlined">language</span>
+                  <div className="vs-toggle-info">
+                    <span className="vs-toggle-label">{wt.reducedMotionLabel}</span>
+                    <span className="vs-toggle-desc">{wt.reducedMotionDesc}</span>
                   </div>
-                  <div className="bbdrts-theme-option-text">
-                    <span className="bbdrts-theme-option-title">{opt.title}</span>
-                    <span className="bbdrts-theme-option-desc">{opt.desc}</span>
-                  </div>
-                  {language === opt.id && (
-                    <span className="material-symbols-outlined bbdrts-theme-active-icon">check_circle</span>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Visual & Cognitive Accessibility Controls */}
-          <div className="bbdrts-settings-card">
-            <div className="bbdrts-settings-card-header">
-              <div className="bbdrts-settings-card-title-wrap">
-                <h4 className="bbdrts-settings-card-title">
-                  <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#16a34a' }}>accessibility_new</span>
-                  {wt.accessibilityControlsTitle}
-                </h4>
-                <p className="bbdrts-settings-card-desc">
-                  {wt.accessibilityControlsDesc}
-                </p>
-              </div>
-            </div>
-
-            <div className="bbdrts-pref-list">
-              <div
-                className="bbdrts-pref-item"
-                onClick={() => {
-                  const next = !reducedMotion;
-                  if (setReducedMotion) setReducedMotion(next);
-                  showSuccess(`Reduced Motion ${next ? 'enabled' : 'disabled'}.`, 'Workspace Updated');
-                }}
-              >
-                <div className="bbdrts-pref-info">
-                  <span className="bbdrts-pref-label">{wt.reducedMotionLabel}</span>
-                  <span className="bbdrts-pref-desc">{wt.reducedMotionDesc}</span>
-                </div>
-                <div className={`bbdrts-toggle-track ${reducedMotion ? 'active' : ''}`}>
-                  <div className="bbdrts-toggle-thumb" />
-                </div>
-              </div>
-
-              <div
-                className="bbdrts-pref-item"
-                onClick={() => {
-                  const next = !highContrast;
-                  if (setHighContrast) setHighContrast(next);
-                  showSuccess(`High Contrast Mode ${next ? 'enabled' : 'disabled'}.`, 'Workspace Updated');
-                }}
-              >
-                <div className="bbdrts-pref-info">
-                  <span className="bbdrts-pref-label">{wt.highContrastLabel}</span>
-                  <span className="bbdrts-pref-desc">{wt.highContrastDesc}</span>
-                </div>
-                <div className={`bbdrts-toggle-track ${highContrast ? 'active' : ''}`}>
-                  <div className="bbdrts-toggle-thumb" />
-                </div>
-              </div>
-
-              <div
-                className="bbdrts-pref-item"
-                onClick={() => {
-                  const next = !lowBandwidthMode;
-                  if (setLowBandwidthMode) setLowBandwidthMode(next);
-                  showSuccess(`Data Saver Mode ${next ? 'enabled' : 'disabled'}.`, 'Workspace Updated');
-                }}
-              >
-                <div className="bbdrts-pref-info">
-                  <span className="bbdrts-pref-label">{wt.dataSaverLabel}</span>
-                  <span className="bbdrts-pref-desc">{wt.dataSaverDesc}</span>
-                </div>
-                <div className={`bbdrts-toggle-track ${lowBandwidthMode ? 'active' : ''}`}>
-                  <div className="bbdrts-toggle-thumb" />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Notifications & Privacy Preferences */}
-          <div className="bbdrts-settings-card">
-            <div className="bbdrts-settings-card-header">
-              <div className="bbdrts-settings-card-title-wrap">
-                <h4 className="bbdrts-settings-card-title">
-                  <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#16a34a' }}>notifications</span>
-                  Notifications & Privacy
-                </h4>
-                <p className="bbdrts-settings-card-desc">
-                  Manage communication alerts and public visibility options.
-                </p>
-              </div>
-            </div>
-
-            <div className="bbdrts-pref-list">
-              <div
-                className="bbdrts-pref-item"
-                onClick={() => {
-                  const nextVal = !emailNotify;
-                  setEmailNotify(nextVal);
-                  handleTogglePreference('email_receipts', nextVal, `Email contribution receipts ${nextVal ? 'enabled' : 'disabled'}.`);
-                }}
-              >
-                <div className="bbdrts-pref-info">
-                  <span className="bbdrts-pref-label">Email Contribution Receipts</span>
-                  <span className="bbdrts-pref-desc">Receive tax deduction slips and on-chain verification links via email.</span>
-                </div>
-                <div className={`bbdrts-toggle-track ${emailNotify ? 'active' : ''}`}>
-                  <div className="bbdrts-toggle-thumb" />
-                </div>
-              </div>
-
-              <div
-                className="bbdrts-pref-item"
-                onClick={() => {
-                  const nextVal = !calamityAlerts;
-                  setCalamityAlerts(nextVal);
-                  handleTogglePreference('calamity_alerts', nextVal, `Disaster response alerts ${nextVal ? 'enabled' : 'disabled'}.`);
-                }}
-              >
-                <div className="bbdrts-pref-info">
-                  <span className="bbdrts-pref-label">Urgent Disaster Calamity Alerts</span>
-                  <span className="bbdrts-pref-desc">Instant alerts when severe typhoons, earthquakes, or floods require emergency relief.</span>
-                </div>
-                <div className={`bbdrts-toggle-track ${calamityAlerts ? 'active' : ''}`}>
-                  <div className="bbdrts-toggle-thumb" />
-                </div>
-              </div>
-
-              {!isOrg && (
-                <>
-                  <div className="bbdrts-pref-item" onClick={handleToggleAnonymous}>
-                    <div className="bbdrts-pref-info">
-                      <span className="bbdrts-pref-label">Anonymous Donor Mode</span>
-                      <span className="bbdrts-pref-desc">Mask your real name on public campaign donor lists and leaderboards.</span>
-                    </div>
-                    <div className={`bbdrts-toggle-track ${anonDefault ? 'active' : ''}`}>
-                      <div className="bbdrts-toggle-thumb" />
-                    </div>
-                  </div>
-
-                  <div className="bbdrts-pref-item" onClick={handleToggleBadgeVisibility}>
-                    <div className="bbdrts-pref-info">
-                      <span className="bbdrts-pref-label">Philanthropic Recognition Badge</span>
-                      <span className="bbdrts-pref-desc">Display your humanitarian supporter insignia next to your contributions.</span>
-                    </div>
-                    <div className={`bbdrts-toggle-track ${showBadge ? 'active' : ''}`}>
-                      <div className="bbdrts-toggle-thumb" />
-                    </div>
-                  </div>
-                </>
-              )}
-
-              <div
-                className="bbdrts-pref-item"
-                onClick={() => {
-                  const nextVal = !glassFx;
-                  setGlassFx(nextVal);
-                  handleTogglePreference('glass_fx', nextVal, `Backdrop blur effects ${nextVal ? 'enabled' : 'disabled'}.`);
-                }}
-              >
-                <div className="bbdrts-pref-info">
-                  <span className="bbdrts-pref-label">Backdrop Blur Effects</span>
-                  <span className="bbdrts-pref-desc">Frosted glass transparency across navigation bars and modal overlays.</span>
-                </div>
-                <div className={`bbdrts-toggle-track ${glassFx ? 'active' : ''}`}>
-                  <div className="bbdrts-toggle-thumb" />
-                </div>
-              </div>
-
-              {onStartTour && (
-                <div
-                  className="bbdrts-pref-item"
-                  onClick={() => {
-                    try {
-                      localStorage.removeItem('bbdrts_tour_donor_done');
-                      localStorage.removeItem('bbdrts_tour_ngo_done');
-                      if (currentUser?.id) {
-                        localStorage.removeItem(`bbdrts_tour_donor_${currentUser.id}`);
-                        localStorage.removeItem(`bbdrts_tour_ngo_${currentUser.id}`);
-                      }
-                      localStorage.setItem('bbdrts_tour_force_launch', 'true');
-                      onStartTour();
-                      showSuccess('Interactive onboarding walkthrough restarted.', 'Tour Launched');
-                    } catch (_) {}
-                  }}
-                >
-                  <div className="bbdrts-pref-info">
-                    <span className="bbdrts-pref-label">Reset Interactive Walkthrough</span>
-                    <span className="bbdrts-pref-desc">Replay the guided feature tour for your dashboard.</span>
-                  </div>
-                  <span className="material-symbols-outlined" style={{ fontSize: '20px', color: 'var(--text-muted)' }}>
-                    play_circle
+                  <span className={`vs-switch ${reducedMotion ? 'is-on' : ''}`}>
+                    <span className="vs-switch-thumb" />
                   </span>
+                </button>
+
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={highContrast}
+                  className="vs-toggle-row"
+                  onClick={() => {
+                    const next = !highContrast;
+                    if (setHighContrast) setHighContrast(next);
+                    showSuccess(`High Contrast Mode ${next ? 'enabled' : 'disabled'}.`, 'Workspace Updated');
+                  }}
+                >
+                  <div className="vs-toggle-info">
+                    <span className="vs-toggle-label">{wt.highContrastLabel}</span>
+                    <span className="vs-toggle-desc">{wt.highContrastDesc}</span>
+                  </div>
+                  <span className={`vs-switch ${highContrast ? 'is-on' : ''}`}>
+                    <span className="vs-switch-thumb" />
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={lowBandwidthMode}
+                  className="vs-toggle-row"
+                  onClick={() => {
+                    const next = !lowBandwidthMode;
+                    if (setLowBandwidthMode) setLowBandwidthMode(next);
+                    showSuccess(`Data Saver Mode ${next ? 'enabled' : 'disabled'}.`, 'Workspace Updated');
+                  }}
+                >
+                  <div className="vs-toggle-info">
+                    <span className="vs-toggle-label">{wt.dataSaverLabel}</span>
+                    <span className="vs-toggle-desc">{wt.dataSaverDesc}</span>
+                  </div>
+                  <span className={`vs-switch ${lowBandwidthMode ? 'is-on' : ''}`}>
+                    <span className="vs-switch-thumb" />
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={glassFx}
+                  className="vs-toggle-row"
+                  onClick={() => {
+                    const nextVal = !glassFx;
+                    setGlassFx(nextVal);
+                    handleTogglePreference('glass_fx', nextVal, `Backdrop blur effects ${nextVal ? 'enabled' : 'disabled'}.`);
+                  }}
+                >
+                  <div className="vs-toggle-info">
+                    <span className="vs-toggle-label">Backdrop Blur Effects</span>
+                    <span className="vs-toggle-desc">Translucent surfaces on top bars and modals.</span>
+                  </div>
+                  <span className={`vs-switch ${glassFx ? 'is-on' : ''}`}>
+                    <span className="vs-switch-thumb" />
+                  </span>
+                </button>
+              </div>
+            </div>
+
+            {/* Notifications & Guidance */}
+            <div className="vs-card">
+              <div className="vs-card-head">
+                <div>
+                  <h4 className="vs-card-title">Notifications &amp; Guidance</h4>
+                  <p className="vs-card-desc">
+                    Email receipt delivery, disaster alerts, and dashboard walkthrough.
+                  </p>
                 </div>
-              )}
+              </div>
+
+              <div className="vs-toggle-list">
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={emailNotify}
+                  className="vs-toggle-row"
+                  onClick={() => {
+                    const nextVal = !emailNotify;
+                    setEmailNotify(nextVal);
+                    handleTogglePreference('email_receipts', nextVal, `Email contribution receipts ${nextVal ? 'enabled' : 'disabled'}.`);
+                  }}
+                >
+                  <div className="vs-toggle-info">
+                    <span className="vs-toggle-label">Email Contribution Receipts</span>
+                    <span className="vs-toggle-desc">Send verified donation slips and Sepolia links to your inbox.</span>
+                  </div>
+                  <span className={`vs-switch ${emailNotify ? 'is-on' : ''}`}>
+                    <span className="vs-switch-thumb" />
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={calamityAlerts}
+                  className="vs-toggle-row"
+                  onClick={() => {
+                    const nextVal = !calamityAlerts;
+                    setCalamityAlerts(nextVal);
+                    handleTogglePreference('calamity_alerts', nextVal, `Disaster response alerts ${nextVal ? 'enabled' : 'disabled'}.`);
+                  }}
+                >
+                  <div className="vs-toggle-info">
+                    <span className="vs-toggle-label">Urgent Calamity Alerts</span>
+                    <span className="vs-toggle-desc">Priority alerts for severe typhoons, earthquakes, or floods.</span>
+                  </div>
+                  <span className={`vs-switch ${calamityAlerts ? 'is-on' : ''}`}>
+                    <span className="vs-switch-thumb" />
+                  </span>
+                </button>
+
+                {onStartTour && (
+                  <div className="vs-action-row">
+                    <div className="vs-toggle-info">
+                      <span className="vs-toggle-label">Interactive Walkthrough</span>
+                      <span className="vs-toggle-desc">Replay the guided tour for your portal.</span>
+                    </div>
+                    <button
+                      type="button"
+                      className="vs-subtle-btn"
+                      onClick={() => {
+                        try {
+                          localStorage.removeItem('bbdrts_tour_donor_done');
+                          localStorage.removeItem('bbdrts_tour_ngo_done');
+                          if (currentUser?.id) {
+                            localStorage.removeItem(`bbdrts_tour_donor_${currentUser.id}`);
+                            localStorage.removeItem(`bbdrts_tour_ngo_${currentUser.id}`);
+                          }
+                          localStorage.setItem('bbdrts_tour_force_launch', 'true');
+                          onStartTour();
+                          showSuccess('Interactive onboarding walkthrough restarted.', 'Tour Launched');
+                        } catch (_) {}
+                      }}
+                    >
+                      <span>Replay Tour</span>
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
@@ -3087,553 +3073,401 @@ export default function SettingsPanel({
       )}
 
       {/* ══════════════════════════════════════════════════════════════════
-          TAB 4: SECURITY & SYSTEM STATUS
+          TAB 4: SECURITY (CREDENTIALS, 2FA, SESSIONS, DANGER ZONE)
           ══════════════════════════════════════════════════════════════════ */}
       {activeTab === 'security' && (
-        <div className="bbdrts-settings-pane">
+        <div className="bbdrts-settings-pane vs-pane">
 
-          {/* ── Active Account Deletion Grace Period Banner ── */}
+          {/* Grace Period Banner (Shown only when account deletion is scheduled) */}
           {currentUser?.deletion_scheduled_at && (
-            <div className="deletion-grace-banner">
-              <div className="deletion-grace-info">
-                <span className="material-symbols-outlined deletion-grace-icon">warning</span>
-                <div>
-                  <div className="deletion-grace-title">
-                    Account Deletion Scheduled · 30-Day Grace Period Active
-                  </div>
-                  <div className="deletion-grace-desc">
-                    Your account is scheduled for permanent deactivation on{' '}
-                    <strong style={{ color: '#f59e0b' }}>
-                      {new Date(currentUser.deletion_effective_at || Date.now()).toLocaleDateString('en-US', {
-                        timeZone: 'Asia/Manila',
-                        year: 'numeric',
-                        month: 'long',
-                        day: 'numeric'
-                      })}
-                    </strong>{' '}
-                    ({Math.max(1, Math.ceil((new Date(currentUser.deletion_effective_at) - new Date()) / 86400000))} days remaining).
-                    Historical blockchain transactions and donation proofs remain archived in compliance records (Philippine RA 10173). You can cancel deletion anytime before the deadline.
-                  </div>
+            <div className="vs-grace-banner">
+              <div className="vs-grace-info">
+                <div className="vs-grace-title">
+                  Account Deletion Scheduled · 30-Day Grace Period Active
                 </div>
+                <p className="vs-grace-desc">
+                  Scheduled for permanent deactivation on{' '}
+                  <strong>
+                    {new Date(currentUser.deletion_effective_at || Date.now()).toLocaleDateString('en-US', {
+                      timeZone: 'Asia/Manila',
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric'
+                    })}
+                  </strong>{' '}
+                  ({Math.max(1, Math.ceil((new Date(currentUser.deletion_effective_at) - new Date()) / 86400000))} days remaining).
+                  On-chain donation proofs remain archived under RA 10173.
+                </p>
               </div>
               <button
                 type="button"
-                className="btn-modern-primary"
+                className="vs-primary-btn"
                 onClick={handleCancelAccountDeletion}
                 disabled={cancellingDeletion}
-                style={{ flexShrink: 0, padding: '8px 16px', fontSize: '0.80rem' }}
               >
-                {cancellingDeletion ? (
-                  <>
-                    <span className="material-symbols-outlined bbdrts-spin" style={{ fontSize: '14px' }}>sync</span>
-                    <span>Restoring...</span>
-                  </>
-                ) : (
-                  <>
-                    <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>undo</span>
-                    <span>Cancel Deletion &amp; Restore</span>
-                  </>
-                )}
+                <span>{cancellingDeletion ? 'Restoring...' : 'Cancel Deletion'}</span>
               </button>
             </div>
           )}
 
-          {/* Change Account Password Card */}
-          <div className="bbdrts-settings-card">
-            <div className="bbdrts-settings-card-header">
-              <div className="bbdrts-settings-card-title-wrap">
-                <h4 className="bbdrts-settings-card-title">
-                  <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#16a34a' }}>lock</span>
-                  Change Account Password
-                </h4>
-                <p className="bbdrts-settings-card-desc">
-                  Update your authentication credentials. Passwords are encrypted using bcrypt hashing with salted rounds.
+          {/* Card 1: Sign-In & Credentials (Primary Email + Change Password) */}
+          <div className="vs-card">
+            <div className="vs-card-head">
+              <div>
+                <h4 className="vs-card-title">Sign-In &amp; Credentials</h4>
+                <p className="vs-card-desc">
+                  Manage your verified login email and account password.
                 </p>
               </div>
             </div>
 
-            <form onSubmit={handleChangePassword} className="bbdrts-password-section">
-              {/* Row 1: Current Password */}
-              <div className="bbdrts-field-group">
-                <label className="bbdrts-form-label">Current Password</label>
-                <div className="bbdrts-input-wrap">
-                  <input
-                    type={showCurrentPassword ? 'text' : 'password'}
-                    className="bbdrts-settings-input"
-                    placeholder="Enter current password"
-                    value={currentPassword}
-                    onChange={(e) => setCurrentPassword(e.target.value)}
-                    autoComplete="current-password"
-                  />
-                  <button
-                    type="button"
-                    className="bbdrts-input-eye-btn"
-                    onClick={() => setShowCurrentPassword(p => !p)}
-                    tabIndex="-1"
-                    title={showCurrentPassword ? 'Hide password' : 'Show password'}
-                  >
-                    <span className="material-symbols-outlined" style={{ fontSize: '17px' }}>
-                      {showCurrentPassword ? 'visibility_off' : 'visibility'}
-                    </span>
-                  </button>
+            {/* Primary Email Sub-Row */}
+            <div className="vs-action-row vs-border-bottom">
+              <div className="vs-toggle-info">
+                <div className="vs-inline-status">
+                  <span className="vs-toggle-label">{currentUser?.email || 'Authorized User Email'}</span>
+                  <span className="vs-mini-pill">
+                    <span className="vs-live-dot" />
+                    <span>Verified</span>
+                  </span>
                 </div>
+                <span className="vs-toggle-desc">
+                  Primary login handle. Updating requires verification of the new address with an emergency cancel alert.
+                </span>
               </div>
+              <button
+                type="button"
+                className="vs-subtle-btn"
+                onClick={() => {
+                  setNewEmailInput('');
+                  setEmailChangePassword('');
+                  setEmailChangeSuccess(false);
+                  setShowEmailChangeModal(true);
+                }}
+              >
+                <span>Change Email</span>
+              </button>
+            </div>
 
-              {/* Row 2: New Password & Confirm Password (2-column responsive layout) */}
-              <div className="bbdrts-password-grid">
-                {/* New Password */}
-                <div className="bbdrts-field-group">
-                  <div className="bbdrts-label-with-meta">
-                    <label className="bbdrts-form-label">New Password</label>
-                    {newPassword && (
-                      <span className="bbdrts-pwd-strength-badge" style={{ color: newPwdStrength.color }}>
-                        {newPwdStrength.label}
-                      </span>
-                    )}
-                  </div>
-                  <div className="bbdrts-input-wrap">
+            {/* Password Update Form */}
+            <form onSubmit={handleChangePassword}>
+              <div className="vs-form-body">
+                <div className="vs-section-label" style={{ marginBottom: '12px' }}>Update Password</div>
+
+                <div className="vs-form-field">
+                  <label className="vs-field-lbl">Current Password</label>
+                  <div className="vs-input-wrap">
                     <input
-                      type={showNewPassword ? 'text' : 'password'}
-                      className="bbdrts-settings-input"
-                      placeholder="Min. 6 characters"
-                      value={newPassword}
-                      onChange={(e) => setNewPassword(e.target.value)}
-                      autoComplete="new-password"
+                      type={showCurrentPassword ? 'text' : 'password'}
+                      className="vs-input"
+                      placeholder="Enter current password"
+                      value={currentPassword}
+                      onChange={(e) => setCurrentPassword(e.target.value)}
+                      autoComplete="current-password"
                     />
                     <button
                       type="button"
-                      className="bbdrts-input-eye-btn"
-                      onClick={() => setShowNewPassword(p => !p)}
+                      className="vs-input-eye"
+                      onClick={() => setShowCurrentPassword(p => !p)}
                       tabIndex="-1"
-                      title={showNewPassword ? 'Hide password' : 'Show password'}
+                      aria-label={showCurrentPassword ? 'Hide password' : 'Show password'}
                     >
-                      <span className="material-symbols-outlined" style={{ fontSize: '17px' }}>
-                        {showNewPassword ? 'visibility_off' : 'visibility'}
+                      <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>
+                        {showCurrentPassword ? 'visibility_off' : 'visibility'}
                       </span>
                     </button>
                   </div>
+                </div>
 
-                  {/* Password Strength Progress Bar */}
-                  {newPassword && (
-                    <div className="bbdrts-pwd-strength-track">
-                      <div
-                        className="bbdrts-pwd-strength-fill"
-                        style={{
-                          width: `${newPwdStrength.percent}%`,
-                          backgroundColor: newPwdStrength.color
-                        }}
-                      />
+                <div className="vs-form-grid-2">
+                  <div className="vs-form-field">
+                    <div className="vs-field-lbl-row">
+                      <label className="vs-field-lbl">New Password</label>
+                      {newPassword && (
+                        <span className="vs-strength-lbl" style={{ color: newPwdStrength.color }}>
+                          {newPwdStrength.label}
+                        </span>
+                      )}
                     </div>
-                  )}
+                    <div className="vs-input-wrap">
+                      <input
+                        type={showNewPassword ? 'text' : 'password'}
+                        className="vs-input"
+                        placeholder="Min. 6 characters"
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        autoComplete="new-password"
+                      />
+                      <button
+                        type="button"
+                        className="vs-input-eye"
+                        onClick={() => setShowNewPassword(p => !p)}
+                        tabIndex="-1"
+                        aria-label={showNewPassword ? 'Hide password' : 'Show password'}
+                      >
+                        <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>
+                          {showNewPassword ? 'visibility_off' : 'visibility'}
+                        </span>
+                      </button>
+                    </div>
 
-                  {/* Criteria Checklist Pills */}
-                  <div className="bbdrts-pwd-criteria-row">
-                    <span className={`bbdrts-criteria-pill ${newPassword.length >= 8 ? 'met' : ''}`}>
-                      <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>
-                        {newPassword.length >= 8 ? 'check' : 'circle'}
-                      </span>
-                      8+ chars
-                    </span>
-                    <span className={`bbdrts-criteria-pill ${/[a-z]/.test(newPassword) && /[A-Z]/.test(newPassword) ? 'met' : ''}`}>
-                      <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>
-                        {/[a-z]/.test(newPassword) && /[A-Z]/.test(newPassword) ? 'check' : 'circle'}
-                      </span>
-                      Aa (mixed case)
-                    </span>
-                    <span className={`bbdrts-criteria-pill ${/\d|[^A-Za-z0-9]/.test(newPassword) ? 'met' : ''}`}>
-                      <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>
-                        {/\d|[^A-Za-z0-9]/.test(newPassword) ? 'check' : 'circle'}
-                      </span>
-                      Number / symbol
-                    </span>
+                    {newPassword && (
+                      <div className="vs-strength-track">
+                        <div
+                          className="vs-strength-fill"
+                          style={{
+                            width: `${newPwdStrength.percent}%`,
+                            backgroundColor: newPwdStrength.color
+                          }}
+                        />
+                      </div>
+                    )}
+
+                    <div className="vs-criteria-row">
+                      <span className={`vs-criteria-tag ${newPassword.length >= 8 ? 'is-met' : ''}`}>8+ chars</span>
+                      <span className={`vs-criteria-tag ${/[a-z]/.test(newPassword) && /[A-Z]/.test(newPassword) ? 'is-met' : ''}`}>Mixed case</span>
+                      <span className={`vs-criteria-tag ${/\d|[^A-Za-z0-9]/.test(newPassword) ? 'is-met' : ''}`}>Number / symbol</span>
+                    </div>
+                  </div>
+
+                  <div className="vs-form-field">
+                    <div className="vs-field-lbl-row">
+                      <label className="vs-field-lbl">Confirm New Password</label>
+                      {passwordsMatch && <span className="vs-match-tag is-ok">Match</span>}
+                      {passwordsMismatch && <span className="vs-match-tag is-err">Does not match</span>}
+                    </div>
+                    <div className="vs-input-wrap">
+                      <input
+                        type={showConfirmPassword ? 'text' : 'password'}
+                        className="vs-input"
+                        placeholder="Repeat new password"
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        autoComplete="new-password"
+                      />
+                      <button
+                        type="button"
+                        className="vs-input-eye"
+                        onClick={() => setShowConfirmPassword(p => !p)}
+                        tabIndex="-1"
+                        aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+                      >
+                        <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>
+                          {showConfirmPassword ? 'visibility_off' : 'visibility'}
+                        </span>
+                      </button>
+                    </div>
                   </div>
                 </div>
 
-                {/* Confirm New Password */}
-                <div className="bbdrts-field-group">
-                  <div className="bbdrts-label-with-meta">
-                    <label className="bbdrts-form-label">Confirm New Password</label>
-                    {passwordsMatch && (
-                      <span className="bbdrts-match-pill match">
-                        <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>check_circle</span>
-                        Match
-                      </span>
-                    )}
-                    {passwordsMismatch && (
-                      <span className="bbdrts-match-pill mismatch">
-                        <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>error</span>
-                        Do not match
-                      </span>
-                    )}
-                  </div>
-                  <div className="bbdrts-input-wrap">
-                    <input
-                      type={showConfirmPassword ? 'text' : 'password'}
-                      className="bbdrts-settings-input"
-                      placeholder="Repeat new password"
-                      value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
-                      autoComplete="new-password"
-                    />
-                    <button
-                      type="button"
-                      className="bbdrts-input-eye-btn"
-                      onClick={() => setShowConfirmPassword(p => !p)}
-                      tabIndex="-1"
-                      title={showConfirmPassword ? 'Hide password' : 'Show password'}
-                    >
-                      <span className="material-symbols-outlined" style={{ fontSize: '17px' }}>
-                        {showConfirmPassword ? 'visibility_off' : 'visibility'}
-                      </span>
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              {tfaStatus.enabled && (
-                <div className="bbdrts-field-group" style={{ marginTop: '12px' }}>
-                  <label className="bbdrts-form-label">2FA Authenticator Code (Required)</label>
-                  <div className="bbdrts-input-wrap">
+                {tfaStatus.enabled && (
+                  <div className="vs-form-field">
+                    <label className="vs-field-lbl">2FA Authenticator Code (Required)</label>
                     <input
                       type="text"
                       inputMode="numeric"
                       maxLength={6}
-                      className="bbdrts-settings-input"
-                      placeholder="Enter 6-digit code from authenticator app"
+                      className="vs-input"
+                      placeholder="6-digit code from authenticator app"
                       value={passwordTfaCode}
                       onChange={(e) => setPasswordTfaCode(e.target.value.replace(/[^0-9]/g, '').slice(0, 6))}
                       autoComplete="one-time-code"
                     />
                   </div>
-                </div>
-              )}
+                )}
+              </div>
 
-              {/* Action Bar */}
-              <div className="bbdrts-password-actions-bar">
-                <span className="bbdrts-password-actions-note">
-                  <span className="material-symbols-outlined" style={{ fontSize: '14px', color: '#10b981' }}>verified_user</span>
-                  <span>Bcrypt salted hash with 10 rounds</span>
+              <div className="vs-card-foot">
+                <span className="vs-card-foot-note">
+                  Passwords are encrypted with salted bcrypt hashing (10 rounds).
                 </span>
                 <button
                   type="submit"
-                  className="bbdrts-btn-primary-action"
+                  className="vs-primary-btn vs-primary-btn--sm"
                   disabled={savingPassword || !currentPassword || !newPassword || passwordsMismatch}
                 >
-                  {savingPassword ? (
-                    <>
-                      <span className="material-symbols-outlined bbdrts-spin" style={{ fontSize: '14px' }}>sync</span>
-                      <span>Updating...</span>
-                    </>
-                  ) : (
-                    <>
-                      <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>key</span>
-                      <span>Update Password</span>
-                    </>
-                  )}
+                  <span>{savingPassword ? 'Updating...' : 'Update Password'}</span>
                 </button>
               </div>
             </form>
           </div>
 
-          {/* ══════════════════════════════════════════════════════════════════
-              FEATURE 4: TWO-FACTOR AUTHENTICATION (2FA) CARD
-              ══════════════════════════════════════════════════════════════════ */}
-          <div className="bbdrts-settings-card">
-            <div className="bbdrts-settings-card-header">
-              <div className="bbdrts-settings-card-title-wrap">
-                <h4 className="bbdrts-settings-card-title">
-                  <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#10b981' }}>verified_user</span>
-                  <span>Two-Factor Authentication (2FA)</span>
-                  <span className={`bbdrts-sec-status-badge ${tfaStatus.enabled ? 'active' : 'inactive'}`}>
-                    {tfaStatus.enabled ? '● Active' : '○ Not Enabled'}
-                  </span>
-                </h4>
-                <p className="bbdrts-settings-card-desc">
-                  Require an additional verification code from an authenticator app (Google Authenticator, Microsoft Authenticator, Authy, Apple Keychain) each time you sign in.
+          {/* Card 2: Two-Factor Authentication */}
+          <div className="vs-card">
+            <div className="vs-card-head">
+              <div>
+                <h4 className="vs-card-title">Two-Factor Authentication</h4>
+                <p className="vs-card-desc">
+                  Require a 6-digit TOTP code from an authenticator app whenever you sign in or change credentials.
                 </p>
               </div>
-
-              <div className="bbdrts-settings-card-actions">
-                {tfaStatus.enabled ? (
-                  <button
-                    type="button"
-                    className="vercel-btn-secondary-sm"
-                    onClick={() => {
-                      setTfaDisablePassword('');
-                      setTfaDisableCode('');
-                      setShowTfaDisableModal(true);
-                    }}
-                    style={{ padding: '6px 14px', height: 'auto', fontSize: '0.8rem' }}
-                  >
-                    <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>lock_open</span>
-                    <span>Disable 2FA</span>
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    className="bbdrts-btn-primary-action"
-                    onClick={handleStartTfaSetup}
-                    disabled={tfaSubmitting || tfaLoading}
-                  >
-                    {tfaSubmitting ? (
-                      <>
-                        <span className="material-symbols-outlined bbdrts-spin" style={{ fontSize: '14px' }}>sync</span>
-                        <span>Configuring...</span>
-                      </>
-                    ) : (
-                      <>
-                        <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>qr_code_2</span>
-                        <span>Set Up Authenticator App</span>
-                      </>
-                    )}
-                  </button>
-                )}
+              <div className="vs-standing-pill">
+                <span className={`vs-live-dot ${tfaStatus.enabled ? '' : 'is-off'}`} />
+                <span>{tfaStatus.enabled ? 'Enabled' : 'Off'}</span>
               </div>
             </div>
 
-            <div className="bbdrts-sec-card-body">
+            <div className="vs-action-row">
+              <div className="vs-toggle-info">
+                <span className="vs-toggle-label">
+                  {tfaStatus.enabled ? 'Authenticator App Active' : 'Authenticator App Not Configured'}
+                </span>
+                <span className="vs-toggle-desc">
+                  {tfaStatus.enabled
+                    ? `TOTP enforced on all sign-ins. ${tfaStatus.remainingBackupCodes} of ${tfaStatus.totalBackupCodes || 8} single-use recovery codes remaining.`
+                    : 'Compatible with Google Authenticator, Microsoft Authenticator, Authy, and Apple Passwords.'}
+                </span>
+              </div>
+            </div>
+
+            <div className="vs-card-foot">
+              <span className="vs-card-foot-note">
+                {tfaStatus.enabled ? 'Keep your backup recovery codes stored offline.' : 'Strongly recommended for donor & NGO accounts.'}
+              </span>
               {tfaStatus.enabled ? (
-                <div className="bbdrts-sec-row">
-                  <div className="bbdrts-sec-info">
-                    <span className="bbdrts-sec-label">Authenticator App Configured</span>
-                    <span className="bbdrts-sec-desc">
-                      TOTP verification is enforced on all sign-ins. {tfaStatus.remainingBackupCodes} of {tfaStatus.totalBackupCodes || 8} single-use backup recovery codes remaining.
-                    </span>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span className="material-symbols-outlined" style={{ fontSize: '20px', color: '#10b981' }}>check_circle</span>
-                    <span style={{ fontSize: '0.8rem', color: '#10b981', fontWeight: 600 }}>Protected</span>
-                  </div>
-                </div>
-              ) : (
-                <div className="bbdrts-sec-row">
-                  <div className="bbdrts-sec-info">
-                    <span className="bbdrts-sec-label">Standard Multi-Factor Protection</span>
-                    <span className="bbdrts-sec-desc">
-                      When enabled, your account cannot be accessed without both your password and a time-based verification code generated on your personal mobile device.
-                    </span>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* ══════════════════════════════════════════════════════════════════
-              FEATURE 5: ACTIVE SESSION MANAGEMENT CARD
-              ══════════════════════════════════════════════════════════════════ */}
-          <div className="bbdrts-settings-card">
-            <div className="bbdrts-settings-card-header">
-              <div className="bbdrts-settings-card-title-wrap">
-                <h4 className="bbdrts-settings-card-title">
-                  <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#0ea5e9' }}>devices</span>
-                  <span>Active Sessions &amp; Logged-In Devices</span>
-                  <span className="bbdrts-sec-status-badge active">
-                    {activeSessions.length} Active {activeSessions.length === 1 ? 'Session' : 'Sessions'}
-                  </span>
-                </h4>
-                <p className="bbdrts-settings-card-desc">
-                  View and manage all authenticated sessions across desktop, mobile, and web clients. Terminate unrecognized devices immediately.
-                </p>
-              </div>
-
-              <div className="bbdrts-settings-card-actions">
                 <button
                   type="button"
-                  className="vercel-btn-secondary-sm"
-                  onClick={handleRevokeAllOtherSessions}
-                  disabled={revokingAllOthers || activeSessions.filter(s => !s.isCurrent).length === 0}
-                  style={{ padding: '6px 14px', height: 'auto', fontSize: '0.8rem' }}
-                >
-                  {revokingAllOthers ? (
-                    <>
-                      <span className="material-symbols-outlined bbdrts-spin" style={{ fontSize: '14px' }}>sync</span>
-                      <span>Revoking...</span>
-                    </>
-                  ) : (
-                    <>
-                      <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>logout</span>
-                      <span>Sign Out All Other Sessions</span>
-                    </>
-                  )}
-                </button>
-              </div>
-            </div>
-
-            <div className="bbdrts-sec-card-body">
-              {sessionsLoading ? (
-                <div style={{ padding: '20px', textAlign: 'center', color: 'var(--text-muted, #71717a)', fontSize: '0.85rem' }}>
-                  <span className="material-symbols-outlined bbdrts-spin" style={{ fontSize: '18px', verticalAlign: 'middle', marginRight: '6px' }}>sync</span>
-                  Loading active sessions...
-                </div>
-              ) : activeSessions.length === 0 ? (
-                <div style={{ padding: '16px', color: 'var(--text-muted, #71717a)', fontSize: '0.8rem' }}>
-                  No active session records found.
-                </div>
-              ) : (
-                <div className="bbdrts-sessions-list">
-                  {activeSessions.map((session, idx) => (
-                    <div key={session.sessionId || idx} className="bbdrts-session-card">
-                      <div className="bbdrts-session-left">
-                        <div className="bbdrts-session-icon-wrap">
-                          <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>
-                            {session.deviceType === 'Mobile Phone' ? 'smartphone' : session.deviceType === 'Tablet' ? 'tablet' : 'desktop_windows'}
-                          </span>
-                        </div>
-                        <div className="bbdrts-session-details">
-                          <div className="bbdrts-session-title">
-                            <span>{session.os || 'Unknown OS'} · {session.browser || 'Web Browser'}</span>
-                            {session.isCurrent && (
-                              <span className="bbdrts-current-pill">This Device</span>
-                            )}
-                          </div>
-                          <div className="bbdrts-session-meta">
-                            <span>{session.location || 'Regional Station'}</span>
-                            <span>•</span>
-                            <span>IP: {session.ip || '127.0.0.1'}</span>
-                            <span>•</span>
-                            <span>Active: {session.lastActiveAt ? new Date(session.lastActiveAt).toLocaleString('en-US', { timeZone: 'Asia/Manila', dateStyle: 'short', timeStyle: 'short' }) : 'Now'}</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div>
-                        {session.isCurrent ? (
-                          <span style={{ fontSize: '0.75rem', color: '#10b981', fontWeight: 600 }}>Active Now</span>
-                        ) : (
-                          <button
-                            type="button"
-                            className="vercel-btn-secondary-sm"
-                            onClick={() => handleRevokeSession(session.sessionId)}
-                            disabled={revokingSessionId === session.sessionId}
-                          >
-                            {revokingSessionId === session.sessionId ? (
-                              <span className="material-symbols-outlined bbdrts-spin" style={{ fontSize: '14px' }}>sync</span>
-                            ) : (
-                              <>
-                                <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>close</span>
-                                <span>Revoke</span>
-                              </>
-                            )}
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* ══════════════════════════════════════════════════════════════════
-              FEATURE 7: EMAIL ADDRESS & VERIFICATION MANAGEMENT CARD
-              ══════════════════════════════════════════════════════════════════ */}
-          <div className="bbdrts-settings-card">
-            <div className="bbdrts-settings-card-header">
-              <div className="bbdrts-settings-card-title-wrap">
-                <h4 className="bbdrts-settings-card-title">
-                  <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#8b5cf6' }}>alternate_email</span>
-                  <span>Primary Account Email</span>
-                  <span className="bbdrts-sec-status-badge active">
-                    ● Verified
-                  </span>
-                </h4>
-                <p className="bbdrts-settings-card-desc">
-                  Your verified login handle and notification destination. Changing email requires verification of the new address before activation.
-                </p>
-              </div>
-
-              <div className="bbdrts-settings-card-actions">
-                <button
-                  type="button"
-                  className="bbdrts-btn-primary-action"
+                  className="vs-subtle-btn"
                   onClick={() => {
-                    setNewEmailInput('');
-                    setEmailChangePassword('');
-                    setEmailChangeSuccess(false);
-                    setShowEmailChangeModal(true);
+                    setTfaDisablePassword('');
+                    setTfaDisableCode('');
+                    setShowTfaDisableModal(true);
                   }}
                 >
-                  <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>edit</span>
-                  <span>Change Email</span>
+                  <span>Disable 2FA</span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="vs-primary-btn vs-primary-btn--sm"
+                  onClick={handleStartTfaSetup}
+                  disabled={tfaSubmitting || tfaLoading}
+                >
+                  <span>{tfaSubmitting ? 'Configuring...' : 'Set Up Authenticator'}</span>
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Card 3: Active Sessions */}
+          <div className="vs-card">
+            <div className="vs-card-head">
+              <div>
+                <h4 className="vs-card-title">Active Sessions</h4>
+                <p className="vs-card-desc">
+                  Devices currently authenticated to your account. Revoke unrecognized sessions immediately.
+                </p>
+              </div>
+              <button
+                type="button"
+                className="vs-subtle-btn"
+                onClick={handleRevokeAllOtherSessions}
+                disabled={revokingAllOthers || activeSessions.filter(s => !s.isCurrent).length === 0}
+              >
+                <span>{revokingAllOthers ? 'Signing out...' : 'Sign Out Other Devices'}</span>
+              </button>
+            </div>
+
+            <div className="vs-sessions-list">
+              {sessionsLoading ? (
+                <div className="vs-empty-note">Loading active sessions...</div>
+              ) : activeSessions.length === 0 ? (
+                <div className="vs-empty-note">No active session records found.</div>
+              ) : (
+                activeSessions.map((session, idx) => (
+                  <div key={session.sessionId || idx} className="vs-session-row">
+                    <div className="vs-session-left">
+                      <span className="vs-session-icon">
+                        <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>
+                          {session.deviceType === 'Mobile Phone' ? 'smartphone' : session.deviceType === 'Tablet' ? 'tablet' : 'desktop_windows'}
+                        </span>
+                      </span>
+                      <div className="vs-session-info">
+                        <div className="vs-inline-status">
+                          <span className="vs-toggle-label">{session.os || 'Unknown OS'} · {session.browser || 'Web Browser'}</span>
+                          {session.isCurrent && (
+                            <span className="vs-mini-pill">
+                              <span className="vs-live-dot" />
+                              <span>This Device</span>
+                            </span>
+                          )}
+                        </div>
+                        <div className="vs-session-meta">
+                          <span>{session.location || 'Regional Station'}</span>
+                          <span>·</span>
+                          <span className="vs-id-code">{session.ip || '127.0.0.1'}</span>
+                          <span>·</span>
+                          <span>
+                            {session.lastActiveAt
+                              ? new Date(session.lastActiveAt).toLocaleString('en-US', { timeZone: 'Asia/Manila', dateStyle: 'short', timeStyle: 'short' })
+                              : 'Active now'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {!session.isCurrent && (
+                      <button
+                        type="button"
+                        className="vs-subtle-btn"
+                        onClick={() => handleRevokeSession(session.sessionId)}
+                        disabled={revokingSessionId === session.sessionId}
+                      >
+                        <span>{revokingSessionId === session.sessionId ? 'Revoking...' : 'Revoke'}</span>
+                      </button>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          {/* Card 4: Unified Danger Zone (Sign Out + Delete Account) */}
+          <div className="vs-card vs-danger-zone">
+            <div className="vs-card-head">
+              <div>
+                <h4 className="vs-card-title vs-danger-title">Danger Zone</h4>
+                <p className="vs-card-desc">
+                  Session termination and permanent account lifecycle controls.
+                </p>
+              </div>
+            </div>
+
+            <div className="vs-toggle-list">
+              <div className="vs-action-row">
+                <div className="vs-toggle-info">
+                  <span className="vs-toggle-label">Sign Out</span>
+                  <span className="vs-toggle-desc">End your active session on this browser. You can sign back in anytime.</span>
+                </div>
+                <button
+                  type="button"
+                  className="vs-subtle-btn"
+                  onClick={handleLogout}
+                >
+                  <span>Sign Out</span>
                 </button>
               </div>
-            </div>
 
-            <div className="bbdrts-sec-card-body">
-              <div className="bbdrts-sec-row">
-                <div className="bbdrts-sec-info">
-                  <span className="bbdrts-sec-label">{currentUser?.email || 'Authorized User Email'}</span>
-                  <span className="bbdrts-sec-desc">
-                    Dual verification safeguard: an alert is sent to this address with an emergency cancel option whenever an update is requested.
+              <div className="vs-action-row">
+                <div className="vs-toggle-info">
+                  <span className="vs-toggle-label">Delete Account</span>
+                  <span className="vs-toggle-desc">
+                    30-day grace period with 1-click restoration. Historical blockchain proofs remain archived per RA 10173.
                   </span>
                 </div>
-              </div>
-            </div>
-          </div>
-
-          {/* System Health Overview */}
-          <div className="bbdrts-settings-card">
-            <div className="bbdrts-settings-card-header">
-              <div className="bbdrts-settings-card-title-wrap">
-                <h4 className="bbdrts-settings-card-title">
-                  <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#16a34a' }}>health_and_safety</span>
-                  Real-Time System &amp; Infrastructure Health
-                </h4>
-                <p className="bbdrts-settings-card-desc">
-                  Status of blockchain nodes, smart contracts, and database synchronization.
-                </p>
-              </div>
-            </div>
-
-            <div className="bbdrts-diag-list">
-              <div className="bbdrts-diag-item">
-                <span className="bbdrts-diag-label">Sepolia EVM RPC Gateway:</span>
-                <span className="bbdrts-diag-value status-ok">● Connected &amp; Operational</span>
-              </div>
-              <div className="bbdrts-diag-item">
-                <span className="bbdrts-diag-label">Smart Contract Milestone Vault:</span>
-                <span className="bbdrts-diag-value status-ok">● Active (OpenZeppelin Secure)</span>
-              </div>
-              <div className="bbdrts-diag-item">
-                <span className="bbdrts-diag-label">Relief Ledger Database:</span>
-                <span className="bbdrts-diag-value status-ok">● Synchronized</span>
-              </div>
-              <div className="bbdrts-diag-item">
-                <span className="bbdrts-diag-label">Authentication Session:</span>
-                <span className="bbdrts-diag-value">JWT Secure Session (Active)</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Account Danger Zone: Deletion & Sign Out */}
-          <div className="bbdrts-settings-card bbdrts-danger-card">
-            <div className="bbdrts-settings-card-header">
-              <div className="bbdrts-settings-card-title-wrap">
-                <h4 className="bbdrts-settings-card-title" style={{ color: '#ef4444' }}>
-                  <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#ef4444' }}>person_remove</span>
-                  <span>Request Account Deletion (30-Day Grace Period)</span>
-                </h4>
-                <p className="bbdrts-settings-card-desc">
-                  Initiate permanent account closure. Your account enters a mandatory 30-day grace period with instant 1-click restoration upon login. All historical transactions and donation proofs remain archived in administrative compliance records (Philippine RA 10173).
-                </p>
-              </div>
-
-              <div className="bbdrts-settings-card-actions">
                 {currentUser?.deletion_scheduled_at ? (
                   <button
                     type="button"
-                    className="btn-modern-primary"
+                    className="vs-subtle-btn"
                     onClick={handleCancelAccountDeletion}
                     disabled={cancellingDeletion}
-                    style={{ padding: '6px 14px', height: 'auto', fontSize: '0.8rem' }}
                   >
-                    <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>undo</span>
-                    <span>Cancel Pending Deletion</span>
+                    <span>Cancel Deletion</span>
                   </button>
                 ) : (
                   <button
                     type="button"
-                    className="btn-modern-outline-danger"
+                    className="vs-danger-btn"
                     onClick={() => {
                       setDeleteConfirmationPhrase('');
                       setDeletePassword('');
@@ -3641,38 +3475,10 @@ export default function SettingsPanel({
                       setDeleteWizardStep(1);
                       setShowDeleteAccountModal(true);
                     }}
-                    style={{ padding: '6px 14px', height: 'auto', fontSize: '0.8rem' }}
                   >
-                    <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>delete_forever</span>
                     <span>Request Deletion</span>
                   </button>
                 )}
-              </div>
-            </div>
-          </div>
-
-          <div className="bbdrts-settings-card bbdrts-danger-card">
-            <div className="bbdrts-settings-card-header">
-              <div className="bbdrts-settings-card-title-wrap">
-                <h4 className="bbdrts-settings-card-title" style={{ color: '#ef4444' }}>
-                  <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#ef4444' }}>logout</span>
-                  <span>Sign Out of Account</span>
-                </h4>
-                <p className="bbdrts-settings-card-desc">
-                  Safely conclude your active session. You can sign back in at any time.
-                </p>
-              </div>
-
-              <div className="bbdrts-settings-card-actions">
-                <button
-                  type="button"
-                  className="bbdrts-danger-btn"
-                  onClick={handleLogout}
-                  style={{ padding: '6px 14px', height: 'auto', fontSize: '0.8rem' }}
-                >
-                  <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>logout</span>
-                  <span>Sign Out</span>
-                </button>
               </div>
             </div>
           </div>
