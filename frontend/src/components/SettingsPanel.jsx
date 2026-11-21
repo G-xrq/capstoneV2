@@ -1558,106 +1558,207 @@ export default function SettingsPanel({
                   </div>
                 </div>
               )}
+
+              {/* NGO Right Column: Regulatory Accreditation + Payout Receiving Rails (Fixes Empty Right Column) */}
+              {isOrg && (
+                <>
+                  <div className="vs-card">
+                    <div className="vs-card-head">
+                      <div>
+                        <h4 className="vs-card-title">Regulatory Accreditation</h4>
+                        <p className="vs-card-desc">
+                          Verified legal registration and emergency dispatch contact.
+                        </p>
+                      </div>
+                      <span className="vs-standing-pill">
+                        <span className="vs-live-dot" />
+                        <span>{currentUser?.verification_status || currentUser?.Verification_Status || 'Verified'}</span>
+                      </span>
+                    </div>
+
+                    <div className="vs-kv-list">
+                      <div className="vs-kv-row vs-kv-row--compact">
+                        <span className="vs-kv-key">SEC Reg. No.</span>
+                        <span className="vs-kv-val vs-mono-val">
+                          {currentUser?.sec_registration_no || currentUser?.Sec_Registration_No || (
+                            <span className="vs-muted-inline">Pending submission</span>
+                          )}
+                        </span>
+                      </div>
+                      <div className="vs-kv-row vs-kv-row--compact">
+                        <span className="vs-kv-key">DSWD Accredit.</span>
+                        <span className="vs-kv-val vs-mono-val">
+                          {currentUser?.dswd_accreditation_no || currentUser?.Dswd_Accreditation_No || (
+                            <span className="vs-muted-inline">Pending submission</span>
+                          )}
+                        </span>
+                      </div>
+                      <div className="vs-kv-row vs-kv-row--compact">
+                        <span className="vs-kv-key">24/7 Hotline</span>
+                        <span className="vs-kv-val">
+                          {ngoHotline || currentUser?.emergency_hotline || currentUser?.Emergency_Hotline || (
+                            <span className="vs-muted-inline">Not configured</span>
+                          )}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="vs-card-foot">
+                      <span className="vs-card-foot-note">Update regulatory IDs via Edit Profile.</span>
+                      <button
+                        type="button"
+                        className="vs-subtle-btn"
+                        onClick={() => setEditModalOpen(true)}
+                      >
+                        Manage
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="vs-card">
+                    <div className="vs-card-head">
+                      <div>
+                        <h4 className="vs-card-title">Payout Receiving Rails</h4>
+                        <p className="vs-card-desc">
+                          Active disbursement channels routed to donor checkout.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="vs-kv-list">
+                      <div className="vs-kv-row vs-kv-row--compact">
+                        <span className="vs-kv-key">GCash Rail</span>
+                        <span className="vs-kv-val vs-inline-status">
+                          <span className={`vs-live-dot ${(currentUser?.gcash_number || currentUser?.Gcash_Number) ? '' : 'is-off'}`} />
+                          <span>
+                            {(currentUser?.gcash_number || currentUser?.Gcash_Number)
+                              ? formatPhoneNumber(currentUser?.gcash_number || currentUser?.Gcash_Number)
+                              : 'Not configured'}
+                          </span>
+                        </span>
+                      </div>
+                      <div className="vs-kv-row vs-kv-row--compact">
+                        <span className="vs-kv-key">Maya Rail</span>
+                        <span className="vs-kv-val vs-inline-status">
+                          <span className={`vs-live-dot ${(currentUser?.maya_number || currentUser?.Maya_Number) ? '' : 'is-off'}`} />
+                          <span>
+                            {(currentUser?.maya_number || currentUser?.Maya_Number)
+                              ? formatPhoneNumber(currentUser?.maya_number || currentUser?.Maya_Number)
+                              : 'Not configured'}
+                          </span>
+                        </span>
+                      </div>
+                      <div className="vs-kv-row vs-kv-row--compact">
+                        <span className="vs-kv-key">Bank Transfer</span>
+                        <span className="vs-kv-val vs-inline-status">
+                          <span className={`vs-live-dot ${(currentUser?.bank_account_number || currentUser?.Bank_Account_Number || currentUser?.bank_name || currentUser?.bank_details) ? '' : 'is-off'}`} />
+                          <span>
+                            {(currentUser?.bank_name || currentUser?.Bank_Name)
+                              ? (currentUser?.bank_name || currentUser?.Bank_Name)
+                              : (currentUser?.bank_details ? 'Configured' : 'Not configured')}
+                          </span>
+                        </span>
+                      </div>
+                      <div className="vs-kv-row vs-kv-row--compact">
+                        <span className="vs-kv-key">Sepolia Audit</span>
+                        <span className="vs-kv-val vs-inline-status">
+                          <span className="vs-live-dot" />
+                          <span>Gasless Relayer Active</span>
+                        </span>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      className="vs-card-foot-action"
+                      onClick={() => setActiveTab('qr_library')}
+                    >
+                      <span>Manage QR &amp; Payout Library ({savedQrList.length} saved)</span>
+                      <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>arrow_forward</span>
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           </div>
 
-          {/* NGO Profile Inputs & Information Studio (Dedicated In-Place Inputs) */}
+          {/* NGO Public Organization Profile Studio (Clean Vercel Card Rework) */}
           {(isOrg || showNgoInputs) && (
-            <div className="bbdrts-settings-card bbdrts-ngo-studio-card">
-              <div className="bbdrts-settings-card-header">
-                <div className="bbdrts-settings-card-title-wrap">
-                  <h4 className="bbdrts-settings-card-title">
-                    <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#10b981' }}>domain_verification</span>
-                    Organization Profile Inputs &amp; Public Information Studio
-                  </h4>
-                  <p className="bbdrts-settings-card-desc">
-                    Fill up your institutional details, relief capabilities, operations base, and dispatch coordinates displayed on your public profile.
+            <div className="vs-card">
+              <div className="vs-card-head">
+                <div>
+                  <h4 className="vs-card-title">Public Organization Profile Studio</h4>
+                  <p className="vs-card-desc">
+                    Configure institutional details, response capabilities, and headquarters dispatch info displayed on your public NGO profile.
                   </p>
                 </div>
 
-                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                  <button
-                    type="button"
-                    className="bbdrts-btn-outline"
-                    onClick={() => {
-                      setSelectedNgoId(isOrg ? (currentUser?.id || 8) : 8);
-                      setPreviewNgoModalOpen(true);
-                    }}
-                    title="Preview how these details appear on the live public profile modal"
-                  >
-                    <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>visibility</span>
-                    <span>Preview Public Profile</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    className="bbdrts-btn-primary"
-                    onClick={() => handleSaveNgoProfile(isOrg ? currentUser?.id : 8)}
-                    disabled={savingNgoProfile}
-                  >
-                    <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>
-                      {savingNgoProfile ? 'sync' : 'save'}
-                    </span>
-                    <span>{savingNgoProfile ? 'Publishing...' : 'Save Profile Changes'}</span>
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  className="vs-subtle-btn"
+                  onClick={() => {
+                    setSelectedNgoId(isOrg ? (currentUser?.id || 8) : 8);
+                    setPreviewNgoModalOpen(true);
+                  }}
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>visibility</span>
+                  <span>Preview Public Profile</span>
+                </button>
               </div>
 
-              {/* In-Place Inputs Form */}
-              <div className="bbdrts-settings-input-grid">
-
-                {/* Mission Statement (Full Width Textarea) */}
-                <div className="bbdrts-settings-field-box" style={{ gridColumn: '1 / -1' }}>
-                  <label className="bbdrts-settings-field-label">Humanitarian Mission &amp; Core Mandate</label>
+              <div className="vs-form-body">
+                {/* Mission Statement */}
+                <div className="vs-form-field">
+                  <div className="vs-field-lbl-row">
+                    <label className="vs-field-lbl">Humanitarian Mission &amp; Core Mandate</label>
+                    <span className="vs-id-code">{(ngoMission || '').length} / 500</span>
+                  </div>
                   <textarea
-                    className="bbdrts-settings-textarea"
+                    className="vs-textarea"
                     rows={3}
                     value={ngoMission}
                     onChange={(e) => setNgoMission(e.target.value)}
-                    placeholder="Describe your organization's humanitarian mission, emergency relief charter, community focus, and disaster response capabilities..."
+                    placeholder="Describe your organization's humanitarian mission, emergency charter, and disaster response capabilities..."
                     maxLength={500}
                   />
-                  <span className="bbdrts-field-help">Displayed prominently in the profile sidebar and relief mission headers with 'Show more' toggle.</span>
                 </div>
 
-                {/* Headquarters Location */}
-                <div className="bbdrts-settings-field-box">
-                  <label className="bbdrts-settings-field-label">Headquarters Physical Address</label>
-                  <input
-                    type="text"
-                    className="bbdrts-settings-input"
-                    value={ngoLocation}
-                    onChange={(e) => setNgoLocation(e.target.value)}
-                    placeholder="e.g. National Headquarters, 37 EDSA cor. Boni Ave, Mandaluyong City"
-                  />
-                  <span className="bbdrts-field-help">Official headquarters address shown with location pin on map and profile.</span>
+                {/* Headquarters Address & Landmark */}
+                <div className="vs-form-grid-2">
+                  <div className="vs-form-field">
+                    <label className="vs-field-lbl">Headquarters Address</label>
+                    <input
+                      type="text"
+                      className="vs-input vs-input--plain"
+                      value={ngoLocation}
+                      onChange={(e) => setNgoLocation(e.target.value)}
+                      placeholder="e.g. 37 EDSA cor. Boni Ave, Mandaluyong City"
+                    />
+                  </div>
+
+                  <div className="vs-form-field">
+                    <label className="vs-field-lbl">HQ Landmark / Logistics Base</label>
+                    <input
+                      type="text"
+                      className="vs-input vs-input--plain"
+                      value={ngoLandmark}
+                      onChange={(e) => setNgoLandmark(e.target.value)}
+                      placeholder="e.g. Beside City Hall Complex"
+                    />
+                  </div>
                 </div>
 
-                {/* HQ Landmark */}
-                <div className="bbdrts-settings-field-box">
-                  <label className="bbdrts-settings-field-label">Headquarters Landmark / Logistics Base</label>
+                {/* Primary Disaster Focus Areas */}
+                <div className="vs-form-field">
+                  <label className="vs-field-lbl">Primary Disaster Response Focus Areas</label>
                   <input
                     type="text"
-                    className="bbdrts-settings-input"
-                    value={ngoLandmark}
-                    onChange={(e) => setNgoLandmark(e.target.value)}
-                    placeholder="e.g. Near Provincial Capitol / Beside City Hall Complex"
-                  />
-                  <span className="bbdrts-field-help">Landmark directions to assist in-person aid deliveries and logistics dispatch.</span>
-                </div>
-
-                {/* Disaster Focus Areas with Suggestion Chips */}
-                <div className="bbdrts-settings-field-box" style={{ gridColumn: '1 / -1' }}>
-                  <label className="bbdrts-settings-field-label">Primary Disaster Response Focus Areas</label>
-                  <input
-                    type="text"
-                    className="bbdrts-settings-input"
+                    className="vs-input vs-input--plain"
                     value={ngoFocusAreas}
                     onChange={(e) => setNgoFocusAreas(e.target.value)}
-                    placeholder="e.g. Typhoon Relief, Flood Evacuation, Emergency First Aid, Food Logistics, Clean Water"
+                    placeholder="e.g. Typhoon Relief, Flood Evacuation, Emergency First Aid"
                   />
-                  <div className="bbdrts-quick-chips-wrap">
-                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Quick add tags:</span>
+                  <div className="vs-optional-chips" style={{ marginTop: '4px' }}>
                     {[
                       'Typhoon Relief',
                       'Flood Evacuation',
@@ -1667,270 +1768,114 @@ export default function SettingsPanel({
                       'Search & Rescue',
                       'Post-Disaster Rebuilding',
                       'Psychosocial Support'
-                    ].map((tag) => (
-                      <button
-                        key={tag}
-                        type="button"
-                        className="bbdrts-quick-chip"
-                        onClick={() => {
-                          if (!ngoFocusAreas.includes(tag)) {
-                            setNgoFocusAreas(prev => prev ? `${prev}, ${tag}` : tag);
-                          }
-                        }}
-                      >
-                        <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>add</span>
-                        {tag}
-                      </button>
-                    ))}
+                    ].map((tag) => {
+                      const hasTag = (ngoFocusAreas || '').includes(tag);
+                      return (
+                        <button
+                          key={tag}
+                          type="button"
+                          className={`vs-optional-chip ${hasTag ? 'is-selected' : ''}`}
+                          onClick={() => {
+                            if (!hasTag) {
+                              setNgoFocusAreas(prev => prev ? `${prev}, ${tag}` : tag);
+                            }
+                          }}
+                        >
+                          {hasTag ? '✓ ' : '+ '}{tag}
+                        </button>
+                      );
+                    })}
                   </div>
-                  <span className="bbdrts-field-help">Rendered as luminous #{'tag'} pills on the profile sidebar and dispatch center.</span>
                 </div>
 
-                {/* 24/7 Operations Hotline */}
-                <div className="bbdrts-settings-field-box">
-                  <label className="bbdrts-settings-field-label">24/7 Disaster Operations Hotline</label>
-                  <input
-                    type="text"
-                    className="bbdrts-settings-input"
-                    value={ngoHotline}
-                    onChange={(e) => setNgoHotline(e.target.value)}
-                    placeholder="e.g. 143 or (02) 8790-2300"
-                  />
-                  <span className="bbdrts-field-help">Direct emergency hotline with quick-dial click integration.</span>
+                {/* Hotlines & Dispatch Contacts */}
+                <div className="vs-form-grid-2">
+                  <div className="vs-form-field">
+                    <label className="vs-field-lbl">24/7 Disaster Operations Hotline</label>
+                    <input
+                      type="text"
+                      className="vs-input vs-input--plain"
+                      value={ngoHotline}
+                      onChange={(e) => setNgoHotline(e.target.value)}
+                      placeholder="e.g. 143 or (02) 8790-2300"
+                    />
+                  </div>
+
+                  <div className="vs-form-field">
+                    <label className="vs-field-lbl">Dispatch Mobile Contact</label>
+                    <input
+                      type="text"
+                      className="vs-input vs-input--plain"
+                      value={ngoPhone}
+                      onChange={(e) => setNgoPhone(e.target.value)}
+                      placeholder="e.g. 0992 982 4615"
+                    />
+                  </div>
                 </div>
 
-                {/* Secondary Mobile Number */}
-                <div className="bbdrts-settings-field-box">
-                  <label className="bbdrts-settings-field-label">Secondary Dispatch Mobile Contact</label>
-                  <input
-                    type="text"
-                    className="bbdrts-settings-input"
-                    value={ngoPhone}
-                    onChange={(e) => setNgoPhone(e.target.value)}
-                    placeholder="e.g. 09929824615"
-                  />
-                  <span className="bbdrts-field-help">Field coordinator mobile number for operations logistics.</span>
+                {/* Website & Social */}
+                <div className="vs-form-grid-2">
+                  <div className="vs-form-field">
+                    <label className="vs-field-lbl">Official Website URL</label>
+                    <input
+                      type="url"
+                      className="vs-input vs-input--plain"
+                      value={ngoWebsite}
+                      onChange={(e) => setNgoWebsite(e.target.value)}
+                      placeholder="https://www.redcross.org.ph"
+                    />
+                  </div>
+
+                  <div className="vs-form-field">
+                    <label className="vs-field-lbl">Official Social Media Page</label>
+                    <input
+                      type="text"
+                      className="vs-input vs-input--plain"
+                      value={ngoSocialLink}
+                      onChange={(e) => setNgoSocialLink(e.target.value)}
+                      placeholder="https://facebook.com/phredcross"
+                    />
+                  </div>
                 </div>
 
-                {/* Official Website */}
-                <div className="bbdrts-settings-field-box">
-                  <label className="bbdrts-settings-field-label">Official Website URL</label>
-                  <input
-                    type="url"
-                    className="bbdrts-settings-input"
-                    value={ngoWebsite}
-                    onChange={(e) => setNgoWebsite(e.target.value)}
-                    placeholder="https://www.redcross.org.ph"
-                  />
-                  <span className="bbdrts-field-help">Official institutional portal with external verification link.</span>
-                </div>
+                {/* Leadership & Banner URL */}
+                <div className="vs-form-grid-2">
+                  <div className="vs-form-field">
+                    <label className="vs-field-lbl">Executive Leadership &amp; Signatories</label>
+                    <input
+                      type="text"
+                      className="vs-input vs-input--plain"
+                      value={ngoLeadOfficer}
+                      onChange={(e) => setNgoLeadOfficer(e.target.value)}
+                      placeholder="Authorized executive officers"
+                    />
+                  </div>
 
-                {/* Social Media Channel */}
-                <div className="bbdrts-settings-field-box">
-                  <label className="bbdrts-settings-field-label">Official Social Media Page</label>
-                  <input
-                    type="text"
-                    className="bbdrts-settings-input"
-                    value={ngoSocialLink}
-                    onChange={(e) => setNgoSocialLink(e.target.value)}
-                    placeholder="https://facebook.com/phredcross or @philredcross"
-                  />
-                  <span className="bbdrts-field-help">Official Facebook, X (Twitter), or LinkedIn channel.</span>
+                  <div className="vs-form-field">
+                    <label className="vs-field-lbl">Hero Cover Banner URL</label>
+                    <input
+                      type="text"
+                      className="vs-input vs-input--plain"
+                      value={ngoBannerUrl}
+                      onChange={(e) => setNgoBannerUrl(e.target.value)}
+                      placeholder="https://... or data:image/..."
+                    />
+                  </div>
                 </div>
-
-                {/* Executive Leadership */}
-                <div className="bbdrts-settings-field-box">
-                  <label className="bbdrts-settings-field-label">Executive Leadership &amp; Signatories</label>
-                  <input
-                    type="text"
-                    className="bbdrts-settings-input"
-                    value={ngoLeadOfficer}
-                    onChange={(e) => setNgoLeadOfficer(e.target.value)}
-                    placeholder="e.g. Richard Gordon (Chairman) &amp; Gwendolyn Pang (SecGen)"
-                  />
-                  <span className="bbdrts-field-help">Authorized signatories and accountable executive officers.</span>
-                </div>
-
-                {/* Hero Cover Banner URL */}
-                <div className="bbdrts-settings-field-box">
-                  <label className="bbdrts-settings-field-label">Organization Hero Banner Image URL</label>
-                  <input
-                    type="text"
-                    className="bbdrts-settings-input"
-                    value={ngoBannerUrl}
-                    onChange={(e) => setNgoBannerUrl(e.target.value)}
-                    placeholder="https://... or data:image/..."
-                  />
-                  <span className="bbdrts-field-help">High-resolution banner displayed across the top of the profile sidebar.</span>
-                </div>
-
               </div>
 
-              {/* Bottom Action Footer */}
-              <div style={{ marginTop: '16px', display: 'flex', justifyContent: 'flex-end', gap: '8px', borderTop: '1px solid var(--border)', paddingTop: '12px' }}>
+              <div className="vs-card-foot">
+                <span className="vs-card-foot-note">
+                  Published changes appear immediately on your live public NGO audit profile.
+                </span>
                 <button
                   type="button"
-                  className="bbdrts-btn-outline"
-                  onClick={() => {
-                    setSelectedNgoId(isOrg ? (currentUser?.id || 8) : 8);
-                    setPreviewNgoModalOpen(true);
-                  }}
-                >
-                  <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>visibility</span>
-                  <span>View Public Profile</span>
-                </button>
-
-                <button
-                  type="button"
-                  className="bbdrts-btn-primary"
+                  className="vs-primary-btn vs-primary-btn--sm"
                   onClick={() => handleSaveNgoProfile(isOrg ? currentUser?.id : 8)}
                   disabled={savingNgoProfile}
                 >
-                  <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>
-                    {savingNgoProfile ? 'sync' : 'save'}
-                  </span>
-                  <span>{savingNgoProfile ? 'Publishing...' : 'Save Profile Changes'}</span>
+                  <span>{savingNgoProfile ? 'Saving...' : 'Save Profile Changes'}</span>
                 </button>
-              </div>
-            </div>
-          )}
-
-          {/* Donor Philanthropic Standing Card (Donors Only) */}
-          {/* NGO Regulatory Accreditation & Payout Rails (NGOs Only) */}
-          {isOrg && (
-            <div className="bbdrts-settings-card">
-              <div className="bbdrts-settings-card-header">
-                <div className="bbdrts-settings-card-title-wrap">
-                  <h4 className="bbdrts-settings-card-title">
-                    <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#16a34a' }}>verified_user</span>
-                    Accreditation & Payout Receiving Rails
-                  </h4>
-                  <p className="bbdrts-settings-card-desc">
-                    Official regulatory registration and active payout channels for emergency relief disbursements.
-                  </p>
-                </div>
-
-                <button
-                  type="button"
-                  className="bbdrts-btn-outline"
-                  onClick={() => setEditModalOpen(true)}
-                  title="Update your payout numbers, QR codes, or accreditation numbers in Edit Profile"
-                >
-                  <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>payments</span>
-                  <span>Manage Rails</span>
-                </button>
-              </div>
-
-              {/* Regulatory Accreditations Grid */}
-              <div className="bbdrts-profile-fields-grid" style={{ marginBottom: '16px' }}>
-                <div className="bbdrts-profile-field-item">
-                  <span className="bbdrts-profile-field-label">SEC Registration No.</span>
-                  <span className="bbdrts-profile-field-value">
-                    {currentUser?.sec_registration_no || currentUser?.Sec_Registration_No || (
-                      <span className="bbdrts-field-not-set">Pending Submission</span>
-                    )}
-                  </span>
-                </div>
-
-                <div className="bbdrts-profile-field-item">
-                  <span className="bbdrts-profile-field-label">DSWD Accreditation No.</span>
-                  <span className="bbdrts-profile-field-value">
-                    {currentUser?.dswd_accreditation_no || currentUser?.Dswd_Accreditation_No || (
-                      <span className="bbdrts-field-not-set">Pending Submission</span>
-                    )}
-                  </span>
-                </div>
-
-                <div className="bbdrts-profile-field-item">
-                  <span className="bbdrts-profile-field-label">Verification Standing</span>
-                  <span className="bbdrts-profile-field-value" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <span className="material-symbols-outlined" style={{ fontSize: '15px', color: '#16a34a' }}>check_circle</span>
-                    <strong style={{ color: '#16a34a' }}>{currentUser?.verification_status || currentUser?.Verification_Status || 'Verified'}</strong>
-                  </span>
-                </div>
-
-                <div className="bbdrts-profile-field-item">
-                  <span className="bbdrts-profile-field-label">Emergency Hotline</span>
-                  <span className="bbdrts-profile-field-value">
-                    {currentUser?.emergency_hotline || currentUser?.Emergency_Hotline || (
-                      <span className="bbdrts-field-not-set">Not configured</span>
-                    )}
-                  </span>
-                </div>
-              </div>
-
-              {/* Active Payout Channels Chips & QR Library Link */}
-              <div style={{ borderTop: '1px solid var(--border)', paddingTop: '14px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
-                  <div style={{ fontSize: '0.74rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                    Receiving Channels &amp; Payout Rails
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setActiveTab('qr_library')}
-                    style={{
-                      background: 'rgba(0, 125, 254, 0.1)',
-                      border: '1px solid rgba(0, 125, 254, 0.25)',
-                      color: '#007dfe',
-                      padding: '4px 10px',
-                      borderRadius: '6px',
-                      fontSize: '0.74rem',
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '5px'
-                    }}
-                  >
-                    <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>qr_code_2</span>
-                    <span>Manage Reusable QR Library ({savedQrList.length} saved)</span>
-                  </button>
-                </div>
-                <div className="bbdrts-rails-grid">
-                  <div className={`bbdrts-rail-chip ${(currentUser?.gcash_number || currentUser?.Gcash_Number) ? 'active' : ''}`}>
-                    <span className="material-symbols-outlined" style={{ fontSize: '20px', color: '#007dfe' }}>qr_code_2</span>
-                    <div>
-                      <div className="bbdrts-rail-title">GCash Rail</div>
-                      <div className="bbdrts-rail-sub">
-                        {(currentUser?.gcash_number || currentUser?.Gcash_Number)
-                          ? `Active (${formatPhoneNumber(currentUser?.gcash_number || currentUser?.Gcash_Number)})`
-                          : 'Not configured'}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className={`bbdrts-rail-chip ${(currentUser?.maya_number || currentUser?.Maya_Number) ? 'active' : ''}`}>
-                    <span className="material-symbols-outlined" style={{ fontSize: '20px', color: '#00c389' }}>account_balance_wallet</span>
-                    <div>
-                      <div className="bbdrts-rail-title">Maya Rail</div>
-                      <div className="bbdrts-rail-sub">
-                        {(currentUser?.maya_number || currentUser?.Maya_Number)
-                          ? `Active (${formatPhoneNumber(currentUser?.maya_number || currentUser?.Maya_Number)})`
-                          : 'Not configured'}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className={`bbdrts-rail-chip ${(currentUser?.bank_account_number || currentUser?.Bank_Account_Number || currentUser?.bank_name || currentUser?.bank_details) ? 'active' : ''}`}>
-                    <span className="material-symbols-outlined" style={{ fontSize: '20px', color: '#8b5cf6' }}>account_balance</span>
-                    <div>
-                      <div className="bbdrts-rail-title">Bank Transfer</div>
-                      <div className="bbdrts-rail-sub">
-                        {(currentUser?.bank_name || currentUser?.Bank_Name)
-                          ? `${currentUser?.bank_name || currentUser?.Bank_Name}`
-                          : (currentUser?.bank_details ? 'Configured' : 'Not configured')}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="bbdrts-rail-chip active">
-                    <span className="material-symbols-outlined" style={{ fontSize: '20px', color: '#16a34a' }}>verified_user</span>
-                    <div>
-                      <div className="bbdrts-rail-title">Gasless Sepolia Audit</div>
-                      <div className="bbdrts-rail-sub">Active · Zero Gas Fees</div>
-                    </div>
-                  </div>
-                </div>
               </div>
             </div>
           )}
@@ -1942,320 +1887,177 @@ export default function SettingsPanel({
           TAB: REUSABLE QR CODES & PAYOUT RAILS STUDIO
           ══════════════════════════════════════════════════════════════════ */}
       {activeTab === 'qr_library' && (
-        <div className="bbdrts-settings-pane fade-in">
-          
-          {/* Studio Header Card */}
-          <div className="bbdrts-settings-card">
-            <div className="bbdrts-settings-card-header">
-              <div className="bbdrts-settings-card-title-wrap">
-                <h4 className="bbdrts-settings-card-title">
-                  <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#007dfe' }}>qr_code_2</span>
-                  Reusable Payment QR Codes &amp; Payout Rails Studio
-                </h4>
-                <p className="bbdrts-settings-card-desc">
-                  Upload, auto-crop mobile screenshots (removes blue/dark edges), extract recipient account credentials via OCR, and manage verified QR vouchers for instant assignment across all relief campaigns.
+        <div className="bbdrts-settings-pane vs-pane">
+
+          {/* Studio Header & Filter Card */}
+          <div className="vs-card">
+            <div className="vs-card-head">
+              <div>
+                <h4 className="vs-card-title">Reusable QR Codes &amp; Payout Rails</h4>
+                <p className="vs-card-desc">
+                  Upload and auto-crop GCash, Maya, or Bank QR vouchers with automatic OCR credential extraction for instant assignment across campaigns.
                 </p>
               </div>
 
-              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              <div className="vs-qr-head-actions">
                 <button
                   type="button"
-                  className="bbdrts-btn-primary"
-                  onClick={() => setShowAddQrModal(true)}
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-                >
-                  <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>add_photo_alternate</span>
-                  <span>+ Upload &amp; Extract New QR</span>
-                </button>
-
-                <button
-                  type="button"
-                  className="bbdrts-btn-outline"
+                  className="vs-subtle-btn"
                   onClick={handleMassApplyQrDefaults}
                   disabled={isApplyingQrToCamps || savedQrList.length === 0}
-                  title="Applies the active default QR codes to any campaign that doesn't have a payout channel yet"
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                  title="Applies active default QR codes to campaigns without a payout channel"
                 >
-                  <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>
-                    {isApplyingQrToCamps ? 'hourglass_top' : 'published_with_changes'}
-                  </span>
-                  <span>{isApplyingQrToCamps ? 'Applying...' : 'Mass-Apply to Campaigns'}</span>
+                  <span>{isApplyingQrToCamps ? 'Applying...' : 'Mass-Apply Defaults'}</span>
+                </button>
+                <button
+                  type="button"
+                  className="vs-primary-btn vs-primary-btn--sm"
+                  onClick={() => setShowAddQrModal(true)}
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>add</span>
+                  <span>Upload QR</span>
                 </button>
               </div>
             </div>
 
-            {/* Filter Pills & Statistics Bar */}
-            <div style={{ borderTop: '1px solid var(--border)', paddingTop: '14px', marginTop: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
-              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                {['ALL', 'GCash', 'Maya', 'Bank'].map(filt => {
-                  const count = filt === 'ALL' 
-                    ? savedQrList.length 
+            <div className="vs-qr-toolbar">
+              <div className="vs-seg-group" role="tablist" aria-label="Filter QR channels">
+                {['ALL', 'GCash', 'Maya', 'Bank'].map((filt) => {
+                  const count = filt === 'ALL'
+                    ? savedQrList.length
                     : savedQrList.filter(q => q.payment_method === filt).length;
                   return (
                     <button
                       key={filt}
                       type="button"
+                      className={`vs-seg-btn ${qrFilter === filt ? 'active' : ''}`}
                       onClick={() => setQrFilter(filt)}
-                      style={{
-                        padding: '5px 12px',
-                        borderRadius: '20px',
-                        fontSize: '0.74rem',
-                        fontWeight: 600,
-                        border: '1px solid',
-                        cursor: 'pointer',
-                        transition: 'all 120ms ease',
-                        background: qrFilter === filt ? '#ffffff' : 'transparent',
-                        color: qrFilter === filt ? '#000000' : 'var(--text-muted)',
-                        borderColor: qrFilter === filt ? '#ffffff' : 'var(--border)'
-                      }}
                     >
-                      {filt === 'ALL' ? 'All Channels' : filt} ({count})
+                      <span>{filt === 'ALL' ? 'All' : filt}</span>
+                      <span className="vs-seg-meta">{count}</span>
                     </button>
                   );
                 })}
               </div>
 
-              <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span className="material-symbols-outlined" style={{ fontSize: '15px', color: '#10b981' }}>verified</span>
-                <span>Active defaults auto-route directly into donor payment gateways</span>
-              </div>
+              <span className="vs-inline-status vs-card-foot-note">
+                <span className="vs-live-dot" />
+                <span>Active defaults auto-route to donor checkout</span>
+              </span>
             </div>
           </div>
 
-          {/* QR Cards Grid */}
+          {/* QR Vouchers Grid */}
           {qrLoading ? (
-            <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-muted)' }}>
-              <span className="material-symbols-outlined" style={{ fontSize: '32px', animation: 'spin 1.2s linear infinite' }}>autorenew</span>
-              <p style={{ marginTop: '8px', fontSize: '0.85rem' }}>Loading saved payment QR vouchers...</p>
+            <div className="vs-card vs-qr-empty">
+              <span className="vs-empty-note">Loading saved payment QR vouchers...</span>
             </div>
           ) : savedQrList.length === 0 ? (
-            <div className="bbdrts-settings-card" style={{ textAlign: 'center', padding: '48px 24px' }}>
-              <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: 'rgba(0, 125, 254, 0.1)', color: '#007dfe', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px auto' }}>
-                <span className="material-symbols-outlined" style={{ fontSize: '28px' }}>qr_code_scanner</span>
-              </div>
-              <h4 style={{ margin: '0 0 8px 0', fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)' }}>No Reusable QR Codes in Library Yet</h4>
-              <p style={{ margin: '0 auto 18px auto', maxWidth: '420px', fontSize: '0.82rem', color: 'var(--text-muted)', lineHeight: 1.5 }}>
-                Upload your official GCash, Maya, or Bank QR codes once. Our smart cropper will automatically crop away outer mobile phone borders and extract account details via OCR.
+            <div className="vs-card vs-qr-empty">
+              <span className="material-symbols-outlined vs-qr-empty-icon">qr_code_scanner</span>
+              <h4 className="vs-card-title">No Reusable QR Codes Yet</h4>
+              <p className="vs-card-desc" style={{ maxWidth: '400px', margin: '4px auto 16px' }}>
+                Upload your official GCash, Maya, or Bank QR screenshot once. Mobile borders are auto-cropped and recipient credentials extracted automatically.
               </p>
               <button
                 type="button"
-                className="bbdrts-btn-primary"
+                className="vs-primary-btn vs-primary-btn--sm"
                 onClick={() => setShowAddQrModal(true)}
-                style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
               >
-                <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>upload_file</span>
+                <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>upload_file</span>
                 <span>Upload First QR Code</span>
               </button>
             </div>
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '16px' }}>
+            <div className="vs-qr-grid">
               {savedQrList
                 .filter(q => qrFilter === 'ALL' || q.payment_method === qrFilter)
-                .map(qr => {
+                .map((qr) => {
                   const isDefault = Boolean(qr.is_default);
-                  const isGcash = qr.payment_method === 'GCash';
-                  const isMaya = qr.payment_method === 'Maya';
-                  const isBank = qr.payment_method === 'Bank';
-
-                  const badgeColor = isGcash ? '#007dfe' : isMaya ? '#00c389' : '#8b5cf6';
-                  const badgeBg = isGcash ? 'rgba(0, 125, 254, 0.12)' : isMaya ? 'rgba(0, 195, 137, 0.12)' : 'rgba(139, 92, 246, 0.12)';
-
                   return (
-                    <div
-                      key={qr.id}
-                      className="bbdrts-qr-card-item"
-                      style={{
-                        background: 'var(--bg-card, #0d0d0d)',
-                        border: isDefault ? '1px solid #10b981' : '1px solid var(--border)',
-                        borderRadius: '10px',
-                        padding: '16px',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '12px',
-                        position: 'relative',
-                        transition: 'all 150ms ease'
-                      }}
-                    >
-                      {/* Card Header: Method Pill + Custom Name + Default Pill */}
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
-                        <div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
-                            <span
-                              style={{
-                                fontSize: '0.7rem',
-                                fontWeight: 700,
-                                padding: '2px 8px',
-                                borderRadius: '4px',
-                                background: badgeBg,
-                                color: badgeColor,
-                                border: `1px solid ${badgeColor}40`
-                              }}
-                            >
-                              {qr.payment_method}
-                            </span>
+                    <div key={qr.id} className={`vs-card vs-qr-card ${isDefault ? 'is-default' : ''}`}>
+                      <div className="vs-qr-card-top">
+                        <div style={{ minWidth: 0 }}>
+                          <div className="vs-inline-status" style={{ marginBottom: '4px' }}>
+                            <span className="vs-tier-tag">{qr.payment_method}</span>
                             {isDefault && (
-                              <span
-                                style={{
-                                  fontSize: '0.68rem',
-                                  fontWeight: 600,
-                                  padding: '2px 6px',
-                                  borderRadius: '4px',
-                                  background: 'rgba(16, 185, 129, 0.15)',
-                                  color: '#10b981',
-                                  border: '1px solid rgba(16, 185, 129, 0.3)',
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: '3px'
-                                }}
-                              >
-                                <span className="material-symbols-outlined" style={{ fontSize: '11px' }}>star</span>
-                                Active Default
+                              <span className="vs-mini-pill">
+                                <span className="vs-live-dot" />
+                                <span>Default</span>
                               </span>
                             )}
                           </div>
-                          <h5 style={{ margin: 0, fontSize: '0.88rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                            {qr.custom_name}
-                          </h5>
+                          <h5 className="vs-qr-card-name">{qr.custom_name}</h5>
                         </div>
 
                         <button
                           type="button"
+                          className="vs-icon-copy-btn vs-qr-del-btn"
                           onClick={(e) => handleDeleteQrFromLibrary(qr.id, qr.custom_name, e)}
-                          title="Delete QR code from library"
-                          style={{
-                            background: 'transparent',
-                            border: 'none',
-                            color: 'var(--text-muted)',
-                            cursor: 'pointer',
-                            padding: '4px',
-                            borderRadius: '4px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center'
-                          }}
-                          onMouseEnter={e => { e.currentTarget.style.color = '#ef4444'; e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)'; }}
-                          onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.background = 'transparent'; }}
+                          title="Delete QR code"
                         >
-                          <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>delete</span>
+                          <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>delete</span>
                         </button>
                       </div>
 
-                      {/* QR Thumbnail Preview (Click to Enlarge Lightbox) */}
                       <div
+                        className="vs-qr-thumb"
                         onClick={() => setPreviewQrModal(qr)}
-                        title="Click to view QR card enlarged"
-                        style={{
-                          background: '#ffffff',
-                          borderRadius: '8px',
-                          padding: '10px',
-                          textAlign: 'center',
-                          cursor: 'pointer',
-                          border: '1px solid var(--border)',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          position: 'relative',
-                          overflow: 'hidden'
-                        }}
+                        title="Click to enlarge QR voucher"
                       >
-                        <img
-                          src={qr.qr_image_url}
-                          alt={qr.custom_name}
-                          style={{ maxWidth: '140px', maxHeight: '140px', objectFit: 'contain', display: 'block', margin: '0 auto' }}
-                        />
-                        <div
-                          className="bbdrts-qr-hover-zoom"
-                          style={{
-                            position: 'absolute',
-                            inset: 0,
-                            background: 'rgba(0, 0, 0, 0.45)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            color: '#ffffff',
-                            opacity: 0,
-                            transition: 'opacity 150ms ease',
-                            fontSize: '0.75rem',
-                            fontWeight: 600,
-                            gap: '4px'
-                          }}
-                          onMouseEnter={e => e.currentTarget.style.opacity = 1}
-                          onMouseLeave={e => e.currentTarget.style.opacity = 0}
-                        >
-                          <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>zoom_in</span>
-                          <span>Click to Enlarge</span>
-                        </div>
+                        <img src={qr.qr_image_url} alt={qr.custom_name} />
+                        <span className="vs-qr-thumb-overlay">
+                          <span className="material-symbols-outlined" style={{ fontSize: '17px' }}>zoom_in</span>
+                          <span>Enlarge</span>
+                        </span>
                       </div>
 
-                      {/* Extracted Metadata Info */}
-                      <div style={{ fontSize: '0.76rem', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: '4px', background: 'var(--bg-input, #141414)', padding: '10px', borderRadius: '6px' }}>
-                        <div>
-                          <strong style={{ color: 'var(--text-muted)' }}>Account Name:</strong>{' '}
-                          <span style={{ color: 'var(--text-primary)', fontWeight: 500 }}>
-                            {qr.account_name || 'Not extracted'}
-                          </span>
+                      <div className="vs-qr-meta">
+                        <div className="vs-qr-meta-row">
+                          <span className="vs-kv-key">Account</span>
+                          <span className="vs-qr-meta-val">{qr.account_name || 'Not extracted'}</span>
                         </div>
-
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                          <div>
-                            <strong style={{ color: 'var(--text-muted)' }}>Number:</strong>{' '}
-                            <span style={{ color: 'var(--text-primary)', fontWeight: 600, fontFamily: 'monospace' }}>
+                        <div className="vs-qr-meta-row">
+                          <span className="vs-kv-key">Number</span>
+                          <span className="vs-inline-status">
+                            <span className="vs-qr-meta-val vs-mono-val">
                               {qr.account_number ? formatPhoneNumber(qr.account_number) : 'Not extracted'}
                             </span>
-                          </div>
-                          {qr.account_number && (
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                navigator.clipboard.writeText(qr.account_number);
-                                showSuccess('Account number copied to clipboard!', 'Copied');
-                              }}
-                              title="Copy number"
-                              style={{ background: 'transparent', border: 'none', color: '#007dfe', cursor: 'pointer', padding: '2px', display: 'flex' }}
-                            >
-                              <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>content_copy</span>
-                            </button>
-                          )}
+                            {qr.account_number && (
+                              <button
+                                type="button"
+                                className="vs-id-copy-btn"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  navigator.clipboard.writeText(qr.account_number);
+                                  showSuccess('Account number copied to clipboard.', 'Copied');
+                                }}
+                                title="Copy account number"
+                              >
+                                <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>content_copy</span>
+                              </button>
+                            )}
+                          </span>
                         </div>
                       </div>
 
-                      {/* Card Footer: Toggle Default Action */}
-                      <div style={{ marginTop: 'auto', paddingTop: '8px', borderTop: '1px solid var(--border)' }}>
+                      <div className="vs-qr-card-foot">
                         {isDefault ? (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '5px', color: '#10b981', fontSize: '0.74rem', fontWeight: 600 }}>
-                            <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>check_circle</span>
+                          <span className="vs-inline-status" style={{ fontSize: '0.74rem', fontWeight: 600, color: '#10b981' }}>
+                            <span className="vs-live-dot" />
                             <span>Active Default for {qr.payment_method}</span>
-                          </div>
+                          </span>
                         ) : (
                           <button
                             type="button"
+                            className="vs-subtle-btn"
+                            style={{ width: '100%', justifyContent: 'center' }}
                             onClick={() => handleToggleDefaultQr(qr)}
-                            style={{
-                              width: '100%',
-                              padding: '6px 10px',
-                              borderRadius: '6px',
-                              background: 'transparent',
-                              border: '1px solid var(--border)',
-                              color: 'var(--text-primary)',
-                              fontSize: '0.74rem',
-                              fontWeight: 600,
-                              cursor: 'pointer',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              gap: '5px',
-                              transition: 'all 120ms ease'
-                            }}
-                            onMouseEnter={e => { e.currentTarget.style.borderColor = '#10b981'; e.currentTarget.style.color = '#10b981'; }}
-                            onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text-primary)'; }}
                           >
-                            <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>star_outline</span>
                             <span>Set as Active Default</span>
                           </button>
                         )}
                       </div>
-
                     </div>
                   );
                 })}
@@ -3183,17 +2985,18 @@ export default function SettingsPanel({
                   <div className="vs-form-field">
                     <div className="vs-field-lbl-row">
                       <label className="vs-field-lbl">New Password</label>
-                      {newPassword && (
-                        <span className="vs-strength-lbl" style={{ color: newPwdStrength.color }}>
-                          {newPwdStrength.label}
-                        </span>
-                      )}
+                      <span
+                        className="vs-strength-lbl"
+                        style={{ color: newPassword ? newPwdStrength.color : 'var(--text-muted, #71717a)' }}
+                      >
+                        {newPassword ? newPwdStrength.label : 'Enter password'}
+                      </span>
                     </div>
                     <div className="vs-input-wrap">
                       <input
                         type={showNewPassword ? 'text' : 'password'}
                         className="vs-input"
-                        placeholder="Min. 6 characters"
+                        placeholder="Min. 8 characters"
                         value={newPassword}
                         onChange={(e) => setNewPassword(e.target.value)}
                         autoComplete="new-password"
@@ -3211,22 +3014,49 @@ export default function SettingsPanel({
                       </button>
                     </div>
 
-                    {newPassword && (
-                      <div className="vs-strength-track">
-                        <div
-                          className="vs-strength-fill"
-                          style={{
-                            width: `${newPwdStrength.percent}%`,
-                            backgroundColor: newPwdStrength.color
-                          }}
-                        />
-                      </div>
-                    )}
+                    {/* Permanent 4-Segment Horizontal Strength Indicator */}
+                    <div className="vs-strength-bars" aria-label="Password strength">
+                      {[1, 2, 3, 4].map((seg) => {
+                        const isFilled = newPassword.length > 0 && (newPwdStrength.score >= seg || (newPwdStrength.score === 0 && seg === 1));
+                        return (
+                          <span
+                            key={seg}
+                            className="vs-strength-seg"
+                            style={{ backgroundColor: isFilled ? newPwdStrength.color : undefined }}
+                          />
+                        );
+                      })}
+                    </div>
 
-                    <div className="vs-criteria-row">
-                      <span className={`vs-criteria-tag ${newPassword.length >= 8 ? 'is-met' : ''}`}>8+ chars</span>
-                      <span className={`vs-criteria-tag ${/[a-z]/.test(newPassword) && /[A-Z]/.test(newPassword) ? 'is-met' : ''}`}>Mixed case</span>
-                      <span className={`vs-criteria-tag ${/\d|[^A-Za-z0-9]/.test(newPassword) ? 'is-met' : ''}`}>Number / symbol</span>
+                    {/* Permanent Password Requirements Checklist */}
+                    <div className="vs-pwd-reqs">
+                      <div className="vs-pwd-reqs-title">Password requirements</div>
+                      <ul className="vs-pwd-reqs-list">
+                        <li className={newPassword.length >= 8 ? 'is-met' : ''}>
+                          <span className="material-symbols-outlined">
+                            {newPassword.length >= 8 ? 'check_circle' : 'radio_button_unchecked'}
+                          </span>
+                          <span>At least 8 characters</span>
+                        </li>
+                        <li className={/[a-z]/.test(newPassword) && /[A-Z]/.test(newPassword) ? 'is-met' : ''}>
+                          <span className="material-symbols-outlined">
+                            {/[a-z]/.test(newPassword) && /[A-Z]/.test(newPassword) ? 'check_circle' : 'radio_button_unchecked'}
+                          </span>
+                          <span>Uppercase &amp; lowercase letters (A–Z, a–z)</span>
+                        </li>
+                        <li className={/\d/.test(newPassword) ? 'is-met' : ''}>
+                          <span className="material-symbols-outlined">
+                            {/\d/.test(newPassword) ? 'check_circle' : 'radio_button_unchecked'}
+                          </span>
+                          <span>At least one number (0–9)</span>
+                        </li>
+                        <li className={/[^A-Za-z0-9]/.test(newPassword) ? 'is-met' : ''}>
+                          <span className="material-symbols-outlined">
+                            {/[^A-Za-z0-9]/.test(newPassword) ? 'check_circle' : 'radio_button_unchecked'}
+                          </span>
+                          <span>At least one special symbol (!@#$%)</span>
+                        </li>
+                      </ul>
                     </div>
                   </div>
 

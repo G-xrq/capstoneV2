@@ -218,7 +218,7 @@ export default function App() {
       window.removeEventListener('focus', onFocus);
       document.removeEventListener('visibilitychange', onFocus);
     };
-  }, [dbUser, showError]);
+  }, [dbUser?.id, showError]);
 
   // Listen for custom event to trigger onboarding preview prototype
   useEffect(() => {
@@ -584,9 +584,11 @@ export default function App() {
     window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
   }, []);
 
+  const dbUserId = dbUser?.id ?? null;
+
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
-  }, [dbUser]);
+  }, [dbUserId]);
 
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
@@ -651,7 +653,7 @@ export default function App() {
       window.removeEventListener('keydown', handleGlobalSidebarKeyDown);
       window.removeEventListener('bbdrts_sidebar_changed', handleSidebarChange);
     };
-  }, [dbUser]);
+  }, [Boolean(dbUser)]);
 
   /* ── 2. Actions ─────────────────────────────────────── */
 
