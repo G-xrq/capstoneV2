@@ -584,14 +584,14 @@ export default function PersonalizationOnboarding({
               </div>
             </div>
 
-            {/* ── 2. Asymmetric Bento Split (1+2 Featured Campaigns + Recent Contributions Ledger) ── */}
+            {/* ── 2. Asymmetric Bento Split (1+2 Featured Campaigns + Recent Contributions Ledger & Milestone — Skeleton Data) ── */}
             <div className="prv-geist-split">
               {/* Left Column: Featured Campaigns (1 Spotlight + 2 Compact Cards) */}
               <div className="prv-geist-col">
                 <div className="prv-geist-sec-bar">
                   <div className="prv-geist-sec-left">
                     <span className="prv-geist-sec-title">{t.activeAppeals}</span>
-                    <span className="prv-geist-count-pill">{activeCampaignsCount}</span>
+                    <span className="preview-skeleton-bar is-tag" style={{ width: '26px', height: '18px', borderRadius: '999px' }} />
                   </div>
                   <span className="prv-geist-sec-link">
                     <span>{t.viewAllCamp.replace(/\s*\(\d+\)/, '')}</span>
@@ -603,21 +603,19 @@ export default function PersonalizationOnboarding({
                   <div className="prv-geist-spot-media" />
                   <div className="prv-geist-spot-body">
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                      <span className="prv-geist-cat-chip">CHARITABLE AID</span>
-                      <span className="preview-skeleton-bar is-line" style={{ width: '76%', height: '9px', borderRadius: '4px' }} />
-                      <div className="preview-skeleton-bar is-title" style={{ width: '62%', height: '16px', borderRadius: '4px' }} />
+                      <span className="preview-skeleton-bar is-tag" style={{ width: '86px', height: '18px', borderRadius: '999px' }} />
+                      <span className="preview-skeleton-bar is-line" style={{ width: '78%', height: '9px', borderRadius: '4px' }} />
+                      <div className="preview-skeleton-bar is-title" style={{ width: '64%', height: '16px', borderRadius: '4px' }} />
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                      <div className="prv-geist-prog-track">
-                        <div className="prv-geist-prog-fill" style={{ width: '100%' }} />
-                      </div>
+                      <div className="preview-skeleton-bar is-track" style={{ width: '100%', height: '5px', borderRadius: '999px' }} />
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span className="preview-skeleton-bar is-line" style={{ width: '36%', height: '9px', borderRadius: '4px' }} />
-                        <span className="prv-geist-pct">100%</span>
+                        <span className="preview-skeleton-bar is-line" style={{ width: '38%', height: '9px', borderRadius: '4px' }} />
+                        <span className="preview-skeleton-bar is-line" style={{ width: '14%', height: '9px', borderRadius: '4px' }} />
                       </div>
                     </div>
                     <div className="prv-geist-spot-foot">
-                      <span className="preview-skeleton-bar is-line" style={{ width: '38%', height: '9px', borderRadius: '4px' }} />
+                      <span className="preview-skeleton-bar is-line" style={{ width: '40%', height: '9px', borderRadius: '4px' }} />
                       <div className="prv-geist-row-btns">
                         {prefs.experienceMode === 'standard' && (
                           <span className="prv-geist-icon-sm">
@@ -635,15 +633,33 @@ export default function PersonalizationOnboarding({
 
                 {/* Secondary 2-Col Compact Cards (#2 & #3) */}
                 <div className="prv-geist-mini-grid">
-                  {['CHARITABLE AID', 'DISASTER RELIEF'].map((cat, idx) => (
+                  {[0, 1].map((idx) => (
                     <div className="prv-geist-mini-card" key={idx}>
                       <div className="prv-geist-mini-media">
-                        <span className="prv-geist-mini-chip">{cat}</span>
+                        <span className="preview-skeleton-bar is-tag" style={{ width: idx === 0 ? '82px' : '90px', height: '17px', borderRadius: '999px' }} />
                       </div>
                       <div className="prv-geist-mini-body">
-                        <div className="preview-skeleton-bar is-title" style={{ width: idx === 0 ? '82%' : '76%', height: '13px', borderRadius: '4px' }} />
-                        <div className="prv-geist-prog-track">
-                          <div className="prv-geist-prog-fill" style={{ width: idx === 0 ? '100%' : '28%' }} />
+                        <div className="preview-skeleton-bar is-title" style={{ width: idx === 0 ? '84%' : '78%', height: '13px', borderRadius: '4px' }} />
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                          <div className="preview-skeleton-bar is-track" style={{ width: '100%', height: '5px', borderRadius: '999px' }} />
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span className="preview-skeleton-bar is-line" style={{ width: '44%', height: '8px', borderRadius: '4px' }} />
+                            <span className="preview-skeleton-bar is-line" style={{ width: '16%', height: '8px', borderRadius: '4px' }} />
+                          </div>
+                        </div>
+                        <div className="prv-geist-spot-foot">
+                          <span className="preview-skeleton-bar is-line" style={{ width: '44%', height: '8px', borderRadius: '4px' }} />
+                          <div className="prv-geist-row-btns">
+                            {prefs.experienceMode === 'standard' && (
+                              <span className="prv-geist-icon-sm">
+                                <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>map</span>
+                              </span>
+                            )}
+                            <button type="button" className="prv-geist-donate-sm">
+                              <span>{prefs.experienceMode === 'standard' ? t.donate : t.donateRelief}</span>
+                              <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>arrow_forward</span>
+                            </button>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -651,12 +667,12 @@ export default function PersonalizationOnboarding({
                 </div>
               </div>
 
-              {/* Right Column: Recent Contributions Ledger (5 Rows) */}
+              {/* Right Column: Recent Contributions Ledger + Recognition Circle Card (All Skeleton Data) */}
               <div className="prv-geist-col">
                 <div className="prv-geist-sec-bar">
                   <div className="prv-geist-sec-left">
                     <span className="prv-geist-sec-title">{t.navContrib}</span>
-                    <span className="prv-geist-count-pill">5</span>
+                    <span className="preview-skeleton-bar is-tag" style={{ width: '26px', height: '18px', borderRadius: '999px' }} />
                   </div>
                   <span className="prv-geist-sec-link">
                     <span>{t.donationReceipts} →</span>
@@ -664,30 +680,43 @@ export default function PersonalizationOnboarding({
                 </div>
 
                 <div className="prv-geist-ledger">
-                  {[
-                    { rail: 'GCASH', hash: '0x2ef1...729f', amt: '+₱1,000', w: '62%' },
-                    { rail: 'GCASH', hash: '0xd7fa...ada7', amt: '+₱29,000', w: '66%' },
-                    { rail: 'GCASH', hash: '0xfe98...5407', amt: '+₱50,000', w: '88%' },
-                    { rail: 'GCASH', hash: '0x2073...afb6', amt: '+₱10,000', w: '82%' },
-                    { rail: 'GCASH', hash: '0x34e8...e550', amt: '+₱5,000', w: '64%' }
-                  ].map((item, rIdx) => (
+                  {[62, 68, 86, 80, 64].map((w, rIdx) => (
                     <div className="prv-geist-ledger-row" key={rIdx}>
                       <div className="prv-geist-ledger-left">
-                        <span className="prv-geist-rail-pill">{item.rail}</span>
+                        <span className="preview-skeleton-bar is-tag" style={{ width: '46px', height: '22px', borderRadius: '6px', flexShrink: 0 }} />
                         <div className="prv-geist-ledger-lines">
-                          <span className="preview-skeleton-bar is-title" style={{ width: item.w, height: '11px', borderRadius: '3px' }} />
+                          <span className="preview-skeleton-bar is-title" style={{ width: `${w}%`, height: '11px', borderRadius: '3px' }} />
                           <span className="prv-geist-onchain">
                             <span className="prv-geist-dot" />
-                            <span>On-Chain</span>
-                            <span style={{ opacity: 0.35 }}>·</span>
-                            <span className="prv-geist-hash">{item.hash} ↗</span>
+                            <span className="preview-skeleton-bar is-line" style={{ width: '92px', height: '8px', borderRadius: '3px' }} />
                           </span>
                         </div>
                       </div>
-                      <span className="prv-geist-amt">{item.amt}</span>
+                      <span className="preview-skeleton-bar is-title" style={{ width: '54px', height: '12px', borderRadius: '4px', flexShrink: 0 }} />
                     </div>
                   ))}
+                  <div className="prv-geist-ledger-foot">
+                    <span className="preview-skeleton-bar is-line" style={{ width: '138px', height: '9px', borderRadius: '4px' }} />
+                    <span>→</span>
+                  </div>
                 </div>
+
+                {prefs.experienceMode === 'standard' && (
+                  <div className="prv-geist-milestone">
+                    <div className="prv-geist-milestone-top">
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                        <span className="prv-geist-milestone-lbl">Recognition Circle</span>
+                        <span className="preview-skeleton-bar is-title" style={{ width: '112px', height: '13px', borderRadius: '4px' }} />
+                      </div>
+                      <span className="prv-geist-milestone-cta">15 Circles ↗</span>
+                    </div>
+                    <div className="preview-skeleton-bar is-track" style={{ width: '100%', height: '5px', borderRadius: '999px', marginTop: '12px' }} />
+                    <div className="prv-geist-milestone-foot">
+                      <span className="preview-skeleton-bar is-line" style={{ width: '86px', height: '8px', borderRadius: '3px' }} />
+                      <span className="preview-skeleton-bar is-line" style={{ width: '74px', height: '8px', borderRadius: '3px' }} />
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 

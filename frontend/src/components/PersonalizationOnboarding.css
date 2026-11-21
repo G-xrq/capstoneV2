@@ -3920,3 +3920,69 @@
 .onboarding-preview-window.light.high-contrast .prv-geist-btn {
   border: 2px solid #000000 !important;
 }
+
+.prv-geist-ledger {
+  margin-bottom: 14px;
+}
+
+.prv-geist-ledger-foot {
+  padding: 11px 16px;
+  border-top: 1px solid #e4e4e7;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.78rem;
+  color: #71717a;
+}
+
+.onboarding-preview-window.dark .prv-geist-ledger-foot {
+  border-top-color: #18181b;
+  color: #a1a1aa;
+}
+
+.prv-geist-milestone {
+  padding: 15px 18px;
+  border-radius: 14px;
+  background: #ffffff;
+  border: 1px solid #e4e4e7;
+}
+
+.onboarding-preview-window.dark .prv-geist-milestone {
+  background: #0a0a0a;
+  border-color: #262626;
+}
+
+.prv-geist-milestone-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.prv-geist-milestone-lbl {
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: #71717a;
+}
+
+.prv-geist-milestone-cta {
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: #a1a1aa;
+}
+
+.prv-geist-milestone-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 9px;
+}
+
+.onboarding-preview-window.dark.high-contrast .prv-geist-milestone {
+  border: 2px solid #ffffff !important;
+}
+
+.onboarding-preview-window.light.high-contrast .prv-geist-milestone {
+  border: 2px solid #000000 !important;
+}
