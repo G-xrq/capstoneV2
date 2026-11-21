@@ -481,7 +481,7 @@ export default function PersonalizationOnboarding({
               <p className="preview-page-sub">{t.dashboardSub}</p>
             </div>
 
-            {/* ── 1. Borderless Vercel Geist Editorial Hero + Matte Isometric Mesh ── */}
+            {/* ── 1. Borderless Vercel Geist Editorial Hero + Matte Isometric Mesh (1:1 1252px Desktop Scale) ── */}
             <div className="prv-geist-hero">
               <div className="prv-geist-mesh" aria-hidden="true" />
 
@@ -514,27 +514,27 @@ export default function PersonalizationOnboarding({
                       <>
                         <button type="button" className="prv-geist-btn primary">
                           <span>{t.browseCamp}</span>
-                          <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>arrow_forward</span>
+                          <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>arrow_forward</span>
                         </button>
                         <button type="button" className="prv-geist-btn">
-                          <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>map</span>
+                          <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>map</span>
                           <span>{t.reliefRadar}</span>
                         </button>
                         <span className="prv-geist-ghost">
                           <span>{t.publicLedger}</span>
-                          <span className="material-symbols-outlined" style={{ fontSize: '11px' }}>north_east</span>
+                          <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>north_east</span>
                         </span>
                       </>
                     ) : (
                       <button type="button" className="prv-geist-btn primary">
                         <span>{t.startGiving}</span>
-                        <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>arrow_forward</span>
+                        <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>arrow_forward</span>
                       </button>
                     )}
                   </div>
                 </div>
 
-                {/* Bare Hairline Stat Strip with Left Icons */}
+                {/* Bare Hairline Stat Strip with Left Icons + Tier Medallion */}
                 <div className={`prv-geist-stats ${prefs.experienceMode === 'simplified' ? 'cols-3' : 'cols-4'}`}>
                   <div className="prv-geist-stat">
                     <span className="prv-geist-stat-icon">
@@ -569,12 +569,12 @@ export default function PersonalizationOnboarding({
                   {prefs.experienceMode === 'standard' && (
                     <div className="prv-geist-stat">
                       <span className="prv-geist-stat-icon is-badge">
-                        <span className="material-symbols-outlined" style={{ color: '#a855f7' }}>workspace_premium</span>
+                        <span className="material-symbols-outlined" style={{ color: '#c084fc' }}>workspace_premium</span>
                       </span>
                       <div className="prv-geist-stat-text">
                         <span className="prv-geist-stat-val is-tier">
                           <span>{t.newContributor}</span>
-                          <span className="material-symbols-outlined" style={{ fontSize: '11px', opacity: 0.55 }}>north_east</span>
+                          <span className="material-symbols-outlined" style={{ fontSize: '14px', opacity: 0.55 }}>north_east</span>
                         </span>
                         <span className="prv-geist-stat-lbl">{t.pledgeFirst}</span>
                       </div>
@@ -600,26 +600,33 @@ export default function PersonalizationOnboarding({
 
                 {/* Lead Spotlight Card (#1) */}
                 <div className="prv-geist-spotlight">
-                  <div className="prv-geist-spot-media">
-                    <span className="preview-skeleton-bar is-tag" style={{ width: '68px', height: '15px', borderRadius: '999px' }} />
-                  </div>
+                  <div className="prv-geist-spot-media" />
                   <div className="prv-geist-spot-body">
-                    <span className="preview-skeleton-bar is-tag" style={{ width: '74px', height: '14px', borderRadius: '999px' }} />
-                    <div className="preview-skeleton-bar is-title" style={{ width: '78%', height: '13px', borderRadius: '4px' }} />
-                    <div className="prv-geist-prog-track">
-                      <div className="prv-geist-prog-fill" style={{ width: '72%' }} />
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      <span className="prv-geist-cat-chip">CHARITABLE AID</span>
+                      <span className="preview-skeleton-bar is-line" style={{ width: '76%', height: '9px', borderRadius: '4px' }} />
+                      <div className="preview-skeleton-bar is-title" style={{ width: '62%', height: '16px', borderRadius: '4px' }} />
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      <div className="prv-geist-prog-track">
+                        <div className="prv-geist-prog-fill" style={{ width: '100%' }} />
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span className="preview-skeleton-bar is-line" style={{ width: '36%', height: '9px', borderRadius: '4px' }} />
+                        <span className="prv-geist-pct">100%</span>
+                      </div>
                     </div>
                     <div className="prv-geist-spot-foot">
-                      <span className="preview-skeleton-bar is-line" style={{ width: '42%', height: '8px', borderRadius: '4px' }} />
+                      <span className="preview-skeleton-bar is-line" style={{ width: '38%', height: '9px', borderRadius: '4px' }} />
                       <div className="prv-geist-row-btns">
                         {prefs.experienceMode === 'standard' && (
                           <span className="prv-geist-icon-sm">
-                            <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>map</span>
+                            <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>map</span>
                           </span>
                         )}
                         <button type="button" className="prv-geist-donate-sm">
                           <span>{prefs.experienceMode === 'standard' ? t.donate : t.donateRelief}</span>
-                          <span className="material-symbols-outlined" style={{ fontSize: '11px' }}>arrow_forward</span>
+                          <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>arrow_forward</span>
                         </button>
                       </div>
                     </div>
@@ -628,22 +635,15 @@ export default function PersonalizationOnboarding({
 
                 {/* Secondary 2-Col Compact Cards (#2 & #3) */}
                 <div className="prv-geist-mini-grid">
-                  {[0, 1].map((idx) => (
+                  {['CHARITABLE AID', 'DISASTER RELIEF'].map((cat, idx) => (
                     <div className="prv-geist-mini-card" key={idx}>
                       <div className="prv-geist-mini-media">
-                        <span className="preview-skeleton-bar is-tag" style={{ width: '64px', height: '14px', borderRadius: '999px' }} />
+                        <span className="prv-geist-mini-chip">{cat}</span>
                       </div>
                       <div className="prv-geist-mini-body">
-                        <div className="preview-skeleton-bar is-title" style={{ width: idx === 0 ? '82%' : '74%', height: '11px', borderRadius: '4px' }} />
+                        <div className="preview-skeleton-bar is-title" style={{ width: idx === 0 ? '82%' : '76%', height: '13px', borderRadius: '4px' }} />
                         <div className="prv-geist-prog-track">
-                          <div className="prv-geist-prog-fill" style={{ width: idx === 0 ? '58%' : '32%' }} />
-                        </div>
-                        <div className="prv-geist-spot-foot">
-                          <span className="preview-skeleton-bar is-line" style={{ width: '38%', height: '7px', borderRadius: '4px' }} />
-                          <button type="button" className="prv-geist-donate-sm">
-                            <span>{t.donate}</span>
-                            <span className="material-symbols-outlined" style={{ fontSize: '10px' }}>arrow_forward</span>
-                          </button>
+                          <div className="prv-geist-prog-fill" style={{ width: idx === 0 ? '100%' : '28%' }} />
                         </div>
                       </div>
                     </div>
@@ -651,37 +651,42 @@ export default function PersonalizationOnboarding({
                 </div>
               </div>
 
-              {/* Right Column: Recent Contributions Ledger */}
+              {/* Right Column: Recent Contributions Ledger (5 Rows) */}
               <div className="prv-geist-col">
                 <div className="prv-geist-sec-bar">
                   <div className="prv-geist-sec-left">
-                    <span className="prv-geist-sec-title">{t.donationReceipts}</span>
+                    <span className="prv-geist-sec-title">{t.navContrib}</span>
+                    <span className="prv-geist-count-pill">5</span>
                   </div>
-                  <span className="prv-geist-sec-link">→</span>
+                  <span className="prv-geist-sec-link">
+                    <span>{t.donationReceipts} →</span>
+                  </span>
                 </div>
 
                 <div className="prv-geist-ledger">
-                  {['GCASH', 'GCASH', 'MAYA'].map((rail, rIdx) => (
+                  {[
+                    { rail: 'GCASH', hash: '0x2ef1...729f', amt: '+₱1,000', w: '62%' },
+                    { rail: 'GCASH', hash: '0xd7fa...ada7', amt: '+₱29,000', w: '66%' },
+                    { rail: 'GCASH', hash: '0xfe98...5407', amt: '+₱50,000', w: '88%' },
+                    { rail: 'GCASH', hash: '0x2073...afb6', amt: '+₱10,000', w: '82%' },
+                    { rail: 'GCASH', hash: '0x34e8...e550', amt: '+₱5,000', w: '64%' }
+                  ].map((item, rIdx) => (
                     <div className="prv-geist-ledger-row" key={rIdx}>
                       <div className="prv-geist-ledger-left">
-                        <span className="prv-geist-rail-pill">{rail}</span>
+                        <span className="prv-geist-rail-pill">{item.rail}</span>
                         <div className="prv-geist-ledger-lines">
-                          <span className="preview-skeleton-bar is-title" style={{ width: rIdx === 1 ? '86%' : '72%', height: '9px', borderRadius: '3px' }} />
+                          <span className="preview-skeleton-bar is-title" style={{ width: item.w, height: '11px', borderRadius: '3px' }} />
                           <span className="prv-geist-onchain">
                             <span className="prv-geist-dot" />
                             <span>On-Chain</span>
+                            <span style={{ opacity: 0.35 }}>·</span>
+                            <span className="prv-geist-hash">{item.hash} ↗</span>
                           </span>
                         </div>
                       </div>
-                      <span className="prv-geist-amt">
-                        {rIdx === 0 ? '+₱1,000' : rIdx === 1 ? '+₱5,000' : '+₱2,500'}
-                      </span>
+                      <span className="prv-geist-amt">{item.amt}</span>
                     </div>
                   ))}
-                  <div className="prv-geist-ledger-foot">
-                    <span>{t.donationReceipts}</span>
-                    <span>→</span>
-                  </div>
                 </div>
               </div>
             </div>
