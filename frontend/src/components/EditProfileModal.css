@@ -5060,3 +5060,300 @@
     flex-direction: column;
   }
 }
+
+/* ── EPM2 SUB-TABS: PHONE PREFIX, CUSTOM SELECTS, SWITCH, CHIPS & KV CARD ── */
+
+.epm2-label-sm {
+  font-size: 0.74rem;
+  font-weight: 500;
+  color: #a1a1aa;
+}
+
+[data-theme="light"] .epm2-label-sm {
+  color: #52525b;
+}
+
+/* Unified Phone Prefix Input */
+.epm2-phone-wrap {
+  display: flex;
+  align-items: center;
+  height: 38px;
+  border-radius: 8px;
+  border: 1px solid #262626;
+  background: #000000;
+  overflow: hidden;
+  transition: border-color 0.15s ease;
+}
+
+.epm2-phone-wrap:focus-within {
+  border-color: #52525b;
+}
+
+[data-theme="light"] .epm2-phone-wrap {
+  background: #ffffff;
+  border-color: #d4d4d8;
+}
+
+[data-theme="light"] .epm2-phone-wrap:focus-within {
+  border-color: #09090b;
+}
+
+.epm2-phone-prefix {
+  height: 100%;
+  padding: 0 11px;
+  display: inline-flex;
+  align-items: center;
+  font-family: var(--font-mono, monospace);
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: #a1a1aa;
+  background: #0d0d0f;
+  border-right: 1px solid #222224;
+  flex-shrink: 0;
+}
+
+[data-theme="light"] .epm2-phone-prefix {
+  background: #fafafa;
+  border-right-color: #e4e4e7;
+  color: #52525b;
+}
+
+.epm2-phone-input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  padding: 0 12px;
+  border: none;
+  background: transparent;
+  color: #ffffff;
+  font-family: inherit;
+  font-size: 0.82rem;
+  outline: none;
+}
+
+[data-theme="light"] .epm2-phone-input {
+  color: #09090b;
+}
+
+/* Clean Custom-Chevron Selects */
+.epm2-select-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.epm2-select {
+  width: 100%;
+  height: 38px;
+  padding: 0 32px 0 12px;
+  border-radius: 8px;
+  border: 1px solid #262626;
+  background: #000000;
+  color: #ffffff;
+  font-family: inherit;
+  font-size: 0.81rem;
+  outline: none;
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+}
+
+.epm2-select:focus {
+  border-color: #52525b;
+}
+
+.epm2-select:disabled {
+  opacity: 0.48;
+  cursor: not-allowed;
+}
+
+.epm2-select option {
+  background: #0a0a0a;
+  color: #ffffff;
+}
+
+[data-theme="light"] .epm2-select {
+  background: #ffffff;
+  border-color: #d4d4d8;
+  color: #09090b;
+}
+
+[data-theme="light"] .epm2-select:focus {
+  border-color: #09090b;
+}
+
+[data-theme="light"] .epm2-select option {
+  background: #ffffff;
+  color: #09090b;
+}
+
+.epm2-select-chev {
+  position: absolute;
+  right: 9px;
+  font-size: 17px;
+  color: #71717a;
+  pointer-events: none;
+}
+
+/* Crisp Switch Toggle Row */
+.epm2-switch-row {
+  width: 100%;
+  padding: 0;
+  border: none;
+  background: transparent;
+  font-family: inherit;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  cursor: pointer;
+}
+
+.epm2-switch {
+  width: 36px;
+  height: 20px;
+  border-radius: 9999px;
+  background: #27272a;
+  position: relative;
+  flex-shrink: 0;
+  transition: background 0.16s ease;
+}
+
+[data-theme="light"] .epm2-switch {
+  background: #d4d4d8;
+}
+
+.epm2-switch.is-on {
+  background: #10b981;
+}
+
+.epm2-switch-thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+  transition: transform 0.16s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.epm2-switch.is-on .epm2-switch-thumb {
+  transform: translateX(16px);
+}
+
+/* Interactive Cause Chips */
+.epm2-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.epm2-chip {
+  height: 26px;
+  padding: 0 10px;
+  border-radius: 9999px;
+  border: 1px dashed #2e2e2e;
+  background: transparent;
+  color: #a1a1aa;
+  font-family: inherit;
+  font-size: 0.72rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+}
+
+.epm2-chip:hover {
+  border-style: solid;
+  border-color: #52525b;
+  color: #ffffff;
+  background: #141414;
+}
+
+.epm2-chip.is-selected {
+  border-style: solid;
+  border-color: rgba(16, 185, 129, 0.45);
+  color: #10b981;
+  background: rgba(16, 185, 129, 0.08);
+}
+
+[data-theme="light"] .epm2-chip {
+  border-color: #d4d4d8;
+  color: #52525b;
+}
+
+[data-theme="light"] .epm2-chip:hover {
+  border-color: #09090b;
+  color: #09090b;
+  background: #f4f4f5;
+}
+
+[data-theme="light"] .epm2-chip.is-selected {
+  border-color: rgba(16, 185, 129, 0.5);
+  color: #059669;
+  background: rgba(16, 185, 129, 0.08);
+}
+
+/* Hairline Verified Identity Key-Value Card */
+.epm2-kv-card {
+  border-radius: 10px;
+  border: 1px solid #222224;
+  background: #060606;
+  overflow: hidden;
+  margin-top: 4px;
+}
+
+[data-theme="light"] .epm2-kv-card {
+  background: #fafafa;
+  border-color: #e4e4e7;
+}
+
+.epm2-kv-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding: 13px 16px;
+  border-bottom: 1px solid #18181b;
+}
+
+.epm2-kv-row:last-child {
+  border-bottom: none;
+}
+
+[data-theme="light"] .epm2-kv-row {
+  border-bottom-color: #e4e4e7;
+}
+
+.epm2-kv-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.epm2-kv-lbl {
+  font-size: 0.72rem;
+  color: #71717a;
+}
+
+.epm2-kv-val {
+  font-size: 0.83rem;
+  font-weight: 600;
+  color: #ededed;
+  word-break: break-word;
+}
+
+[data-theme="light"] .epm2-kv-val {
+  color: #09090b;
+}
+
+.epm2-mono {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.77rem;
+}

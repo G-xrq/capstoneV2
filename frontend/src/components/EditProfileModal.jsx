@@ -1373,57 +1373,66 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
                 )}
 
                 {/* ══════════════════════════════════════════════════
-                  DONOR: CONTACT & REGION TAB (CASCADING PSGC)
+                  DONOR: CONTACT & LOCATION TAB (CLEAN VERCEL REWORK)
                  ══════════════════════════════════════════════════ */}
                 {!isOrg && !isAdmin && activeTab === 'contact' && (
-                  <div className="bbdrts-studio-pane fade-in">
+                  <div className="epm2-pane" key="epm2-contact">
 
-                    <div className="bbdrts-studio-card">
-                      <div className="bbdrts-studio-card-header">
-                        <div className="bbdrts-studio-card-title-wrap">
-                          <div className="bbdrts-studio-card-icon-box">
-                            <span className="material-symbols-outlined">contact_phone</span>
-                          </div>
-                          <div>
-                            <h5>Contact Information & Region</h5>
-                            <span>Select your Region, Province, Municipality, and Barangay for localized disaster matching.</span>
-                          </div>
+                    {/* Section 1: Mobile Contact Number */}
+                    <div className="epm2-section">
+                      <div className="epm2-field-head">
+                        <div>
+                          <label htmlFor="epm2-donor-phone" className="epm2-field-title">Mobile Number</label>
+                          <p className="epm2-field-sub">Used for regional dispatch alerts and donation verification updates.</p>
                         </div>
                       </div>
 
-                      {/* Primary Mobile Contact Number */}
-                      <div className="bbdrts-studio-field-box">
-                        <label className="bbdrts-studio-label">Primary Mobile Contact Number</label>
-                        <div className="bbdrts-input-icon-wrap">
-                          <span className="bbdrts-input-prefix-flag">🇵🇭 +63</span>
-                          <input
-                            type="tel"
-                            className="bbdrts-studio-input with-prefix"
-                            value={phone ? phone.replace(/^\+63\s*/, '').replace(/^0+/, '') : ''}
-                            onChange={e => {
-                              const raw = e.target.value.replace(/[^0-9]/g, '');
-                              const cleaned = raw.replace(/^0+/, '');
-                              setPhone(cleaned ? `+63 ${cleaned}` : '');
-                            }}
-                            placeholder="912 345 6789"
-                          />
+                      <div className="epm2-phone-wrap">
+                        <span className="epm2-phone-prefix">PH +63</span>
+                        <input
+                          id="epm2-donor-phone"
+                          type="tel"
+                          className="epm2-phone-input"
+                          value={phone ? phone.replace(/^\+63\s*/, '').replace(/^0+/, '') : ''}
+                          onChange={e => {
+                            const raw = e.target.value.replace(/[^0-9]/g, '');
+                            const cleaned = raw.replace(/^0+/, '');
+                            setPhone(cleaned ? `+63 ${cleaned}` : '');
+                          }}
+                          placeholder="912 345 6789"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Section 2: Registered Philippine Location (PSGC) */}
+                    <div className="epm2-section">
+                      <div className="epm2-field-head">
+                        <div>
+                          <span className="epm2-field-title">Registered Location</span>
+                          <p className="epm2-field-sub">Philippine Standard Geographic Code (PSGC) for localized disaster matching.</p>
                         </div>
-                        <span className="bbdrts-status-hint">Direct contact for dispatch alerts and relief verification updates.</span>
+                        {(regionName || provinceName || cityName || barangayName) && (
+                          <span className="epm2-status-pill" title="Selected location">
+                            <span className="epm2-dot" />
+                            <span>
+                              {[barangayName ? `Brgy. ${barangayName}` : '', cityName, provinceName].filter(Boolean).join(', ') || regionName}
+                            </span>
+                          </span>
+                        )}
                       </div>
 
-                      {/* Cascading 1 & 2: Region then Province */}
-                      <div className="bbdrts-studio-grid-2">
-                        <div className="bbdrts-studio-field-box">
-                          <label className="bbdrts-studio-label">1. Region</label>
-                          <div className="bbdrts-input-icon-wrap">
-                            <span className="material-symbols-outlined bbdrts-input-icon">map</span>
+                      <div className="epm2-grid-2">
+                        <div className="epm2-field">
+                          <label htmlFor="epm2-region" className="epm2-label-sm">Region</label>
+                          <div className="epm2-select-wrap">
                             <select
-                              className="bbdrts-studio-select"
+                              id="epm2-region"
+                              className="epm2-select"
                               value={regionCode}
                               onChange={handleRegionSelect}
                             >
                               <option value="">
-                                {regionList.length > 0 ? `-- Select Region (${regionList.length} Total) --` : 'Loading Philippine Regions...'}
+                                {regionList.length > 0 ? 'Select region' : 'Loading regions...'}
                               </option>
                               {regionList.map((r) => (
                                 <option key={r.region_code} value={r.region_code}>
@@ -1431,26 +1440,26 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
                                 </option>
                               ))}
                             </select>
+                            <span className="material-symbols-outlined epm2-select-chev">expand_more</span>
                           </div>
-                          <span className="bbdrts-status-hint">Official PSA administrative region.</span>
                         </div>
 
-                        <div className="bbdrts-studio-field-box">
-                          <label className="bbdrts-studio-label">2. Province</label>
-                          <div className="bbdrts-input-icon-wrap">
-                            <span className="material-symbols-outlined bbdrts-input-icon">location_city</span>
+                        <div className="epm2-field">
+                          <label htmlFor="epm2-province" className="epm2-label-sm">Province</label>
+                          <div className="epm2-select-wrap">
                             <select
-                              className="bbdrts-studio-select"
+                              id="epm2-province"
+                              className="epm2-select"
                               value={provinceCode}
                               onChange={handleProvinceSelect}
                               disabled={!regionCode || provinceList.length === 0}
                             >
                               <option value="">
-                                {regionCode
-                                  ? (provinceList.length > 0
-                                    ? `-- Select Province (${provinceList.length}) --`
-                                    : 'No Provinces in Region / Independent District')
-                                  : '-- Select Region First --'}
+                                {!regionCode
+                                  ? 'Select region first'
+                                  : provinceList.length > 0
+                                    ? 'Select province'
+                                    : 'No provinces available'}
                               </option>
                               {provinceList.map((p) => (
                                 <option key={p.province_code} value={p.province_code}>
@@ -1458,31 +1467,26 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
                                 </option>
                               ))}
                             </select>
+                            <span className="material-symbols-outlined epm2-select-chev">expand_more</span>
                           </div>
-                          <span className="bbdrts-status-hint">
-                            {regionName ? `Provinces / Districts in ${regionName}` : 'Select a Region first.'}
-                          </span>
                         </div>
-                      </div>
 
-                      {/* Cascading 3 & 4: Municipality then Barangay */}
-                      <div className="bbdrts-studio-grid-2">
-                        <div className="bbdrts-studio-field-box">
-                          <label className="bbdrts-studio-label">3. Municipality / City</label>
-                          <div className="bbdrts-input-icon-wrap">
-                            <span className="material-symbols-outlined bbdrts-input-icon">domain</span>
+                        <div className="epm2-field">
+                          <label htmlFor="epm2-city" className="epm2-label-sm">Municipality / City</label>
+                          <div className="epm2-select-wrap">
                             <select
-                              className="bbdrts-studio-select"
+                              id="epm2-city"
+                              className="epm2-select"
                               value={cityCode}
                               onChange={handleCitySelect}
                               disabled={!provinceCode || cityList.length === 0}
                             >
                               <option value="">
-                                {provinceCode
-                                  ? (cityList.length > 0
-                                    ? `-- Select Municipality / City (${cityList.length}) --`
-                                    : 'No Cities/Municipalities Found')
-                                  : '-- Select Province First --'}
+                                {!provinceCode
+                                  ? 'Select province first'
+                                  : cityList.length > 0
+                                    ? 'Select municipality / city'
+                                    : 'No cities available'}
                               </option>
                               {cityList.map((c) => (
                                 <option key={c.city_code} value={c.city_code}>
@@ -1490,28 +1494,26 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
                                 </option>
                               ))}
                             </select>
+                            <span className="material-symbols-outlined epm2-select-chev">expand_more</span>
                           </div>
-                          <span className="bbdrts-status-hint">
-                            {provinceName ? `Cities & Municipalities in ${provinceName}` : 'Select a Province first.'}
-                          </span>
                         </div>
 
-                        <div className="bbdrts-studio-field-box">
-                          <label className="bbdrts-studio-label">4. Barangay</label>
-                          <div className="bbdrts-input-icon-wrap">
-                            <span className="material-symbols-outlined bbdrts-input-icon">location_on</span>
+                        <div className="epm2-field">
+                          <label htmlFor="epm2-brgy" className="epm2-label-sm">Barangay</label>
+                          <div className="epm2-select-wrap">
                             <select
-                              className="bbdrts-studio-select"
+                              id="epm2-brgy"
+                              className="epm2-select"
                               value={barangayCode}
                               onChange={handleBarangaySelect}
                               disabled={!cityCode || barangayList.length === 0}
                             >
                               <option value="">
-                                {cityCode
-                                  ? (barangayList.length > 0
-                                    ? `-- Select Barangay (${barangayList.length}) --`
-                                    : 'No Barangays Found')
-                                  : '-- Select Municipality First --'}
+                                {!cityCode
+                                  ? 'Select city first'
+                                  : barangayList.length > 0
+                                    ? 'Select barangay'
+                                    : 'No barangays available'}
                               </option>
                               {barangayList.map((b) => (
                                 <option key={b.brgy_code} value={b.brgy_code}>
@@ -1519,205 +1521,225 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
                                 </option>
                               ))}
                             </select>
+                            <span className="material-symbols-outlined epm2-select-chev">expand_more</span>
                           </div>
-                          <span className="bbdrts-status-hint">
-                            {cityName ? `Barangays in ${cityName}` : 'Select a Municipality first.'}
-                          </span>
                         </div>
                       </div>
+                    </div>
 
-                      {/* Emergency SMS Alerts Toggle */}
-                      <div className="bbdrts-sms-toggles-list" style={{ marginTop: '4px' }}>
-                        <label className="bbdrts-toggle-row">
-                          <div className="bbdrts-toggle-meta">
-                            <strong>Receive Emergency SMS & On-Chain Receipts</strong>
-                            <span>Get SMS alerts for critical regional disaster campaigns and on-chain donation receipts.</span>
-                          </div>
-                          <input
-                            type="checkbox"
-                            className="bbdrts-switch-checkbox"
-                            checked={notifSmsAlerts}
-                            onChange={e => setNotifSmsAlerts(e.target.checked)}
-                          />
-                        </label>
-                      </div>
-
+                    {/* Section 3: SMS Alert Toggle */}
+                    <div className="epm2-section">
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={notifSmsAlerts}
+                        className="epm2-switch-row"
+                        onClick={() => setNotifSmsAlerts(prev => !prev)}
+                      >
+                        <div>
+                          <span className="epm2-field-title">Emergency SMS &amp; On-Chain Receipts</span>
+                          <p className="epm2-field-sub">Receive priority SMS alerts for critical regional disasters and notarized receipts.</p>
+                        </div>
+                        <span className={`epm2-switch ${notifSmsAlerts ? 'is-on' : ''}`}>
+                          <span className="epm2-switch-thumb" />
+                        </span>
+                      </button>
                     </div>
 
                   </div>
                 )}
 
                 {/* ══════════════════════════════════════════════════
-                  DONOR: VERIFIED IDENTITY TAB
+                  DONOR: ADDITIONAL INFO TAB (CLEAN VERCEL REWORK)
                  ══════════════════════════════════════════════════ */}
                 {!isOrg && !isAdmin && activeTab === 'additional' && (
-                  <div className="bbdrts-studio-pane fade-in">
-                    <div className="bbdrts-studio-card">
-                      <div className="bbdrts-studio-card-header">
-                        <div className="bbdrts-studio-card-title-wrap">
-                          <div className="bbdrts-studio-card-icon-box">
-                            <span className="material-symbols-outlined">badge</span>
-                          </div>
-                          <div>
-                            <h5>Additional Background & Humanitarian Profile (Optional)</h5>
-                            <span>Share optional details to help communities and NGOs better recognize your humanitarian contributions.</span>
-                          </div>
+                  <div className="epm2-pane" key="epm2-additional">
+
+                    {/* Section 1: Background & Links (Balanced 2-Column Grid) */}
+                    <div className="epm2-section">
+                      <div className="epm2-field-head">
+                        <div>
+                          <span className="epm2-field-title">Background &amp; Links</span>
+                          <p className="epm2-field-sub">Optional details to contextualize your humanitarian profile.</p>
                         </div>
                       </div>
 
-                      <div className="bbdrts-studio-field-box">
-                        <label className="bbdrts-studio-label">
-                          Occupation / Profession
-                          <span className="bbdrts-opt-tag" style={{ marginLeft: '6px', fontSize: '0.68rem', opacity: 0.65 }}>(Optional)</span>
-                        </label>
-                        <div className="bbdrts-input-icon-wrap">
-                          <span className="material-symbols-outlined bbdrts-input-icon">work</span>
+                      <div className="epm2-grid-2">
+                        <div className="epm2-field">
+                          <label htmlFor="epm2-occupation" className="epm2-label-sm">Occupation / Profession</label>
                           <input
+                            id="epm2-occupation"
                             type="text"
-                            className="bbdrts-studio-input"
+                            className="epm2-input"
                             value={occupation}
                             onChange={e => setOccupation(e.target.value)}
-                            placeholder="e.g. Software Engineer, Healthcare Worker, Educator"
+                            placeholder="e.g. Software Engineer, Educator"
                             maxLength={80}
                           />
                         </div>
-                        <span className="bbdrts-status-hint">Optional profession for contributor background.</span>
-                      </div>
 
-                      <div className="bbdrts-studio-field-box">
-                        <label className="bbdrts-studio-label">
-                          Personal Website or Portfolio
-                          <span className="bbdrts-opt-tag" style={{ marginLeft: '6px', fontSize: '0.68rem', opacity: 0.65 }}>(Optional)</span>
-                        </label>
-                        <div className="bbdrts-input-icon-wrap">
-                          <span className="material-symbols-outlined bbdrts-input-icon">language</span>
+                        <div className="epm2-field">
+                          <label htmlFor="epm2-website" className="epm2-label-sm">Personal Website</label>
                           <input
+                            id="epm2-website"
                             type="url"
-                            className="bbdrts-studio-input"
+                            className="epm2-input"
                             value={website}
                             onChange={e => setWebsite(e.target.value)}
                             placeholder="https://yourwebsite.com"
                             maxLength={160}
                           />
                         </div>
-                        <span className="bbdrts-status-hint">Link to your personal homepage, portfolio, or foundation page.</span>
-                      </div>
 
-                      <div className="bbdrts-studio-field-box">
-                        <label className="bbdrts-studio-label">
-                          Social Media Profile / Handle
-                          <span className="bbdrts-opt-tag" style={{ marginLeft: '6px', fontSize: '0.68rem', opacity: 0.65 }}>(Optional)</span>
-                        </label>
-                        <div className="bbdrts-input-icon-wrap">
-                          <span className="material-symbols-outlined bbdrts-input-icon">alternate_email</span>
+                        <div className="epm2-field">
+                          <label htmlFor="epm2-social" className="epm2-label-sm">Social Profile / Handle</label>
                           <input
+                            id="epm2-social"
                             type="text"
-                            className="bbdrts-studio-input"
+                            className="epm2-input"
                             value={socialLink}
                             onChange={e => setSocialLink(e.target.value)}
-                            placeholder="@yourusername or https://linkedin.com/in/..."
+                            placeholder="@username or LinkedIn URL"
                             maxLength={120}
                           />
                         </div>
-                        <span className="bbdrts-status-hint">LinkedIn, X (Twitter), Facebook, or Instagram profile.</span>
-                      </div>
 
-                      <div className="bbdrts-studio-field-box">
-                        <label className="bbdrts-studio-label">
-                          Preferred Relief Causes
-                          <span className="bbdrts-opt-tag" style={{ marginLeft: '6px', fontSize: '0.68rem', opacity: 0.65 }}>(Optional)</span>
-                        </label>
-                        <div className="bbdrts-input-icon-wrap">
-                          <span className="material-symbols-outlined bbdrts-input-icon">favorite</span>
+                        <div className="epm2-field">
+                          <label htmlFor="epm2-emergency" className="epm2-label-sm">Emergency Contact</label>
                           <input
+                            id="epm2-emergency"
                             type="text"
-                            className="bbdrts-studio-input"
-                            value={preferredCauses}
-                            onChange={e => setPreferredCauses(e.target.value)}
-                            placeholder="e.g. Typhoon Relief, Flood Evacuation, Medical Aid"
-                            maxLength={120}
-                          />
-                        </div>
-                        <span className="bbdrts-status-hint">Relief sectors you are passionate about supporting.</span>
-                      </div>
-
-                      <div className="bbdrts-studio-field-box">
-                        <label className="bbdrts-studio-label">
-                          Emergency Contact / Alternate Contact
-                          <span className="bbdrts-opt-tag" style={{ marginLeft: '6px', fontSize: '0.68rem', opacity: 0.65 }}>(Optional)</span>
-                        </label>
-                        <div className="bbdrts-input-icon-wrap">
-                          <span className="material-symbols-outlined bbdrts-input-icon">emergency</span>
-                          <input
-                            type="text"
-                            className="bbdrts-studio-input"
+                            className="epm2-input"
                             value={emergencyContact}
                             onChange={e => setEmergencyContact(e.target.value)}
-                            placeholder="Name & Contact (e.g. Maria Santos - 0917 123 4567)"
+                            placeholder="Name · 0917 123 4567"
                             maxLength={100}
                           />
                         </div>
-                        <span className="bbdrts-status-hint">Designated backup emergency contact during disaster coordination.</span>
                       </div>
                     </div>
+
+                    {/* Section 2: Preferred Relief Causes with Quick-Add Chips */}
+                    <div className="epm2-section">
+                      <div className="epm2-field-head">
+                        <div>
+                          <label htmlFor="epm2-causes" className="epm2-field-title">Preferred Relief Causes</label>
+                          <p className="epm2-field-sub">Relief sectors you prioritize supporting during emergencies.</p>
+                        </div>
+                      </div>
+
+                      <input
+                        id="epm2-causes"
+                        type="text"
+                        className="epm2-input"
+                        value={preferredCauses}
+                        onChange={e => setPreferredCauses(e.target.value)}
+                        placeholder="e.g. Typhoon Relief, Flood Evacuation, Medical Aid"
+                        maxLength={120}
+                      />
+
+                      <div className="epm2-chip-row">
+                        {[
+                          'Typhoon Relief',
+                          'Flood Evacuation',
+                          'Medical Aid',
+                          'Food & Clean Water',
+                          'Shelter Rebuilding',
+                          'Education & Youth'
+                        ].map((cause) => {
+                          const hasCause = (preferredCauses || '').toLowerCase().includes(cause.toLowerCase());
+                          return (
+                            <button
+                              key={cause}
+                              type="button"
+                              className={`epm2-chip ${hasCause ? 'is-selected' : ''}`}
+                              onClick={() => {
+                                if (hasCause) {
+                                  const next = (preferredCauses || '')
+                                    .split(',')
+                                    .map(s => s.trim())
+                                    .filter(s => s && s.toLowerCase() !== cause.toLowerCase())
+                                    .join(', ');
+                                  setPreferredCauses(next);
+                                } else {
+                                  setPreferredCauses(prev => prev ? `${prev}, ${cause}` : cause);
+                                }
+                              }}
+                            >
+                              {hasCause ? '✓ ' : '+ '}{cause}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
                   </div>
                 )}
 
+                {/* ══════════════════════════════════════════════════
+                  DONOR: VERIFIED IDENTITY TAB (CLEAN VERCEL REWORK)
+                 ══════════════════════════════════════════════════ */}
                 {!isOrg && !isAdmin && activeTab === 'verified' && (
-                  <div className="bbdrts-studio-pane fade-in">
+                  <div className="epm2-pane" key="epm2-verified">
 
-                    <div className="bbdrts-studio-card">
-                      <div className="bbdrts-studio-card-header">
-                        <div className="bbdrts-studio-card-title-wrap">
-                          <div className="bbdrts-studio-card-icon-box">
-                            <span className="material-symbols-outlined">shield</span>
-                          </div>
-                          <div>
-                            <h5>Cryptographic Identity & Verified Ledger Records</h5>
-                            <span>These immutable credentials authenticate your on-chain donation receipts.</span>
-                          </div>
+                    <div className="epm2-section">
+                      <div className="epm2-field-head">
+                        <div>
+                          <span className="epm2-field-title">Verified Identity &amp; Ledger Record</span>
+                          <p className="epm2-field-sub">Immutable credentials bound to your notarized Sepolia donation receipts.</p>
                         </div>
                       </div>
 
-                      <div className="bbdrts-studio-credentials-list">
-                        {/* Legal Name */}
-                        <div className="bbdrts-studio-cred-row">
-                          <div className="bbdrts-studio-cred-meta">
-                            <span className="bbdrts-studio-cred-label">Registered Legal Name</span>
-                            <span className="bbdrts-studio-cred-val">{legalName}</span>
+                      <div className="epm2-kv-card">
+                        <div className="epm2-kv-row">
+                          <div className="epm2-kv-info">
+                            <span className="epm2-kv-lbl">Registered Legal Name</span>
+                            <span className="epm2-kv-val">{legalName}</span>
                           </div>
-                          <span className="bbdrts-permanent-badge-inline">
-                            <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>lock</span>
-                            Permanent Identity
+                          <span className="epm2-status-pill">
+                            <span className="material-symbols-outlined" style={{ fontSize: '12px', opacity: 0.75 }}>lock</span>
+                            <span>Permanent</span>
                           </span>
                         </div>
 
-                        {/* Email */}
-                        <div className="bbdrts-studio-cred-row">
-                          <div className="bbdrts-studio-cred-meta">
-                            <span className="bbdrts-studio-cred-label">Account Email</span>
-                            <span className="bbdrts-studio-cred-val">{currentUser?.email || 'Not provided'}</span>
+                        <div className="epm2-kv-row">
+                          <div className="epm2-kv-info">
+                            <span className="epm2-kv-lbl">Account Email</span>
+                            <span className="epm2-kv-val">{currentUser?.email || 'Not provided'}</span>
                           </div>
-                          <span className="bbdrts-verified-badge-inline">
-                            <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>verified</span>
-                            Verified Email
+                          <span className="epm2-status-pill">
+                            <span className="epm2-dot" />
+                            <span>Verified</span>
                           </span>
                         </div>
 
-                        {/* Gasless Blockchain Audit Status */}
-                        <div className="bbdrts-studio-cred-row">
-                          <div className="bbdrts-studio-cred-meta">
-                            <span className="bbdrts-studio-cred-label">Blockchain Audit Trail</span>
-                            <span className="bbdrts-studio-cred-val">
-                              Gasless Ethereum Sepolia Notarization Active (No Wallet Required)
+                        <div className="epm2-kv-row">
+                          <div className="epm2-kv-info">
+                            <span className="epm2-kv-lbl">Account Identifier</span>
+                            <span className="epm2-kv-val epm2-mono">
+                              {currentUser?.system_id || `BBDRTS-DONOR-2026-${String(currentUser?.id || 1).padStart(5, '0')}`}
                             </span>
                           </div>
-                          <span className="bbdrts-verified-badge-inline">
-                            <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>verified</span>
-                            Active
+                          <span className="epm2-status-pill">
+                            <span>Verified Donor</span>
+                          </span>
+                        </div>
+
+                        <div className="epm2-kv-row">
+                          <div className="epm2-kv-info">
+                            <span className="epm2-kv-lbl">Blockchain Audit Trail</span>
+                            <span className="epm2-kv-val">Gasless Ethereum Sepolia · Chain ID 11155111</span>
+                          </div>
+                          <span className="epm2-status-pill">
+                            <span className="epm2-dot" />
+                            <span>Active</span>
                           </span>
                         </div>
                       </div>
+
+                      <p className="epm2-note-text" style={{ marginTop: '4px' }}>
+                        To update your login email, password, or two-factor authentication, visit the Security tab in Profile &amp; Settings.
+                      </p>
                     </div>
 
                   </div>
