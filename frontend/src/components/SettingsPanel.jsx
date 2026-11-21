@@ -6,7 +6,7 @@ import { contractAddress } from '../contractConfig';
 import { shortAddr } from './CampaignCard';
 import { useToast } from '../context/ToastContext';
 import EditProfileModal from './EditProfileModal';
-import DonorBadge from './DonorBadge';
+import DonorBadge, { getDonorTier } from './DonorBadge';
 import { formatPhoneNumber } from '../utils/formatters';
 import NgoProfileModal from './NgoProfileModal';
 import { autoCropQrScreenshot, extractQrVoucherText } from '../utils/qrCropper';
@@ -1147,6 +1147,33 @@ export default function SettingsPanel({
     }
   })();
 
+  const donorTierInfo = (!isOrg && !isAdmin) ? getDonorTier(totalDonatedEth, totalDonatedPhp) : null;
+
+  const optionalFields = !isOrg
+    ? [
+        { key: 'occupation', label: 'Occupation', value: userPrefs.occupation || '' },
+        { key: 'causes', label: 'Preferred Causes', value: userPrefs.preferredCauses || '' },
+        { key: 'website', label: 'Website', value: userPrefs.website || currentUser?.website || '', isLink: true },
+        { key: 'social', label: 'Social Profile', value: userPrefs.socialLink || '' },
+        { key: 'emergency', label: 'Emergency Contact', value: userPrefs.emergencyContact || '' },
+      ]
+    : [
+        { key: 'website', label: 'Official Website', value: ngoWebsite || userPrefs.website || currentUser?.website || '', isLink: true },
+        { key: 'social', label: 'Social Media', value: ngoSocialLink || userPrefs.socialLink || '' },
+        { key: 'focus', label: 'Disaster Focus', value: ngoFocusAreas || userPrefs.focusAreas || '' },
+        { key: 'landmark', label: 'HQ Landmark', value: ngoLandmark || userPrefs.hqLandmark || '' },
+        { key: 'mission', label: 'Mission Statement', value: ngoMission || userPrefs.missionStatement || '' },
+      ];
+  const filledOptionalFields = optionalFields.filter((f) => Boolean(String(f.value || '').trim()));
+  const emptyOptionalFields = optionalFields.filter((f) => !String(f.value || '').trim());
+
+  const handleCopySystemId = () => {
+    try {
+      navigator.clipboard.writeText(systemId);
+      showSuccess('Account ID copied to clipboard.', 'Copied');
+    } catch (_) {}
+  };
+
   return (
     <div className="bbdrts-settings-root">
 
@@ -1175,109 +1202,93 @@ export default function SettingsPanel({
         </div>
       </div>
 
-      {/* ── Vercel Two-Column Settings Shell (Sticky Left Rail + Right Content Pane) ── */}
-      <div className="vs-shell">
-        <aside className="vs-rail" aria-label="Settings categories">
-          <nav className="vs-nav">
-            <button
-              type="button"
-              className={`vs-nav-item ${activeTab === 'profile' ? 'active' : ''}`}
-              onClick={() => setActiveTab('profile')}
-            >
-              <span className="material-symbols-outlined">person</span>
-              <span>Profile &amp; Identity</span>
-            </button>
+      {/* ── Vercel Horizontal Underline Navigation Tabs (Zero Double-Sidebar) ── */}
+      <nav className="vs-tabs" role="tablist" aria-label="Settings sections">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'profile'}
+          className={`vs-tab ${activeTab === 'profile' ? 'active' : ''}`}
+          onClick={() => setActiveTab('profile')}
+        >
+          <span>Profile &amp; Identity</span>
+        </button>
 
-            {(isOrg || showNgoInputs) && (
-              <button
-                type="button"
-                className={`vs-nav-item ${activeTab === 'qr_library' ? 'active' : ''}`}
-                onClick={() => setActiveTab('qr_library')}
-              >
-                <span className="material-symbols-outlined">qr_code_2</span>
-                <span>QR &amp; Payout Rails</span>
-                {savedQrList.length > 0 && (
-                  <span className="vs-nav-badge">{savedQrList.length}</span>
-                )}
-              </button>
+        {(isOrg || showNgoInputs) && (
+          <button
+            type="button"
+            role="tab"
+            aria-selected={activeTab === 'qr_library'}
+            className={`vs-tab ${activeTab === 'qr_library' ? 'active' : ''}`}
+            onClick={() => setActiveTab('qr_library')}
+          >
+            <span>QR &amp; Payout Rails</span>
+            {savedQrList.length > 0 && (
+              <span className="vs-tab-count">{savedQrList.length}</span>
             )}
+          </button>
+        )}
 
-            <button
-              type="button"
-              className={`vs-nav-item ${activeTab === 'wallet' ? 'active' : ''}`}
-              onClick={() => setActiveTab('wallet')}
-            >
-              <span className="material-symbols-outlined">verified_user</span>
-              <span>Blockchain Audit</span>
-            </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'wallet'}
+          className={`vs-tab ${activeTab === 'wallet' ? 'active' : ''}`}
+          onClick={() => setActiveTab('wallet')}
+        >
+          <span>Blockchain Audit</span>
+        </button>
 
-            <button
-              type="button"
-              className={`vs-nav-item ${activeTab === 'preferences' ? 'active' : ''}`}
-              onClick={() => setActiveTab('preferences')}
-            >
-              <span className="material-symbols-outlined">tune</span>
-              <span>Preferences</span>
-            </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'preferences'}
+          className={`vs-tab ${activeTab === 'preferences' ? 'active' : ''}`}
+          onClick={() => setActiveTab('preferences')}
+        >
+          <span>Preferences</span>
+        </button>
 
-            <button
-              type="button"
-              className={`vs-nav-item ${activeTab === 'security' ? 'active' : ''}`}
-              onClick={() => setActiveTab('security')}
-            >
-              <span className="material-symbols-outlined">shield</span>
-              <span>Security &amp; System</span>
-            </button>
-          </nav>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'security'}
+          className={`vs-tab ${activeTab === 'security' ? 'active' : ''}`}
+          onClick={() => setActiveTab('security')}
+        >
+          <span>Security &amp; System</span>
+        </button>
+      </nav>
 
-          {/* Subtle Account Status Summary in Left Rail */}
-          <div className="vs-rail-meta">
-            <div className="vs-rail-meta-row">
-              <span className="vs-rail-meta-lbl">Role</span>
-              <span className="vs-rail-meta-val">
-                {isOrg ? 'Accredited NGO' : isAdmin ? 'Administrator' : 'Verified Donor'}
-              </span>
-            </div>
-            <div className="vs-rail-meta-row">
-              <span className="vs-rail-meta-lbl">Account ID</span>
-              <span className="vs-rail-meta-mono" title={systemId}>{systemId}</span>
-            </div>
-            <div className="vs-rail-meta-row">
-              <span className="vs-rail-meta-lbl">Ledger</span>
-              <span className="vs-rail-meta-status">
-                <span className="vs-live-dot" />
-                <span>Sepolia Active</span>
-              </span>
-            </div>
-            <div className="vs-rail-meta-row">
-              <span className="vs-rail-meta-lbl">2FA Guard</span>
-              <span className="vs-rail-meta-status">
-                <span className={`vs-live-dot ${tfaStatus?.enabled ? '' : 'is-off'}`} />
-                <span>{tfaStatus?.enabled ? 'Enabled' : 'Off'}</span>
-              </span>
-            </div>
-          </div>
-        </aside>
-
-        <div className="vs-content" key={activeTab}>
+      <div className="vs-content" key={activeTab}>
       {/* ══════════════════════════════════════════════════════════════════
           TAB 1: PROFILE & IDENTITY
           ══════════════════════════════════════════════════════════════════ */}
       {activeTab === 'profile' && (
         <div className="bbdrts-settings-pane vs-pane">
 
-          {/* Borderless Identity Band (Matches Dashboard Overview Aesthetic) */}
+          {/* Full-Width Borderless Identity Strip */}
           <div className="vs-identity-band">
             <div className="vs-identity-left">
-              <div className="vs-avatar">
-                {currentUser?.avatar_url && (currentUser.avatar_url.startsWith('data:') || currentUser.avatar_url.startsWith('http')) ? (
-                  <img src={currentUser.avatar_url} alt="Profile Avatar" />
-                ) : currentUser?.avatar_url && currentUser.avatar_url.length < 30 ? (
-                  <span className="material-symbols-outlined" style={{ fontSize: '26px' }}>{currentUser.avatar_url}</span>
-                ) : (
-                  userInitials
-                )}
-              </div>
+              <button
+                type="button"
+                className="vs-avatar-btn"
+                onClick={() => setEditModalOpen(true)}
+                title="Change profile photo"
+              >
+                <div className="vs-avatar">
+                  {currentUser?.avatar_url && (currentUser.avatar_url.startsWith('data:') || currentUser.avatar_url.startsWith('http')) ? (
+                    <img src={currentUser.avatar_url} alt="Profile Avatar" />
+                  ) : currentUser?.avatar_url && currentUser.avatar_url.length < 30 ? (
+                    <span className="material-symbols-outlined" style={{ fontSize: '26px' }}>{currentUser.avatar_url}</span>
+                  ) : (
+                    userInitials
+                  )}
+                </div>
+                <span className="vs-avatar-hover">
+                  <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>photo_camera</span>
+                </span>
+              </button>
 
               <div className="vs-identity-info">
                 <div className="vs-identity-name-row">
@@ -1294,171 +1305,263 @@ export default function SettingsPanel({
                   <span className="vs-dot-sep">·</span>
                   <span>Member since {formatMemberSince(currentUser?.created_at || currentUser?.Created_At)}</span>
                   <span className="vs-dot-sep">·</span>
-                  <span className="vs-id-code">{systemId}</span>
+                  <button
+                    type="button"
+                    className="vs-id-copy-btn"
+                    onClick={handleCopySystemId}
+                    title="Copy Account ID"
+                  >
+                    <span>{systemId}</span>
+                    <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>content_copy</span>
+                  </button>
                 </div>
               </div>
             </div>
 
-            <button
-              type="button"
-              className="vs-ghost-action"
-              onClick={() => setEditModalOpen(true)}
-            >
-              <span>Update avatar &amp; bio</span>
-              <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>arrow_forward</span>
-            </button>
-          </div>
-
-          {/* Core Public Profile — Clean Hairline Key-Value List (Zero Nested Boxes) */}
-          <div className="vs-card">
-            <div className="vs-card-head">
-              <div>
-                <h4 className="vs-card-title">Public Profile</h4>
-                <p className="vs-card-desc">
-                  Details displayed on your verified donation receipts and appreciation certificates.
-                </p>
-              </div>
+            <div className="vs-identity-pills">
               <button
                 type="button"
-                className="vs-subtle-btn"
-                onClick={() => setEditModalOpen(true)}
+                className="vs-status-pill"
+                onClick={() => setActiveTab('wallet')}
               >
-                Edit
+                <span className="vs-live-dot" />
+                <span>Sepolia Active</span>
               </button>
-            </div>
-
-            <div className="vs-kv-list">
-              <div className="vs-kv-row">
-                <span className="vs-kv-key">Display Name</span>
-                <span className="vs-kv-val">{displayName}</span>
-              </div>
-
-              <div className="vs-kv-row">
-                <span className="vs-kv-key">Email Address</span>
-                <span className="vs-kv-val">{currentUser.email || '—'}</span>
-              </div>
-
-              <div className="vs-kv-row">
-                <span className="vs-kv-key">Contact Number</span>
-                <span className="vs-kv-val">
-                  {currentUser?.phone || (
-                    <button type="button" className="vs-add-link" onClick={() => setEditModalOpen(true)}>+ Add contact number</button>
-                  )}
-                </span>
-              </div>
-
-              <div className="vs-kv-row">
-                <span className="vs-kv-key">Registered Location</span>
-                <span className="vs-kv-val">
-                  {currentUser?.location || (
-                    <button type="button" className="vs-add-link" onClick={() => setEditModalOpen(true)}>+ Add location</button>
-                  )}
-                </span>
-              </div>
-
-              <div className="vs-kv-row is-multiline">
-                <span className="vs-kv-key">About / Bio</span>
-                <span className="vs-kv-val">
-                  {currentUser?.bio || (
-                    <button type="button" className="vs-add-link" onClick={() => setEditModalOpen(true)}>+ Add a short bio</button>
-                  )}
-                </span>
-              </div>
+              <button
+                type="button"
+                className="vs-status-pill"
+                onClick={() => setActiveTab('security')}
+              >
+                <span className={`vs-live-dot ${tfaStatus?.enabled ? '' : 'is-off'}`} />
+                <span>{tfaStatus?.enabled ? '2FA Enabled' : '2FA Off'}</span>
+              </button>
             </div>
           </div>
 
-          {/* Additional Profile Details — Balanced 2-Column Hairline Grid (No Orphan Row) */}
-          <div className="vs-card">
-            <div className="vs-card-head">
-              <div>
-                <h4 className="vs-card-title">
-                  {isOrg ? 'Organization Details' : 'Humanitarian Background'}
-                </h4>
-                <p className="vs-card-desc">
-                  {isOrg
-                    ? 'Public links, operational focus areas, and mission statement.'
-                    : 'Optional context for disaster relief coordination and certificates.'}
-                </p>
+          {/* Balanced 2-Column Vercel Grid (Primary Details Left · Standing & Quick Overview Right) */}
+          <div className="vs-profile-grid">
+            {/* LEFT COLUMN: Unified Public Profile Card */}
+            <div className="vs-card">
+              <div className="vs-card-head">
+                <div>
+                  <h4 className="vs-card-title">Public Profile</h4>
+                  <p className="vs-card-desc">
+                    Displayed on verified donation receipts and appreciation certificates.
+                  </p>
+                </div>
+              </div>
+
+              <div className="vs-kv-list">
+                <div className="vs-kv-row">
+                  <span className="vs-kv-key">Display Name</span>
+                  <span className="vs-kv-val">{displayName}</span>
+                </div>
+
+                <div className="vs-kv-row">
+                  <span className="vs-kv-key">Email Address</span>
+                  <span className="vs-kv-val">{currentUser.email || '—'}</span>
+                </div>
+
+                <div className="vs-kv-row">
+                  <span className="vs-kv-key">Contact Number</span>
+                  <span className="vs-kv-val">
+                    {currentUser?.phone || (
+                      <button type="button" className="vs-add-link" onClick={() => setEditModalOpen(true)}>+ Add contact number</button>
+                    )}
+                  </span>
+                </div>
+
+                <div className="vs-kv-row">
+                  <span className="vs-kv-key">Location</span>
+                  <span className="vs-kv-val">
+                    {currentUser?.location || (
+                      <button type="button" className="vs-add-link" onClick={() => setEditModalOpen(true)}>+ Add location</button>
+                    )}
+                  </span>
+                </div>
+
+                <div className="vs-kv-row is-multiline">
+                  <span className="vs-kv-key">About / Bio</span>
+                  <span className="vs-kv-val">
+                    {currentUser?.bio || (
+                      <button type="button" className="vs-add-link" onClick={() => setEditModalOpen(true)}>+ Add a short bio</button>
+                    )}
+                  </span>
+                </div>
+
+                {/* Only render filled optional fields as rows */}
+                {filledOptionalFields.map((field) => (
+                  <div key={field.key} className="vs-kv-row">
+                    <span className="vs-kv-key">{field.label}</span>
+                    <span className="vs-kv-val">
+                      {field.isLink ? (
+                        <a href={field.value} target="_blank" rel="noopener noreferrer" className="vs-ext-link">
+                          <span>{field.value}</span>
+                          <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>north_east</span>
+                        </a>
+                      ) : field.value}
+                    </span>
+                  </div>
+                ))}
+
+                {/* Compact chip strip for unset optional fields (Zero giant 'Not set' wall) */}
+                {emptyOptionalFields.length > 0 && (
+                  <div className="vs-optional-strip">
+                    <span className="vs-optional-lbl">Optional details</span>
+                    <div className="vs-optional-chips">
+                      {emptyOptionalFields.map((field) => (
+                        <button
+                          key={field.key}
+                          type="button"
+                          className="vs-optional-chip"
+                          onClick={() => setEditModalOpen(true)}
+                        >
+                          + {field.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="vs-card-foot">
+                <span className="vs-card-foot-note">
+                  Changes sync automatically across your notarized receipts.
+                </span>
+                <button
+                  type="button"
+                  className="vs-subtle-btn"
+                  onClick={() => setEditModalOpen(true)}
+                >
+                  Edit Profile
+                </button>
               </div>
             </div>
 
-            {!isOrg ? (
-              <div className="vs-kv-grid">
-                <div className="vs-kv-cell">
-                  <span className="vs-kv-key">Occupation</span>
-                  <span className="vs-kv-val">
-                    {userPrefs.occupation || <span className="vs-muted-val">Not set</span>}
-                  </span>
+            {/* RIGHT COLUMN: Recognition Standing + Quick Account Health */}
+            <div className="vs-side-col">
+              {!isOrg && !isAdmin && donorTierInfo && (
+                <div className="vs-card">
+                  <div className="vs-card-head">
+                    <div>
+                      <h4 className="vs-card-title">Recognition Standing</h4>
+                      <p className="vs-card-desc">
+                        Cumulative PHP giving notarized on Sepolia.
+                      </p>
+                    </div>
+                    {donorTierInfo.tier && (
+                      <span className="vs-tier-tag">Tier {donorTierInfo.tier.id} / 15</span>
+                    )}
+                  </div>
+
+                  <div className="vs-standing-body">
+                    <div className="vs-standing-top">
+                      <DonorBadge
+                        size="md"
+                        walletAddress={walletAddress || currentUser?.wallet_address}
+                        donorId={currentUser?.id}
+                        amountEth={totalDonatedEth}
+                        amountPhp={totalDonatedPhp}
+                        showProgress={false}
+                        onClick={onOpenHonorsLadder}
+                      />
+                      <div style={{ minWidth: 0 }}>
+                        <div className="vs-standing-tier-name">
+                          {donorTierInfo.tier ? donorTierInfo.tier.title : 'Supporter'}
+                        </div>
+                        <div className="vs-standing-amt">
+                          ₱{Math.round(Number(totalDonatedPhp) || 0).toLocaleString('en-US')}
+                        </div>
+                      </div>
+                    </div>
+
+                    {donorTierInfo.nextTier && (
+                      <div className="vs-standing-progress">
+                        <div className="vs-progress-track">
+                          <div
+                            className="vs-progress-fill"
+                            style={{ width: `${Math.min(100, Math.max(2, Math.round(donorTierInfo.progressPct || 0)))}%` }}
+                          />
+                        </div>
+                        <div className="vs-progress-meta">
+                          <span>Next: <strong>{donorTierInfo.nextTier.title}</strong></span>
+                          <span>₱{Math.round(donorTierInfo.remainingPhp || 0).toLocaleString('en-US')} to go</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {onOpenHonorsLadder && (
+                    <button
+                      type="button"
+                      className="vs-card-foot-action"
+                      onClick={onOpenHonorsLadder}
+                    >
+                      <span>View all 15 recognition tiers</span>
+                      <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>north_east</span>
+                    </button>
+                  )}
                 </div>
-                <div className="vs-kv-cell">
-                  <span className="vs-kv-key">Preferred Causes</span>
-                  <span className="vs-kv-val">
-                    {userPrefs.preferredCauses || <span className="vs-muted-val">Not set</span>}
-                  </span>
+              )}
+
+              {/* Quick Navigation Overview Card */}
+              <div className="vs-card">
+                <div className="vs-card-head">
+                  <div>
+                    <h4 className="vs-card-title">Account Overview</h4>
+                    <p className="vs-card-desc">
+                      Audit ledger, security controls, and workspace display.
+                    </p>
+                  </div>
                 </div>
-                <div className="vs-kv-cell">
-                  <span className="vs-kv-key">Personal Website</span>
-                  <span className="vs-kv-val">
-                    {userPrefs.website || currentUser?.website ? (
-                      <a href={userPrefs.website || currentUser?.website} target="_blank" rel="noopener noreferrer" className="vs-ext-link">
-                        <span>{userPrefs.website || currentUser?.website}</span>
-                        <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>north_east</span>
-                      </a>
-                    ) : <span className="vs-muted-val">Not set</span>}
-                  </span>
-                </div>
-                <div className="vs-kv-cell">
-                  <span className="vs-kv-key">Social Profile</span>
-                  <span className="vs-kv-val">
-                    {userPrefs.socialLink || <span className="vs-muted-val">Not set</span>}
-                  </span>
-                </div>
-                <div className="vs-kv-cell is-full">
-                  <span className="vs-kv-key">Emergency Contact</span>
-                  <span className="vs-kv-val">
-                    {userPrefs.emergencyContact || <span className="vs-muted-val">Not set</span>}
-                  </span>
+
+                <div className="vs-quick-list">
+                  <button
+                    type="button"
+                    className="vs-quick-row"
+                    onClick={() => setActiveTab('wallet')}
+                  >
+                    <div className="vs-quick-info">
+                      <span className="vs-quick-title">Sepolia Audit Contract</span>
+                      <span className="vs-quick-sub">
+                        <span className="vs-live-dot" />
+                        <span>Gasless Relayer Active · Chain 11155111</span>
+                      </span>
+                    </div>
+                    <span className="material-symbols-outlined vs-quick-chev">chevron_right</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    className="vs-quick-row"
+                    onClick={() => setActiveTab('security')}
+                  >
+                    <div className="vs-quick-info">
+                      <span className="vs-quick-title">Two-Factor Authentication</span>
+                      <span className="vs-quick-sub">
+                        <span className={`vs-live-dot ${tfaStatus?.enabled ? '' : 'is-off'}`} />
+                        <span>{tfaStatus?.enabled ? 'Protected with authenticator app' : 'Off · Recommended for account security'}</span>
+                      </span>
+                    </div>
+                    <span className="material-symbols-outlined vs-quick-chev">chevron_right</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    className="vs-quick-row"
+                    onClick={() => setActiveTab('preferences')}
+                  >
+                    <div className="vs-quick-info">
+                      <span className="vs-quick-title">Workspace Preferences</span>
+                      <span className="vs-quick-sub">
+                        <span>{theme === 'dark' ? 'Dark Mode' : 'Light Mode'} · {String(language || 'en').toUpperCase()}</span>
+                      </span>
+                    </div>
+                    <span className="material-symbols-outlined vs-quick-chev">chevron_right</span>
+                  </button>
                 </div>
               </div>
-            ) : (
-              <div className="vs-kv-grid">
-                <div className="vs-kv-cell">
-                  <span className="vs-kv-key">Official Website</span>
-                  <span className="vs-kv-val">
-                    {ngoWebsite || userPrefs.website || currentUser?.website ? (
-                      <a href={ngoWebsite || userPrefs.website || currentUser?.website} target="_blank" rel="noopener noreferrer" className="vs-ext-link">
-                        <span>{ngoWebsite || userPrefs.website || currentUser?.website}</span>
-                        <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>north_east</span>
-                      </a>
-                    ) : <span className="vs-muted-val">Not set</span>}
-                  </span>
-                </div>
-                <div className="vs-kv-cell">
-                  <span className="vs-kv-key">Social Media Page</span>
-                  <span className="vs-kv-val">
-                    {ngoSocialLink || userPrefs.socialLink || <span className="vs-muted-val">Not set</span>}
-                  </span>
-                </div>
-                <div className="vs-kv-cell">
-                  <span className="vs-kv-key">Disaster Focus Areas</span>
-                  <span className="vs-kv-val">
-                    {ngoFocusAreas || userPrefs.focusAreas || <span className="vs-muted-val">Not set</span>}
-                  </span>
-                </div>
-                <div className="vs-kv-cell">
-                  <span className="vs-kv-key">HQ Landmark</span>
-                  <span className="vs-kv-val">
-                    {ngoLandmark || userPrefs.hqLandmark || <span className="vs-muted-val">Not set</span>}
-                  </span>
-                </div>
-                <div className="vs-kv-cell is-full">
-                  <span className="vs-kv-key">Mission Statement</span>
-                  <span className="vs-kv-val">
-                    {ngoMission || userPrefs.missionStatement || <span className="vs-muted-val">Not set</span>}
-                  </span>
-                </div>
-              </div>
-            )}
+            </div>
           </div>
 
           {/* NGO Profile Inputs & Information Studio (Dedicated In-Place Inputs) */}
@@ -1696,98 +1799,6 @@ export default function SettingsPanel({
           )}
 
           {/* Donor Philanthropic Standing Card (Donors Only) */}
-          {!isOrg && !isAdmin && (
-            <div className="vs-card">
-              <div className="vs-card-head">
-                <div>
-                  <h4 className="vs-card-title">Recognition Standing</h4>
-                  <p className="vs-card-desc">
-                    Cumulative humanitarian giving notarized on Ethereum Sepolia.
-                  </p>
-                </div>
-                {onOpenHonorsLadder && (
-                  <button
-                    type="button"
-                    className="vs-subtle-btn"
-                    onClick={onOpenHonorsLadder}
-                  >
-                    <span>15 Tiers</span>
-                    <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>north_east</span>
-                  </button>
-                )}
-              </div>
-
-              <div className="vs-standing-row">
-                <div className="vs-standing-left">
-                  <DonorBadge
-                    size="lg"
-                    walletAddress={walletAddress || currentUser?.wallet_address}
-                    donorId={currentUser?.id}
-                    amountEth={totalDonatedEth}
-                    amountPhp={totalDonatedPhp}
-                    showProgress={false}
-                    onClick={onOpenHonorsLadder}
-                  />
-                  <div>
-                    <div className="vs-standing-amt">
-                      ₱{Math.round(Number(totalDonatedPhp) || 0).toLocaleString('en-US')}
-                    </div>
-                    <div className="vs-standing-sub">
-                      Verified PHP relief impact · Gasless Sepolia receipts
-                    </div>
-                  </div>
-                </div>
-
-                <div className="vs-standing-pill">
-                  <span className="vs-live-dot" />
-                  <span>Sepolia Verified</span>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Accredited NGO Directory & Profile Studio Card (For Donors / Testers) */}
-          {!isOrg && !isAdmin && (
-            <div className="bbdrts-settings-card">
-              <div className="bbdrts-settings-card-header">
-                <div className="bbdrts-settings-card-title-wrap">
-                  <h4 className="bbdrts-settings-card-title">
-                    <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#10b981' }}>verified_user</span>
-                    Accredited NGO Directory &amp; Profile Studio
-                  </h4>
-                  <p className="bbdrts-settings-card-desc">
-                    View and configure institutional profile inputs for accredited humanitarian partners (e.g. Philippine Red Cross). All fields populate the live public NGO audit profile.
-                  </p>
-                </div>
-
-                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                  <button
-                    type="button"
-                    className="bbdrts-btn-outline"
-                    onClick={() => {
-                      setSelectedNgoId(8);
-                      setPreviewNgoModalOpen(true);
-                    }}
-                    title="Open the live Philippine Red Cross profile modal"
-                  >
-                    <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>visibility</span>
-                    <span>Preview Philippine Red Cross Profile</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    className="bbdrts-btn-primary"
-                    onClick={() => setShowNgoInputs(prev => !prev)}
-                    title="Configure organizational profile inputs right here"
-                  >
-                    <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>edit_note</span>
-                    <span>{showNgoInputs ? 'Hide NGO Profile Inputs' : 'Configure NGO Profile Inputs'}</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
-
           {/* NGO Regulatory Accreditation & Payout Rails (NGOs Only) */}
           {isOrg && (
             <div className="bbdrts-settings-card">
@@ -1922,48 +1933,6 @@ export default function SettingsPanel({
                       <div className="bbdrts-rail-sub">Active · Zero Gas Fees</div>
                     </div>
                   </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Accredited NGO Directory & Profile Studio Card (For Donors / Testers) */}
-          {!isOrg && !isAdmin && (
-            <div className="bbdrts-settings-card">
-              <div className="bbdrts-settings-card-header">
-                <div className="bbdrts-settings-card-title-wrap">
-                  <h4 className="bbdrts-settings-card-title">
-                    <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#10b981' }}>verified_user</span>
-                    Accredited NGO Directory &amp; Profile Studio
-                  </h4>
-                  <p className="bbdrts-settings-card-desc">
-                    View and configure institutional profile inputs for accredited humanitarian partners (e.g. Philippine Red Cross). All fields populate the live public NGO audit profile.
-                  </p>
-                </div>
-
-                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                  <button
-                    type="button"
-                    className="bbdrts-btn-outline"
-                    onClick={() => {
-                      setSelectedNgoId(8);
-                      setPreviewNgoModalOpen(true);
-                    }}
-                    title="Open the live Philippine Red Cross profile modal"
-                  >
-                    <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>visibility</span>
-                    <span>Preview Philippine Red Cross Profile</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    className="bbdrts-btn-primary"
-                    onClick={() => setShowNgoInputs(prev => !prev)}
-                    title="Configure organizational profile inputs right here"
-                  >
-                    <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>edit_note</span>
-                    <span>{showNgoInputs ? 'Hide NGO Profile Inputs' : 'Configure NGO Profile Inputs'}</span>
-                  </button>
                 </div>
               </div>
             </div>
@@ -3711,7 +3680,6 @@ export default function SettingsPanel({
         </div>
       )}
 
-        </div>
       </div>
 
       {/* ── Edit Profile Modal (Single Source of Truth) ── */}

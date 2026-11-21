@@ -2177,9 +2177,18 @@
   cursor: not-allowed;
 }
 
+
 /* ============================================================
    VERCEL GEIST SETTINGS ARCHITECTURE (.vs-*) & GLOBAL RESTYLE
    ============================================================ */
+
+.bbdrts-settings-root {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  gap: 0;
+}
 
 .vs-primary-btn {
   height: 36px;
@@ -2196,7 +2205,7 @@
   gap: 7px;
   cursor: pointer;
   white-space: nowrap;
-  transition: background 0.15s ease, transform 0.15s ease;
+  transition: background 0.15s ease;
 }
 
 .vs-primary-btn:hover {
@@ -2213,189 +2222,99 @@
   background: #e4e4e7;
 }
 
-.vs-mono-val {
-  font-family: var(--font-mono, monospace);
-  font-size: 0.78rem;
-  word-break: break-all;
+/* ── Vercel Horizontal Underline Tab Bar (Zero Double-Sidebar) ── */
+.vs-tabs {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  margin-top: 2px;
+  margin-bottom: 24px;
+  border-bottom: 1px solid var(--border, #e4e4e7);
+  overflow-x: auto;
+  scrollbar-width: none;
+  min-width: 0;
 }
 
-.vs-inline-status {
+.vs-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+[data-theme="dark"] .vs-tabs {
+  border-bottom-color: #1f1f1f;
+}
+
+.vs-tab {
+  position: relative;
+  padding: 10px 0 12px;
+  background: transparent;
+  border: none;
+  font-family: inherit;
+  font-size: 0.84rem;
+  font-weight: 500;
+  color: var(--text-muted, #71717a);
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  flex-wrap: wrap;
-}
-
-.vs-shell {
-  display: grid;
-  grid-template-columns: 224px minmax(0, 1fr);
-  gap: 28px;
-  align-items: start;
-}
-
-.vs-rail {
-  position: sticky;
-  top: 76px;
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
-}
-
-.vs-nav {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-
-.vs-nav-item {
-  width: 100%;
-  height: 36px;
-  padding: 0 12px;
-  border-radius: 8px;
-  border: 1px solid transparent;
-  background: transparent;
-  color: var(--text-secondary, #52525b);
-  font-size: 0.82rem;
-  font-weight: 500;
-  font-family: inherit;
-  display: flex;
-  align-items: center;
-  gap: 10px;
+  white-space: nowrap;
   cursor: pointer;
-  text-align: left;
-  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+  transition: color 0.15s ease;
 }
 
-.vs-nav-item .material-symbols-outlined {
-  font-size: 18px;
-  opacity: 0.72;
-}
-
-[data-theme="dark"] .vs-nav-item {
-  color: #a1a1aa;
-}
-
-.vs-nav-item:hover {
-  background: var(--bg-inset, #f4f4f5);
+.vs-tab:hover {
   color: var(--text-primary, #09090b);
 }
 
-[data-theme="dark"] .vs-nav-item:hover {
-  background: #111111;
-  color: #ffffff;
+[data-theme="dark"] .vs-tab {
+  color: #888888;
 }
 
-.vs-nav-item.active {
-  background: var(--bg-inset, #f4f4f5);
-  border-color: var(--border, #e4e4e7);
-  color: var(--text-primary, #09090b);
-  font-weight: 600;
-}
-
-.vs-nav-item.active .material-symbols-outlined {
-  opacity: 1;
-}
-
-[data-theme="dark"] .vs-nav-item.active {
-  background: #141414;
-  border-color: #262626;
-  color: #ffffff;
-}
-
-.vs-nav-badge {
-  margin-left: auto;
-  font-size: 0.66rem;
-  font-weight: 600;
-  padding: 1px 6px;
-  border-radius: 9999px;
-  background: var(--bg-card, #ffffff);
-  border: 1px solid var(--border, #e4e4e7);
-  color: var(--text-secondary, #52525b);
-}
-
-[data-theme="dark"] .vs-nav-badge {
-  background: #0a0a0a;
-  border-color: #262626;
-  color: #a1a1aa;
-}
-
-/* Subtle Left Rail Status Metadata */
-.vs-rail-meta {
-  padding-top: 14px;
-  border-top: 1px solid var(--border, #e4e4e7);
-  display: flex;
-  flex-direction: column;
-  gap: 9px;
-}
-
-[data-theme="dark"] .vs-rail-meta {
-  border-top-color: #1c1c1e;
-}
-
-.vs-rail-meta-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  font-size: 0.72rem;
-}
-
-.vs-rail-meta-lbl {
-  color: var(--text-muted, #71717a);
-}
-
-.vs-rail-meta-val {
-  font-weight: 600;
-  color: var(--text-primary, #09090b);
-}
-
-[data-theme="dark"] .vs-rail-meta-val {
+[data-theme="dark"] .vs-tab:hover {
   color: #ededed;
 }
 
-.vs-rail-meta-mono {
-  font-family: var(--font-mono, monospace);
-  font-size: 0.66rem;
-  color: var(--text-secondary, #52525b);
-  max-width: 126px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.vs-tab.active {
+  color: var(--text-primary, #09090b);
+  font-weight: 600;
 }
 
-[data-theme="dark"] .vs-rail-meta-mono {
+[data-theme="dark"] .vs-tab.active {
+  color: #ffffff;
+}
+
+.vs-tab.active::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 2px;
+  background: var(--text-primary, #09090b);
+  border-radius: 2px 2px 0 0;
+}
+
+[data-theme="dark"] .vs-tab.active::after {
+  background: #ffffff;
+}
+
+.vs-tab-count {
+  font-size: 0.68rem;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 9999px;
+  background: var(--bg-inset, #f4f4f5);
+  color: var(--text-secondary, #52525b);
+}
+
+[data-theme="dark"] .vs-tab-count {
+  background: #1a1a1a;
   color: #a1a1aa;
 }
 
-.vs-rail-meta-status {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  font-weight: 500;
-  color: var(--text-primary, #09090b);
-}
-
-[data-theme="dark"] .vs-rail-meta-status {
-  color: #d4d4d8;
-}
-
-.vs-live-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: #10b981;
-  flex-shrink: 0;
-}
-
-.vs-live-dot.is-off {
-  background: #71717a;
-}
-
-/* Right Content Pane with Smooth Transition */
+/* Smooth Tab Content Transition */
 @keyframes vsPaneFade {
   from {
     opacity: 0;
-    transform: translateY(6px);
+    transform: translateY(5px);
   }
   to {
     opacity: 1;
@@ -2404,8 +2323,9 @@
 }
 
 .vs-content {
+  width: 100%;
   min-width: 0;
-  animation: vsPaneFade 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: vsPaneFade 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -2417,17 +2337,18 @@
 .vs-pane {
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 22px;
+  min-width: 0;
 }
 
-/* Borderless Identity Band */
+/* ── Full-Width Borderless Identity Strip ── */
 .vs-identity-band {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
   flex-wrap: wrap;
-  padding: 4px 0 18px;
+  padding: 2px 0 20px;
   border-bottom: 1px solid var(--border, #e4e4e7);
 }
 
@@ -2442,20 +2363,30 @@
   min-width: 0;
 }
 
+.vs-avatar-btn {
+  position: relative;
+  padding: 0;
+  border: none;
+  background: transparent;
+  border-radius: 50%;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
 .vs-avatar {
-  width: 56px;
-  height: 56px;
+  width: 58px;
+  height: 58px;
   border-radius: 50%;
   border: 1px solid var(--border-strong, #d4d4d8);
   background: var(--bg-inset, #f4f4f5);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.1rem;
+  font-size: 1.15rem;
   font-weight: 700;
   color: var(--text-primary, #09090b);
   overflow: hidden;
-  flex-shrink: 0;
+  transition: border-color 0.15s ease;
 }
 
 [data-theme="dark"] .vs-avatar {
@@ -2468,6 +2399,23 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+.vs-avatar-hover {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.55);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.vs-avatar-btn:hover .vs-avatar-hover {
+  opacity: 1;
 }
 
 .vs-identity-info {
@@ -2503,54 +2451,112 @@
 .vs-identity-meta {
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: 8px;
   flex-wrap: wrap;
   font-size: 0.78rem;
   color: var(--text-muted, #71717a);
 }
 
 .vs-dot-sep {
-  opacity: 0.4;
+  opacity: 0.35;
 }
 
-.vs-id-code {
-  font-family: var(--font-mono, monospace);
-  font-size: 0.72rem;
-}
-
-.vs-ghost-action {
-  background: transparent;
-  border: none;
-  padding: 6px 2px;
-  font-family: inherit;
-  font-size: 0.78rem;
-  font-weight: 500;
-  color: var(--text-secondary, #52525b);
+.vs-id-copy-btn {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 4px;
+  background: transparent;
+  border: none;
+  padding: 0;
+  font-family: var(--font-mono, monospace);
+  font-size: 0.72rem;
+  color: var(--text-muted, #71717a);
   cursor: pointer;
   transition: color 0.15s ease;
 }
 
-[data-theme="dark"] .vs-ghost-action {
-  color: #a1a1aa;
-}
-
-.vs-ghost-action:hover {
+.vs-id-copy-btn:hover {
   color: var(--text-primary, #09090b);
 }
 
-[data-theme="dark"] .vs-ghost-action:hover {
+[data-theme="dark"] .vs-id-copy-btn:hover {
+  color: #ededed;
+}
+
+.vs-identity-pills {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.vs-status-pill {
+  height: 30px;
+  padding: 0 11px;
+  border-radius: 9999px;
+  border: 1px solid var(--border, #e4e4e7);
+  background: var(--bg-card, #ffffff);
+  color: var(--text-primary, #09090b);
+  font-family: inherit;
+  font-size: 0.73rem;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+[data-theme="dark"] .vs-status-pill {
+  background: #0a0a0a;
+  border-color: #262626;
+  color: #d4d4d8;
+}
+
+.vs-status-pill:hover {
+  border-color: var(--border-strong, #a1a1aa);
+}
+
+[data-theme="dark"] .vs-status-pill:hover {
+  border-color: #404040;
   color: #ffffff;
 }
 
-/* Vercel Hairline Settings Card */
+.vs-live-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #10b981;
+  flex-shrink: 0;
+}
+
+.vs-live-dot.is-off {
+  background: #71717a;
+}
+
+/* ── Balanced 2-Column Profile Grid ── */
+.vs-profile-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) minmax(290px, 0.95fr);
+  gap: 20px;
+  align-items: start;
+  min-width: 0;
+}
+
+.vs-side-col {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-width: 0;
+}
+
+/* ── Vercel Signature Card ── */
 .vs-card {
   border-radius: 12px;
   background: var(--bg-card, #ffffff);
   border: 1px solid var(--border, #e4e4e7);
   overflow: hidden;
+  min-width: 0;
 }
 
 [data-theme="dark"] .vs-card {
@@ -2563,7 +2569,7 @@
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 14px;
+  gap: 12px;
   padding: 18px 20px 14px;
   border-bottom: 1px solid var(--border, #e4e4e7);
 }
@@ -2591,14 +2597,67 @@
   line-height: 1.45;
 }
 
+.vs-card-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 12px 20px;
+  background: var(--bg-inset, #fafafa);
+  border-top: 1px solid var(--border, #e4e4e7);
+}
+
+[data-theme="dark"] .vs-card-foot {
+  background: #060606;
+  border-top-color: #18181b;
+}
+
+.vs-card-foot-note {
+  font-size: 0.74rem;
+  color: var(--text-muted, #71717a);
+}
+
+.vs-card-foot-action {
+  width: 100%;
+  padding: 12px 20px;
+  border: none;
+  border-top: 1px solid var(--border, #e4e4e7);
+  background: var(--bg-inset, #fafafa);
+  color: var(--text-primary, #09090b);
+  font-family: inherit;
+  font-size: 0.78rem;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+[data-theme="dark"] .vs-card-foot-action {
+  background: #060606;
+  border-top-color: #18181b;
+  color: #d4d4d8;
+}
+
+.vs-card-foot-action:hover {
+  background: var(--bg-hover, #f4f4f5);
+}
+
+[data-theme="dark"] .vs-card-foot-action:hover {
+  background: #111111;
+  color: #ffffff;
+}
+
 .vs-subtle-btn {
   height: 30px;
-  padding: 0 11px;
+  padding: 0 12px;
   border-radius: 7px;
   border: 1px solid var(--border, #e4e4e7);
-  background: transparent;
+  background: var(--bg-card, #ffffff);
   color: var(--text-primary, #09090b);
-  font-size: 0.75rem;
+  font-size: 0.76rem;
   font-weight: 500;
   font-family: inherit;
   display: inline-flex;
@@ -2610,6 +2669,7 @@
 }
 
 [data-theme="dark"] .vs-subtle-btn {
+  background: #111111;
   border-color: #262626;
   color: #ededed;
 }
@@ -2620,11 +2680,11 @@
 }
 
 [data-theme="dark"] .vs-subtle-btn:hover {
-  background: #141414;
+  background: #1a1a1a;
   border-color: #404040;
 }
 
-/* Hairline Key-Value List (Replaces 10 Empty Grey Sub-Boxes) */
+/* ── Hairline Key-Value List ── */
 .vs-kv-list {
   display: flex;
   flex-direction: column;
@@ -2632,8 +2692,8 @@
 
 .vs-kv-row {
   display: grid;
-  grid-template-columns: 185px minmax(0, 1fr);
-  gap: 16px;
+  grid-template-columns: 150px minmax(0, 1fr);
+  gap: 14px;
   align-items: center;
   padding: 13px 20px;
   border-bottom: 1px solid var(--border, #e4e4e7);
@@ -2670,6 +2730,25 @@
   color: #ededed;
 }
 
+.vs-mono-val {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.78rem;
+  word-break: break-all;
+}
+
+.vs-id-code {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.74rem;
+  color: var(--text-muted, #71717a);
+}
+
+.vs-inline-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+
 .vs-add-link {
   background: none;
   border: none;
@@ -2692,17 +2771,12 @@
   color: #ffffff;
 }
 
-.vs-muted-val {
-  color: var(--text-muted, #71717a);
-  font-weight: 400;
-}
-
 .vs-ext-link {
   color: #0d9488;
   text-decoration: none;
   display: inline-flex;
   align-items: center;
-  gap: 3px;
+  gap: 4px;
 }
 
 [data-theme="dark"] .vs-ext-link {
@@ -2713,68 +2787,156 @@
   text-decoration: underline;
 }
 
-/* Balanced 2-Column Hairline Grid for Optional Fields */
-.vs-kv-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.vs-kv-cell {
+/* Compact Optional Details Chip Strip */
+.vs-optional-strip {
   padding: 13px 20px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  border-bottom: 1px solid var(--border, #e4e4e7);
-  border-right: 1px solid var(--border, #e4e4e7);
+  gap: 8px;
 }
 
-.vs-kv-cell:nth-child(2n) {
-  border-right: none;
+.vs-optional-lbl {
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: var(--text-muted, #71717a);
 }
 
-.vs-kv-cell.is-full {
-  grid-column: 1 / -1;
-  border-right: none;
-  border-bottom: none;
-}
-
-[data-theme="dark"] .vs-kv-cell {
-  border-bottom-color: #161618;
-  border-right-color: #161618;
-}
-
-/* Clean Recognition Standing Row */
-.vs-standing-row {
-  padding: 16px 20px;
+.vs-optional-chips {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
   flex-wrap: wrap;
+  gap: 6px;
 }
 
-.vs-standing-left {
+.vs-optional-chip {
+  height: 26px;
+  padding: 0 10px;
+  border-radius: 9999px;
+  border: 1px dashed var(--border-strong, #d4d4d8);
+  background: transparent;
+  color: var(--text-secondary, #52525b);
+  font-family: inherit;
+  font-size: 0.72rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+}
+
+[data-theme="dark"] .vs-optional-chip {
+  border-color: #2e2e2e;
+  color: #a1a1aa;
+}
+
+.vs-optional-chip:hover {
+  border-style: solid;
+  border-color: var(--text-primary, #09090b);
+  color: var(--text-primary, #09090b);
+  background: var(--bg-inset, #f4f4f5);
+}
+
+[data-theme="dark"] .vs-optional-chip:hover {
+  border-color: #52525b;
+  color: #ffffff;
+  background: #141414;
+}
+
+/* ── Recognition Standing Card ── */
+.vs-tier-tag {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: var(--bg-inset, #f4f4f5);
+  border: 1px solid var(--border, #e4e4e7);
+  color: var(--text-secondary, #52525b);
+  white-space: nowrap;
+}
+
+[data-theme="dark"] .vs-tier-tag {
+  background: #141414;
+  border-color: #262626;
+  color: #a1a1aa;
+}
+
+.vs-standing-body {
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.vs-standing-top {
   display: flex;
   align-items: center;
   gap: 14px;
 }
 
+.vs-standing-tier-name {
+  font-size: 0.96rem;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  color: var(--text-primary, #09090b);
+}
+
+[data-theme="dark"] .vs-standing-tier-name {
+  color: #ffffff;
+}
+
 .vs-standing-amt {
-  font-size: 1.15rem;
+  font-size: 1.25rem;
   font-weight: 700;
   letter-spacing: -0.03em;
   color: var(--text-primary, #09090b);
   font-variant-numeric: tabular-nums;
+  margin-top: 2px;
 }
 
 [data-theme="dark"] .vs-standing-amt {
   color: #ffffff;
 }
 
-.vs-standing-sub {
-  font-size: 0.75rem;
+.vs-standing-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.vs-progress-track {
+  width: 100%;
+  height: 4px;
+  border-radius: 9999px;
+  background: var(--border, #e4e4e7);
+  overflow: hidden;
+}
+
+[data-theme="dark"] .vs-progress-track {
+  background: #1f1f1f;
+}
+
+.vs-progress-fill {
+  height: 100%;
+  border-radius: 9999px;
+  background: linear-gradient(90deg, #0d9488 0%, #10b981 100%);
+  transition: width 0.4s ease;
+}
+
+.vs-progress-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 0.72rem;
   color: var(--text-muted, #71717a);
-  margin-top: 2px;
+  font-variant-numeric: tabular-nums;
+}
+
+.vs-progress-meta strong {
+  color: var(--text-primary, #09090b);
+  font-weight: 600;
+}
+
+[data-theme="dark"] .vs-progress-meta strong {
+  color: #ededed;
 }
 
 .vs-standing-pill {
@@ -2788,6 +2950,7 @@
   background: var(--bg-inset, #f4f4f5);
   border: 1px solid var(--border, #e4e4e7);
   color: var(--text-primary, #09090b);
+  white-space: nowrap;
 }
 
 [data-theme="dark"] .vs-standing-pill {
@@ -2796,7 +2959,86 @@
   color: #ededed;
 }
 
-/* Global Vercel Geist Upgrade for Remaining Settings Tabs (Blockchain, Preferences, Security, QR) */
+/* ── Quick Overview Rows ── */
+.vs-quick-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.vs-quick-row {
+  width: 100%;
+  padding: 13px 20px;
+  border: none;
+  border-bottom: 1px solid var(--border, #e4e4e7);
+  background: transparent;
+  font-family: inherit;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.vs-quick-row:last-child {
+  border-bottom: none;
+}
+
+[data-theme="dark"] .vs-quick-row {
+  border-bottom-color: #161618;
+}
+
+.vs-quick-row:hover {
+  background: var(--bg-inset, #fafafa);
+}
+
+[data-theme="dark"] .vs-quick-row:hover {
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.vs-quick-info {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.vs-quick-title {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-primary, #09090b);
+}
+
+[data-theme="dark"] .vs-quick-title {
+  color: #ededed;
+}
+
+.vs-quick-sub {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.73rem;
+  color: var(--text-muted, #71717a);
+}
+
+.vs-quick-chev {
+  font-size: 18px;
+  color: var(--text-muted, #71717a);
+  flex-shrink: 0;
+  transition: transform 0.15s ease, color 0.15s ease;
+}
+
+.vs-quick-row:hover .vs-quick-chev {
+  transform: translateX(2px);
+  color: var(--text-primary, #09090b);
+}
+
+[data-theme="dark"] .vs-quick-row:hover .vs-quick-chev {
+  color: #ffffff;
+}
+
+/* ── Global Vercel Geist Polish for Remaining Settings Tabs ── */
 [data-theme="dark"] .vs-content .bbdrts-settings-card {
   background: #0a0a0a;
   border-color: #262626;
@@ -2833,7 +3075,6 @@
   background: #e4e4e7;
 }
 
-/* Harmonize Preferences Toggles & Sub-rows with Vercel Hairlines */
 .vs-content .bbdrts-pref-list {
   gap: 0;
   border: 1px solid var(--border, #e4e4e7);
@@ -2866,10 +3107,7 @@
   background: rgba(255, 255, 255, 0.02);
 }
 
-.vs-content .bbdrts-toggle-track.active {
-  background: #10b981;
-}
-
+.vs-content .bbdrts-toggle-track.active,
 [data-theme="dark"] .vs-content .bbdrts-toggle-track.active {
   background: #10b981;
 }
@@ -2886,55 +3124,29 @@
   border-color: #52525b;
 }
 
-/* Responsive: Collapse Left Rail into Horizontal Scrollable Tab Strip on Tablet/Mobile */
-@media (max-width: 960px) {
-  .vs-shell {
+/* ── Responsive Breakpoints ── */
+@media (max-width: 1024px) {
+  .vs-profile-grid {
     grid-template-columns: 1fr;
-    gap: 18px;
-  }
-  .vs-rail {
-    position: static;
-    gap: 0;
-  }
-  .vs-nav {
-    flex-direction: row;
-    overflow-x: auto;
-    gap: 6px;
-    padding-bottom: 10px;
-    border-bottom: 1px solid var(--border, #e4e4e7);
-    scrollbar-width: none;
-  }
-  [data-theme="dark"] .vs-nav {
-    border-bottom-color: #1f1f1f;
-  }
-  .vs-nav::-webkit-scrollbar {
-    display: none;
-  }
-  .vs-nav-item {
-    width: auto;
-    flex-shrink: 0;
-    height: 34px;
-    padding: 0 12px;
-  }
-  .vs-rail-meta {
-    display: none;
   }
 }
 
 @media (max-width: 640px) {
+  .vs-tabs {
+    gap: 18px;
+    margin-bottom: 18px;
+  }
   .vs-kv-row {
     grid-template-columns: 1fr;
     gap: 4px;
     padding: 12px 16px;
   }
-  .vs-kv-grid {
-    grid-template-columns: 1fr;
-  }
-  .vs-kv-cell {
-    border-right: none;
-    padding: 12px 16px;
-  }
-  .vs-card-head {
-    padding: 15px 16px 12px;
+  .vs-card-head,
+  .vs-card-foot,
+  .vs-standing-body,
+  .vs-optional-strip,
+  .vs-quick-row {
+    padding-left: 16px;
+    padding-right: 16px;
   }
 }
