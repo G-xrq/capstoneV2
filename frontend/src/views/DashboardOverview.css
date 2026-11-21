@@ -1132,8 +1132,23 @@
   align-items: center;
   gap: 4px;
   cursor: pointer;
-  transition: background 0.15s ease, border-color 0.15s ease;
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
   white-space: nowrap;
+}
+
+.dbo-row-donate-btn .material-symbols-outlined,
+.dbo-clean-link .material-symbols-outlined {
+  transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.dbo-row-donate-btn:hover .material-symbols-outlined,
+.dbo-clean-link:hover .material-symbols-outlined {
+  transform: translateX(2px);
+}
+
+.dbo-row-donate-btn:active,
+.dbo-row-icon-btn:active {
+  transform: scale(0.96);
 }
 
 .dbo-row-donate-btn:hover {
@@ -1688,11 +1703,13 @@
   background: var(--bg-card, #ffffff);
   border: 1px solid var(--border, #e4e4e7);
   overflow: hidden;
-  transition: border-color 0.15s ease;
+  transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.2s ease, box-shadow 0.22s ease, background 0.2s ease;
 }
 
 .dbo-spotlight-card:hover {
+  transform: translateY(-2px);
   border-color: var(--border-strong, #a1a1aa);
+  box-shadow: 0 12px 28px -12px rgba(0, 0, 0, 0.16);
 }
 
 [data-theme="dark"] .dbo-spotlight-card {
@@ -1702,7 +1719,9 @@
 }
 
 [data-theme="dark"] .dbo-spotlight-card:hover {
-  border-color: #3f3f46;
+  border-color: #404040;
+  background: #0d0d0d;
+  box-shadow: 0 14px 32px -12px rgba(0, 0, 0, 0.85), inset 0 1px 0 rgba(255, 255, 255, 0.09);
 }
 
 .dbo-spotlight-media {
@@ -1714,6 +1733,12 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  overflow: hidden;
+  transition: transform 0.38s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.dbo-spotlight-card:hover .dbo-spotlight-media {
+  transform: scale(1.03);
 }
 
 .dbo-spotlight-scrim {
@@ -1834,11 +1859,13 @@
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  transition: border-color 0.15s ease;
+  transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.2s ease, box-shadow 0.22s ease, background 0.2s ease;
 }
 
 .dbo-mini-appeal-card:hover {
+  transform: translateY(-2px);
   border-color: var(--border-strong, #a1a1aa);
+  box-shadow: 0 12px 26px -12px rgba(0, 0, 0, 0.14);
 }
 
 [data-theme="dark"] .dbo-mini-appeal-card {
@@ -1848,7 +1875,9 @@
 }
 
 [data-theme="dark"] .dbo-mini-appeal-card:hover {
-  border-color: #3f3f46;
+  border-color: #404040;
+  background: #0d0d0d;
+  box-shadow: 0 14px 30px -12px rgba(0, 0, 0, 0.85), inset 0 1px 0 rgba(255, 255, 255, 0.09);
 }
 
 .dbo-mini-media {
@@ -1857,6 +1886,12 @@
   background-size: cover;
   background-position: center;
   background-color: #141414;
+  overflow: hidden;
+  transition: transform 0.38s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.dbo-mini-appeal-card:hover .dbo-mini-media {
+  transform: scale(1.04);
 }
 
 .dbo-mini-scrim {
@@ -2075,9 +2110,10 @@
 }
 
 .dbo-ledger-card .dbo-feed-amt {
+  font-family: inherit;
   white-space: nowrap;
   flex-shrink: 0;
-  font-size: 0.85rem;
+  font-size: 0.86rem;
   font-weight: 600;
   letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums;

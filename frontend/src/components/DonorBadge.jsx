@@ -240,7 +240,7 @@ export const DONOR_TIERS = [
   {
     tierNumber: 1,
     id: 'tier-1',
-    name: 'Supporter',
+    name: 'Donor',
     subtitle: 'Emergency Relief',
     minPhp: 1,
     minEth: 0.000006,
@@ -254,7 +254,7 @@ export const DONOR_TIERS = [
   {
     tierNumber: 2,
     id: 'tier-2',
-    name: 'Contributor',
+    name: 'Regular Donor',
     subtitle: 'Family Care Kits',
     minPhp: 1000,
     minEth: 0.006,
@@ -268,7 +268,7 @@ export const DONOR_TIERS = [
   {
     tierNumber: 3,
     id: 'tier-3',
-    name: 'Relief Partner',
+    name: 'Friend of Relief',
     subtitle: 'Rescue & Medical Aid',
     minPhp: 5000,
     minEth: 0.03,
@@ -282,7 +282,7 @@ export const DONOR_TIERS = [
   {
     tierNumber: 4,
     id: 'tier-4',
-    name: 'Shelter Partner',
+    name: 'Community Donor',
     subtitle: 'Emergency Shelters',
     minPhp: 10000,
     minEth: 0.06,
@@ -296,7 +296,7 @@ export const DONOR_TIERS = [
   {
     tierNumber: 5,
     id: 'tier-5',
-    name: 'Aid Advocate',
+    name: 'Sustaining Donor',
     subtitle: 'Community Health Aid',
     minPhp: 25000,
     minEth: 0.15,
@@ -310,7 +310,7 @@ export const DONOR_TIERS = [
   {
     tierNumber: 6,
     id: 'tier-6',
-    name: 'Community Patron',
+    name: 'Associate Member',
     subtitle: 'Barangay Relief Drives',
     minPhp: 50000,
     minEth: 0.30,
@@ -324,7 +324,7 @@ export const DONOR_TIERS = [
   {
     tierNumber: 7,
     id: 'tier-7',
-    name: 'Distinguished Patron',
+    name: 'Supporting Member',
     subtitle: 'Rapid Disaster Response',
     minPhp: 100000,
     minEth: 0.60,
@@ -338,7 +338,7 @@ export const DONOR_TIERS = [
   {
     tierNumber: 8,
     id: 'tier-8',
-    name: 'Crisis Responder',
+    name: 'Patron',
     subtitle: 'Clean Water & Power',
     minPhp: 250000,
     minEth: 1.50,
@@ -352,7 +352,7 @@ export const DONOR_TIERS = [
   {
     tierNumber: 9,
     id: 'tier-9',
-    name: 'Honor Patron',
+    name: 'Senior Patron',
     subtitle: 'Bulk Aid Logistics',
     minPhp: 500000,
     minEth: 3.00,
@@ -366,7 +366,7 @@ export const DONOR_TIERS = [
   {
     tierNumber: 10,
     id: 'tier-10',
-    name: 'Benefactor',
+    name: 'Major Donor',
     subtitle: 'Community Recovery',
     minPhp: 1000000,
     minEth: 6.00,
@@ -380,7 +380,7 @@ export const DONOR_TIERS = [
   {
     tierNumber: 11,
     id: 'tier-11',
-    name: 'Lead Benefactor',
+    name: 'Principal Donor',
     subtitle: 'Infrastructure & Schools',
     minPhp: 2500000,
     minEth: 15.00,
@@ -394,7 +394,7 @@ export const DONOR_TIERS = [
   {
     tierNumber: 12,
     id: 'tier-12',
-    name: 'Philanthropist',
+    name: 'Benefactor',
     subtitle: 'Disaster Resilience',
     minPhp: 5000000,
     minEth: 30.00,
@@ -408,7 +408,7 @@ export const DONOR_TIERS = [
   {
     tierNumber: 13,
     id: 'tier-13',
-    name: 'Visionary Patron',
+    name: 'Senior Benefactor',
     subtitle: 'Regional Relief Fleet',
     minPhp: 10000000,
     minEth: 60.00,
@@ -422,7 +422,7 @@ export const DONOR_TIERS = [
   {
     tierNumber: 14,
     id: 'tier-14',
-    name: 'Humanitarian Leader',
+    name: 'Founding Benefactor',
     subtitle: 'National Emergency Aid',
     minPhp: 25000000,
     minEth: 150.00,
@@ -436,7 +436,7 @@ export const DONOR_TIERS = [
   {
     tierNumber: 15,
     id: 'tier-15',
-    name: 'Honorary Trustee',
+    name: 'Legacy Donor',
     subtitle: 'Lifetime Relief Legacy',
     minPhp: 50000000,
     minEth: 300.00,
