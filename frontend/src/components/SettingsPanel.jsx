@@ -16,6 +16,7 @@ import { getWorkspaceStrings } from '../data/workspaceTranslations';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
 export default function SettingsPanel({
+  pageTitle,
   contract,
   currentUser,
   walletAddress,
@@ -1134,19 +1135,19 @@ export default function SettingsPanel({
   return (
     <div className="bbdrts-settings-root">
 
-      {/* ── Header Bar ── */}
-      <div className="bbdrts-settings-header">
-        <div className="bbdrts-settings-title-wrap">
-          <h2 className="bbdrts-settings-title">
-            <span className="material-symbols-outlined" style={{ fontSize: '24px', color: '#16a34a' }}>manage_accounts</span>
-            Account & Settings
+      {/* ── Header Bar (Exact .admin-page-header Alignment Across All Portal Pages) ── */}
+      <div className="admin-page-header" style={{ marginBottom: 0 }}>
+        <div className="admin-page-title-wrap">
+          <h2 className="admin-page-title">
+            <span className="material-symbols-outlined icon" style={{ color: 'var(--text-primary)' }}>settings</span>
+            <span>{pageTitle || 'Profile & Settings'}</span>
           </h2>
-          <p className="bbdrts-settings-sub">
+          <p className="admin-page-sub">
             Manage your personal profile, security controls, public blockchain audit contract, and preferences.
           </p>
         </div>
 
-        <div className="bbdrts-settings-header-actions">
+        <div className="admin-page-header-actions">
           <span className="bbdrts-settings-role-badge">
             <span className="material-symbols-outlined" style={{ fontSize: '15px', color: roleMeta.color }}>{roleMeta.icon}</span>
             <span>{isOrg ? 'Accredited NGO' : isAdmin ? 'Administrator' : 'Verified Donor'}</span>

@@ -1077,7 +1077,7 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
                 <div className="admin-page-title-wrap">
                   <h2 className="admin-page-title">
                     <span className="material-symbols-outlined icon" style={{ color: 'var(--text-primary)' }}>space_dashboard</span>
-                    <span>{wt.donorOverviewTitle}</span>
+                    <span>{wt.dashboardOverview}</span>
                   </h2>
                   <p className="admin-page-sub">
                     {wt.donorOverviewSub}
@@ -1595,12 +1595,12 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
 
           {/* ── 2. DEDICATED RELIEF CAMPAIGNS TAB (Hides 4 boxes & welcome card) ── */}
           {activeTab === 'campaigns' && (
-            <div style={{ marginTop: '8px' }} id="tour-campaigns-container">
+            <div id="tour-campaigns-container">
               <div className="admin-page-header" id="tour-campaigns-header">
                 <div className="admin-page-title-wrap">
                   <h2 className="admin-page-title">
-                    <span className="material-symbols-outlined icon text-emerald">campaign</span>
-                    <span>{wt.allCampaignsTitle}</span>
+                    <span className="material-symbols-outlined icon" style={{ color: 'var(--text-primary)' }}>explore</span>
+                    <span>{wt.exploreCampaigns}</span>
                   </h2>
                   <p className="admin-page-sub">
                     {wt.allCampaignsSub}
@@ -1612,7 +1612,7 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
                 const fundedCount = campaigns.filter(c => parseFloat(c.targetAmount) > 0 && parseFloat(c.currentAmount) >= parseFloat(c.targetAmount)).length;
                 const orgCount = new Set(campaigns.map(c => c.orgName || c.orgAddress).filter(Boolean)).size;
                 return (
-                  <div className="campaign-head-stats" style={{ marginBottom: '16px' }}>
+                  <div className="campaign-head-stats">
                     <div className="campaign-head-stat">
                       <span className="campaign-head-stat-val">₱{Math.round(raisedPhp).toLocaleString('en-US', { maximumFractionDigits: 0 })}</span>
                       <span className="campaign-head-stat-label">raised to date</span>
@@ -2162,7 +2162,7 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
                 <div className="admin-page-title-wrap">
                   <h2 className="admin-page-title">
                     <span className="material-symbols-outlined icon" style={{ color: 'var(--text-primary)' }}>receipt_long</span>
-                    <span>{wt.contributionsTitle}</span>
+                    <span>{wt.myContributions}</span>
                   </h2>
                   <p className="admin-page-sub">
                     {wt.contributionsSub}
@@ -3289,12 +3289,12 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
 
           {/* ── 3.5. DISASTER RELIEF RADAR HEATMAP TAB ── */}
           {activeTab === 'radar-heatmap' && (
-            <div style={{ marginTop: '8px' }}>
+            <div>
               <div className="admin-page-header" id="tour-radar-header">
                 <div className="admin-page-title-wrap">
                   <h2 className="admin-page-title">
-                    <span className="material-symbols-outlined icon text-emerald">radar</span>
-                    <span>{wt.radarTitle}</span>
+                    <span className="material-symbols-outlined icon" style={{ color: 'var(--text-primary)' }}>radar</span>
+                    <span>{wt.reliefRadar}</span>
                   </h2>
                   <p className="admin-page-sub">
                     {wt.radarSub}
@@ -3320,8 +3320,9 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
 
           {/* ── 4. SETTINGS TAB (Hides 4 boxes & welcome card) ── */}
           {activeTab === 'settings' && (
-            <div style={{ marginTop: '8px' }}>
-              <SettingsPanel 
+            <div>
+              <SettingsPanel
+                pageTitle={wt.profileSettings} 
                 contract={contract}
                 currentUser={currentUser} 
                 walletAddress={walletAddress} 
