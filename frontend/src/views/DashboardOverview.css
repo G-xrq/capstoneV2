@@ -1222,25 +1222,22 @@
   z-index: 1;
 }
 
-/* Vercel Geist Theme-Reactive Isometric Blockchain Backdrop */
+/* Vercel Geist Theme-Reactive Volumetric Isometric Blockchain Backdrop */
 .dbo-hero-bg-mesh {
   position: absolute;
-  top: -18px;
-  right: -24px;
-  width: min(680px, 78%);
-  height: 270px;
+  inset: -14px -16px -8px 0;
   pointer-events: none;
   user-select: none;
   z-index: 0;
-  color: #71717a;
-  opacity: 0.24;
-  -webkit-mask-image: radial-gradient(ellipse 68% 76% at 72% 40%, rgba(0, 0, 0, 1) 12%, rgba(0, 0, 0, 0.48) 50%, rgba(0, 0, 0, 0) 84%);
-  mask-image: radial-gradient(ellipse 68% 76% at 72% 40%, rgba(0, 0, 0, 1) 12%, rgba(0, 0, 0, 0.48) 50%, rgba(0, 0, 0, 0) 84%);
+  color: #52525b;
+  opacity: 0.34;
+  -webkit-mask-image: radial-gradient(ellipse 64% 88% at 76% 42%, rgba(0, 0, 0, 1) 8%, rgba(0, 0, 0, 0.65) 42%, rgba(0, 0, 0, 0.14) 72%, rgba(0, 0, 0, 0) 94%);
+  mask-image: radial-gradient(ellipse 64% 88% at 76% 42%, rgba(0, 0, 0, 1) 8%, rgba(0, 0, 0, 0.65) 42%, rgba(0, 0, 0, 0.14) 72%, rgba(0, 0, 0, 0) 94%);
 }
 
 [data-theme="dark"] .dbo-hero-bg-mesh {
-  color: #e4e4e7;
-  opacity: 0.28;
+  color: #f4f4f5;
+  opacity: 0.42;
 }
 
 .dbo-hero-bg-mesh svg {
