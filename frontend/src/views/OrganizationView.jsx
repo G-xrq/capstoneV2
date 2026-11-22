@@ -3950,674 +3950,338 @@ export default function OrganizationView({
                 </div>
               </div>
             ) : (
-              <div className="fade-in deploy-campaign-card">
-                {/* Flush 5-Step Underline Stepper Bar */}
-                <div className="deploy-stepper-bar" role="tablist" aria-label="Campaign creation steps">
-                  {[
-                    { num: 1, label: 'Overview' },
-                    { num: 2, label: 'Story & Media' },
-                    { num: 3, label: 'Relief Focus' },
-                    { num: 4, label: 'Location' },
-                    { num: 5, label: 'Payout & Launch' }
-                  ].map(st => {
-                    const isActive = deployStep === st.num;
-                    const isCompleted = deployStep > st.num;
-                    return (
-                      <button
-                        key={st.num}
-                        type="button"
-                        role="tab"
-                        aria-selected={isActive}
-                        onClick={() => setDeployStep(st.num)}
-                        className={`deploy-step-indicator${isActive ? ' active' : ''}${isCompleted ? ' completed' : ''}`}
-                        title={`Step ${st.num}: ${st.label}`}
-                      >
-                        <span className="deploy-step-indicator-num">
-                          {isCompleted ? <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>check</span> : `0${st.num}`}
-                        </span>
-                        <span className="deploy-step-indicator-label">{st.label}</span>
-                      </button>
-                    );
-                  })}
-                </div>
+              <div className="cc-studio-layout fade-in">
+                <div className="deploy-campaign-card">
+                  {/* Flush 5-Step Underline Stepper Bar */}
+                  <div className="deploy-stepper-bar" role="tablist" aria-label="Campaign creation steps">
+                    {[
+                      { num: 1, label: 'Overview' },
+                      { num: 2, label: 'Story & Media' },
+                      { num: 3, label: 'Relief Focus' },
+                      { num: 4, label: 'Location' },
+                      { num: 5, label: 'Payout & Launch' }
+                    ].map(st => {
+                      const isActive = deployStep === st.num;
+                      const isCompleted = deployStep > st.num;
+                      return (
+                        <button
+                          key={st.num}
+                          type="button"
+                          role="tab"
+                          aria-selected={isActive}
+                          onClick={() => setDeployStep(st.num)}
+                          className={`deploy-step-indicator${isActive ? ' active' : ''}${isCompleted ? ' completed' : ''}`}
+                          title={`Step ${st.num}: ${st.label}`}
+                        >
+                          <span className="deploy-step-indicator-num">
+                            {isCompleted ? <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>check</span> : `0${st.num}`}
+                          </span>
+                          <span className="deploy-step-indicator-label">{st.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
 
-                <form className="create-form deploy-wizard-form" onSubmit={handleCreateCampaign}>
-                  {/* ── Step 1: Campaign Overview & Target ── */}
-                  {deployStep === 1 && (
-                    <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
-                      {/* Card 1: Overview */}
-                      <div className="deploy-section-card">
-                        <div className="deploy-section-header">
-                          <div className="deploy-section-title-wrap">
-                            <div className="deploy-section-icon-badge">
-                              <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>campaign</span>
-                            </div>
-                            <div>
-                              <h3 className="deploy-section-title">1. Campaign Overview</h3>
-                              <div className="deploy-section-subtitle">
-                                {category === 'CD'
-                                  ? 'Define the community initiative name, category, fundraising target, and schedule.'
-                                  : 'Define the emergency relief mission name, category, fundraising target, and delivery schedule.'}
-                              </div>
-                            </div>
-                          </div>
-                          <span className="deploy-step-pill">Step 1 of 5</span>
+                  <form className="create-form deploy-wizard-form" onSubmit={handleCreateCampaign}>
+                    {/* ── Step 1: Campaign Overview & Target ── */}
+                    {deployStep === 1 && (
+                      <div className="fade-in deploy-section-card">
+                        <div className="cc-step-heading">
+                          <h3 className="cc-step-title">Campaign Overview</h3>
+                          <p className="cc-step-sub">
+                            {category === 'CD'
+                              ? 'Choose a campaign type, set your funding goal, and schedule your community initiative.'
+                              : 'Choose a campaign type, set your funding goal, and schedule your disaster response drive.'}
+                          </p>
                         </div>
 
-                        <div className="deploy-step1-grid">
-                          {/* Campaign Title (Full Width) */}
-                          <div style={{ gridColumn: '1 / -1' }}>
+                        <div className="cc-form-stack">
+                          {/* 1. Tactile 2-Card Category Selector */}
+                          <div className="cc-field-group">
+                            <div className="deploy-input-label">
+                              <span>Campaign Type <span className="deploy-required-star">*</span></span>
+                              {isCategoryAuto && (
+                                <span className="cc-auto-badge">Auto-detected from title</span>
+                              )}
+                            </div>
+                            <div className="cc-cat-grid" role="radiogroup" aria-label="Campaign category">
+                              <button
+                                type="button"
+                                role="radio"
+                                aria-checked={category === 'DR'}
+                                disabled={creating}
+                                className={`cc-cat-card${category === 'DR' ? ' is-selected' : ''}`}
+                                onClick={() => {
+                                  setCategory('DR');
+                                  manuallySelectedCategoryRef.current = true;
+                                  setIsCategoryAuto(false);
+                                }}
+                              >
+                                <div className="cc-cat-card-top">
+                                  <span className="cc-cat-ico">
+                                    <span className="material-symbols-outlined">flood</span>
+                                  </span>
+                                  <span className="cc-cat-radio">
+                                    {category === 'DR' && <span className="cc-cat-radio-dot" />}
+                                  </span>
+                                </div>
+                                <div className="cc-cat-name">Disaster Relief</div>
+                                <div className="cc-cat-desc">Typhoons, floods, quakes, volcanic &amp; fire emergencies</div>
+                              </button>
+
+                              <button
+                                type="button"
+                                role="radio"
+                                aria-checked={category === 'CD'}
+                                disabled={creating}
+                                className={`cc-cat-card${category === 'CD' ? ' is-selected' : ''}`}
+                                onClick={() => {
+                                  setCategory('CD');
+                                  manuallySelectedCategoryRef.current = true;
+                                  setIsCategoryAuto(false);
+                                }}
+                              >
+                                <div className="cc-cat-card-top">
+                                  <span className="cc-cat-ico">
+                                    <span className="material-symbols-outlined">volunteer_activism</span>
+                                  </span>
+                                  <span className="cc-cat-radio">
+                                    {category === 'CD' && <span className="cc-cat-radio-dot" />}
+                                  </span>
+                                </div>
+                                <div className="cc-cat-name">Community Outreach</div>
+                                <div className="cc-cat-desc">Feeding drives, medical missions, schooling &amp; livelihood</div>
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* 2. Campaign Title */}
+                          <div className="cc-field-group">
                             <label className="deploy-input-label">
                               <span>Campaign Title <span className="deploy-required-star">*</span></span>
                               {Array.isArray(autoDetectedTagsRef.current) && autoDetectedTagsRef.current.length > 0 && (
-                                <span style={{ fontSize: '0.72rem', color: 'var(--accent)', fontWeight: 600 }}>
-                                  {autoDetectedTagsRef.current.length} tags auto-selected from keywords
+                                <span className="cc-auto-badge">
+                                  {autoDetectedTagsRef.current.length} focus tags matched
                                 </span>
                               )}
                             </label>
-                            <input className="input deploy-field-input" type="text" required
-                              placeholder={category === 'CD' ? "e.g., Community Feeding Program & School Supplies Drive" : "e.g., Flash Flood Relief Operation or Bagyo Odette Tabang"}
-                              value={title} onChange={(e) => handleTitleChange(e.target.value)} disabled={creating} />
+                            <input
+                              className="input deploy-field-input cc-title-input"
+                              type="text"
+                              required
+                              placeholder={category === 'CD' ? 'e.g., Community Feeding Program & School Supplies Drive' : 'e.g., Typhoon Relief & Emergency Food Packs — Leyte'}
+                              value={title}
+                              onChange={(e) => handleTitleChange(e.target.value)}
+                              disabled={creating}
+                            />
                           </div>
 
-                          {/* Campaign Category (Custom Web3 Dropdown Popover) */}
-                          <div ref={categoryDropdownRef}>
-                            <div className="deploy-input-label" style={{ margin: '0 0 6px 0' }}>
-                              <span>Campaign Category <span className="deploy-required-star">*</span></span>
-                              {isCategoryAuto && (
-                                <span style={{ fontSize: '0.68rem', color: 'var(--accent, #22c55e)', fontWeight: 600 }}>
-                                  Auto-set from title
-                                </span>
+                          {/* 3. Hero Fundraising Target + Joined Preset Strip */}
+                          <div className="cc-field-group">
+                            <div className="deploy-input-label">
+                              <span>Fundraising Goal <span className="deploy-required-star">*</span></span>
+                              {targetAmount && !isNaN(parseFloat(targetAmount)) && parseFloat(targetAmount) > 0 && (
+                                <span className="cc-mono-hint">₱{Math.round(parseFloat(targetAmount)).toLocaleString('en-US')} PHP</span>
                               )}
                             </div>
-                            <div style={{ position: 'relative', width: '100%', zIndex: showCategoryDropdown ? 100 : 1 }}>
-                              <button
-                                type="button"
-                                onClick={() => !creating && setShowCategoryDropdown(prev => !prev)}
-                                disabled={creating}
-                                className="input deploy-field-input"
-                                style={{
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'space-between',
-                                  width: '100%',
-                                  height: '42px',
-                                  minHeight: '42px',
-                                  maxHeight: '42px',
-                                  boxSizing: 'border-box',
-                                  cursor: creating ? 'not-allowed' : 'pointer',
-                                  textAlign: 'left',
-                                  padding: '0 12px',
-                                  background: 'var(--bg-input, rgba(255,255,255,0.03))',
-                                  border: showCategoryDropdown ? '1.5px solid var(--accent, #22c55e)' : '1px solid var(--border)',
-                                  borderRadius: '10px',
-                                  outline: 'none'
-                                }}
-                                title="Click to select campaign category"
-                              >
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden' }}>
-                                  <span className="material-symbols-outlined" style={{ fontSize: '1.15rem', color: 'var(--accent)', flexShrink: 0 }}>
-                                    {category === 'CD' ? 'volunteer_activism' : 'flood'}
-                                  </span>
-                                  <span style={{ fontSize: '0.84rem', fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                    {category === 'CD' ? 'Charitable Aid & Community Outreach (CD)' : 'Disaster Relief & Emergency Response (DR)'}
-                                  </span>
-                                </div>
-                                <span
-                                  className="material-symbols-outlined"
-                                  style={{
-                                    fontSize: '1.1rem',
-                                    color: 'var(--text-muted)',
-                                    flexShrink: 0,
-                                    transition: 'transform 0.15s ease',
-                                    transform: showCategoryDropdown ? 'rotate(180deg)' : 'none'
-                                  }}
-                                >
-                                  expand_more
-                                </span>
-                              </button>
-
-                              {/* Custom Dropdown Popover matching Web3 Calendar Popover */}
-                              {showCategoryDropdown && (
-                                <div
-                                  className="deploy-custom-dropdown-popover"
-                                  onClick={(e) => e.stopPropagation()}
-                                  style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 'auto', minWidth: '100%', width: 'max-content', maxWidth: '380px', zIndex: 1050 }}
-                                >
-                                  <div style={{ padding: '6px 10px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                                    <span style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', whiteSpace: 'nowrap' }}>
-                                      Select Campaign Category
-                                    </span>
-                                  </div>
-
-                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', padding: '4px 0' }}>
-                                    <button
-                                      type="button"
-                                      className={`deploy-dropdown-option ${category === 'DR' ? 'active' : ''}`}
-                                      onClick={() => {
-                                        setCategory('DR');
-                                        manuallySelectedCategoryRef.current = true;
-                                        setIsCategoryAuto(false);
-                                        setShowCategoryDropdown(false);
-                                      }}
-                                    >
-                                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                        <span className="material-symbols-outlined" style={{ fontSize: '18px', color: 'var(--accent)', flexShrink: 0 }}>flood</span>
-                                        <div style={{ display: 'flex', flexDirection: 'column', textAlign: 'left' }}>
-                                          <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
-                                            Disaster Relief &amp; Emergency Response (DR)
-                                          </span>
-                                          <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>
-                                            Typhoons, floods, earthquakes, volcanic eruptions, fire emergencies
-                                          </span>
-                                        </div>
-                                      </div>
-                                      {category === 'DR' && (
-                                        <span className="material-symbols-outlined" style={{ color: 'var(--accent)', fontSize: '17px', flexShrink: 0, marginLeft: '8px' }}>
-                                          check
-                                        </span>
-                                      )}
-                                    </button>
-
-                                    <button
-                                      type="button"
-                                      className={`deploy-dropdown-option ${category === 'CD' ? 'active' : ''}`}
-                                      onClick={() => {
-                                        setCategory('CD');
-                                        manuallySelectedCategoryRef.current = true;
-                                        setIsCategoryAuto(false);
-                                        setShowCategoryDropdown(false);
-                                      }}
-                                    >
-                                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                        <span className="material-symbols-outlined" style={{ fontSize: '18px', color: 'var(--accent)', flexShrink: 0 }}>volunteer_activism</span>
-                                        <div style={{ display: 'flex', flexDirection: 'column', textAlign: 'left' }}>
-                                          <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
-                                            Charitable Aid &amp; Community Outreach (CD)
-                                          </span>
-                                          <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>
-                                            Feeding programs, medical missions, education, livelihood assistance
-                                          </span>
-                                        </div>
-                                      </div>
-                                      {category === 'CD' && (
-                                        <span className="material-symbols-outlined" style={{ color: 'var(--accent)', fontSize: '17px', flexShrink: 0, marginLeft: '8px' }}>
-                                          check
-                                        </span>
-                                      )}
-                                    </button>
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-
-                          {/* Fundraising Target (PHP / ₱) */}
-                          <div>
-                            <div className="deploy-input-label" style={{ margin: '0 0 6px 0' }}>
-                              <span>Fundraising Target (PHP / ₱) <span className="deploy-required-star">*</span></span>
-                            </div>
-                            <div className="deploy-currency-wrap" style={{ height: '42px', minHeight: '42px' }}>
-                              <span className="deploy-currency-prefix">₱</span>
-                              <input
-                                className="input deploy-field-input deploy-currency-input"
-                                type="number"
-                                min="100"
-                                step="100"
-                                required
-                                placeholder="e.g., 100,000"
-                                value={targetAmount}
-                                onChange={(e) => setTargetAmount(e.target.value)}
-                                disabled={creating}
-                                style={{
-                                  height: '42px',
-                                  minHeight: '42px',
-                                  maxHeight: '42px',
-                                  boxSizing: 'border-box',
-                                  width: '100%',
-                                  borderRadius: '10px',
-                                  outline: 'none'
-                                }}
-                              />
-                            </div>
-                            <div className="deploy-quick-targets">
-                              {[25000, 50000, 100000, 250000, 500000].map((amt) => (
-                                <button
-                                  key={amt}
-                                  type="button"
-                                  className={`deploy-quick-target-btn${Number(targetAmount) === amt ? ' is-active' : ''}`}
-                                  onClick={() => !creating && setTargetAmount(String(amt))}
+                            <div className="cc-goal-shell">
+                              <div className="cc-goal-input-row">
+                                <span className="cc-goal-symbol">₱</span>
+                                <input
+                                  className="cc-goal-input"
+                                  type="number"
+                                  min="100"
+                                  step="100"
+                                  required
+                                  placeholder="100,000"
+                                  value={targetAmount}
+                                  onChange={(e) => setTargetAmount(e.target.value)}
                                   disabled={creating}
-                                >
-                                  ₱{amt >= 1000 ? `${amt / 1000}K` : amt}
-                                </button>
-                              ))}
+                                />
+                                <span className="cc-goal-code">PHP</span>
+                              </div>
+                              <div className="cc-goal-presets">
+                                {[25000, 50000, 100000, 250000, 500000].map((amt) => (
+                                  <button
+                                    key={amt}
+                                    type="button"
+                                    className={`cc-goal-preset-btn${Number(targetAmount) === amt ? ' is-active' : ''}`}
+                                    onClick={() => !creating && setTargetAmount(String(amt))}
+                                    disabled={creating}
+                                  >
+                                    ₱{amt >= 1000 ? `${amt / 1000}K` : amt}
+                                  </button>
+                                ))}
+                              </div>
                             </div>
                           </div>
 
-                          {/* SWAPPED INPUT ORDER: 1. Target Due Date * (Custom Web3 Calendar Popover) */}
-                          <div style={{ position: 'relative' }} ref={deliveryDateContainerRef}>
-                            <div className="deploy-input-label" style={{ margin: '0 0 6px 0' }}>
-                              <span>Target Due Date <span className="deploy-required-star">*</span></span>
-                              {targetDate && (
-                                <span style={{ fontSize: '0.68rem', color: 'var(--accent, #22c55e)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
-                                  <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>check</span>
-                                  Deadline set
-                                </span>
-                              )}
-                            </div>
-                            <div style={{ position: 'relative' }}>
-                              <button
-                                type="button"
-                                onClick={() => !creating && setDeliveryDatePickerOpen(prev => !prev)}
-                                disabled={creating}
-                                className="input deploy-field-input"
-                                style={{
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'space-between',
-                                  width: '100%',
-                                  height: '42px',
-                                  minHeight: '42px',
-                                  maxHeight: '42px',
-                                  boxSizing: 'border-box',
-                                  cursor: creating ? 'not-allowed' : 'pointer',
-                                  textAlign: 'left',
-                                  padding: '0 12px',
-                                  background: 'var(--bg-input, rgba(255,255,255,0.03))',
-                                  border: (deliveryDatePickerOpen || targetDate) ? '1.5px solid var(--accent, #22c55e)' : '1px solid var(--border)',
-                                  borderRadius: '10px',
-                                  outline: 'none'
-                                }}
-                                title="Click to open calendar and select target due date"
-                              >
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden' }}>
-                                  <span className="material-symbols-outlined" style={{ fontSize: '1.15rem', color: targetDate ? 'var(--accent)' : 'var(--text-muted)', flexShrink: 0 }}>
-                                    calendar_month
+                          {/* 4. Schedule & Urgency Row (Balanced 2-Col) */}
+                          <div className="cc-two-col">
+                            {/* Target Due Date (Calendar Popover) */}
+                            <div className="cc-field-group" style={{ position: 'relative' }} ref={deliveryDateContainerRef}>
+                              <div className="deploy-input-label">
+                                <span>Target Due Date <span className="deploy-required-star">*</span></span>
+                                {targetDate && <span className="cc-auto-badge">Set</span>}
+                              </div>
+                              <div style={{ position: 'relative' }}>
+                                <button
+                                  type="button"
+                                  onClick={() => !creating && setDeliveryDatePickerOpen(prev => !prev)}
+                                  disabled={creating}
+                                  className={`cc-date-trigger${deliveryDatePickerOpen ? ' is-open' : ''}${targetDate ? ' has-value' : ''}`}
+                                  title="Select target due date"
+                                >
+                                  <span className="cc-date-left">
+                                    <span className="material-symbols-outlined cc-date-ico">calendar_today</span>
+                                    <span className="cc-date-val">
+                                      {targetDate ? formatSelectedDeliveryDate(targetDate) : 'Pick a date…'}
+                                    </span>
                                   </span>
-                                  <span style={{ fontSize: '0.84rem', fontWeight: targetDate ? 700 : 500, color: targetDate ? 'var(--text-primary)' : 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                    {targetDate ? formatSelectedDeliveryDate(targetDate) : 'Select Due Date...'}
-                                  </span>
-                                </div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
                                   {targetDate ? (
                                     <span
                                       role="button"
                                       tabIndex={0}
+                                      className="cc-date-clear"
                                       onClick={(e) => {
                                         e.stopPropagation();
                                         handleTargetDateChange('');
                                       }}
-                                      style={{
-                                        padding: '2px 6px',
-                                        borderRadius: '6px',
-                                        fontSize: '0.72rem',
-                                        color: 'var(--text-muted)',
-                                        background: 'rgba(255,255,255,0.08)',
-                                        cursor: 'pointer'
-                                      }}
                                       title="Clear date"
                                     >
-                                      <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>close</span>
+                                      <span className="material-symbols-outlined">close</span>
                                     </span>
                                   ) : (
-                                    <span
-                                      className="material-symbols-outlined"
-                                      style={{
-                                        fontSize: '1.1rem',
-                                        color: 'var(--text-muted)',
-                                        transition: 'transform 0.15s ease',
-                                        transform: deliveryDatePickerOpen ? 'rotate(180deg)' : 'none'
-                                      }}
-                                    >
-                                      expand_more
-                                    </span>
+                                    <span className="material-symbols-outlined cc-date-chev">expand_more</span>
                                   )}
-                                </div>
-                              </button>
+                                </button>
 
-                              {/* Custom Calendar Popover matching CampaignCard ledger calendar */}
-                              {deliveryDatePickerOpen && (
-                                <div
-                                  className="ledger-custom-calendar-popover"
-                                  onClick={(e) => e.stopPropagation()}
-                                  style={{
-                                    position: 'absolute',
-                                    top: 'calc(100% + 6px)',
-                                    left: 0,
-                                    right: 'auto',
-                                    width: '300px',
-                                    zIndex: 100
-                                  }}
-                                >
-                                  {/* Month Header */}
-                                  <div className="cal-header">
-                                    <button
-                                      type="button"
-                                      className="cal-nav-btn"
-                                      onClick={handlePrevCalMonth}
-                                      title="Previous Month"
-                                    >
-                                      <span className="material-symbols-outlined">chevron_left</span>
-                                    </button>
-                                    <div className="cal-month-title">
-                                      {calViewDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                                {deliveryDatePickerOpen && (
+                                  <div
+                                    className="ledger-custom-calendar-popover"
+                                    onClick={(e) => e.stopPropagation()}
+                                    style={{ position: 'absolute', top: 'calc(100% + 6px)', left: 0, width: '300px', zIndex: 120 }}
+                                  >
+                                    <div className="cal-header">
+                                      <button type="button" className="cal-nav-btn" onClick={handlePrevCalMonth} title="Previous Month">
+                                        <span className="material-symbols-outlined">chevron_left</span>
+                                      </button>
+                                      <div className="cal-month-title">
+                                        {calViewDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                                      </div>
+                                      <button type="button" className="cal-nav-btn" onClick={handleNextCalMonth} title="Next Month">
+                                        <span className="material-symbols-outlined">chevron_right</span>
+                                      </button>
                                     </div>
-                                    <button
-                                      type="button"
-                                      className="cal-nav-btn"
-                                      onClick={handleNextCalMonth}
-                                      title="Next Month"
-                                    >
-                                      <span className="material-symbols-outlined">chevron_right</span>
-                                    </button>
-                                  </div>
-
-                                  {/* Urgency Helper Banner */}
-                                  <div className="cal-lifecycle-banner" style={{ fontSize: '0.66rem', padding: '3px 8px' }}>
-                                    <span className="cal-pulse-dot" />
-                                    <span className="cal-lifecycle-text">
-                                      Auto Urgency: ≤5d Critical • 6–14d Urgent • &gt;14d Standard
-                                    </span>
-                                  </div>
-
-                                  {/* Weekday Labels */}
-                                  <div className="cal-weekdays">
-                                    <span>Su</span>
-                                    <span>Mo</span>
-                                    <span>Tu</span>
-                                    <span>We</span>
-                                    <span>Th</span>
-                                    <span>Fr</span>
-                                    <span>Sa</span>
-                                  </div>
-
-                                  {/* Days Grid */}
-                                  <div className="cal-grid">
-                                    {calMonthCells.map((cell) => {
-                                      const isSelected = targetDate === cell.iso;
-                                      let cellClass = 'cal-day';
-                                      if (!cell.isCurrentMonth) cellClass += ' cal-day-outside';
-                                      if (cell.isPast) cellClass += ' cal-day-past';
-                                      if (isSelected) cellClass += ' cal-day-selected';
-
-                                      const today = new Date();
-                                      today.setHours(0, 0, 0, 0);
-                                      const cellDate = new Date(cell.iso + 'T00:00:00');
-                                      const diffDays = Math.ceil((cellDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-
-                                      let dotColor = null;
-                                      if (!cell.isPast && cell.isCurrentMonth) {
-                                        if (diffDays <= 5) dotColor = '#ef4444';
-                                        else if (diffDays <= 14) dotColor = '#eab308';
-                                        else dotColor = '#22c55e';
-                                      }
-
-                                      return (
-                                        <button
-                                          key={cell.iso}
-                                          type="button"
-                                          className={cellClass}
-                                          disabled={cell.isPast}
-                                          onClick={() => {
-                                            handleTargetDateChange(cell.iso);
-                                            setDeliveryDatePickerOpen(false);
-                                          }}
-                                          style={{
-                                            opacity: cell.isPast ? 0.35 : 1,
-                                            cursor: cell.isPast ? 'not-allowed' : 'pointer',
-                                            border: cell.isToday ? '1px dashed var(--accent, #22c55e)' : 'none',
-                                            background: isSelected ? 'var(--accent, #22c55e)' : (cell.isToday ? 'rgba(34,197,94,0.08)' : 'transparent'),
-                                            color: isSelected ? '#000000' : 'inherit',
-                                            fontWeight: isSelected || cell.isToday ? 700 : 500,
-                                            position: 'relative'
-                                          }}
-                                          title={cell.isPast ? 'Past date unavailable' : `${cell.iso} (${diffDays === 0 ? 'Today' : `${diffDays} days from now`})`}
-                                        >
-                                          <span className="cal-day-num">{cell.dayNum}</span>
-                                          {dotColor && !isSelected && (
-                                            <span
-                                              style={{
-                                                width: '4px',
-                                                height: '4px',
-                                                borderRadius: '50%',
-                                                background: dotColor,
-                                                position: 'absolute',
-                                                bottom: '3px'
-                                              }}
-                                            />
-                                          )}
-                                        </button>
-                                      );
-                                    })}
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                            <div style={{ marginTop: '4px', fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                              {category === 'CD' ? 'Estimated campaign completion or outreach project deadline.' : 'Target date for ground relief delivery to affected evacuees.'}
-                            </div>
-                          </div>
-
-                          {/* SWAPPED INPUT ORDER: 2. Urgency Status (Custom Web3 Dropdown Popover) */}
-                          <div ref={urgencyDropdownRef}>
-                            <div className="deploy-input-label" style={{ margin: '0 0 6px 0' }}>
-                              <span>Urgency Status</span>
-                              {urgency && targetDate && (
-                                <span style={{ fontSize: '0.68rem', color: 'var(--accent, #22c55e)', fontWeight: 600 }}>
-                                  Auto-suggested from date
-                                </span>
-                              )}
-                            </div>
-                            <div style={{ position: 'relative', width: '100%', zIndex: showUrgencyDropdown ? 100 : 1 }}>
-                              <button
-                                type="button"
-                                onClick={() => !creating && setShowUrgencyDropdown(prev => !prev)}
-                                disabled={creating}
-                                className="input deploy-field-input"
-                                style={{
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'space-between',
-                                  width: '100%',
-                                  height: '42px',
-                                  minHeight: '42px',
-                                  maxHeight: '42px',
-                                  boxSizing: 'border-box',
-                                  cursor: creating ? 'not-allowed' : 'pointer',
-                                  textAlign: 'left',
-                                  padding: '0 12px',
-                                  background: 'var(--bg-input, rgba(255,255,255,0.03))',
-                                  border: showUrgencyDropdown ? '1.5px solid var(--accent, #22c55e)' : '1px solid var(--border)',
-                                  borderRadius: '10px',
-                                  outline: 'none'
-                                }}
-                                title="Click to select urgency status (auto-suggested from date, can be manually adjusted)"
-                              >
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', overflow: 'hidden' }}>
-                                  <span
-                                    style={{
-                                      width: '8px',
-                                      height: '8px',
-                                      borderRadius: '50%',
-                                      background: (urgency.includes('HIGH') || urgency.includes('CRITICAL')) ? '#ef4444' : ((urgency.includes('MEDIUM') || urgency.includes('URGENT') || urgency.includes('REHAB')) ? '#f59e0b' : (urgency ? '#22c55e' : 'var(--text-muted)')),
-                                      flexShrink: 0
-                                    }}
-                                  />
-                                  <span style={{ fontSize: '0.84rem', fontWeight: urgency ? 600 : 500, color: urgency ? 'var(--text-primary)' : 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                    {formatUrgencyDisplay(urgency) || (targetDate ? 'Auto-suggested from Target Date' : 'Select Urgency Status...')}
-                                  </span>
-                                </div>
-                                <span
-                                  className="material-symbols-outlined"
-                                  style={{
-                                    fontSize: '1.1rem',
-                                    color: 'var(--text-muted)',
-                                    flexShrink: 0,
-                                    transition: 'transform 0.15s ease',
-                                    transform: showUrgencyDropdown ? 'rotate(180deg)' : 'none'
-                                  }}
-                                >
-                                  expand_more
-                                </span>
-                              </button>
-
-                              {/* Custom Dropdown Popover matching Web3 Calendar Popover */}
-                              {showUrgencyDropdown && (
-                                <div
-                                  className="deploy-custom-dropdown-popover"
-                                  onClick={(e) => e.stopPropagation()}
-                                  style={{ position: 'absolute', top: 'calc(100% + 4px)', right: 0, left: 'auto', minWidth: '320px', width: 'max-content', zIndex: 1050 }}
-                                >
-                                  <div style={{ padding: '6px 10px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                                    <span style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', whiteSpace: 'nowrap' }}>
-                                      Operational Urgency Status
-                                    </span>
-                                  </div>
-
-                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', padding: '4px 0' }}>
-                                    {/* Option: Auto-fill placeholder / reset */}
-                                    <button
-                                      type="button"
-                                      className={`deploy-dropdown-option ${!urgency ? 'active' : ''}`}
-                                      onClick={() => {
-                                        if (targetDate) {
-                                          handleTargetDateChange(targetDate);
-                                        } else {
-                                          setUrgency('');
+                                    <div className="cal-lifecycle-banner" style={{ fontSize: '0.66rem', padding: '3px 8px' }}>
+                                      <span className="cal-pulse-dot" />
+                                      <span className="cal-lifecycle-text">Auto Urgency: ≤5d Critical · 6–14d Urgent · &gt;14d Standard</span>
+                                    </div>
+                                    <div className="cal-weekdays">
+                                      <span>Su</span><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span>
+                                    </div>
+                                    <div className="cal-grid">
+                                      {calMonthCells.map((cell) => {
+                                        const isSelected = targetDate === cell.iso;
+                                        let cellClass = 'cal-day';
+                                        if (!cell.isCurrentMonth) cellClass += ' cal-day-outside';
+                                        if (cell.isPast) cellClass += ' cal-day-past';
+                                        if (isSelected) cellClass += ' cal-day-selected';
+                                        const today = new Date();
+                                        today.setHours(0, 0, 0, 0);
+                                        const cellDate = new Date(cell.iso + 'T00:00:00');
+                                        const diffDays = Math.ceil((cellDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+                                        let dotColor = null;
+                                        if (!cell.isPast && cell.isCurrentMonth) {
+                                          if (diffDays <= 5) dotColor = '#ef4444';
+                                          else if (diffDays <= 14) dotColor = '#eab308';
+                                          else dotColor = '#10b981';
                                         }
-                                        setShowUrgencyDropdown(false);
-                                      }}
-                                    >
-                                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                        <span className="material-symbols-outlined" style={{ fontSize: '16px', color: 'var(--text-muted)', flexShrink: 0 }}>
-                                          autorenew
-                                        </span>
-                                        <span style={{ fontSize: '0.82rem', fontWeight: 550, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
-                                          Auto-calculate from Target Due Date
-                                        </span>
-                                      </div>
-                                      {!urgency && (
-                                        <span className="material-symbols-outlined" style={{ color: 'var(--accent)', fontSize: '17px', flexShrink: 0 }}>
-                                          check
-                                        </span>
-                                      )}
-                                    </button>
-
-                                    {/* Option 1: Critical Emergency */}
-                                    <button
-                                      type="button"
-                                      className={`deploy-dropdown-option ${(urgency.includes('HIGH') || urgency.includes('CRITICAL')) ? 'active' : ''}`}
-                                      onClick={() => {
-                                        setUrgency('HIGH (EMERGENCY AID)');
-                                        setShowUrgencyDropdown(false);
-                                      }}
-                                    >
-                                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                        <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#ef4444', flexShrink: 0 }} />
-                                        <div style={{ display: 'flex', flexDirection: 'column', textAlign: 'left' }}>
-                                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                            <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
-                                              Critical Emergency
-                                            </span>
-                                            <span style={{ fontSize: '0.66rem', padding: '1px 6px', borderRadius: '4px', background: 'rgba(239, 68, 68, 0.16)', color: '#ef4444', fontWeight: 700, whiteSpace: 'nowrap' }}>
-                                              ≤ 5 Days
-                                            </span>
-                                          </div>
-                                          <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>
-                                            Immediate response needed for life-saving assistance
-                                          </span>
-                                        </div>
-                                      </div>
-                                      {(urgency.includes('HIGH') || urgency.includes('CRITICAL')) && (
-                                        <span className="material-symbols-outlined" style={{ color: '#ef4444', fontSize: '17px', flexShrink: 0, marginLeft: '8px' }}>
-                                          check
-                                        </span>
-                                      )}
-                                    </button>
-
-                                    {/* Option 2: Urgent Relief */}
-                                    <button
-                                      type="button"
-                                      className={`deploy-dropdown-option ${(urgency.includes('MEDIUM') || urgency.includes('URGENT') || urgency.includes('REHAB')) ? 'active' : ''}`}
-                                      onClick={() => {
-                                        setUrgency('MEDIUM (URGENT REHABILITATION)');
-                                        setShowUrgencyDropdown(false);
-                                      }}
-                                    >
-                                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                        <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#f59e0b', flexShrink: 0 }} />
-                                        <div style={{ display: 'flex', flexDirection: 'column', textAlign: 'left' }}>
-                                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                            <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
-                                              Urgent Relief
-                                            </span>
-                                            <span style={{ fontSize: '0.66rem', padding: '1px 6px', borderRadius: '4px', background: 'rgba(245, 158, 11, 0.16)', color: '#f59e0b', fontWeight: 700, whiteSpace: 'nowrap' }}>
-                                              6–14 Days
-                                            </span>
-                                          </div>
-                                          <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>
-                                            Rapid deployment for community displacement & provisions
-                                          </span>
-                                        </div>
-                                      </div>
-                                      {(urgency.includes('MEDIUM') || urgency.includes('URGENT') || urgency.includes('REHAB')) && (
-                                        <span className="material-symbols-outlined" style={{ color: '#f59e0b', fontSize: '17px', flexShrink: 0, marginLeft: '8px' }}>
-                                          check
-                                        </span>
-                                      )}
-                                    </button>
-
-                                    {/* Option 3: Standard Operations */}
-                                    <button
-                                      type="button"
-                                      className={`deploy-dropdown-option ${(urgency.includes('STABLE') || urgency.includes('STANDARD') || urgency.includes('CHARITABLE')) ? 'active' : ''}`}
-                                      onClick={() => {
-                                        setUrgency('STABLE (CHARITABLE AID)');
-                                        setShowUrgencyDropdown(false);
-                                      }}
-                                    >
-                                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                        <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#22c55e', flexShrink: 0 }} />
-                                        <div style={{ display: 'flex', flexDirection: 'column', textAlign: 'left' }}>
-                                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                            <span style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>
-                                              Standard Operations
-                                            </span>
-                                            <span style={{ fontSize: '0.66rem', padding: '1px 6px', borderRadius: '4px', background: 'rgba(34, 197, 94, 0.16)', color: '#22c55e', fontWeight: 700, whiteSpace: 'nowrap' }}>
-                                              &gt; 14 Days
-                                            </span>
-                                          </div>
-                                          <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>
-                                            Scheduled distribution, rebuilding, or sustained charitable drive
-                                          </span>
-                                        </div>
-                                      </div>
-                                      {(urgency.includes('STABLE') || urgency.includes('STANDARD') || urgency.includes('CHARITABLE')) && (
-                                        <span className="material-symbols-outlined" style={{ color: '#22c55e', fontSize: '17px', flexShrink: 0, marginLeft: '8px' }}>
-                                          check
-                                        </span>
-                                      )}
-                                    </button>
+                                        return (
+                                          <button
+                                            key={cell.iso}
+                                            type="button"
+                                            className={cellClass}
+                                            disabled={cell.isPast}
+                                            onClick={() => {
+                                              handleTargetDateChange(cell.iso);
+                                              setDeliveryDatePickerOpen(false);
+                                            }}
+                                            style={{
+                                              opacity: cell.isPast ? 0.35 : 1,
+                                              cursor: cell.isPast ? 'not-allowed' : 'pointer',
+                                              border: cell.isToday ? '1px dashed #10b981' : 'none',
+                                              background: isSelected ? '#ffffff' : (cell.isToday ? 'rgba(16,185,129,0.1)' : 'transparent'),
+                                              color: isSelected ? '#000000' : 'inherit',
+                                              fontWeight: isSelected || cell.isToday ? 700 : 500,
+                                              position: 'relative'
+                                            }}
+                                            title={cell.isPast ? 'Past date unavailable' : `${cell.iso} (${diffDays === 0 ? 'Today' : `${diffDays} days from now`})`}
+                                          >
+                                            <span className="cal-day-num">{cell.dayNum}</span>
+                                            {dotColor && !isSelected && (
+                                              <span style={{ width: '4px', height: '4px', borderRadius: '50%', background: dotColor, position: 'absolute', bottom: '3px' }} />
+                                            )}
+                                          </button>
+                                        );
+                                      })}
+                                    </div>
                                   </div>
-                                </div>
-                              )}
+                                )}
+                              </div>
+                              <span className="cc-field-hint">
+                                {category === 'CD' ? 'Planned outreach completion date.' : 'Target ground relief delivery date.'}
+                              </span>
+                            </div>
+
+                            {/* Urgency Level — 1-Click Tactile Pills (Zero Clunky Dropdown!) */}
+                            <div className="cc-field-group">
+                              <div className="deploy-input-label">
+                                <span>Priority Level</span>
+                                {urgency && targetDate && <span className="cc-mono-hint">Adjustable</span>}
+                              </div>
+                              <div className="cc-urgency-grid" role="radiogroup" aria-label="Urgency priority">
+                                {[
+                                  { id: 'HIGH (EMERGENCY AID)', label: 'Critical', dot: '#ef4444', active: urgency.includes('HIGH') || urgency.includes('CRITICAL') },
+                                  { id: 'MEDIUM (URGENT REHABILITATION)', label: 'Urgent', dot: '#f59e0b', active: urgency.includes('MEDIUM') || urgency.includes('URGENT') || urgency.includes('REHAB') },
+                                  { id: 'STABLE (CHARITABLE AID)', label: 'Standard', dot: '#10b981', active: urgency.includes('STABLE') || urgency.includes('STANDARD') || urgency.includes('CHARITABLE') }
+                                ].map((opt) => (
+                                  <button
+                                    key={opt.id}
+                                    type="button"
+                                    role="radio"
+                                    aria-checked={opt.active}
+                                    disabled={creating}
+                                    className={`cc-urgency-pill${opt.active ? ' is-active' : ''}`}
+                                    onClick={() => setUrgency(opt.id)}
+                                  >
+                                    <span className="cc-urgency-dot" style={{ background: opt.dot }} />
+                                    <span>{opt.label}</span>
+                                  </button>
+                                ))}
+                              </div>
+                              <span className="cc-field-hint">Auto-suggested when you pick a due date.</span>
                             </div>
                           </div>
 
-                          {/* Estimated Beneficiaries (Full Width) */}
-                          <div style={{ gridColumn: '1 / -1' }}>
+                          {/* 5. Estimated Beneficiaries */}
+                          <div className="cc-field-group">
                             <label className="deploy-input-label">
-                              <span>{category === 'CD' ? 'Estimated Beneficiaries / Community Impact' : 'Estimated Beneficiaries / Displaced Families'}</span>
+                              <span>{category === 'CD' ? 'Estimated Beneficiaries' : 'Affected Families / Beneficiaries'}</span>
+                              <span className="cc-mono-hint">Optional</span>
                             </label>
-                            <input className="input deploy-field-input" type="text"
-                              placeholder={category === 'CD' ? "e.g., ~500 Underserved Children & 120 Local Families" : "e.g., ~3,500 Displaced Families across 12 Barangays"}
-                              value={beneficiariesImpact} onChange={(e) => setBeneficiariesImpact(e.target.value)} disabled={creating} />
+                            <input
+                              className="input deploy-field-input"
+                              type="text"
+                              placeholder={category === 'CD' ? 'e.g., ~500 students & 120 local families' : 'e.g., ~1,200 displaced families across 8 barangays'}
+                              value={beneficiariesImpact}
+                              onChange={(e) => setBeneficiariesImpact(e.target.value)}
+                              disabled={creating}
+                            />
                           </div>
                         </div>
                       </div>
-                    </div>
-                  )}
+                    )}
 
                   {/* ── Step 2: Mission Narrative & Ground Evidence Photos ── */}
                   {deployStep === 2 && (
@@ -6258,7 +5922,127 @@ export default function OrganizationView({
                       )}
                     </div>
                   </div>
-                </form>
+                  </form>
+                </div>
+
+                {/* ── Right Column: Sticky Live Donor Card Preview & Readiness Checklist ── */}
+                <aside className="cc-preview-col" aria-label="Live campaign preview">
+                  <div className="cc-preview-card">
+                    <div className="cc-preview-bar">
+                      <span className="cc-preview-eyebrow">
+                        <span className="cc-preview-live-dot" />
+                        <span>Live Donor Preview</span>
+                      </span>
+                      <span className="cc-preview-step-tag">Step {deployStep}/5</span>
+                    </div>
+
+                    {/* Cover Image Stage */}
+                    <div className="cc-preview-cover">
+                      {disasterImages && disasterImages.length > 0 ? (
+                        <img src={disasterImages[0]} alt="Campaign cover preview" className="cc-preview-img" />
+                      ) : (
+                        <div className="cc-preview-cover-empty">
+                          <span className="material-symbols-outlined">
+                            {category === 'CD' ? 'volunteer_activism' : 'flood'}
+                          </span>
+                          <span>Add a cover photo on Step 2</span>
+                        </div>
+                      )}
+                      <div className="cc-preview-badges">
+                        <span className="cc-preview-cat-chip">
+                          {category === 'CD' ? 'Community' : 'Disaster Relief'}
+                        </span>
+                        {urgency && (
+                          <span className={`cc-preview-urg-chip${(urgency.includes('HIGH') || urgency.includes('CRITICAL')) ? ' is-crit' : (urgency.includes('MEDIUM') || urgency.includes('URGENT') || urgency.includes('REHAB')) ? ' is-urg' : ' is-std'}`}>
+                            {(urgency.includes('HIGH') || urgency.includes('CRITICAL')) ? 'Critical' : (urgency.includes('MEDIUM') || urgency.includes('URGENT') || urgency.includes('REHAB')) ? 'Urgent' : 'Standard'}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Card Body */}
+                    <div className="cc-preview-body">
+                      <div className="cc-preview-org">
+                        <span>{orgDisplayName || 'Your Organization'}</span>
+                        <span className="material-symbols-outlined cc-preview-ver">verified</span>
+                      </div>
+
+                      <div className={`cc-preview-title${title.trim() ? '' : ' is-placeholder'}`}>
+                        {title.trim() || 'Your campaign title appears here'}
+                      </div>
+
+                      <div className="cc-preview-loc">
+                        <span className="material-symbols-outlined">location_on</span>
+                        <span>
+                          {[city, province].filter(Boolean).join(', ') || 'Philippines · Location set on Step 4'}
+                        </span>
+                      </div>
+
+                      {/* Funding Progress Preview */}
+                      <div className="cc-preview-funding">
+                        <div className="cc-preview-funding-row">
+                          <span className="cc-preview-raised">₱0 raised</span>
+                          <span className="cc-preview-goal">
+                            of {targetAmount && Number(targetAmount) > 0 ? `₱${Math.round(Number(targetAmount)).toLocaleString('en-US')}` : '₱0'}
+                          </span>
+                        </div>
+                        <div className="cc-preview-track"><div className="cc-preview-fill" /></div>
+                        <div className="cc-preview-meta-row">
+                          <span>{targetDate ? `Due ${formatSelectedDeliveryDate(targetDate)}` : 'No due date yet'}</span>
+                          {beneficiariesImpact.trim() && (
+                            <span className="cc-preview-bene" title={beneficiariesImpact}>{beneficiariesImpact}</span>
+                          )}
+                        </div>
+                      </div>
+
+                      {selectedTags && selectedTags.length > 0 && (
+                        <div className="cc-preview-tags">
+                          {selectedTags.slice(0, 3).map((t) => (
+                            <span key={t} className="cc-preview-tag">{t}</span>
+                          ))}
+                          {selectedTags.length > 3 && (
+                            <span className="cc-preview-tag">+{selectedTags.length - 3}</span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Compact Launch Readiness Checklist */}
+                  {(() => {
+                    const checks = [
+                      { step: 1, label: 'Title, goal & deadline', done: Boolean(title.trim() && Number(targetAmount) > 0 && targetDate) },
+                      { step: 2, label: 'Story & cover photo', done: Boolean(description.trim() || (disasterImages && disasterImages.length > 0)) },
+                      { step: 3, label: 'Relief focus tags', done: Boolean(selectedTags && selectedTags.length > 0) },
+                      { step: 4, label: 'Location pinned', done: Boolean(city.trim() && province.trim()) },
+                      { step: 5, label: 'Payout account ready', done: Boolean(gcashNumber || gcashQrUrl || mayaNumber || mayaQrUrl) }
+                    ];
+                    const doneCount = checks.filter((c) => c.done).length;
+                    return (
+                      <div className="cc-checklist-card">
+                        <div className="cc-checklist-head">
+                          <span>Launch Checklist</span>
+                          <span className="cc-checklist-count">{doneCount}/5</span>
+                        </div>
+                        <div className="cc-checklist-list">
+                          {checks.map((c) => (
+                            <button
+                              key={c.step}
+                              type="button"
+                              className={`cc-check-row${c.done ? ' is-done' : ''}${deployStep === c.step ? ' is-curr' : ''}`}
+                              onClick={() => setDeployStep(c.step)}
+                            >
+                              <span className="cc-check-dot">
+                                {c.done ? <span className="material-symbols-outlined">check</span> : `0${c.step}`}
+                              </span>
+                              <span className="cc-check-label">{c.label}</span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </aside>
               </div>
             )}
           </div>
