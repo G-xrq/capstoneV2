@@ -706,3 +706,381 @@ body.tour-traveling .driver-popover,
 .bbdrts-btn-start span.material-symbols-outlined {
   font-size: 16px;
 }
+
+/* ============================================================
+   VERCEL GEIST GUIDED TOUR REWORK (.gt-*)
+   ============================================================ */
+
+/* Subtle Monochrome Focus Ring (Replaces Thick Neon Green Border) */
+.driver-active-element {
+  outline: 1.5px solid rgba(255, 255, 255, 0.55) !important;
+  outline-offset: 4px !important;
+  box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.16), 0 12px 32px rgba(0, 0, 0, 0.45) !important;
+  border-radius: 10px !important;
+}
+
+[data-theme="light"] .driver-active-element {
+  outline: 1.5px solid rgba(9, 9, 11, 0.45) !important;
+  box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.14), 0 10px 26px rgba(0, 0, 0, 0.12) !important;
+}
+
+/* Sleek Vercel Spotlight Popover Card */
+.driver-popover.bbdrts-tour-popover {
+  width: 348px !important;
+  max-width: min(348px, calc(100vw - 24px)) !important;
+  padding: 0 !important;
+  border-radius: 12px !important;
+  background: #0a0a0a !important;
+  border: 1px solid #262626 !important;
+  box-shadow: 0 24px 56px rgba(0, 0, 0, 0.85), inset 0 1px 0 rgba(255, 255, 255, 0.05) !important;
+  overflow: hidden;
+  font-family: var(--font-sans, 'Inter', -apple-system, BlinkMacSystemFont, sans-serif) !important;
+  transition: opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1), transform 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+[data-theme="light"] .driver-popover.bbdrts-tour-popover,
+.driver-popover.bbdrts-tour-popover.theme-light {
+  background: #ffffff !important;
+  border-color: #e4e4e7 !important;
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.14) !important;
+}
+
+/* Top 2px Hairline Progress Bar */
+.gt-progress-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: #1a1a1c;
+  overflow: hidden;
+}
+
+[data-theme="light"] .gt-progress-bar,
+.theme-light .gt-progress-bar {
+  background: #f4f4f5;
+}
+
+.gt-progress-fill {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #0d9488 0%, #10b981 100%);
+  transition: width 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.bbdrts-tour-popover .driver-popover-title {
+  margin: 0 !important;
+  padding: 18px 40px 6px 18px !important;
+}
+
+.bbdrts-tour-popover .driver-popover-badge {
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  margin-bottom: 5px !important;
+  font-size: 0.67rem !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.05em !important;
+  color: #888888 !important;
+  text-transform: uppercase !important;
+}
+
+.bbdrts-tour-popover .driver-step-title-row {
+  font-size: 0.94rem !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.02em !important;
+  color: #ffffff !important;
+}
+
+[data-theme="light"] .bbdrts-tour-popover .driver-step-title-row,
+.theme-light .driver-step-title-row {
+  color: #09090b !important;
+}
+
+.bbdrts-tour-popover .driver-popover-description {
+  margin: 0 !important;
+  padding: 0 18px 16px 18px !important;
+  font-size: 0.79rem !important;
+  color: #a1a1aa !important;
+  line-height: 1.52 !important;
+}
+
+[data-theme="light"] .bbdrts-tour-popover .driver-popover-description,
+.theme-light .driver-popover-description {
+  color: #52525b !important;
+}
+
+.bbdrts-tour-popover .driver-popover-footer {
+  margin: 0 !important;
+  padding: 11px 16px !important;
+  background: #060606 !important;
+  border-top: 1px solid #1c1c1e !important;
+}
+
+[data-theme="light"] .bbdrts-tour-popover .driver-popover-footer,
+.theme-light .driver-popover-footer {
+  background: #fafafa !important;
+  border-top-color: #e4e4e7 !important;
+}
+
+.bbdrts-tour-popover .driver-popover-progress-text {
+  font-family: var(--font-mono, monospace) !important;
+  font-size: 0.71rem !important;
+  color: #71717a !important;
+}
+
+.bbdrts-tour-popover .driver-popover-prev-btn {
+  height: 29px !important;
+  padding: 0 11px !important;
+  border-radius: 7px !important;
+  font-size: 0.75rem !important;
+  font-weight: 600 !important;
+}
+
+.bbdrts-tour-popover .driver-popover-next-btn {
+  height: 29px !important;
+  padding: 0 13px !important;
+  border-radius: 7px !important;
+  font-size: 0.75rem !important;
+  font-weight: 600 !important;
+}
+
+/* ── Reworked Vercel Geist Welcome Modal ── */
+.bbdrts-welcome-backdrop {
+  background: rgba(0, 0, 0, 0.74) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+  backdrop-filter: blur(8px) !important;
+}
+
+.bbdrts-welcome-modal {
+  width: 580px !important;
+  max-width: calc(100vw - 28px) !important;
+  padding: 0 !important;
+  border-radius: 14px !important;
+  background: #0a0a0a !important;
+  border: 1px solid #262626 !important;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.88), inset 0 1px 0 rgba(255, 255, 255, 0.05) !important;
+  overflow: hidden !important;
+  font-family: var(--font-sans, 'Inter', -apple-system, BlinkMacSystemFont, sans-serif) !important;
+}
+
+[data-theme="light"] .bbdrts-welcome-modal,
+.bbdrts-welcome-modal.theme-light {
+  background: #ffffff !important;
+  border-color: #e4e4e7 !important;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.14) !important;
+}
+
+.gt-welcome-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 22px 24px 18px;
+  border-bottom: 1px solid #1c1c1e;
+}
+
+[data-theme="light"] .gt-welcome-head,
+.theme-light .gt-welcome-head {
+  border-bottom-color: #e4e4e7;
+}
+
+.gt-welcome-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #888888;
+  margin-bottom: 8px;
+}
+
+.gt-welcome-title {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: #ffffff;
+  line-height: 1.2;
+}
+
+[data-theme="light"] .gt-welcome-title,
+.theme-light .gt-welcome-title {
+  color: #09090b;
+}
+
+.gt-welcome-sub {
+  margin: 5px 0 0;
+  font-size: 0.81rem;
+  color: #888888;
+  line-height: 1.45;
+}
+
+[data-theme="light"] .gt-welcome-sub,
+.theme-light .gt-welcome-sub {
+  color: #71717a;
+}
+
+.gt-welcome-body {
+  padding: 18px 24px;
+}
+
+/* Single Recessed 2x2 Hairline Feature Grid */
+.gt-pillar-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  border-radius: 10px;
+  border: 1px solid #222224;
+  background: #060606;
+  overflow: hidden;
+}
+
+[data-theme="light"] .gt-pillar-grid,
+.theme-light .gt-pillar-grid {
+  background: #fafafa;
+  border-color: #e4e4e7;
+}
+
+.gt-pillar-cell {
+  padding: 15px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  border-bottom: 1px solid #18181b;
+  border-right: 1px solid #18181b;
+}
+
+.gt-pillar-cell:nth-child(2n) {
+  border-right: none;
+}
+
+.gt-pillar-cell:nth-last-child(-n+2) {
+  border-bottom: none;
+}
+
+[data-theme="light"] .gt-pillar-cell,
+.theme-light .gt-pillar-cell {
+  border-bottom-color: #e4e4e7;
+  border-right-color: #e4e4e7;
+}
+
+.gt-pillar-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.gt-pillar-icon {
+  font-size: 16px;
+  color: #a1a1aa;
+  flex-shrink: 0;
+}
+
+[data-theme="light"] .gt-pillar-icon,
+.theme-light .gt-pillar-icon {
+  color: #52525b;
+}
+
+.gt-pillar-title {
+  font-size: 0.81rem;
+  font-weight: 600;
+  color: #ededed;
+  letter-spacing: -0.01em;
+}
+
+[data-theme="light"] .gt-pillar-title,
+.theme-light .gt-pillar-title {
+  color: #09090b;
+}
+
+.gt-pillar-desc {
+  margin: 0;
+  font-size: 0.73rem;
+  color: #888888;
+  line-height: 1.45;
+}
+
+[data-theme="light"] .gt-pillar-desc,
+.theme-light .gt-pillar-desc {
+  color: #71717a;
+}
+
+/* Signature Recessed Footer */
+.gt-welcome-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 13px 24px;
+  background: #060606;
+  border-top: 1px solid #1c1c1e;
+}
+
+[data-theme="light"] .gt-welcome-foot,
+.theme-light .gt-welcome-foot {
+  background: #fafafa;
+  border-top-color: #e4e4e7;
+}
+
+.gt-welcome-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.73rem;
+  color: #71717a;
+}
+
+.gt-welcome-meta kbd {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.66rem;
+  padding: 2px 5px;
+  border-radius: 4px;
+  background: #141414;
+  border: 1px solid #262626;
+  color: #a1a1aa;
+}
+
+[data-theme="light"] .gt-welcome-meta kbd,
+.theme-light .gt-welcome-meta kbd {
+  background: #ffffff;
+  border-color: #e4e4e7;
+  color: #52525b;
+}
+
+.gt-dot-sep {
+  opacity: 0.4;
+}
+
+.bbdrts-btn-skip,
+.bbdrts-btn-start {
+  height: 32px !important;
+  padding: 0 14px !important;
+  border-radius: 7px !important;
+  font-size: 0.77rem !important;
+  font-weight: 600 !important;
+}
+
+@media (max-width: 600px) {
+  .gt-pillar-grid {
+    grid-template-columns: 1fr;
+  }
+  .gt-pillar-cell {
+    border-right: none;
+  }
+  .gt-pillar-cell:nth-last-child(2) {
+    border-bottom: 1px solid #18181b;
+  }
+  [data-theme="light"] .gt-pillar-cell:nth-last-child(2),
+  .theme-light .gt-pillar-cell:nth-last-child(2) {
+    border-bottom-color: #e4e4e7;
+  }
+  .gt-welcome-head,
+  .gt-welcome-body,
+  .gt-welcome-foot {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+}

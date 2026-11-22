@@ -104,37 +104,27 @@ const triggerCelebration = (cardEl) => {
   fireTourCelebration(cardEl);
 };
 
-// Key Foundational Pillars for Donors
+// Key Foundational Pillars for Donors (Crisp 2x2 Hairline Grid)
 const DONOR_HIGHLIGHTS = [
   {
     icon: 'verified_user',
-    title: '100% Direct Giving • 0% Platform Fees',
-    desc: 'Zero intermediary deductions. Smart contracts ensure 100% of your contributions go straight to verified relief campaigns.'
+    title: 'Direct Giving · 0% Platform Fees',
+    desc: '100% of your PHP contribution goes straight to accredited relief drives with gasless Sepolia proof.'
   },
   {
-    icon: 'currency_exchange',
-    title: 'Philippine E-Wallets, Cards & Banks',
-    desc: 'Donate in PHP via GCash, Maya, cards, or bank transfer with AI receipt checks and gasless Sepolia blockchain proofs.'
-  },
-  {
-    icon: 'volunteer_activism',
-    title: '15 Donor Badge Levels',
-    desc: 'Verified badges recognizing your disaster relief donations as you help more families in need.'
+    icon: 'payments',
+    title: 'GCash, Maya, Card & Bank Rails',
+    desc: 'Donate in Philippine Pesos with automated receipt verification and instant cryptographic certificates.'
   },
   {
     icon: 'radar',
-    title: 'Live PAGASA Doppler Weather Radar',
-    desc: 'Real-time satellite storm tracking, typhoon signals, and affected LGU impact heatmaps directly connected to active relief operations.'
+    title: 'Live PAGASA Doppler Radar',
+    desc: 'Track real-time storm precipitation, typhoon signals, and active relief operations across LGUs.'
   },
   {
-    icon: 'lock_clock',
-    title: 'Milestone Escrows & Geotagged Proofs',
-    desc: 'Funds unlock in staged tranches. NGOs must upload timestamped, geotagged photos and verified beneficiary distribution logs.'
-  },
-  {
-    icon: 'receipt_long',
-    title: 'Instant Official Tax & Audit Receipts',
-    desc: 'Generate one-click verifiable BIR-compliant donation certificates with cryptographic transaction hashes for seamless tax reporting.'
+    icon: 'military_tech',
+    title: '15 Recognition Tiers & Ledger',
+    desc: 'Monitor your cumulative impact, analytics trends, and exportable audit receipts in one place.'
   }
 ];
 
@@ -142,67 +132,47 @@ const DONOR_HIGHLIGHTS = [
 const NGO_HIGHLIGHTS = [
   {
     icon: 'campaign',
-    title: 'Instant Relief Drive Deployment',
-    desc: 'Deploy verified emergency disaster relief drives in seconds during active PAGASA typhoon signals with targeted beneficiary quotas.'
+    title: 'Rapid Relief Drive Deployment',
+    desc: 'Launch verified emergency campaigns during active storm signals with clear funding milestones.'
   },
   {
-    icon: 'lock_clock',
-    title: 'Milestone-Based Escrow Transparency',
-    desc: 'Release relief funding in staged tranches. Provide complete public accountability with cryptographically sealed expense ledgers.'
-  },
-  {
-    icon: 'radar',
-    title: 'PAGASA Doppler Radar & Impact Zones',
-    desc: 'Map relief operations directly to live Doppler radar typhoon tracks, storm signals, and high-risk calamity zones across Philippine LGUs.'
+    icon: 'qr_code_2',
+    title: 'Multi-Rail PHP Payout Library',
+    desc: 'Manage reusable GCash, Maya, and Bank QR vouchers with smart auto-cropping and OCR extraction.'
   },
   {
     icon: 'add_a_photo',
     title: 'Geotagged Ground-Zero Proofs',
-    desc: 'Upload timestamped, geotagged photos of supply distribution and supplier receipts directly onto the immutable blockchain ledger.'
-  },
-  {
-    icon: 'payments',
-    title: 'Multi-Channel PHP Disbursements',
-    desc: 'Receive GCash, Maya, card, and bank donations with automated gasless Sepolia blockchain audit records.'
+    desc: 'Publish timestamped distribution photos and supplier receipts directly to the public audit ledger.'
   },
   {
     icon: 'assignment_turned_in',
-    title: 'Automated Compliance & Audit Reports',
-    desc: 'Generate one-click audit-ready PDF dossiers and transparent expenditure summaries for governing bodies, partners, and donors.'
+    title: 'Audit-Ready Compliance Reports',
+    desc: 'Generate transparent expenditure summaries and Sepolia-verified dossiers for partners and donors.'
   }
 ];
 
 // Key Foundational Pillars for System Administrators
 const ADMIN_HIGHLIGHTS = [
   {
-    icon: 'history_edu',
-    title: 'Immutable System Activity Logs',
-    desc: 'Audit chronological platform events, admin overrides, and role changes recorded in tamper-evident sequential logs.'
+    icon: 'verified_user',
+    title: 'SEC & DSWD NGO Accreditation',
+    desc: 'Verify institutional registrations, authorized signatories, and compliance documents before approval.'
   },
   {
     icon: 'account_balance',
-    title: 'Financial Ledger Reconciliation',
-    desc: 'Reconcile verified Philippine GCash, Maya, card, and bank receipts against immutable gasless Sepolia audit records.'
-  },
-  {
-    icon: 'verified_user',
-    title: 'SEC Accreditation & KYC Approvals',
-    desc: 'Review and approve Philippine NGOs with verified SEC registrations, BIR filings, and authorized officer identities.'
+    title: 'Multi-Rail Ledger Reconciliation',
+    desc: 'Audit GCash, Maya, card, and bank receipts against immutable gasless Ethereum Sepolia records.'
   },
   {
     icon: 'inventory_2',
-    title: 'Ground Proofs & Disbursement Audits',
-    desc: 'Inspect geotagged distribution logs, milestone unlock releases, and photo proof submissions before releasing staged tranches.'
-  },
-  {
-    icon: 'podcasts',
-    title: 'Emergency Broadcasts & Advisories',
-    desc: 'Publish critical weather and typhoon alerts across the network to coordinate nationwide disaster response operations.'
+    title: 'Disbursement & Proof Oversight',
+    desc: 'Inspect geotagged distribution evidence and milestone unlocks before releasing staged relief tranches.'
   },
   {
     icon: 'dns',
-    title: 'System Operations & EVM Circuit Breaker',
-    desc: 'Monitor Sepolia EVM node connectivity, emergency contract pause states, and automated database snapshots.'
+    title: 'Protocol Health & Broadcasts',
+    desc: 'Monitor Sepolia RPC status, publish emergency advisories, and review sequential activity logs.'
   }
 ];
 
@@ -619,13 +589,16 @@ export default function GuidedTour({
         ? `<span class="material-symbols-outlined driver-step-icon">${s.icon}</span>`
         : '';
 
+      const progressPct = Math.round(((idx + 1) / Math.max(1, totalSteps)) * 100);
       const popoverTitle = `
+        <div class="gt-progress-bar" aria-hidden="true">
+          <span class="gt-progress-fill" style="width:${progressPct}%"></span>
+        </div>
         <div class="driver-popover-badge">
           <span class="bbdrts-scope-dot" aria-hidden="true"></span>
           <span>${badgeText}</span>
         </div>
         <div class="driver-step-title-row">
-          ${iconHtml}
           <span>${s.title || ''}</span>
         </div>
       `;
@@ -638,7 +611,7 @@ export default function GuidedTour({
           side: s.placement || 'bottom',
           align: s.align || 'start',
           showButtons: idx === 0 ? ['next', 'close'] : ['previous', 'next', 'close'],
-          nextBtnText: isLastStep ? 'Complete Walkthrough' : 'Continue',
+          nextBtnText: isLastStep ? 'Finish' : 'Next',
           prevBtnText: 'Back',
           // Step-level completion hooks guaranteeing confetti fires on last step
           onNextClick: isLastStep
@@ -683,7 +656,7 @@ export default function GuidedTour({
         // Deliberate no-op: prevents accidental dismissal
       },
       popoverClass: `bbdrts-tour-popover theme-${currentTheme}`,
-      progressText: '{{current}} of {{total}}',
+      progressText: '{{current}} / {{total}}',
       steps: driverSteps,
       onDoneClick: () => {
         const popoverEl = document.querySelector('.bbdrts-tour-popover');
@@ -722,7 +695,7 @@ export default function GuidedTour({
               isNavigatingStepRef.current = false;
             });
           });
-        }, 340);
+        }, 210);
       },
       onCloseClick: () => {
         if (driverRef.current) {
@@ -811,30 +784,27 @@ export default function GuidedTour({
   // If not open, render nothing
   if (!isOpen) return null;
 
-  // ── Phase 1: High-Impact Welcome Modal (Vercel Design System) ──
+  // ── Phase 1: Clean Vercel Geist Welcome Dialog ──
   if (tourPhase === 'welcome') {
     const isDonor = roleName.toLowerCase().includes('donor');
     const isAdmin = roleName.toLowerCase().includes('admin');
     const isNgo = !isDonor && !isAdmin;
 
     let highlights = DONOR_HIGHLIGHTS;
-    let headerEmblem = 'volunteer_activism';
-    let badgeText = 'DIRECT GIVING NETWORK';
-    let titleText = 'Welcome to BBDRTS: Direct, Transparent Disaster Giving';
-    let subtitleText = 'The first blockchain-powered disaster response network built for the Philippines. Explore what makes our ecosystem truly direct and transparent before taking the walkthrough:';
+    let badgeText = 'Donor Portal';
+    let titleText = 'Welcome to BBDRTS';
+    let subtitleText = 'Direct Philippine Peso disaster relief with gasless Ethereum Sepolia notarization.';
 
     if (isAdmin) {
       highlights = ADMIN_HIGHLIGHTS;
-      headerEmblem = 'admin_panel_settings';
-      badgeText = 'INSTITUTIONAL GOVERNANCE';
-      titleText = 'Welcome to BBDRTS: Protocol Administration';
-      subtitleText = 'Centralized oversight of multi-rail disaster relief capital, SEC regulatory compliance, Doppler radar advisories, and Sepolia EVM contract health:';
+      badgeText = 'Protocol Administration';
+      titleText = 'BBDRTS Admin Console';
+      subtitleText = 'Centralized oversight of accredited NGOs, multi-rail relief ledgers, and on-chain audit health.';
     } else if (isNgo) {
       highlights = NGO_HIGHLIGHTS;
-      headerEmblem = 'corporate_fare';
-      badgeText = 'RELIEF OPERATIONS HUB';
-      titleText = 'Welcome to BBDRTS: Decentralized Relief Operations';
-      subtitleText = 'Deploy verified emergency relief drives, manage milestone escrows with total public transparency, and deliver accountability across the Philippines:';
+      badgeText = 'NGO Operations';
+      titleText = 'BBDRTS Relief Operations';
+      subtitleText = 'Deploy emergency drives, manage reusable QR payout rails, and publish verified distribution proofs.';
     }
 
     const walkthroughCount = steps.length || 8;
@@ -842,86 +812,71 @@ export default function GuidedTour({
     if (typeof document === 'undefined') return null;
 
     return createPortal(
-      <div 
-        className="bbdrts-welcome-backdrop" 
+      <div
+        className="bbdrts-welcome-backdrop"
         onClick={handleSkipTour}
         role="dialog"
         aria-modal="true"
         aria-labelledby="bbdrts-welcome-heading"
       >
-        <div 
-          className={`bbdrts-welcome-modal theme-${theme}`} 
+        <div
+          className={`bbdrts-welcome-modal theme-${theme}`}
           onClick={(e) => e.stopPropagation()}
         >
-          {/* Top Row: Refined Emblem & Minimal Close Button */}
-          <div className="bbdrts-welcome-top-row">
-            <div className="bbdrts-welcome-emblem">
-              <span className="material-symbols-outlined">{headerEmblem}</span>
+          {/* Minimal Header */}
+          <div className="gt-welcome-head">
+            <div className="gt-welcome-head-copy">
+              <div className="gt-welcome-eyebrow">
+                <span className="bbdrts-scope-dot" aria-hidden="true" />
+                <span>BBDRTS · {badgeText}</span>
+              </div>
+              <h2 id="bbdrts-welcome-heading" className="gt-welcome-title">{titleText}</h2>
+              <p className="gt-welcome-sub">{subtitleText}</p>
             </div>
-            <button 
-              type="button" 
-              className="bbdrts-welcome-close" 
+            <button
+              type="button"
+              className="bbdrts-welcome-close"
               onClick={handleSkipTour}
               title="Close tutorial (Esc)"
               aria-label="Close tutorial"
             >
-              <span className="material-symbols-outlined">close</span>
+              <span className="material-symbols-outlined" style={{ fontSize: '17px' }}>close</span>
             </button>
           </div>
 
-          {/* Modal Header */}
-          <div className="bbdrts-welcome-header">
-            <div className="bbdrts-welcome-badge">
-              <span className="bbdrts-beacon-dot" aria-hidden="true" />
-              <span>BBDRTS • {badgeText}</span>
-            </div>
-            <h2 id="bbdrts-welcome-heading" className="bbdrts-welcome-title">{titleText}</h2>
-            <p className="bbdrts-welcome-subtitle">{subtitleText}</p>
-          </div>
-
-          {/* 6 Key Architectural Pillars (2x3 Grid) */}
-          <div className="bbdrts-welcome-grid">
-            {highlights.map((item, idx) => (
-              <div key={idx} className="bbdrts-welcome-card">
-                <div className="bbdrts-welcome-card-icon">
-                  <span className="material-symbols-outlined">{item.icon}</span>
+          {/* Clean 2x2 Hairline Pillar Grid (Zero Nested Boxes) */}
+          <div className="gt-welcome-body">
+            <div className="gt-pillar-grid">
+              {highlights.map((item, idx) => (
+                <div key={idx} className="gt-pillar-cell">
+                  <div className="gt-pillar-top">
+                    <span className="material-symbols-outlined gt-pillar-icon">{item.icon}</span>
+                    <span className="gt-pillar-title">{item.title}</span>
+                  </div>
+                  <p className="gt-pillar-desc">{item.desc}</p>
                 </div>
-                <div className="bbdrts-welcome-card-body">
-                  <div className="bbdrts-welcome-card-title">{item.title}</div>
-                  <p className="bbdrts-welcome-card-desc">{item.desc}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Scope Indicator Bar */}
-          <div className="bbdrts-welcome-scope">
-            <div className="bbdrts-welcome-scope-left">
-              <span className="material-symbols-outlined">explore</span>
-              <span><strong>{walkthroughCount}-Step Spotlight Walkthrough</strong> covers live metrics, campaigns, radar, and actions.</span>
-            </div>
-            <div className="bbdrts-welcome-scope-badge">
-              <span className="bbdrts-scope-dot" aria-hidden="true" />
-              <span>Sepolia EVM • 100% On-Chain</span>
+              ))}
             </div>
           </div>
 
-          {/* Action Footer */}
-          <div className="bbdrts-welcome-actions">
-            <div className="bbdrts-welcome-hint">
+          {/* Signature Vercel Recessed Footer */}
+          <div className="gt-welcome-foot">
+            <div className="gt-welcome-meta">
+              <span>{walkthroughCount}-step spotlight tour</span>
+              <span className="gt-dot-sep">·</span>
               <span>Press <kbd>Esc</kbd> to skip</span>
             </div>
             <div className="bbdrts-welcome-buttons">
-              <button 
-                type="button" 
-                className="bbdrts-btn-skip" 
+              <button
+                type="button"
+                className="bbdrts-btn-skip"
                 onClick={handleSkipTour}
               >
-                Explore on My Own
+                Skip
               </button>
-              <button 
-                type="button" 
-                className="bbdrts-btn-start" 
+              <button
+                type="button"
+                className="bbdrts-btn-start"
                 onClick={handleStartTourSteps}
               >
                 <span>Start Walkthrough</span>

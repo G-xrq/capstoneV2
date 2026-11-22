@@ -248,75 +248,67 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
   const donorTourSteps = useMemo(() => [
     {
       target: '#tour-donor-welcome',
-      title: 'Donor Profile & Quick Actions',
-      icon: 'verified_user',
-      badge: 'Profile & Overview',
+      title: 'Welcome & Quick Actions',
+      badge: 'Dashboard Overview',
       placement: 'bottom',
       align: 'start',
-      description: 'Your dashboard header displays your verified account standing and current donor recognition. Use the quick action buttons to explore your Recognition Circles, jump directly to active relief appeals, or inspect the public ledger on Etherscan.'
-    },
-    {
-      target: '#tour-donor-badge-card',
-      title: 'Philanthropic Recognition Circles',
-      icon: 'volunteer_activism',
-      badge: 'Donor Recognition',
-      placement: 'bottom',
-      align: 'start',
-      description: 'Explore your philanthropic journey across the 15 Disaster Relief Recognition Circles. This card displays your cumulative verified impact and milestone progress. Click to explore all 15 circles.'
+      description: 'Your verified donor standing at a glance. Jump directly into active relief campaigns or inspect the public Sepolia audit ledger.'
     },
     {
       target: '#tour-donor-metrics',
-      title: 'Dashboard Summary Metrics',
-      icon: 'analytics',
-      badge: 'Key Statistics',
+      title: 'Live Impact Summary',
+      badge: 'Key Metrics',
       placement: 'bottom',
       align: 'center',
-      description: 'These stat cards summarize your total verified PHP contributions recorded on-chain, the number of active relief causes open for aid, and your gasless Sepolia audit status.'
+      description: 'Track your total verified PHP contributions with real-time momentum, active relief causes, and your current Recognition Tier.'
     },
     {
       target: '#tour-donor-first-campaign, #tour-donor-featured-causes',
-      title: 'Featured Relief Campaign',
-      icon: 'emergency',
-      badge: 'Relief Causes',
+      title: 'Featured Relief Appeals',
+      badge: 'Active Causes',
       placement: 'bottom',
       align: 'center',
-      description: 'Review featured emergency disaster appeals posted by accredited organizations. Each card shows the disaster category, urgency level, funding goal, and progress. Click Donate to contribute in PHP via GCash, Maya, Bank Transfer, or Card with gasless on-chain proof.'
+      description: 'Browse prioritized campaigns from SEC-accredited NGOs. Donate in PHP via GCash, Maya, Bank Transfer, or Card with gasless on-chain receipts.'
+    },
+    {
+      target: '#tour-donor-badge-card',
+      title: 'Recognition Circle Progress',
+      badge: '15 Donor Tiers',
+      placement: 'top',
+      align: 'start',
+      description: 'Follow your milestone progress across all 15 institutional donor recognition tiers and view your verified appreciation certificates.'
     },
     {
       target: '#tour-donor-tab-campaigns',
-      title: 'Relief Campaigns Tab',
-      icon: 'campaign',
-      badge: 'Campaign Navigation',
+      title: 'Explore Campaigns',
+      badge: 'Navigation',
       placement: 'right',
       align: 'center',
-      description: 'Click this sidebar tab to browse all active emergency relief campaigns. You can filter appeals by cause category (Disaster Relief or Charitable Aid), urgency priority (High, Medium, Standard), or search specific relief operations.'
+      description: 'Filter every active relief appeal by category (Disaster Relief or Charitable Aid), urgency priority, or keyword search.'
     },
     {
       target: '#tour-donor-tab-donations',
-      title: 'My Contributions Tab',
-      icon: 'history',
-      badge: 'Donation History',
+      title: 'My Contributions & Analytics',
+      badge: 'Donation Ledger',
       placement: 'right',
       align: 'center',
-      description: 'Click here to review your complete on-chain donation history. You can inspect transaction hashes, view verified timestamps and amounts for every contribution, and export printable audit receipts.'
+      description: 'Inspect interactive donation trends across Today, Week, Month, Year, and All time, plus your paginated Sepolia-verified receipts.'
     },
     {
       target: '#tour-donor-tab-radar',
-      title: 'Relief Radar Tab',
-      icon: 'radar',
-      badge: 'Weather & Disaster Map',
+      title: 'Live Relief Radar',
+      badge: 'PAGASA Weather Map',
       placement: 'right',
       align: 'center',
-      description: 'Switch to this tab to view an interactive Philippine map with live PAGASA Doppler radar precipitation data and disaster campaign locations, helping you see where emergency relief is needed most.'
+      description: 'Monitor real-time PAGASA Doppler precipitation layers alongside geotagged disaster relief drives across the Philippines.'
     },
     {
-      target: '#tour-donor-sepolia-node, .ref-sidebar-footer-group, .ref-nav-item-tutorial',
-      title: 'Network Health & Replay Tour',
-      icon: 'hub',
-      badge: 'System Status',
+      target: '.ref-nav-item-tutorial, .ref-sidebar-footer-group',
+      title: 'Replay Anytime',
+      badge: 'You’re All Set',
       placement: 'right',
       align: 'end',
-      description: 'This widget displays real-time Ethereum Sepolia smart contract synchronization. You can switch color themes below or click "Guided Tutorial" in the sidebar anytime to replay this walkthrough. You are all set!'
+      description: 'Need a refresher later? Click Guided Tutorial here in the sidebar or visit Preferences in Profile & Settings to replay this walkthrough.'
     }
   ], []);
 
