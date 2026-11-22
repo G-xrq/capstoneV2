@@ -3675,7 +3675,11 @@
   object-fit: contain;
   pointer-events: none;
   user-select: none;
-  margin-bottom: clamp(-10px, -1.8cqw, -5px);
+  position: relative;
+  z-index: 2;
+  margin-top: clamp(-8px, -1.4cqw, -4px);
+  margin-bottom: clamp(-24px, -4.2cqw, -12px);
+  transform: translateY(clamp(5px, 1.3cqw, 9px));
   filter: invert(1) brightness(1.04) sepia(0.14);
   opacity: 0.94;
 }
