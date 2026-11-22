@@ -1097,7 +1097,7 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
                 onClick={() => { setActiveTab('radar-heatmap'); setMobileSidebarOpen(false); }}
                 title={wt.reliefRadar}
               >
-                <span className="material-symbols-outlined" style={{ color: activeTab === 'radar-heatmap' ? 'var(--accent, #22c55e)' : 'inherit' }}>radar</span>
+                <span className="material-symbols-outlined">radar</span>
                 <span>{wt.reliefRadar}</span>
               </button>
             )}
@@ -1689,9 +1689,19 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
             </div>
           )}
 
-          {/* ── 2. DEDICATED RELIEF CAMPAIGNS TAB (Hides 4 boxes & welcome card) ── */}
-          {activeTab === 'campaigns' && (
-            <div key="tab-campaigns" id="tour-campaigns-container" className="donor-tab-transition">
+          {/* ── 2. DEDICATED RELIEF CAMPAIGNS TAB (Vercel Geist Institutional Standard) ── */}
+          {activeTab === 'campaigns' && (() => {
+            const raisedPhp = campaigns.reduce((s, c) => s + (parseFloat(c.currentAmount) || 0), 0) * 170000;
+            const activeDrivesCount = campaigns.filter(c => c.isActive !== false).length;
+            const fundedCount = campaigns.filter(c => parseFloat(c.targetAmount) > 0 && parseFloat(c.currentAmount) >= parseFloat(c.targetAmount)).length;
+            const orgCount = new Set(campaigns.map(c => c.orgName || c.orgAddress).filter(Boolean)).size;
+            const startIdx = filteredCampaigns.length === 0 ? 0 : ((currentPage - 1) * campaignsPerPage) + 1;
+            const endIdx = Math.min(filteredCampaigns.length, currentPage * campaignsPerPage);
+            const isGridView = viewMode === 'grid' || viewMode === 'grid-3' || viewMode === 'grid-2';
+
+            return (
+            <div key="tab-campaigns" id="tour-campaigns-container" className="ec-page donor-tab-transition">
+              {/* Institutional Vercel Page Header */}
               <div className="admin-page-header" id="tour-campaigns-header">
                 <div className="admin-page-title-wrap">
                   <h2 className="admin-page-title">
@@ -1702,37 +1712,89 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
                     {wt.allCampaignsSub}
                   </p>
                 </div>
-              {/* Aggregate impact snapshot */}
-              {(() => {
-                const raisedPhp = campaigns.reduce((s, c) => s + (parseFloat(c.currentAmount) || 0), 0) * 170000;
-                const fundedCount = campaigns.filter(c => parseFloat(c.targetAmount) > 0 && parseFloat(c.currentAmount) >= parseFloat(c.targetAmount)).length;
-                const orgCount = new Set(campaigns.map(c => c.orgName || c.orgAddress).filter(Boolean)).size;
-                return (
-                  <div className="campaign-head-stats">
-                    <div className="campaign-head-stat">
-                      <span className="campaign-head-stat-val">₱{Math.round(raisedPhp).toLocaleString('en-US', { maximumFractionDigits: 0 })}</span>
-                      <span className="campaign-head-stat-label">raised to date</span>
-                    </div>
-                    <div className="campaign-head-stat">
-                      <span className="campaign-head-stat-val">{fundedCount}</span>
-                      <span className="campaign-head-stat-label">fully funded</span>
-                    </div>
-                    <div className="campaign-head-stat">
-                      <span className="campaign-head-stat-val">{orgCount}</span>
-                      <span className="campaign-head-stat-label">partner NGOs</span>
-                    </div>
-                  </div>
-                );
-              })()}
+
+                <div className="admin-page-header-actions">
+                  <button
+                    type="button"
+                    className="dbo-cmd-btn"
+                    onClick={fetchCampaigns}
+                    disabled={fetchingCampaigns}
+                    title="Refresh campaigns from the ledger"
+                  >
+                    <span className={`material-symbols-outlined ${fetchingCampaigns ? 'spinning' : ''}`} style={{ fontSize: '15px' }}>
+                      sync
+                    </span>
+                    <span>{fetchingCampaigns ? 'Syncing...' : 'Sync Registry'}</span>
+                  </button>
+                </div>
               </div>
 
-              {/* ── Unified Campaign Toolbar: Filters on Left, Search & Sort on Right ── */}
-              <div className="campaign-toolbar-card" id="tour-campaigns-toolbar">
-                <div className="campaign-toolbar-unified-row">
-                  {/* Left: Filter Pills (Causes, Priorities, Tags) */}
-                  <div className="toolbar-filters-left">
-                    {/* Cause Filter Pill Popover */}
-                    <div style={{ position: 'relative' }} ref={causesDropdownRef}>
+              {/* ── 1. Borderless Registry Summary Band (Directly on Canvas — Zero Heavy Boxes) ── */}
+              <div className="ec-summary-band">
+                <div className="ec-band-cell ec-band-cell--primary">
+                  <div className="ec-band-val-row">
+                    <span className="ec-band-total">₱{Math.round(raisedPhp).toLocaleString('en-US', { maximumFractionDigits: 0 })}</span>
+                    <span className="ec-live-pill">
+                      <span className="ec-live-dot" />
+                      <span>Live Registry</span>
+                    </span>
+                  </div>
+                  <span className="ec-band-lbl">Total Raised Across Verified Relief Operations</span>
+                </div>
+
+                <div className="ec-band-cell">
+                  <span className="ec-band-num">{activeDrivesCount}</span>
+                  <span className="ec-band-lbl">Active Campaigns ({campaigns.length} Total)</span>
+                </div>
+
+                <div className="ec-band-cell">
+                  <span className="ec-band-num">{fundedCount}</span>
+                  <span className="ec-band-lbl">Fully Funded Drives</span>
+                </div>
+
+                <div className="ec-band-cell">
+                  <span className="ec-band-num">{orgCount}</span>
+                  <span className="ec-band-lbl">Accredited Partner NGOs</span>
+                </div>
+              </div>
+
+              {/* ── 2. Unified Vercel Geist Command & Filter Bar ── */}
+              <div className="ec-toolbar-panel" id="tour-campaigns-toolbar">
+                <div className="ec-toolbar-row">
+                  {/* Search Input with ⌘K */}
+                  <div className="ec-search-box">
+                    <span className="material-symbols-outlined ec-search-icon">search</span>
+                    <input
+                      ref={searchInputRef}
+                      type="text"
+                      placeholder="Search campaigns, NGOs, provinces, or tags..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Escape') {
+                          e.target.blur();
+                        }
+                      }}
+                      className="ec-search-input"
+                    />
+                    {searchQuery && (
+                      <button
+                        type="button"
+                        onClick={() => setSearchQuery('')}
+                        className="ec-search-clear"
+                        title="Clear search"
+                        aria-label="Clear search"
+                      >
+                        <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>close</span>
+                      </button>
+                    )}
+                    <kbd className="ec-search-kbd" title="Press Ctrl+K or ⌘K to focus search">⌘K</kbd>
+                  </div>
+
+                  {/* Filter Controls Cluster */}
+                  <div className="ec-filters-group">
+                    {/* Cause Dropdown */}
+                    <div className="ec-dropdown-wrap" ref={causesDropdownRef}>
                       <button
                         type="button"
                         onClick={() => {
@@ -1741,18 +1803,19 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
                           setShowTagsDropdown(false);
                           setShowSortDropdown(false);
                         }}
-                        className={`filter-pill-btn ${categoryFilter !== 'ALL' ? 'active-filter' : ''}`}
+                        className={`ec-filter-btn ${categoryFilter !== 'ALL' ? 'is-active' : ''}`}
                         title="Filter by cause category"
                       >
-                        <span className="material-symbols-outlined filter-pill-icon" style={{ color: 'var(--text-secondary)' }}>{selectedCauseObj.icon}</span>
+                        <span className="material-symbols-outlined ec-filter-icon">{selectedCauseObj.icon}</span>
                         <span>{selectedCauseObj.label}</span>
-                        <span className="material-symbols-outlined filter-pill-arrow" style={{ position: 'static', marginLeft: '4px' }}>
+                        <span className="material-symbols-outlined ec-filter-chevron">
                           {showCausesDropdown ? 'expand_less' : 'expand_more'}
                         </span>
                       </button>
 
                       {showCausesDropdown && (
-                        <div className="filter-custom-popover">
+                        <div className="ec-popover">
+                          <div className="ec-popover-label">Cause Category</div>
                           {CAUSE_OPTIONS.map(opt => (
                             <button
                               key={opt.value}
@@ -1761,12 +1824,12 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
                                 setCategoryFilter(opt.value);
                                 setShowCausesDropdown(false);
                               }}
-                              className={`filter-popover-option ${categoryFilter === opt.value ? 'selected' : ''}`}
+                              className={`ec-popover-opt ${categoryFilter === opt.value ? 'is-selected' : ''}`}
                             >
-                              <span className="material-symbols-outlined filter-popover-option-icon" style={{ color: 'var(--text-secondary)' }}>{opt.icon}</span>
+                              <span className="material-symbols-outlined ec-popover-opt-icon">{opt.icon}</span>
                               <span>{opt.label}</span>
                               {categoryFilter === opt.value && (
-                                <span className="material-symbols-outlined filter-popover-check">check</span>
+                                <span className="material-symbols-outlined ec-popover-check">check</span>
                               )}
                             </button>
                           ))}
@@ -1774,8 +1837,8 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
                       )}
                     </div>
 
-                    {/* Priority Filter Pill Popover */}
-                    <div style={{ position: 'relative' }} ref={prioritiesDropdownRef}>
+                    {/* Priority Dropdown */}
+                    <div className="ec-dropdown-wrap" ref={prioritiesDropdownRef}>
                       <button
                         type="button"
                         onClick={() => {
@@ -1784,18 +1847,19 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
                           setShowTagsDropdown(false);
                           setShowSortDropdown(false);
                         }}
-                        className={`filter-pill-btn ${urgencyFilter !== 'ALL' ? 'active-filter' : ''}`}
+                        className={`ec-filter-btn ${urgencyFilter !== 'ALL' ? 'is-active' : ''}`}
                         title="Filter by urgency priority"
                       >
-                        <span className="material-symbols-outlined filter-pill-icon" style={{ color: 'var(--text-secondary)' }}>{selectedPriorityObj.icon}</span>
+                        <span className="material-symbols-outlined ec-filter-icon">{selectedPriorityObj.icon}</span>
                         <span>{selectedPriorityObj.label}</span>
-                        <span className="material-symbols-outlined filter-pill-arrow" style={{ position: 'static', marginLeft: '4px' }}>
+                        <span className="material-symbols-outlined ec-filter-chevron">
                           {showPrioritiesDropdown ? 'expand_less' : 'expand_more'}
                         </span>
                       </button>
 
                       {showPrioritiesDropdown && (
-                        <div className="filter-custom-popover">
+                        <div className="ec-popover">
+                          <div className="ec-popover-label">Urgency Priority</div>
                           {PRIORITY_OPTIONS.map(opt => (
                             <button
                               key={opt.value}
@@ -1804,12 +1868,12 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
                                 setUrgencyFilter(opt.value);
                                 setShowPrioritiesDropdown(false);
                               }}
-                              className={`filter-popover-option ${urgencyFilter === opt.value ? 'selected' : ''}`}
+                              className={`ec-popover-opt ${urgencyFilter === opt.value ? 'is-selected' : ''}`}
                             >
-                              <span className="material-symbols-outlined filter-popover-option-icon" style={{ color: 'var(--text-secondary)' }}>{opt.icon}</span>
+                              <span className="material-symbols-outlined ec-popover-opt-icon">{opt.icon}</span>
                               <span>{opt.label}</span>
                               {urgencyFilter === opt.value && (
-                                <span className="material-symbols-outlined filter-popover-check">check</span>
+                                <span className="material-symbols-outlined ec-popover-check">check</span>
                               )}
                             </button>
                           ))}
@@ -1817,8 +1881,8 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
                       )}
                     </div>
 
-                    {/* Tags Dropdown Popover with Checkboxes */}
-                    <div style={{ position: 'relative' }} ref={tagsDropdownRef}>
+                    {/* Tags Multi-Select Popover */}
+                    <div className="ec-dropdown-wrap" ref={tagsDropdownRef}>
                       <button
                         type="button"
                         onClick={() => {
@@ -1827,62 +1891,57 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
                           setShowPrioritiesDropdown(false);
                           setShowSortDropdown(false);
                         }}
-                        className={`filter-pill-btn ${selectedTags.length > 0 ? 'active-filter' : ''}`}
+                        className={`ec-filter-btn ${selectedTags.length > 0 ? 'is-active' : ''}`}
                         title="Filter by tags"
                       >
-                        <span className="material-symbols-outlined filter-pill-icon" style={{ color: 'var(--text-secondary)' }}>sell</span>
+                        <span className="material-symbols-outlined ec-filter-icon">sell</span>
                         <span>Tags</span>
                         {selectedTags.length > 0 && (
-                          <span className="tags-dropdown-badge-ref">{selectedTags.length}</span>
+                          <span className="ec-filter-badge">{selectedTags.length}</span>
                         )}
-                        <span className="material-symbols-outlined filter-pill-arrow" style={{ position: 'static', marginLeft: '4px' }}>
+                        <span className="material-symbols-outlined ec-filter-chevron">
                           {showTagsDropdown ? 'expand_less' : 'expand_more'}
                         </span>
                       </button>
 
                       {showTagsDropdown && (
-                        <div className="tags-popover-menu">
-                          <div className="tags-popover-header">
-                            <span className="tags-popover-title">
-                              <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>sell</span>
-                              Filter by Tags
-                            </span>
+                        <div className="ec-popover ec-tags-popover">
+                          <div className="ec-tags-popover-head">
+                            <span className="ec-popover-label" style={{ padding: 0 }}>Filter by Tags</span>
                             {selectedTags.length > 0 && (
                               <button
                                 type="button"
                                 onClick={() => setSelectedTags([])}
-                                className="tags-popover-clear-btn"
+                                className="ec-tags-clear-btn"
                               >
                                 Clear ({selectedTags.length})
                               </button>
                             )}
                           </div>
 
-                          <div className="tags-popover-list">
-                            {/* "All Tags" Checkbox */}
-                            <label className={`tags-popover-item ${selectedTags.length === 0 ? 'checked' : ''}`}>
+                          <div className="ec-tags-list">
+                            <label className={`ec-tag-row ${selectedTags.length === 0 ? 'is-checked' : ''}`}>
                               <input
                                 type="checkbox"
                                 checked={selectedTags.length === 0}
                                 onChange={() => setSelectedTags([])}
                               />
-                              <span className="tags-popover-tag-text">All Tags</span>
-                              <span className="tags-popover-count">{campaigns?.length || 0}</span>
+                              <span className="ec-tag-name">All Tags</span>
+                              <span className="ec-tag-count">{campaigns?.length || 0}</span>
                             </label>
 
-                            {/* Individual Tag Checkboxes */}
                             {availableTags.map((tag) => {
                               const isChecked = selectedTags.includes(tag);
                               const count = tagCounts[tag] || 0;
                               return (
-                                <label key={tag} className={`tags-popover-item ${isChecked ? 'checked' : ''}`}>
+                                <label key={tag} className={`ec-tag-row ${isChecked ? 'is-checked' : ''}`}>
                                   <input
                                     type="checkbox"
                                     checked={isChecked}
                                     onChange={() => toggleTag(tag)}
                                   />
-                                  <span className="tags-popover-tag-text">#{tag}</span>
-                                  {count > 0 && <span className="tags-popover-count">{count}</span>}
+                                  <span className="ec-tag-name">#{tag}</span>
+                                  {count > 0 && <span className="ec-tag-count">{count}</span>}
                                 </label>
                               );
                             })}
@@ -1891,54 +1950,25 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
                       )}
                     </div>
 
-                    {/* Tracked Campaigns Filter Pill */}
+                    {/* Tracked Watchlist Toggle */}
                     <button
                       type="button"
                       onClick={() => setOnlyTracked(prev => !prev)}
-                      className={`filter-pill-btn ${onlyTracked ? 'active-filter' : ''}`}
-                      title={onlyTracked ? "Showing tracked campaigns. Click to show all" : "Filter by campaigns you are tracking"}
-                      style={onlyTracked ? { borderColor: 'var(--accent, #22c55e)', color: 'var(--accent, #22c55e)', background: 'rgba(34, 197, 94, 0.12)' } : {}}
+                      className={`ec-filter-btn ${onlyTracked ? 'is-active' : ''}`}
+                      title={onlyTracked ? 'Showing tracked campaigns. Click to show all' : 'Filter by campaigns you are tracking'}
                     >
-                      <span className="material-symbols-outlined filter-pill-icon" style={{ color: onlyTracked ? 'var(--accent, #22c55e)' : 'var(--text-secondary)' }}>
-                        visibility
-                      </span>
+                      {onlyTracked ? (
+                        <span className="ec-live-dot" />
+                      ) : (
+                        <span className="material-symbols-outlined ec-filter-icon">visibility</span>
+                      )}
                       <span>Tracked</span>
                     </button>
-                  </div>
 
-                  {/* Right: Search Box + Sort Pill */}
-                  <div className="toolbar-search-right">
-                    {/* Compact Search Box with ⌘ K and Animated Stretch on Focus */}
-                    <div className="campaign-toolbar-search-box">
-                      <span className="material-symbols-outlined filter-search-icon-ref">search</span>
-                      <input
-                        ref={searchInputRef}
-                        type="text"
-                        placeholder="Search campaigns, NGOs, locations..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Escape') {
-                            e.target.blur();
-                          }
-                        }}
-                        className="filter-search-input-ref"
-                      />
-                      {searchQuery && (
-                        <button
-                          type="button"
-                          onClick={() => setSearchQuery('')}
-                          className="filter-search-clear-btn-ref"
-                          title="Clear search"
-                        >
-                          <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>close</span>
-                        </button>
-                      )}
-                      <kbd className="filter-search-shortcut-badge" title="Press Ctrl+K or ⌘K to focus search">⌘ K</kbd>
-                    </div>
+                    <span className="ec-toolbar-divider" aria-hidden="true" />
 
-                    {/* Sort Pill Popover */}
-                    <div style={{ position: 'relative' }} ref={sortDropdownRef}>
+                    {/* Sort Popover */}
+                    <div className="ec-dropdown-wrap" ref={sortDropdownRef}>
                       <button
                         type="button"
                         onClick={() => {
@@ -1947,18 +1977,19 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
                           setShowPrioritiesDropdown(false);
                           setShowTagsDropdown(false);
                         }}
-                        className="filter-pill-btn"
+                        className="ec-filter-btn"
                         title="Sort campaigns"
                       >
-                        <span className="material-symbols-outlined filter-pill-icon" style={{ color: '#94a3b8' }}>swap_vert</span>
+                        <span className="material-symbols-outlined ec-filter-icon">swap_vert</span>
                         <span>{selectedSortObj.label}</span>
-                        <span className="material-symbols-outlined filter-pill-arrow" style={{ position: 'static', marginLeft: '4px' }}>
+                        <span className="material-symbols-outlined ec-filter-chevron">
                           {showSortDropdown ? 'expand_less' : 'expand_more'}
                         </span>
                       </button>
 
                       {showSortDropdown && (
-                        <div className="filter-custom-popover align-right">
+                        <div className="ec-popover ec-popover--right">
+                          <div className="ec-popover-label">Sort Order</div>
                           {SORT_OPTIONS.map(opt => (
                             <button
                               key={opt.value}
@@ -1967,12 +1998,12 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
                                 setCampaignSort(opt.value);
                                 setShowSortDropdown(false);
                               }}
-                              className={`filter-popover-option ${campaignSort === opt.value ? 'selected' : ''}`}
+                              className={`ec-popover-opt ${campaignSort === opt.value ? 'is-selected' : ''}`}
                             >
-                              <span className="material-symbols-outlined filter-popover-option-icon" style={{ color: '#94a3b8' }}>{opt.icon}</span>
+                              <span className="material-symbols-outlined ec-popover-opt-icon">{opt.icon}</span>
                               <span>{opt.label}</span>
                               {campaignSort === opt.value && (
-                                <span className="material-symbols-outlined filter-popover-check">check</span>
+                                <span className="material-symbols-outlined ec-popover-check">check</span>
                               )}
                             </button>
                           ))}
@@ -1980,265 +2011,234 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
                       )}
                     </div>
 
-                    {/* Refresh: re-reads causes from the ledger (kept with the data controls, not floating above) */}
-                    <button
-                      type="button"
-                      className="toolbar-refresh-btn"
-                      onClick={fetchCampaigns}
-                      disabled={fetchingCampaigns}
-                      title="Refresh campaigns from the ledger"
-                    >
-                      {fetchingCampaigns
-                        ? <div className="spinner spinner-light" />
-                        : <span className="material-symbols-outlined" style={{ fontSize: '17px' }}>refresh</span>}
-                    </button>
+                    {/* Segmented List / Grid Switcher */}
+                    <div className="ec-view-seg" role="group" aria-label="Layout view mode">
+                      <button
+                        type="button"
+                        onClick={() => handleViewModeChange('list')}
+                        className={`ec-view-seg-btn ${viewMode === 'list' ? 'is-active' : ''}`}
+                        title="List View"
+                        aria-label="List View"
+                      >
+                        <span className="material-symbols-outlined">format_list_bulleted</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleViewModeChange('grid')}
+                        className={`ec-view-seg-btn ${isGridView ? 'is-active' : ''}`}
+                        title="Grid View"
+                        aria-label="Grid View"
+                      >
+                        <span className="material-symbols-outlined">grid_view</span>
+                      </button>
+                    </div>
                   </div>
                 </div>
 
-              </div>
+                {/* Integrated Results & Active Filters Sub-bar */}
+                <div className="ec-toolbar-subbar">
+                  <div className="ec-subbar-left">
+                    <div className="ec-result-count">
+                      <span className="ec-live-dot" />
+                      <span>
+                        Showing <strong>{filteredCampaigns.length}</strong> of {campaigns?.length || 0} campaigns
+                      </span>
+                    </div>
 
-              {/* ── Results strip: filtered count + active filter chips + view mode ── */}
-              <div className="campaign-toolbar-substrip">
-                <div className="substrip-left">
-                  <div className="campaign-toolbar-count-tag">
-                    <span className="count-indicator-dot" />
-                    <span>Showing <strong>{filteredCampaigns.length}</strong> of {campaigns?.length || 0} campaigns</span>
+                    {hasActiveFilters && (
+                      <div className="ec-active-chips">
+                        {categoryFilter !== 'ALL' && (
+                          <span className="ec-active-chip">
+                            <span>{categoryFilter === 'DR' ? 'Disaster Relief' : 'Charitable Aid'}</span>
+                            <button type="button" onClick={() => setCategoryFilter('ALL')} aria-label="Remove cause filter">
+                              <span className="material-symbols-outlined">close</span>
+                            </button>
+                          </span>
+                        )}
+
+                        {urgencyFilter !== 'ALL' && (
+                          <span className="ec-active-chip">
+                            <span>{urgencyFilter === 'HIGH' ? 'High Priority' : urgencyFilter === 'MEDIUM' ? 'Medium Priority' : 'Standard Priority'}</span>
+                            <button type="button" onClick={() => setUrgencyFilter('ALL')} aria-label="Remove priority filter">
+                              <span className="material-symbols-outlined">close</span>
+                            </button>
+                          </span>
+                        )}
+
+                        {selectedTags.map((tag) => (
+                          <span key={tag} className="ec-active-chip">
+                            <span>#{tag}</span>
+                            <button type="button" onClick={() => toggleTag(tag)} aria-label={`Remove tag #${tag}`}>
+                              <span className="material-symbols-outlined">close</span>
+                            </button>
+                          </span>
+                        ))}
+
+                        {searchQuery.trim() && (
+                          <span className="ec-active-chip">
+                            <span>"{searchQuery.trim()}"</span>
+                            <button type="button" onClick={() => setSearchQuery('')} aria-label="Clear search query">
+                              <span className="material-symbols-outlined">close</span>
+                            </button>
+                          </span>
+                        )}
+
+                        {onlyTracked && (
+                          <span className="ec-active-chip">
+                            <span className="ec-live-dot" />
+                            <span>Tracked</span>
+                            <button type="button" onClick={() => setOnlyTracked(false)} aria-label="Show all campaigns">
+                              <span className="material-symbols-outlined">close</span>
+                            </button>
+                          </span>
+                        )}
+
+                        <button
+                          type="button"
+                          onClick={resetAllFilters}
+                          className="ec-clear-all-btn"
+                          title="Reset all filters and search"
+                        >
+                          Clear all
+                        </button>
+                      </div>
+                    )}
                   </div>
 
-                  {hasActiveFilters && (
-                    <div className="substrip-filters">
-                      {/* Cause Chip */}
-                      {categoryFilter !== 'ALL' && (
-                        <div className="reference-active-chip">
-                          <span className="material-symbols-outlined chip-icon" style={{ color: 'var(--text-secondary)' }}>public</span>
-                          <span>{categoryFilter === 'DR' ? 'Disaster Relief' : 'Charitable Aid'}</span>
-                          <button type="button" onClick={() => setCategoryFilter('ALL')} title="Remove filter">
-                            <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>close</span>
-                          </button>
-                        </div>
-                      )}
-
-                      {urgencyFilter !== 'ALL' && (
-                        <div className="reference-active-chip">
-                          <span className="material-symbols-outlined chip-icon" style={{ color: 'var(--text-secondary)' }}>bolt</span>
-                          <span>{urgencyFilter === 'HIGH' ? 'High Priority' : urgencyFilter === 'MEDIUM' ? 'Medium Priority' : 'Standard Priority'}</span>
-                          <button type="button" onClick={() => setUrgencyFilter('ALL')} title="Remove filter">
-                            <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>close</span>
-                          </button>
-                        </div>
-                      )}
-
-                      {/* Tag Chips */}
-                      {selectedTags.map((tag) => (
-                        <div key={tag} className="reference-active-chip">
-                          <span className="material-symbols-outlined chip-icon" style={{ color: 'var(--text-secondary)' }}>sell</span>
-                          <span>#{tag}</span>
-                          <button type="button" onClick={() => toggleTag(tag)} title={`Remove tag #${tag}`}>
-                            <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>close</span>
-                          </button>
-                        </div>
-                      ))}
-
-                      {/* Search Chip */}
-                      {searchQuery.trim() && (
-                        <div className="reference-active-chip">
-                          <span className="material-symbols-outlined chip-icon" style={{ color: 'var(--text-secondary)' }}>search</span>
-                          <span>"{searchQuery.trim()}"</span>
-                          <button type="button" onClick={() => setSearchQuery('')} title="Clear search query">
-                            <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>close</span>
-                          </button>
-                        </div>
-                      )}
-
-                      {/* Tracked Chip */}
-                      {onlyTracked && (
-                        <div className="reference-active-chip">
-                          <span className="material-symbols-outlined chip-icon" style={{ color: 'var(--accent, #22c55e)' }}>visibility</span>
-                          <span>Tracked Operations</span>
-                          <button type="button" onClick={() => setOnlyTracked(false)} title="Show all campaigns">
-                            <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>close</span>
-                          </button>
-                        </div>
-                      )}
-
-                      {/* Clear All Button */}
-                      <button
-                        type="button"
-                        onClick={resetAllFilters}
-                        className="btn-clear-all-filters-ref"
-                        title="Reset all filters and search"
-                      >
-                        <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>restart_alt</span>
-                        <span>Clear all</span>
-                      </button>
+                  {filteredCampaigns.length > 0 && (
+                    <div className="ec-subbar-meta">
+                      Page {currentPage} of {Math.max(1, totalPages)}
                     </div>
                   )}
                 </div>
-
-                {/* Right: List / Grid Layout Buttons */}
-                <div className="filter-layout-segmented-pill" role="group" aria-label="Layout view mode">
-                  <button
-                    type="button"
-                    onClick={() => handleViewModeChange('list')}
-                    className={`layout-seg-btn ${viewMode === 'list' ? 'active' : ''}`}
-                    title="List View"
-                    aria-label="List View"
-                  >
-                    <span className="material-symbols-outlined">format_list_bulleted</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleViewModeChange('grid')}
-                    className={`layout-seg-btn ${viewMode === 'grid' || viewMode === 'grid-3' || viewMode === 'grid-2' ? 'active' : ''}`}
-                    title="Grid View"
-                    aria-label="Grid View"
-                  >
-                    <span className="material-symbols-outlined">grid_view</span>
-                  </button>
-                </div>
               </div>
 
-              {fetchingCampaigns ? (
-                <div
-                  className={viewMode === 'grid' || viewMode === 'grid-3' || viewMode === 'grid-2' ? 'campaigns-grid' : 'campaigns-list'}
-                  aria-busy="true"
-                >
-                  {Array.from({ length: paginatedCampaigns.length || campaignsPerPage }, (_, i) => (
-                    <DbSkeletonCard key={i} />
-                  ))}
-                </div>
-              ) : filteredCampaigns.length === 0 ? (
-                onlyTracked ? (
-                  <div className="db-empty-state">
-                    <div className="db-empty-icon">
-                      <span className="material-symbols-outlined" style={{ color: 'var(--accent, #22c55e)' }}>visibility</span>
-                    </div>
-                    <div className="db-empty-title">No Tracked Relief Operations Yet</div>
-                    <div className="db-empty-desc">
-                      You are not tracking any disaster relief campaigns yet. Click the <strong>Track</strong> button (eye icon) on any campaign card to add it to your personal watchlist and monitor its relief milestones & receipts.
-                    </div>
-                    <button
-                      type="button"
-                      className="db-btn"
-                      onClick={() => setOnlyTracked(false)}
-                      style={{ marginTop: '12px' }}
-                    >
-                      <span>Browse All Campaigns</span>
-                    </button>
-                  </div>
-                ) : (
-                  <div className="db-empty-state">
-                    <div className="db-empty-icon">
-                      <span className="material-symbols-outlined">search_off</span>
-                    </div>
-                    <div className="db-empty-title">No campaigns match your filter</div>
-                    <div className="db-empty-desc">
-                      Try selecting a different category or clearing your search keywords.
-                    </div>
-                    <button
-                      type="button"
-                      className="db-btn"
-                      onClick={resetAllFilters}
-                    >
-                      <span>Reset Filters</span>
-                    </button>
-                  </div>
-                )
-              ) : (
-                <>
-                  <div className={viewMode === 'grid' || viewMode === 'grid-3' || viewMode === 'grid-2' ? 'campaigns-grid' : 'campaigns-list'}>
-                    {paginatedCampaigns.map((camp) => (
-                      <CampaignCard
-                        key={camp.id}
-                        camp={camp}
-                        contract={contract}
-                        role={ROLES.DONOR}
-                        walletAddress={walletAddress}
-                        currentUser={currentUser}
-                        interfaceMode={interfaceMode}
-                        lowBandwidthMode={lowBandwidthMode}
-                        language={language}
-                        onDonated={fetchCampaigns}
-                        onOpenNgoProfile={onOpenNgoProfile}
-                      />
+              {/* ── 3. Campaign Directory Stage ── */}
+              <div className="ec-campaigns-stage">
+                {fetchingCampaigns ? (
+                  <div
+                    className={isGridView ? 'campaigns-grid' : 'campaigns-list'}
+                    aria-busy="true"
+                  >
+                    {Array.from({ length: paginatedCampaigns.length || campaignsPerPage }, (_, i) => (
+                      <DbSkeletonCard key={i} />
                     ))}
                   </div>
+                ) : filteredCampaigns.length === 0 ? (
+                  onlyTracked ? (
+                    <div className="ec-empty-state">
+                      <div className="ec-empty-icon">
+                        <span className="material-symbols-outlined">visibility</span>
+                      </div>
+                      <h3 className="ec-empty-title">No Tracked Relief Operations Yet</h3>
+                      <p className="ec-empty-desc">
+                        Click the <strong>Track</strong> button on any campaign card to follow its milestones, disbursement proofs, and verified on-chain receipts.
+                      </p>
+                      <button
+                        type="button"
+                        className="dbo-cmd-btn dbo-cmd-btn--primary"
+                        onClick={() => setOnlyTracked(false)}
+                      >
+                        <span>Browse All Campaigns</span>
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="ec-empty-state">
+                      <div className="ec-empty-icon">
+                        <span className="material-symbols-outlined">search_off</span>
+                      </div>
+                      <h3 className="ec-empty-title">No campaigns match your filters</h3>
+                      <p className="ec-empty-desc">
+                        Try broadening your cause category, priority level, or clearing search keywords.
+                      </p>
+                      <button
+                        type="button"
+                        className="dbo-cmd-btn dbo-cmd-btn--primary"
+                        onClick={resetAllFilters}
+                      >
+                        <span>Reset All Filters</span>
+                      </button>
+                    </div>
+                  )
+                ) : (
+                  <>
+                    <div className={isGridView ? 'campaigns-grid' : 'campaigns-list'}>
+                      {paginatedCampaigns.map((camp) => (
+                        <CampaignCard
+                          key={camp.id}
+                          camp={camp}
+                          contract={contract}
+                          role={ROLES.DONOR}
+                          walletAddress={walletAddress}
+                          currentUser={currentUser}
+                          interfaceMode={interfaceMode}
+                          lowBandwidthMode={lowBandwidthMode}
+                          language={language}
+                          onDonated={fetchCampaigns}
+                          onOpenNgoProfile={onOpenNgoProfile}
+                        />
+                      ))}
+                    </div>
 
-                  {/* Pagination Controls Bar (100% Width Centered) */}
-                  <div style={{
-                    display: 'flex',
-                    justifyContent: 'center',
-                    alignItems: 'center',
-                    gap: '8px',
-                    width: '100%',
-                    alignSelf: 'stretch',
-                    paddingTop: '20px',
-                    paddingBottom: '12px',
-                    borderTop: '1px solid rgba(255, 255, 255, 0.05)',
-                    marginTop: '28px'
-                  }}>
-                    <button
-                      className="btn btn-outline btn-sm"
-                      disabled={currentPage === 1}
-                      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                      style={{ minWidth: '36px', height: '36px', padding: 0, borderRadius: '8px', opacity: currentPage === 1 ? 0.5 : 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
-                      title="Previous Page"
-                    >
-                      <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>chevron_left</span>
-                    </button>
+                    {/* Institutional Vercel Pagination Footer */}
+                    <div className="ec-pagination-bar">
+                      <span className="rcp-page-summary">
+                        Showing <strong>{startIdx}–{endIdx}</strong> of <strong>{filteredCampaigns.length}</strong> {filteredCampaigns.length === 1 ? 'campaign' : 'campaigns'}
+                      </span>
 
-                    {getPaginationItems(currentPage, totalPages, 7).map((item, idx) => {
-                      if (item === '...') {
-                        return (
-                          <span
-                            key={`ellipsis-${idx}`}
-                            style={{
-                              minWidth: '36px',
-                              height: '36px',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              color: 'var(--text-muted, #888888)',
-                              fontSize: '0.85rem',
-                              userSelect: 'none'
-                            }}
-                          >
-                            …
-                          </span>
-                        );
-                      }
-                      const pageNum = Number(item);
-                      return (
+                      <div className="rcp-page-controls">
                         <button
-                          key={pageNum}
-                          className={`btn btn-sm ${currentPage === pageNum ? 'btn-primary' : 'btn-outline'}`}
-                          onClick={() => setCurrentPage(pageNum)}
-                          style={{ 
-                            minWidth: '36px', 
-                            height: '36px',
-                            borderRadius: '8px', 
-                            fontWeight: currentPage === pageNum ? 700 : 500 
-                          }}
+                          type="button"
+                          className="rcp-page-btn"
+                          disabled={currentPage === 1}
+                          onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                          title="Previous Page"
                         >
-                          {pageNum}
+                          <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>chevron_left</span>
+                          <span>Prev</span>
                         </button>
-                      );
-                    })}
 
-                    <button
-                      className="btn btn-outline btn-sm"
-                      disabled={currentPage >= Math.max(1, totalPages)}
-                      onClick={() => setCurrentPage(p => Math.min(Math.max(1, totalPages), p + 1))}
-                      style={{ minWidth: '36px', height: '36px', padding: 0, borderRadius: '8px', opacity: currentPage >= Math.max(1, totalPages) ? 0.5 : 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
-                      title="Next Page"
-                    >
-                      <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>chevron_right</span>
-                    </button>
-                  </div>
-                </>
-              )}
+                        <div className="rcp-page-nums">
+                          {getPaginationItems(currentPage, totalPages, 7).map((item, idx) => {
+                            if (item === '...') {
+                              return (
+                                <span key={`ellipsis-${idx}`} className="rcp-page-ellipsis">
+                                  …
+                                </span>
+                              );
+                            }
+                            const pageNum = Number(item);
+                            return (
+                              <button
+                                key={pageNum}
+                                type="button"
+                                className={`rcp-page-num ${currentPage === pageNum ? 'active' : ''}`}
+                                onClick={() => setCurrentPage(pageNum)}
+                              >
+                                {pageNum}
+                              </button>
+                            );
+                          })}
+                        </div>
+
+                        <button
+                          type="button"
+                          className="rcp-page-btn"
+                          disabled={currentPage >= Math.max(1, totalPages)}
+                          onClick={() => setCurrentPage(p => Math.min(Math.max(1, totalPages), p + 1))}
+                          title="Next Page"
+                        >
+                          <span>Next</span>
+                          <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>chevron_right</span>
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
-          )}
+            );
+          })()}
 
           {/* ── 3. MY CONTRIBUTIONS TAB (Vercel-Standard Redesign) ── */}
           {activeTab === 'my-donations' && (() => {
@@ -3437,9 +3437,19 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
             );
           })()}
 
-          {/* ── 3.5. DISASTER RELIEF RADAR HEATMAP TAB ── */}
-          {activeTab === 'radar-heatmap' && (
-            <div key="tab-radar" className="donor-tab-transition">
+          {/* ── 3.5. DISASTER RELIEF RADAR HEATMAP TAB (Vercel Geist Institutional Standard) ── */}
+          {activeTab === 'radar-heatmap' && (() => {
+            const activeDrives = campaigns.filter(c => c.isActive !== false);
+            const mappedRaisedPhp = activeDrives.reduce((s, c) => s + (parseFloat(c.currentAmount) || 0), 0) * 170000;
+            const highPriorityCount = activeDrives.filter(c => String(c.urgency || '').toUpperCase().includes('HIGH') || String(c.urgency || '').toUpperCase().includes('CRITICAL')).length;
+            const uniqueZones = new Set(
+              activeDrives
+                .map(c => (c.locationRegion || c.location || '').split(',').slice(-1)[0]?.trim())
+                .filter(Boolean)
+            ).size;
+
+            return (
+            <div key="tab-radar" className="rr-page donor-tab-transition">
               <div className="admin-page-header" id="tour-radar-header">
                 <div className="admin-page-title-wrap">
                   <h2 className="admin-page-title">
@@ -3450,11 +3460,55 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
                     {wt.radarSub}
                   </p>
                 </div>
+
+                <div className="admin-page-header-actions">
+                  <button
+                    type="button"
+                    className="dbo-cmd-btn"
+                    onClick={fetchCampaigns}
+                    disabled={fetchingCampaigns}
+                    title="Refresh live geospatial telemetry from ledger"
+                  >
+                    <span className={`material-symbols-outlined ${fetchingCampaigns ? 'spinning' : ''}`} style={{ fontSize: '15px' }}>
+                      sync
+                    </span>
+                    <span>{fetchingCampaigns ? 'Syncing...' : 'Sync Telemetry'}</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Borderless Geospatial Telemetry Band */}
+              <div className="ec-summary-band rr-summary-band">
+                <div className="ec-band-cell ec-band-cell--primary">
+                  <div className="ec-band-val-row">
+                    <span className="ec-band-total">{activeDrives.length}</span>
+                    <span className="ec-live-pill">
+                      <span className="ec-live-dot" />
+                      <span>Geospatial Live</span>
+                    </span>
+                  </div>
+                  <span className="ec-band-lbl">Active Relief Operations Mapped Nationwide</span>
+                </div>
+
+                <div className="ec-band-cell">
+                  <span className="ec-band-num">{uniqueZones || (activeDrives.length > 0 ? 1 : 0)}</span>
+                  <span className="ec-band-lbl">Monitored Provinces & Sectors</span>
+                </div>
+
+                <div className="ec-band-cell">
+                  <span className="ec-band-num">{highPriorityCount}</span>
+                  <span className="ec-band-lbl">High-Priority Emergency Zones</span>
+                </div>
+
+                <div className="ec-band-cell">
+                  <span className="ec-band-num">₱{Math.round(mappedRaisedPhp).toLocaleString('en-US', { maximumFractionDigits: 0 })}</span>
+                  <span className="ec-band-lbl">Deployed Aid Volume Across Grid</span>
+                </div>
               </div>
 
               <DisasterRadarHeatmap
                 campaigns={campaigns}
-                height="620px"
+                height="640px"
                 theme={theme}
                 defaultLayer="terrain"
                 lowBandwidthMode={lowBandwidthMode}
@@ -3466,7 +3520,8 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
                 }}
               />
             </div>
-          )}
+            );
+          })()}
 
           {/* ── 4. SETTINGS TAB (Hides 4 boxes & welcome card) ── */}
           {activeTab === 'settings' && (

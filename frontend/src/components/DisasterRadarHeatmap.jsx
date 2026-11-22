@@ -4086,7 +4086,7 @@ function DisasterRadarHeatmapInner({
                         className="beacon-progress-fill"
                         style={{
                           width: `${pctInt}%`,
-                          background: `linear-gradient(90deg, #10b981 0%, ${catMeta.color} 100%)`
+                          background: 'linear-gradient(90deg, #0d9488 0%, #10b981 100%)'
                         }}
                       />
                     </div>
@@ -4358,9 +4358,9 @@ class RadarErrorBoundary extends React.Component {
       return (
         <div style={{
           padding: '24px',
-          background: 'var(--bg-card, #222222)',
-          border: '1px solid var(--border, rgba(255,255,255,0.08))',
-          borderRadius: '16px',
+          background: 'var(--bg-card, #0a0a0a)',
+          border: '1px solid var(--border, #262626)',
+          borderRadius: '14px',
           color: 'var(--text-primary, #ffffff)',
           textAlign: 'center'
         }}>

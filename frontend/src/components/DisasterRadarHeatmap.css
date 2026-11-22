@@ -5584,3 +5584,854 @@ path.leaflet-interactive:active,
   border-radius: 3px;
   line-height: 1;
 }
+
+/* ==========================================================================
+   VERCEL GEIST INSTITUTIONAL OVERRIDE — RELIEF RADAR COMMAND
+   Obsidian Surfaces · 1px Hairlines · Monochrome Controls · Surgical Emerald
+   ========================================================================== */
+
+.bbdrts-radar-command {
+  background-color: #0a0a0a;
+  border: 1px solid #262626;
+  border-radius: 14px;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+[data-theme="light"] .bbdrts-radar-command {
+  background-color: #ffffff;
+  border-color: #e4e4e7;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+}
+
+/* ── Top Command Bar ── */
+.bbdrts-radar-command .radar-unified-command-bar {
+  background: #060606;
+  border-bottom: 1px solid #1f1f1f;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+[data-theme="light"] .bbdrts-radar-command .radar-unified-command-bar {
+  background: #fafafa;
+  border-bottom-color: #e4e4e7;
+}
+
+.bbdrts-radar-command .radar-spin-icon {
+  color: #ededed;
+  animation: none;
+  font-size: 17px;
+}
+
+[data-theme="light"] .bbdrts-radar-command .radar-spin-icon {
+  color: #09090b;
+}
+
+.bbdrts-radar-command .radar-brand-title {
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  color: #ffffff;
+}
+
+[data-theme="light"] .bbdrts-radar-command .radar-brand-title {
+  color: #09090b;
+}
+
+.bbdrts-radar-command .radar-live-pill {
+  background: #0a0a0a;
+  border: 1px solid #262626;
+  color: #d4d4d8;
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  padding: 2px 8px;
+}
+
+[data-theme="light"] .bbdrts-radar-command .radar-live-pill {
+  background: #ffffff;
+  border-color: #e4e4e7;
+  color: #27272a;
+}
+
+.bbdrts-radar-command .live-dot-ping,
+.bbdrts-radar-command .telemetry-pill-dot {
+  width: 6px;
+  height: 6px;
+  background-color: #10b981;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.16);
+}
+
+.bbdrts-radar-command .radar-bar-divider {
+  background: #1f1f1f;
+}
+
+[data-theme="light"] .bbdrts-radar-command .radar-bar-divider {
+  background: #e4e4e7;
+}
+
+/* Segmented Region Control */
+.bbdrts-radar-command .radar-region-segmented-control {
+  background: #0a0a0a;
+  border: 1px solid #262626;
+  border-radius: 8px;
+  padding: 2px;
+}
+
+[data-theme="light"] .bbdrts-radar-command .radar-region-segmented-control {
+  background: #f4f4f5;
+  border-color: #e4e4e7;
+}
+
+.bbdrts-radar-command .region-segment-btn {
+  color: #888888;
+  font-weight: 500;
+  border-radius: 6px;
+}
+
+.bbdrts-radar-command .region-segment-btn:hover {
+  color: #ffffff;
+  background: #161618;
+}
+
+[data-theme="light"] .bbdrts-radar-command .region-segment-btn {
+  color: #71717a;
+}
+
+[data-theme="light"] .bbdrts-radar-command .region-segment-btn:hover {
+  color: #09090b;
+  background: #e4e4e7;
+}
+
+.bbdrts-radar-command .region-segment-btn.active {
+  background: #ffffff;
+  color: #000000;
+  font-weight: 600;
+  box-shadow: none;
+}
+
+[data-theme="light"] .bbdrts-radar-command .region-segment-btn.active {
+  background: #09090b;
+  color: #ffffff;
+}
+
+/* Telemetry Pills & Tool Buttons */
+.bbdrts-radar-command .radar-telemetry-pill {
+  background: #0a0a0a;
+  border: 1px solid #262626;
+  color: #a1a1aa;
+  font-variant-numeric: tabular-nums;
+}
+
+[data-theme="light"] .bbdrts-radar-command .radar-telemetry-pill {
+  background: #ffffff;
+  border-color: #e4e4e7;
+  color: #52525b;
+}
+
+.bbdrts-radar-command .telemetry-pill-val {
+  color: #ffffff;
+  font-variant-numeric: tabular-nums;
+}
+
+[data-theme="light"] .bbdrts-radar-command .telemetry-pill-val {
+  color: #09090b;
+}
+
+.bbdrts-radar-command .radar-tool-icon-btn {
+  background: #0a0a0a;
+  border: 1px solid #262626;
+  color: #a1a1aa;
+}
+
+.bbdrts-radar-command .radar-tool-icon-btn:hover {
+  background: #161618;
+  border-color: #3f3f46;
+  color: #ffffff;
+}
+
+.bbdrts-radar-command .radar-tool-icon-btn.active {
+  background: #161618;
+  border-color: #52525b;
+  color: #ffffff;
+}
+
+[data-theme="light"] .bbdrts-radar-command .radar-tool-icon-btn {
+  background: #ffffff;
+  border-color: #e4e4e7;
+  color: #52525b;
+}
+
+[data-theme="light"] .bbdrts-radar-command .radar-tool-icon-btn:hover,
+[data-theme="light"] .bbdrts-radar-command .radar-tool-icon-btn.active {
+  background: #f4f4f5;
+  border-color: #09090b;
+  color: #09090b;
+}
+
+.bbdrts-radar-command .tool-active-dot {
+  background-color: #10b981;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.25);
+}
+
+/* ── Floating Command HUD (Collapsed Pill & Expanded Panel) ── */
+.bbdrts-radar-command .radar-command-hud-toggle-pill {
+  background: rgba(10, 10, 10, 0.92);
+  border: 1px solid #262626;
+  color: #ffffff;
+  height: 36px;
+  padding: 0 13px;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+.bbdrts-radar-command .radar-command-hud-toggle-pill:hover {
+  background: rgba(18, 18, 20, 0.96);
+  border-color: #3f3f46;
+  transform: translateY(-1px);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.6);
+}
+
+[data-theme="light"] .bbdrts-radar-command .radar-command-hud-toggle-pill {
+  background: rgba(255, 255, 255, 0.96);
+  border-color: #e4e4e7;
+  color: #09090b;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+}
+
+[data-theme="light"] .bbdrts-radar-command .radar-command-hud-toggle-pill:hover {
+  background: #ffffff;
+  border-color: #a1a1aa;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.12);
+}
+
+.bbdrts-radar-command .hud-pill-icon {
+  color: #10b981;
+  filter: none;
+  font-size: 16px;
+}
+
+.bbdrts-radar-command .hud-pill-count {
+  background: #18181b;
+  border: 1px solid #2e2e32;
+  color: #ffffff;
+  font-variant-numeric: tabular-nums;
+}
+
+[data-theme="light"] .bbdrts-radar-command .hud-pill-count {
+  background: #f4f4f5;
+  border-color: #e4e4e7;
+  color: #09090b;
+}
+
+.bbdrts-radar-command .hud-collapsed-focus-pill {
+  background: rgba(10, 10, 10, 0.94);
+  border: 1px solid #262626;
+  color: #ffffff;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.55);
+}
+
+[data-theme="light"] .bbdrts-radar-command .hud-collapsed-focus-pill {
+  background: rgba(255, 255, 255, 0.96);
+  border-color: #e4e4e7;
+  color: #09090b;
+}
+
+.bbdrts-radar-command .hud-focus-pill-count {
+  background: #18181b;
+  color: #ededed;
+  border: 1px solid #262626;
+}
+
+[data-theme="light"] .bbdrts-radar-command .hud-focus-pill-count {
+  background: #f4f4f5;
+  color: #09090b;
+  border-color: #e4e4e7;
+}
+
+.bbdrts-radar-command .radar-command-hud {
+  background: rgba(10, 10, 10, 0.92);
+  border: 1px solid #262626;
+  border-radius: 12px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.65), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+[data-theme="light"] .bbdrts-radar-command .radar-command-hud {
+  background: rgba(255, 255, 255, 0.96);
+  border-color: #e4e4e7;
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.12);
+}
+
+.bbdrts-radar-command .command-hud-header {
+  background: rgba(6, 6, 6, 0.72);
+  border-bottom: 1px solid #1f1f1f;
+}
+
+[data-theme="light"] .bbdrts-radar-command .command-hud-header {
+  background: #fafafa;
+  border-bottom-color: #e4e4e7;
+}
+
+.bbdrts-radar-command .hud-radar-pulse,
+.bbdrts-radar-command .focused-beacon-dot {
+  width: 6px;
+  height: 6px;
+  background-color: #10b981;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.22);
+  animation: none;
+}
+
+.bbdrts-radar-command .command-hud-search-bar {
+  background: #060606;
+  border-color: #262626;
+}
+
+[data-theme="light"] .bbdrts-radar-command .command-hud-search-bar {
+  background: #fafafa;
+  border-color: #e4e4e7;
+}
+
+.bbdrts-radar-command .command-hud-sector-item {
+  background: #0e0e10;
+  border: 1px solid #1f1f1f;
+  border-left: 2px solid var(--sector-color, #10b981);
+  border-radius: 8px;
+}
+
+.bbdrts-radar-command .command-hud-sector-item:hover {
+  background: #141416;
+  border-color: #3f3f46;
+  border-left-color: var(--sector-color, #10b981);
+  transform: none;
+}
+
+.bbdrts-radar-command .command-hud-sector-item.is-focused {
+  background: #161618;
+  border-color: #52525b;
+  border-left-color: var(--sector-color, #10b981);
+  box-shadow: none;
+}
+
+[data-theme="light"] .bbdrts-radar-command .command-hud-sector-item {
+  background: #ffffff;
+  border-color: #e4e4e7;
+  border-left-color: var(--sector-color, #10b981);
+}
+
+[data-theme="light"] .bbdrts-radar-command .command-hud-sector-item:hover,
+[data-theme="light"] .bbdrts-radar-command .command-hud-sector-item.is-focused {
+  background: #fafafa;
+  border-color: #a1a1aa;
+  border-left-color: var(--sector-color, #10b981);
+}
+
+.bbdrts-radar-command .sector-status-dot {
+  box-shadow: none !important;
+}
+
+.bbdrts-radar-command .sector-metrics-row {
+  font-variant-numeric: tabular-nums;
+}
+
+.bbdrts-radar-command .sector-action-hint {
+  color: #a1a1aa;
+}
+
+.bbdrts-radar-command .command-hud-sector-item:hover .sector-action-hint,
+.bbdrts-radar-command .command-hud-sector-item.is-focused .sector-action-hint {
+  color: #ffffff;
+}
+
+[data-theme="light"] .bbdrts-radar-command .sector-action-hint {
+  color: #52525b;
+}
+
+[data-theme="light"] .bbdrts-radar-command .command-hud-sector-item:hover .sector-action-hint,
+[data-theme="light"] .bbdrts-radar-command .command-hud-sector-item.is-focused .sector-action-hint {
+  color: #09090b;
+}
+
+.bbdrts-radar-command .hud-focused-sector-card {
+  background: #060606;
+  border: 1px solid #262626;
+  border-radius: 9px;
+}
+
+[data-theme="light"] .bbdrts-radar-command .hud-focused-sector-card {
+  background: #fafafa;
+  border-color: #e4e4e7;
+}
+
+.bbdrts-radar-command .focused-card-label {
+  color: #a1a1aa;
+}
+
+[data-theme="light"] .bbdrts-radar-command .focused-card-label {
+  color: #52525b;
+}
+
+.bbdrts-radar-command .focused-card-badge {
+  background: #141416;
+  border: 1px solid #262626;
+  color: #ededed;
+}
+
+[data-theme="light"] .bbdrts-radar-command .focused-card-badge {
+  background: #ffffff;
+  border-color: #e4e4e7;
+  color: #09090b;
+}
+
+.bbdrts-radar-command .focused-dossier-action-btn {
+  background: #ffffff;
+  color: #000000;
+  border-color: #ffffff;
+  font-weight: 600;
+}
+
+[data-theme="light"] .bbdrts-radar-command .focused-dossier-action-btn {
+  background: #09090b;
+  color: #ffffff;
+  border-color: #09090b;
+}
+
+.bbdrts-radar-command .command-hud-footer {
+  background: #060606;
+  border-top-color: #1f1f1f;
+  color: #71717a;
+}
+
+[data-theme="light"] .bbdrts-radar-command .command-hud-footer {
+  background: #fafafa;
+  border-top-color: #e4e4e7;
+}
+
+/* ── Bottom-Right Basemap Dock & Leaflet Zoom Controls ── */
+.bbdrts-radar-command .radar-floating-basemap-dock {
+  background: rgba(10, 10, 10, 0.92);
+  border: 1px solid #262626;
+  border-radius: 10px;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+[data-theme="light"] .bbdrts-radar-command .radar-floating-basemap-dock {
+  background: rgba(255, 255, 255, 0.96);
+  border-color: #e4e4e7;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+}
+
+.bbdrts-radar-command .basemap-dock-btn.active {
+  background: #ffffff;
+  border-color: #ffffff;
+  color: #000000;
+  box-shadow: none;
+}
+
+[data-theme="light"] .bbdrts-radar-command .basemap-dock-btn.active {
+  background: #09090b;
+  border-color: #09090b;
+  color: #ffffff;
+  box-shadow: none;
+}
+
+.bbdrts-radar-command .leaflet-control-zoom.leaflet-bar,
+.bbdrts-radar-command .leaflet-bar {
+  background: rgba(10, 10, 10, 0.92) !important;
+  border: 1px solid #262626 !important;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.5) !important;
+}
+
+.bbdrts-radar-command .leaflet-control-zoom.leaflet-bar a,
+.bbdrts-radar-command .leaflet-bar a {
+  background-color: transparent !important;
+  color: #ededed !important;
+  border-bottom-color: #1f1f1f !important;
+}
+
+.bbdrts-radar-command .leaflet-control-zoom.leaflet-bar a:hover:not(.leaflet-disabled),
+.bbdrts-radar-command .leaflet-bar a:hover:not(.leaflet-disabled) {
+  background-color: #1c1c1f !important;
+  color: #ffffff !important;
+}
+
+[data-theme="light"] .bbdrts-radar-command .leaflet-control-zoom.leaflet-bar,
+[data-theme="light"] .bbdrts-radar-command .leaflet-bar {
+  background: rgba(255, 255, 255, 0.96) !important;
+  border-color: #e4e4e7 !important;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1) !important;
+}
+
+[data-theme="light"] .bbdrts-radar-command .leaflet-control-zoom.leaflet-bar a,
+[data-theme="light"] .bbdrts-radar-command .leaflet-bar a {
+  color: #09090b !important;
+  border-bottom-color: #e4e4e7 !important;
+}
+
+[data-theme="light"] .bbdrts-radar-command .leaflet-control-zoom.leaflet-bar a:hover:not(.leaflet-disabled),
+[data-theme="light"] .bbdrts-radar-command .leaflet-bar a:hover:not(.leaflet-disabled) {
+  background-color: #f4f4f5 !important;
+  color: #09090b !important;
+}
+
+/* ── Bottom-Left Severity Scale Dock ── */
+.bbdrts-radar-command .micro-legend-pill {
+  background: rgba(10, 10, 10, 0.92);
+  border: 1px solid #262626;
+  color: #ededed;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.5);
+}
+
+.bbdrts-radar-command .micro-legend-pill:hover {
+  background: rgba(18, 18, 20, 0.96);
+  border-color: #3f3f46;
+}
+
+.bbdrts-radar-command .micro-legend-pill.has-filter {
+  border-color: #52525b;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.55);
+}
+
+[data-theme="light"] .bbdrts-radar-command .micro-legend-pill {
+  background: rgba(255, 255, 255, 0.96);
+  border-color: #e4e4e7;
+  color: #09090b;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+}
+
+.bbdrts-radar-command .micro-legend-dot {
+  background-color: #10b981;
+}
+
+.bbdrts-radar-command .micro-legend-popover {
+  background: rgba(10, 10, 10, 0.96);
+  border: 1px solid #262626;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.65);
+}
+
+[data-theme="light"] .bbdrts-radar-command .micro-legend-popover {
+  background: rgba(255, 255, 255, 0.98);
+  border-color: #e4e4e7;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.12);
+}
+
+.bbdrts-radar-command .popover-clear-btn {
+  color: #ededed;
+}
+
+[data-theme="light"] .bbdrts-radar-command .popover-clear-btn {
+  color: #09090b;
+}
+
+.bbdrts-radar-command .popover-tier-row.is-active {
+  background: #18181b;
+  border: 1px solid #3f3f46;
+  color: #ffffff;
+}
+
+[data-theme="light"] .bbdrts-radar-command .popover-tier-row.is-active {
+  background: #f4f4f5;
+  border-color: #d4d4d8;
+  color: #09090b;
+}
+
+/* ── Right Province Dossier Drawer ── */
+.bbdrts-radar-command .radar-dossier-panel {
+  background: rgba(10, 10, 10, 0.96);
+  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px);
+  border: 1px solid #262626;
+  border-radius: 14px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+[data-theme="light"] .bbdrts-radar-command .radar-dossier-panel {
+  background: rgba(255, 255, 255, 0.98);
+  border-color: #e4e4e7;
+  box-shadow: 0 16px 44px rgba(0, 0, 0, 0.14);
+}
+
+.bbdrts-radar-command .dossier-panel-header {
+  background: #060606;
+  border-bottom: 1px solid #1f1f1f;
+  padding: 16px 18px;
+}
+
+[data-theme="light"] .bbdrts-radar-command .dossier-panel-header {
+  background: #fafafa;
+  border-bottom-color: #e4e4e7;
+}
+
+.bbdrts-radar-command .dossier-gps-tag {
+  color: #10b981;
+}
+
+.bbdrts-radar-command .dossier-dismiss-btn {
+  background: #111113;
+  border: 1px solid #262626;
+  color: #a1a1aa;
+  border-radius: 8px;
+}
+
+.bbdrts-radar-command .dossier-dismiss-btn:hover {
+  background: #1c1c1f;
+  color: #ffffff;
+  border-color: #3f3f46;
+}
+
+[data-theme="light"] .bbdrts-radar-command .dossier-dismiss-btn {
+  background: #ffffff;
+  border-color: #e4e4e7;
+  color: #71717a;
+}
+
+[data-theme="light"] .bbdrts-radar-command .dossier-dismiss-btn:hover {
+  background: #f4f4f5;
+  color: #09090b;
+  border-color: #d4d4d8;
+}
+
+/* Hairline Metrics Strip (No Double-Boxed Inner Cards) */
+.bbdrts-radar-command .dossier-metrics-strip {
+  gap: 0;
+  padding: 0;
+  background: #0a0a0a;
+  border-bottom: 1px solid #1f1f1f;
+}
+
+[data-theme="light"] .bbdrts-radar-command .dossier-metrics-strip {
+  background: #ffffff;
+  border-bottom-color: #e4e4e7;
+}
+
+.bbdrts-radar-command .dossier-metric-cell {
+  background: transparent;
+  border: none;
+  border-left: 1px solid #1f1f1f;
+  border-radius: 0;
+  padding: 12px 10px;
+}
+
+.bbdrts-radar-command .dossier-metric-cell:first-child {
+  border-left: none;
+}
+
+[data-theme="light"] .bbdrts-radar-command .dossier-metric-cell {
+  background: transparent;
+  border-left-color: #e4e4e7;
+}
+
+.bbdrts-radar-command .dossier-num {
+  font-family: inherit;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.96rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.bbdrts-radar-command .dossier-num.text-accent {
+  color: #10b981;
+}
+
+.bbdrts-radar-command .dossier-card {
+  background: #0e0e10;
+  border: 1px solid #1f1f1f;
+  border-radius: 10px;
+  padding: 13px;
+}
+
+.bbdrts-radar-command .dossier-card:hover {
+  border-color: #3f3f46;
+  transform: none;
+}
+
+[data-theme="light"] .bbdrts-radar-command .dossier-card {
+  background: #fafafa;
+  border-color: #e4e4e7;
+}
+
+[data-theme="light"] .bbdrts-radar-command .dossier-card:hover {
+  border-color: #a1a1aa;
+}
+
+.bbdrts-radar-command .dossier-badge.cat {
+  background: #161618;
+  border: 1px solid #262626;
+  color: #ededed;
+}
+
+[data-theme="light"] .bbdrts-radar-command .dossier-badge.cat {
+  background: #ffffff;
+  border: 1px solid #e4e4e7;
+  color: #18181b;
+}
+
+.bbdrts-radar-command .dossier-progress-track {
+  background: #1a1a1d;
+}
+
+[data-theme="light"] .bbdrts-radar-command .dossier-progress-track {
+  background: #e4e4e7;
+}
+
+.bbdrts-radar-command .dossier-progress-bar {
+  background: linear-gradient(90deg, #0d9488 0%, #10b981 100%);
+}
+
+.bbdrts-radar-command .dossier-progress-labels {
+  font-family: inherit;
+  font-variant-numeric: tabular-nums;
+}
+
+.bbdrts-radar-command .dossier-cta-btn {
+  background: #ffffff;
+  color: #000000;
+  font-weight: 600;
+  border-radius: 7px;
+  padding: 6px 12px;
+}
+
+.bbdrts-radar-command .dossier-cta-btn:hover {
+  background: #e4e4e7;
+  filter: none;
+  transform: none;
+}
+
+[data-theme="light"] .bbdrts-radar-command .dossier-cta-btn {
+  background: #09090b;
+  color: #ffffff;
+}
+
+[data-theme="light"] .bbdrts-radar-command .dossier-cta-btn:hover {
+  background: #27272a;
+}
+
+/* ── Expanded Beacon Dossier Card ── */
+.bbdrts-radar-command .radar-beacon-dossier-card {
+  background: rgba(10, 10, 10, 0.96);
+  border: 1px solid #262626;
+  border-radius: 14px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.72), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+[data-theme="light"] .bbdrts-radar-command .radar-beacon-dossier-card {
+  background: rgba(255, 255, 255, 0.98);
+  border-color: #e4e4e7;
+  box-shadow: 0 16px 44px rgba(0, 0, 0, 0.14);
+}
+
+.bbdrts-radar-command .beacon-dossier-topbar {
+  background: #060606;
+  border-bottom: 1px solid #1f1f1f;
+  padding: 11px 16px;
+}
+
+[data-theme="light"] .bbdrts-radar-command .beacon-dossier-topbar {
+  background: #fafafa;
+  border-bottom-color: #e4e4e7;
+}
+
+.bbdrts-radar-command .beacon-status-pulse {
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.22);
+}
+
+.bbdrts-radar-command .beacon-raised-num {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.025em;
+}
+
+.bbdrts-radar-command .beacon-goal-label {
+  font-variant-numeric: tabular-nums;
+}
+
+.bbdrts-radar-command .beacon-overview-toggle-link {
+  color: #ededed;
+}
+
+.bbdrts-radar-command .beacon-overview-toggle-link:hover {
+  color: #ffffff;
+}
+
+[data-theme="light"] .bbdrts-radar-command .beacon-overview-toggle-link {
+  color: #09090b;
+}
+
+.bbdrts-radar-command .beacon-dossier-footer {
+  background: #060606;
+  border-top: 1px solid #1f1f1f;
+  padding: 12px 16px;
+}
+
+[data-theme="light"] .bbdrts-radar-command .beacon-dossier-footer {
+  background: #fafafa;
+  border-top-color: #e4e4e7;
+}
+
+.bbdrts-radar-command .beacon-action-secondary {
+  background: #0a0a0a;
+  border: 1px solid #262626;
+  color: #ededed;
+  border-radius: 8px;
+}
+
+.bbdrts-radar-command .beacon-action-secondary:hover {
+  background: #161618;
+  border-color: #3f3f46;
+  transform: none;
+}
+
+[data-theme="light"] .bbdrts-radar-command .beacon-action-secondary {
+  background: #ffffff;
+  border-color: #e4e4e7;
+  color: #09090b;
+}
+
+[data-theme="light"] .bbdrts-radar-command .beacon-action-secondary:hover {
+  background: #f4f4f5;
+}
+
+.bbdrts-radar-command .beacon-action-primary {
+  background: #ffffff;
+  border: 1px solid #ffffff;
+  color: #000000;
+  border-radius: 8px;
+  font-weight: 600;
+  box-shadow: none;
+}
+
+.bbdrts-radar-command .beacon-action-primary:hover {
+  background: #e4e4e7;
+  border-color: #e4e4e7;
+  filter: none;
+  transform: none;
+  box-shadow: none;
+}
+
+[data-theme="light"] .bbdrts-radar-command .beacon-action-primary {
+  background: #09090b;
+  border-color: #09090b;
+  color: #ffffff;
+}
+
+[data-theme="light"] .bbdrts-radar-command .beacon-action-primary:hover {
+  background: #27272a;
+  border-color: #27272a;
+}
+
+.bbdrts-radar-command .beacon-action-primary.is-simulated {
+  background: #18181b;
+  border-color: #262626;
+  color: #a1a1aa;
+  box-shadow: none;
+  cursor: default;
+}
+
+[data-theme="light"] .bbdrts-radar-command .beacon-action-primary.is-simulated {
+  background: #f4f4f5;
+  border-color: #e4e4e7;
+  color: #71717a;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bbdrts-radar-command .live-dot-ping,
+  .bbdrts-radar-command .telemetry-pill-dot,
+  .bbdrts-radar-command .beacon-status-pulse {
+    animation: none;
+  }
+}
