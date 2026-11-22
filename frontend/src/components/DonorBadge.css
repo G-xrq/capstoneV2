@@ -3389,280 +3389,370 @@
   transition: width 0.35s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-/* ── Official Museum-Grade Certificate ── */
+/* ── Official Ceremonial Certificate of Appreciation (Desktop & Mobile Identical via cqw) ── */
 .dic-cert-shell {
   background: #060606 !important;
   border: 1px solid #262626 !important;
   border-radius: 14px !important;
   padding: 0 !important;
   margin-bottom: 0 !important;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04) !important;
+  box-shadow: 0 18px 46px rgba(0, 0, 0, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.05) !important;
   overflow: hidden;
 }
 
 .dic-modal[data-theme="light"] .dic-cert-shell {
-  background: #fafafa !important;
-  border-color: #e4e4e7 !important;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04) !important;
+  background: #f5f2ea !important;
+  border-color: #dfd6c3 !important;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.06) !important;
 }
 
-.dic-cert-document {
+/* Container-Query Stage: guarantees 100% identical landscape diploma layout across laptop & mobile! */
+.dic-cert-stage {
+  container-type: inline-size;
+  padding: 12px;
+}
+
+.dic-diploma {
+  --cert-gold: #d4b16a;
+  --cert-gold-soft: rgba(212, 177, 106, 0.42);
+  --cert-gold-faint: rgba(212, 177, 106, 0.22);
+  --cert-ink: #faf6ee;
+  --cert-muted: #b8b0a0;
+  --cert-subtle: #8b8373;
   position: relative;
-  margin: 12px;
-  padding: 26px 28px 22px !important;
-  background: radial-gradient(circle at 50% 0%, rgba(16, 185, 129, 0.06) 0%, #000000 58%) !important;
-  border: 1px solid #242428 !important;
+  padding: clamp(18px, 4.8cqw, 36px) clamp(16px, 5.4cqw, 40px) clamp(16px, 4.2cqw, 30px) !important;
   border-radius: 10px !important;
+  border: 1.5px solid var(--cert-gold-soft) !important;
+  background:
+    radial-gradient(ellipse 75% 45% at 50% 0%, rgba(212, 177, 106, 0.14) 0%, transparent 65%),
+    radial-gradient(ellipse 65% 40% at 50% 100%, rgba(16, 185, 129, 0.06) 0%, transparent 70%),
+    linear-gradient(160deg, #14120e 0%, #090908 50%, #13100b 100%) !important;
   text-align: center;
+  overflow: hidden;
+  box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.55);
 }
 
-.dic-modal[data-theme="light"] .dic-cert-document {
-  background: radial-gradient(circle at 50% 0%, rgba(16, 185, 129, 0.05) 0%, #ffffff 55%) !important;
-  border-color: #e4e4e7 !important;
+.dic-modal[data-theme="light"] .dic-diploma {
+  --cert-gold: #9a7428;
+  --cert-gold-soft: rgba(154, 116, 40, 0.48);
+  --cert-gold-faint: rgba(154, 116, 40, 0.22);
+  --cert-ink: #18140d;
+  --cert-muted: #4b4335;
+  --cert-subtle: #786d5a;
+  background:
+    radial-gradient(ellipse 75% 45% at 50% 0%, rgba(201, 162, 74, 0.14) 0%, transparent 65%),
+    linear-gradient(160deg, #fffdf8 0%, #faf5e8 55%, #f4ecd7 100%) !important;
+  box-shadow: inset 0 0 36px rgba(154, 116, 40, 0.08);
 }
 
-/* Subtle Architectural Corner Marks */
-.dic-corner {
+.dic-diploma-inner-border {
   position: absolute;
-  width: 12px;
-  height: 12px;
+  inset: clamp(5px, 1.1cqw, 8px);
+  border: 1px solid var(--cert-gold-faint);
+  border-radius: 6px;
   pointer-events: none;
-  border-color: #3f3f46;
-  border-style: solid;
 }
 
-.dic-modal[data-theme="light"] .dic-corner {
-  border-color: #d4d4d8;
+.dic-filigree {
+  position: absolute;
+  width: clamp(18px, 4.4cqw, 32px);
+  height: clamp(18px, 4.4cqw, 32px);
+  color: var(--cert-gold);
+  opacity: 0.78;
+  pointer-events: none;
 }
 
-.dic-corner--tl { top: 10px; left: 10px; border-width: 1px 0 0 1px; }
-.dic-corner--tr { top: 10px; right: 10px; border-width: 1px 1px 0 0; }
-.dic-corner--bl { bottom: 10px; left: 10px; border-width: 0 0 1px 1px; }
-.dic-corner--br { bottom: 10px; right: 10px; border-width: 0 1px 1px 0; }
+.dic-filigree--tl { top: clamp(8px, 1.6cqw, 13px); left: clamp(8px, 1.6cqw, 13px); }
+.dic-filigree--tr { top: clamp(8px, 1.6cqw, 13px); right: clamp(8px, 1.6cqw, 13px); transform: scaleX(-1); }
+.dic-filigree--bl { bottom: clamp(8px, 1.6cqw, 13px); left: clamp(8px, 1.6cqw, 13px); transform: scaleY(-1); }
+.dic-filigree--br { bottom: clamp(8px, 1.6cqw, 13px); right: clamp(8px, 1.6cqw, 13px); transform: scale(-1); }
 
-.dic-cert-top {
+.dic-diploma-watermark {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: clamp(140px, 34cqw, 240px);
+  height: clamp(140px, 34cqw, 240px);
+  color: var(--cert-gold);
+  opacity: 0.045;
+  pointer-events: none;
+}
+
+.dic-diploma-header {
+  position: relative;
+  z-index: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
 }
 
-.dic-cert-seal-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 3px 10px;
-  border-radius: 9999px;
-  background: #0a0a0a;
-  border: 1px solid #262626;
-  color: #a1a1aa;
-  font-size: 0.62rem;
-  font-weight: 600;
-  letter-spacing: 0.08em;
+.dic-diploma-crest {
+  margin-bottom: clamp(4px, 1cqw, 8px);
 }
 
-.dic-cert-seal-pill .material-symbols-outlined {
-  font-size: 13px;
-  color: #10b981;
+.dic-laurel-svg {
+  width: clamp(34px, 7.2cqw, 52px);
+  height: auto;
+  color: var(--cert-gold);
+  display: block;
 }
 
-.dic-modal[data-theme="light"] .dic-cert-seal-pill {
-  background: #fafafa;
-  border-color: #e4e4e7;
-  color: #52525b;
-}
-
-.dic-cert-org {
-  font-size: 0.64rem;
-  font-weight: 600;
-  letter-spacing: 0.1em;
-  color: #71717a;
-  margin-top: 2px;
-}
-
-.dic-cert-heading {
-  margin: 4px 0 0;
-  font-size: 1.32rem;
+.dic-diploma-republic {
+  font-size: clamp(0.46rem, 1.12cqw, 0.64rem);
   font-weight: 700;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.16em;
+  color: var(--cert-gold);
   text-transform: uppercase;
-  color: #ffffff;
 }
 
-.dic-modal[data-theme="light"] .dic-cert-heading {
-  color: #09090b;
+.dic-diploma-system {
+  margin-top: clamp(2px, 0.4cqw, 3px);
+  font-size: clamp(0.5rem, 1.15cqw, 0.68rem);
+  color: var(--cert-subtle);
+  letter-spacing: 0.03em;
 }
 
-.dic-cert-rule {
-  width: 48px;
+.dic-diploma-title {
+  margin: clamp(6px, 1.4cqw, 11px) 0 0;
+  font-family: Georgia, 'Times New Roman', 'Palatino Linotype', serif;
+  font-size: clamp(1.05rem, 3.35cqw, 1.82rem);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--cert-ink);
+  line-height: 1.15;
+}
+
+.dic-diploma-ornament {
+  display: inline-flex;
+  align-items: center;
+  gap: clamp(6px, 1.4cqw, 10px);
+  margin: clamp(6px, 1.4cqw, 12px) 0 clamp(8px, 1.8cqw, 14px);
+  width: clamp(90px, 24cqw, 170px);
+}
+
+.dic-orn-line {
+  flex: 1;
   height: 1px;
-  background: #3f3f46;
-  margin: 6px auto 14px;
+  background: linear-gradient(90deg, transparent, var(--cert-gold-soft), transparent);
 }
 
-.dic-modal[data-theme="light"] .dic-cert-rule {
-  background: #d4d4d8;
+.dic-orn-diamond {
+  width: clamp(5px, 0.9cqw, 7px);
+  height: clamp(5px, 0.9cqw, 7px);
+  background: var(--cert-gold);
+  transform: rotate(45deg);
+  flex-shrink: 0;
 }
 
-.dic-cert-center {
+.dic-diploma-body {
+  position: relative;
+  z-index: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
 }
 
-.dic-cert-presented {
-  margin: 0 0 6px;
-  font-size: 0.65rem;
-  font-weight: 600;
-  letter-spacing: 0.12em;
-  color: #71717a;
+.dic-diploma-salutation {
+  margin: 0 0 clamp(4px, 0.9cqw, 8px);
+  font-family: Georgia, 'Times New Roman', serif;
+  font-style: italic;
+  font-size: clamp(0.58rem, 1.45cqw, 0.84rem);
+  color: var(--cert-muted);
 }
 
-.dic-cert-recipient {
-  margin: 0 0 12px;
-  padding: 0 28px 6px;
-  font-size: 1.75rem;
+.dic-diploma-name {
+  margin: 0;
+  font-family: Georgia, 'Times New Roman', 'Palatino Linotype', serif;
+  font-size: clamp(1.25rem, 4.4cqw, 2.3rem);
   font-weight: 700;
-  letter-spacing: -0.03em;
-  color: #ffffff;
-  border-bottom: 1px solid #3f3f46;
-  min-width: 220px;
+  letter-spacing: 0.01em;
+  color: var(--cert-gold);
+  line-height: 1.15;
+  text-shadow: 0 1px 18px rgba(212, 177, 106, 0.16);
 }
 
-.dic-modal[data-theme="light"] .dic-cert-recipient {
-  color: #09090b;
-  border-bottom-color: #d4d4d8;
+.dic-modal[data-theme="light"] .dic-diploma-name {
+  color: #18140d;
+  text-shadow: none;
 }
 
-.dic-cert-citation {
-  margin: 0 auto 16px;
-  max-width: 510px;
-  font-size: 0.78rem;
-  line-height: 1.55;
-  color: #a1a1aa;
+.dic-diploma-name-rule {
+  width: clamp(130px, 38cqw, 280px);
+  height: 1px;
+  margin: clamp(5px, 1.1cqw, 9px) auto clamp(8px, 1.8cqw, 14px);
+  background: linear-gradient(90deg, transparent, var(--cert-gold), transparent);
 }
 
-.dic-modal[data-theme="light"] .dic-cert-citation {
-  color: #52525b;
+.dic-diploma-citation {
+  margin: 0 auto clamp(10px, 2cqw, 16px);
+  max-width: min(92%, 530px);
+  font-size: clamp(0.56rem, 1.38cqw, 0.8rem);
+  line-height: 1.62;
+  color: var(--cert-muted);
 }
 
-.dic-cert-merit-pill {
+.dic-diploma-citation strong {
+  color: var(--cert-ink);
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+.dic-diploma-dedication {
+  margin: 0 auto clamp(10px, 1.8cqw, 14px);
+  font-family: Georgia, 'Times New Roman', serif;
+  font-style: italic;
+  font-size: clamp(0.56rem, 1.3cqw, 0.76rem);
+  color: var(--cert-gold);
+  max-width: 85%;
+}
+
+.dic-diploma-ribbon {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
-  padding: 7px 14px 7px 9px;
+  gap: clamp(7px, 1.5cqw, 11px);
+  padding: clamp(4px, 0.9cqw, 7px) clamp(10px, 2.4cqw, 18px) clamp(4px, 0.9cqw, 7px) clamp(6px, 1.3cqw, 10px);
   border-radius: 9999px;
-  background: #0a0a0a;
-  border: 1px solid #262626;
-  margin-bottom: 18px;
+  background: rgba(212, 177, 106, 0.08);
+  border: 1px solid var(--cert-gold-soft);
+  margin-bottom: clamp(12px, 2.6cqw, 20px);
 }
 
-.dic-modal[data-theme="light"] .dic-cert-merit-pill {
-  background: #fafafa;
-  border-color: #e4e4e7;
-}
-
-.dic-cert-merit-icon {
+.dic-diploma-ribbon-badge {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  transform: scale(clamp(0.75, 0.14cqw + 0.55, 1));
 }
 
-.dic-cert-merit-copy {
+.dic-diploma-ribbon-copy {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   gap: 1px;
 }
 
-.dic-cert-merit-tier {
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: #ffffff;
+.dic-diploma-ribbon-eyebrow {
+  font-size: clamp(0.42rem, 0.95cqw, 0.56rem);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--cert-gold);
 }
 
-.dic-modal[data-theme="light"] .dic-cert-merit-tier {
-  color: #09090b;
+.dic-diploma-ribbon-name {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: clamp(0.66rem, 1.55cqw, 0.9rem);
+  font-weight: 700;
+  color: var(--cert-ink);
 }
 
-.dic-cert-merit-amt {
-  font-size: 0.69rem;
-  color: #888888;
-  font-variant-numeric: tabular-nums;
-}
-
-.dic-cert-meta-grid {
+/* 3-Column Ceremonial Signature & Gold Seal Footer — LOCKED 3 COLUMNS ON ALL VIEWPORTS */
+.dic-diploma-footer {
+  position: relative;
+  z-index: 1;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
-  padding-top: 14px;
-  border-top: 1px solid #1f1f1f;
-  text-align: left;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: end;
+  gap: clamp(8px, 2.2cqw, 18px);
+  padding-top: clamp(8px, 1.8cqw, 14px);
+  border-top: 1px solid var(--cert-gold-faint);
 }
 
-.dic-modal[data-theme="light"] .dic-cert-meta-grid {
-  border-top-color: #e4e4e7;
-}
-
-.dic-cert-meta-col {
+.dic-diploma-sig-col,
+.dic-diploma-cred-col {
   display: flex;
   flex-direction: column;
-  gap: 3px;
-}
-
-.dic-cert-meta-col--center {
+  align-items: center;
   text-align: center;
+  gap: 2px;
+  min-width: 0;
+}
+
+.dic-signature-svg {
+  width: clamp(56px, 15cqw, 112px);
+  height: auto;
+  color: var(--cert-ink);
+  opacity: 0.85;
+  margin-bottom: 1px;
+}
+
+.dic-diploma-sig-line {
+  width: clamp(68px, 20cqw, 148px);
+  height: 1px;
+  background: var(--cert-gold-soft);
+  margin: 2px 0 3px;
+}
+
+.dic-diploma-sig-title {
+  font-size: clamp(0.5rem, 1.18cqw, 0.7rem);
+  font-weight: 650;
+  color: var(--cert-ink);
+  white-space: nowrap;
+}
+
+.dic-diploma-sig-sub {
+  font-size: clamp(0.44rem, 1.02cqw, 0.62rem);
+  color: var(--cert-subtle);
+  white-space: nowrap;
+}
+
+.dic-diploma-seal-col {
+  display: flex;
+  flex-direction: column;
   align-items: center;
+  gap: 3px;
+  flex-shrink: 0;
 }
 
-.dic-cert-meta-col--right {
-  text-align: right;
-  align-items: flex-end;
+.dic-gold-seal {
+  width: clamp(36px, 8.6cqw, 62px);
+  height: clamp(36px, 8.6cqw, 62px);
+  color: var(--cert-gold);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  filter: drop-shadow(0 2px 8px rgba(212, 177, 106, 0.25));
 }
 
-.dic-cert-meta-k {
-  font-size: 0.59rem;
+.dic-gold-seal-svg {
+  width: 100%;
+  height: 100%;
+}
+
+.dic-diploma-seal-caption {
+  font-size: clamp(0.4rem, 0.9cqw, 0.54rem);
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: var(--cert-gold);
+  white-space: nowrap;
+}
+
+.dic-diploma-cred-val {
+  font-size: clamp(0.48rem, 1.15cqw, 0.68rem);
   font-weight: 600;
-  letter-spacing: 0.08em;
-  color: #71717a;
+  color: var(--cert-gold);
+  letter-spacing: 0.04em;
+  white-space: nowrap;
 }
 
-.dic-cert-meta-v {
-  font-size: 0.72rem;
-  font-weight: 500;
-  color: #d4d4d8;
-}
-
-.dic-modal[data-theme="light"] .dic-cert-meta-v {
-  color: #27272a;
-}
-
-.dic-cert-meta-v--ok {
+.dic-diploma-hash {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-}
-
-.dic-cert-hash-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 0.72rem;
-  color: #ededed;
+  gap: 3px;
+  font-size: clamp(0.44rem, 1.02cqw, 0.62rem);
+  color: var(--cert-subtle);
   text-decoration: none;
+  white-space: nowrap;
 }
 
-.dic-cert-hash-link .material-symbols-outlined {
-  font-size: 12px;
-  color: #71717a;
+.dic-diploma-hash .material-symbols-outlined {
+  font-size: clamp(9px, 1.5cqw, 11px);
+  color: #10b981;
 }
 
-.dic-cert-hash-link:hover {
+.dic-diploma-hash:hover {
+  color: var(--cert-ink);
   text-decoration: underline;
-}
-
-.dic-modal[data-theme="light"] .dic-cert-hash-link {
-  color: #09090b;
 }
 
 /* Certificate Action Bar */
@@ -4540,25 +4630,8 @@
     border-left: none;
   }
 
-  .dic-cert-document {
-    margin: 8px;
-    padding: 20px 16px 18px !important;
-  }
-
-  .dic-cert-recipient {
-    font-size: 1.4rem;
-    min-width: 0;
-  }
-
-  .dic-cert-meta-grid {
-    grid-template-columns: 1fr;
-    text-align: left;
-  }
-
-  .dic-cert-meta-col--center,
-  .dic-cert-meta-col--right {
-    text-align: left;
-    align-items: flex-start;
+  .dic-cert-stage {
+    padding: 8px;
   }
 
   .dic-tiers-grid {
@@ -4572,16 +4645,21 @@
 
 /* Print Stylesheet Preservation for Certificate */
 @media print {
-  .dic-cert-document {
-    background: #ffffff !important;
-    border: 1.5px solid #18181b !important;
-    color: #000000 !important;
+  .dic-cert-stage {
+    padding: 0 !important;
   }
-  .dic-cert-heading,
-  .dic-cert-recipient,
-  .dic-cert-merit-tier,
-  .dic-cert-meta-v {
-    color: #000000 !important;
+  .dic-diploma {
+    --cert-gold: #9a7428 !important;
+    --cert-gold-soft: rgba(154, 116, 40, 0.55) !important;
+    --cert-gold-faint: rgba(154, 116, 40, 0.25) !important;
+    --cert-ink: #18140d !important;
+    --cert-muted: #3f382c !important;
+    --cert-subtle: #6b6150 !important;
+    background: #fffdf8 !important;
+    border: 2px solid #9a7428 !important;
+    box-shadow: none !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
   .dic-cert-actions,
   .dic-header,

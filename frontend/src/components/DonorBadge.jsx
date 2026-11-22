@@ -240,8 +240,8 @@ export const DONOR_TIERS = [
   {
     tierNumber: 1,
     id: 'tier-1',
-    name: 'Donor',
-    subtitle: 'Emergency Relief',
+    name: 'First-Time Giver',
+    subtitle: 'Emergency Food & Water',
     minPhp: 1,
     minEth: 0.000006,
     IconComponent: BadgeTier1Contributor,
@@ -254,8 +254,8 @@ export const DONOR_TIERS = [
   {
     tierNumber: 2,
     id: 'tier-2',
-    name: 'Regular Donor',
-    subtitle: 'Family Care Kits',
+    name: 'Caring Giver',
+    subtitle: 'Family Relief Packs',
     minPhp: 1000,
     minEth: 0.006,
     IconComponent: BadgeTier2Supporter,
@@ -263,13 +263,13 @@ export const DONOR_TIERS = [
     border: 'rgba(2, 132, 199, 0.35)',
     bg: 'rgba(2, 132, 199, 0.08)',
     badgeClass: 'tier-2',
-    description: 'Helps fund food packs, drinking water, and family hygiene supplies.'
+    description: 'Helps fund essential food packs, safe drinking water, and family hygiene kits.'
   },
   {
     tierNumber: 3,
     id: 'tier-3',
-    name: 'Friend of Relief',
-    subtitle: 'Rescue & Medical Aid',
+    name: 'Relief Supporter',
+    subtitle: 'Medical & First-Aid Kits',
     minPhp: 5000,
     minEth: 0.03,
     IconComponent: BadgeTier3ReliefPartner,
@@ -277,13 +277,13 @@ export const DONOR_TIERS = [
     border: 'rgba(37, 99, 235, 0.35)',
     bg: 'rgba(37, 99, 235, 0.08)',
     badgeClass: 'tier-3',
-    description: 'Helps equip volunteer rescue teams with first-aid kits and emergency gear.'
+    description: 'Helps equip volunteer responders with first-aid supplies and emergency care gear.'
   },
   {
     tierNumber: 4,
     id: 'tier-4',
-    name: 'Community Donor',
-    subtitle: 'Emergency Shelters',
+    name: 'Shelter Supporter',
+    subtitle: 'Emergency Family Shelters',
     minPhp: 10000,
     minEth: 0.06,
     IconComponent: BadgeTier4Benefactor,
@@ -291,13 +291,13 @@ export const DONOR_TIERS = [
     border: 'rgba(124, 58, 237, 0.35)',
     bg: 'rgba(124, 58, 237, 0.08)',
     badgeClass: 'tier-4',
-    description: 'Helps provide emergency tents and shelter repair kits for displaced families.'
+    description: 'Helps provide weatherproof tents and shelter repair materials for displaced families.'
   },
   {
     tierNumber: 5,
     id: 'tier-5',
-    name: 'Sustaining Donor',
-    subtitle: 'Community Health Aid',
+    name: 'Compassionate Giver',
+    subtitle: 'Community Health & Clinics',
     minPhp: 25000,
     minEth: 0.15,
     IconComponent: BadgeTier5Advocate,
@@ -305,13 +305,13 @@ export const DONOR_TIERS = [
     border: 'rgba(225, 29, 72, 0.35)',
     bg: 'rgba(225, 29, 72, 0.08)',
     badgeClass: 'tier-5',
-    description: 'Helps fund emergency clinic medicines, health kits, and volunteer doctors.'
+    description: 'Helps fund emergency clinic medicines, maternal health kits, and volunteer medical missions.'
   },
   {
     tierNumber: 6,
     id: 'tier-6',
-    name: 'Associate Member',
-    subtitle: 'Barangay Relief Drives',
+    name: 'Barangay Relief Sponsor',
+    subtitle: 'Local Relief Distributions',
     minPhp: 50000,
     minEth: 0.30,
     IconComponent: BadgeTier6Philanthropist,
@@ -319,12 +319,12 @@ export const DONOR_TIERS = [
     border: 'rgba(217, 119, 6, 0.35)',
     bg: 'rgba(217, 119, 6, 0.08)',
     badgeClass: 'tier-6',
-    description: 'Helps sponsor full-barangay relief distribution drives in affected areas.'
+    description: 'Helps sponsor full-barangay relief distribution drives across disaster-affected communities.'
   },
   {
     tierNumber: 7,
     id: 'tier-7',
-    name: 'Supporting Member',
+    name: 'Emergency Aid Sponsor',
     subtitle: 'Rapid Disaster Response',
     minPhp: 100000,
     minEth: 0.60,
@@ -333,13 +333,13 @@ export const DONOR_TIERS = [
     border: 'rgba(220, 38, 38, 0.35)',
     bg: 'rgba(220, 38, 38, 0.08)',
     badgeClass: 'tier-7',
-    description: 'Helps fund rapid emergency response deployments to critical disaster zones.'
+    description: 'Helps fund rapid emergency response deployments to critical typhoon and flood zones.'
   },
   {
     tierNumber: 8,
     id: 'tier-8',
-    name: 'Patron',
-    subtitle: 'Clean Water & Power',
+    name: 'Humanitarian Partner',
+    subtitle: 'Clean Water & Solar Power',
     minPhp: 250000,
     minEth: 1.50,
     IconComponent: BadgeTier8DistinguishedHumanitarian,
@@ -347,13 +347,13 @@ export const DONOR_TIERS = [
     border: 'rgba(13, 148, 136, 0.35)',
     bg: 'rgba(13, 148, 136, 0.08)',
     badgeClass: 'tier-8',
-    description: 'Helps deploy mobile water filtration rigs and emergency power generators.'
+    description: 'Helps deploy mobile water filtration systems and emergency solar power generators.'
   },
   {
     tierNumber: 9,
     id: 'tier-9',
-    name: 'Senior Patron',
-    subtitle: 'Bulk Aid Logistics',
+    name: 'Relief Mission Partner',
+    subtitle: 'Provincial Aid Logistics',
     minPhp: 500000,
     minEth: 3.00,
     IconComponent: BadgeTier9PatronOfRelief,
@@ -361,13 +361,13 @@ export const DONOR_TIERS = [
     border: 'rgba(29, 78, 216, 0.35)',
     bg: 'rgba(29, 78, 216, 0.08)',
     badgeClass: 'tier-9',
-    description: 'Helps fund cargo transport and bulk relief distribution to remote evacuation hubs.'
+    description: 'Helps fund cargo transport and bulk relief deliveries to remote evacuation hubs.'
   },
   {
     tierNumber: 10,
     id: 'tier-10',
-    name: 'Major Donor',
-    subtitle: 'Community Recovery',
+    name: 'Major Relief Donor',
+    subtitle: 'Community Recovery & Livelihood',
     minPhp: 1000000,
     minEth: 6.00,
     IconComponent: BadgeTier10GrandBenefactor,
@@ -375,13 +375,13 @@ export const DONOR_TIERS = [
     border: 'rgba(2, 132, 199, 0.4)',
     bg: 'rgba(2, 132, 199, 0.1)',
     badgeClass: 'tier-10',
-    description: 'Helps rebuild disaster-hit communities and restore local livelihood.'
+    description: 'Helps rebuild disaster-hit communities and restore sustainable family livelihoods.'
   },
   {
     tierNumber: 11,
     id: 'tier-11',
-    name: 'Principal Donor',
-    subtitle: 'Infrastructure & Schools',
+    name: 'Principal Relief Benefactor',
+    subtitle: 'Schools & Evacuation Centers',
     minPhp: 2500000,
     minEth: 15.00,
     IconComponent: BadgeTier11PrincipalBenefactor,
@@ -394,8 +394,8 @@ export const DONOR_TIERS = [
   {
     tierNumber: 12,
     id: 'tier-12',
-    name: 'Benefactor',
-    subtitle: 'Disaster Resilience',
+    name: 'Humanitarian Benefactor',
+    subtitle: 'Typhoon-Resilient Homes',
     minPhp: 5000000,
     minEth: 30.00,
     IconComponent: BadgeTier12LegacyBenefactor,
@@ -403,13 +403,13 @@ export const DONOR_TIERS = [
     border: 'rgba(5, 150, 105, 0.45)',
     bg: 'rgba(5, 150, 105, 0.1)',
     badgeClass: 'tier-12',
-    description: 'Helps construct typhoon-resilient permanent homes in high-risk coastal zones.'
+    description: 'Helps construct typhoon-resilient permanent housing in high-risk coastal communities.'
   },
   {
     tierNumber: 13,
     id: 'tier-13',
-    name: 'Senior Benefactor',
-    subtitle: 'Regional Relief Fleet',
+    name: 'Regional Relief Benefactor',
+    subtitle: 'Inter-Island Aid & Fleet',
     minPhp: 10000000,
     minEth: 60.00,
     IconComponent: BadgeTier13SovereignGuardian,
@@ -417,13 +417,13 @@ export const DONOR_TIERS = [
     border: 'rgba(22, 163, 74, 0.45)',
     bg: 'rgba(22, 163, 74, 0.1)',
     badgeClass: 'tier-13',
-    description: 'Helps fund disaster relief speedboats and inter-island emergency supply routes.'
+    description: 'Helps fund emergency relief boats and inter-island humanitarian supply corridors.'
   },
   {
     tierNumber: 14,
     id: 'tier-14',
-    name: 'Founding Benefactor',
-    subtitle: 'National Emergency Aid',
+    name: 'National Relief Patron',
+    subtitle: 'Nationwide Emergency Operations',
     minPhp: 25000000,
     minEth: 150.00,
     IconComponent: BadgeTier14ChampionOfHope,
@@ -431,13 +431,13 @@ export const DONOR_TIERS = [
     border: 'rgba(180, 83, 9, 0.5)',
     bg: 'rgba(180, 83, 9, 0.1)',
     badgeClass: 'tier-14',
-    description: 'Provides strategic funding for nationwide disaster relief and recovery operations.'
+    description: 'Provides strategic philanthropic funding for nationwide disaster relief and recovery.'
   },
   {
     tierNumber: 15,
     id: 'tier-15',
-    name: 'Legacy Donor',
-    subtitle: 'Lifetime Relief Legacy',
+    name: 'Lifetime Humanitarian Patron',
+    subtitle: 'Enduring Relief Legacy',
     minPhp: 50000000,
     minEth: 300.00,
     IconComponent: BadgeTier15ApexLuminary,
@@ -445,7 +445,7 @@ export const DONOR_TIERS = [
     border: 'rgba(71, 85, 105, 0.5)',
     bg: 'rgba(71, 85, 105, 0.12)',
     badgeClass: 'tier-15',
-    description: 'A lasting legacy ensuring rapid humanitarian disaster response across the Philippines.'
+    description: 'A lasting philanthropic legacy ensuring rapid humanitarian disaster response across the Philippines.'
   }
 ];
 
@@ -846,7 +846,7 @@ export function DonorProgressCard({
         <div className="dpc-right">
           <button type="button" className="dpc-ladder-btn" onClick={onOpenLadder}>
             <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>workspace_premium</span>
-            <span>View Donor Tiers</span>
+            <span>Giving Circles</span>
           </button>
         </div>
       </div>
@@ -894,12 +894,12 @@ export function DonorProgressCard({
               {nextTier ? (
                 <div className="dpc-next-society-hint">
                   <span className="material-symbols-outlined" style={{ fontSize: '14px', color: '#10b981' }}>verified</span>
-                  <span>Next Tier: <strong>{nextTier.name}</strong> (₱{nextTier.minPhp.toLocaleString('en-US')}+)</span>
+                  <span>Next Giving Circle: <strong>{nextTier.name}</strong> (₱{nextTier.minPhp.toLocaleString('en-US')}+)</span>
                 </div>
               ) : (
                 <div className="dpc-next-society-hint">
                   <span className="material-symbols-outlined" style={{ fontSize: '14px', color: '#10b981' }}>verified</span>
-                  <span>Honorary Trustee • Highest Recognition Tier</span>
+                  <span>Honorary Trustee • Highest Giving Circle</span>
                 </div>
               )}
 
@@ -909,7 +909,7 @@ export function DonorProgressCard({
                   <span>View Certificate</span>
                 </button>
                 <button type="button" className="dpc-ladder-link" onClick={onOpenLadder}>
-                  <span>Donor Tiers</span>
+                  <span>Giving Circles</span>
                   <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>arrow_forward</span>
                 </button>
               </div>
@@ -959,7 +959,7 @@ export function BadgeUpgradeModal({
         </span>
 
         <h2 className="donor-upgrade-title">
-          New Recognition Tier Unlocked!
+          New Giving Circle Recognized!
         </h2>
         <h3 className="donor-upgrade-tier-name" style={{ color: newTier.color }}>
           {newTier.name}
@@ -1189,10 +1189,11 @@ export function DonorTierModal({
     setTimeout(() => setCopiedProof(false), 3000);
   };
 
-  const unlockedTierCount = DONOR_TIERS.filter(t => totalPhp >= t.minPhp).length;
-  const activeTierNum = activeTier?.tierNumber || 0;
-  const certSerial = `BBDRTS-${String(activeTierNum || 1).padStart(2, '0')}-${String(effectiveDonations || 1).padStart(4, '0')}`;
+  const recognizedCircleCount = DONOR_TIERS.filter(t => totalPhp >= t.minPhp).length;
+  const activeCircleNum = activeTier?.tierNumber || 0;
+  const certSerial = `BBDRTS-${String(activeCircleNum || 1).padStart(2, '0')}-${String(effectiveDonations || 1).padStart(4, '0')}`;
   const issuedDateStr = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+  const drivesHelpedCount = Math.max(1, campaignsSupported || 1);
 
   return typeof document !== 'undefined' ? createPortal(
     <div className="donor-modal-backdrop dic-backdrop" data-theme={currentTheme} onClick={onClose}>
@@ -1264,9 +1265,9 @@ export function DonorTierModal({
             className={`dic-tab ${modalTab === 'directory' ? 'is-active' : ''}`}
             onClick={() => setModalTab('directory')}
           >
-            <span className="material-symbols-outlined">military_tech</span>
-            <span>Donor Tiers</span>
-            <span className="dic-tab-count">{unlockedTierCount}/{DONOR_TIERS.length}</span>
+            <span className="material-symbols-outlined">volunteer_activism</span>
+            <span>Giving Circles</span>
+            <span className="dic-tab-count">{recognizedCircleCount}/{DONOR_TIERS.length}</span>
           </button>
         </div>
 
@@ -1292,7 +1293,7 @@ export function DonorTierModal({
                       </div>
                       <div className="dic-standing-row">
                         <span className="dic-standing-pill">
-                          {activeTier ? `Tier ${activeTier.tierNumber} · ${activeTier.name}` : 'Community Supporter'}
+                          {activeTier ? activeTier.name : 'First-Time Giver'}
                         </span>
                         {activeTier?.subtitle && !activeTier.name.toLowerCase().includes(activeTier.subtitle.toLowerCase()) && (
                           <span className="dic-standing-sub">{activeTier.subtitle}</span>
@@ -1318,36 +1319,36 @@ export function DonorTierModal({
                   <p className="dic-standing-desc">{activeTier.description}</p>
                 )}
 
-                {/* 4-Column Hairline KPI Strip (Zero Nested Boxes, Zero Duplicate Total) */}
+                {/* 4-Column Hairline KPI Strip */}
                 <div className="dic-kpi-band">
                   <div className="dic-kpi-cell">
-                    <span className="dic-kpi-val">{Math.max(1, campaignsSupported || 1)}</span>
-                    <span className="dic-kpi-lbl">Relief Drives Supported</span>
+                    <span className="dic-kpi-val">{drivesHelpedCount}</span>
+                    <span className="dic-kpi-lbl">Relief Drives Helped</span>
                   </div>
                   <div className="dic-kpi-cell">
                     <span className="dic-kpi-val">{effectiveDonations}</span>
-                    <span className="dic-kpi-lbl">On-Chain Receipts</span>
+                    <span className="dic-kpi-lbl">Verified Receipts</span>
                   </div>
                   <div className="dic-kpi-cell">
                     <span className="dic-kpi-val">100%</span>
                     <span className="dic-kpi-lbl">Escrow Protected</span>
                   </div>
                   <div className="dic-kpi-cell">
-                    <span className="dic-kpi-val">{activeTier ? `Tier ${activeTier.tierNumber} / 15` : 'Unranked'}</span>
-                    <span className="dic-kpi-lbl">Recognition Standing</span>
+                    <span className="dic-kpi-val">{activeTier ? `Circle ${activeTier.tierNumber} / 15` : 'Supporter'}</span>
+                    <span className="dic-kpi-lbl">Giving Standing</span>
                   </div>
                 </div>
 
-                {/* Inline Next-Tier Milestone Progress */}
+                {/* Inline Next Giving Circle Progress */}
                 {nextTier && (
                   <div className="dic-milestone-inline">
                     <div className="dic-milestone-row">
                       <span className="dic-milestone-left">
-                        Next Milestone: <strong>{nextTier.name}</strong>{' '}
+                        Next Giving Circle: <strong>{nextTier.name}</strong>{' '}
                         <span className="dic-milestone-muted">(₱{nextTier.minPhp.toLocaleString('en-US')}+)</span>
                       </span>
                       <span className="dic-milestone-right">
-                        <span className="dic-milestone-muted">₱{Math.round(remainingPhp).toLocaleString('en-US')} to unlock</span>
+                        <span className="dic-milestone-muted">₱{Math.round(remainingPhp).toLocaleString('en-US')} away</span>
                         <span className="dic-milestone-pct">{progressPct}%</span>
                       </span>
                     </div>
@@ -1361,79 +1362,145 @@ export function DonorTierModal({
                 )}
               </div>
 
-              {/* Museum-Grade Official Certificate of Appreciation */}
+              {/* ── Prestigious Ceremonial Certificate of Appreciation (Identical Layout on Desktop & Mobile) ── */}
               <div className="donor-certificate-frame dic-cert-shell">
-                <div className="donor-cert-inner dic-cert-document">
-                  {/* Subtle Architectural Corner Registration Marks */}
-                  <span className="dic-corner dic-corner--tl" aria-hidden="true" />
-                  <span className="dic-corner dic-corner--tr" aria-hidden="true" />
-                  <span className="dic-corner dic-corner--bl" aria-hidden="true" />
-                  <span className="dic-corner dic-corner--br" aria-hidden="true" />
+                <div className="dic-cert-stage">
+                  <div className="donor-cert-inner dic-diploma">
+                    {/* Ornamental Gold Filigree Inner Frame & 4 Corner Flourishes */}
+                    <div className="dic-diploma-inner-border" aria-hidden="true" />
+                    <svg className="dic-filigree dic-filigree--tl" viewBox="0 0 40 40" fill="none" aria-hidden="true">
+                      <path d="M2 38V6C2 3.8 3.8 2 6 2H38" stroke="currentColor" strokeWidth="1.4" />
+                      <path d="M7 28V11C7 8.8 8.8 7 11 7H28" stroke="currentColor" strokeWidth="0.9" strokeOpacity="0.65" />
+                      <circle cx="11" cy="11" r="2" fill="currentColor" />
+                    </svg>
+                    <svg className="dic-filigree dic-filigree--tr" viewBox="0 0 40 40" fill="none" aria-hidden="true">
+                      <path d="M2 38V6C2 3.8 3.8 2 6 2H38" stroke="currentColor" strokeWidth="1.4" />
+                      <path d="M7 28V11C7 8.8 8.8 7 11 7H28" stroke="currentColor" strokeWidth="0.9" strokeOpacity="0.65" />
+                      <circle cx="11" cy="11" r="2" fill="currentColor" />
+                    </svg>
+                    <svg className="dic-filigree dic-filigree--bl" viewBox="0 0 40 40" fill="none" aria-hidden="true">
+                      <path d="M2 38V6C2 3.8 3.8 2 6 2H38" stroke="currentColor" strokeWidth="1.4" />
+                      <path d="M7 28V11C7 8.8 8.8 7 11 7H28" stroke="currentColor" strokeWidth="0.9" strokeOpacity="0.65" />
+                      <circle cx="11" cy="11" r="2" fill="currentColor" />
+                    </svg>
+                    <svg className="dic-filigree dic-filigree--br" viewBox="0 0 40 40" fill="none" aria-hidden="true">
+                      <path d="M2 38V6C2 3.8 3.8 2 6 2H38" stroke="currentColor" strokeWidth="1.4" />
+                      <path d="M7 28V11C7 8.8 8.8 7 11 7H28" stroke="currentColor" strokeWidth="0.9" strokeOpacity="0.65" />
+                      <circle cx="11" cy="11" r="2" fill="currentColor" />
+                    </svg>
 
-                  <div className="dic-cert-top">
-                    <div className="dic-cert-seal-pill">
-                      <span className="material-symbols-outlined">verified_user</span>
-                      <span>OFFICIAL HUMANITARIAN CREDENTIAL</span>
-                    </div>
-                    <div className="dic-cert-org">
-                      BLOCKCHAIN-BASED DONATION & RELIEF TRANSPARENCY SYSTEM
-                    </div>
-                    <h2 className="dic-cert-heading">Certificate of Appreciation</h2>
-                    <div className="dic-cert-rule" />
-                  </div>
+                    {/* Subtle Embossed Watermark Crest */}
+                    <svg className="dic-diploma-watermark" viewBox="0 0 200 200" fill="none" aria-hidden="true">
+                      <circle cx="100" cy="100" r="88" stroke="currentColor" strokeWidth="1" strokeDasharray="3 4" />
+                      <circle cx="100" cy="100" r="70" stroke="currentColor" strokeWidth="0.8" />
+                      <path d="M100 34L114 78H160L123 105L137 150L100 123L63 150L77 105L40 78H86L100 34Z" stroke="currentColor" strokeWidth="0.9" />
+                    </svg>
 
-                  <div className="dic-cert-center">
-                    <p className="dic-cert-presented">PROUDLY PRESENTED TO</p>
-                    <h1 className="dic-cert-recipient">{donorName}</h1>
-                    <p className="dic-cert-citation">
-                      In recognition of verified philanthropic contributions supporting emergency disaster response, community recovery, and transparent relief distribution across the Philippines.
-                    </p>
-
-                    <div className="dic-cert-merit-pill">
-                      <span className="dic-cert-merit-icon">
-                        <ActiveIcon size={24} />
-                      </span>
-                      <div className="dic-cert-merit-copy">
-                        <span className="dic-cert-merit-tier">
-                          {activeTier ? activeTier.name : 'Community Contributor'}
-                        </span>
-                        <span className="dic-cert-merit-amt">
-                          ₱{Math.round(totalPhp).toLocaleString('en-US')} PHP · {effectiveDonations} Verified {effectiveDonations === 1 ? 'Receipt' : 'Receipts'}
-                        </span>
+                    {/* Top Ceremonial Crest & Header */}
+                    <div className="dic-diploma-header">
+                      <div className="dic-diploma-crest">
+                        <svg viewBox="0 0 56 32" fill="none" className="dic-laurel-svg" aria-hidden="true">
+                          <path d="M18 26C10 22 6 14 8 6C12 10 14 16 18 22" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+                          <path d="M15 24C11 20 9 14 11 9" stroke="currentColor" strokeWidth="0.9" strokeLinecap="round" />
+                          <path d="M38 26C46 22 50 14 48 6C44 10 42 16 38 22" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+                          <path d="M41 24C45 20 47 14 45 9" stroke="currentColor" strokeWidth="0.9" strokeLinecap="round" />
+                          <path d="M28 6L34 10V17C34 21.5 31.3 25 28 26.5C24.7 25 22 21.5 22 17V10L28 6Z" stroke="currentColor" strokeWidth="1.3" fill="currentColor" fillOpacity="0.14" />
+                          <path d="M25.5 16.5L27.3 18.3L30.8 14.3" stroke="#10b981" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      </div>
+                      <div className="dic-diploma-republic">
+                        REPUBLIC OF THE PHILIPPINES · HUMANITARIAN RELIEF REGISTRY
+                      </div>
+                      <div className="dic-diploma-system">
+                        Blockchain-Based Donation & Relief Transparency System
+                      </div>
+                      <h2 className="dic-diploma-title">Certificate of Appreciation</h2>
+                      <div className="dic-diploma-ornament" aria-hidden="true">
+                        <span className="dic-orn-line" />
+                        <span className="dic-orn-diamond" />
+                        <span className="dic-orn-line" />
                       </div>
                     </div>
-                  </div>
 
-                  <div className="dic-cert-meta-grid">
-                    <div className="dic-cert-meta-col">
-                      <span className="dic-cert-meta-k">CREDENTIAL ID</span>
-                      <span className="dic-cert-meta-v dic-mono">{certSerial}</span>
-                    </div>
+                    {/* Ceremonial Recipient & Heartfelt Gratitude */}
+                    <div className="dic-diploma-body">
+                      <p className="dic-diploma-salutation">
+                        With deepest gratitude and highest honor, proudly presented to
+                      </p>
+                      <h1 className="dic-diploma-name">{donorName}</h1>
+                      <div className="dic-diploma-name-rule" aria-hidden="true" />
 
-                    <div className="dic-cert-meta-col dic-cert-meta-col--center">
-                      <span className="dic-cert-meta-k">ISSUED DATE</span>
-                      <span className="dic-cert-meta-v">{issuedDateStr}</span>
-                    </div>
+                      <p className="dic-diploma-citation">
+                        In heartfelt recognition of your extraordinary generosity totaling{' '}
+                        <strong>₱{Math.round(totalPhp).toLocaleString('en-US')}</strong> across{' '}
+                        <strong>{drivesHelpedCount} verified disaster relief {drivesHelpedCount === 1 ? 'drive' : 'drives'}</strong>{' '}
+                        ({effectiveDonations} on-chain {effectiveDonations === 1 ? 'contribution' : 'contributions'}). Your compassion brings food, clean water, shelter, and renewed hope to Filipino families rebuilding after crisis.
+                      </p>
 
-                    <div className="dic-cert-meta-col dic-cert-meta-col--right">
-                      <span className="dic-cert-meta-k">ON-CHAIN VERIFICATION</span>
-                      {isActualTx ? (
-                        <a
-                          href={`https://sepolia.etherscan.io/tx/${effectiveTxHash}`}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="dic-cert-hash-link dic-mono"
-                          title="Inspect transaction on Sepolia Etherscan"
-                        >
-                          <span>{String(effectiveTxHash).slice(0, 8)}…{String(effectiveTxHash).slice(-6)}</span>
-                          <span className="material-symbols-outlined">open_in_new</span>
-                        </a>
-                      ) : (
-                        <span className="dic-cert-meta-v dic-cert-meta-v--ok">
-                          <span className="dic-live-dot" />
-                          <span>Sepolia Escrow Verified</span>
-                        </span>
+                      {dedication && (
+                        <p className="dic-diploma-dedication">“{dedication}”</p>
                       )}
+
+                      {/* Distinguished Giving Circle Ribbon */}
+                      <div className="dic-diploma-ribbon">
+                        <span className="dic-diploma-ribbon-badge">
+                          <ActiveIcon size={24} />
+                        </span>
+                        <div className="dic-diploma-ribbon-copy">
+                          <span className="dic-diploma-ribbon-eyebrow">HONORED GIVING CIRCLE</span>
+                          <span className="dic-diploma-ribbon-name">
+                            {activeTier ? activeTier.name : 'First-Time Giver'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Symmetrical 3-Column Ceremonial Footer (Identical on Desktop & Mobile) */}
+                    <div className="dic-diploma-footer">
+                      {/* Left: Official Authority Signature */}
+                      <div className="dic-diploma-sig-col">
+                        <svg className="dic-signature-svg" viewBox="0 0 130 34" fill="none" aria-hidden="true">
+                          <path d="M8 25C16 10 24 8 27 19C30 27 36 12 43 16C48 19 52 13 58 17C64 21 71 11 78 18C84 24 92 14 102 18C109 20 116 17 123 15" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                          <path d="M16 29C44 26 84 25 114 27" stroke="currentColor" strokeWidth="0.7" strokeOpacity="0.45" strokeLinecap="round" />
+                        </svg>
+                        <div className="dic-diploma-sig-line" />
+                        <span className="dic-diploma-sig-title">BBDRTS Relief Authority</span>
+                        <span className="dic-diploma-sig-sub">Humanitarian Audit Council</span>
+                      </div>
+
+                      {/* Center: Embossed Gold & Emerald Official Notary Seal */}
+                      <div className="dic-diploma-seal-col">
+                        <div className="dic-gold-seal">
+                          <svg viewBox="0 0 72 72" fill="none" className="dic-gold-seal-svg" aria-hidden="true">
+                            <circle cx="36" cy="36" r="33" stroke="currentColor" strokeWidth="1.2" strokeDasharray="2.5 2.5" />
+                            <circle cx="36" cy="36" r="28" stroke="currentColor" strokeWidth="1.5" fill="currentColor" fillOpacity="0.1" />
+                            <circle cx="36" cy="36" r="23" stroke="currentColor" strokeWidth="0.8" strokeOpacity="0.65" />
+                            <path d="M27.5 36.5L33 42L45 29.5" stroke="#10b981" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        </div>
+                        <span className="dic-diploma-seal-caption">VERIFIED SEAL</span>
+                      </div>
+
+                      {/* Right: Official Credential Record */}
+                      <div className="dic-diploma-cred-col">
+                        <span className="dic-diploma-cred-val dic-mono">{certSerial}</span>
+                        <div className="dic-diploma-sig-line" />
+                        <span className="dic-diploma-sig-title">{issuedDateStr}</span>
+                        {isActualTx ? (
+                          <a
+                            href={`https://sepolia.etherscan.io/tx/${effectiveTxHash}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="dic-diploma-hash dic-mono"
+                            title="Verify on Sepolia Etherscan"
+                          >
+                            <span>{String(effectiveTxHash).slice(0, 7)}…{String(effectiveTxHash).slice(-5)}</span>
+                            <span className="material-symbols-outlined">open_in_new</span>
+                          </a>
+                        ) : (
+                          <span className="dic-diploma-sig-sub">Sepolia EVM Verified</span>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1667,75 +1734,75 @@ export function DonorTierModal({
             </div>
           )}
 
-          {/* TAB 3: 15 DONOR RECOGNITION TIERS (Clean 2-Col Grid, Zero Duplicate Icons) */}
+          {/* TAB 3: 15 PHILANTHROPIC GIVING CIRCLES (Zero Gaming Language) */}
           {modalTab === 'directory' && (
             <div className="dic-pane dic-tiers-pane">
               <div className="dic-tiers-summary">
                 <div className="dic-tiers-summary-top">
                   <div>
-                    <h4 className="dic-section-title">Humanitarian Recognition Ladder</h4>
+                    <h4 className="dic-section-title">Humanitarian Giving Circles</h4>
                     <p className="dic-section-sub">
-                      Cumulative verified disaster relief milestones across all accredited NGO campaigns.
+                      Dignified recognition honoring cumulative verified donations across Philippine relief drives.
                     </p>
                   </div>
                   <div className="dic-tiers-progress-pill">
                     <span className="dic-live-dot" />
-                    <span><strong>{unlockedTierCount}</strong> of {DONOR_TIERS.length} Unlocked</span>
+                    <span><strong>{recognizedCircleCount}</strong> of {DONOR_TIERS.length} Recognized</span>
                   </div>
                 </div>
                 <div className="dic-progress-track">
                   <div
                     className="dic-progress-fill"
-                    style={{ width: `${Math.round((unlockedTierCount / DONOR_TIERS.length) * 100)}%` }}
+                    style={{ width: `${Math.round((recognizedCircleCount / DONOR_TIERS.length) * 100)}%` }}
                   />
                 </div>
               </div>
 
               <div className="dic-tiers-grid">
-                {DONOR_TIERS.map((t) => {
-                  const isCurrent = activeTier?.id === t.id;
-                  const isUnlocked = totalPhp >= t.minPhp;
-                  const TierIcon = t.IconComponent;
+                {DONOR_TIERS.map((c) => {
+                  const isCurrent = activeTier?.id === c.id;
+                  const isRecognized = totalPhp >= c.minPhp;
+                  const CircleIcon = c.IconComponent;
 
                   return (
                     <div
-                      key={t.id}
-                      className={`dic-tier-card ${isCurrent ? 'is-current' : isUnlocked ? 'is-unlocked' : 'is-locked'}`}
+                      key={c.id}
+                      className={`dic-tier-card ${isCurrent ? 'is-current' : isRecognized ? 'is-unlocked' : 'is-locked'}`}
                     >
                       <div className="dic-tier-card-top">
                         <div className="dic-tier-medallion">
-                          <TierIcon size={30} />
+                          <CircleIcon size={30} />
                         </div>
 
                         <div className="dic-tier-head-copy">
                           <div className="dic-tier-rank-row">
-                            <span className="dic-tier-index dic-mono">TIER {String(t.tierNumber).padStart(2, '0')}</span>
+                            <span className="dic-tier-index dic-mono">CIRCLE {String(c.tierNumber).padStart(2, '0')}</span>
                             {isCurrent ? (
                               <span className="dic-tier-status dic-tier-status--current">
                                 <span className="dic-live-dot" />
-                                <span>Current</span>
+                                <span>Your Circle</span>
                               </span>
-                            ) : isUnlocked ? (
+                            ) : isRecognized ? (
                               <span className="dic-tier-status dic-tier-status--unlocked">
                                 <span className="material-symbols-outlined">check_circle</span>
-                                <span>Unlocked</span>
+                                <span>Recognized</span>
                               </span>
                             ) : (
                               <span className="dic-tier-status dic-tier-status--locked">
-                                <span className="material-symbols-outlined">lock</span>
+                                <span>Upcoming</span>
                               </span>
                             )}
                           </div>
-                          <div className="dic-tier-name">{t.name}</div>
-                          <div className="dic-tier-sub">{t.subtitle}</div>
+                          <div className="dic-tier-name">{c.name}</div>
+                          <div className="dic-tier-sub">{c.subtitle}</div>
                         </div>
                       </div>
 
-                      <p className="dic-tier-desc">{t.description}</p>
+                      <p className="dic-tier-desc">{c.description}</p>
 
                       <div className="dic-tier-footer">
-                        <span className="dic-tier-threshold">₱{t.minPhp.toLocaleString('en-US')}+</span>
-                        <span className="dic-tier-threshold-lbl">cumulative relief</span>
+                        <span className="dic-tier-threshold">₱{c.minPhp.toLocaleString('en-US')}+</span>
+                        <span className="dic-tier-threshold-lbl">cumulative giving</span>
                       </div>
                     </div>
                   );
