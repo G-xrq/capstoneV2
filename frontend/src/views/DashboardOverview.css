@@ -6782,3 +6782,119 @@
     border-top-color: #e4e4e7;
   }
 }
+
+
+/* ── Inline Header Stats & Toolbar Sync Button (Explore Campaigns) ── */
+.ec-head-stats {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  gap: 0;
+}
+
+.ec-head-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  padding: 0 18px;
+  border-left: 1px solid #e4e4e7;
+}
+
+[data-theme="dark"] .ec-head-stat {
+  border-left-color: #1f1f1f;
+}
+
+.ec-head-stat:first-child {
+  padding-left: 0;
+  border-left: none;
+}
+
+.ec-head-stat:last-child {
+  padding-right: 0;
+}
+
+.ec-head-stat-val {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 1.08rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  color: #09090b;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+[data-theme="dark"] .ec-head-stat-val {
+  color: #ffffff;
+}
+
+.ec-head-stat-lbl {
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: #71717a;
+  white-space: nowrap;
+}
+
+.ec-sync-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border-radius: 8px;
+  border: 1px solid #e4e4e7;
+  background: #ffffff;
+  color: #52525b;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.14s ease, border-color 0.14s ease, color 0.14s ease, opacity 0.14s ease;
+}
+
+.ec-sync-icon-btn .material-symbols-outlined {
+  font-size: 17px;
+}
+
+[data-theme="dark"] .ec-sync-icon-btn {
+  background: #0a0a0a;
+  border-color: #262626;
+  color: #a1a1aa;
+}
+
+.ec-sync-icon-btn:hover:not(:disabled) {
+  background: #fafafa;
+  border-color: #a1a1aa;
+  color: #09090b;
+}
+
+[data-theme="dark"] .ec-sync-icon-btn:hover:not(:disabled) {
+  background: #141416;
+  border-color: #3f3f46;
+  color: #ffffff;
+}
+
+.ec-sync-icon-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+@media (max-width: 900px) {
+  .ec-head-stats {
+    width: 100%;
+    flex-wrap: wrap;
+    gap: 10px 0;
+    margin-top: 6px;
+  }
+
+  .ec-head-stat {
+    align-items: flex-start;
+    padding: 0 14px;
+  }
+
+  .ec-head-stat:first-child {
+    padding-left: 0;
+  }
+}

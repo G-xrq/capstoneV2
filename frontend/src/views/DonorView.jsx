@@ -1701,7 +1701,7 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
 
             return (
             <div key="tab-campaigns" id="tour-campaigns-container" className="ec-page donor-tab-transition">
-              {/* Institutional Vercel Page Header */}
+              {/* Institutional Vercel Page Header with Inline Registry Snapshot */}
               <div className="admin-page-header" id="tour-campaigns-header">
                 <div className="admin-page-title-wrap">
                   <h2 className="admin-page-title">
@@ -1713,48 +1713,26 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
                   </p>
                 </div>
 
-                <div className="admin-page-header-actions">
-                  <button
-                    type="button"
-                    className="dbo-cmd-btn"
-                    onClick={fetchCampaigns}
-                    disabled={fetchingCampaigns}
-                    title="Refresh campaigns from the ledger"
-                  >
-                    <span className={`material-symbols-outlined ${fetchingCampaigns ? 'spinning' : ''}`} style={{ fontSize: '15px' }}>
-                      sync
-                    </span>
-                    <span>{fetchingCampaigns ? 'Syncing...' : 'Sync Registry'}</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* ── 1. Borderless Registry Summary Band (Directly on Canvas — Zero Heavy Boxes) ── */}
-              <div className="ec-summary-band">
-                <div className="ec-band-cell ec-band-cell--primary">
-                  <div className="ec-band-val-row">
-                    <span className="ec-band-total">₱{Math.round(raisedPhp).toLocaleString('en-US', { maximumFractionDigits: 0 })}</span>
-                    <span className="ec-live-pill">
+                <div className="ec-head-stats">
+                  <div className="ec-head-stat">
+                    <span className="ec-head-stat-val">
                       <span className="ec-live-dot" />
-                      <span>Live Registry</span>
+                      <span>₱{Math.round(raisedPhp).toLocaleString('en-US', { maximumFractionDigits: 0 })}</span>
                     </span>
+                    <span className="ec-head-stat-lbl">raised to date</span>
                   </div>
-                  <span className="ec-band-lbl">Total Raised Across Verified Relief Operations</span>
-                </div>
-
-                <div className="ec-band-cell">
-                  <span className="ec-band-num">{activeDrivesCount}</span>
-                  <span className="ec-band-lbl">Active Campaigns ({campaigns.length} Total)</span>
-                </div>
-
-                <div className="ec-band-cell">
-                  <span className="ec-band-num">{fundedCount}</span>
-                  <span className="ec-band-lbl">Fully Funded Drives</span>
-                </div>
-
-                <div className="ec-band-cell">
-                  <span className="ec-band-num">{orgCount}</span>
-                  <span className="ec-band-lbl">Accredited Partner NGOs</span>
+                  <div className="ec-head-stat">
+                    <span className="ec-head-stat-val">{activeDrivesCount}</span>
+                    <span className="ec-head-stat-lbl">active drives</span>
+                  </div>
+                  <div className="ec-head-stat">
+                    <span className="ec-head-stat-val">{fundedCount}</span>
+                    <span className="ec-head-stat-lbl">fully funded</span>
+                  </div>
+                  <div className="ec-head-stat">
+                    <span className="ec-head-stat-val">{orgCount}</span>
+                    <span className="ec-head-stat-lbl">partner NGOs</span>
+                  </div>
                 </div>
               </div>
 
@@ -2032,6 +2010,20 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
                         <span className="material-symbols-outlined">grid_view</span>
                       </button>
                     </div>
+
+                    {/* Sync Registry Icon Button (Contextual beside Data Controls) */}
+                    <button
+                      type="button"
+                      className="ec-sync-icon-btn"
+                      onClick={fetchCampaigns}
+                      disabled={fetchingCampaigns}
+                      title={fetchingCampaigns ? 'Syncing campaigns...' : 'Sync registry from ledger'}
+                      aria-label="Sync registry from ledger"
+                    >
+                      <span className={`material-symbols-outlined ${fetchingCampaigns ? 'spinning' : ''}`}>
+                        sync
+                      </span>
+                    </button>
                   </div>
                 </div>
 
@@ -3430,17 +3422,7 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
           })()}
 
           {/* ── 3.5. DISASTER RELIEF RADAR HEATMAP TAB (Vercel Geist Institutional Standard) ── */}
-          {activeTab === 'radar-heatmap' && (() => {
-            const activeDrives = campaigns.filter(c => c.isActive !== false);
-            const mappedRaisedPhp = activeDrives.reduce((s, c) => s + (parseFloat(c.currentAmount) || 0), 0) * 170000;
-            const highPriorityCount = activeDrives.filter(c => String(c.urgency || '').toUpperCase().includes('HIGH') || String(c.urgency || '').toUpperCase().includes('CRITICAL')).length;
-            const uniqueZones = new Set(
-              activeDrives
-                .map(c => (c.locationRegion || c.location || '').split(',').slice(-1)[0]?.trim())
-                .filter(Boolean)
-            ).size;
-
-            return (
+          {activeTab === 'radar-heatmap' && (
             <div key="tab-radar" className="rr-page donor-tab-transition">
               <div className="admin-page-header" id="tour-radar-header">
                 <div className="admin-page-title-wrap">
@@ -3469,35 +3451,6 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
                 </div>
               </div>
 
-              {/* Borderless Geospatial Telemetry Band */}
-              <div className="ec-summary-band rr-summary-band">
-                <div className="ec-band-cell ec-band-cell--primary">
-                  <div className="ec-band-val-row">
-                    <span className="ec-band-total">{activeDrives.length}</span>
-                    <span className="ec-live-pill">
-                      <span className="ec-live-dot" />
-                      <span>Geospatial Live</span>
-                    </span>
-                  </div>
-                  <span className="ec-band-lbl">Active Relief Operations Mapped Nationwide</span>
-                </div>
-
-                <div className="ec-band-cell">
-                  <span className="ec-band-num">{uniqueZones || (activeDrives.length > 0 ? 1 : 0)}</span>
-                  <span className="ec-band-lbl">Monitored Provinces & Sectors</span>
-                </div>
-
-                <div className="ec-band-cell">
-                  <span className="ec-band-num">{highPriorityCount}</span>
-                  <span className="ec-band-lbl">High-Priority Emergency Zones</span>
-                </div>
-
-                <div className="ec-band-cell">
-                  <span className="ec-band-num">₱{Math.round(mappedRaisedPhp).toLocaleString('en-US', { maximumFractionDigits: 0 })}</span>
-                  <span className="ec-band-lbl">Deployed Aid Volume Across Grid</span>
-                </div>
-              </div>
-
               <DisasterRadarHeatmap
                 campaigns={campaigns}
                 height="640px"
@@ -3512,8 +3465,7 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
                 }}
               />
             </div>
-            );
-          })()}
+          )}
 
           {/* ── 4. SETTINGS TAB (Hides 4 boxes & welcome card) ── */}
           {activeTab === 'settings' && (
