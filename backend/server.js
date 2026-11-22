@@ -5166,7 +5166,7 @@ app.post('/api/manual-donations', authenticateToken, async (req, res) => {
         );
       } else if (tracking_code) {
         await db.query(
-          `UPDATE PAYMENT_INTENT SET Status = 'COMPLETED', Manual_ID = ?, Completed_At = CURRENT_TIMESTAMP WHERE Tracking_Code = ?`,
+          `UPDATE PAYMENT_INTENT SET Status = 'COMPLETED', Manual_ID = ?, Completed_At = CURRENT_TIMESTAMP WHERE REPLACE(UPPER(Tracking_Code), '-', '') = REPLACE(UPPER(?), '-', '')`,
           [manualIns.insertId, String(tracking_code).trim().toUpperCase()]
         );
       } else {
@@ -7077,7 +7077,7 @@ app.post('/api/webhooks/xendit', async (req, res) => {
         [rows] = await db.query('SELECT * FROM PAYMENT_INTENT WHERE Gateway_Session_ID = ?', [sessionId]);
       } else if (externalId) {
         const trackingPart = externalId.split('-I')[0];
-        [rows] = await db.query('SELECT * FROM PAYMENT_INTENT WHERE Tracking_Code = ?', [trackingPart]);
+        [rows] = await db.query(`SELECT * FROM PAYMENT_INTENT WHERE REPLACE(UPPER(Tracking_Code), '-', '') = REPLACE(UPPER(?), '-', '')`, [trackingPart]);
       }
 
       if (rows && rows.length > 0) {
@@ -7474,7 +7474,7 @@ app.get('/api/org/donations/intent-lookup/:code', authenticateToken, async (req,
        FROM PAYMENT_INTENT pi
        LEFT JOIN CAMPAIGN c ON pi.Campaign_ID = c.Campaign_ID
        LEFT JOIN DONOR d ON pi.Donor_ID = d.Donor_ID
-       WHERE pi.Tracking_Code = ?
+       WHERE REPLACE(UPPER(pi.Tracking_Code), '-', '') = REPLACE(UPPER(?), '-', '')
        LIMIT 1`,
       [cleanCode]
     );
@@ -7546,7 +7546,7 @@ app.post('/api/org/donations/declare-direct', authenticateToken, async (req, res
     let matchedIntentId = null;
     let isAnon = 1;
     if (cleanCode) {
-      const [piRows] = await db.query('SELECT * FROM PAYMENT_INTENT WHERE Tracking_Code = ? LIMIT 1', [cleanCode]);
+      const [piRows] = await db.query(`SELECT * FROM PAYMENT_INTENT WHERE REPLACE(UPPER(Tracking_Code), '-', '') = REPLACE(UPPER(?), '-', '') LIMIT 1`, [cleanCode]);
       if (piRows && piRows.length > 0) {
         matchedIntentId = piRows[0].Intent_ID;
         matchedDonorId = piRows[0].Donor_ID || null;

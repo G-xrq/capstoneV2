@@ -234,7 +234,7 @@ export default function DeclareDirectDepositModal({
             </div>
             <input
               type="text"
-              placeholder="Paste BB-XXXX code from GCash/Maya note (e.g. BB-278341)"
+              placeholder="Paste note code from GCash/Maya (e.g. BB278341)"
               value={trackingCode}
               onChange={(e) => setTrackingCode(e.target.value.toUpperCase())}
               style={{
@@ -414,7 +414,7 @@ export default function DeclareDirectDepositModal({
               lineHeight: 1.45
             }}
           >
-            <strong style={{ color: '#10b981' }}>Gasless Blockchain Audit:</strong> Submitting this declaration immediately credits the campaign, prevents duplicate reference claims, and notarizes the deposit onto Ethereum Sepolia. If a donor&apos;s <code style={{ color: '#38bdf8' }}>BB-XXXX</code> code is entered, their account is automatically credited and notified.
+            <strong style={{ color: '#10b981' }}>Gasless Blockchain Audit:</strong> Submitting this declaration immediately credits the campaign, prevents duplicate reference claims, and notarizes the deposit onto Ethereum Sepolia. If a donor&apos;s <code style={{ color: '#38bdf8' }}>BBXXXXXX</code> code is entered, their account is automatically credited and notified.
           </div>
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', paddingTop: '4px' }}>

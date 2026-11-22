@@ -235,7 +235,7 @@ async function simulateQrPhPayment(qrId, amountPhp) {
 }
 
 function generateTrackingCode() {
-  return `BB-${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
+  return `BB${crypto.randomBytes(3).toString('hex').toUpperCase()}`;
 }
 
 module.exports = {

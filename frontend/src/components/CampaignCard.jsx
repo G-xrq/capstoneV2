@@ -4597,18 +4597,18 @@ export default function CampaignCard(props) {
 
             <div
               ref={modalCardRef}
-              className={`card bounce-in${!isPaymentProcessing && donateStep === 0 ? ' vc-donate-shell' : ''}${!isPaymentProcessing && (donateStep === 8 || donateStep === 4) ? ' vc-donate-shell vc-donate-shell--qr' : ''}${isPaymentProcessing ? ' vc-donate-shell vc-donate-shell--processing' : ''}`}
+              className={`card bounce-in${!isPaymentProcessing && donateStep === 0 ? ' vc-donate-shell' : ''}${!isPaymentProcessing && (donateStep === 8 || donateStep === 7 || donateStep === 4) ? ' vc-donate-shell vc-donate-shell--qr' : ''}${isPaymentProcessing ? ' vc-donate-shell vc-donate-shell--processing' : ''}`}
               style={{
                 position: 'relative',
-                width: isPaymentProcessing ? '464px' : ((donateStep === 6 || donateStep === 7) ? '880px' : ((donateStep === 0 || (donateStep === 8 && !instantReceipt && !instantSettlingOnChain)) ? '748px' : '464px')),
+                width: isPaymentProcessing ? '464px' : (donateStep === 6 ? '880px' : (donateStep === 7 ? '788px' : ((donateStep === 0 || (donateStep === 8 && !instantReceipt && !instantSettlingOnChain)) ? '748px' : '464px'))),
                 maxWidth: '94vw',
                 maxHeight: '92dvh',
                 overflowY: 'auto',
-                padding: (isPaymentProcessing || (!isPaymentProcessing && (donateStep === 0 || donateStep === 4 || donateStep === 8))) ? '0px' : '24px',
+                padding: (isPaymentProcessing || (!isPaymentProcessing && (donateStep === 0 || donateStep === 4 || donateStep === 7 || donateStep === 8))) ? '0px' : '24px',
                 background: isPaymentProcessing ? undefined : 'var(--surface)',
                 border: isPaymentProcessing ? undefined : '1px solid var(--border)',
                 boxShadow: isPaymentProcessing ? undefined : 'var(--shadow-card, 0 25px 50px -12px rgba(0, 0, 0, 0.7))',
-                borderRadius: (isPaymentProcessing || (!isPaymentProcessing && (donateStep === 0 || donateStep === 4 || donateStep === 8))) ? '14px' : '18px',
+                borderRadius: (isPaymentProcessing || (!isPaymentProcessing && (donateStep === 0 || donateStep === 4 || donateStep === 7 || donateStep === 8))) ? '14px' : '18px',
                 transition: 'width 0.25s ease'
               }}
             >
@@ -5125,7 +5125,7 @@ export default function CampaignCard(props) {
                             <span>
                               {isInstant
                                 ? 'Generates a single-use QR Ph code. Verified automatically via webhook — no receipt upload needed.'
-                                : 'Shows the NGO QR code with a unique BB-XXXX code for instant AI receipt verification.'}
+                                : 'Shows the NGO QR code with an alphanumeric transfer note code (e.g. BB48D62A) for fast AI receipt verification.'}
                             </span>
                           </div>
                         </div>
@@ -6531,907 +6531,441 @@ export default function CampaignCard(props) {
                 );
               })()}
 
-              {/* ── STEP 7: Institutional E-Wallet (GCash / Maya) Terminal ── */}
-              {!isPaymentProcessing && donateStep === 7 && (
-                <div className="fade-in">
+              {/* ── STEP 7: Direct E-Wallet Transfer & AI Receipt Terminal (Vercel Geist) ── */}
+              {!isPaymentProcessing && donateStep === 7 && (() => {
+                const isMaya = gatewayMethod === 'Maya';
+                const railLabel = isMaya ? 'Maya' : 'GCash';
+                const qrUrl = isMaya ? (camp.mayaQrUrl || camp.maya_qr_url) : (camp.gcashQrUrl || camp.gcash_qr_url);
+                const acctName = isMaya ? (camp.mayaName || camp.maya_name) : (camp.gcashName || camp.gcash_name);
+                const rawRecvNum = isMaya ? (camp.mayaNumber || camp.maya_number || '09187654321') : (camp.gcashNumber || camp.gcash_number || '09178901234');
+                const formattedRecvNum = formatPhoneNumber(rawRecvNum);
+                const cleanRecvNum = formattedRecvNum.replace(/\s+/g, '');
+                const safeNoteCode = activeIntent?.trackingCode ? String(activeIntent.trackingCode).replace(/[^A-Za-z0-9]/g, '').toUpperCase() : '';
+                const formattedStep7Amount = (() => {
+                  if (amount === '' || amount === null || amount === undefined) return '';
+                  const raw = String(amount);
+                  const [intPart, decPart] = raw.split('.');
+                  const formattedInt = intPart ? Number(intPart).toLocaleString('en-US') : '';
+                  return decPart !== undefined ? `${formattedInt || '0'}.${decPart}` : formattedInt;
+                })();
 
-                  {/* Modal Header (Sticky) */}
-                  <div style={{
-                    position: 'sticky',
-                    top: '-24px',
-                    marginTop: '-24px',
-                    paddingTop: '20px',
-                    paddingBottom: '14px',
-                    background: 'var(--surface)',
-                    backdropFilter: 'blur(12px)',
-                    zIndex: 25,
-                    borderBottom: '1px solid var(--border, rgba(255,255,255,0.08))',
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'flex-start',
-                    marginBottom: '16px',
-                    flexWrap: 'wrap',
-                    gap: '10px'
-                  }}>
-                    <div>
-                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.74rem', color: gatewayMethod === 'Maya' ? '#00D68F' : '#007DFE', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>
-                        <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>account_balance_wallet</span>
-                        Official {gatewayMethod} Payment Channel
+                const hasEnteredRef = Boolean((refNumber || gatewayRefNo || '').trim());
+                const isReceiptInvalid = activeAiResult && (activeAiResult.isPaymentReceipt === false || activeAiResult.confidenceScore === 0 || activeAiResult.fraudFlags?.some(f => f.includes('INVALID_RECEIPT')));
+                const isExpiredReceipt = Boolean(activeAiResult?.fraudFlags?.some(f => f.includes('EXPIRED_RECEIPT')));
+                const isTamperedReceipt = Boolean(activeAiResult?.fraudFlags?.some(f => f.includes('TAMPERED')));
+                const isRecipientMismatch = Boolean(activeAiResult?.fraudFlags?.some(f => f.includes('RECIPIENT_MISMATCH') || f.includes('RECIPIENT_NAME_MISMATCH') || f.includes('RECIPIENT_PHONE_MISMATCH')));
+                const isSuspiciousRef = Boolean(activeAiResult?.fraudFlags?.some(f => f.includes('SUSPICIOUS_REFERENCE_SEQUENCE')));
+                const hasHardFraud = Boolean(
+                  duplicateRefWarning ||
+                  railMismatchWarning ||
+                  isExpiredReceipt ||
+                  isTamperedReceipt ||
+                  isRecipientMismatch ||
+                  isSuspiciousRef ||
+                  activeAiResult?.fraudFlags?.some(f => f.includes('PAYMENT_RAIL_MISMATCH') || f.includes('RAIL_MISMATCH') || f.includes('DUPLICATE'))
+                );
+                const cleanDigits = (refNumber || gatewayRefNo || '').replace(/\D/g, '');
+                const isValidManualRef = gatewayMethod === 'GCash' ? cleanDigits.length === 13 : hasEnteredRef && (refNumber || gatewayRefNo || '').trim().length >= 8;
+                const isManualAuditPending = !hasHardFraud && isReceiptInvalid && isValidManualRef;
+                const isBlocked = hasHardFraud || (isReceiptInvalid && !isValidManualRef);
+                const isSubmitDisabled = gatewayLoading || !amount || parseFloat(amount) <= 0 || !hasEnteredRef || !receiptBase64 || isBlocked;
+
+                const submitLabel = duplicateRefWarning
+                  ? 'Duplicate Receipt Blocked'
+                  : railMismatchWarning
+                    ? 'Rail Mismatch Blocked'
+                    : isExpiredReceipt
+                      ? 'Expired Receipt Blocked'
+                      : isTamperedReceipt
+                        ? 'Tampered Image Blocked'
+                        : isRecipientMismatch
+                          ? 'Recipient Mismatch Blocked'
+                          : isSuspiciousRef
+                            ? 'Artificial Ref Blocked'
+                            : isReceiptInvalid && !isValidManualRef
+                              ? (gatewayMethod === 'GCash' ? 'Enter 13-Digit Ref Number' : 'Enter Valid Reference')
+                              : amount && parseFloat(amount) > 0
+                                ? (isManualAuditPending
+                                    ? `Submit for NGO Review · ₱${Math.round(Number(amount)).toLocaleString('en-US')}`
+                                    : `Verify & Submit · ₱${Math.round(Number(amount)).toLocaleString('en-US')}`)
+                                : 'Verify & Submit';
+
+                return (
+                  <div className="dt7-shell fade-in">
+                    {/* Flush Recessed Header */}
+                    <div className="qr8-header">
+                      <div className="qr8-head-left">
+                        <div className={`vc-channel-icon ${isMaya ? 'maya' : 'gcash'}`}>
+                          {isMaya ? 'maya' : 'G'}
+                        </div>
+                        <div className="qr8-head-text">
+                          <span className="qr8-head-title">{railLabel} Direct Transfer</span>
+                          <span className="qr8-head-sub" title={camp.title}>
+                            {getOrgDisplayName(camp.orgAddress, camp.orgName, camp.id)} · {camp.title}
+                          </span>
+                        </div>
                       </div>
-                      <h2 style={{ margin: 0, fontSize: '1.3rem', color: 'var(--text-primary, #fff)', fontWeight: 800 }}>
-                        {gatewayMethod} Direct Transfer
-                      </h2>
-                      <div style={{ fontSize: '0.78rem', color: 'var(--text-muted, #94a3b8)', marginTop: '3px' }}>
-                        Beneficiary Campaign: <strong style={{ color: 'var(--text-secondary, #cbd5e1)' }}>{camp.title}</strong>
-                      </div>
-                    </div>
-
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <button
-                        onClick={() => {
-                          handleRemoveProof();
-                          setDonateStep(0);
-                        }}
-                        style={{ background: 'var(--bg-input, rgba(255,255,255,0.05))', border: '1px solid var(--border, rgba(255,255,255,0.1))', color: 'var(--text-muted, #94a3b8)', width: '32px', height: '32px', borderRadius: '50%', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                        title="Back to Payment Selector"
-                      >
-                        <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>close</span>
-                      </button>
-                    </div>
-                  </div>
-
-                  {activeIntent?.trackingCode && (
-                    <div
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        gap: '10px',
-                        flexWrap: 'wrap',
-                        padding: '10px 14px',
-                        marginBottom: '14px',
-                        borderRadius: '10px',
-                        background: 'rgba(56, 189, 248, 0.08)',
-                        border: '1px solid rgba(56, 189, 248, 0.28)'
-                      }}
-                    >
-                      <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary, #cbd5e1)', lineHeight: 1.4 }}>
-                        <strong style={{ color: '#38bdf8' }}>Transfer Note Code: {activeIntent.trackingCode}</strong>
-                        <span style={{ display: 'block', fontSize: '0.71rem', color: 'var(--text-muted, #94a3b8)' }}>
-                          Paste this code in your {gatewayMethod} message/note so your gift is always linked to this campaign even if you forget to upload a slip.
+                      <div className="qr8-head-right">
+                        <span className="qr8-status-pill">
+                          <span className="qr8-status-dot is-emerald" />
+                          <span>DIRECT QR · AI SCAN</span>
                         </span>
+                        <button
+                          type="button"
+                          className="vc-donate-close-btn"
+                          onClick={() => {
+                            handleRemoveProof();
+                            setDonateStep(0);
+                          }}
+                          title="Back to Payment Selector"
+                          aria-label="Close"
+                        >
+                          <span className="material-symbols-outlined" style={{ fontSize: '17px' }}>close</span>
+                        </button>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          navigator.clipboard?.writeText(activeIntent.trackingCode);
-                          showSuccess?.(`Copied note code ${activeIntent.trackingCode}`, 'Copied');
-                        }}
-                        style={{
-                          padding: '5px 10px',
-                          borderRadius: '6px',
-                          border: '1px solid rgba(56, 189, 248, 0.4)',
-                          background: 'rgba(56, 189, 248, 0.14)',
-                          color: '#38bdf8',
-                          fontSize: '0.72rem',
-                          fontWeight: 700,
-                          fontFamily: 'var(--font-mono, monospace)',
-                          cursor: 'pointer',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: '4px'
-                        }}
-                      >
-                        <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>content_copy</span>
-                        <span>{activeIntent.trackingCode}</span>
-                      </button>
                     </div>
-                  )}
 
-                  {/* Main 2-Column Grid */}
-                  <div className="ewallet-checkout-grid">
+                    {/* Clean 2-Column Split: Step 1 (Send Payment) | Step 2 (Upload Receipt & Confirm) */}
+                    <div className="dt7-grid">
+                      {/* LEFT COLUMN: Step 1 — Send Payment */}
+                      <div className="dt7-left">
+                        <div className="dt7-step-head">
+                          <span className="dt7-step-num">1</span>
+                          <span className="dt7-step-title">Send via {railLabel}</span>
+                        </div>
 
-                    {/* Left Column: NGO's Official E-Wallet QR & Manual Copy Number Credentials */}
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                      <div style={{ width: '100%', maxWidth: '340px', background: 'var(--bg-card, rgba(255,255,255,0.02))', border: '1px solid var(--border, rgba(255,255,255,0.08))', borderRadius: '16px', padding: '18px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-
-                        {/* NGO Uploaded QR Code OR Informative QR Fallback */}
-                        {((gatewayMethod === 'Maya' ? (camp.mayaQrUrl || camp.maya_qr_url) : (camp.gcashQrUrl || camp.gcash_qr_url))) ? (
-                          <CleanQrVoucherDisplay
-                            qrUrl={gatewayMethod === 'Maya' ? (camp.mayaQrUrl || camp.maya_qr_url) : (camp.gcashQrUrl || camp.gcash_qr_url)}
-                            gatewayMethod={gatewayMethod}
-                          />
-                        ) : (
-                          <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px dashed var(--border, rgba(255,255,255,0.15))', borderRadius: '12px', padding: '16px', textAlign: 'center', width: '100%', maxWidth: '300px', marginBottom: '14px' }}>
-                            <div style={{
-                              width: '44px',
-                              height: '44px',
-                              borderRadius: '12px',
-                              background: gatewayMethod === 'Maya' ? '#000000' : '#007DFE',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              margin: '0 auto 8px',
-                              boxShadow: '0 4px 12px rgba(0,0,0,0.2)'
-                            }}>
-                              {gatewayMethod === 'Maya' ? (
-                                <span style={{ color: '#00d68f', fontWeight: 900, fontSize: '14px' }}>m</span>
-                              ) : (
-                                <span style={{ color: '#ffffff', fontWeight: 900, fontSize: '20px' }}>G</span>
-                              )}
+                        {/* QR Code Stage */}
+                        <div className="dt7-qr-stage">
+                          {qrUrl ? (
+                            <CleanQrVoucherDisplay qrUrl={qrUrl} gatewayMethod={gatewayMethod} />
+                          ) : (
+                            <div className="dt7-qr-fallback">
+                              <div className={`vc-channel-icon ${isMaya ? 'maya' : 'gcash'}`} style={{ width: '40px', height: '40px', borderRadius: '10px', fontSize: isMaya ? '0.68rem' : '1.05rem' }}>
+                                {isMaya ? 'maya' : 'G'}
+                              </div>
+                              <div className="dt7-qr-fallback-title">Transfer by Mobile Number</div>
+                              <div className="dt7-qr-fallback-sub">No QR image uploaded. Copy the verified {railLabel} number below.</div>
                             </div>
-                            <div style={{ fontSize: '0.82rem', color: 'var(--text-primary, #ffffff)', fontWeight: 700 }}>
-                              Direct {gatewayMethod} Transfer
-                            </div>
-                            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted, #94a3b8)', marginTop: '4px', lineHeight: 1.4 }}>
-                              No custom {gatewayMethod} QR uploaded. Transfer directly using the mobile number below:
-                            </div>
-                          </div>
-                        )}
+                          )}
+                        </div>
 
-                        {/* Merchant Details Box with 1-Click Copy Number */}
-                        <div style={{ width: '100%', maxWidth: '300px', background: 'var(--bg-input, rgba(0,0,0,0.25))', borderRadius: '12px', padding: '12px', border: '1px solid var(--border, rgba(255,255,255,0.06))', fontSize: '0.78rem' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
-                            <span style={{ color: 'var(--text-muted, #94a3b8)' }}>Beneficiary Org:</span>
-                            <strong style={{ color: 'var(--text-primary, #ffffff)', textAlign: 'right', maxWidth: '140px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={camp.orgName || 'Accredited Relief Org'}>
-                              {camp.orgName || 'Accredited Relief Org'}
-                            </strong>
+                        {/* Unified Hairline Receiving Details + Alphanumeric Note Code */}
+                        <div className="qr8-meta-table dt7-details-table">
+                          <div className="qr8-meta-row">
+                            <span className="qr8-meta-k">Recipient</span>
+                            <span className="qr8-meta-v" title={acctName || camp.orgName || 'Verified NGO'}>
+                              {acctName || getOrgDisplayName(camp.orgAddress, camp.orgName, camp.id)}
+                            </span>
                           </div>
 
-                          {((gatewayMethod === 'Maya' && (camp.mayaName || camp.maya_name)) || (gatewayMethod === 'GCash' && (camp.gcashName || camp.gcash_name))) && (
-                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
-                              <span style={{ color: 'var(--text-muted, #94a3b8)' }}>Account Name:</span>
-                              <strong style={{ color: 'var(--text-primary, #ffffff)', textAlign: 'right', maxWidth: '160px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                {gatewayMethod === 'Maya' ? (camp.mayaName || camp.maya_name) : (camp.gcashName || camp.gcash_name)}
-                              </strong>
+                          <div className="qr8-meta-row">
+                            <span className="qr8-meta-k">{railLabel} No.</span>
+                            <span className="qr8-meta-v qr8-meta-v--actions">
+                              <span className="pp-mono dt7-strong-num">{formattedRecvNum}</span>
+                              <button
+                                type="button"
+                                className={`qr8-copy-btn${qrCopiedKey === 'recv' ? ' is-copied' : ''}`}
+                                onClick={() => {
+                                  copyInstantValue('recv', cleanRecvNum);
+                                  showSuccess?.(`${railLabel} number ${cleanRecvNum} copied!`, 'Number Copied');
+                                }}
+                                title="Copy number"
+                              >
+                                <span className="material-symbols-outlined">
+                                  {qrCopiedKey === 'recv' ? 'check' : 'content_copy'}
+                                </span>
+                              </button>
+                            </span>
+                          </div>
+
+                          {safeNoteCode && (
+                            <div className="qr8-meta-row dt7-note-row">
+                              <div className="dt7-note-top">
+                                <span className="qr8-meta-k">Message / Note</span>
+                                <span className="qr8-meta-v qr8-meta-v--actions">
+                                  <span className="pp-mono dt7-note-code">{safeNoteCode}</span>
+                                  <button
+                                    type="button"
+                                    className={`qr8-copy-btn${qrCopiedKey === 'note' ? ' is-copied' : ''}`}
+                                    onClick={() => {
+                                      copyInstantValue('note', safeNoteCode);
+                                      showSuccess?.(`Copied note code ${safeNoteCode}`, 'Copied');
+                                    }}
+                                    title="Copy transfer note code"
+                                  >
+                                    <span className="material-symbols-outlined">
+                                      {qrCopiedKey === 'note' ? 'check' : 'content_copy'}
+                                    </span>
+                                  </button>
+                                </span>
+                              </div>
+                              <span className="dt7-note-help">
+                                Optional: paste in your {railLabel} message to link your donation (letters &amp; numbers only).
+                              </span>
                             </div>
                           )}
 
-                          <div style={{
-                            background: gatewayMethod === 'Maya' ? 'rgba(0, 214, 143, 0.08)' : 'rgba(34, 197, 94, 0.08)',
-                            padding: '8px 10px',
-                            borderRadius: '10px',
-                            border: gatewayMethod === 'Maya' ? '1px solid rgba(0, 214, 143, 0.3)' : '1px solid rgba(34, 197, 94, 0.25)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'space-between',
-                            gap: '10px',
-                            marginBottom: '8px'
-                          }}>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', minWidth: 0 }}>
-                              <span style={{ fontSize: '0.64rem', color: 'var(--text-muted, #94a3b8)', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 600 }}>
-                                Official {gatewayMethod} Receiving No:
-                              </span>
-                              <strong style={{
-                                color: gatewayMethod === 'Maya' ? '#00d68f' : '#22c55e',
-                                fontFamily: 'var(--font-mono, monospace)',
-                                fontSize: '0.88rem',
-                                fontWeight: 800,
-                                whiteSpace: 'nowrap',
-                                letterSpacing: '0.5px'
-                              }}>
-                                {gatewayMethod === 'Maya'
-                                  ? formatPhoneNumber(camp.mayaNumber || camp.maya_number || '0918 765 4321')
-                                  : formatPhoneNumber(camp.gcashNumber || camp.gcash_number || '0917 890 1234')}
-                              </strong>
+                          <div className="qr8-meta-row">
+                            <span className="qr8-meta-k">Platform Fee</span>
+                            <span className="qr8-meta-v dt7-free-val">₱0.00</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* RIGHT COLUMN: Step 2 — Upload Receipt & Confirm */}
+                      <div className="dt7-right">
+                        <div className="dt7-step-head dt7-step-head--between">
+                          <div className="dt7-step-head-left">
+                            <span className="dt7-step-num">2</span>
+                            <span className="dt7-step-title">Upload Receipt &amp; Verify</span>
+                          </div>
+                          <span className="dt7-ai-tag">
+                            <span className="material-symbols-outlined">auto_awesome</span>
+                            <span>AI Auto-Fill</span>
+                          </span>
+                        </div>
+
+                        {/* Upload Dropzone FIRST so AI auto-fills Amount & Ref immediately */}
+                        <div>
+                          {receiptBase64 ? (
+                            <div className="dt7-receipt-card">
+                              <div
+                                className="dt7-receipt-thumb"
+                                onClick={() => setPreviewReceiptModal(true)}
+                                title="Click to enlarge receipt"
+                              >
+                                <img src={receiptBase64} alt="Payment receipt" />
+                                <span className="dt7-receipt-zoom">
+                                  <span className="material-symbols-outlined">zoom_in</span>
+                                </span>
+                              </div>
+
+                              <div className="dt7-receipt-info">
+                                <div className="dt7-receipt-status-row">
+                                  <span
+                                    className="material-symbols-outlined dt7-receipt-ico"
+                                    style={{
+                                      color: (activeAiResult && (activeAiResult.isPaymentReceipt === false || activeAiResult.confidenceScore === 0))
+                                        ? '#ef4444'
+                                        : (activeAiResult?.isAiVerified
+                                            ? '#10b981'
+                                            : (aiScanLoading ? '#38bdf8' : '#a1a1aa'))
+                                    }}
+                                  >
+                                    {aiScanLoading ? 'hourglass_top' : (activeAiResult && (activeAiResult.isPaymentReceipt === false || activeAiResult.confidenceScore === 0) ? 'error' : (activeAiResult?.isAiVerified ? 'check_circle' : 'receipt_long'))}
+                                  </span>
+                                  <span className="dt7-receipt-title">
+                                    {aiScanLoading
+                                      ? 'Scanning receipt with AI…'
+                                      : (activeAiResult && (activeAiResult.isPaymentReceipt === false || activeAiResult.confidenceScore === 0)
+                                          ? (activeAiResult.fraudFlags?.some(f => f.includes('EXPIRED'))
+                                              ? 'Expired Receipt Slip'
+                                              : (activeAiResult.fraudFlags?.some(f => f.includes('TAMPERED') || f.includes('INVALID_RECEIPT'))
+                                                  ? 'Tampered / Invalid Slip'
+                                                  : (activeAiResult.fraudFlags?.some(f => f.includes('RECIPIENT'))
+                                                      ? 'Wrong Recipient Account'
+                                                      : 'Invalid Receipt Image')))
+                                          : (activeAiResult?.isAiVerified
+                                              ? `AI Verified (${activeAiResult.confidenceScore}%)`
+                                              : (activeAiResult?.fraudFlags?.some(f => f.includes('HIGH_VALUE'))
+                                                  ? 'High-Value Audit Required'
+                                                  : 'Receipt Attached')))}
+                                  </span>
+                                </div>
+
+                                <div className="dt7-receipt-sub">
+                                  {aiScanLoading
+                                    ? 'Extracting reference number & amount…'
+                                    : activeAiResult?.receiptDate
+                                      ? `Transferred ${activeAiResult.receiptDate}`
+                                      : `${railLabel} payment screenshot attached`}
+                                </div>
+
+                                <div className="dt7-receipt-actions">
+                                  <button type="button" className="dt7-mini-btn" onClick={() => setPreviewReceiptModal(true)}>
+                                    <span className="material-symbols-outlined">zoom_in</span>
+                                    <span>View</span>
+                                  </button>
+                                  <label className="dt7-mini-btn">
+                                    <span className="material-symbols-outlined">sync</span>
+                                    <span>Replace</span>
+                                    <input type="file" accept="image/*" onChange={handleReceiptUpload} style={{ display: 'none' }} />
+                                  </label>
+                                </div>
+                              </div>
                             </div>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const rawNum = gatewayMethod === 'Maya'
-                                  ? (camp.mayaNumber || camp.maya_number || '09187654321')
-                                  : (camp.gcashNumber || camp.gcash_number || '09178901234');
-                                const targetNumber = formatPhoneNumber(rawNum);
-                                const cleanNum = targetNumber.replace(/\s+/g, '');
-                                navigator.clipboard.writeText(cleanNum);
-                                showSuccess?.(`${gatewayMethod} number ${cleanNum} copied to clipboard!`, 'Number Copied');
-                              }}
-                              style={{
-                                background: gatewayMethod === 'Maya' ? 'rgba(0, 214, 143, 0.2)' : 'rgba(34, 197, 94, 0.2)',
-                                border: gatewayMethod === 'Maya' ? '1px solid rgba(0, 214, 143, 0.5)' : '1px solid rgba(34, 197, 94, 0.4)',
-                                color: gatewayMethod === 'Maya' ? '#00d68f' : '#22c55e',
-                                cursor: 'pointer',
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: '4px',
-                                padding: '5px 8px',
-                                borderRadius: '6px',
-                                fontSize: '0.72rem',
-                                fontWeight: 700,
-                                whiteSpace: 'nowrap',
-                                flexShrink: 0
-                              }}
-                              title="Copy Number to Clipboard"
-                            >
-                              <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>content_copy</span>
-                              Copy
-                            </button>
+                          ) : (
+                            <label className="dt7-dropzone">
+                              <span className="dt7-dropzone-ico">
+                                <span className="material-symbols-outlined">add_photo_alternate</span>
+                              </span>
+                              <span className="dt7-dropzone-title">Upload {railLabel} receipt screenshot</span>
+                              <span className="dt7-dropzone-sub">PNG, JPG, or WebP · AI automatically reads amount &amp; reference no.</span>
+                              <input
+                                ref={receiptFileInputRef}
+                                type="file"
+                                accept="image/*"
+                                onChange={handleReceiptUpload}
+                                style={{ display: 'none' }}
+                              />
+                            </label>
+                          )}
+
+                          {/* Compact AI Alert Box (Only shown if flagged / review needed) */}
+                          {activeAiResult && !aiScanLoading && (() => {
+                            const isInvalidDoc = activeAiResult.isPaymentReceipt === false || activeAiResult.confidenceScore === 0;
+                            const isVerifiedClean = !hasHardFraud && !isInvalidDoc && (Boolean(activeAiResult.isAiVerified) || activeAiResult.confidenceScore >= 60);
+                            if (isVerifiedClean && (!activeAiResult.fraudFlags || activeAiResult.fraudFlags.every(f => !f.includes('REJECTION') && !f.includes('MISMATCH') && !f.includes('EXPIRED') && !f.includes('TAMPERED') && !f.includes('SUSPICIOUS')))) {
+                              return null;
+                            }
+                            const isPendingManual = !isVerifiedClean && !hasHardFraud && isInvalidDoc && isValidManualRef;
+                            return (
+                              <div className={`dt7-ai-alert${isPendingManual ? ' is-warn' : ' is-err'}`}>
+                                <div className="dt7-ai-alert-head">
+                                  <span className="material-symbols-outlined">
+                                    {isPendingManual ? 'pending_actions' : 'warning'}
+                                  </span>
+                                  <span>
+                                    {isPendingManual ? 'Queued for Manual NGO Review' : 'Receipt Verification Alert'}
+                                  </span>
+                                </div>
+                                {activeAiResult.fraudFlags && activeAiResult.fraudFlags.length > 0 && (
+                                  <ul className="dt7-ai-flags">
+                                    {activeAiResult.fraudFlags.map((flag, fIdx) => (
+                                      <li key={fIdx}>{flag}</li>
+                                    ))}
+                                  </ul>
+                                )}
+                                {hasHardFraud && (
+                                  <div className="dt7-ai-note">Please upload an authentic, recent payment screenshot to proceed.</div>
+                                )}
+                              </div>
+                            );
+                          })()}
+                        </div>
+
+                        {/* Side-by-Side Amount & Reference Inputs */}
+                        <div className="dt7-fields-row">
+                          <div className="dt7-field dt7-field--amt">
+                            <label className="dt7-field-lbl" htmlFor="dt7-amt-input">Amount (PHP)</label>
+                            <div className="dt7-input-wrap">
+                              <span className="dt7-input-prefix">₱</span>
+                              <input
+                                id="dt7-amt-input"
+                                type="text"
+                                inputMode="decimal"
+                                className="dt7-input dt7-input--amt"
+                                value={formattedStep7Amount}
+                                onChange={(e) => {
+                                  const cleaned = e.target.value.replace(/,/g, '').replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');
+                                  setAmount(cleaned);
+                                }}
+                                placeholder="0"
+                                autoComplete="off"
+                              />
+                            </div>
                           </div>
 
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span style={{ color: 'var(--text-muted, #94a3b8)', whiteSpace: 'nowrap' }}>Transfer Fee:</span>
-                            <span style={{ color: '#22c55e', fontWeight: 700, whiteSpace: 'nowrap' }}>₱0.00 (Zero Fee)</span>
+                          <div className="dt7-field dt7-field--ref">
+                            <label className="dt7-field-lbl" htmlFor="dt7-ref-input">{railLabel} Reference No.</label>
+                            <div className="dt7-input-wrap">
+                              <input
+                                id="dt7-ref-input"
+                                type="text"
+                                className="dt7-input pp-mono"
+                                value={refNumber || gatewayRefNo || ''}
+                                onChange={(e) => handleReferenceChange(e.target.value)}
+                                maxLength={gatewayMethod === 'GCash' ? 15 : (gatewayMethod === 'Maya' ? 16 : 24)}
+                                placeholder={isMaya ? "9012 3456 7890" : "0044 579 175068"}
+                                autoComplete="off"
+                              />
+                            </div>
                           </div>
                         </div>
 
+                        {/* Clean Inline Anonymous Switch */}
+                        <label className="vc-anon-row">
+                          <span className="vc-anon-copy">
+                            <span className="vc-anon-title">Donate anonymously</span>
+                            <span className="vc-anon-sub">Hide your name on the public campaign ledger</span>
+                          </span>
+                          <span className={`vc-switch${isAnonymous ? ' is-on' : ''}`}>
+                            <input
+                              type="checkbox"
+                              checked={isAnonymous}
+                              onChange={(e) => setIsAnonymous(e.target.checked)}
+                            />
+                            <span className="vc-switch-thumb" />
+                          </span>
+                        </label>
+
+                        {/* Mismatch / Duplicate Banners */}
+                        {railMismatchWarning && (
+                          <div className="dt7-ai-alert is-err">
+                            <div className="dt7-ai-alert-head">
+                              <span className="material-symbols-outlined">published_with_changes</span>
+                              <span>Rail Mismatch</span>
+                            </div>
+                            <div className="dt7-ai-note">{railMismatchWarning}</div>
+                          </div>
+                        )}
+                        {duplicateRefWarning && (
+                          <div className="dt7-ai-alert is-err">
+                            <div className="dt7-ai-alert-head">
+                              <span className="material-symbols-outlined">warning</span>
+                              <span>Duplicate Receipt</span>
+                            </div>
+                            <div className="dt7-ai-note">{duplicateRefWarning}</div>
+                          </div>
+                        )}
                       </div>
                     </div>
 
-                    {/* Right Column: Submission Form (Amount, Ref No., Receipt Upload) */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                      {(() => {
-                        const isMaya = gatewayMethod === 'Maya';
-                        const railColor = isMaya ? '#00D68F' : '#007DFE';
-                        const railBgLight = isMaya ? 'rgba(0, 214, 143, 0.12)' : 'rgba(0, 125, 254, 0.12)';
-                        const railBorder = isMaya ? 'rgba(0, 214, 143, 0.35)' : 'rgba(0, 125, 254, 0.35)';
-                        const railGradient = isMaya
-                          ? 'linear-gradient(135deg, #00D68F 0%, #00B377 100%)'
-                          : 'linear-gradient(135deg, #007DFE 0%, #0052FF 100%)';
-                        const railShadow = isMaya
-                          ? '0 4px 16px rgba(0, 214, 143, 0.35)'
-                          : '0 4px 16px rgba(0, 125, 254, 0.35)';
+                    {/* Flush Recessed Footer */}
+                    <div className="qr8-footer dt7-footer">
+                      <div className="dt7-footer-left">
+                        <button
+                          type="button"
+                          className="qr8-back-btn"
+                          disabled={gatewayLoading}
+                          onClick={() => {
+                            handleRemoveProof();
+                            setDonateStep(0);
+                          }}
+                        >
+                          <span className="material-symbols-outlined">arrow_back</span>
+                          <span>Back</span>
+                        </button>
+                        <span className="dt7-trust-inline">
+                          <span className="material-symbols-outlined">verified_user</span>
+                          <span>BSP Supervised · Sepolia Audited</span>
+                        </span>
+                      </div>
 
-                        return (
-                          <div style={{ background: 'var(--bg-card)', padding: '20px', borderRadius: 'var(--radius-lg, 14px)', border: '1px solid var(--border)' }}>
-
-                            {/* 1. Amount Input */}
-                            <div style={{ marginBottom: '14px' }}>
-                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                                <label style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                                  1. Donation Amount (PHP)
-                                </label>
-                                <span style={{ fontSize: '0.74rem', color: '#10b981', fontWeight: 600 }}>
-                                  0% Fee · Sepolia Audited
-                                </span>
-                              </div>
-
-                              <div style={{ position: 'relative' }}>
-                                <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', fontWeight: 800, color: 'var(--accent)', fontSize: '1.1rem' }}>₱</span>
-                                <input
-                                  type="number"
-                                  className="input"
-                                  style={{ width: '100%', paddingLeft: '32px', fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-primary)', borderRadius: 'var(--radius-md, 8px)' }}
-                                  value={amount}
-                                  onChange={(e) => setAmount(e.target.value)}
-                                  placeholder="500"
-                                  min="1"
-                                />
-                              </div>
-
-                              {/* Quick Preset Chips */}
-                              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '8px' }}>
-                                {['100', '500', '1000', '2500', '5000'].map((preset) => (
-                                  <button
-                                    key={preset}
-                                    type="button"
-                                    className="payment-quick-msg-chip"
-                                    style={{
-                                      background: amount === preset ? 'var(--accent)' : 'var(--bg-hover)',
-                                      borderColor: amount === preset ? 'var(--accent)' : 'var(--border)',
-                                      color: amount === preset ? 'var(--bg-base)' : 'var(--text-primary)',
-                                      fontWeight: 600,
-                                      fontSize: '0.75rem',
-                                      padding: '4px 10px',
-                                      borderRadius: 'var(--radius-sm, 6px)',
-                                      cursor: 'pointer'
-                                    }}
-                                    onClick={() => setAmount(preset)}
-                                  >
-                                    ₱{Number(preset).toLocaleString()}
-                                  </button>
-                                ))}
-                              </div>
-                            </div>
-
-                            {/* 2. Reference Number Input */}
-                            <div style={{ marginBottom: '14px' }}>
-                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                                <label style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                                  2. {gatewayMethod} Reference Number
-                                </label>
-                                <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '3px', fontFamily: 'var(--font-mono)' }}>
-                                  <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>auto_awesome</span>
-                                  AI Auto-Fill
-                                </span>
-                              </div>
-                              <div style={{ position: 'relative' }}>
-                                <span className="material-symbols-outlined" style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', fontSize: '18px' }}>
-                                  pin
-                                </span>
-                                <input
-                                  type="text"
-                                  className="input"
-                                  style={{
-                                    width: '100%', paddingLeft: '38px', fontSize: '0.92rem', fontFamily: 'var(--font-mono)', fontWeight: 700, borderRadius: 'var(--radius-md, 8px)',
-                                    borderColor: (refNumber || gatewayRefNo) ? 'var(--border-strong)' : 'var(--border)'
-                                  }}
-                                  value={refNumber || gatewayRefNo || ''}
-                                  onChange={(e) => handleReferenceChange(e.target.value)}
-                                  maxLength={gatewayMethod === 'GCash' ? 15 : (gatewayMethod === 'Maya' ? 16 : 24)}
-                                  placeholder={isMaya ? "e.g. 9012 3456 7890" : "e.g. 0044 579 175068"}
-                                />
-                              </div>
-                            </div>
-
-                            {/* 3. Screenshot / Receipt Upload & Preview */}
-                            <div style={{ marginBottom: '16px' }}>
-                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                                <label style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                                  3. Payment Screenshot / Proof
-                                </label>
-                              </div>
-
-                              {receiptBase64 ? (
-                                <>
-                                  <div style={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '14px',
-                                    padding: '12px 14px',
-                                    borderRadius: '12px',
-                                    background: 'var(--bg-subcard, rgba(255, 255, 255, 0.03))',
-                                    border: '1px solid var(--border, rgba(255, 255, 255, 0.08))',
-                                    position: 'relative'
-                                  }}>
-                                    {/* Thumbnail with Click-to-Enlarge Overlay */}
-                                    <div
-                                      onClick={() => setPreviewReceiptModal(true)}
-                                      style={{
-                                        position: 'relative',
-                                        width: '64px',
-                                        height: '84px',
-                                        borderRadius: '8px',
-                                        overflow: 'hidden',
-                                        flexShrink: 0,
-                                        border: '1px solid var(--border)',
-                                        background: '#000',
-                                        cursor: 'pointer'
-                                      }}
-                                      title="Click to view full receipt"
-                                    >
-                                      <img
-                                        src={receiptBase64}
-                                        alt="Payment Proof"
-                                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                                      />
-                                      <div
-                                        style={{
-                                          position: 'absolute',
-                                          inset: 0,
-                                          background: 'rgba(0, 0, 0, 0.4)',
-                                          display: 'flex',
-                                          alignItems: 'center',
-                                          justifyContent: 'center',
-                                          opacity: 0,
-                                          transition: 'opacity 0.2s ease'
-                                        }}
-                                        onMouseEnter={(e) => { e.currentTarget.style.opacity = '1'; }}
-                                        onMouseLeave={(e) => { e.currentTarget.style.opacity = '0'; }}
-                                      >
-                                        <span className="material-symbols-outlined" style={{ fontSize: '20px', color: '#fff' }}>zoom_in</span>
-                                      </div>
-                                    </div>
-
-                                    {/* Receipt Meta & Verification Status */}
-                                    <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                                        <span className="material-symbols-outlined" style={{
-                                          fontSize: '16px',
-                                          color: (activeAiResult && (activeAiResult.isPaymentReceipt === false || activeAiResult.confidenceScore === 0))
-                                            ? 'var(--danger, #e00000)'
-                                            : (activeAiResult && activeAiResult.isAiVerified
-                                                ? 'var(--accent-green, #10b981)'
-                                                : (aiScanLoading ? '#38bdf8' : 'var(--text-muted, #94a3b8)'))
-                                        }}>
-                                          {aiScanLoading ? 'hourglass_top' : (activeAiResult && (activeAiResult.isPaymentReceipt === false || activeAiResult.confidenceScore === 0) ? 'error' : (activeAiResult && activeAiResult.isAiVerified ? 'check_circle' : 'receipt_long'))}
-                                        </span>
-                                        <span style={{ fontSize: '0.84rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                                          {aiScanLoading
-                                            ? 'Scanning Receipt with AI...'
-                                            : (activeAiResult && (activeAiResult.isPaymentReceipt === false || activeAiResult.confidenceScore === 0)
-                                                ? (activeAiResult.fraudFlags?.some(f => f.includes('EXPIRED'))
-                                                    ? 'Expired Receipt Slip'
-                                                    : (activeAiResult.fraudFlags?.some(f => f.includes('TAMPERED') || f.includes('INVALID_RECEIPT'))
-                                                        ? 'Tampered / Edited Slip Detected'
-                                                        : (activeAiResult.fraudFlags?.some(f => f.includes('RECIPIENT'))
-                                                            ? 'Wrong Recipient Account'
-                                                            : 'Non-Receipt / Invalid Image')))
-                                                : (activeAiResult && activeAiResult.isAiVerified
-                                                    ? 'Verified Payment Receipt'
-                                                    : (activeAiResult?.fraudFlags?.some(f => f.includes('HIGH_VALUE'))
-                                                        ? 'High-Value Donation (Secondary Audit Required)'
-                                                        : 'Official Payment Slip Attached')))}
-                                        </span>
-                                        {activeAiResult && activeAiResult.confidenceScore > 0 && !aiScanLoading && (
-                                          <span style={{
-                                            fontSize: '0.66rem',
-                                            fontWeight: 700,
-                                            padding: '2px 8px',
-                                            borderRadius: '6px',
-                                            background: activeAiResult.isAiVerified
-                                              ? 'rgba(16, 185, 129, 0.15)'
-                                              : (activeAiResult.fraudFlags?.some(f => f.includes('HIGH_VALUE'))
-                                                  ? 'rgba(239, 68, 68, 0.15)'
-                                                  : 'rgba(245, 158, 11, 0.15)'),
-                                            color: activeAiResult.isAiVerified
-                                              ? '#10b981'
-                                              : (activeAiResult.fraudFlags?.some(f => f.includes('HIGH_VALUE'))
-                                                  ? '#ef4444'
-                                                  : '#f59e0b')
-                                          }}>
-                                            {activeAiResult.isAiVerified
-                                              ? `✓ AI Verified (${activeAiResult.confidenceScore}%)`
-                                              : (activeAiResult.fraudFlags?.some(f => f.includes('HIGH_VALUE'))
-                                                  ? 'Secondary Audit Required'
-                                                  : 'Review Needed')}
-                                          </span>
-                                        )}
-                                      </div>
-
-                                      <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                                        {aiScanLoading ? (
-                                          <span style={{ color: '#38bdf8' }}>Gemini AI inspecting transaction details...</span>
-                                        ) : activeAiResult?.receiptDate ? (
-                                          <span>
-                                            Transferred on <strong style={{ color: 'var(--text-primary)' }}>{activeAiResult.receiptDate}</strong> • {activeAiResult.isAiVerified
-                                              ? 'Verified by Gemini AI'
-                                              : (activeAiResult.fraudFlags?.some(f => f.includes('EXPIRED'))
-                                                  ? 'Flagged by Gemini AI (Expired)'
-                                                  : (activeAiResult.fraudFlags?.some(f => f.includes('TAMPERED') || f.includes('INVALID_RECEIPT'))
-                                                      ? 'Flagged by Gemini AI (Tampered / Altered)'
-                                                      : (activeAiResult.fraudFlags?.some(f => f.includes('HIGH_VALUE'))
-                                                          ? 'High-Value Guardrail Enforced'
-                                                          : (activeAiResult.fraudFlags?.some(f => f.includes('RECIPIENT'))
-                                                              ? 'Flagged by Gemini AI (Wrong Recipient)'
-                                                              : 'Flagged by Gemini AI'))))}
-                                          </span>
-                                        ) : (
-                                          <span>Official {gatewayMethod || 'payment'} slip attached • {activeAiResult?.isAiVerified ? 'Auto-verified' : 'Under Review'}</span>
-                                        )}
-                                      </div>
-
-                                      {/* Quick Action Pills */}
-                                      <div style={{ display: 'flex', gap: '8px', marginTop: '6px', alignItems: 'center' }}>
-                                        <button
-                                          type="button"
-                                          onClick={() => setPreviewReceiptModal(true)}
-                                          style={{
-                                            background: 'var(--bg-card)',
-                                            border: '1px solid var(--border)',
-                                            borderRadius: '6px',
-                                            padding: '3px 9px',
-                                            fontSize: '0.7rem',
-                                            color: 'var(--text-secondary)',
-                                            cursor: 'pointer',
-                                            display: 'inline-flex',
-                                            alignItems: 'center',
-                                            gap: '4px',
-                                            fontWeight: 600
-                                          }}
-                                        >
-                                          <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>zoom_in</span>
-                                          View Full
-                                        </button>
-
-                                        <label style={{
-                                          background: 'var(--bg-card)',
-                                          border: '1px solid var(--border)',
-                                          borderRadius: '6px',
-                                          padding: '3px 9px',
-                                          fontSize: '0.7rem',
-                                          color: 'var(--text-secondary)',
-                                          cursor: 'pointer',
-                                          display: 'inline-flex',
-                                          alignItems: 'center',
-                                          gap: '4px',
-                                          fontWeight: 600
-                                        }}>
-                                          <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>sync</span>
-                                          Replace
-                                          <input
-                                            type="file"
-                                            accept="image/*"
-                                            onChange={handleReceiptUpload}
-                                            style={{ display: 'none' }}
-                                          />
-                                        </label>
-                                      </div>
-                                    </div>
-                                  </div>
-
-                                {/* AI Receipt Vision Inspection Card (Module A) */}
-                                {aiScanLoading && (
-                                  <div className="ai-scanner-shimmer-box" style={{ marginTop: '10px' }}>
-                                    <div className="ai-scanner-shimmer-line" />
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                      <div style={{
-                                        width: '32px',
-                                        height: '32px',
-                                        borderRadius: '8px',
-                                        background: 'rgba(56, 189, 248, 0.18)',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        flexShrink: 0
-                                      }}>
-                                        <span className="material-symbols-outlined spin" style={{ fontSize: '20px', color: '#38bdf8' }}>
-                                          progress_activity
-                                        </span>
-                                      </div>
-                                      <div style={{ flex: 1 }}>
-                                        <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#38bdf8', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                          <span>Gemini AI Vision Scanning...</span>
-                                          <span className="ai-scanning-pulse-dot" />
-                                        </div>
-                                        <div style={{ fontSize: '0.7rem', color: '#94a3b8', marginTop: '2px' }}>
-                                          Extracting reference number & validating declared amount
-                                        </div>
-                                      </div>
-                                    </div>
-                                  </div>
-                                )}
-
-                                {activeAiResult && !aiScanLoading && (() => {
-                                  const hasEnteredRef = Boolean((refNumber || gatewayRefNo || '').trim());
-                                  const isInvalidDoc = activeAiResult.isPaymentReceipt === false || activeAiResult.confidenceScore === 0;
-
-                                  // Hard fraud violations that strictly CANNOT be bypassed by manual typing
-                                  const isExpiredReceipt = Boolean(activeAiResult.fraudFlags?.some(f => f.includes('EXPIRED_RECEIPT')));
-                                  const isTamperedReceipt = Boolean(activeAiResult.fraudFlags?.some(f => f.includes('TAMPERED')));
-                                  const isRecipientMismatch = Boolean(activeAiResult.fraudFlags?.some(f => f.includes('RECIPIENT_MISMATCH') || f.includes('RECIPIENT_NAME_MISMATCH') || f.includes('RECIPIENT_PHONE_MISMATCH')));
-                                  const isSuspiciousRef = Boolean(activeAiResult.fraudFlags?.some(f => f.includes('SUSPICIOUS_REFERENCE_SEQUENCE')));
-                                  const hasHardFraud = Boolean(
-                                    railMismatchWarning || 
-                                    duplicateRefWarning || 
-                                    isExpiredReceipt || 
-                                    isTamperedReceipt || 
-                                    isRecipientMismatch || 
-                                    isSuspiciousRef ||
-                                    activeAiResult.fraudFlags?.some(f => f.includes('PAYMENT_RAIL_MISMATCH') || f.includes('RAIL_MISMATCH') || f.includes('DUPLICATE'))
-                                  );
-
-                                  const isVerifiedCard = !hasHardFraud && !isInvalidDoc && (Boolean(activeAiResult.isAiVerified) || activeAiResult.confidenceScore >= 60);
-
-                                  // If cleanly verified and no hard fraud, suppress the redundant duplicate box (all details are displayed in form & receipt header)
-                                  if (isVerifiedCard && (!activeAiResult.fraudFlags || activeAiResult.fraudFlags.every(f => !f.includes('REJECTION') && !f.includes('MISMATCH') && !f.includes('EXPIRED') && !f.includes('TAMPERED') && !f.includes('SUSPICIOUS')))) {
-                                    return null;
-                                  }
-
-                                  // Clean digits check: for GCash, manual ref must be 13 digits
-                                  const cleanDigits = (refNumber || gatewayRefNo || '').replace(/\D/g, '');
-                                  const isValidManualRef = gatewayMethod === 'GCash' ? cleanDigits.length === 13 : hasEnteredRef && (refNumber || gatewayRefNo || '').trim().length >= 8;
-
-                                  // Manual audit pending is ONLY allowed if there is NO hard fraud (not expired, not tampered, not mismatched rail)
-                                  // and user provided a validly formatted reference number
-                                  const isManualAuditPending = !isVerifiedCard && !hasHardFraud && isInvalidDoc && isValidManualRef;
-                                  const isSoftNotice = !hasHardFraud && !isInvalidDoc && activeAiResult.confidenceScore >= 60;
-
-                                  const cardBg = isVerifiedCard
-                                    ? 'rgba(16, 185, 129, 0.08)'
-                                    : (isSoftNotice ? 'rgba(56, 189, 248, 0.08)' : (isManualAuditPending ? 'rgba(245, 158, 11, 0.08)' : 'rgba(224, 0, 0, 0.08)'));
-                                  const cardBorder = isVerifiedCard
-                                    ? 'rgba(16, 185, 129, 0.35)'
-                                    : (isSoftNotice ? 'rgba(56, 189, 248, 0.35)' : (isManualAuditPending ? 'rgba(245, 158, 11, 0.35)' : 'rgba(224, 0, 0, 0.35)'));
-                                  const cardColor = isVerifiedCard
-                                    ? 'var(--accent-green, #10b981)'
-                                    : (isSoftNotice ? '#38bdf8' : (isManualAuditPending ? '#f59e0b' : 'var(--danger, #e00000)'));
-                                  const cardIcon = isVerifiedCard
-                                    ? 'verified'
-                                    : (isSoftNotice ? 'info' : (isManualAuditPending ? 'pending_actions' : (isInvalidDoc ? 'cancel' : 'warning')));
-
-                                  let cardTitle = '';
-                                  if (isVerifiedCard) {
-                                    cardTitle = `AI Verified (${activeAiResult.confidenceScore || 95}%)`;
-                                  } else if (isSoftNotice) {
-                                    cardTitle = `AI Verification Notice (${activeAiResult.confidenceScore}%)`;
-                                  } else if (isManualAuditPending) {
-                                    cardTitle = 'Manual NGO Audit Queued';
-                                  } else if (isExpiredReceipt) {
-                                    cardTitle = 'AI Rejection: Expired Receipt (0%)';
-                                  } else if (isTamperedReceipt) {
-                                    cardTitle = 'AI Rejection: Tampered Image (0%)';
-                                  } else if (isRecipientMismatch) {
-                                    cardTitle = 'AI Rejection: Wrong Recipient / Account (0%)';
-                                  } else if (isSuspiciousRef) {
-                                    cardTitle = 'AI Rejection: Artificial Ref Number (0%)';
-                                  } else if (isInvalidDoc) {
-                                    cardTitle = 'AI Rejection: Invalid Receipt Image (0%)';
-                                  } else {
-                                    cardTitle = `AI Verification Alert (${activeAiResult.confidenceScore || 35}%)`;
-                                  }
-
-                                  return (
-                                    <div style={{
-                                      marginTop: '8px',
-                                      padding: '12px 14px',
-                                      borderRadius: 'var(--radius-lg, 12px)',
-                                      background: cardBg,
-                                      border: `1px solid ${cardBorder}`,
-                                      display: 'flex',
-                                      flexDirection: 'column',
-                                      gap: '8px'
-                                    }}>
-                                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                          <span className="material-symbols-outlined" style={{
-                                            fontSize: '18px',
-                                            color: cardColor
-                                          }}>
-                                            {cardIcon}
-                                          </span>
-                                          <span style={{
-                                            fontWeight: 700,
-                                            fontSize: '0.80rem',
-                                            color: cardColor,
-                                            fontFamily: 'var(--font-sans)'
-                                          }}>
-                                            {cardTitle}
-                                          </span>
-                                        </div>
-                                        <span style={{ fontSize: '0.66rem', background: 'var(--bg-hover)', border: '1px solid var(--border)', padding: '2px 8px', borderRadius: 'var(--radius-pill)', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
-                                          Gemini AI + OCR
-                                        </span>
-                                      </div>
-
-                                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '6px', fontSize: '0.74rem' }}>
-                                        {(activeAiResult.extractedRef || (hasEnteredRef && isManualAuditPending)) && (
-                                          <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', padding: '6px 10px', borderRadius: 'var(--radius-sm, 6px)' }}>
-                                            <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '0.64rem', fontWeight: 600 }}>{activeAiResult.extractedRef ? 'EXTRACTED REF:' : 'MANUAL REF:'}</span>
-                                            <span style={{ color: 'var(--text-primary)', fontWeight: 700, fontFamily: 'var(--font-mono)' }}>#{activeAiResult.extractedRef || refNumber || gatewayRefNo}</span>
-                                          </div>
-                                        )}
-                                        {Boolean(activeAiResult.extractedAmountPhp && Number(activeAiResult.extractedAmountPhp) > 0) && (
-                                          <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', padding: '6px 10px', borderRadius: 'var(--radius-sm, 6px)' }}>
-                                            <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '0.64rem', fontWeight: 600 }}>EXTRACTED AMOUNT:</span>
-                                            <span style={{ color: 'var(--accent-green, #10b981)', fontWeight: 700, fontFamily: 'var(--font-mono)' }}>₱{Number(activeAiResult.extractedAmountPhp).toLocaleString()} PHP</span>
-                                          </div>
-                                        )}
-                                      </div>
-
-                                      {Boolean(activeAiResult.fraudFlags && activeAiResult.fraudFlags.length > 0) && (
-                                        <div style={{ fontSize: '0.72rem', color: isManualAuditPending ? '#f59e0b' : 'var(--danger, #e00000)', marginTop: '2px', lineHeight: '1.4' }}>
-                                          {activeAiResult.fraudFlags.map((flag, fIdx) => (
-                                            <div key={fIdx}>• {flag}</div>
-                                          ))}
-                                          {isManualAuditPending && (
-                                            <div style={{ marginTop: '4px', color: 'var(--text-secondary)' }}>
-                                              ℹ️ Don't worry, your donation will be submitted for manual NGO review using the reference number you provided.
-                                            </div>
-                                          )}
-                                          {hasHardFraud && (
-                                            <div style={{ marginTop: '4px', color: 'var(--danger, #fca5a5)', fontWeight: 600 }}>
-                                              ⚠️ This receipt cannot be accepted. Please upload an authentic, recent payment slip to proceed with your donation.
-                                            </div>
-                                          )}
-                                        </div>
-                                      )}
-                                    </div>
-                                  );
-                                })()}
-                              </>
-                            ) : (
-                                <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '16px', border: `1.5px dashed ${railBorder}`, borderRadius: '12px', cursor: 'pointer', background: railBgLight, transition: '0.2s' }}>
-                                  <span className="material-symbols-outlined" style={{ fontSize: '26px', color: railColor, marginBottom: '4px' }}>
-                                    add_photo_alternate
-                                  </span>
-                                  <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-primary, #ffffff)' }}>
-                                    Upload Receipt Screenshot
-                                  </span>
-                                  <span style={{ fontSize: '0.68rem', color: 'var(--text-muted, #94a3b8)', marginTop: '2px' }}>
-                                    PNG, JPG or WebP confirmation screenshot from your payment app
-                                  </span>
-                                  <input
-                                    ref={receiptFileInputRef}
-                                    type="file"
-                                    accept="image/*"
-                                    onChange={handleReceiptUpload}
-                                    style={{ display: 'none' }}
-                                  />
-                                </label>
-                              )}
-                            </div>
-
-                            {/* Anonymous Toggle for GCash & Maya */}
-                            <div
-                              onClick={() => setIsAnonymous(!isAnonymous)}
-                              style={{
-                                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                                padding: '10px 14px', background: isAnonymous ? railBgLight : 'var(--bg-card, rgba(255,255,255,0.02))',
-                                border: `1px solid ${isAnonymous ? railColor : 'var(--border, rgba(255,255,255,0.08))'}`,
-                                borderRadius: '12px', cursor: 'pointer', transition: 'all 0.2s ease', userSelect: 'none', marginBottom: '14px'
-                              }}
-                            >
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                <div style={{
-                                  width: '32px', height: '32px', borderRadius: '50%',
-                                  background: isAnonymous ? railBgLight : 'rgba(255,255,255,0.05)',
-                                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                  color: isAnonymous ? railColor : 'var(--text-muted, #94a3b8)',
-                                  transition: 'all 0.2s ease'
-                                }}>
-                                  <span className="material-symbols-outlined" style={{ fontSize: '1.15rem' }}>visibility_off</span>
-                                </div>
-                                <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                  <span style={{ fontSize: '0.84rem', fontWeight: '700', color: isAnonymous ? railColor : 'var(--text-primary, #fff)' }}>
-                                    {isAnonymous ? `Anonymous ${gatewayMethod} Donation` : 'Donate Anonymously'}
-                                  </span>
-                                  <span style={{ fontSize: '0.7rem', color: 'var(--text-muted, #94a3b8)' }}>
-                                    {isAnonymous ? 'Name hidden from public list' : 'Hide name on public donor list'}
-                                  </span>
-                                </div>
-                              </div>
-                              <div style={{
-                                width: '38px', height: '20px', borderRadius: '20px',
-                                background: isAnonymous ? railColor : 'rgba(255,255,255,0.15)',
-                                position: 'relative', transition: '0.2s', flexShrink: 0
-                              }}>
-                                <div style={{
-                                  width: '16px', height: '16px', background: '#fff', borderRadius: '50%',
-                                  position: 'absolute', top: '2px', left: isAnonymous ? '20px' : '2px',
-                                  transition: '0.2s', boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
-                                }} />
-                              </div>
-                            </div>
-
-                            {/* Payment Rail Mismatch Alert Banner */}
-                            {railMismatchWarning && (
-                              <div style={{
-                                background: 'rgba(239, 68, 68, 0.15)',
-                                border: '1.5px solid rgba(239, 68, 68, 0.5)',
-                                borderRadius: '10px',
-                                padding: '10px 14px',
-                                marginBottom: '14px',
-                                color: '#fca5a5',
-                                fontSize: '0.8rem',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '8px'
-                              }}>
-                                <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#ef4444', flexShrink: 0 }}>published_with_changes</span>
-                                <span><strong>Rail Discrepancy Alert:</strong> {railMismatchWarning}</span>
-                              </div>
-                            )}
-
-                            {/* Duplicate Receipt Alert Banner */}
-                            {duplicateRefWarning && (
-                              <div style={{
-                                background: 'rgba(239, 68, 68, 0.12)',
-                                border: '1px solid rgba(239, 68, 68, 0.4)',
-                                borderRadius: '10px',
-                                padding: '10px 14px',
-                                marginBottom: '14px',
-                                color: '#ef4444',
-                                fontSize: '0.8rem',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '8px'
-                              }}>
-                                <span className="material-symbols-outlined" style={{ fontSize: '18px', flexShrink: 0 }}>warning</span>
-                                <span><strong>Duplicate Receipt Alert:</strong> {duplicateRefWarning}</span>
-                              </div>
-                            )}
-
-                            {/* Action Buttons */}
-                            <div style={{ display: 'flex', gap: '10px' }}>
-                              <button
-                                className="btn btn-outline"
-                                style={{ flex: 1 }}
-                                onClick={() => {
-                                  handleRemoveProof();
-                                  setDonateStep(0);
-                                }}
-                                disabled={gatewayLoading}
-                              >
-                                Back
-                              </button>
-                              {(() => {
-                                const hasEnteredRef = Boolean((refNumber || gatewayRefNo || '').trim());
-                                const isReceiptInvalid = activeAiResult && (activeAiResult.isPaymentReceipt === false || activeAiResult.confidenceScore === 0 || activeAiResult.fraudFlags?.some(f => f.includes('INVALID_RECEIPT')));
-                                const isExpiredReceipt = Boolean(activeAiResult?.fraudFlags?.some(f => f.includes('EXPIRED_RECEIPT')));
-                                const isTamperedReceipt = Boolean(activeAiResult?.fraudFlags?.some(f => f.includes('TAMPERED')));
-                                const isRecipientMismatch = Boolean(activeAiResult?.fraudFlags?.some(f => f.includes('RECIPIENT_MISMATCH') || f.includes('RECIPIENT_NAME_MISMATCH') || f.includes('RECIPIENT_PHONE_MISMATCH')));
-                                const isSuspiciousRef = Boolean(activeAiResult?.fraudFlags?.some(f => f.includes('SUSPICIOUS_REFERENCE_SEQUENCE')));
-                                const hasHardFraud = Boolean(
-                                  duplicateRefWarning || 
-                                  railMismatchWarning || 
-                                  isExpiredReceipt || 
-                                  isTamperedReceipt ||
-                                  isRecipientMismatch ||
-                                  isSuspiciousRef ||
-                                  activeAiResult?.fraudFlags?.some(f => f.includes('PAYMENT_RAIL_MISMATCH') || f.includes('RAIL_MISMATCH') || f.includes('DUPLICATE'))
-                                );
-
-                                const cleanDigits = (refNumber || gatewayRefNo || '').replace(/\D/g, '');
-                                const isValidManualRef = gatewayMethod === 'GCash' ? cleanDigits.length === 13 : hasEnteredRef && (refNumber || gatewayRefNo || '').trim().length >= 8;
-
-                                const isManualAuditPending = !hasHardFraud && isReceiptInvalid && isValidManualRef;
-                                const isBlocked = hasHardFraud || (isReceiptInvalid && !isValidManualRef);
-                                const isSubmitDisabled = gatewayLoading || !amount || parseFloat(amount) <= 0 || !hasEnteredRef || !receiptBase64 || isBlocked;
-
-                                return (
-                                  <div style={{ flex: 2, display: 'flex', width: '100%', cursor: isSubmitDisabled ? 'not-allowed' : 'default' }}>
-                                    <button
-                                      type="button"
-                                      className="btn"
-                                      style={{
-                                        width: '100%', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '0.90rem', padding: '12px',
-                                        background: isBlocked ? 'rgba(224, 0, 0, 0.12)' : (isManualAuditPending ? '#f59e0b' : 'var(--text-primary)'),
-                                        color: isBlocked ? 'var(--danger, #e00000)' : (isManualAuditPending ? '#000000' : 'var(--bg-base)'),
-                                        fontWeight: 700, borderRadius: 'var(--radius-md, 8px)',
-                                        border: isBlocked ? '1px solid var(--danger, #e00000)' : (isManualAuditPending ? '1px solid #f59e0b' : '1px solid var(--text-primary)'),
-                                        boxShadow: 'var(--shadow-sm)',
-                                        cursor: isSubmitDisabled ? 'not-allowed' : 'pointer',
-                                        opacity: isSubmitDisabled ? 0.6 : 1
-                                      }}
-                                      onClick={isSubmitDisabled ? undefined : verifyGatewayPayment}
-                                      aria-disabled={isSubmitDisabled}
-                                    >
-                                      {gatewayLoading ? (
-                                        <>
-                                          <div className="spinner" style={{ width: '16px', height: '16px', borderWidth: '2px', borderColor: '#ffffff', borderTopColor: 'transparent' }} />
-                                          <span>Verifying & Recording...</span>
-                                        </>
-                                      ) : (
-                                        <>
-                                          <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>
-                                            {isBlocked ? 'block' : (isManualAuditPending ? 'assignment_turned_in' : 'check')}
-                                          </span>
-                                          <span>
-                                            {duplicateRefWarning
-                                              ? 'Duplicate Receipt Blocked'
-                                              : (railMismatchWarning
-                                                  ? 'Rail Mismatch Blocked'
-                                                  : (isExpiredReceipt
-                                                      ? 'Expired Receipt Blocked'
-                                                      : (isTamperedReceipt
-                                                          ? 'Tampered Image Blocked'
-                                                          : (isRecipientMismatch
-                                                              ? 'Recipient Mismatch Blocked'
-                                                              : (isSuspiciousRef
-                                                                  ? 'Artificial Ref Blocked'
-                                                                  : (isReceiptInvalid && !isValidManualRef
-                                                              ? (gatewayMethod === 'GCash' ? 'Enter 13-Digit Ref Number' : 'Enter Valid Reference Number')
-                                                              : (amount && parseFloat(amount) > 0
-                                                                  ? (isManualAuditPending
-                                                                      ? `Submit for Manual NGO Review (₱${Number(amount).toLocaleString()})`
-                                                                      : `Confirm & Submit (₱${Number(amount).toLocaleString()})`)
-                                                                  : 'Confirm & Submit')))))))}
-                                          </span>
-                                        </>
-                                      )}
-                                    </button>
-                                  </div>
-                                );
-                              })()}
-                            </div>
-
-                          </div>
-                        );
-                      })()}
+                      <button
+                        type="button"
+                        className={`dt7-submit-btn${isBlocked ? ' is-blocked' : ''}${isManualAuditPending ? ' is-warn' : ''}`}
+                        disabled={isSubmitDisabled}
+                        onClick={isSubmitDisabled ? undefined : verifyGatewayPayment}
+                      >
+                        {gatewayLoading ? (
+                          <>
+                            <span className="spinner" style={{ width: '14px', height: '14px', borderWidth: '2px' }} />
+                            <span>Verifying…</span>
+                          </>
+                        ) : (
+                          <>
+                            <span>{submitLabel}</span>
+                            <span className="material-symbols-outlined">
+                              {isBlocked ? 'block' : 'arrow_forward'}
+                            </span>
+                          </>
+                        )}
+                      </button>
                     </div>
-
                   </div>
-
-                  {/* Institutional Security Seals */}
-                  <div className="card-trust-seal-bar" style={{ marginTop: '16px' }}>
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                      <span className="material-symbols-outlined" style={{ fontSize: '14px', color: '#22c55e' }}>security</span>
-                      BSP Supervised
-                    </span>
-                    <span>•</span>
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                      <span className="material-symbols-outlined" style={{ fontSize: '14px', color: '#22c55e' }}>verified</span>
-                      QR Ph National Standard
-                    </span>
-                    <span>•</span>
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                      <span className="material-symbols-outlined" style={{ fontSize: '14px', color: '#22c55e' }}>lock</span>
-                      256-Bit SSL Encrypted
-                    </span>
-                  </div>
-
-                </div>
-              )}
+                );
+              })()}
 
             </div>
 
