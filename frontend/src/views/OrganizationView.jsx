@@ -3909,7 +3909,7 @@ export default function OrganizationView({
 
         {/* ── 4. DEPLOY CAMPAIGN TAB ── */}
         {activeTab === 'create' && (
-          <div style={{ marginTop: '8px' }} id="tour-ngo-create-form">
+          <div className="cc-centered-shell" id="tour-ngo-create-form">
             {/* Institutional Vercel Page Header */}
             <div className="admin-page-header" id="tour-ngo-create-header">
               <div className="admin-page-title-wrap">
@@ -3950,8 +3950,7 @@ export default function OrganizationView({
                 </div>
               </div>
             ) : (
-              <div className="cc-studio-layout fade-in">
-                <div className="deploy-campaign-card">
+              <div className="deploy-campaign-card fade-in">
                   {/* Flush 5-Step Underline Stepper Bar */}
                   <div className="deploy-stepper-bar" role="tablist" aria-label="Campaign creation steps">
                     {[
@@ -5925,125 +5924,6 @@ export default function OrganizationView({
                   </form>
                 </div>
 
-                {/* ── Right Column: Sticky Live Donor Card Preview & Readiness Checklist ── */}
-                <aside className="cc-preview-col" aria-label="Live campaign preview">
-                  <div className="cc-preview-card">
-                    <div className="cc-preview-bar">
-                      <span className="cc-preview-eyebrow">
-                        <span className="cc-preview-live-dot" />
-                        <span>Live Donor Preview</span>
-                      </span>
-                      <span className="cc-preview-step-tag">Step {deployStep}/5</span>
-                    </div>
-
-                    {/* Cover Image Stage */}
-                    <div className="cc-preview-cover">
-                      {disasterImages && disasterImages.length > 0 ? (
-                        <img src={disasterImages[0]} alt="Campaign cover preview" className="cc-preview-img" />
-                      ) : (
-                        <div className="cc-preview-cover-empty">
-                          <span className="material-symbols-outlined">
-                            {category === 'CD' ? 'volunteer_activism' : 'flood'}
-                          </span>
-                          <span>Add a cover photo on Step 2</span>
-                        </div>
-                      )}
-                      <div className="cc-preview-badges">
-                        <span className="cc-preview-cat-chip">
-                          {category === 'CD' ? 'Community' : 'Disaster Relief'}
-                        </span>
-                        {urgency && (
-                          <span className={`cc-preview-urg-chip${(urgency.includes('HIGH') || urgency.includes('CRITICAL')) ? ' is-crit' : (urgency.includes('MEDIUM') || urgency.includes('URGENT') || urgency.includes('REHAB')) ? ' is-urg' : ' is-std'}`}>
-                            {(urgency.includes('HIGH') || urgency.includes('CRITICAL')) ? 'Critical' : (urgency.includes('MEDIUM') || urgency.includes('URGENT') || urgency.includes('REHAB')) ? 'Urgent' : 'Standard'}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Card Body */}
-                    <div className="cc-preview-body">
-                      <div className="cc-preview-org">
-                        <span>{orgDisplayName || 'Your Organization'}</span>
-                        <span className="material-symbols-outlined cc-preview-ver">verified</span>
-                      </div>
-
-                      <div className={`cc-preview-title${title.trim() ? '' : ' is-placeholder'}`}>
-                        {title.trim() || 'Your campaign title appears here'}
-                      </div>
-
-                      <div className="cc-preview-loc">
-                        <span className="material-symbols-outlined">location_on</span>
-                        <span>
-                          {[city, province].filter(Boolean).join(', ') || 'Philippines · Location set on Step 4'}
-                        </span>
-                      </div>
-
-                      {/* Funding Progress Preview */}
-                      <div className="cc-preview-funding">
-                        <div className="cc-preview-funding-row">
-                          <span className="cc-preview-raised">₱0 raised</span>
-                          <span className="cc-preview-goal">
-                            of {targetAmount && Number(targetAmount) > 0 ? `₱${Math.round(Number(targetAmount)).toLocaleString('en-US')}` : '₱0'}
-                          </span>
-                        </div>
-                        <div className="cc-preview-track"><div className="cc-preview-fill" /></div>
-                        <div className="cc-preview-meta-row">
-                          <span>{targetDate ? `Due ${formatSelectedDeliveryDate(targetDate)}` : 'No due date yet'}</span>
-                          {beneficiariesImpact.trim() && (
-                            <span className="cc-preview-bene" title={beneficiariesImpact}>{beneficiariesImpact}</span>
-                          )}
-                        </div>
-                      </div>
-
-                      {selectedTags && selectedTags.length > 0 && (
-                        <div className="cc-preview-tags">
-                          {selectedTags.slice(0, 3).map((t) => (
-                            <span key={t} className="cc-preview-tag">{t}</span>
-                          ))}
-                          {selectedTags.length > 3 && (
-                            <span className="cc-preview-tag">+{selectedTags.length - 3}</span>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Compact Launch Readiness Checklist */}
-                  {(() => {
-                    const checks = [
-                      { step: 1, label: 'Title, goal & deadline', done: Boolean(title.trim() && Number(targetAmount) > 0 && targetDate) },
-                      { step: 2, label: 'Story & cover photo', done: Boolean(description.trim() || (disasterImages && disasterImages.length > 0)) },
-                      { step: 3, label: 'Relief focus tags', done: Boolean(selectedTags && selectedTags.length > 0) },
-                      { step: 4, label: 'Location pinned', done: Boolean(city.trim() && province.trim()) },
-                      { step: 5, label: 'Payout account ready', done: Boolean(gcashNumber || gcashQrUrl || mayaNumber || mayaQrUrl) }
-                    ];
-                    const doneCount = checks.filter((c) => c.done).length;
-                    return (
-                      <div className="cc-checklist-card">
-                        <div className="cc-checklist-head">
-                          <span>Launch Checklist</span>
-                          <span className="cc-checklist-count">{doneCount}/5</span>
-                        </div>
-                        <div className="cc-checklist-list">
-                          {checks.map((c) => (
-                            <button
-                              key={c.step}
-                              type="button"
-                              className={`cc-check-row${c.done ? ' is-done' : ''}${deployStep === c.step ? ' is-curr' : ''}`}
-                              onClick={() => setDeployStep(c.step)}
-                            >
-                              <span className="cc-check-dot">
-                                {c.done ? <span className="material-symbols-outlined">check</span> : `0${c.step}`}
-                              </span>
-                              <span className="cc-check-label">{c.label}</span>
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    );
-                  })()}
-                </aside>
-              </div>
             )}
           </div>
         )}
