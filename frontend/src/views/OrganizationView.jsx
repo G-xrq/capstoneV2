@@ -5105,12 +5105,13 @@ export default function OrganizationView({
                       {/* Pre-Flight Operation Review — Real DonorView CampaignCard Preview */}
                       {(() => {
                         const targetPhpVal = Math.max(0, Math.round(Number(targetAmount || 0)));
-                        const resolvedLoc = [barangay, city, province].filter(Boolean).join(', ') || locationRegion || 'Philippines';
+                        const resolvedLoc = [barangay, city, province].filter(Boolean).join(', ') || locationRegion || '';
                         const previewCamp = {
-                          id: 999999,
+                          id: 0,
+                          isPreview: true,
                           title: title.trim() || 'Untitled Campaign',
                           category: category || 'DR',
-                          description: description.trim() || 'No mission story added yet.',
+                          description: description.trim() || '',
                           targetAmount: targetPhpVal / 170000,
                           targetAmountPhp: targetPhpVal,
                           target_amount_php: targetPhpVal,

@@ -445,6 +445,20 @@ export const getCampaignAuditDetails = (arg1, arg2, arg3) => {
     ];
   }
 
+  if (camp.isPreview) {
+    return {
+      region: (region && region.trim()) || '',
+      gps: (gps && gps.trim()) || '',
+      beneficiaries: (beneficiaries && beneficiaries.trim()) || '',
+      allocations: customAllocations || [],
+      contact: (contact && contact.trim()) || '',
+      urgency: (urgency && urgency.trim()) || '',
+      description: (description && description.trim()) || '',
+      targetDate: (targetDate && targetDate.trim()) || '',
+      documentUrl: (documentUrl && documentUrl.trim()) || ''
+    };
+  }
+
   return {
     region: (region && region.trim()) || fallbackRegion,
     gps: (gps && gps.trim()) || fallbackGps,
@@ -527,8 +541,8 @@ export const getCampaignCoverData = (camp = {}) => {
     } catch (_) {}
   }
 
-  // Provide realistic disaster evidence photos if none were uploaded
-  if (!Array.isArray(disasterPhotos) || disasterPhotos.length === 0) {
+  // Provide realistic disaster evidence photos if none were uploaded (skip in draft preview)
+  if (!camp.isPreview && (!Array.isArray(disasterPhotos) || disasterPhotos.length === 0)) {
     disasterPhotos = getCategoryEvidencePhotos(fullText);
   }
 
@@ -543,10 +557,10 @@ export const getCampaignCoverData = (camp = {}) => {
   let categoryIcon = 'volunteer_activism';
   let categoryTag = 'Relief Cause';
   const rawLocation = camp.locationRegion || camp.location_region || camp.location || camp.region;
-  let locationTag = rawLocation || 'Southern Leyte, PH';
+  let locationTag = camp.isPreview ? (rawLocation || '') : (rawLocation || 'Southern Leyte, PH');
 
-  if (imageUrl) {
-    return { imageUrl, categoryIcon, categoryTag, locationTag, hasDisasterPhotos, disasterPhotosCount };
+  if (imageUrl || camp.isPreview) {
+    return { imageUrl: imageUrl || '', categoryIcon, categoryTag, locationTag, hasDisasterPhotos, disasterPhotosCount };
   }
 
   // 1. Fisherfolk / Coastal Livelihood
@@ -614,6 +628,9 @@ export const getCampaignTags = (camp = {}) => {
   }
   if (typeof rawTags === 'string' && rawTags.trim()) {
     return rawTags.split(',').map(t => t.trim()).filter(Boolean);
+  }
+  if (camp.isPreview) {
+    return [];
   }
 
   const title = (camp.title || '').toLowerCase();
@@ -3196,6 +3213,11 @@ export default function CampaignCard(props) {
                 <span>{wt.loadPhoto}</span>
               </button>
             </div>
+          ) : !coverData.imageUrl && camp.isPreview ? (
+            <div className="dc-preview-empty-cover">
+              <span className="material-symbols-outlined">add_photo_alternate</span>
+              <span>No cover photo yet</span>
+            </div>
           ) : (
             <>
               <img
@@ -3279,8 +3301,8 @@ export default function CampaignCard(props) {
               </button>
             )}
 
-            <span className="campaign-meta-id-tag campaign-eyebrow-id" title={`Audit Campaign Reference #${camp.id}`}>
-              #{camp.id}
+            <span className="campaign-meta-id-tag campaign-eyebrow-id" title={camp.isPreview ? 'Draft Preview' : `Audit Campaign Reference #${camp.id}`}>
+              {camp.isPreview ? 'DRAFT' : `#${camp.id}`}
             </span>
           </div>
 
