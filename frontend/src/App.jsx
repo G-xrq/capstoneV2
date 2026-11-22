@@ -1425,7 +1425,7 @@ export default function App() {
 
       {/* ── Modern Institutional 4-Column Mega Footer ── */}
       {!(!dbUser && showAuth) && (
-        <Footer onNavigate={() => { }} />
+        <Footer onNavigate={() => { }} theme={theme} toggleTheme={toggleTheme} />
       )}
 
     </div>

@@ -463,23 +463,6 @@ export default function LiveTrackerModal({ isOpen, onClose, theme }) {
                 </div>
               </div>
 
-              {/* Most Active Drive Right Now */}
-              {windowStats.topCause && (
-                <div className="ltm-rail-block ltm-top-drive-block">
-                  <span className="ltm-eyebrow">Most Active Drive</span>
-                  <div className="ltm-top-drive-title" title={windowStats.topCause.title}>
-                    {windowStats.topCause.title}
-                  </div>
-                  <div className="ltm-top-drive-meta">
-                    <span>₱{Math.round(windowStats.topCause.php).toLocaleString("en-US")}</span>
-                    <span>·</span>
-                    <span>
-                      {windowStats.topCause.count} {windowStats.topCause.count === 1 ? "donation" : "donations"}
-                    </span>
-                  </div>
-                </div>
-              )}
-
               {/* Live Channel Mix (Click to Filter) */}
               <div className="ltm-rail-block ltm-rail-block--channels">
                 <div className="ltm-eyebrow-row">

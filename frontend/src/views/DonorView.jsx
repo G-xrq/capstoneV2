@@ -1744,10 +1744,6 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
                     <LiveCounter value={fundedCount} duration={800} className="ec-head-stat-val" />
                     <span className="ec-head-stat-lbl">fully funded</span>
                   </div>
-                  <div className="ec-head-stat">
-                    <LiveCounter value={orgCount} duration={800} className="ec-head-stat-val" />
-                    <span className="ec-head-stat-lbl">partner NGOs</span>
-                  </div>
                 </div>
               </div>
 

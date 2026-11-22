@@ -1,355 +1,320 @@
 /* ============================================================
-   BBDRTS Institutional Footer
-   Blockchain-Based Donation & Relief Transparency System (BBDRTS)
+   BBDRTS INSTITUTIONAL FOOTER — VERCEL GEIST EDITION
+   Pitch-Black Obsidian · 1px Hairlines · Zero Link Duplication
+   Full Dark & Light Mode Parity
    ============================================================ */
 
-.bbdrts-footer-root {
-  background-color: var(--bg-card, #ffffff);
-  border-top: 1px solid var(--border, #eaeaea);
-  color: var(--text-secondary, #666666);
+.ftv-root {
+  background: #ffffff;
+  border-top: 1px solid #e4e4e7;
+  color: #52525b;
   margin-top: auto;
   position: relative;
   z-index: 1;
-  user-select: none;
-  transition: background-color 280ms cubic-bezier(0.4, 0, 0.2, 1), border-color 280ms cubic-bezier(0.4, 0, 0.2, 1), color 280ms cubic-bezier(0.4, 0, 0.2, 1);
+  font-family: var(--font-sans, 'Inter', system-ui, -apple-system, sans-serif);
+  transition: background-color 220ms ease, border-color 220ms ease, color 220ms ease;
 }
 
-[data-theme="dark"] .bbdrts-footer-root {
-  background-color: #000000;
-  border-top-color: var(--border, #262626);
-  color: var(--text-secondary, #888888);
+[data-theme="dark"] .ftv-root {
+  background: #000000;
+  border-top-color: #1f1f1f;
+  color: #888888;
 }
 
-.bbdrts-footer-main {
-  padding: 48px 0 36px;
+.ftv-main {
+  padding: 44px 0 36px;
 }
 
-.bbdrts-footer-grid {
+.ftv-grid {
   display: grid;
-  grid-template-columns: 1.6fr 1fr 1fr 1fr;
-  gap: 40px;
+  grid-template-columns: minmax(260px, 1.85fr) repeat(3, minmax(0, 1fr));
+  gap: 36px 40px;
+  align-items: start;
 }
 
-@media (max-width: 1024px) {
-  .bbdrts-footer-grid {
-    grid-template-columns: 1fr 1fr;
-    gap: 32px;
-  }
-}
-
-@media (max-width: 640px) {
-  .bbdrts-footer-grid {
-    grid-template-columns: 1fr;
-    gap: 28px;
-  }
-}
-
-/* ── Column 1: Brand & System Mission ── */
-.bbdrts-footer-brand-col {
+/* ── Column 1: Brand & Sepolia Anchor ── */
+.ftv-brand-col {
   display: flex;
   flex-direction: column;
   gap: 14px;
 }
 
-.bbdrts-footer-brand-header {
+.ftv-brand-head {
   display: flex;
   align-items: center;
   gap: 10px;
 }
 
-.bbdrts-footer-logo-badge {
-  width: 32px;
-  height: 32px;
+.ftv-logo-box {
+  width: 30px;
+  height: 30px;
   border-radius: 8px;
-  background: var(--bg-subcard, #fafafa);
-  border: 1px solid var(--border, #eaeaea);
-  display: flex;
+  background: #fafafa;
+  border: 1px solid #e4e4e7;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
 }
 
-[data-theme="dark"] .bbdrts-footer-logo-badge {
-  background: #111111;
+[data-theme="dark"] .ftv-logo-box {
+  background: #0a0a0a;
   border-color: #262626;
 }
 
-.bbdrts-footer-logo-img {
-  width: 20px;
-  height: 20px;
+.ftv-logo-img {
+  width: 18px;
+  height: 18px;
   object-fit: contain;
 }
 
-.bbdrts-footer-brand-titles {
+.ftv-brand-meta {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 1px;
 }
 
-.bbdrts-footer-brand-title {
-  font-size: 0.94rem;
-  font-weight: 600;
-  letter-spacing: -0.02em;
-  color: var(--text-primary, #000000);
-  line-height: 1.2;
+.ftv-brand-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
-[data-theme="dark"] .bbdrts-footer-brand-title {
+.ftv-brand-name {
+  font-size: 0.92rem;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  color: #09090b;
+  line-height: 1.15;
+}
+
+[data-theme="dark"] .ftv-brand-name {
   color: #ffffff;
 }
 
-.bbdrts-footer-brand-tagline {
+.ftv-region-tag {
+  font-size: 0.6rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: #f4f4f5;
+  border: 1px solid #e4e4e7;
+  color: #52525b;
+}
+
+[data-theme="dark"] .ftv-region-tag {
+  background: #141416;
+  border-color: #262626;
+  color: #a1a1aa;
+}
+
+.ftv-brand-sub {
   font-size: 0.7rem;
-  color: var(--text-muted, #888888);
-  letter-spacing: -0.01em;
+  color: #71717a;
 }
 
-.bbdrts-footer-mission {
-  font-size: 0.8rem;
-  line-height: 1.6;
-  color: var(--text-muted, #666666);
+.ftv-mission {
   margin: 0;
-  max-width: 380px;
+  font-size: 0.79rem;
+  line-height: 1.6;
+  color: #52525b;
+  max-width: 340px;
 }
 
-[data-theme="dark"] .bbdrts-footer-mission {
+[data-theme="dark"] .ftv-mission {
   color: #888888;
 }
 
-/* Verified Contract Address Chip & Wrap */
-.bbdrts-footer-contract-chip-wrap {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.bbdrts-footer-contract-chip {
+/* Unified Sepolia Contract Pill */
+.ftv-contract-pill {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
-  background: var(--bg-subcard, #fafafa);
-  border: 1px solid var(--border, #eaeaea);
-  padding: 5px 10px;
-  border-radius: 6px;
-  font-size: 0.74rem;
-  color: var(--text-secondary, #666666);
   width: fit-content;
-  cursor: pointer;
-  position: relative;
-  transition: background-color 200ms ease, border-color 200ms ease, color 200ms ease;
+  height: 30px;
+  border-radius: 8px;
+  background: #fafafa;
+  border: 1px solid #e4e4e7;
+  overflow: hidden;
+  transition: border-color 160ms ease;
 }
 
-.bbdrts-footer-contract-chip:hover {
-  background: var(--bg-hover, #f5f5f5);
-  border-color: var(--border-strong, #999999);
-  color: var(--text-primary, #000000);
+.ftv-contract-pill:hover {
+  border-color: #a1a1aa;
 }
 
-[data-theme="dark"] .bbdrts-footer-contract-chip {
-  background: #111111;
+[data-theme="dark"] .ftv-contract-pill {
+  background: #0a0a0a;
   border-color: #262626;
-  color: #a3a3a3;
 }
 
-[data-theme="dark"] .bbdrts-footer-contract-chip:hover {
-  background: #161616;
-  border-color: #404040;
-  color: #ffffff;
+[data-theme="dark"] .ftv-contract-pill:hover {
+  border-color: #3f3f46;
 }
 
-.bbdrts-copied-tooltip {
-  position: absolute;
-  top: -24px;
-  right: 6px;
-  background: #16a34a;
-  color: #ffffff;
-  font-size: 0.65rem;
-  font-weight: 700;
-  padding: 2px 6px;
-  border-radius: 4px;
-  animation: fadeIn 0.15s ease;
-  pointer-events: none;
+.ftv-contract-copy {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 100%;
+  padding: 0 9px 0 10px;
+  background: transparent;
+  border: none;
+  color: inherit;
+  font-family: inherit;
+  font-size: 0.72rem;
+  cursor: pointer;
+  transition: background 140ms ease, color 140ms ease;
 }
 
-.bbdrts-footer-explorer-icon-link {
+.ftv-contract-copy:hover {
+  background: #f4f4f5;
+}
+
+[data-theme="dark"] .ftv-contract-copy:hover {
+  background: #141416;
+}
+
+.ftv-contract-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #10b981;
+  flex-shrink: 0;
+}
+
+.ftv-contract-lbl {
+  color: #71717a;
+  font-weight: 500;
+}
+
+.ftv-contract-addr {
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: #09090b;
+}
+
+[data-theme="dark"] .ftv-contract-addr {
+  color: #ededed;
+}
+
+.ftv-contract-ico {
+  font-size: 13px;
+  color: #71717a;
+}
+
+.ftv-contract-sep {
+  width: 1px;
+  height: 16px;
+  background: #e4e4e7;
+}
+
+[data-theme="dark"] .ftv-contract-sep {
+  background: #262626;
+}
+
+.ftv-contract-ext {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   width: 28px;
-  height: 28px;
-  border-radius: 6px;
-  background: var(--bg-subcard, #fafafa);
-  border: 1px solid var(--border, #eaeaea);
-  color: var(--text-muted, #888888);
+  height: 100%;
+  color: #71717a;
   text-decoration: none;
-  transition: all 150ms ease;
+  transition: background 140ms ease, color 140ms ease;
 }
 
-.bbdrts-footer-explorer-icon-link:hover {
-  background: var(--bg-hover, #f5f5f5);
-  border-color: var(--border-strong, #999999);
-  color: var(--text-primary, #000000);
-}
-
-[data-theme="dark"] .bbdrts-footer-explorer-icon-link {
-  background: #111111;
-  border-color: #262626;
-  color: #888888;
-}
-
-[data-theme="dark"] .bbdrts-footer-explorer-icon-link:hover {
-  background: #161616;
-  border-color: #404040;
-  color: #ffffff;
-}
-
-.bbdrts-footer-contract-chip .contract-icon {
+.ftv-contract-ext .material-symbols-outlined {
   font-size: 14px;
-  color: #22c55e;
 }
 
-.bbdrts-footer-contract-chip .contract-label {
-  font-weight: 500;
-  color: var(--text-muted, #888888);
+.ftv-contract-ext:hover {
+  background: #f4f4f5;
+  color: #09090b;
 }
 
-.bbdrts-contract-addr {
-  font-family: var(--font-mono, monospace);
-  font-size: 0.74rem;
-  color: var(--text-primary, #000000);
-  font-weight: 500;
-}
-
-[data-theme="dark"] .bbdrts-contract-addr {
-  color: #ededed;
-}
-
-.bbdrts-footer-contract-chip .copy-icon {
-  font-size: 13px;
-  color: var(--text-muted, #888888);
-}
-
-/* Operational Status Beacon */
-.bbdrts-footer-status-beacon {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 0.74rem;
-  color: var(--text-secondary, #666666);
-  cursor: pointer;
-  transition: color 150ms ease;
-  width: fit-content;
-}
-
-.bbdrts-footer-status-beacon:hover {
-  color: var(--text-primary, #000000);
-}
-
-[data-theme="dark"] .bbdrts-footer-status-beacon {
-  color: #888888;
-}
-
-[data-theme="dark"] .bbdrts-footer-status-beacon:hover {
+[data-theme="dark"] .ftv-contract-ext:hover {
+  background: #141416;
   color: #ffffff;
 }
 
-.bbdrts-live-beacon {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: #22c55e;
-  box-shadow: 0 0 6px rgba(34, 197, 94, 0.4);
-  flex-shrink: 0;
-}
-
-/* ── Columns 2, 3, 4: Section Titles & Clean Links ── */
-.bbdrts-footer-col {
+/* ── Navigation Columns ── */
+.ftv-col {
   display: flex;
   flex-direction: column;
 }
 
-.bbdrts-footer-col-title {
-  font-size: 0.8rem;
+.ftv-col-title {
+  font-size: 0.74rem;
   font-weight: 600;
-  color: var(--text-primary, #000000);
   letter-spacing: -0.01em;
+  color: #09090b;
   margin-bottom: 12px;
 }
 
-[data-theme="dark"] .bbdrts-footer-col-title {
-  color: #ffffff;
+[data-theme="dark"] .ftv-col-title {
+  color: #ededed;
 }
 
-.bbdrts-footer-links {
+.ftv-links {
   list-style: none;
   padding: 0;
   margin: 0;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 9px;
 }
 
-.bbdrts-footer-link {
-  color: var(--text-muted, #666666);
-  text-decoration: none;
-  font-size: 0.8rem;
-  font-weight: 400;
+.ftv-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
   background: transparent;
   border: none;
-  padding: 0;
-  cursor: pointer;
+  color: #71717a;
   font-family: inherit;
-  text-align: left;
-  transition: color 150ms ease;
+  font-size: 0.79rem;
+  font-weight: 400;
   line-height: 1.4;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+  transition: color 140ms ease;
 }
 
-.bbdrts-footer-link:hover {
-  color: var(--text-primary, #000000);
+.ftv-link:hover {
+  color: #09090b;
 }
 
-[data-theme="dark"] .bbdrts-footer-link {
+[data-theme="dark"] .ftv-link {
   color: #888888;
 }
 
-[data-theme="dark"] .bbdrts-footer-link:hover {
+[data-theme="dark"] .ftv-link:hover {
   color: #ffffff;
 }
 
-.bbdrts-footer-emergency-highlight {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  color: #ef4444 !important;
-  font-weight: 500 !important;
+.ftv-link--ext .material-symbols-outlined {
+  font-size: 13px;
+  opacity: 0.7;
 }
 
-.bbdrts-footer-emergency-highlight:hover {
-  color: #dc2626 !important;
+/* ── Bottom Operational Strip ── */
+.ftv-bottom {
+  background: #fafafa;
+  border-top: 1px solid #e4e4e7;
+  padding: 14px 0;
+  transition: background-color 220ms ease, border-color 220ms ease;
 }
 
-[data-theme="dark"] .bbdrts-footer-emergency-highlight {
-  color: #f87171 !important;
+[data-theme="dark"] .ftv-bottom {
+  background: #060606;
+  border-top-color: #18181b;
 }
 
-[data-theme="dark"] .bbdrts-footer-emergency-highlight:hover {
-  color: #fca5a5 !important;
-}
-
-/* ── Bottom Operational & Legal Strip (Vercel Style) ── */
-.bbdrts-footer-bottom {
-  border-top: 1px solid var(--border, #eaeaea);
-  padding: 16px 0;
-  background: var(--bg-card, #ffffff);
-  transition: background-color 150ms ease, border-color 150ms ease;
-}
-
-[data-theme="dark"] .bbdrts-footer-bottom {
-  background: #000000;
-  border-top-color: #262626;
-}
-
-.bbdrts-footer-bottom-inner {
+.ftv-bottom-inner {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -357,504 +322,626 @@
   flex-wrap: wrap;
 }
 
-.bbdrts-footer-copyright {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 0.74rem;
-  color: var(--text-muted, #888888);
-  flex-wrap: wrap;
-}
-
-.bbdrts-footer-sep {
-  opacity: 0.5;
-}
-
-.bbdrts-footer-controls {
+.ftv-bottom-left {
   display: flex;
   align-items: center;
   gap: 16px;
-}
-
-.bbdrts-footer-legal-links {
-  display: flex;
-  align-items: center;
   flex-wrap: wrap;
-  max-width: 100%;
-  gap: 8px 14px;
 }
 
-.bbdrts-footer-legal-btn {
-  color: var(--text-muted, #888888);
-  text-decoration: none;
-  background: transparent;
-  border: none;
-  padding: 0;
-  cursor: pointer;
-  font-family: inherit;
+.ftv-copy {
   font-size: 0.74rem;
-  transition: color 150ms ease;
+  color: #71717a;
 }
 
-.bbdrts-footer-legal-btn:hover {
-  color: var(--text-primary, #000000);
-}
-
-.bbdrts-footer-legal-btn.emergency-btn {
-  color: #ef4444;
+.ftv-status-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 26px;
+  padding: 0 10px;
+  border-radius: 9999px;
+  background: #ffffff;
+  border: 1px solid #e4e4e7;
+  color: #52525b;
+  font-family: inherit;
+  font-size: 0.72rem;
   font-weight: 500;
+  cursor: pointer;
+  transition: border-color 140ms ease, color 140ms ease;
 }
 
-.bbdrts-footer-legal-btn.emergency-btn:hover {
-  color: #dc2626;
+.ftv-status-btn:hover {
+  border-color: #a1a1aa;
+  color: #09090b;
 }
 
-[data-theme="dark"] .bbdrts-footer-legal-btn:hover {
+[data-theme="dark"] .ftv-status-btn {
+  background: #0a0a0a;
+  border-color: #262626;
+  color: #a1a1aa;
+}
+
+[data-theme="dark"] .ftv-status-btn:hover {
+  border-color: #3f3f46;
   color: #ffffff;
 }
 
-[data-theme="dark"] .bbdrts-footer-legal-btn.emergency-btn {
-  color: #f87171;
+.ftv-status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
 }
 
-.bbdrts-footer-flag {
-  font-weight: 500;
-  color: var(--text-secondary, #666666);
+.ftv-bottom-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
-[data-theme="dark"] .bbdrts-footer-flag {
-  color: #a3a3a3;
-}
-
-/* Bottom Theme Switcher Pill */
-.bbdrts-footer-theme-btn {
+/* Compact Emergency Hotlines Pill */
+.ftv-hotline-pill {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   height: 28px;
   padding: 0 10px;
-  border-radius: 6px;
-  background: var(--bg-subcard, #fafafa);
-  border: 1px solid var(--border, #eaeaea);
-  color: var(--text-secondary, #666666);
-  font-size: 0.74rem;
-  font-weight: 500;
+  border-radius: 9999px;
+  background: #ffffff;
+  border: 1px solid #e4e4e7;
+  color: #52525b;
   font-family: inherit;
+  font-size: 0.72rem;
+  font-weight: 500;
   cursor: pointer;
-  transition: background-color 280ms cubic-bezier(0.4, 0, 0.2, 1), border-color 280ms cubic-bezier(0.4, 0, 0.2, 1), color 280ms cubic-bezier(0.4, 0, 0.2, 1);
+  transition: border-color 140ms ease, color 140ms ease, background 140ms ease;
 }
 
-.bbdrts-footer-theme-btn:hover {
-  background: var(--bg-hover, #f5f5f5);
-  border-color: var(--border-strong, #999999);
-  color: var(--text-primary, #000000);
+.ftv-hotline-pill:hover {
+  border-color: rgba(239, 68, 68, 0.45);
+  color: #dc2626;
+  background: rgba(239, 68, 68, 0.04);
 }
 
-[data-theme="dark"] .bbdrts-footer-theme-btn {
-  background: #111111;
+[data-theme="dark"] .ftv-hotline-pill {
+  background: #0a0a0a;
   border-color: #262626;
-  color: #a3a3a3;
+  color: #a1a1aa;
 }
 
-[data-theme="dark"] .bbdrts-footer-theme-btn:hover {
-  background: #181818;
-  border-color: #404040;
+[data-theme="dark"] .ftv-hotline-pill:hover {
+  border-color: rgba(248, 113, 113, 0.45);
+  color: #fca5a5;
+  background: rgba(239, 68, 68, 0.08);
+}
+
+.ftv-hotline-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #ef4444;
+}
+
+.ftv-hotline-nums {
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #09090b;
+}
+
+[data-theme="dark"] .ftv-hotline-nums {
+  color: #ededed;
+}
+
+/* Vercel-Style Segmented Theme Switcher */
+.ftv-theme-seg {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px;
+  border-radius: 9999px;
+  background: #ffffff;
+  border: 1px solid #e4e4e7;
+}
+
+[data-theme="dark"] .ftv-theme-seg {
+  background: #0a0a0a;
+  border-color: #262626;
+}
+
+.ftv-theme-opt {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: #71717a;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 140ms ease, color 140ms ease;
+}
+
+.ftv-theme-opt .material-symbols-outlined {
+  font-size: 14px;
+}
+
+.ftv-theme-opt:hover {
+  color: #09090b;
+}
+
+.ftv-theme-opt.is-active {
+  background: #09090b;
   color: #ffffff;
 }
 
-@media (max-width: 640px) {
-  .bbdrts-footer-main {
-    padding: 36px 0 24px;
+[data-theme="dark"] .ftv-theme-opt:hover {
+  color: #ffffff;
+}
+
+[data-theme="dark"] .ftv-theme-opt.is-active {
+  background: #27272a;
+  color: #ffffff;
+}
+
+/* ── Responsive Breakpoints ── */
+@media (max-width: 960px) {
+  .ftv-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 28px 32px;
   }
-  .bbdrts-footer-bottom-inner {
+
+  .ftv-brand-col {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 600px) {
+  .ftv-main {
+    padding: 32px 0 26px;
+  }
+
+  .ftv-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 24px 20px;
+  }
+
+  .ftv-bottom-inner {
     flex-direction: column;
     align-items: flex-start;
     gap: 12px;
   }
-  .bbdrts-footer-controls {
+
+  .ftv-bottom-right {
     width: 100%;
-    flex-wrap: wrap;
     justify-content: space-between;
-    gap: 10px;
   }
 }
 
-/* ═════════════════════════════════════════════════════════════════
-   EMERGENCY RELIEF HOTLINES MODAL (HCI-FIRST VERCEL SPECIFICATION)
-   ═════════════════════════════════════════════════════════════════ */
-.bbdrts-hotline-backdrop {
+/* ============================================================
+   EMERGENCY HOTLINES MODAL — VERCEL GEIST OBSIDIAN
+   ============================================================ */
+
+.ftv-hotline-backdrop {
   position: fixed;
   inset: 0;
   width: 100vw;
   height: 100vh;
-  background: rgba(0, 0, 0, 0.6);
-  -webkit-backdrop-filter: blur(8px);
-  backdrop-filter: blur(8px);
+  background: rgba(0, 0, 0, 0.78);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  z-index: 999999;
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 999999;
   padding: 16px;
-  animation: fadeIn 180ms cubic-bezier(0.16, 1, 0.3, 1);
+  box-sizing: border-box;
+  font-family: var(--font-sans, 'Inter', system-ui, -apple-system, sans-serif);
 }
 
-.bbdrts-hotline-modal {
-  width: 760px;
-  max-width: 95vw;
-  max-height: 90vh;
-  background: var(--bg-card, #ffffff);
-  border: 1px solid var(--border, #e5e5e5);
-  border-radius: var(--radius-lg, 14px);
-  box-shadow: 0 24px 48px -12px rgba(0, 0, 0, 0.25);
-  color: var(--text-primary, #000000);
+.ftv-hotline-backdrop[data-theme="light"] {
+  background: rgba(9, 9, 11, 0.45);
+}
+
+.ftv-hotline-modal {
+  width: 740px;
+  max-width: 100%;
+  max-height: min(680px, 90dvh);
+  background: #0a0a0a;
+  border: 1px solid #262626;
+  border-radius: 14px;
+  box-shadow: 0 28px 72px rgba(0, 0, 0, 0.85);
+  color: #ededed;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  animation: scaleUp 200ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-[data-theme="dark"] .bbdrts-hotline-modal {
-  background: #0a0a0a;
-  border-color: #262626;
-  box-shadow: 0 24px 48px -12px rgba(0, 0, 0, 0.85);
-  color: #ededed;
+.ftv-hotline-backdrop[data-theme="light"] .ftv-hotline-modal {
+  background: #ffffff;
+  border-color: #e4e4e7;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.16);
+  color: #09090b;
 }
 
-.bbdrts-hotline-modal-header {
-  padding: 18px 22px;
-  border-bottom: 1px solid var(--border, #e5e5e5);
+.ftv-hotline-head {
+  padding: 16px 20px;
+  background: #060606;
+  border-bottom: 1px solid #1f1f1f;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: var(--bg-subcard, #fafafa);
-}
-
-[data-theme="dark"] .bbdrts-hotline-modal-header {
-  background: #111111;
-  border-color: #222222;
-}
-
-.bbdrts-hotline-modal-title-wrap {
-  display: flex;
-  align-items: center;
   gap: 12px;
-}
-
-.bbdrts-hotline-icon-box {
-  width: 38px;
-  height: 38px;
-  border-radius: 10px;
-  background: rgba(239, 68, 68, 0.12);
-  border: 1px solid rgba(239, 68, 68, 0.3);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #ef4444;
   flex-shrink: 0;
 }
 
-.bbdrts-hotline-modal-title {
-  margin: 0;
-  font-size: 1.05rem;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  color: var(--text-primary, #000000);
+.ftv-hotline-backdrop[data-theme="light"] .ftv-hotline-head {
+  background: #fafafa;
+  border-bottom-color: #e4e4e7;
 }
 
-[data-theme="dark"] .bbdrts-hotline-modal-title {
-  color: #ffffff;
-}
-
-.bbdrts-hotline-modal-sub {
-  margin: 2px 0 0;
-  font-size: 0.78rem;
-  color: var(--text-muted, #737373);
-}
-
-.bbdrts-hotline-close-btn {
-  background: transparent;
-  border: 1px solid var(--border, #e5e5e5);
-  border-radius: 8px;
-  width: 32px;
-  height: 32px;
+.ftv-hotline-head-left {
   display: flex;
   align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.ftv-hotline-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 9px;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.28);
+  color: #ef4444;
+  display: inline-flex;
+  align-items: center;
   justify-content: center;
-  color: var(--text-muted, #737373);
-  cursor: pointer;
-  transition: all 150ms ease;
+  flex-shrink: 0;
 }
 
-.bbdrts-hotline-close-btn:hover {
-  background: var(--bg-hover, #f5f5f5);
-  color: var(--text-primary, #000000);
+.ftv-hotline-icon .material-symbols-outlined {
+  font-size: 18px;
 }
 
-[data-theme="dark"] .bbdrts-hotline-close-btn {
-  border-color: #262626;
-  color: #a3a3a3;
-}
-
-[data-theme="dark"] .bbdrts-hotline-close-btn:hover {
-  background: #1c1c1c;
+.ftv-hotline-title {
+  margin: 0;
+  font-size: 0.98rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
   color: #ffffff;
 }
 
-/* Hotlines Grid */
-.bbdrts-hotline-grid {
-  padding: 20px;
+.ftv-hotline-backdrop[data-theme="light"] .ftv-hotline-title {
+  color: #09090b;
+}
+
+.ftv-hotline-sub {
+  margin: 2px 0 0;
+  font-size: 0.74rem;
+  color: #71717a;
+}
+
+.ftv-hotline-close {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  border: 1px solid #262626;
+  background: #0a0a0a;
+  color: #a1a1aa;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 140ms ease, border-color 140ms ease, color 140ms ease;
+}
+
+.ftv-hotline-close .material-symbols-outlined {
+  font-size: 16px;
+}
+
+.ftv-hotline-close:hover {
+  background: #141416;
+  border-color: #3f3f46;
+  color: #ffffff;
+}
+
+.ftv-hotline-backdrop[data-theme="light"] .ftv-hotline-close {
+  background: #ffffff;
+  border-color: #e4e4e7;
+  color: #52525b;
+}
+
+.ftv-hotline-backdrop[data-theme="light"] .ftv-hotline-close:hover {
+  background: #f4f4f5;
+  border-color: #a1a1aa;
+  color: #09090b;
+}
+
+.ftv-hotline-grid {
+  padding: 18px 20px;
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 14px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
   overflow-y: auto;
-  max-height: calc(90vh - 140px);
+  flex: 1 1 auto;
+  min-height: 0;
+  -webkit-overflow-scrolling: touch;
 }
 
-@media (max-width: 700px) {
-  .bbdrts-hotline-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-.bbdrts-hotline-card {
-  background: var(--bg-subcard, #fafafa);
-  border: 1px solid var(--border, #e5e5e5);
+.ftv-hotline-card {
+  background: #060606;
+  border: 1px solid #1f1f1f;
   border-radius: 10px;
   padding: 14px;
   display: flex;
   flex-direction: column;
   gap: 8px;
-  transition: border-color 150ms ease, box-shadow 150ms ease;
+  transition: border-color 140ms ease;
 }
 
-.bbdrts-hotline-card:hover {
-  border-color: var(--border-strong, #a3a3a3);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+.ftv-hotline-card:hover {
+  border-color: #3f3f46;
 }
 
-[data-theme="dark"] .bbdrts-hotline-card {
-  background: #121212;
-  border-color: #242424;
+.ftv-hotline-backdrop[data-theme="light"] .ftv-hotline-card {
+  background: #fafafa;
+  border-color: #e4e4e7;
 }
 
-[data-theme="dark"] .bbdrts-hotline-card:hover {
-  border-color: #404040;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+.ftv-hotline-backdrop[data-theme="light"] .ftv-hotline-card:hover {
+  border-color: #a1a1aa;
 }
 
-.bbdrts-hotline-card-top {
+.ftv-hotline-card-top {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
 }
 
-.bbdrts-hotline-card-title-row {
-  display: flex;
+.ftv-hotline-card-name {
+  display: inline-flex;
   align-items: center;
   gap: 6px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #ffffff;
   min-width: 0;
 }
 
-.bbdrts-hotline-card-icon {
-  font-size: 16px;
+.ftv-hotline-backdrop[data-theme="light"] .ftv-hotline-card-name {
+  color: #09090b;
+}
+
+.ftv-hotline-card-ico {
+  font-size: 15px;
   color: #ef4444;
   flex-shrink: 0;
 }
 
-.bbdrts-hotline-card-name {
-  font-size: 0.85rem;
-  font-weight: 700;
-  color: var(--text-primary, #000000);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-[data-theme="dark"] .bbdrts-hotline-card-name {
-  color: #ffffff;
-}
-
-.bbdrts-hotline-card-badge {
-  font-size: 0.65rem;
+.ftv-hotline-badge {
+  font-size: 0.6rem;
   font-weight: 600;
-  text-transform: uppercase;
   letter-spacing: 0.04em;
+  text-transform: uppercase;
   padding: 2px 6px;
-  border-radius: 4px;
-  background: rgba(239, 68, 68, 0.1);
-  color: #ef4444;
-  border: 1px solid rgba(239, 68, 68, 0.25);
+  border-radius: 9999px;
+  background: #141416;
+  border: 1px solid #262626;
+  color: #a1a1aa;
+  white-space: nowrap;
   flex-shrink: 0;
 }
 
-[data-theme="dark"] .bbdrts-hotline-card-badge {
-  color: #f87171;
-  border-color: rgba(248, 113, 113, 0.3);
+.ftv-hotline-backdrop[data-theme="light"] .ftv-hotline-badge {
+  background: #ffffff;
+  border-color: #e4e4e7;
+  color: #52525b;
 }
 
-.bbdrts-hotline-card-desc {
+.ftv-hotline-desc {
   margin: 0;
-  font-size: 0.74rem;
+  font-size: 0.73rem;
   line-height: 1.45;
-  color: var(--text-muted, #737373);
+  color: #888888;
 }
 
-[data-theme="dark"] .bbdrts-hotline-card-desc {
-  color: #999999;
+.ftv-hotline-backdrop[data-theme="light"] .ftv-hotline-desc {
+  color: #52525b;
 }
 
-.bbdrts-hotline-card-numbers {
+.ftv-hotline-nums-row {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
-  margin-top: 2px;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
-.bbdrts-hotline-main-num {
-  font-family: var(--font-mono, monospace);
-  font-size: 1.12rem;
-  font-weight: 800;
-  letter-spacing: -0.01em;
-  color: #ef4444;
-}
-
-[data-theme="dark"] .bbdrts-hotline-main-num {
+.ftv-hotline-main-num {
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 1.08rem;
+  font-weight: 700;
   color: #f87171;
 }
 
-.bbdrts-hotline-alt-num {
-  font-family: var(--font-mono, monospace);
-  font-size: 0.72rem;
-  color: var(--text-muted, #737373);
+.ftv-hotline-backdrop[data-theme="light"] .ftv-hotline-main-num {
+  color: #dc2626;
 }
 
-.bbdrts-hotline-card-actions {
+.ftv-hotline-alt {
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 0.7rem;
+  color: #71717a;
+}
+
+.ftv-hotline-actions {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-top: 6px;
+  gap: 7px;
+  margin-top: auto;
   padding-top: 8px;
-  border-top: 1px solid var(--border, #eeeeee);
+  border-top: 1px solid #18181b;
 }
 
-[data-theme="dark"] .bbdrts-hotline-card-actions {
-  border-top-color: #222222;
+.ftv-hotline-backdrop[data-theme="light"] .ftv-hotline-actions {
+  border-top-color: #e4e4e7;
 }
 
-.bbdrts-hotline-call-btn {
+.ftv-hotline-call {
   flex: 1;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  height: 32px;
-  border-radius: 6px;
-  background: #ef4444;
-  color: #ffffff;
-  font-size: 0.76rem;
-  font-weight: 600;
-  text-decoration: none;
-  cursor: pointer;
-  transition: background 150ms ease, transform 150ms ease;
-}
-
-.bbdrts-hotline-call-btn:hover {
-  background: #dc2626;
-  transform: translateY(-1px);
-}
-
-.bbdrts-hotline-copy-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 5px;
-  height: 32px;
-  padding: 0 10px;
-  border-radius: 6px;
-  background: transparent;
-  border: 1px solid var(--border, #e5e5e5);
-  color: var(--text-secondary, #666666);
+  height: 30px;
+  border-radius: 7px;
+  background: #ffffff;
+  color: #000000;
   font-size: 0.74rem;
   font-weight: 600;
-  font-family: inherit;
-  cursor: pointer;
-  transition: all 150ms ease;
+  text-decoration: none;
+  transition: background 140ms ease;
 }
 
-.bbdrts-hotline-copy-btn:hover {
-  background: var(--bg-hover, #f5f5f5);
-  border-color: var(--border-strong, #999999);
-  color: var(--text-primary, #000000);
+.ftv-hotline-call .material-symbols-outlined {
+  font-size: 14px;
 }
 
-[data-theme="dark"] .bbdrts-hotline-copy-btn {
-  border-color: #2b2b2b;
-  color: #a3a3a3;
+.ftv-hotline-call:hover {
+  background: #e4e4e7;
 }
 
-[data-theme="dark"] .bbdrts-hotline-copy-btn:hover {
-  background: #1a1a1a;
-  border-color: #444444;
+.ftv-hotline-backdrop[data-theme="light"] .ftv-hotline-call {
+  background: #09090b;
   color: #ffffff;
 }
 
-/* Modal Footer Advisory */
-.bbdrts-hotline-modal-footer {
-  padding: 14px 22px;
-  border-top: 1px solid var(--border, #e5e5e5);
+.ftv-hotline-backdrop[data-theme="light"] .ftv-hotline-call:hover {
+  background: #27272a;
+}
+
+.ftv-hotline-copy {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  height: 30px;
+  padding: 0 10px;
+  border-radius: 7px;
+  background: #0a0a0a;
+  border: 1px solid #262626;
+  color: #a1a1aa;
+  font-family: inherit;
+  font-size: 0.72rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color 140ms ease, color 140ms ease;
+}
+
+.ftv-hotline-copy .material-symbols-outlined {
+  font-size: 13px;
+}
+
+.ftv-hotline-copy:hover {
+  border-color: #3f3f46;
+  color: #ffffff;
+}
+
+.ftv-hotline-copy.is-copied {
+  border-color: #10b981;
+  color: #10b981;
+}
+
+.ftv-hotline-backdrop[data-theme="light"] .ftv-hotline-copy {
+  background: #ffffff;
+  border-color: #e4e4e7;
+  color: #52525b;
+}
+
+.ftv-hotline-backdrop[data-theme="light"] .ftv-hotline-copy:hover {
+  border-color: #a1a1aa;
+  color: #09090b;
+}
+
+.ftv-hotline-foot {
+  padding: 12px 20px;
+  background: #060606;
+  border-top: 1px solid #1f1f1f;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  background: var(--bg-subcard, #fafafa);
+  gap: 14px;
+  flex-shrink: 0;
 }
 
-[data-theme="dark"] .bbdrts-hotline-modal-footer {
-  background: #111111;
-  border-color: #222222;
+.ftv-hotline-backdrop[data-theme="light"] .ftv-hotline-foot {
+  background: #fafafa;
+  border-top-color: #e4e4e7;
 }
 
-.bbdrts-hotline-advisory {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 0.74rem;
-  color: var(--text-muted, #737373);
-  line-height: 1.4;
-  flex: 1;
+.ftv-hotline-advisory {
+  margin: 0;
+  font-size: 0.72rem;
+  line-height: 1.45;
+  color: #888888;
 }
 
-.bbdrts-hotline-advisory a {
-  color: var(--text-primary, #000000);
-  text-decoration: underline;
-  font-weight: 600;
+.ftv-hotline-advisory strong,
+.ftv-hotline-advisory a {
+  color: #ededed;
 }
 
-[data-theme="dark"] .bbdrts-hotline-advisory a {
-  color: #ffffff;
+.ftv-hotline-backdrop[data-theme="light"] .ftv-hotline-advisory {
+  color: #52525b;
 }
 
-.bbdrts-hotline-dismiss-btn {
-  height: 32px;
+.ftv-hotline-backdrop[data-theme="light"] .ftv-hotline-advisory strong,
+.ftv-hotline-backdrop[data-theme="light"] .ftv-hotline-advisory a {
+  color: #09090b;
+}
+
+.ftv-hotline-done {
+  height: 30px;
   padding: 0 14px;
-  border-radius: 6px;
-  background: var(--text-primary, #000000);
-  border: 1px solid var(--text-primary, #000000);
-  color: var(--bg-base, #ffffff);
-  font-size: 0.76rem;
+  border-radius: 7px;
+  border: 1px solid #262626;
+  background: #0a0a0a;
+  color: #ededed;
+  font-family: inherit;
+  font-size: 0.74rem;
   font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
-  transition: opacity 150ms ease;
 }
 
-.bbdrts-hotline-dismiss-btn:hover {
-  opacity: 0.88;
+.ftv-hotline-done:hover {
+  background: #141416;
+  border-color: #3f3f46;
 }
 
-[data-theme="dark"] .bbdrts-hotline-dismiss-btn {
+.ftv-hotline-backdrop[data-theme="light"] .ftv-hotline-done {
   background: #ffffff;
-  border-color: #ffffff;
-  color: #000000;
+  border-color: #e4e4e7;
+  color: #09090b;
+}
+
+@media (max-width: 680px) {
+  .ftv-hotline-grid {
+    grid-template-columns: 1fr;
+    padding: 14px;
+  }
+
+  .ftv-hotline-foot {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .ftv-hotline-done {
+    width: 100%;
+  }
 }

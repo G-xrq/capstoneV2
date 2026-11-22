@@ -12,16 +12,16 @@ const EMERGENCY_HOTLINES = [
   {
     name: 'National Emergency Hotline',
     number: '911',
-    desc: 'Immediate emergency response for police, fire, rescue, and ambulance services nationwide.',
+    desc: 'Immediate dispatch for police, fire, rescue, and ambulance nationwide.',
     icon: 'emergency',
     badge: '24/7 Nationwide',
     tel: '911'
   },
   {
-    name: 'Philippine Red Cross (PRC)',
+    name: 'Philippine Red Cross',
     number: '143',
     altNumber: '(02) 8790-2300',
-    desc: 'Disaster rescue, blood bank, relief supply mobilization, and field first-aid assistance.',
+    desc: 'Disaster rescue, blood services, relief mobilization, and field first aid.',
     icon: 'medical_services',
     badge: 'Disaster Relief',
     tel: '143'
@@ -30,16 +30,16 @@ const EMERGENCY_HOTLINES = [
     name: 'NDRRMC Operations Center',
     number: '(02) 8911-5061',
     altNumber: '(02) 8911-1406',
-    desc: 'National Disaster Risk Reduction & Management Council. Calamity alerts & situational bulletins.',
+    desc: 'National calamity advisories, evacuation bulletins, and response coordination.',
     icon: 'shield',
     badge: 'Government Alert',
     tel: '0289115061'
   },
   {
-    name: 'DSWD Disaster Response Unit',
+    name: 'DSWD Disaster Response',
     number: '(02) 8931-8101',
     altNumber: '(02) 8951-7119',
-    desc: 'Department of Social Welfare & Development. Food pack distribution and displaced family aid.',
+    desc: 'Family food packs, camp coordination, and displaced household assistance.',
     icon: 'volunteer_activism',
     badge: 'Social Welfare',
     tel: '0289318101'
@@ -47,16 +47,16 @@ const EMERGENCY_HOTLINES = [
   {
     name: 'PAGASA Weather Division',
     number: '(02) 8284-0800',
-    desc: 'Severe typhoon advisories, rainfall warnings, and storm surge monitoring.',
+    desc: 'Severe typhoon advisories, rainfall warnings, and storm surge updates.',
     icon: 'cyclone',
     badge: 'Weather & Storm',
     tel: '0282840800'
   },
   {
-    name: 'Philippine Coast Guard (PCG)',
+    name: 'Philippine Coast Guard',
     number: '(02) 8527-8481',
     altNumber: '0917-724-3682',
-    desc: 'Maritime search and rescue, flood boat evacuations, and coastal disaster operations.',
+    desc: 'Maritime search and rescue, flood boat evacuations, and coastal ops.',
     icon: 'sailing',
     badge: 'Water Rescue',
     tel: '0285278481'
@@ -90,16 +90,36 @@ export default function Footer({ onNavigate, theme, toggleTheme }) {
     return () => window.removeEventListener('bbdrts_open_legal', handleOpenLegalEvent);
   }, []);
 
+  // Lock background scroll & support Esc while Emergency Hotlines modal is open
+  useEffect(() => {
+    if (!showEmergencyModal || typeof document === 'undefined') return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const onKey = (e) => {
+      if (e.key === 'Escape') setShowEmergencyModal(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => {
+      document.body.style.overflow = prev;
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [showEmergencyModal]);
+
   const handleCopyContract = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    navigator.clipboard.writeText(contractAddress);
+    if (!contractAddress) return;
+    try {
+      navigator.clipboard.writeText(contractAddress);
+    } catch (_) {}
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
   const handleCopyNumber = (num, name) => {
-    navigator.clipboard.writeText(num);
+    try {
+      navigator.clipboard.writeText(num);
+    } catch (_) {}
     setCopiedHotline(name);
     setTimeout(() => setCopiedHotline(null), 2000);
   };
@@ -129,242 +149,212 @@ export default function Footer({ onNavigate, theme, toggleTheme }) {
     }, 100);
   };
 
-  const handleHowItWorksClick = (e) => {
-    e.preventDefault();
-    const el = document.getElementById('how-it-works');
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    } else {
-      setShowContractModal(true);
-    }
-  };
+  const resolvedTheme =
+    theme ||
+    (typeof document !== 'undefined' ? document.documentElement.getAttribute('data-theme') : null) ||
+    'dark';
+  const isLight = resolvedTheme === 'light';
+
+  const shortContract = contractAddress
+    ? `${contractAddress.substring(0, 6)}…${contractAddress.substring(contractAddress.length - 4)}`
+    : '0x0000…0000';
 
   return (
-    <footer className="bbdrts-footer-root" id="footer-governance">
-      <div className="container bbdrts-footer-main">
-        <div className="bbdrts-footer-grid">
-
-          {/* ── Column 1: Platform & System Mission ── */}
-          <div className="bbdrts-footer-brand-col">
-            <div className="bbdrts-footer-brand-header">
-              <div className="bbdrts-footer-logo-badge">
-                <img src="/logo.png" alt="BBDRTS Logo" className="bbdrts-footer-logo-img" />
+    <footer className="ftv-root" id="footer-governance">
+      <div className="container ftv-main">
+        <div className="ftv-grid">
+          {/* ── Column 1: Brand, Mission & On-Chain Contract Anchor ── */}
+          <div className="ftv-brand-col">
+            <div className="ftv-brand-head">
+              <div className="ftv-logo-box">
+                <img src="/logo.png" alt="BBDRTS" className="ftv-logo-img" />
               </div>
-              <div className="bbdrts-footer-brand-titles">
-                <span className="bbdrts-footer-brand-title">BBDRTS</span>
-                <span className="bbdrts-footer-brand-tagline">Blockchain-Based Donation & Relief Transparency System</span>
+              <div className="ftv-brand-meta">
+                <div className="ftv-brand-row">
+                  <span className="ftv-brand-name">BBDRTS</span>
+                  <span className="ftv-region-tag">PH</span>
+                </div>
+                <span className="ftv-brand-sub">Donation &amp; Relief Transparency</span>
               </div>
             </div>
 
-            <p className="bbdrts-footer-mission">
-              An open, tamper-proof humanitarian platform for the Philippines. BBDRTS connects donors directly to verified disaster response operations through Philippine payment rails (GCash, Maya, Cards, Bank Transfer), a gasless Ethereum Sepolia audit relayer, and public milestone delivery proofs.
+            <p className="ftv-mission">
+              Tamper-proof disaster relief tracking for the Philippines — bridging GCash, Maya, cards, and Ethereum Sepolia milestone proofs.
             </p>
 
-            {/* Verified Contract Address Chip & Explorer Link */}
-            <div className="bbdrts-footer-contract-chip-wrap">
-              <div
-                className="bbdrts-footer-contract-chip"
+            {/* Unified Sepolia Contract Pill */}
+            <div className="ftv-contract-pill">
+              <button
+                type="button"
+                className="ftv-contract-copy"
                 onClick={handleCopyContract}
-                title="Click to copy Sepolia Smart Contract Address"
+                title="Copy Sepolia Smart Contract Address"
               >
-                <span className="material-symbols-outlined contract-icon">verified</span>
-                <span className="contract-label">Sepolia Contract:</span>
-                <span className="bbdrts-contract-addr">
-                  {contractAddress.substring(0, 6)}...{contractAddress.substring(contractAddress.length - 4)}
-                </span>
-                <span className="material-symbols-outlined copy-icon">
+                <span className="ftv-contract-dot" />
+                <span className="ftv-contract-lbl">Sepolia</span>
+                <span className="ftv-contract-addr">{shortContract}</span>
+                <span className="material-symbols-outlined ftv-contract-ico">
                   {copied ? 'check' : 'content_copy'}
                 </span>
-                {copied && <span className="bbdrts-copied-tooltip">Copied!</span>}
-              </div>
-
+              </button>
+              <span className="ftv-contract-sep" aria-hidden="true" />
               <a
                 href={`https://sepolia.etherscan.io/address/${contractAddress}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="bbdrts-footer-explorer-icon-link"
-                title="Open contract on Sepolia Etherscan"
+                className="ftv-contract-ext"
+                title="Inspect contract on Sepolia Etherscan"
+                aria-label="Open Sepolia Etherscan"
               >
-                <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>open_in_new</span>
+                <span className="material-symbols-outlined">north_east</span>
               </a>
-            </div>
-
-            {/* Live Operational Status Beacon */}
-            <div
-              className="bbdrts-footer-status-beacon"
-              onClick={() => setShowLiveTracker(true)}
-              title="Click to open the live real-time donation stream"
-            >
-              <span className="bbdrts-live-beacon" />
-              <span>Ethereum Sepolia · All Systems Operational</span>
-              <span className="material-symbols-outlined" style={{ fontSize: '14px', opacity: 0.6 }}>chevron_right</span>
             </div>
           </div>
 
-          {/* ── Column 2: Relief Causes (Navigation) ── */}
-          <div className="bbdrts-footer-col">
-            <div className="bbdrts-footer-col-title">Relief Causes</div>
-            <ul className="bbdrts-footer-links">
+          {/* ── Column 2: Explore ── */}
+          <div className="ftv-col">
+            <div className="ftv-col-title">Explore</div>
+            <ul className="ftv-links">
               <li>
-                <button type="button" className="bbdrts-footer-link" onClick={handleNavigateCampaigns('ALL')}>
-                  Explore All Causes
+                <button type="button" className="ftv-link" onClick={handleNavigateCampaigns('ALL')}>
+                  Active Campaigns
                 </button>
               </li>
               <li>
-                <button type="button" className="bbdrts-footer-link" onClick={handleNavigateCampaigns('DR')}>
-                  Disaster Emergency Appeals
+                <button type="button" className="ftv-link" onClick={handleNavigateCampaigns('DR')}>
+                  Disaster Appeals
                 </button>
               </li>
               <li>
-                <button type="button" className="bbdrts-footer-link" onClick={handleNavigateCampaigns('CD')}>
-                  Community Development
+                <button type="button" className="ftv-link" onClick={handleNavigateRadar}>
+                  Relief Radar
                 </button>
               </li>
               <li>
-                <button type="button" className="bbdrts-footer-link" onClick={handleNavigateRadar}>
-                  Disaster Radar & Hazard Heatmap
-                </button>
-              </li>
-              <li>
-                <button type="button" className="bbdrts-footer-link" onClick={() => setShowLeaderboard(true)}>
-                  Top Donors & Partner Wall
-                </button>
-              </li>
-              <li>
-                <button type="button" className="bbdrts-footer-link" onClick={handleHowItWorksClick}>
-                  How Milestone Escrow Works
+                <button type="button" className="ftv-link" onClick={() => setShowLeaderboard(true)}>
+                  Top Donors &amp; Partners
                 </button>
               </li>
             </ul>
           </div>
 
-          {/* ── Column 3: Blockchain Transparency ── */}
-          <div className="bbdrts-footer-col">
-            <div className="bbdrts-footer-col-title">Transparency</div>
-            <ul className="bbdrts-footer-links">
+          {/* ── Column 3: Transparency ── */}
+          <div className="ftv-col">
+            <div className="ftv-col-title">Transparency</div>
+            <ul className="ftv-links">
+              <li>
+                <button type="button" className="ftv-link" onClick={() => setShowLiveTracker(true)}>
+                  Live Donation Feed
+                </button>
+              </li>
+              <li>
+                <button type="button" className="ftv-link" onClick={() => setShowContractModal(true)}>
+                  Smart Contract Audit
+                </button>
+              </li>
               <li>
                 <a
                   href={`https://sepolia.etherscan.io/address/${contractAddress}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="bbdrts-footer-link"
+                  className="ftv-link ftv-link--ext"
                 >
-                  Sepolia Public Ledger ↗
+                  <span>Sepolia Ledger</span>
+                  <span className="material-symbols-outlined">north_east</span>
                 </a>
               </li>
               <li>
-                <button type="button" className="bbdrts-footer-link" onClick={() => setShowContractModal(true)}>
-                  Smart Contract Architecture
-                </button>
-              </li>
-              <li>
-                <button type="button" className="bbdrts-footer-link" onClick={() => setShowLiveTracker(true)}>
-                  Live Contribution Activity
-                </button>
-              </li>
-              <li>
-                <button type="button" className="bbdrts-footer-link" onClick={() => openGov('security')}>
-                  Blockchain Audit & Receipt Verification
-                </button>
-              </li>
-              <li>
-                <button type="button" className="bbdrts-footer-link" onClick={() => openGov('allocation')}>
-                  Milestone Fund Release Policy
-                </button>
-              </li>
-              <li>
-                <button type="button" className="bbdrts-footer-link" onClick={() => openGov('accreditation')}>
-                  NGO Accreditation Standards
+                <button type="button" className="ftv-link" onClick={() => openGov('allocation')}>
+                  Milestone Fund Policy
                 </button>
               </li>
             </ul>
           </div>
 
-          {/* ── Column 4: Governance, Compliance & Aid ── */}
-          <div className="bbdrts-footer-col">
-            <div className="bbdrts-footer-col-title">Governance & Legal</div>
-            <ul className="bbdrts-footer-links">
+          {/* ── Column 4: Governance & Legal ── */}
+          <div className="ftv-col">
+            <div className="ftv-col-title">Governance</div>
+            <ul className="ftv-links">
               <li>
-                <button type="button" className="bbdrts-footer-link" onClick={() => openLegal('agreement')}>
-                  User Agreement
+                <button type="button" className="ftv-link" onClick={() => openGov('accreditation')}>
+                  NGO Accreditation
                 </button>
               </li>
               <li>
-                <button type="button" className="bbdrts-footer-link" onClick={() => openLegal('terms')}>
-                  Terms of Service
+                <button type="button" className="ftv-link" onClick={() => openLegal('terms')}>
+                  Terms &amp; User Agreement
                 </button>
               </li>
               <li>
-                <button type="button" className="bbdrts-footer-link" onClick={() => openLegal('privacy')}>
+                <button type="button" className="ftv-link" onClick={() => openLegal('privacy')}>
                   Privacy Policy (RA 10173)
                 </button>
               </li>
               <li>
-                <button type="button" className="bbdrts-footer-link" onClick={() => openLegal('integrity')}>
-                  Aid Integrity &amp; Anti-Fraud
-                </button>
-              </li>
-              <li>
-                <button type="button" className="bbdrts-footer-link" onClick={() => openGov('accreditation')}>
-                  SEC &amp; DSWD Vetting Protocol
-                </button>
-              </li>
-              <li>
-                <button
-                  type="button"
-                  className="bbdrts-footer-link bbdrts-footer-emergency-highlight"
-                  onClick={() => setShowEmergencyModal(true)}
-                >
-                  <span className="material-symbols-outlined" style={{ fontSize: '14px', color: '#ef4444' }}>emergency</span>
-                  <span>Emergency Hotlines (911 / 143)</span>
+                <button type="button" className="ftv-link" onClick={() => openLegal('integrity')}>
+                  Anti-Fraud &amp; Integrity
                 </button>
               </li>
             </ul>
           </div>
-
         </div>
       </div>
 
-      {/* ── Bottom Operational Strip (Vercel Style) ── */}
-      <div className="bbdrts-footer-bottom">
-        <div className="container bbdrts-footer-bottom-inner">
-          <div className="bbdrts-footer-copyright">
-            <span>© 2026 BBDRTS.</span>
-            <span className="bbdrts-footer-sep">·</span>
-            <span>Blockchain-Based Donation & Relief Transparency System</span>
-            <span className="bbdrts-footer-sep">·</span>
-            <span className="bbdrts-footer-flag">🇵🇭 Philippines</span>
+      {/* ── Bottom Operational Strip (Zero Duplication · Vercel Geist Style) ── */}
+      <div className="ftv-bottom">
+        <div className="container ftv-bottom-inner">
+          <div className="ftv-bottom-left">
+            <span className="ftv-copy">© 2026 BBDRTS · Philippines</span>
+            <button
+              type="button"
+              className="ftv-status-btn"
+              onClick={() => setShowLiveTracker(true)}
+              title="Open live donation activity feed"
+            >
+              <span className="ftv-status-dot" />
+              <span>All systems operational</span>
+            </button>
           </div>
 
-          <div className="bbdrts-footer-controls">
-            <div className="bbdrts-footer-legal-links">
-              <button type="button" className="bbdrts-footer-legal-btn" onClick={() => openLegal('agreement')}>User Agreement</button>
-              <button type="button" className="bbdrts-footer-legal-btn" onClick={() => openLegal('terms')}>Terms</button>
-              <button type="button" className="bbdrts-footer-legal-btn" onClick={() => openLegal('privacy')}>Privacy Policy</button>
-              <button type="button" className="bbdrts-footer-legal-btn" onClick={() => openGov('security')}>Security</button>
-              <button type="button" className="bbdrts-footer-legal-btn" onClick={() => setShowContractModal(true)}>Contract Audit</button>
-              <button
-                type="button"
-                className="bbdrts-footer-legal-btn emergency-btn"
-                onClick={() => setShowEmergencyModal(true)}
-              >
-                Hotlines (911)
-              </button>
-            </div>
+          <div className="ftv-bottom-right">
+            <button
+              type="button"
+              className="ftv-hotline-pill"
+              onClick={() => setShowEmergencyModal(true)}
+              title="View Philippine 24/7 Emergency & Relief Hotlines"
+            >
+              <span className="ftv-hotline-dot" />
+              <span>Emergency</span>
+              <span className="ftv-hotline-nums">911 · 143</span>
+            </button>
 
-            {/* Theme Toggle Pill in Footer */}
             {toggleTheme && (
-              <button
-                type="button"
-                className="bbdrts-footer-theme-btn"
-                onClick={toggleTheme}
-                title={`Switch to ${theme === 'light' ? 'Dark' : 'Light'} Mode`}
-              >
-                <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>
-                  {theme === 'light' ? 'dark_mode' : 'light_mode'}
-                </span>
-                <span>{theme === 'light' ? 'Dark' : 'Light'}</span>
-              </button>
+              <div className="ftv-theme-seg" role="group" aria-label="Color theme">
+                <button
+                  type="button"
+                  className={`ftv-theme-opt${!isLight ? ' is-active' : ''}`}
+                  onClick={() => {
+                    if (isLight) toggleTheme();
+                  }}
+                  title="Dark Mode"
+                  aria-label="Switch to Dark Mode"
+                  aria-pressed={!isLight}
+                >
+                  <span className="material-symbols-outlined">dark_mode</span>
+                </button>
+                <button
+                  type="button"
+                  className={`ftv-theme-opt${isLight ? ' is-active' : ''}`}
+                  onClick={() => {
+                    if (!isLight) toggleTheme();
+                  }}
+                  title="Light Mode"
+                  aria-label="Switch to Light Mode"
+                  aria-pressed={isLight}
+                >
+                  <span className="material-symbols-outlined">light_mode</span>
+                </button>
+              </div>
             )}
           </div>
         </div>
@@ -380,131 +370,127 @@ export default function Footer({ onNavigate, theme, toggleTheme }) {
       {/* Statutory Legal Framework, User Agreement, Terms & Privacy (RA 10173) Modal */}
       <TermsPolicyModal
         isOpen={legalModal.open}
-        onClose={() => setLegalModal(prev => ({ ...prev, open: false }))}
+        onClose={() => setLegalModal((prev) => ({ ...prev, open: false }))}
         initialTab={legalModal.tab}
-        theme={theme}
+        theme={resolvedTheme}
       />
 
       {/* Smart Contract Verification Modal */}
       <SmartContractModal
         isOpen={showContractModal}
         onClose={() => setShowContractModal(false)}
-        theme={theme}
+        theme={resolvedTheme}
       />
 
       {/* Live Activity Stream Modal */}
       <LiveTrackerModal
         isOpen={showLiveTracker}
         onClose={() => setShowLiveTracker(false)}
-        theme={theme}
+        theme={resolvedTheme}
       />
 
       {/* Top Benefactors & Leaderboard Modal */}
       <LeaderboardModal
         isOpen={showLeaderboard}
         onClose={() => setShowLeaderboard(false)}
-        theme={theme}
+        theme={resolvedTheme}
       />
 
       {/* Emergency Hotlines Modal */}
-      {showEmergencyModal && createPortal(
-        <div
-          className="bbdrts-hotline-backdrop"
-          onClick={() => setShowEmergencyModal(false)}
-        >
+      {showEmergencyModal &&
+        createPortal(
           <div
-            className="bbdrts-hotline-modal"
-            onClick={(e) => e.stopPropagation()}
+            className="ftv-hotline-backdrop"
+            data-theme={resolvedTheme}
+            onClick={() => setShowEmergencyModal(false)}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="ftv-hotline-title"
           >
-            {/* Modal Header */}
-            <div className="bbdrts-hotline-modal-header">
-              <div className="bbdrts-hotline-modal-title-wrap">
-                <div className="bbdrts-hotline-icon-box">
-                  <span className="material-symbols-outlined">emergency</span>
+            <div className="ftv-hotline-modal" onClick={(e) => e.stopPropagation()}>
+              <div className="ftv-hotline-head">
+                <div className="ftv-hotline-head-left">
+                  <div className="ftv-hotline-icon">
+                    <span className="material-symbols-outlined">emergency</span>
+                  </div>
+                  <div>
+                    <h3 id="ftv-hotline-title" className="ftv-hotline-title">
+                      Philippine Emergency &amp; Relief Hotlines
+                    </h3>
+                    <p className="ftv-hotline-sub">
+                      Verified 24/7 national emergency numbers and disaster operations centers.
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="bbdrts-hotline-modal-title">Philippine Emergency & Relief Hotlines</h3>
-                  <p className="bbdrts-hotline-modal-sub">
-                    Verified national emergency numbers and 24/7 disaster response operations centers.
-                  </p>
-                </div>
+                <button
+                  type="button"
+                  className="ftv-hotline-close"
+                  onClick={() => setShowEmergencyModal(false)}
+                  aria-label="Close hotlines modal"
+                >
+                  <span className="material-symbols-outlined">close</span>
+                </button>
               </div>
-              <button
-                type="button"
-                className="bbdrts-hotline-close-btn"
-                onClick={() => setShowEmergencyModal(false)}
-                aria-label="Close hotlines modal"
-              >
-                <span className="material-symbols-outlined">close</span>
-              </button>
-            </div>
 
-            {/* Hotlines Grid */}
-            <div className="bbdrts-hotline-grid">
-              {EMERGENCY_HOTLINES.map((h) => (
-                <div key={h.name} className="bbdrts-hotline-card">
-                  <div className="bbdrts-hotline-card-top">
-                    <div className="bbdrts-hotline-card-title-row">
-                      <span className="material-symbols-outlined bbdrts-hotline-card-icon">{h.icon}</span>
-                      <span className="bbdrts-hotline-card-name">{h.name}</span>
-                    </div>
-                    <span className="bbdrts-hotline-card-badge">{h.badge}</span>
-                  </div>
-
-                  <p className="bbdrts-hotline-card-desc">{h.desc}</p>
-
-                  <div className="bbdrts-hotline-card-numbers">
-                    <div className="bbdrts-hotline-main-num">{h.number}</div>
-                    {h.altNumber && (
-                      <div className="bbdrts-hotline-alt-num">Alt: {h.altNumber}</div>
-                    )}
-                  </div>
-
-                  <div className="bbdrts-hotline-card-actions">
-                    <a
-                      href={`tel:${h.tel}`}
-                      className="bbdrts-hotline-call-btn"
-                      title={`Call ${h.name}`}
-                    >
-                      <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>call</span>
-                      <span>Call Now</span>
-                    </a>
-                    <button
-                      type="button"
-                      className="bbdrts-hotline-copy-btn"
-                      onClick={() => handleCopyNumber(h.number, h.name)}
-                      title="Copy phone number"
-                    >
-                      <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>
-                        {copiedHotline === h.name ? 'check' : 'content_copy'}
+              <div className="ftv-hotline-grid">
+                {EMERGENCY_HOTLINES.map((h) => (
+                  <div key={h.name} className="ftv-hotline-card">
+                    <div className="ftv-hotline-card-top">
+                      <span className="ftv-hotline-card-name">
+                        <span className="material-symbols-outlined ftv-hotline-card-ico">{h.icon}</span>
+                        <span>{h.name}</span>
                       </span>
-                      <span>{copiedHotline === h.name ? 'Copied' : 'Copy'}</span>
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
+                      <span className="ftv-hotline-badge">{h.badge}</span>
+                    </div>
 
-            {/* Modal Advisory Footer */}
-            <div className="bbdrts-hotline-modal-footer">
-              <div className="bbdrts-hotline-advisory">
-                <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#f59e0b' }}>info</span>
-                <span>
-                  For flood evacuations and immediate life threats, call <strong>911</strong> or <strong>PRC 143</strong> first. For real-time bulletins, monitor the <a href="https://ndrrmc.gov.ph" target="_blank" rel="noopener noreferrer">NDRRMC Official Portal ↗</a>.
-                </span>
+                    <p className="ftv-hotline-desc">{h.desc}</p>
+
+                    <div className="ftv-hotline-nums-row">
+                      <span className="ftv-hotline-main-num">{h.number}</span>
+                      {h.altNumber && <span className="ftv-hotline-alt">Alt: {h.altNumber}</span>}
+                    </div>
+
+                    <div className="ftv-hotline-actions">
+                      <a href={`tel:${h.tel}`} className="ftv-hotline-call" title={`Call ${h.name}`}>
+                        <span className="material-symbols-outlined">call</span>
+                        <span>Call Now</span>
+                      </a>
+                      <button
+                        type="button"
+                        className={`ftv-hotline-copy${copiedHotline === h.name ? ' is-copied' : ''}`}
+                        onClick={() => handleCopyNumber(h.number, h.name)}
+                        title="Copy phone number"
+                      >
+                        <span className="material-symbols-outlined">
+                          {copiedHotline === h.name ? 'check' : 'content_copy'}
+                        </span>
+                        <span>{copiedHotline === h.name ? 'Copied' : 'Copy'}</span>
+                      </button>
+                    </div>
+                  </div>
+                ))}
               </div>
-              <button
-                type="button"
-                className="bbdrts-hotline-dismiss-btn"
-                onClick={() => setShowEmergencyModal(false)}
-              >
-                Close Hotlines
-              </button>
+
+              <div className="ftv-hotline-foot">
+                <p className="ftv-hotline-advisory">
+                  For immediate life threats or flood evacuations, call <strong>911</strong> or{' '}
+                  <strong>Red Cross 143</strong> first. Live bulletins:{' '}
+                  <a href="https://ndrrmc.gov.ph" target="_blank" rel="noopener noreferrer">
+                    NDRRMC Portal ↗
+                  </a>
+                </p>
+                <button
+                  type="button"
+                  className="ftv-hotline-done"
+                  onClick={() => setShowEmergencyModal(false)}
+                >
+                  Close
+                </button>
+              </div>
             </div>
-          </div>
-        </div>,
-        document.body
-      )}
+          </div>,
+          document.body
+        )}
     </footer>
   );
 }
