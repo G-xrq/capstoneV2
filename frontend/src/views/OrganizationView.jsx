@@ -7051,30 +7051,47 @@ export default function OrganizationView({
         {activeTab === 'sec-kyc' && (() => {
           const isKycApproved = currentUser?.verification_status === 'Approved' || kycStatusData?.Verification_Status === 'Approved';
           const isKycRejected = kycStatusData?.Verification_Status === 'Rejected';
-          const hasSubmittedDocs = Boolean((secRegNo && secRegNo.trim()) || secCertUrl);
+          const effectiveSecReg = secRegNo || kycStatusData?.secRegistrationNo || '';
+          const effectiveTin = tinNo || kycStatusData?.tinNumber || '';
+          const effectiveDswd = dswdNo || kycStatusData?.dswdAccreditationNo || '';
+          const effectiveRepName = repName || kycStatusData?.authorizedRepName || '';
+          const effectiveRepPos = repPosition || kycStatusData?.authorizedRepPosition || '';
+          const effectiveAddress = registeredAddress || kycStatusData?.registeredAddress || '';
+          const effectiveBoard = boardMembersText || kycStatusData?.boardMembers || '';
+          const effectivePrimaryType = primaryIdType || kycStatusData?.primaryIdType || 'Philippine Passport';
+          const effectivePrimaryNo = primaryIdNumber || kycStatusData?.primaryIdNumber || '';
+          const effectivePrimaryUrl = primaryIdUrl || kycStatusData?.primaryIdUrl || '';
+          const effectiveSecondaryType = secondaryIdType || kycStatusData?.secondaryIdType || "LTO Driver's License";
+          const effectiveSecondaryNo = secondaryIdNumber || kycStatusData?.secondaryIdNumber || '';
+          const effectiveSecondaryUrl = secondaryIdUrl || kycStatusData?.secondaryIdUrl || '';
+          const effectiveSecCertUrl = secCertUrl || kycStatusData?.secCertificateUrl || '';
+          const hasSubmittedDocs = Boolean(effectiveSecReg.trim() || effectiveSecCertUrl);
+          const attachedDocCount = [effectiveSecCertUrl, effectivePrimaryUrl, effectiveSecondaryUrl].filter(Boolean).length;
+
+          const statusTone = isKycApproved ? 'approved' : isKycRejected ? 'rejected' : hasSubmittedDocs ? 'review' : 'pending';
+          const statusLabel = isKycApproved
+            ? 'Accredited'
+            : isKycRejected
+              ? 'Correction required'
+              : hasSubmittedDocs
+                ? 'Under review'
+                : 'Submission required';
 
           return (
             <div className="sec-v2-wrap">
-              {/* ── Institutional Vercel Page Header ── */}
+              {/* ── Page Header ── */}
               <div className="admin-page-header" id="tour-ngo-sec-header">
                 <div className="admin-page-title-wrap">
                   <h2 className="admin-page-title">
-                    <span className="material-symbols-outlined" style={{ fontSize: '24px', color: '#16a34a' }}>verified_user</span>
-                    <span>SEC Accreditation & KYC</span>
+                    <span className="material-symbols-outlined" style={{ fontSize: '22px', color: isKycApproved ? '#10b981' : 'var(--text-primary)' }}>verified_user</span>
+                    <span>SEC Accreditation &amp; KYC</span>
                   </h2>
                   <p className="admin-page-sub">
-                    Submit official Philippine non-profit registration (SEC Non-Stock / DSWD) to verify your NGO identity and unlock relief campaign creation.
+                    Manage Philippine non-profit legal credentials (SEC RA 11232, BIR, DSWD) and signatory KYC documents for relief campaign deployment.
                   </p>
                 </div>
 
                 <div className="admin-page-header-actions">
-                  <span className="admin-header-badge" style={{ color: isKycApproved ? '#16a34a' : (isKycRejected ? '#ef4444' : '#f59e0b') }}>
-                    <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>
-                      {isKycApproved ? 'verified' : (isKycRejected ? 'cancel' : 'pending')}
-                    </span>
-                    <span>{isKycApproved ? 'Verified Relief NGO' : (isKycRejected ? 'Verification Rejected' : 'Verification Required')}</span>
-                  </span>
-
                   <button
                     type="button"
                     className="btn btn-ghost btn-sm"
@@ -7085,788 +7102,784 @@ export default function OrganizationView({
                     {kycLoading ? (
                       <div className="spinner spinner-light" />
                     ) : (
-                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
                         <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>refresh</span>
-                        <span>Refresh Status</span>
+                        <span>Refresh</span>
                       </span>
                     )}
                   </button>
-                  <button
-                    type="button"
-                    onClick={handleAutofillDemoSec}
-                    title="Populate authentic Philippine Red Cross sample credentials for thesis defense"
-                    style={{
-                      background: 'rgba(56, 189, 248, 0.10)',
-                      border: '1px solid rgba(56, 189, 248, 0.35)',
-                      color: '#38bdf8',
-                      fontSize: '0.78rem',
-                      fontWeight: 700,
-                      padding: '6px 14px',
-                      borderRadius: '8px',
-                      cursor: 'pointer',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      transition: 'all 0.15s ease'
-                    }}
-                  >
-                    <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>bolt</span>
-                    <span>Demo SEC Credentials</span>
-                  </button>
+
+                  {isKycApproved ? (
+                    <button
+                      type="button"
+                      className="btn btn-outline btn-sm"
+                      onClick={() => setShowKycFormOverride(!showKycFormOverride)}
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                    >
+                      <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>
+                        {showKycFormOverride ? 'close' : 'edit'}
+                      </span>
+                      <span>{showKycFormOverride ? 'Close Editor' : 'Edit Credentials'}</span>
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      className="btn btn-outline btn-sm"
+                      onClick={handleAutofillDemoSec}
+                      title="Fill sample Philippine non-profit credentials for demonstration"
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                    >
+                      <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>bolt</span>
+                      <span>Fill Sample Data</span>
+                    </button>
+                  )}
                 </div>
               </div>
 
-              {/* ── 4-Step Connected Progress Workflow ── */}
-              <div className="sec-stepper-card">
-                <div className="sec-stepper-header">
-                  <div className="sec-stepper-kicker">Verification Workflow</div>
-                  <div className="sec-stepper-status-pill" style={{
-                    background: isKycApproved ? 'rgba(34, 197, 94, 0.12)' : (isKycRejected ? 'rgba(239, 68, 68, 0.12)' : hasSubmittedDocs ? 'rgba(56, 189, 248, 0.12)' : 'var(--bg-subcard)'),
-                    color: isKycApproved ? '#16a34a' : (isKycRejected ? '#ef4444' : hasSubmittedDocs ? '#0284c7' : 'var(--text-muted)'),
-                    border: `1px solid ${isKycApproved ? 'rgba(34, 197, 94, 0.3)' : (isKycRejected ? 'rgba(239, 68, 68, 0.3)' : hasSubmittedDocs ? 'rgba(56, 189, 248, 0.3)' : 'var(--border)')}`
-                  }}>
-                    <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>
-                      {isKycApproved ? 'check_circle' : isKycRejected ? 'error' : hasSubmittedDocs ? 'hourglass_top' : 'radio_button_unchecked'}
-                    </span>
-                    <span>{isKycApproved ? 'Accreditation Approved' : isKycRejected ? 'Action Required' : hasSubmittedDocs ? 'Under Verification' : 'Pending Submission'}</span>
-                  </div>
+              {/* ── 4-Stage Verification Progress Rail ── */}
+              <div className="sec-rail-card">
+                <div className="sec-rail-head">
+                  <div className="sec-rail-title">Verification workflow</div>
+                  <span className={`sec-status-badge is-${statusTone}`}>
+                    <span className="sec-status-dot" />
+                    <span>{statusLabel}</span>
+                  </span>
                 </div>
 
-                <div className="sec-stepper-flow">
-                  {/* Step 1 */}
-                  <div className="sec-step-item is-done">
-                    <div className="sec-step-top">
-                      <div className="sec-step-circle">
-                        <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>check</span>
-                      </div>
+                <div className="sec-rail-steps">
+                  <div className="sec-rail-step is-done">
+                    <div className="sec-rail-node">
+                      <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>check</span>
                     </div>
-                    <div className="sec-step-info">
-                      <div className="sec-step-name">1. Account Registered</div>
-                      <div className="sec-step-desc">NGO Email &amp; Profile Created</div>
+                    <div className="sec-rail-copy">
+                      <div className="sec-rail-name">1. Account registered</div>
+                      <div className="sec-rail-desc">Organization profile created</div>
                     </div>
                   </div>
 
-                  {/* Step 2 */}
-                  <div className={`sec-step-item ${(hasSubmittedDocs || isKycApproved) ? 'is-done' : 'is-current'}`}>
-                    <div className="sec-step-top">
-                      <div className="sec-step-circle">
-                        {(hasSubmittedDocs || isKycApproved) ? (
-                          <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>check</span>
-                        ) : '2'}
-                      </div>
+                  <div className={`sec-rail-step ${(hasSubmittedDocs || isKycApproved) ? 'is-done' : 'is-current'}`}>
+                    <div className="sec-rail-node">
+                      {(hasSubmittedDocs || isKycApproved) ? (
+                        <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>check</span>
+                      ) : '2'}
                     </div>
-                    <div className="sec-step-info">
-                      <div className="sec-step-name">2. Submit Registration</div>
-                      <div className="sec-step-desc">
-                        {(hasSubmittedDocs || isKycApproved) ? 'SEC Certificate Attached' : 'Awaiting Submission'}
+                    <div className="sec-rail-copy">
+                      <div className="sec-rail-name">2. Credentials submitted</div>
+                      <div className="sec-rail-desc">
+                        {(hasSubmittedDocs || isKycApproved) ? 'SEC certificate & IDs attached' : 'Awaiting document upload'}
                       </div>
                     </div>
                   </div>
 
-                  {/* Step 3 */}
-                  <div className={`sec-step-item ${isKycApproved ? 'is-done' : (isKycRejected ? 'is-warning' : (hasSubmittedDocs ? 'is-current' : ''))}`}>
-                    <div className="sec-step-top">
-                      <div className="sec-step-circle">
-                        {isKycApproved ? (
-                          <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>check</span>
-                        ) : isKycRejected ? (
-                          <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>priority_high</span>
-                        ) : '3'}
-                      </div>
+                  <div className={`sec-rail-step ${isKycApproved ? 'is-done' : isKycRejected ? 'is-warning' : hasSubmittedDocs ? 'is-current' : ''}`}>
+                    <div className="sec-rail-node">
+                      {isKycApproved ? (
+                        <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>check</span>
+                      ) : isKycRejected ? (
+                        <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>priority_high</span>
+                      ) : '3'}
                     </div>
-                    <div className="sec-step-info">
-                      <div className="sec-step-name">3. Document Check</div>
-                      <div className="sec-step-desc">
-                        {isKycApproved ? 'SEC Seal &amp; Reg Validated' : (isKycRejected ? 'Needs Correction' : (hasSubmittedDocs ? 'Validation In Progress' : 'Pending Step 2'))}
+                    <div className="sec-rail-copy">
+                      <div className="sec-rail-name">3. Document validation</div>
+                      <div className="sec-rail-desc">
+                        {isKycApproved
+                          ? 'SEC seal & registration verified'
+                          : isKycRejected
+                            ? 'Requires resubmission'
+                            : hasSubmittedDocs
+                              ? 'Review in progress'
+                              : 'Pending submission'}
                       </div>
                     </div>
                   </div>
 
-                  {/* Step 4 */}
-                  <div className={`sec-step-item ${isKycApproved ? 'is-done' : ''}`}>
-                    <div className="sec-step-top">
-                      <div className="sec-step-circle">
-                        {isKycApproved ? (
-                          <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>lock_open</span>
-                        ) : (
-                          <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>lock</span>
+                  <div className={`sec-rail-step ${isKycApproved ? 'is-done' : ''}`}>
+                    <div className="sec-rail-node">
+                      <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>
+                        {isKycApproved ? 'lock_open' : 'lock'}
+                      </span>
+                    </div>
+                    <div className="sec-rail-copy">
+                      <div className="sec-rail-name">4. Campaign access</div>
+                      <div className="sec-rail-desc">
+                        {isKycApproved ? 'Campaign deployment unlocked' : 'Unlocked upon approval'}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* ── Approved Institutional Registry (2-Column Geist Layout) ── */}
+              {isKycApproved && (
+                <div className="sec-approved-layout">
+                  {/* Left Main Registry Card */}
+                  <div className="sec-registry-card">
+                    <div className="sec-registry-top">
+                      <div className="sec-registry-identity">
+                        <div className="sec-registry-shield">
+                          <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>verified</span>
+                        </div>
+                        <div>
+                          <h3 className="sec-registry-title">Officially Accredited Non-Profit</h3>
+                          <p className="sec-registry-sub">
+                            Verified under Philippine SEC RA 11232 guidelines. Relief campaign deployment and smart vault access are active.
+                          </p>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        className="btn btn-primary sec-deploy-cta"
+                        onClick={() => setActiveTab('create')}
+                      >
+                        <span className="material-symbols-outlined" style={{ fontSize: '17px' }}>add_circle</span>
+                        <span>Deploy Campaign</span>
+                      </button>
+                    </div>
+
+                    {/* Section 1: Corporate & Regulatory Identifiers */}
+                    <div className="sec-registry-section">
+                      <div className="sec-registry-section-title">Corporate &amp; regulatory identifiers</div>
+                      <div className="sec-kv-grid">
+                        <div className="sec-kv-cell">
+                          <span className="sec-kv-label">SEC Registration Number</span>
+                          <span className="sec-kv-value is-mono">
+                            {effectiveSecReg || 'Not provided'}
+                          </span>
+                        </div>
+                        <div className="sec-kv-cell">
+                          <span className="sec-kv-label">BIR Tax Identification (TIN)</span>
+                          <span className="sec-kv-value is-mono">
+                            {effectiveTin || 'Not provided'}
+                          </span>
+                        </div>
+                        <div className="sec-kv-cell">
+                          <span className="sec-kv-label">DSWD Solicitation Permit</span>
+                          <span className={`sec-kv-value is-mono ${!effectiveDswd ? 'is-muted' : ''}`}>
+                            {effectiveDswd || 'Optional — Not on file'}
+                          </span>
+                        </div>
+                        <div className="sec-kv-cell">
+                          <span className="sec-kv-label">Smart Vault Status</span>
+                          <span className="sec-kv-value">
+                            <span className="sec-inline-pill is-verified">
+                              <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>lock_open</span>
+                              <span>Unlocked</span>
+                            </span>
+                          </span>
+                        </div>
+                        <div className="sec-kv-cell is-full">
+                          <span className="sec-kv-label">Registered Office Address</span>
+                          <span className="sec-kv-value">
+                            {effectiveAddress || 'Not provided'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Section 2: Authorized Liaison & Governance */}
+                    <div className="sec-registry-section">
+                      <div className="sec-registry-section-title">Authorized signatory &amp; governance</div>
+                      <div className="sec-kv-grid">
+                        <div className="sec-kv-cell">
+                          <span className="sec-kv-label">Authorized Liaison Trustee</span>
+                          <span className="sec-kv-value">
+                            {effectiveRepName || 'Not provided'}
+                          </span>
+                        </div>
+                        <div className="sec-kv-cell">
+                          <span className="sec-kv-label">Official Designation</span>
+                          <span className="sec-kv-value">
+                            {effectiveRepPos || 'Authorized Officer'}
+                          </span>
+                        </div>
+                        {effectiveBoard && (
+                          <div className="sec-kv-cell is-full">
+                            <span className="sec-kv-label">Governing Board of Trustees</span>
+                            <span className="sec-kv-value sec-kv-board">{effectiveBoard}</span>
+                          </div>
                         )}
                       </div>
                     </div>
-                    <div className="sec-step-info">
-                      <div className="sec-step-name">4. Campaign Access</div>
-                      <div className="sec-step-desc">
-                        {isKycApproved ? 'Campaign Creation Unlocked' : 'Unlocked on Approval'}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* ── Approved Certificate Banner (If Approved) ── */}
-              {isKycApproved && (
-                <div className="sec-approved-hero">
-                  <div className="sec-approved-header">
-                    <div className="sec-approved-shield">
-                      <span className="material-symbols-outlined" style={{ fontSize: '28px' }}>verified</span>
-                    </div>
-                    <div style={{ flex: 1 }}>
-                      <h3 className="sec-approved-title">
-                        Officially Accredited Non-Profit Organization
-                      </h3>
-                      <p className="sec-approved-sub">
-                        This organization is verified under Philippine Securities and Exchange Commission (SEC) guidelines. Campaign deployment is unlocked.
-                      </p>
-                    </div>
                   </div>
 
-                  <div className="sec-approved-grid">
-                    <div>
-                      <div className="sec-approved-metric-label">SEC Registration Number</div>
-                      <div className="sec-approved-metric-val" style={{ color: '#0284c7' }}>
-                        {secRegNo || kycStatusData?.secRegistrationNo || 'SEC-CN2021-08492'}
+                  {/* Right Vault & Regulatory Portals Column */}
+                  <aside className="sec-approved-aside">
+                    {/* Verified Documents Vault */}
+                    <div className="sec-aside-card">
+                      <div className="sec-aside-head">
+                        <span className="sec-aside-title">Verified documents</span>
+                        <span className="sec-aside-count">{attachedDocCount} on file</span>
                       </div>
-                    </div>
-                    <div>
-                      <div className="sec-approved-metric-label">BIR Tax Identification (TIN)</div>
-                      <div className="sec-approved-metric-val">
-                        {tinNo || kycStatusData?.tinNumber || '000-842-192-000'}
-                      </div>
-                    </div>
-                    <div>
-                      <div className="sec-approved-metric-label">DSWD Solicitation Permit</div>
-                      <div className="sec-approved-metric-val">
-                        {dswdNo || kycStatusData?.dswdAccreditationNo || 'DSWD-SB-A-2024-0193'}
-                      </div>
-                    </div>
-                    <div>
-                      <div className="sec-approved-metric-label">Authorized Liaison Trustee</div>
-                      <div className="sec-approved-metric-val">
-                        {repName || kycStatusData?.authorizedRepName || 'Gwendolyn Pang'} ({repPosition || kycStatusData?.authorizedRepPosition || 'SecGen'})
-                      </div>
-                    </div>
-                    <div>
-                      <div className="sec-approved-metric-label">Primary Government ID</div>
-                      <div className="sec-approved-metric-val" style={{ fontSize: '0.78rem', color: '#c084fc' }}>
-                        {primaryIdType || kycStatusData?.primaryIdType || 'Passport'} • {primaryIdNumber || kycStatusData?.primaryIdNumber || 'P8942103B'}
-                      </div>
-                    </div>
-                    <div>
-                      <div className="sec-approved-metric-label">Secondary Government ID</div>
-                      <div className="sec-approved-metric-val" style={{ fontSize: '0.78rem', color: '#34d399' }}>
-                        {secondaryIdType || kycStatusData?.secondaryIdType || 'Driver\'s License'} • {secondaryIdNumber || kycStatusData?.secondaryIdNumber || 'N02-18-938210'}
-                      </div>
-                    </div>
-                    <div>
-                      <div className="sec-approved-metric-label">Registered Office</div>
-                      <div className="sec-approved-metric-val" style={{ fontSize: '0.78rem' }}>
-                        {registeredAddress || kycStatusData?.registeredAddress || 'Mandaluyong City, Metro Manila'}
-                      </div>
-                    </div>
-                    <div>
-                      <div className="sec-approved-metric-label">Smart Vault Access</div>
-                      <div className="sec-approved-metric-val" style={{ color: '#16a34a', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                        <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>lock_open</span>
-                        <span>Unlocked</span>
-                      </div>
-                    </div>
-                  </div>
 
-                  <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
-                    <button
-                      type="button"
-                      className="btn btn-primary"
-                      onClick={() => setActiveTab('create')}
-                      style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '9px 18px' }}
-                    >
-                      <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>add_circle</span>
-                      <span>Deploy Relief Campaign</span>
-                      <span className="material-symbols-outlined" style={{ fontSize: '17px' }}>arrow_forward</span>
-                    </button>
-
-                    {(secCertUrl || kycStatusData?.secCertificateUrl) && (
-                      <button
-                        type="button"
-                        className="btn btn-outline"
-                        onClick={() => setViewingKycCert(true)}
-                        style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '9px 16px' }}
-                      >
-                        <span className="material-symbols-outlined" style={{ fontSize: '17px' }}>visibility</span>
-                        Inspect SEC Certificate
-                      </button>
-                    )}
-
-                    {(primaryIdUrl || kycStatusData?.primaryIdUrl) && (
-                      <button
-                        type="button"
-                        className="btn btn-outline"
-                        onClick={() => setPreviewDocModal({
-                          open: true,
-                          title: `Primary Government ID (${primaryIdType || kycStatusData?.primaryIdType || 'Passport'})`,
-                          url: primaryIdUrl || kycStatusData?.primaryIdUrl,
-                          regNo: primaryIdNumber || kycStatusData?.primaryIdNumber || ''
-                        })}
-                        style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '9px 16px' }}
-                      >
-                        <span className="material-symbols-outlined" style={{ fontSize: '17px' }}>contact_page</span>
-                        Inspect Primary ID
-                      </button>
-                    )}
-
-                    {(secondaryIdUrl || kycStatusData?.secondaryIdUrl) && (
-                      <button
-                        type="button"
-                        className="btn btn-outline"
-                        onClick={() => setPreviewDocModal({
-                          open: true,
-                          title: `Secondary Government ID (${secondaryIdType || kycStatusData?.secondaryIdType || 'Driver\'s License'})`,
-                          url: secondaryIdUrl || kycStatusData?.secondaryIdUrl,
-                          regNo: secondaryIdNumber || kycStatusData?.secondaryIdNumber || ''
-                        })}
-                        style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '9px 16px' }}
-                      >
-                        <span className="material-symbols-outlined" style={{ fontSize: '17px' }}>badge</span>
-                        Inspect Secondary ID
-                      </button>
-                    )}
-
-                    <button
-                      type="button"
-                      className="btn btn-ghost"
-                      onClick={() => setShowKycFormOverride(!showKycFormOverride)}
-                      style={{ fontSize: '0.80rem', marginLeft: 'auto' }}
-                    >
-                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                        <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>
-                          {showKycFormOverride ? 'expand_less' : 'edit'}
-                        </span>
-                        <span>{showKycFormOverride ? 'Hide Document Dossier' : 'Update Registration & IDs'}</span>
-                      </span>
-                    </button>
-                  </div>
-
-                  <div className="sec-reference-footer">
-                    <span className="sec-reference-label">Official Regulatory Portals:</span>
-                    <a href="https://esparc.sec.gov.ph" target="_blank" rel="noopener noreferrer" className="sec-reference-link">
-                      <span>SEC eSPARC Portal</span>
-                      <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>open_in_new</span>
-                    </a>
-                    <span className="sec-reference-dot">•</span>
-                    <a href="https://standards.dswd.gov.ph" target="_blank" rel="noopener noreferrer" className="sec-reference-link">
-                      <span>DSWD Standards Bureau</span>
-                      <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>open_in_new</span>
-                    </a>
-                  </div>
-                </div>
-              )}
-
-              {/* ── Philippine Non-Profit Compliance Notice (If Not Approved) ── */}
-              {!isKycApproved && (
-                <div className="sec-compliance-banner">
-                  <div className="sec-compliance-icon">
-                    <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>verified_user</span>
-                  </div>
-                  <div className="sec-compliance-content">
-                    <div className="sec-compliance-title">Philippine Non-Profit Registration Requirements</div>
-                    <p className="sec-compliance-desc">
-                      Philippine non-profit organizations and foundations must be registered as a Non-Stock Corporation (RA 11232) to deploy relief campaigns and access milestone smart vaults.
-                    </p>
-                  </div>
-                  <div className="sec-compliance-actions">
-                    <a
-                      href="https://esparc.sec.gov.ph"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="sec-compliance-btn"
-                      title="Open SEC eSPARC Portal in new tab"
-                    >
-                      <span>SEC eSPARC</span>
-                      <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>open_in_new</span>
-                    </a>
-                    <a
-                      href="https://standards.dswd.gov.ph"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="sec-compliance-btn"
-                      title="Open DSWD Standards Bureau in new tab"
-                    >
-                      <span>DSWD Standards</span>
-                      <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>open_in_new</span>
-                    </a>
-                  </div>
-                </div>
-              )}
-
-              {/* ── Rejection Notice Banner (If Rejected) ── */}
-              {isKycRejected && (
-                <div style={{
-                  background: 'rgba(239, 68, 68, 0.08)',
-                  border: '1.5px solid rgba(239, 68, 68, 0.35)',
-                  borderRadius: '12px',
-                  padding: '16px 20px',
-                  display: 'flex',
-                  alignItems: 'flex-start',
-                  gap: '12px'
-                }}>
-                  <span className="material-symbols-outlined" style={{ color: '#ef4444', fontSize: '26px', marginTop: '2px' }}>error</span>
-                  <div>
-                    <div style={{ color: '#ef4444', fontWeight: 800, fontSize: '0.92rem' }}>
-                      Verification Incomplete: Correction Required
-                    </div>
-                    <p style={{ color: 'var(--text-secondary)', fontSize: '0.82rem', margin: '4px 0 0 0', lineHeight: 1.5 }}>
-                      {kycStatusData?.auditNotes || 'Your submitted registration details or certificate could not be validated. Please confirm your SEC registration number and upload a clear, legible certificate document.'}
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              {/* ── Institutional Accreditation Terminal (Visible when not approved, or when updating) ── */}
-              {(!isKycApproved || showKycFormOverride) && (
-                <form onSubmit={handleSaveKyc} className="sec-terminal-layout">
-                  {/* ── Left Pane: Live Dossier Status & Compliance Sidebar ── */}
-                  <aside className="sec-dossier-sidebar">
-                    <div className="sec-dossier-top">
-                      <div className="sec-dossier-title-group">
-                        <span className="material-symbols-outlined" style={{ fontSize: '20px', color: '#0284c7' }}>folder_shared</span>
-                        <h3 className="sec-dossier-title">Accreditation Dossier</h3>
-                      </div>
-                      <span className="sec-dossier-status-pill" style={{
-                        background: dossierCompletion.percent === 100 ? 'rgba(34, 197, 94, 0.12)' : 'rgba(56, 189, 248, 0.12)',
-                        color: dossierCompletion.percent === 100 ? '#16a34a' : '#0284c7',
-                        border: `1px solid ${dossierCompletion.percent === 100 ? 'rgba(34, 197, 94, 0.3)' : 'rgba(56, 189, 248, 0.3)'}`
-                      }}>
-                        {dossierCompletion.percent === 100 ? 'Ready to Submit' : 'In Progress'}
-                      </span>
-                    </div>
-
-                    <div className="sec-dossier-progress-box">
-                      <div className="sec-dossier-progress-header">
-                        <span>Requirements Met</span>
-                        <span>{dossierCompletion.score} / {dossierCompletion.total} ({dossierCompletion.percent}%)</span>
-                      </div>
-                      <div className="sec-dossier-progress-track">
-                        <div className="sec-dossier-progress-fill" style={{ width: `${dossierCompletion.percent}%` }} />
-                      </div>
-                    </div>
-
-                    {/* Interactive 5-Point Dossier Checklist */}
-                    <div className="sec-dossier-checklist">
-                      {dossierCompletion.items.map((it) => (
-                        <div key={it.id} className={`sec-dossier-item ${it.done ? 'is-ready' : 'is-pending'}`}>
-                          <div className="sec-dossier-item-left">
-                            <span className="material-symbols-outlined" style={{
-                              fontSize: '16px',
-                              color: it.done ? '#10b981' : 'var(--text-muted)'
-                            }}>
-                              {it.done ? 'check_circle' : 'radio_button_unchecked'}
+                      <div className="sec-vault-list">
+                        {/* SEC Certificate Row */}
+                        <div className="sec-vault-row">
+                          <div className="sec-vault-icon">
+                            <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>
+                              {effectiveSecCertUrl && isPdfDocument(effectiveSecCertUrl) ? 'picture_as_pdf' : 'description'}
                             </span>
-                            <span>{it.label}</span>
                           </div>
-                          <span className={`sec-dossier-item-badge ${it.done ? 'done' : 'wait'}`}>
-                            {it.done ? 'Ready' : 'Pending'}
-                          </span>
+                          <div className="sec-vault-info">
+                            <div className="sec-vault-name">SEC Certificate</div>
+                            <div className="sec-vault-meta">{effectiveSecReg || 'Certificate of Incorporation'}</div>
+                          </div>
+                          {effectiveSecCertUrl ? (
+                            <button
+                              type="button"
+                              className="sec-vault-view-btn"
+                              onClick={() => setPreviewDocModal({
+                                open: true,
+                                title: 'Official SEC Certificate of Incorporation',
+                                url: effectiveSecCertUrl,
+                                regNo: effectiveSecReg
+                              })}
+                            >
+                              View
+                            </button>
+                          ) : (
+                            <span className="sec-vault-missing">None</span>
+                          )}
                         </div>
-                      ))}
+
+                        {/* Primary ID Row */}
+                        <div className="sec-vault-row">
+                          <div className="sec-vault-icon">
+                            <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>contact_page</span>
+                          </div>
+                          <div className="sec-vault-info">
+                            <div className="sec-vault-name">{effectivePrimaryType}</div>
+                            <div className="sec-vault-meta">
+                              Primary ID{effectivePrimaryNo ? ` · ${effectivePrimaryNo}` : ''}
+                            </div>
+                          </div>
+                          {effectivePrimaryUrl ? (
+                            <button
+                              type="button"
+                              className="sec-vault-view-btn"
+                              onClick={() => setPreviewDocModal({
+                                open: true,
+                                title: `Primary Government ID (${effectivePrimaryType})`,
+                                url: effectivePrimaryUrl,
+                                regNo: effectivePrimaryNo
+                              })}
+                            >
+                              View
+                            </button>
+                          ) : (
+                            <span className="sec-vault-missing">On file</span>
+                          )}
+                        </div>
+
+                        {/* Secondary ID Row */}
+                        <div className="sec-vault-row">
+                          <div className="sec-vault-icon">
+                            <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>badge</span>
+                          </div>
+                          <div className="sec-vault-info">
+                            <div className="sec-vault-name">{effectiveSecondaryType}</div>
+                            <div className="sec-vault-meta">
+                              Secondary ID{effectiveSecondaryNo ? ` · ${effectiveSecondaryNo}` : ''}
+                            </div>
+                          </div>
+                          {effectiveSecondaryUrl ? (
+                            <button
+                              type="button"
+                              className="sec-vault-view-btn"
+                              onClick={() => setPreviewDocModal({
+                                open: true,
+                                title: `Secondary Government ID (${effectiveSecondaryType})`,
+                                url: effectiveSecondaryUrl,
+                                regNo: effectiveSecondaryNo
+                              })}
+                            >
+                              View
+                            </button>
+                          ) : (
+                            <span className="sec-vault-missing">On file</span>
+                          )}
+                        </div>
+                      </div>
                     </div>
 
-                    {/* Regulatory Trust Badges */}
-                    <div className="sec-dossier-trust-badges">
-                      <div className="sec-dossier-trust-row">
-                        <span className="material-symbols-outlined" style={{ fontSize: '15px', color: '#10b981' }}>verified_user</span>
-                        <span>SEC RA 11232 Non-Profit Standard</span>
+                    {/* Official Regulatory Portals */}
+                    <div className="sec-aside-card">
+                      <div className="sec-aside-head">
+                        <span className="sec-aside-title">Regulatory registries</span>
                       </div>
-                      <div className="sec-dossier-trust-row">
-                        <span className="material-symbols-outlined" style={{ fontSize: '15px', color: '#0284c7' }}>gavel</span>
-                        <span>AMLA RA 9160 Dual-ID Policy</span>
-                      </div>
-                      <div className="sec-dossier-trust-row">
-                        <span className="material-symbols-outlined" style={{ fontSize: '15px', color: '#a855f7' }}>lock</span>
-                        <span>256-Bit Encrypted Storage</span>
+                      <div className="sec-portal-list">
+                        <a
+                          href="https://esparc.sec.gov.ph"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="sec-portal-link"
+                        >
+                          <div>
+                            <div className="sec-portal-name">SEC eSPARC Portal</div>
+                            <div className="sec-portal-host">esparc.sec.gov.ph</div>
+                          </div>
+                          <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>north_east</span>
+                        </a>
+                        <a
+                          href="https://standards.dswd.gov.ph"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="sec-portal-link"
+                        >
+                          <div>
+                            <div className="sec-portal-name">DSWD Standards Bureau</div>
+                            <div className="sec-portal-host">standards.dswd.gov.ph</div>
+                          </div>
+                          <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>north_east</span>
+                        </a>
                       </div>
                     </div>
                   </aside>
+                </div>
+              )}
 
-                  {/* ── Right Pane: Modular Workstation Cards ── */}
-                  <div className="sec-terminal-main">
-                    {/* Card 1: Corporate & Tax Identity */}
-                    <div className="sec-workstation-card">
-                      <div className="sec-workstation-header">
-                        <div className="sec-workstation-title-group">
-                          <div className="sec-workstation-icon sky">
-                            <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>domain</span>
-                          </div>
-                          <div>
-                            <h4 className="sec-workstation-title">1. Corporate &amp; Tax Identity</h4>
-                            <p className="sec-workstation-subtitle">Philippine Securities &amp; Exchange Commission (SEC) and BIR registration</p>
-                          </div>
-                        </div>
-                        <span className="sec-workstation-badge">SEC &amp; BIR Statutory</span>
-                      </div>
+              {/* ── Compliance Notice (When Not Yet Approved) ── */}
+              {!isKycApproved && (
+                <div className="sec-compliance-banner">
+                  <div className="sec-compliance-icon">
+                    <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>gavel</span>
+                  </div>
+                  <div className="sec-compliance-content">
+                    <div className="sec-compliance-title">Philippine non-profit accreditation requirements</div>
+                    <p className="sec-compliance-desc">
+                      Non-profit organizations must provide valid SEC Non-Stock registration (RA 11232), BIR TIN, and two government-issued signatory IDs (AMLA RA 9160) to unlock campaign deployment.
+                    </p>
+                  </div>
+                  <div className="sec-compliance-actions">
+                    <a href="https://esparc.sec.gov.ph" target="_blank" rel="noopener noreferrer" className="sec-compliance-btn">
+                      <span>SEC eSPARC</span>
+                      <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>north_east</span>
+                    </a>
+                    <a href="https://standards.dswd.gov.ph" target="_blank" rel="noopener noreferrer" className="sec-compliance-btn">
+                      <span>DSWD Bureau</span>
+                      <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>north_east</span>
+                    </a>
+                  </div>
+                </div>
+              )}
 
-                      <div className="sec-form-row-2">
-                        <div className="sec-field">
-                          <label>
-                            SEC Registration Number <span style={{ color: '#ef4444' }}>*</span>
-                          </label>
-                          <input
-                            type="text"
-                            className="input"
-                            placeholder="e.g., SEC-CN2021-08492"
-                            value={secRegNo}
-                            onChange={e => setSecRegNo(e.target.value)}
-                            style={{ fontFamily: 'monospace', fontWeight: 700 }}
-                            required
-                          />
-                          <span className="sec-field-hint">
-                            Official non-stock registration from your SEC Certificate of Incorporation.
-                          </span>
-                        </div>
+              {/* ── Rejection Notice Banner (When Rejected) ── */}
+              {isKycRejected && (
+                <div className="sec-rejection-banner">
+                  <span className="material-symbols-outlined" style={{ color: '#ef4444', fontSize: '22px', flexShrink: 0, marginTop: '1px' }}>error</span>
+                  <div>
+                    <div className="sec-rejection-title">Verification incomplete — correction required</div>
+                    <p className="sec-rejection-desc">
+                      {kycStatusData?.auditNotes || 'Your submitted registration details or certificate could not be validated. Please verify your SEC registration number and upload a clear, legible certificate.'}
+                    </p>
+                  </div>
+                </div>
+              )}
 
-                        <div className="sec-field">
-                          <label>
-                            BIR Tax Identification Number (TIN) <span style={{ color: '#ef4444' }}>*</span>
-                          </label>
-                          <input
-                            type="text"
-                            className="input"
-                            placeholder="e.g., 000-842-192-000"
-                            value={tinNo}
-                            onChange={e => setTinNo(e.target.value)}
-                            style={{ fontFamily: 'monospace' }}
-                            required
-                          />
-                          <span className="sec-field-hint">
-                            Bureau of Internal Revenue (BIR Form 2303) non-profit tax identification.
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="sec-form-row-2">
-                        <div className="sec-field">
-                          <label>
-                            Official Registered Office Address <span style={{ color: '#ef4444' }}>*</span>
-                          </label>
-                          <input
-                            type="text"
-                            className="input"
-                            placeholder="e.g., 37 EDSA cor. Boni Ave., Mandaluyong City, Metro Manila"
-                            value={registeredAddress}
-                            onChange={e => setRegisteredAddress(e.target.value)}
-                            required
-                          />
-                          <span className="sec-field-hint">
-                            Principal headquarters address as stated in the Articles of Incorporation.
-                          </span>
-                        </div>
-
-                        <div className="sec-field">
-                          <label>
-                            DSWD / LGU Solicitation Permit (Optional)
-                          </label>
-                          <input
-                            type="text"
-                            className="input"
-                            placeholder="e.g., DSWD-SB-A-2024-0193"
-                            value={dswdNo}
-                            onChange={e => setDswdNo(e.target.value)}
-                            style={{ fontFamily: 'monospace' }}
-                          />
-                          <span className="sec-field-hint">
-                            DSWD public solicitation permit (PD 1564) or LGU disaster relief endorsement.
-                          </span>
-                        </div>
-                      </div>
+              {/* ── Accreditation Submission / Update Workspace ── */}
+              {(!isKycApproved || showKycFormOverride) && (
+                <>
+                  {isKycApproved && showKycFormOverride && (
+                    <div className="sec-editor-divider">
+                      <span>Update registration &amp; KYC documents</span>
+                      <button
+                        type="button"
+                        className="btn btn-ghost btn-sm"
+                        onClick={() => setShowKycFormOverride(false)}
+                      >
+                        Cancel editing
+                      </button>
                     </div>
+                  )}
 
-                    {/* Card 2: Authorized Signatory & Legal Liaison */}
-                    <div className="sec-workstation-card">
-                      <div className="sec-workstation-header">
-                        <div className="sec-workstation-title-group">
-                          <div className="sec-workstation-icon green">
-                            <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>badge</span>
-                          </div>
-                          <div>
-                            <h4 className="sec-workstation-title">2. Authorized Signatory &amp; Legal Liaison</h4>
-                            <p className="sec-workstation-subtitle">Smart vault escrow disbursements are bound to authorized natural persons</p>
-                          </div>
-                        </div>
-                        <span className="sec-workstation-badge">AMLA &amp; BSP Standard</span>
-                      </div>
-
-                      <div className="sec-form-row-2">
-                        <div className="sec-field">
-                          <label>
-                            Authorized Representative Full Name <span style={{ color: '#ef4444' }}>*</span>
-                          </label>
-                          <input
-                            type="text"
-                            className="input"
-                            placeholder="e.g., Gwendolyn Pang"
-                            value={repName}
-                            onChange={e => setRepName(e.target.value)}
-                            required
-                          />
-                          <span className="sec-field-hint">
-                            Primary liaison officer authorized to manage relief escrows and bind wallet.
-                          </span>
-                        </div>
-
-                        <div className="sec-field">
-                          <label>
-                            Official Designation / Title <span style={{ color: '#ef4444' }}>*</span>
-                          </label>
-                          <input
-                            type="text"
-                            className="input"
-                            placeholder="e.g., Secretary General &amp; Authorized Trustee"
-                            value={repPosition}
-                            onChange={e => setRepPosition(e.target.value)}
-                            required
-                          />
-                          <span className="sec-field-hint">
-                            Corporate position (e.g. Executive Director, President, Corporate Secretary).
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="sec-field">
-                        <label>
-                          Governing Board of Trustees &amp; Officers <span style={{ color: '#ef4444' }}>*</span>
-                        </label>
-                        <input
-                          type="text"
-                          className="input"
-                          placeholder="e.g., Richard Gordon (Chairman) | Gwendolyn Pang (SecGen) | Dr. Benjamin Go (Trustee)"
-                          value={boardMembersText}
-                          onChange={e => setBoardMembersText(e.target.value)}
-                          required
-                        />
-                        <span className="sec-field-hint">
-                          Names and official roles of current trustees as submitted in the General Information Sheet (GIS).
+                  <form onSubmit={handleSaveKyc} className="sec-terminal-layout">
+                    {/* Left Sticky Dossier Readiness Sidebar */}
+                    <aside className="sec-dossier-sidebar">
+                      <div className="sec-dossier-top">
+                        <h3 className="sec-dossier-title">Dossier readiness</h3>
+                        <span className={`sec-dossier-pct ${dossierCompletion.percent === 100 ? 'is-done' : ''}`}>
+                          {dossierCompletion.percent}%
                         </span>
                       </div>
-                    </div>
 
-                    {/* Card 3: Dual Government ID Verification (2 Valid Government IDs) */}
-                    <div className="sec-workstation-card">
-                      <div className="sec-workstation-header">
-                        <div className="sec-workstation-title-group">
-                          <div className="sec-workstation-icon purple">
-                            <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>id_card</span>
-                          </div>
-                          <div>
-                            <h4 className="sec-workstation-title">3. Dual Government ID Verification</h4>
-                            <p className="sec-workstation-subtitle">Philippine AMLA requires two (2) valid government-issued photo IDs for the authorized signatory</p>
-                          </div>
+                      <div className="sec-dossier-progress-box">
+                        <div className="sec-dossier-progress-header">
+                          <span>Requirements met</span>
+                          <span>{dossierCompletion.score} / {dossierCompletion.total}</span>
                         </div>
-                        <span className="sec-workstation-badge">Two (2) Valid IDs Required</span>
+                        <div className="sec-dossier-progress-track">
+                          <div className="sec-dossier-progress-fill" style={{ width: `${dossierCompletion.percent}%` }} />
+                        </div>
                       </div>
 
-                      <div className="sec-dual-id-grid">
-                        {/* Primary ID Card */}
-                        <div className="sec-id-upload-card">
-                          <div className="sec-id-card-head">
-                            <div className="sec-id-card-head-title">
-                              <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#a855f7' }}>contact_page</span>
-                              <span>Primary Government ID</span>
-                            </div>
-                            <span className="sec-id-card-pill">Primary • Photo ID</span>
-                          </div>
-
-                          <div className="sec-field" style={{ marginBottom: 0 }}>
-                            <label style={{ fontSize: '0.74rem' }}>ID Type</label>
-                            <select
-                              className="input"
-                              value={primaryIdType}
-                              onChange={e => setPrimaryIdType(e.target.value)}
-                              style={{ height: '38px', fontSize: '0.78rem' }}
-                              required
-                            >
-                              <option value="Philippine Passport">Philippine Passport</option>
-                              <option value="PhilID (National ID)">PhilID (Philippine National ID)</option>
-                              <option value="UMID (Unified Multi-Purpose ID)">UMID (Unified Multi-Purpose ID)</option>
-                              <option value="LTO Driver's License">LTO Driver's License</option>
-                              <option value="PRC Professional ID">PRC Professional ID</option>
-                            </select>
-                          </div>
-
-                          <div className="sec-field" style={{ marginBottom: 0 }}>
-                            <label style={{ fontSize: '0.74rem' }}>ID Document Number</label>
-                            <input
-                              type="text"
-                              className="input"
-                              placeholder="e.g., P8942103B"
-                              value={primaryIdNumber}
-                              onChange={e => setPrimaryIdNumber(e.target.value)}
-                              style={{ fontFamily: 'monospace', height: '38px', fontSize: '0.78rem' }}
-                              required
-                            />
-                          </div>
-
-                          {/* Primary ID Upload / Preview */}
-                          {primaryIdUrl ? (
-                            <div className="sec-id-attached">
-                              <div className="sec-id-attached-info">
-                                <div className="sec-id-attached-icon">
-                                  <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>
-                                    {isPdfDocument(primaryIdUrl) ? 'picture_as_pdf' : 'badge'}
-                                  </span>
-                                </div>
-                                <div className="sec-id-attached-details">
-                                  <div className="sec-id-attached-name">{primaryIdType} Attached</div>
-                                  <div className="sec-id-attached-meta">No. {primaryIdNumber || 'Verified'} • Front Scan Attached</div>
-                                </div>
-                              </div>
-                              <div className="sec-id-attached-actions">
-                                <button
-                                  type="button"
-                                  className="btn btn-outline btn-sm"
-                                  onClick={() => setPreviewDocModal({ open: true, title: `Primary Government ID (${primaryIdType})`, url: primaryIdUrl, regNo: primaryIdNumber })}
-                                  style={{ fontSize: '0.74rem', padding: '4px 10px' }}
-                                >
-                                  Inspect Full Size
-                                </button>
-                                <label className="btn btn-ghost btn-sm" style={{ fontSize: '0.74rem', padding: '4px 10px', cursor: 'pointer', margin: 0 }}>
-                                  Replace
-                                  <input type="file" accept="image/*,application/pdf" onChange={handlePrimaryIdUpload} style={{ display: 'none' }} />
-                                </label>
-                              </div>
-                            </div>
-                          ) : (
-                            <label className="sec-id-dropzone">
-                              <span className="material-symbols-outlined" style={{ fontSize: '26px', color: '#a855f7', marginBottom: '4px' }}>
-                                upload_file
+                      <div className="sec-dossier-checklist">
+                        {dossierCompletion.items.map((it) => (
+                          <div key={it.id} className={`sec-dossier-item ${it.done ? 'is-ready' : 'is-pending'}`}>
+                            <div className="sec-dossier-item-left">
+                              <span className="material-symbols-outlined" style={{
+                                fontSize: '15px',
+                                color: it.done ? '#10b981' : 'var(--text-muted)'
+                              }}>
+                                {it.done ? 'check_circle' : 'radio_button_unchecked'}
                               </span>
-                              <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                                Upload Primary ID (Front)
-                              </span>
-                              <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-                                PNG, JPG or PDF • Valid government issued ID
-                              </span>
-                              <input type="file" accept="image/*,application/pdf" onChange={handlePrimaryIdUpload} style={{ display: 'none' }} />
-                            </label>
-                          )}
-                        </div>
-
-                        {/* Secondary ID Card */}
-                        <div className="sec-id-upload-card">
-                          <div className="sec-id-card-head">
-                            <div className="sec-id-card-head-title">
-                              <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#10b981' }}>badge</span>
-                              <span>Secondary Government ID</span>
+                              <span>{it.label}</span>
                             </div>
-                            <span className="sec-id-card-pill" style={{ background: 'rgba(16, 185, 129, 0.12)', color: '#34d399', borderColor: 'rgba(16, 185, 129, 0.25)' }}>
-                              Secondary • Verified ID
+                            <span className={`sec-dossier-item-badge ${it.done ? 'done' : 'wait'}`}>
+                              {it.done ? 'Ready' : 'Pending'}
                             </span>
                           </div>
+                        ))}
+                      </div>
 
-                          <div className="sec-field" style={{ marginBottom: 0 }}>
-                            <label style={{ fontSize: '0.74rem' }}>ID Type</label>
-                            <select
-                              className="input"
-                              value={secondaryIdType}
-                              onChange={e => setSecondaryIdType(e.target.value)}
-                              style={{ height: '38px', fontSize: '0.78rem' }}
-                              required
-                            >
-                              <option value="LTO Driver's License">LTO Driver's License</option>
-                              <option value="PhilID (National ID)">PhilID (Philippine National ID)</option>
-                              <option value="PRC Professional ID">PRC Professional ID</option>
-                              <option value="SSS / GSIS E-Card">SSS / GSIS E-Card</option>
-                              <option value="Postal ID (Biometric)">Postal ID (Biometric)</option>
-                              <option value="Voter's ID / Comelec">Voter's ID / Comelec Certificate</option>
-                              <option value="TIN Card (BIR)">TIN Card (BIR)</option>
-                            </select>
+                      <div className="sec-dossier-trust-badges">
+                        <div className="sec-dossier-trust-row">
+                          <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>verified_user</span>
+                          <span>SEC RA 11232 Non-Stock Standard</span>
+                        </div>
+                        <div className="sec-dossier-trust-row">
+                          <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>gavel</span>
+                          <span>AMLA RA 9160 Dual-ID Policy</span>
+                        </div>
+                        <div className="sec-dossier-trust-row">
+                          <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>lock</span>
+                          <span>Encrypted Document Storage</span>
+                        </div>
+                      </div>
+
+                      <button
+                        type="button"
+                        className="sec-sample-fill-btn"
+                        onClick={handleAutofillDemoSec}
+                      >
+                        <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>bolt</span>
+                        <span>Fill sample SEC credentials</span>
+                      </button>
+                    </aside>
+
+                    {/* Right Modular Form Cards */}
+                    <div className="sec-terminal-main">
+                      {/* Card 1: Corporate & Tax Identity */}
+                      <div className="sec-workstation-card">
+                        <div className="sec-workstation-header">
+                          <div className="sec-workstation-title-group">
+                            <div className="sec-workstation-icon">
+                              <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>domain</span>
+                            </div>
+                            <div>
+                              <h4 className="sec-workstation-title">Corporate &amp; Tax Identity</h4>
+                              <p className="sec-workstation-subtitle">SEC Certificate of Incorporation, BIR Form 2303, and principal office address</p>
+                            </div>
                           </div>
+                          <span className="sec-workstation-badge">Required</span>
+                        </div>
 
-                          <div className="sec-field" style={{ marginBottom: 0 }}>
-                            <label style={{ fontSize: '0.74rem' }}>ID Document Number</label>
+                        <div className="sec-form-row-2">
+                          <div className="sec-field">
+                            <label>SEC Registration Number <span className="sec-req">*</span></label>
                             <input
                               type="text"
                               className="input"
-                              placeholder="e.g., N02-18-938210"
-                              value={secondaryIdNumber}
-                              onChange={e => setSecondaryIdNumber(e.target.value)}
-                              style={{ fontFamily: 'monospace', height: '38px', fontSize: '0.78rem' }}
+                              placeholder="e.g., SEC-CN2021-08492"
+                              value={secRegNo}
+                              onChange={e => setSecRegNo(e.target.value)}
+                              style={{ fontFamily: 'var(--font-mono, monospace)', fontWeight: 600 }}
+                              required
+                            />
+                            <span className="sec-field-hint">Non-stock registration code from your SEC certificate.</span>
+                          </div>
+
+                          <div className="sec-field">
+                            <label>BIR Tax Identification (TIN) <span className="sec-req">*</span></label>
+                            <input
+                              type="text"
+                              className="input"
+                              placeholder="e.g., 000-842-192-000"
+                              value={tinNo}
+                              onChange={e => setTinNo(e.target.value)}
+                              style={{ fontFamily: 'var(--font-mono, monospace)' }}
+                              required
+                            />
+                            <span className="sec-field-hint">BIR Form 2303 non-profit tax identification number.</span>
+                          </div>
+                        </div>
+
+                        <div className="sec-form-row-2" style={{ marginBottom: 0 }}>
+                          <div className="sec-field" style={{ marginBottom: 0 }}>
+                            <label>Registered Office Address <span className="sec-req">*</span></label>
+                            <input
+                              type="text"
+                              className="input"
+                              placeholder="e.g., 37 EDSA cor. Boni Ave., Mandaluyong City, Metro Manila"
+                              value={registeredAddress}
+                              onChange={e => setRegisteredAddress(e.target.value)}
+                              required
+                            />
+                            <span className="sec-field-hint">Principal office address listed in the Articles of Incorporation.</span>
+                          </div>
+
+                          <div className="sec-field" style={{ marginBottom: 0 }}>
+                            <label>DSWD / LGU Solicitation Permit</label>
+                            <input
+                              type="text"
+                              className="input"
+                              placeholder="e.g., DSWD-SB-A-2024-0193 (Optional)"
+                              value={dswdNo}
+                              onChange={e => setDswdNo(e.target.value)}
+                              style={{ fontFamily: 'var(--font-mono, monospace)' }}
+                            />
+                            <span className="sec-field-hint">DSWD public solicitation permit (PD 1564) or LGU endorsement.</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Card 2: Authorized Signatory & Governance */}
+                      <div className="sec-workstation-card">
+                        <div className="sec-workstation-header">
+                          <div className="sec-workstation-title-group">
+                            <div className="sec-workstation-icon">
+                              <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>badge</span>
+                            </div>
+                            <div>
+                              <h4 className="sec-workstation-title">Authorized Signatory &amp; Trustees</h4>
+                              <p className="sec-workstation-subtitle">Named natural person authorized to administer campaigns and relief escrows</p>
+                            </div>
+                          </div>
+                          <span className="sec-workstation-badge">AMLA Standard</span>
+                        </div>
+
+                        <div className="sec-form-row-2">
+                          <div className="sec-field">
+                            <label>Authorized Representative Full Name <span className="sec-req">*</span></label>
+                            <input
+                              type="text"
+                              className="input"
+                              placeholder="e.g., Gwendolyn Pang"
+                              value={repName}
+                              onChange={e => setRepName(e.target.value)}
                               required
                             />
                           </div>
 
-                          {/* Secondary ID Upload / Preview */}
-                          {secondaryIdUrl ? (
-                            <div className="sec-id-attached" style={{ borderColor: 'rgba(16, 185, 129, 0.35)' }}>
-                              <div className="sec-id-attached-info">
-                                <div className="sec-id-attached-icon" style={{ background: 'rgba(16, 185, 129, 0.12)', color: '#10b981' }}>
-                                  <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>
-                                    {isPdfDocument(secondaryIdUrl) ? 'picture_as_pdf' : 'badge'}
-                                  </span>
-                                </div>
-                                <div className="sec-id-attached-details">
-                                  <div className="sec-id-attached-name">{secondaryIdType} Attached</div>
-                                  <div className="sec-id-attached-meta">No. {secondaryIdNumber || 'Verified'} • Secondary ID Attached</div>
-                                </div>
-                              </div>
-                              <div className="sec-id-attached-actions">
-                                <button
-                                  type="button"
-                                  className="btn btn-outline btn-sm"
-                                  onClick={() => setPreviewDocModal({ open: true, title: `Secondary Government ID (${secondaryIdType})`, url: secondaryIdUrl, regNo: secondaryIdNumber })}
-                                  style={{ fontSize: '0.74rem', padding: '4px 10px' }}
-                                >
-                                  Inspect Full Size
-                                </button>
-                                <label className="btn btn-ghost btn-sm" style={{ fontSize: '0.74rem', padding: '4px 10px', cursor: 'pointer', margin: 0 }}>
-                                  Replace
-                                  <input type="file" accept="image/*,application/pdf" onChange={handleSecondaryIdUpload} style={{ display: 'none' }} />
-                                </label>
-                              </div>
+                          <div className="sec-field">
+                            <label>Official Designation / Title <span className="sec-req">*</span></label>
+                            <input
+                              type="text"
+                              className="input"
+                              placeholder="e.g., Secretary General"
+                              value={repPosition}
+                              onChange={e => setRepPosition(e.target.value)}
+                              required
+                            />
+                          </div>
+                        </div>
+
+                        <div className="sec-field" style={{ marginBottom: 0 }}>
+                          <label>Governing Board of Trustees &amp; Officers <span className="sec-req">*</span></label>
+                          <input
+                            type="text"
+                            className="input"
+                            placeholder="e.g., Richard Gordon (Chairman) | Gwendolyn Pang (SecGen) | Dr. Benjamin Go (Trustee)"
+                            value={boardMembersText}
+                            onChange={e => setBoardMembersText(e.target.value)}
+                            required
+                          />
+                          <span className="sec-field-hint">Current trustees and roles as listed in your SEC General Information Sheet (GIS).</span>
+                        </div>
+                      </div>
+
+                      {/* Card 3: Dual Government ID Verification */}
+                      <div className="sec-workstation-card">
+                        <div className="sec-workstation-header">
+                          <div className="sec-workstation-title-group">
+                            <div className="sec-workstation-icon">
+                              <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>id_card</span>
                             </div>
-                          ) : (
-                            <label className="sec-id-dropzone" style={{ borderColor: 'rgba(16, 185, 129, 0.35)', background: 'rgba(16, 185, 129, 0.02)' }}>
-                              <span className="material-symbols-outlined" style={{ fontSize: '26px', color: '#10b981', marginBottom: '4px' }}>
-                                upload_file
+                            <div>
+                              <h4 className="sec-workstation-title">Signatory Government IDs</h4>
+                              <p className="sec-workstation-subtitle">Two valid Philippine government-issued photo IDs for the authorized representative</p>
+                            </div>
+                          </div>
+                          <span className="sec-workstation-badge">2 IDs Required</span>
+                        </div>
+
+                        <div className="sec-dual-id-grid">
+                          {/* Primary ID */}
+                          <div className="sec-id-upload-card">
+                            <div className="sec-id-card-head">
+                              <span className="sec-id-card-head-title">Primary Government ID</span>
+                              <span className={`sec-id-card-pill ${primaryIdUrl ? 'is-attached' : ''}`}>
+                                {primaryIdUrl ? 'Attached' : 'Required'}
                               </span>
-                              <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                                Upload Secondary ID (Front)
+                            </div>
+
+                            <div className="sec-field" style={{ marginBottom: 0 }}>
+                              <label style={{ fontSize: '0.74rem' }}>ID Type</label>
+                              <select
+                                className="input"
+                                value={primaryIdType}
+                                onChange={e => setPrimaryIdType(e.target.value)}
+                                style={{ height: '38px', fontSize: '0.80rem' }}
+                                required
+                              >
+                                <option value="Philippine Passport">Philippine Passport</option>
+                                <option value="PhilID (National ID)">PhilID (Philippine National ID)</option>
+                                <option value="UMID (Unified Multi-Purpose ID)">UMID (Unified Multi-Purpose ID)</option>
+                                <option value="LTO Driver's License">LTO Driver&apos;s License</option>
+                                <option value="PRC Professional ID">PRC Professional ID</option>
+                              </select>
+                            </div>
+
+                            <div className="sec-field" style={{ marginBottom: 0 }}>
+                              <label style={{ fontSize: '0.74rem' }}>Document Number</label>
+                              <input
+                                type="text"
+                                className="input"
+                                placeholder="e.g., P8942103B"
+                                value={primaryIdNumber}
+                                onChange={e => setPrimaryIdNumber(e.target.value)}
+                                style={{ fontFamily: 'var(--font-mono, monospace)', height: '38px', fontSize: '0.80rem' }}
+                                required
+                              />
+                            </div>
+
+                            {primaryIdUrl ? (
+                              <div className="sec-id-attached">
+                                <div className="sec-id-attached-info">
+                                  <div className="sec-id-attached-icon">
+                                    <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>
+                                      {isPdfDocument(primaryIdUrl) ? 'picture_as_pdf' : 'contact_page'}
+                                    </span>
+                                  </div>
+                                  <div className="sec-id-attached-details">
+                                    <div className="sec-id-attached-name">{primaryIdType}</div>
+                                    <div className="sec-id-attached-meta">{primaryIdNumber || 'Front scan attached'}</div>
+                                  </div>
+                                </div>
+                                <div className="sec-id-attached-actions">
+                                  <button
+                                    type="button"
+                                    className="btn btn-outline btn-sm"
+                                    onClick={() => setPreviewDocModal({ open: true, title: `Primary Government ID (${primaryIdType})`, url: primaryIdUrl, regNo: primaryIdNumber })}
+                                    style={{ fontSize: '0.74rem', padding: '4px 10px' }}
+                                  >
+                                    Inspect
+                                  </button>
+                                  <label className="btn btn-ghost btn-sm" style={{ fontSize: '0.74rem', padding: '4px 10px', cursor: 'pointer', margin: 0 }}>
+                                    Replace
+                                    <input type="file" accept="image/*,application/pdf" onChange={handlePrimaryIdUpload} style={{ display: 'none' }} />
+                                  </label>
+                                </div>
+                              </div>
+                            ) : (
+                              <label className="sec-id-dropzone">
+                                <span className="material-symbols-outlined" style={{ fontSize: '22px', color: 'var(--text-muted)', marginBottom: '4px' }}>upload_file</span>
+                                <span className="sec-dropzone-title">Upload Primary ID (Front)</span>
+                                <span className="sec-dropzone-sub">PNG, JPG, or PDF</span>
+                                <input type="file" accept="image/*,application/pdf" onChange={handlePrimaryIdUpload} style={{ display: 'none' }} />
+                              </label>
+                            )}
+                          </div>
+
+                          {/* Secondary ID */}
+                          <div className="sec-id-upload-card">
+                            <div className="sec-id-card-head">
+                              <span className="sec-id-card-head-title">Secondary Government ID</span>
+                              <span className={`sec-id-card-pill ${secondaryIdUrl ? 'is-attached' : ''}`}>
+                                {secondaryIdUrl ? 'Attached' : 'Required'}
                               </span>
-                              <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-                                PNG, JPG or PDF • Supporting valid Philippine ID
-                              </span>
-                              <input type="file" accept="image/*,application/pdf" onChange={handleSecondaryIdUpload} style={{ display: 'none' }} />
-                            </label>
-                          )}
+                            </div>
+
+                            <div className="sec-field" style={{ marginBottom: 0 }}>
+                              <label style={{ fontSize: '0.74rem' }}>ID Type</label>
+                              <select
+                                className="input"
+                                value={secondaryIdType}
+                                onChange={e => setSecondaryIdType(e.target.value)}
+                                style={{ height: '38px', fontSize: '0.80rem' }}
+                                required
+                              >
+                                <option value="LTO Driver's License">LTO Driver&apos;s License</option>
+                                <option value="PhilID (National ID)">PhilID (Philippine National ID)</option>
+                                <option value="PRC Professional ID">PRC Professional ID</option>
+                                <option value="SSS / GSIS E-Card">SSS / GSIS E-Card</option>
+                                <option value="Postal ID (Biometric)">Postal ID (Biometric)</option>
+                                <option value="Voter's ID / Comelec">Voter&apos;s ID / Comelec Certificate</option>
+                                <option value="TIN Card (BIR)">TIN Card (BIR)</option>
+                              </select>
+                            </div>
+
+                            <div className="sec-field" style={{ marginBottom: 0 }}>
+                              <label style={{ fontSize: '0.74rem' }}>Document Number</label>
+                              <input
+                                type="text"
+                                className="input"
+                                placeholder="e.g., N02-18-938210"
+                                value={secondaryIdNumber}
+                                onChange={e => setSecondaryIdNumber(e.target.value)}
+                                style={{ fontFamily: 'var(--font-mono, monospace)', height: '38px', fontSize: '0.80rem' }}
+                                required
+                              />
+                            </div>
+
+                            {secondaryIdUrl ? (
+                              <div className="sec-id-attached">
+                                <div className="sec-id-attached-info">
+                                  <div className="sec-id-attached-icon">
+                                    <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>
+                                      {isPdfDocument(secondaryIdUrl) ? 'picture_as_pdf' : 'badge'}
+                                    </span>
+                                  </div>
+                                  <div className="sec-id-attached-details">
+                                    <div className="sec-id-attached-name">{secondaryIdType}</div>
+                                    <div className="sec-id-attached-meta">{secondaryIdNumber || 'Front scan attached'}</div>
+                                  </div>
+                                </div>
+                                <div className="sec-id-attached-actions">
+                                  <button
+                                    type="button"
+                                    className="btn btn-outline btn-sm"
+                                    onClick={() => setPreviewDocModal({ open: true, title: `Secondary Government ID (${secondaryIdType})`, url: secondaryIdUrl, regNo: secondaryIdNumber })}
+                                    style={{ fontSize: '0.74rem', padding: '4px 10px' }}
+                                  >
+                                    Inspect
+                                  </button>
+                                  <label className="btn btn-ghost btn-sm" style={{ fontSize: '0.74rem', padding: '4px 10px', cursor: 'pointer', margin: 0 }}>
+                                    Replace
+                                    <input type="file" accept="image/*,application/pdf" onChange={handleSecondaryIdUpload} style={{ display: 'none' }} />
+                                  </label>
+                                </div>
+                              </div>
+                            ) : (
+                              <label className="sec-id-dropzone">
+                                <span className="material-symbols-outlined" style={{ fontSize: '22px', color: 'var(--text-muted)', marginBottom: '4px' }}>upload_file</span>
+                                <span className="sec-dropzone-title">Upload Secondary ID (Front)</span>
+                                <span className="sec-dropzone-sub">PNG, JPG, or PDF</span>
+                                <input type="file" accept="image/*,application/pdf" onChange={handleSecondaryIdUpload} style={{ display: 'none' }} />
+                              </label>
+                            )}
+                          </div>
                         </div>
                       </div>
-                    </div>
 
-                    {/* Card 4: Official SEC Certificate of Incorporation */}
-                    <div className="sec-workstation-card">
-                      <div className="sec-workstation-header">
-                        <div className="sec-workstation-title-group">
-                          <div className="sec-workstation-icon amber">
-                            <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>verified</span>
+                      {/* Card 4: Official SEC Certificate */}
+                      <div className="sec-workstation-card">
+                        <div className="sec-workstation-header">
+                          <div className="sec-workstation-title-group">
+                            <div className="sec-workstation-icon">
+                              <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>description</span>
+                            </div>
+                            <div>
+                              <h4 className="sec-workstation-title">SEC Certificate of Incorporation</h4>
+                              <p className="sec-workstation-subtitle">Automated seal &amp; registration check via Gemini Vision OCR</p>
+                            </div>
                           </div>
-                          <div>
-                            <h4 className="sec-workstation-title">4. Official SEC Certificate of Incorporation</h4>
-                            <p className="sec-workstation-subtitle">Autonomous validation powered by Google Gemini Vision OCR</p>
-                          </div>
-                        </div>
-                        <span className="sec-workstation-badge">Gemini AI OCR Verifier</span>
-                      </div>
-
-                      {/* Certificate Upload Zone */}
-                      <div className="sec-upload-box" style={{ marginBottom: 0 }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                          <label style={{ fontSize: '0.80rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                            Official SEC Certificate of Incorporation <span style={{ color: '#ef4444' }}>*</span>
-                          </label>
                           {secCertUrl && (
                             <button
                               type="button"
                               onClick={() => setSecCertUrl('')}
-                              style={{ background: 'none', border: 'none', color: '#ef4444', fontSize: '0.74rem', cursor: 'pointer', fontWeight: 600 }}
+                              className="sec-remove-link"
                             >
-                              Remove Document
+                              Remove
                             </button>
                           )}
                         </div>
@@ -7875,14 +7888,14 @@ export default function OrganizationView({
                           <div className="sec-doc-attached">
                             <div className="sec-doc-info">
                               <div className="sec-doc-icon">
-                                <span className="material-symbols-outlined" style={{ fontSize: '24px' }}>
+                                <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>
                                   {isPdfDocument(secCertUrl) ? 'picture_as_pdf' : 'description'}
                                 </span>
                               </div>
                               <div>
-                                <div className="sec-doc-filename">Official SEC Certificate Attached</div>
+                                <div className="sec-doc-filename">Official SEC Certificate attached</div>
                                 <div className="sec-doc-meta">
-                                  {isPdfDocument(secCertUrl) ? 'PDF Document' : 'Official Certificate Document'} • Duly Signed &amp; Sealed
+                                  {isPdfDocument(secCertUrl) ? 'PDF Document' : 'Image Document'}{secRegNo ? ` · ${secRegNo}` : ''}
                                 </div>
                               </div>
                             </div>
@@ -7895,107 +7908,78 @@ export default function OrganizationView({
                                 style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '0.76rem' }}
                               >
                                 <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>visibility</span>
-                                Inspect Full Size
+                                <span>Inspect</span>
                               </button>
                               <label
                                 className="btn btn-ghost btn-sm"
                                 style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '0.76rem', cursor: 'pointer', margin: 0 }}
                               >
                                 <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>sync</span>
-                                Replace
-                                <input
-                                  type="file"
-                                  accept="image/*,application/pdf"
-                                  onChange={handleKycCertUpload}
-                                  style={{ display: 'none' }}
-                                />
+                                <span>Replace</span>
+                                <input type="file" accept="image/*,application/pdf" onChange={handleKycCertUpload} style={{ display: 'none' }} />
                               </label>
                             </div>
                           </div>
                         ) : (
                           <label className="sec-dropzone">
-                            <span className="material-symbols-outlined" style={{ fontSize: '32px', color: '#0284c7', marginBottom: '6px' }}>
-                              upload_file
-                            </span>
-                            <span style={{ fontSize: '0.86rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                              Upload SEC Certificate of Incorporation
-                            </span>
-                            <span style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', marginTop: '3px' }}>
-                              PNG, JPG, or PDF (Max 10MB) • Duly signed Philippine non-profit certificate
-                            </span>
-                            <input
-                              type="file"
-                              accept="image/*,application/pdf"
-                              onChange={handleKycCertUpload}
-                              style={{ display: 'none' }}
-                            />
+                            <span className="material-symbols-outlined" style={{ fontSize: '26px', color: 'var(--text-muted)', marginBottom: '6px' }}>upload_file</span>
+                            <span className="sec-dropzone-title">Upload SEC Certificate of Incorporation</span>
+                            <span className="sec-dropzone-sub">PNG, JPG, or PDF (Max 10 MB) — signed Philippine non-stock certificate</span>
+                            <input type="file" accept="image/*,application/pdf" onChange={handleKycCertUpload} style={{ display: 'none' }} />
                           </label>
                         )}
                       </div>
-                    </div>
 
-                    {/* Card 5: Legal Affirmation & Submission Action Bar */}
-                    <div className="sec-workstation-card" style={{ background: 'var(--bg-card)' }}>
-                      <label className="sec-affirmation-box" style={{ marginBottom: '16px' }}>
-                        <input
-                          type="checkbox"
-                          checked={affirmationChecked}
-                          onChange={e => setAffirmationChecked(e.target.checked)}
-                          required
-                        />
-                        <span className="sec-affirmation-text">
-                          I solemnly affirm under penalty of perjury and Republic Act No. 11232 (Revised Corporation Code of the Philippines) that this entity is a bona fide Non-Stock, Non-Profit Humanitarian Organization, and that the two (2) government IDs and credentials submitted belong to the authorized officers legally permitted to bind this wallet and administer disaster relief escrows on BBDRTS.
-                        </span>
-                      </label>
+                      {/* Card 5: Legal Affirmation & Submit */}
+                      <div className="sec-workstation-card">
+                        <label className="sec-affirmation-box">
+                          <input
+                            type="checkbox"
+                            checked={affirmationChecked}
+                            onChange={e => setAffirmationChecked(e.target.checked)}
+                            required={!isKycApproved}
+                          />
+                          <span className="sec-affirmation-text">
+                            I affirm under penalty of perjury and Republic Act No. 11232 (Revised Corporation Code of the Philippines) that this organization is a legitimate Non-Stock, Non-Profit entity and that the credentials and signatory IDs submitted belong to its authorized officers.
+                          </span>
+                        </label>
 
-                      {/* Real-time verification scanning state */}
-                      {kycSaving && kycStepText && (
-                        <div style={{
-                          background: 'rgba(56, 189, 248, 0.08)',
-                          border: '1px solid rgba(56, 189, 248, 0.3)',
-                          borderRadius: '10px',
-                          padding: '12px 16px',
-                          marginBottom: '16px',
-                          fontSize: '0.82rem',
-                          color: '#0284c7',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '10px'
-                        }}>
-                          <div className="spinner spinner-light" style={{ width: '16px', height: '16px' }} />
-                          <span style={{ fontWeight: 600 }}>{kycStepText}</span>
-                        </div>
-                      )}
+                        {kycSaving && kycStepText && (
+                          <div className="sec-scanning-bar">
+                            <div className="spinner spinner-light" style={{ width: '15px', height: '15px' }} />
+                            <span>{kycStepText}</span>
+                          </div>
+                        )}
 
-                      {/* Submit Action Bar */}
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '14px', paddingTop: '10px', borderTop: '1px solid var(--border)' }}>
-                        <button
-                          type="submit"
-                          className="btn btn-primary"
-                          disabled={kycSaving || (!secRegNo.trim() && !secCertUrl) || (!affirmationChecked && !isKycApproved)}
-                          style={{ padding: '10px 24px', fontSize: '0.90rem', display: 'inline-flex', alignItems: 'center', gap: '8px' }}
-                        >
-                          {kycSaving ? (
-                            <>
-                              <div className="spinner" />
-                              <span>Verifying Dossier...</span>
-                            </>
-                          ) : (
-                            <>
-                              <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>verified</span>
-                              <span>Submit Dossier for Regulatory Accreditation</span>
-                            </>
-                          )}
-                        </button>
+                        <div className="sec-submit-bar">
+                          <div className="sec-submit-meta">
+                            <span className="material-symbols-outlined" style={{ fontSize: '15px', color: '#10b981' }}>shield</span>
+                            <span>RA 11232 &amp; AMLA RA 9160 compliant review</span>
+                          </div>
 
-                        <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#16a34a' }}>shield</span>
-                          <span>Anti-Fraud Escrow Binding • RA 11232 &amp; AMLA Compliant</span>
+                          <button
+                            type="submit"
+                            className="btn btn-primary"
+                            disabled={kycSaving || (!secRegNo.trim() && !secCertUrl) || (!affirmationChecked && !isKycApproved)}
+                            style={{ padding: '9px 20px', fontSize: '0.84rem', display: 'inline-flex', alignItems: 'center', gap: '8px' }}
+                          >
+                            {kycSaving ? (
+                              <>
+                                <div className="spinner" />
+                                <span>Verifying Dossier...</span>
+                              </>
+                            ) : (
+                              <>
+                                <span className="material-symbols-outlined" style={{ fontSize: '17px' }}>verified</span>
+                                <span>{isKycApproved ? 'Save Updated Credentials' : 'Submit for Accreditation'}</span>
+                              </>
+                            )}
+                          </button>
                         </div>
                       </div>
                     </div>
-                  </div>
-                </form>
+                  </form>
+                </>
               )}
             </div>
           );
