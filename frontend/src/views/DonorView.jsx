@@ -148,8 +148,17 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
         toggleSidebar();
       }
     };
+    const handleTourSidebar = (e) => {
+      if (typeof window !== 'undefined' && window.innerWidth <= 900) {
+        setMobileSidebarOpen(Boolean(e?.detail?.open));
+      }
+    };
     window.addEventListener('bbdrts_toggle_sidebar', handleToggle);
-    return () => window.removeEventListener('bbdrts_toggle_sidebar', handleToggle);
+    window.addEventListener('bbdrts_tour_sidebar', handleTourSidebar);
+    return () => {
+      window.removeEventListener('bbdrts_toggle_sidebar', handleToggle);
+      window.removeEventListener('bbdrts_tour_sidebar', handleTourSidebar);
+    };
   }, []);
   const [showGuide, setShowGuide] = useState(() => {
     try { return localStorage.getItem('bbdrts_dismiss_donor_guide') !== 'true'; } catch (_) { return true; }

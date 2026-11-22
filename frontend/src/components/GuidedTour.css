@@ -1084,3 +1084,18 @@ body.tour-traveling .driver-popover,
     padding-right: 16px;
   }
 }
+
+
+/* Mobile Sidebar Spotlight Elevation During Guided Tutorial */
+body.tour-mobile-sidebar-active .ref-sidebar.mobile-open {
+  z-index: 1000000001 !important;
+  pointer-events: none !important;
+}
+
+body.tour-mobile-sidebar-active .ref-sidebar-backdrop {
+  pointer-events: none !important;
+}
+
+body.tour-mobile-sidebar-active .driver-active-element {
+  z-index: 1000000004 !important;
+}

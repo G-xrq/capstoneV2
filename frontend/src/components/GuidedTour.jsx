@@ -537,6 +537,32 @@ export default function GuidedTour({
         if (s) s.remove();
         if (g) g.remove();
       }, 260);
+
+      document.body.classList.remove('tour-mobile-sidebar-active');
+      try {
+        window.dispatchEvent(new CustomEvent('bbdrts_tour_sidebar', { detail: { open: false } }));
+      } catch (_) {}
+    };
+
+    let mobileSidebarCurrentlyOpen = false;
+    const isMobileViewport = () => typeof window !== 'undefined' && window.innerWidth <= 900;
+    const isElementInSidebar = (el) => Boolean(el && typeof el.closest === 'function' && el.closest('.ref-sidebar'));
+
+    const syncMobileSidebarForElement = (el) => {
+      if (!isMobileViewport()) {
+        if (mobileSidebarCurrentlyOpen) {
+          mobileSidebarCurrentlyOpen = false;
+          document.body.classList.remove('tour-mobile-sidebar-active');
+          window.dispatchEvent(new CustomEvent('bbdrts_tour_sidebar', { detail: { open: false } }));
+        }
+        return false;
+      }
+      const needsSidebar = isElementInSidebar(el);
+      const changed = needsSidebar !== mobileSidebarCurrentlyOpen;
+      mobileSidebarCurrentlyOpen = needsSidebar;
+      document.body.classList.toggle('tour-mobile-sidebar-active', needsSidebar);
+      window.dispatchEvent(new CustomEvent('bbdrts_tour_sidebar', { detail: { open: needsSidebar } }));
+      return changed;
     };
 
     const totalSteps = currentSteps.length;
@@ -608,8 +634,12 @@ export default function GuidedTour({
         popover: {
           title: popoverTitle,
           description: s.description || '',
-          side: s.placement || 'bottom',
-          align: s.align || 'start',
+          side: (isMobileViewport() && isElementInSidebar(targetElement))
+            ? (isLastStep ? 'top' : 'bottom')
+            : (s.placement || 'bottom'),
+          align: (isMobileViewport() && isElementInSidebar(targetElement))
+            ? 'start'
+            : (s.align || 'start'),
           showButtons: idx === 0 ? ['next', 'close'] : ['previous', 'next', 'close'],
           nextBtnText: isLastStep ? 'Finish' : 'Next',
           prevBtnText: 'Back',
@@ -674,12 +704,20 @@ export default function GuidedTour({
         clearTimeout(settleTimerRef.current);
         document.body.classList.add('tour-traveling');
 
-        scrollToTargetSafely(element);
-        syncTourLayout(element);
+        const sidebarToggled = syncMobileSidebarForElement(element);
+        if (!isElementInSidebar(element)) {
+          scrollToTargetSafely(element);
+        }
+        if (!sidebarToggled) {
+          syncTourLayout(element);
+        }
       },
       onHighlighted: (element, step, { state }) => {
         currentStepIndexRef.current = state?.activeIndex || 0;
         document.body.classList.add('tour-traveling');
+
+        const sidebarToggled = syncMobileSidebarForElement(element);
+        const settleDelay = (isMobileViewport() && (sidebarToggled || isElementInSidebar(element))) ? 320 : 210;
 
         clearTimeout(settleTimerRef.current);
         settleTimerRef.current = setTimeout(() => {
@@ -695,7 +733,7 @@ export default function GuidedTour({
               isNavigatingStepRef.current = false;
             });
           });
-        }, 210);
+        }, settleDelay);
       },
       onCloseClick: () => {
         if (driverRef.current) {
