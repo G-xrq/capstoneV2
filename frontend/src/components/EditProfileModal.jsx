@@ -727,19 +727,165 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
     mayaName, mayaNumber, mayaQrUrl, bankName, bankAccountName, bankAccountNumber, bankQrUrl
   ]);
 
-  useEffect(() => {
-    if (isOrg) {
+  const refreshQrLibrary = async () => {
+    if (!isOrg) return;
+    try {
       const token = localStorage.getItem('bbdrts_token') || localStorage.getItem('token');
-      fetch(`${API_URL}/api/organization/qr-codes?org_id=${currentUser?.id || 8}`, {
+      const r = await fetch(`${API_URL}/api/organization/qr-codes?org_id=${currentUser?.id || 8}`, {
         headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) }
-      })
-        .then(r => r.ok ? r.json() : [])
-        .then(data => {
-          if (Array.isArray(data)) setSavedQrLibrary(data);
-        })
-        .catch(() => {});
-    }
+      });
+      if (r.ok) {
+        const data = await r.json();
+        if (Array.isArray(data)) setSavedQrLibrary(data);
+      }
+    } catch (_) {}
+  };
+
+  useEffect(() => {
+    refreshQrLibrary();
   }, [isOrg, currentUser?.id]);
+
+  // Inline Add New QR Composer state inside Payout Rails tab
+  const [addingQrChannel, setAddingQrChannel] = useState(null); // 'GCash' | 'Maya' | 'Bank' | null
+  const [draftQrLabel, setDraftQrLabel] = useState('');
+  const [draftQrAcctName, setDraftQrAcctName] = useState('');
+  const [draftQrAcctNum, setDraftQrAcctNum] = useState('');
+  const [draftQrImage, setDraftQrImage] = useState('');
+  const [savingNewQr, setSavingNewQr] = useState(false);
+  const inlineQrInputRef = useRef(null);
+
+  const handleOpenAddQr = (channel) => {
+    const existingCount = savedQrLibrary.filter(q => q.payment_method === channel).length;
+    setAddingQrChannel(channel);
+    setDraftQrLabel(`${channel} Relief #${existingCount + 1}`);
+    setDraftQrAcctName('');
+    setDraftQrAcctNum('');
+    setDraftQrImage('');
+  };
+
+  const handleDraftQrFile = async (file, channel) => {
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      showWarning('Please select a valid image file (PNG, JPG, WEBP).', 'Invalid File');
+      return;
+    }
+    if (file.size > 8 * 1024 * 1024) {
+      showWarning('QR image exceeds 8MB. Choose a smaller photo.', 'File Too Large');
+      return;
+    }
+    setIsProcessingQr(true);
+    try {
+      const { croppedUrl } = await autoCropQrScreenshot(file);
+      setDraftQrImage(croppedUrl);
+      try {
+        const { detectedName, detectedNumber } = await extractQrVoucherText(croppedUrl);
+        if (detectedName) setDraftQrAcctName(detectedName);
+        if (detectedNumber) setDraftQrAcctNum(channel === 'Bank' ? detectedNumber : formatPhMobileDisplay(detectedNumber));
+      } catch (_) {}
+    } catch (_) {
+      const reader = new FileReader();
+      reader.onload = (e) => setDraftQrImage(e.target.result);
+      reader.readAsDataURL(file);
+    } finally {
+      setIsProcessingQr(false);
+    }
+  };
+
+  const handleSaveDraftQrToLibrary = async () => {
+    if (!addingQrChannel || !draftQrImage) {
+      showWarning('Please upload a QR code image first.', 'QR Image Required');
+      return;
+    }
+    setSavingNewQr(true);
+    try {
+      const token = localStorage.getItem('bbdrts_token') || localStorage.getItem('token');
+      const targetOrgId = currentUser?.id || 8;
+      const res = await fetch(`${API_URL}/api/organization/qr-codes`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({
+          org_id: targetOrgId,
+          payment_method: addingQrChannel,
+          custom_name: draftQrLabel.trim() || `${addingQrChannel} Relief QR`,
+          account_name: draftQrAcctName.trim(),
+          account_number: draftQrAcctNum.trim(),
+          qr_image_url: draftQrImage,
+          is_default: 1
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to save QR code.');
+
+      // Sync active form state immediately with newly saved QR
+      if (addingQrChannel === 'GCash') {
+        setGcashQrUrl(draftQrImage);
+        if (draftQrAcctName.trim()) setGcashName(draftQrAcctName.trim());
+        if (draftQrAcctNum.trim()) setGcashNumber(formatPhMobileDisplay(draftQrAcctNum.trim()));
+      } else if (addingQrChannel === 'Maya') {
+        setMayaQrUrl(draftQrImage);
+        if (draftQrAcctName.trim()) setMayaName(draftQrAcctName.trim());
+        if (draftQrAcctNum.trim()) setMayaNumber(formatPhMobileDisplay(draftQrAcctNum.trim()));
+      } else if (addingQrChannel === 'Bank') {
+        setBankQrUrl(draftQrImage);
+        if (draftQrAcctName.trim()) setBankAccountName(draftQrAcctName.trim());
+        if (draftQrAcctNum.trim()) setBankAccountNumber(draftQrAcctNum.trim());
+      }
+
+      showSuccess(`Saved "${draftQrLabel.trim() || addingQrChannel}" to your QR library and set as active.`, 'QR Added');
+      setAddingQrChannel(null);
+      setDraftQrImage('');
+      await refreshQrLibrary();
+    } catch (err) {
+      showError(err.message || 'Could not save QR code.', 'Save Error');
+    } finally {
+      setSavingNewQr(false);
+    }
+  };
+
+  const handleSetActiveLibraryQr = async (qr) => {
+    handleSelectFromLibrary(qr);
+    try {
+      const token = localStorage.getItem('bbdrts_token') || localStorage.getItem('token');
+      const targetOrgId = currentUser?.id || 8;
+      await fetch(`${API_URL}/api/organization/qr-codes/${qr.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {})
+        },
+        body: JSON.stringify({
+          org_id: targetOrgId,
+          is_default: 1,
+          payment_method: qr.payment_method
+        })
+      });
+      await refreshQrLibrary();
+    } catch (_) {}
+  };
+
+  const handleDeleteLibraryQr = async (qr) => {
+    if (!window.confirm(`Delete "${qr.custom_name}" from your ${qr.payment_method} QR library?`)) return;
+    try {
+      const token = localStorage.getItem('bbdrts_token') || localStorage.getItem('token');
+      const targetOrgId = currentUser?.id || 8;
+      const res = await fetch(`${API_URL}/api/organization/qr-codes/${qr.id}?org_id=${targetOrgId}`, {
+        method: 'DELETE',
+        headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}) }
+      });
+      if (res.ok) {
+        if (qr.payment_method === 'GCash' && gcashQrUrl === qr.qr_image_url) setGcashQrUrl('');
+        if (qr.payment_method === 'Maya' && mayaQrUrl === qr.qr_image_url) setMayaQrUrl('');
+        if (qr.payment_method === 'Bank' && bankQrUrl === qr.qr_image_url) setBankQrUrl('');
+        showSuccess(`Removed "${qr.custom_name}" from QR library.`, 'QR Deleted');
+        await refreshQrLibrary();
+      }
+    } catch (err) {
+      showError(err.message || 'Failed to delete QR code.', 'Delete Error');
+    }
+  };
 
   const handleSelectFromLibrary = (qr) => {
     if (qr.payment_method === 'GCash') {
@@ -2735,21 +2881,30 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
                   NGO: PAYOUT RAILS TAB (CLEAN VERCEL REWORK)
                  ══════════════════════════════════════════════════ */}
                 {isOrg && activeTab === 'org_payments' && (() => {
-                  const gcashReady = Boolean(gcashNumber || gcashQrUrl || gcashName);
-                  const mayaReady = Boolean(mayaNumber || mayaQrUrl || mayaName);
-                  const bankReady = Boolean(bankAccountNumber || bankQrUrl || bankName);
+                  const gcashQrs = savedQrLibrary.filter(q => q.payment_method === 'GCash');
+                  const mayaQrs = savedQrLibrary.filter(q => q.payment_method === 'Maya');
+                  const bankQrs = savedQrLibrary.filter(q => q.payment_method === 'Bank');
+
+                  const activeChannelName = activePaymentChannelTab === 'gcash' ? 'GCash' : activePaymentChannelTab === 'maya' ? 'Maya' : 'Bank';
+                  const activeChannelQrs = activePaymentChannelTab === 'gcash' ? gcashQrs : activePaymentChannelTab === 'maya' ? mayaQrs : bankQrs;
+                  const activeChannelQrUrl = activePaymentChannelTab === 'gcash' ? gcashQrUrl : activePaymentChannelTab === 'maya' ? mayaQrUrl : bankQrUrl;
+
+                  const gcashReady = Boolean(gcashNumber || gcashQrUrl || gcashQrs.length > 0);
+                  const mayaReady = Boolean(mayaNumber || mayaQrUrl || mayaQrs.length > 0);
+                  const bankReady = Boolean(bankAccountNumber || bankQrUrl || bankQrs.length > 0);
+
                   const gcashCheck = validatePhMobile(gcashNumber, { required: false });
                   const mayaCheck = validatePhMobile(mayaNumber, { required: false });
 
                   return (
                   <div className="epm2-pane" key="epm2-org-payments">
 
-                    {/* Header & Full-Width 3-Column Channel Switcher */}
+                    {/* Header & Full-Width 3-Column Channel Switcher with Live QR Counts */}
                     <div className="epm2-section">
                       <div className="epm2-field-head">
                         <div>
                           <span className="epm2-field-title">Donation Receiving Channels</span>
-                          <p className="epm2-field-sub">Official GCash, Maya, and Bank channels synced directly to donor checkouts.</p>
+                          <p className="epm2-field-sub">Manage receiving accounts and upload multiple reusable QR codes per channel.</p>
                         </div>
                       </div>
 
@@ -2759,10 +2914,11 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
                           role="tab"
                           aria-selected={activePaymentChannelTab === 'gcash'}
                           className={`epm2-seg-btn ${activePaymentChannelTab === 'gcash' ? 'active' : ''}`}
-                          onClick={() => setActivePaymentChannelTab('gcash')}
+                          onClick={() => { setActivePaymentChannelTab('gcash'); setAddingQrChannel(null); }}
                         >
                           <span className={`epm2-dot ${gcashReady ? '' : 'is-off'}`} />
                           <span>GCash</span>
+                          <span className="epm2-seg-count">{gcashQrs.length}</span>
                         </button>
 
                         <button
@@ -2770,10 +2926,11 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
                           role="tab"
                           aria-selected={activePaymentChannelTab === 'maya'}
                           className={`epm2-seg-btn ${activePaymentChannelTab === 'maya' ? 'active' : ''}`}
-                          onClick={() => setActivePaymentChannelTab('maya')}
+                          onClick={() => { setActivePaymentChannelTab('maya'); setAddingQrChannel(null); }}
                         >
                           <span className={`epm2-dot ${mayaReady ? '' : 'is-off'}`} />
                           <span>Maya</span>
+                          <span className="epm2-seg-count">{mayaQrs.length}</span>
                         </button>
 
                         <button
@@ -2781,360 +2938,327 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
                           role="tab"
                           aria-selected={activePaymentChannelTab === 'bank'}
                           className={`epm2-seg-btn ${activePaymentChannelTab === 'bank' ? 'active' : ''}`}
-                          onClick={() => setActivePaymentChannelTab('bank')}
+                          onClick={() => { setActivePaymentChannelTab('bank'); setAddingQrChannel(null); }}
                         >
                           <span className={`epm2-dot ${bankReady ? '' : 'is-off'}`} />
                           <span>Bank Transfer</span>
+                          <span className="epm2-seg-count">{bankQrs.length}</span>
                         </button>
                       </div>
                     </div>
 
-                    {/* 1. GCASH CHANNEL */}
-                    {activePaymentChannelTab === 'gcash' && (
-                      <div className="epm2-section" key="rail-gcash">
-                        <div className="epm2-rail-grid">
-                          <div className="epm2-rail-fields">
-                            <div className="epm2-field">
-                              <label htmlFor="epm2-gcash-name" className="epm2-label-sm">GCash Account Name</label>
-                              <input
-                                id="epm2-gcash-name"
-                                type="text"
-                                className="epm2-input"
-                                placeholder="e.g. Philippine Red Cross - Southern Leyte"
-                                value={gcashName}
-                                onChange={e => setGcashName(e.target.value)}
-                              />
-                            </div>
+                    {/* Section 1: Active Receiving Account Details for Selected Channel */}
+                    <div className="epm2-section">
+                      {activePaymentChannelTab === 'gcash' && (
+                        <div className="epm2-grid-2">
+                          <div className="epm2-field">
+                            <label htmlFor="epm2-gcash-name" className="epm2-label-sm">Active GCash Account Name</label>
+                            <input
+                              id="epm2-gcash-name"
+                              type="text"
+                              className="epm2-input"
+                              placeholder="e.g. Philippine Red Cross - Southern Leyte"
+                              value={gcashName}
+                              onChange={e => setGcashName(e.target.value)}
+                            />
+                          </div>
 
-                            <div className="epm2-field">
-                              <div className="epm2-field-head" style={{ alignItems: 'center' }}>
-                                <label htmlFor="epm2-gcash-num" className="epm2-label-sm">GCash Receiving Number</label>
-                                {gcashCheck.state === 'valid' && (
-                                  <span className="epm2-inline-carrier">
-                                    <span className="epm2-dot" />
-                                    <span>{gcashCheck.carrier}</span>
-                                  </span>
-                                )}
-                              </div>
-                              <input
-                                id="epm2-gcash-num"
-                                type="tel"
-                                inputMode="numeric"
-                                maxLength={13}
-                                className={`epm2-input epm2-mono ${gcashCheck.state === 'invalid' ? 'is-error' : ''}`}
-                                placeholder="0992 982 4615"
-                                value={formatPhMobileDisplay(gcashNumber)}
-                                onChange={e => setGcashNumber(formatPhMobileDisplay(e.target.value))}
-                              />
-                              {gcashCheck.state === 'invalid' && (
-                                <p className="epm2-error-text">{gcashCheck.message}</p>
+                          <div className="epm2-field">
+                            <div className="epm2-field-head" style={{ alignItems: 'center' }}>
+                              <label htmlFor="epm2-gcash-num" className="epm2-label-sm">GCash Receiving Number</label>
+                              {gcashCheck.state === 'valid' && (
+                                <span className="epm2-inline-carrier">
+                                  <span className="epm2-dot" />
+                                  <span>{gcashCheck.carrier}</span>
+                                </span>
+                              )}
+                            </div>
+                            <input
+                              id="epm2-gcash-num"
+                              type="tel"
+                              inputMode="numeric"
+                              maxLength={13}
+                              className={`epm2-input epm2-mono ${gcashCheck.state === 'invalid' ? 'is-error' : ''}`}
+                              placeholder="0992 982 4615"
+                              value={formatPhMobileDisplay(gcashNumber)}
+                              onChange={e => setGcashNumber(formatPhMobileDisplay(e.target.value))}
+                            />
+                          </div>
+                        </div>
+                      )}
+
+                      {activePaymentChannelTab === 'maya' && (
+                        <div className="epm2-grid-2">
+                          <div className="epm2-field">
+                            <label htmlFor="epm2-maya-name" className="epm2-label-sm">Active Maya Account / Merchant</label>
+                            <input
+                              id="epm2-maya-name"
+                              type="text"
+                              className="epm2-input"
+                              placeholder="e.g. Philippine Red Cross Official"
+                              value={mayaName}
+                              onChange={e => setMayaName(e.target.value)}
+                            />
+                          </div>
+
+                          <div className="epm2-field">
+                            <div className="epm2-field-head" style={{ alignItems: 'center' }}>
+                              <label htmlFor="epm2-maya-num" className="epm2-label-sm">Maya Receiving Number</label>
+                              {mayaCheck.state === 'valid' && (
+                                <span className="epm2-inline-carrier">
+                                  <span className="epm2-dot" />
+                                  <span>{mayaCheck.carrier}</span>
+                                </span>
+                              )}
+                            </div>
+                            <input
+                              id="epm2-maya-num"
+                              type="tel"
+                              inputMode="numeric"
+                              maxLength={13}
+                              className={`epm2-input epm2-mono ${mayaCheck.state === 'invalid' ? 'is-error' : ''}`}
+                              placeholder="0918 765 1430"
+                              value={formatPhMobileDisplay(mayaNumber)}
+                              onChange={e => setMayaNumber(formatPhMobileDisplay(e.target.value))}
+                            />
+                          </div>
+                        </div>
+                      )}
+
+                      {activePaymentChannelTab === 'bank' && (
+                        <div className="epm2-grid-2">
+                          <div className="epm2-field">
+                            <label htmlFor="epm2-bank-name" className="epm2-label-sm">Bank / Institution</label>
+                            <input
+                              id="epm2-bank-name"
+                              type="text"
+                              className="epm2-input"
+                              value={bankName}
+                              onChange={e => {
+                                const bName = e.target.value;
+                                setBankName(bName);
+                                setBankDetails([bName, bankAccountName, bankAccountNumber ? `Acct: ${bankAccountNumber}` : ''].filter(Boolean).join(' • '));
+                              }}
+                              placeholder="e.g. Land Bank / BDO"
+                            />
+                          </div>
+
+                          <div className="epm2-field">
+                            <label htmlFor="epm2-bank-num" className="epm2-label-sm">Account Number</label>
+                            <input
+                              id="epm2-bank-num"
+                              type="text"
+                              className="epm2-input epm2-mono"
+                              value={bankAccountNumber}
+                              onChange={e => {
+                                const bNum = e.target.value;
+                                setBankAccountNumber(bNum);
+                                setBankDetails([bankName, bankAccountName, bNum ? `Acct: ${bNum}` : ''].filter(Boolean).join(' • '));
+                              }}
+                              placeholder="e.g. 0142-8891-23"
+                            />
+                          </div>
+
+                          <div className="epm2-field" style={{ gridColumn: '1 / -1' }}>
+                            <label htmlFor="epm2-bank-holder" className="epm2-label-sm">Account Holder Name</label>
+                            <input
+                              id="epm2-bank-holder"
+                              type="text"
+                              className="epm2-input"
+                              value={bankAccountName}
+                              onChange={e => {
+                                const bAcctName = e.target.value;
+                                setBankAccountName(bAcctName);
+                                setBankDetails([bankName, bAcctName, bankAccountNumber ? `Acct: ${bankAccountNumber}` : ''].filter(Boolean).join(' • '));
+                              }}
+                              placeholder="Registered institutional account name"
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Section 2: Multi-QR Library for Selected Channel (+ Add QR Code right here!) */}
+                    <div className="epm2-section">
+                      <div className="epm2-field-head" style={{ alignItems: 'center' }}>
+                        <div>
+                          <span className="epm2-field-title">Saved {activeChannelName} QR Codes ({activeChannelQrs.length})</span>
+                          <p className="epm2-field-sub">Add multiple QR codes and choose which one is active for donor checkouts.</p>
+                        </div>
+
+                        {addingQrChannel === activeChannelName ? (
+                          <button
+                            type="button"
+                            className="epm2-btn epm2-btn--outline epm2-btn--sm"
+                            onClick={() => setAddingQrChannel(null)}
+                          >
+                            Cancel
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            className="epm2-btn epm2-btn--solid epm2-btn--sm"
+                            onClick={() => handleOpenAddQr(activeChannelName)}
+                          >
+                            <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>add</span>
+                            <span>Add {activeChannelName} QR</span>
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Inline Add New QR Composer (Auto-Crop + OCR) */}
+                      {addingQrChannel === activeChannelName && (
+                        <div className="epm2-add-qr-panel">
+                          <input
+                            type="file"
+                            ref={inlineQrInputRef}
+                            accept="image/*"
+                            style={{ display: 'none' }}
+                            onChange={(e) => handleDraftQrFile(e.target.files?.[0], activeChannelName)}
+                          />
+
+                          <div className="epm2-add-qr-grid">
+                            <div
+                              className="epm2-add-qr-drop"
+                              onClick={() => inlineQrInputRef.current?.click()}
+                            >
+                              {isProcessingQr ? (
+                                <span className="epm2-note-text">Auto-cropping &amp; extracting OCR...</span>
+                              ) : draftQrImage ? (
+                                <img src={draftQrImage} alt="New QR preview" className="epm2-add-qr-thumb" />
+                              ) : (
+                                <>
+                                  <span className="material-symbols-outlined epm2-qr-drop-icon">qr_code_scanner</span>
+                                  <span className="epm2-qr-drop-title">Upload {activeChannelName} Screenshot</span>
+                                  <span className="epm2-qr-drop-sub">Auto-crops borders &amp; reads details</span>
+                                </>
                               )}
                             </div>
 
-                            <div className="epm2-rail-status-box">
-                              <span className={`epm2-dot ${gcashReady ? '' : 'is-off'}`} />
-                              <span>
-                                {gcashReady
-                                  ? 'GCash channel active for donor checkout & OCR verification.'
-                                  : 'Add an account number or QR voucher to activate GCash.'}
-                              </span>
-                            </div>
-                          </div>
-
-                          <div className="epm2-qr-slot">
-                            <div className="epm2-qr-slot-head">
-                              <span className="epm2-label-sm epm2-nowrap">QR Voucher</span>
-                              <button
-                                type="button"
-                                className="epm2-btn epm2-btn--outline epm2-btn--xs"
-                                onClick={() => setShowQrPicker('GCash')}
-                              >
-                                Library ({savedQrLibrary.filter(q => q.payment_method === 'GCash').length})
-                              </button>
-                            </div>
-
-                            <input
-                              type="file"
-                              ref={gcashFileInputRef}
-                              accept="image/*"
-                              onChange={e => handleQrUpload(e.target.files?.[0], setGcashQrUrl, 'GCash')}
-                              style={{ display: 'none' }}
-                            />
-
-                            {gcashQrUrl ? (
-                              <div className="epm2-qr-preview">
-                                <div
-                                  className="epm2-qr-img-frame"
-                                  onClick={() => gcashFileInputRef.current?.click()}
-                                  title="Click to upload replacement QR"
-                                >
-                                  <img src={gcashQrUrl} alt="Organization GCash QR" />
-                                </div>
-                                <div className="epm2-qr-card-foot">
-                                  <button
-                                    type="button"
-                                    className="epm2-btn epm2-btn--outline epm2-btn--xs"
-                                    style={{ flex: 1 }}
-                                    onClick={() => gcashFileInputRef.current?.click()}
-                                  >
-                                    Replace
-                                  </button>
-                                  <button
-                                    type="button"
-                                    className="epm2-btn epm2-btn--ghost-danger epm2-btn--xs"
-                                    onClick={() => setGcashQrUrl('')}
-                                  >
-                                    Remove
-                                  </button>
-                                </div>
+                            <div className="epm2-add-qr-fields">
+                              <div className="epm2-field">
+                                <label className="epm2-label-sm">QR Label</label>
+                                <input
+                                  type="text"
+                                  className="epm2-input"
+                                  value={draftQrLabel}
+                                  onChange={(e) => setDraftQrLabel(e.target.value)}
+                                  placeholder={`e.g. ${activeChannelName} Main Relief`}
+                                />
                               </div>
-                            ) : (
-                              <button
-                                type="button"
-                                className="epm2-qr-dropzone"
-                                onClick={() => gcashFileInputRef.current?.click()}
-                              >
-                                <span className="material-symbols-outlined epm2-qr-drop-icon">qr_code_scanner</span>
-                                <span className="epm2-qr-drop-title">Upload GCash QR</span>
-                                <span className="epm2-qr-drop-sub">Auto-crop &amp; OCR enabled</span>
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    )}
 
-                    {/* 2. MAYA CHANNEL */}
-                    {activePaymentChannelTab === 'maya' && (
-                      <div className="epm2-section" key="rail-maya">
-                        <div className="epm2-rail-grid">
-                          <div className="epm2-rail-fields">
-                            <div className="epm2-field">
-                              <label htmlFor="epm2-maya-name" className="epm2-label-sm">Maya Account / Merchant Name</label>
-                              <input
-                                id="epm2-maya-name"
-                                type="text"
-                                className="epm2-input"
-                                placeholder="e.g. Philippine Red Cross Official"
-                                value={mayaName}
-                                onChange={e => setMayaName(e.target.value)}
-                              />
-                            </div>
+                              <div className="epm2-field">
+                                <label className="epm2-label-sm">Account Name (OCR Auto-Fill)</label>
+                                <input
+                                  type="text"
+                                  className="epm2-input"
+                                  value={draftQrAcctName}
+                                  onChange={(e) => setDraftQrAcctName(e.target.value)}
+                                  placeholder="Extracted or enter name"
+                                />
+                              </div>
 
-                            <div className="epm2-field">
-                              <div className="epm2-field-head" style={{ alignItems: 'center' }}>
-                                <label htmlFor="epm2-maya-num" className="epm2-label-sm">Maya Receiving Number</label>
-                                {mayaCheck.state === 'valid' && (
-                                  <span className="epm2-inline-carrier">
-                                    <span className="epm2-dot" />
-                                    <span>{mayaCheck.carrier}</span>
-                                  </span>
+                              <div className="epm2-field">
+                                <label className="epm2-label-sm">Account Number</label>
+                                <input
+                                  type="text"
+                                  className="epm2-input epm2-mono"
+                                  value={draftQrAcctNum}
+                                  onChange={(e) => setDraftQrAcctNum(activeChannelName === 'Bank' ? e.target.value : formatPhMobileDisplay(e.target.value))}
+                                  placeholder={activeChannelName === 'Bank' ? '0142-8891-23' : '0917 123 4567'}
+                                />
+                              </div>
+
+                              <div className="epm2-add-qr-actions">
+                                <button
+                                  type="button"
+                                  className="epm2-btn epm2-btn--solid epm2-btn--sm"
+                                  onClick={handleSaveDraftQrToLibrary}
+                                  disabled={savingNewQr || !draftQrImage}
+                                >
+                                  {savingNewQr ? 'Saving...' : 'Save & Set Active'}
+                                </button>
+                                {draftQrImage && (
+                                  <button
+                                    type="button"
+                                    className="epm2-btn epm2-btn--outline epm2-btn--sm"
+                                    onClick={() => inlineQrInputRef.current?.click()}
+                                  >
+                                    Change Image
+                                  </button>
                                 )}
                               </div>
-                              <input
-                                id="epm2-maya-num"
-                                type="tel"
-                                inputMode="numeric"
-                                maxLength={13}
-                                className={`epm2-input epm2-mono ${mayaCheck.state === 'invalid' ? 'is-error' : ''}`}
-                                placeholder="0918 765 1430"
-                                value={formatPhMobileDisplay(mayaNumber)}
-                                onChange={e => setMayaNumber(formatPhMobileDisplay(e.target.value))}
-                              />
-                              {mayaCheck.state === 'invalid' && (
-                                <p className="epm2-error-text">{mayaCheck.message}</p>
-                              )}
-                            </div>
-
-                            <div className="epm2-rail-status-box">
-                              <span className={`epm2-dot ${mayaReady ? '' : 'is-off'}`} />
-                              <span>
-                                {mayaReady
-                                  ? 'Maya channel active for donor checkout & OCR verification.'
-                                  : 'Add an account number or QR voucher to activate Maya.'}
-                              </span>
                             </div>
                           </div>
+                        </div>
+                      )}
 
-                          <div className="epm2-qr-slot">
-                            <div className="epm2-qr-slot-head">
-                              <span className="epm2-label-sm epm2-nowrap">QR Voucher</span>
-                              <button
-                                type="button"
-                                className="epm2-btn epm2-btn--outline epm2-btn--xs"
-                                onClick={() => setShowQrPicker('Maya')}
-                              >
-                                Library ({savedQrLibrary.filter(q => q.payment_method === 'Maya').length})
-                              </button>
-                            </div>
-
-                            <input
-                              type="file"
-                              ref={mayaFileInputRef}
-                              accept="image/*"
-                              onChange={e => handleQrUpload(e.target.files?.[0], setMayaQrUrl, 'Maya')}
-                              style={{ display: 'none' }}
-                            />
-
-                            {mayaQrUrl ? (
-                              <div className="epm2-qr-preview">
-                                <div
-                                  className="epm2-qr-img-frame"
-                                  onClick={() => mayaFileInputRef.current?.click()}
-                                  title="Click to upload replacement QR"
-                                >
-                                  <img src={mayaQrUrl} alt="Organization Maya QR" />
+                      {/* List of ALL Saved QR Codes for Selected Channel */}
+                      {activeChannelQrs.length === 0 ? (
+                        !addingQrChannel && (
+                          <button
+                            type="button"
+                            className="epm2-qr-dropzone"
+                            style={{ width: '100%', minHeight: '116px' }}
+                            onClick={() => handleOpenAddQr(activeChannelName)}
+                          >
+                            <span className="material-symbols-outlined epm2-qr-drop-icon">add_photo_alternate</span>
+                            <span className="epm2-qr-drop-title">No {activeChannelName} QR codes saved yet</span>
+                            <span className="epm2-qr-drop-sub">Click to upload &amp; auto-crop your first {activeChannelName} QR voucher</span>
+                          </button>
+                        )
+                      ) : (
+                        <div className="epm2-lib-grid">
+                          {activeChannelQrs.map((qr) => {
+                            const isActive = Boolean(qr.is_default) || (activeChannelQrUrl && activeChannelQrUrl === qr.qr_image_url);
+                            return (
+                              <div key={qr.id} className={`epm2-lib-card ${isActive ? 'is-active' : ''}`}>
+                                <div className="epm2-lib-top">
+                                  <div className="epm2-lib-thumb">
+                                    <img src={qr.qr_image_url} alt={qr.custom_name} />
+                                  </div>
+                                  <div className="epm2-lib-info">
+                                    <strong className="epm2-lib-name" title={qr.custom_name}>{qr.custom_name}</strong>
+                                    <span className="epm2-lib-acct">{qr.account_name || 'No account name'}</span>
+                                    <span className="epm2-lib-num epm2-mono">
+                                      {qr.account_number
+                                        ? (activeChannelName === 'Bank' ? qr.account_number : formatPhMobileDisplay(qr.account_number))
+                                        : 'No number'}
+                                    </span>
+                                  </div>
                                 </div>
-                                <div className="epm2-qr-card-foot">
-                                  <button
-                                    type="button"
-                                    className="epm2-btn epm2-btn--outline epm2-btn--xs"
-                                    style={{ flex: 1 }}
-                                    onClick={() => mayaFileInputRef.current?.click()}
-                                  >
-                                    Replace
-                                  </button>
+
+                                <div className="epm2-lib-foot">
+                                  {isActive ? (
+                                    <span className="epm2-lib-active-lbl">
+                                      <span className="epm2-dot" />
+                                      <span>Active Default</span>
+                                    </span>
+                                  ) : (
+                                    <button
+                                      type="button"
+                                      className="epm2-btn epm2-btn--outline epm2-btn--xs"
+                                      onClick={() => handleSetActiveLibraryQr(qr)}
+                                    >
+                                      Set Active
+                                    </button>
+                                  )}
+
                                   <button
                                     type="button"
                                     className="epm2-btn epm2-btn--ghost-danger epm2-btn--xs"
-                                    onClick={() => setMayaQrUrl('')}
+                                    onClick={() => handleDeleteLibraryQr(qr)}
+                                    title="Delete QR from library"
                                   >
-                                    Remove
+                                    <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>delete</span>
                                   </button>
                                 </div>
                               </div>
-                            ) : (
-                              <button
-                                type="button"
-                                className="epm2-qr-dropzone"
-                                onClick={() => mayaFileInputRef.current?.click()}
-                              >
-                                <span className="material-symbols-outlined epm2-qr-drop-icon">qr_code_scanner</span>
-                                <span className="epm2-qr-drop-title">Upload Maya QR</span>
-                                <span className="epm2-qr-drop-sub">Auto-crop &amp; OCR enabled</span>
-                              </button>
-                            )}
-                          </div>
+                            );
+                          })}
                         </div>
-                      </div>
-                    )}
-
-                    {/* 3. DIRECT BANK TRANSFER CHANNEL */}
-                    {activePaymentChannelTab === 'bank' && (
-                      <div className="epm2-section" key="rail-bank">
-                        <div className="epm2-rail-grid">
-                          <div className="epm2-rail-fields">
-                            <div className="epm2-field">
-                              <label htmlFor="epm2-bank-name" className="epm2-label-sm">Bank / Institution</label>
-                              <input
-                                id="epm2-bank-name"
-                                type="text"
-                                className="epm2-input"
-                                value={bankName}
-                                onChange={e => {
-                                  const bName = e.target.value;
-                                  setBankName(bName);
-                                  setBankDetails([bName, bankAccountName, bankAccountNumber ? `Acct: ${bankAccountNumber}` : ''].filter(Boolean).join(' • '));
-                                }}
-                                placeholder="e.g. Land Bank of the Philippines / BDO"
-                              />
-                            </div>
-
-                            <div className="epm2-field">
-                              <label htmlFor="epm2-bank-num" className="epm2-label-sm">Account Number</label>
-                              <input
-                                id="epm2-bank-num"
-                                type="text"
-                                className="epm2-input epm2-mono"
-                                value={bankAccountNumber}
-                                onChange={e => {
-                                  const bNum = e.target.value;
-                                  setBankAccountNumber(bNum);
-                                  setBankDetails([bankName, bankAccountName, bNum ? `Acct: ${bNum}` : ''].filter(Boolean).join(' • '));
-                                }}
-                                placeholder="e.g. 0142-8891-23"
-                              />
-                            </div>
-
-                            <div className="epm2-field">
-                              <label htmlFor="epm2-bank-holder" className="epm2-label-sm">Account Holder Name</label>
-                              <input
-                                id="epm2-bank-holder"
-                                type="text"
-                                className="epm2-input"
-                                value={bankAccountName}
-                                onChange={e => {
-                                  const bAcctName = e.target.value;
-                                  setBankAccountName(bAcctName);
-                                  setBankDetails([bankName, bAcctName, bankAccountNumber ? `Acct: ${bankAccountNumber}` : ''].filter(Boolean).join(' • '));
-                                }}
-                                placeholder="Registered institutional account name"
-                              />
-                            </div>
-                          </div>
-
-                          <div className="epm2-qr-slot">
-                            <div className="epm2-qr-slot-head">
-                              <span className="epm2-label-sm epm2-nowrap">QR Voucher</span>
-                              <button
-                                type="button"
-                                className="epm2-btn epm2-btn--outline epm2-btn--xs"
-                                onClick={() => setShowQrPicker('Bank')}
-                              >
-                                Library ({savedQrLibrary.filter(q => q.payment_method === 'Bank').length})
-                              </button>
-                            </div>
-
-                            <input
-                              type="file"
-                              ref={bankFileInputRef}
-                              accept="image/*"
-                              onChange={e => handleQrUpload(e.target.files?.[0], setBankQrUrl, 'Bank')}
-                              style={{ display: 'none' }}
-                            />
-
-                            {bankQrUrl ? (
-                              <div className="epm2-qr-preview">
-                                <div
-                                  className="epm2-qr-img-frame"
-                                  onClick={() => bankFileInputRef.current?.click()}
-                                  title="Click to upload replacement QR"
-                                >
-                                  <img src={bankQrUrl} alt="Organization Bank QR" />
-                                </div>
-                                <div className="epm2-qr-card-foot">
-                                  <button
-                                    type="button"
-                                    className="epm2-btn epm2-btn--outline epm2-btn--xs"
-                                    style={{ flex: 1 }}
-                                    onClick={() => bankFileInputRef.current?.click()}
-                                  >
-                                    Replace
-                                  </button>
-                                  <button
-                                    type="button"
-                                    className="epm2-btn epm2-btn--ghost-danger epm2-btn--xs"
-                                    onClick={() => setBankQrUrl('')}
-                                  >
-                                    Remove
-                                  </button>
-                                </div>
-                              </div>
-                            ) : (
-                              <button
-                                type="button"
-                                className="epm2-qr-dropzone"
-                                onClick={() => bankFileInputRef.current?.click()}
-                              >
-                                <span className="material-symbols-outlined epm2-qr-drop-icon">qr_code_scanner</span>
-                                <span className="epm2-qr-drop-title">Upload Bank QR</span>
-                                <span className="epm2-qr-drop-sub">InstaPay / PESONet supported</span>
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    )}
+                      )}
+                    </div>
 
                   </div>
                   );
