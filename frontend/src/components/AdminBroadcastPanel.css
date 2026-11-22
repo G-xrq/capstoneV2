@@ -53,28 +53,39 @@
   max-width: 680px;
 }
 
-.bbdrts-btn-primary {
+.bbdrts-broadcast-panel .bbdrts-btn-primary {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  background: #ffffff !important;
-  color: #000000 !important;
-  border: 1px solid #ffffff !important;
-  font-size: 0.76rem !important;
-  font-weight: 600 !important;
-  padding: 8px 16px !important;
-  border-radius: 6px !important;
+  background: #ffffff;
+  color: #000000;
+  border: 1px solid #ffffff;
+  font-size: 0.76rem;
+  font-weight: 600;
+  padding: 8px 16px;
+  border-radius: 6px;
   cursor: pointer;
-  transition: all 0.12s ease !important;
+  transition: all 0.12s ease;
   flex-shrink: 0;
 }
 
-.bbdrts-btn-primary:hover {
-  background: #eaeaea !important;
-  border-color: #eaeaea !important;
+.bbdrts-broadcast-panel .bbdrts-btn-primary:hover {
+  background: #eaeaea;
+  border-color: #eaeaea;
 }
 
-.bbdrts-btn-primary .material-symbols-outlined {
+[data-theme="light"] .bbdrts-broadcast-panel .bbdrts-btn-primary {
+  background: #09090b;
+  color: #ffffff;
+  border-color: #09090b;
+}
+
+[data-theme="light"] .bbdrts-broadcast-panel .bbdrts-btn-primary:hover {
+  background: #27272a;
+  border-color: #27272a;
+}
+
+.bbdrts-broadcast-panel .bbdrts-btn-primary .material-symbols-outlined {
   font-size: 16px;
 }
 
