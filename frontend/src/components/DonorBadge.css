@@ -3668,12 +3668,21 @@
   min-width: 0;
 }
 
-.dic-signature-svg {
-  width: clamp(72px, 19cqw, 140px);
+.dic-signature-img {
+  width: clamp(56px, 15.5cqw, 114px);
   height: auto;
-  color: var(--cert-ink);
+  display: block;
+  object-fit: contain;
+  pointer-events: none;
+  user-select: none;
+  margin-bottom: clamp(-10px, -1.8cqw, -5px);
+  filter: invert(1) brightness(1.04) sepia(0.14);
+  opacity: 0.94;
+}
+
+.dic-modal[data-theme="light"] .dic-signature-img {
+  filter: none;
   opacity: 0.92;
-  margin-bottom: -3px;
 }
 
 .dic-diploma-sig-line {
@@ -4660,6 +4669,10 @@
     box-shadow: none !important;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
+  }
+  .dic-signature-img {
+    filter: none !important;
+    opacity: 0.95 !important;
   }
   .dic-cert-actions,
   .dic-header,

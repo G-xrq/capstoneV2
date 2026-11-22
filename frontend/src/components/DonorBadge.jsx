@@ -1459,42 +1459,15 @@ export function DonorTierModal({
                     <div className="dic-diploma-footer">
                       {/* Left: Official Signatory */}
                       <div className="dic-diploma-sig-col">
-                        <svg className="dic-signature-svg" viewBox="0 0 210 58" fill="none" aria-hidden="true">
-                          {/* Slanted cursive capital initial */}
-                          <path
-                            d="M28 44C32 30 39 14 45 8C47 6 49 7 47 12C43 21 35 33 27 39C24 41 25 36 30 31C38 23 50 14 57 16C62 17.5 58 26 48 30C42 32.5 39 33 44 36C49 39 55 43 62 39"
-                            stroke="currentColor"
-                            strokeWidth="1.8"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          />
-                          {/* Connected cursive given-name flourish */}
-                          <path
-                            d="M62 39C66 36 70 29 73 29C75 29 73 36 70 38C68 39 71 39 76 34C80 30 83 25 85 26C86 27 82 35 84 37C86 39 92 31 96 27C99 24 103 15 106 11C108 9 106 17 101 28C97 36 96 40 99 39C103 38 108 30 112 30C114 30 111 36 114 37C117 38 122 30 126 30C128 30 126 37 129 37C133 37 139 27 143 20C145 16 144 21 140 31C137 39 133 48 129 51C126 53 128 45 136 38C144 31 151 28 156 32C159 35 165 34 174 31C180 29 186 28 192 27"
-                            stroke="currentColor"
-                            strokeWidth="1.55"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                          />
-                          {/* Crisp ink crossbar & i-dot for authentic handwriting texture */}
-                          <path
-                            d="M94 21C101 19.5 110 18.5 117 18"
-                            stroke="currentColor"
-                            strokeWidth="1.25"
-                            strokeLinecap="round"
-                          />
-                          <circle cx="85.5" cy="19.5" r="1.25" fill="currentColor" />
-                          <path
-                            d="M54 46C88 42.5 132 41 168 42"
-                            stroke="currentColor"
-                            strokeWidth="0.9"
-                            strokeOpacity="0.55"
-                            strokeLinecap="round"
-                          />
-                        </svg>
+                        <img
+                          src="/admin-signature.png"
+                          alt="System Administrator Signature"
+                          className="dic-signature-img"
+                          draggable="false"
+                        />
                         <div className="dic-diploma-sig-line" />
-                        <span className="dic-diploma-sig-title">Registry Director</span>
-                        <span className="dic-diploma-sig-sub">BBDRTS Donation Platform</span>
+                        <span className="dic-diploma-sig-title">System Administrator</span>
+                        <span className="dic-diploma-sig-sub">BBDRTS Platform</span>
                       </div>
 
                       {/* Center: Embossed Gold & Emerald Official Notary Seal */}
