@@ -4862,9 +4862,24 @@ export default function CampaignCard(props) {
                   { val: '5000', label: '₱5,000' }
                 ];
 
+                const formattedInputDisplay = (() => {
+                  if (amount === '' || amount === null || amount === undefined) return '';
+                  const raw = String(amount);
+                  const [intPart, decPart] = raw.split('.');
+                  const formattedInt = intPart ? Number(intPart).toLocaleString('en-US') : '';
+                  return decPart !== undefined ? `${formattedInt || '0'}.${decPart}` : formattedInt;
+                })();
+
+                const currentPctNum = targetPhp > 0 ? Math.min(100, (totalRaisedPhp / targetPhp) * 100) : 0;
+                const projectedPctNum = targetPhp > 0 && hasAmount
+                  ? Math.min(100, ((totalRaisedPhp + parsedAmount) / targetPhp) * 100)
+                  : currentPctNum;
+                const deltaPctWidth = Math.max(0, projectedPctNum - currentPctNum);
+                const projectedPctLabel = projectedPctNum >= 100 ? '100' : projectedPctNum.toFixed(1).replace(/\.0$/, '');
+
                 return (
-                  <div className="fade-in">
-                    {/* Edge-to-edge Header */}
+                  <div className="fade-in vc-checkout-root">
+                    {/* Edge-to-edge Recessed Header */}
                     <div className="vc-donate-header">
                       <div className="vc-donate-header-left">
                         <img
@@ -4878,7 +4893,7 @@ export default function CampaignCard(props) {
                         />
                         <div className="vc-donate-title-group">
                           <h2 className="vc-donate-title" title={campDisplay}>
-                            Donate to {campDisplay}
+                            {campDisplay}
                           </h2>
                           <div className="vc-donate-sub">
                             <strong>{orgDisplay}</strong>
@@ -4887,6 +4902,11 @@ export default function CampaignCard(props) {
                             <span style={{ fontVariantNumeric: 'tabular-nums' }}>
                               {goalReached ? 'Goal reached' : `${pct}% funded`}
                             </span>
+                            {hasAmount && targetPhp > 0 && !goalReached && projectedPctLabel !== String(pct) && (
+                              <span className="vc-impact-pill">
+                                → {projectedPctLabel}%
+                              </span>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -4905,9 +4925,22 @@ export default function CampaignCard(props) {
                       </button>
                     </div>
 
+                    {/* Live 2px Funding Progress Bar (Shows Real-Time Boost From Your Contribution) */}
+                    {targetPhp > 0 && (
+                      <div className="vc-head-progress" aria-hidden="true">
+                        <div className="vc-head-progress-base" style={{ width: `${currentPctNum}%` }} />
+                        {deltaPctWidth > 0 && (
+                          <div
+                            className="vc-head-progress-delta"
+                            style={{ left: `${currentPctNum}%`, width: `${Math.max(1.2, deltaPctWidth)}%` }}
+                          />
+                        )}
+                      </div>
+                    )}
+
                     {/* Two-Column Split Checkout Grid */}
                     <div className="vc-donate-grid">
-                      {/* Left Column: Amount + Payment Channel */}
+                      {/* Left Column: Amount + Payment Channel + Privacy */}
                       <div className="vc-donate-main">
                         {/* Amount Field & Connected Presets */}
                         <div>
@@ -4933,9 +4966,9 @@ export default function CampaignCard(props) {
                               type="text"
                               inputMode="decimal"
                               className="vc-amount-input"
-                              value={amount}
+                              value={formattedInputDisplay}
                               onChange={(e) => {
-                                const cleaned = e.target.value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');
+                                const cleaned = e.target.value.replace(/,/g, '').replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');
                                 setAmount(cleaned);
                               }}
                               placeholder="0"
@@ -4961,7 +4994,7 @@ export default function CampaignCard(props) {
                           </div>
                         </div>
 
-                        {/* Payment Channel + Inline Verification Switcher */}
+                        {/* Payment Channel + High-Contrast Verification Switcher */}
                         <div>
                           <div className="vc-field-header">
                             <span className="vc-field-label">Payment method</span>
@@ -4974,7 +5007,8 @@ export default function CampaignCard(props) {
                                   className={`vc-mode-tab${checkoutMode === 'instant' ? ' active' : ''}`}
                                   onClick={() => setCheckoutMode('instant')}
                                 >
-                                  Instant QR Ph
+                                  <span className="vc-mode-dot" />
+                                  <span>Instant QR Ph</span>
                                 </button>
                                 <button
                                   type="button"
@@ -4983,7 +5017,7 @@ export default function CampaignCard(props) {
                                   className={`vc-mode-tab${checkoutMode === 'manual' ? ' active' : ''}`}
                                   onClick={() => setCheckoutMode('manual')}
                                 >
-                                  Direct QR &amp; Slip
+                                  <span>Direct QR &amp; Slip</span>
                                 </button>
                               </div>
                             )}
@@ -5015,12 +5049,28 @@ export default function CampaignCard(props) {
                             })}
                           </div>
                         </div>
+
+                        {/* Inline Donor Visibility Toggle (Balances Left Column Cleanly) */}
+                        <label className="vc-anon-row">
+                          <span className="vc-anon-copy">
+                            <span className="vc-anon-title">Donate anonymously</span>
+                            <span className="vc-anon-sub">Hide your name on the public campaign ledger</span>
+                          </span>
+                          <span className={`vc-switch${isAnonymous ? ' is-on' : ''}`}>
+                            <input
+                              type="checkbox"
+                              checked={isAnonymous}
+                              onChange={(e) => setIsAnonymous(e.target.checked)}
+                            />
+                            <span className="vc-switch-thumb" />
+                          </span>
+                        </label>
                       </div>
 
-                      {/* Right Column: Order Summary & CTA */}
+                      {/* Right Column: Recessed Contribution Summary & CTA */}
                       <div className="vc-donate-summary">
-                        <div>
-                          <div className="vc-field-label">Summary</div>
+                        <div className="vc-summary-top">
+                          <div className="vc-summary-eyebrow">Contribution Summary</div>
 
                           <div className="vc-summary-rows">
                             <div className="vc-summary-row">
@@ -5038,6 +5088,10 @@ export default function CampaignCard(props) {
                               </span>
                             </div>
                             <div className="vc-summary-row">
+                              <span className="vc-summary-k">Visibility</span>
+                              <span className="vc-summary-v">{isAnonymous ? 'Anonymous' : 'Public Ledger'}</span>
+                            </div>
+                            <div className="vc-summary-row">
                               <span className="vc-summary-k">Platform fee</span>
                               <span className="vc-summary-v free">₱0.00</span>
                             </div>
@@ -5048,7 +5102,7 @@ export default function CampaignCard(props) {
                           </div>
 
                           <div className="vc-summary-total">
-                            <span className="vc-summary-total-label">Total due</span>
+                            <span className="vc-summary-total-label">Your donation</span>
                             <span className={`vc-summary-total-val${hasAmount ? '' : ' empty'}`}>
                               {hasAmount ? (
                                 <>
@@ -5064,19 +5118,19 @@ export default function CampaignCard(props) {
                             </span>
                           </div>
 
-                          <div className="vc-summary-note">
-                            <span className="material-symbols-outlined vc-summary-note-icon">
+                          <div className="vc-summary-hint">
+                            <span className="material-symbols-outlined vc-summary-hint-ico">
                               {isInstant ? 'bolt' : 'document_scanner'}
                             </span>
                             <span>
                               {isInstant
-                                ? 'Generates a single-use QR Ph code. Auto-verified via webhook and sealed on Sepolia — no slip upload needed.'
-                                : 'Shows the NGO QR code with a unique BB-XXXX tracking code for fast AI receipt verification.'}
+                                ? 'Generates a single-use QR Ph code. Verified automatically via webhook — no receipt upload needed.'
+                                : 'Shows the NGO QR code with a unique BB-XXXX code for instant AI receipt verification.'}
                             </span>
                           </div>
                         </div>
 
-                        <div>
+                        <div className="vc-summary-bottom">
                           <button
                             type="button"
                             disabled={instantLoading}
@@ -5086,13 +5140,13 @@ export default function CampaignCard(props) {
                             {instantLoading ? (
                               <>
                                 <div className="spinner" style={{ width: '14px', height: '14px', borderWidth: '2px' }} />
-                                <span>Preparing QR Ph...</span>
+                                <span>Preparing QR Ph…</span>
                               </>
                             ) : (
                               <>
                                 <span>
                                   {hasAmount
-                                    ? `Donate ₱${parsedAmount.toLocaleString('en-US', { maximumFractionDigits: 2 })} via ${channelLabel}`
+                                    ? `Continue to ${channelLabel}`
                                     : `Continue with ${channelLabel}`}
                                 </span>
                                 <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>arrow_forward</span>
@@ -5100,7 +5154,8 @@ export default function CampaignCard(props) {
                             )}
                           </button>
                           <div className="vc-donate-micro">
-                            100% goes to verified humanitarian relief
+                            <span className="material-symbols-outlined">lock</span>
+                            <span>100% goes directly to verified relief</span>
                           </div>
                         </div>
                       </div>

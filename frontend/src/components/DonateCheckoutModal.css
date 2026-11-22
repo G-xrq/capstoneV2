@@ -2236,3 +2236,253 @@
   color: #71717a;
   flex-shrink: 0;
 }
+
+/* ============================================================
+   STEP 0 REFINEMENTS — LIVE IMPACT BAR, ANON TOGGLE & SUMMARY
+   ============================================================ */
+.vc-donate-shell {
+  background: #0a0a0a !important;
+  border-color: #262626 !important;
+}
+
+.vc-donate-main {
+  background: #0a0a0a;
+  gap: 18px;
+}
+
+.vc-donate-summary {
+  background: #060606;
+}
+
+[data-theme="light"] .vc-donate-main {
+  background: #ffffff;
+}
+
+[data-theme="light"] .vc-donate-summary {
+  background: #fafafa;
+}
+
+.vc-impact-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 6px;
+  border-radius: 9999px;
+  background: rgba(16, 185, 129, 0.14);
+  color: #10b981;
+  font-size: 0.67rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 2px Edge-to-Edge Live Impact Progress Bar */
+.vc-head-progress {
+  position: relative;
+  width: 100%;
+  height: 2px;
+  background: #18181b;
+  overflow: hidden;
+}
+
+[data-theme="light"] .vc-head-progress {
+  background: #ececef;
+}
+
+.vc-head-progress-base {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: #52525b;
+  transition: width 0.25s ease;
+}
+
+[data-theme="light"] .vc-head-progress-base {
+  background: #a1a1aa;
+}
+
+.vc-head-progress-delta {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: #10b981;
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.65);
+  transition: width 0.22s ease, left 0.22s ease;
+}
+
+/* High-contrast Mode Segmented Tabs */
+.vc-mode-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.vc-mode-tab.active {
+  background: #ffffff;
+  color: #000000;
+  font-weight: 600;
+}
+
+[data-theme="light"] .vc-mode-tab.active {
+  background: #09090b;
+  color: #ffffff;
+}
+
+.vc-mode-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #10b981;
+  flex-shrink: 0;
+}
+
+/* Inline Anonymous Privacy Switch Row */
+.vc-anon-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 13px;
+  border-radius: 8px;
+  border: 1px solid #1f1f23;
+  background: #060606;
+  cursor: pointer;
+  user-select: none;
+  transition: border-color 0.14s ease;
+}
+
+.vc-anon-row:hover {
+  border-color: #2e2e34;
+}
+
+[data-theme="light"] .vc-anon-row {
+  background: #fafafa;
+  border-color: #e4e4e7;
+}
+
+.vc-anon-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.vc-anon-title {
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: #ededed;
+}
+
+[data-theme="light"] .vc-anon-title {
+  color: #09090b;
+}
+
+.vc-anon-sub {
+  font-size: 0.69rem;
+  color: #71717a;
+}
+
+.vc-switch {
+  position: relative;
+  width: 34px;
+  height: 20px;
+  border-radius: 9999px;
+  background: #27272a;
+  border: 1px solid #3f3f46;
+  flex-shrink: 0;
+  transition: background 0.16s ease, border-color 0.16s ease;
+}
+
+.vc-switch input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.vc-switch-thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #a1a1aa;
+  transition: transform 0.16s ease, background 0.16s ease;
+}
+
+.vc-switch.is-on {
+  background: #ffffff;
+  border-color: #ffffff;
+}
+
+.vc-switch.is-on .vc-switch-thumb {
+  transform: translateX(14px);
+  background: #000000;
+}
+
+[data-theme="light"] .vc-switch {
+  background: #e4e4e7;
+  border-color: #d4d4d8;
+}
+
+[data-theme="light"] .vc-switch-thumb {
+  background: #ffffff;
+}
+
+[data-theme="light"] .vc-switch.is-on {
+  background: #09090b;
+  border-color: #09090b;
+}
+
+[data-theme="light"] .vc-switch.is-on .vc-switch-thumb {
+  background: #ffffff;
+}
+
+/* Right Summary Column Polish */
+.vc-summary-eyebrow {
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #71717a;
+  margin-bottom: 6px;
+}
+
+.vc-summary-hint {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #18181b;
+  font-size: 0.71rem;
+  line-height: 1.48;
+  color: #71717a;
+}
+
+[data-theme="light"] .vc-summary-hint {
+  border-top-color: #ececef;
+}
+
+.vc-summary-hint-ico {
+  font-size: 14px;
+  color: #10b981;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.vc-donate-cta {
+  height: 42px;
+  border-radius: 9px;
+}
+
+.vc-donate-micro {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  margin-top: 10px;
+}
+
+.vc-donate-micro .material-symbols-outlined {
+  font-size: 12px;
+  color: #10b981;
+}
