@@ -3138,12 +3138,6 @@ export default function CampaignCard(props) {
             </>
           )}
 
-          {/* Top Category Tag Capsule */}
-          <div className="campaign-media-tag-top">
-            <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>{coverData.categoryIcon}</span>
-            <span>{coverData.categoryTag}</span>
-          </div>
-
           {/* Disaster Evidence Photos Badge */}
           {coverData.hasDisasterPhotos && (
             <div className="campaign-media-evidence-badge" title={`${coverData.disasterPhotosCount} disaster impact evidence photo(s) attached`}>
@@ -3201,25 +3195,18 @@ export default function CampaignCard(props) {
             {(camp.disbursementStatus === 'DISBURSED' || (camp.disbursedAmountPhp || 0) > 0) && (
               <button
                 type="button"
-                className="badge badge-success"
+                className="badge badge-disbursed-geist"
                 onClick={() => setProofModalOpen(true)}
                 title="Click to inspect verified ground distribution receipts"
-                style={{
-                  cursor: 'pointer',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  background: 'rgba(34, 197, 94, 0.15)',
-                  color: 'var(--accent, #22c55e)',
-                  border: '1px solid rgba(34, 197, 94, 0.35)',
-                  fontSize: '0.68rem',
-                  padding: '2px 8px'
-                }}
               >
                 <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>task_alt</span>
-                <span>Aid Disbursed to Beneficiaries</span>
+                <span>Aid Disbursed</span>
               </button>
             )}
+
+            <span className="campaign-meta-id-tag campaign-eyebrow-id" title={`Audit Campaign Reference #${camp.id}`}>
+              #{camp.id}
+            </span>
           </div>
 
           {/* Prominent Clean Title with Hover-Triggered Marquee */}
@@ -3247,18 +3234,21 @@ export default function CampaignCard(props) {
             </button>
 
             {cleanLocation && (
-              <button
-                type="button"
-                className="campaign-location-badge"
-                title={`Relief Operations Area: ${rawLocation || cleanLocation} • Click to view GPS Audit & Map`}
+              <>
+                <span className="campaign-org-sep" aria-hidden="true">·</span>
+                <button
+                  type="button"
+                  className="campaign-location-badge"
+                  title={`Relief Operations Area: ${rawLocation || cleanLocation} • Click to view GPS Audit & Map`}
                 onClick={(e) => {
                   e.stopPropagation();
                   setDetailsOpen(true);
                 }}
               >
                 <span className="material-symbols-outlined campaign-location-icon">location_on</span>
-                <span className="campaign-location-text">{cleanLocation}</span>
-              </button>
+                  <span className="campaign-location-text">{cleanLocation}</span>
+                </button>
+              </>
             )}
           </div>
 
@@ -3474,9 +3464,6 @@ export default function CampaignCard(props) {
                   )}
                 </div>
 
-                <span className="campaign-meta-id-tag" title={`Audit Campaign Reference #${camp.id}`}>
-                  #{camp.id}
-                </span>
               </div>
             );
           })()}
@@ -3695,13 +3682,8 @@ export default function CampaignCard(props) {
             /* ── Standard Donor Contribution Box & Action Buttons ── */
             <>
               <div className="donate-box-card">
-                <div className="donate-box-header" style={{ justifyContent: 'space-between' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <span className="material-symbols-outlined" style={{ fontSize: '15px', color: 'var(--accent)' }}>volunteer_activism</span>
-                    <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-primary)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                      {wt.contribution}
-                    </span>
-                  </div>
+                <div className="donate-box-header">
+                  <span className="donate-box-eyebrow">{wt.contribution}</span>
                   {amount && Number(amount) > 0 ? (
                     <button
                       type="button"
@@ -3780,7 +3762,7 @@ export default function CampaignCard(props) {
                 </button>
 
                 {interfaceMode !== 'simplified' && (
-                  <button className="btn btn-ghost btn-sm btn-full" onClick={toggleLedger} title="Open public blockchain ledger modal">
+                  <button className="btn btn-outline btn-sm btn-full" onClick={toggleLedger} title="Open public blockchain ledger modal">
                     <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>receipt_long</span>
                     <span>{wt.publicLedger}</span>
                   </button>

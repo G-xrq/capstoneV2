@@ -5516,3 +5516,814 @@
     animation: none;
   }
 }
+
+
+/* ============================================================
+   CAMPAIGN CARD — VERCEL GEIST INSTITUTIONAL REDESIGN
+   Clean Hierarchy · Zero Pill Soup · Symmetrical Action Console
+   Applies cleanly to List & Grid Views across Dark & Light Mode
+   ============================================================ */
+
+/* Disable jarring sibling blur globally on campaign listings */
+.campaigns-grid:has(.campaign-card:not(.campaign-skeleton-card):hover) .campaign-card:not(:hover),
+.campaigns-list:has(.campaign-card:not(.campaign-skeleton-card):hover) .campaign-card:not(:hover),
+.dbo-campaigns-grid:has(.campaign-card:not(.campaign-skeleton-card):hover) .campaign-card:not(:hover),
+.ngo-campaigns-grid:has(.campaign-card:not(.campaign-skeleton-card):hover) .campaign-card:not(:hover),
+.campaigns-grid:has(.telemetry-dropdown-active) .campaign-card:not(.telemetry-dropdown-active),
+.campaigns-list:has(.telemetry-dropdown-active) .campaign-card:not(.telemetry-dropdown-active) {
+  opacity: 1 !important;
+  filter: none !important;
+  transform: none !important;
+}
+
+/* Base Card Frame */
+.campaign-card {
+  background: #0a0a0a;
+  border: 1px solid #262626;
+  border-radius: 14px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  transition: border-color 0.16s ease, box-shadow 0.16s ease, background-color 0.16s ease;
+}
+
+.campaign-card:hover {
+  border-color: #3f3f46;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.52), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+[data-theme="light"] .campaign-card {
+  background: #ffffff;
+  border-color: #e4e4e7;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+}
+
+[data-theme="light"] .campaign-card:hover {
+  background: #ffffff !important;
+  border-color: #a1a1aa !important;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.07) !important;
+}
+
+/* List View Body Proportions */
+.campaigns-list .campaign-card-body {
+  padding: 16px;
+  gap: 20px;
+  align-items: stretch;
+}
+
+/* Cover Media Frame */
+.campaigns-list .campaign-media {
+  width: 210px;
+  min-width: 210px;
+  max-width: 210px;
+  height: auto;
+  min-height: 186px;
+  max-height: 224px;
+  align-self: stretch;
+  border-radius: 10px;
+  border: 1px solid #1f1f1f;
+  background: #060606;
+  box-shadow: none;
+}
+
+[data-theme="light"] .campaigns-list .campaign-media {
+  border-color: #e4e4e7;
+  background: #f4f4f5;
+}
+
+.campaigns-grid .campaign-media {
+  height: 196px;
+  border-radius: 13px 13px 0 0;
+  border-bottom: 1px solid #1f1f1f;
+  background: #060606;
+}
+
+[data-theme="light"] .campaigns-grid .campaign-media {
+  border-bottom-color: #e4e4e7;
+  background: #f4f4f5;
+}
+
+.campaign-media-overlay {
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.08) 0%, rgba(0, 0, 0, 0) 55%, rgba(0, 0, 0, 0.58) 100%);
+}
+
+/* Restraint on Evidence Photo Badge (Monochrome Glass) */
+.campaign-media-evidence-badge {
+  background: rgba(10, 10, 10, 0.84);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: #ededed;
+  font-size: 0.68rem;
+  font-weight: 500;
+  padding: 3px 8px;
+  border-radius: 6px;
+  box-shadow: none;
+}
+
+.campaign-media-evidence-badge .material-symbols-outlined {
+  color: #a1a1aa !important;
+  font-size: 12px !important;
+}
+
+[data-theme="light"] .campaign-media-evidence-badge {
+  background: rgba(255, 255, 255, 0.92);
+  border-color: rgba(0, 0, 0, 0.12);
+  color: #18181b;
+}
+
+[data-theme="light"] .campaign-media-evidence-badge .material-symbols-outlined {
+  color: #52525b !important;
+}
+
+/* ── Center Info Column ── */
+.campaigns-list .campaign-info {
+  gap: 8px;
+  justify-content: space-between;
+  padding: 2px 0;
+}
+
+.campaigns-grid .campaign-info {
+  padding: 15px 16px 12px;
+  gap: 7px;
+}
+
+/* Top Eyebrow Row */
+.campaign-header-top {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  width: 100%;
+}
+
+.campaign-category-pill,
+.campaign-category-pill.cat-pill-dr,
+.campaign-category-pill.cat-pill-cd {
+  background: #111113;
+  border: 1px solid #262626;
+  color: #a1a1aa;
+  font-size: 0.67rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  text-transform: uppercase;
+  height: 22px;
+  box-sizing: border-box;
+}
+
+[data-theme="light"] .campaign-category-pill,
+[data-theme="light"] .campaign-category-pill.cat-pill-dr,
+[data-theme="light"] .campaign-category-pill.cat-pill-cd {
+  background: #f4f4f5;
+  border-color: #e4e4e7;
+  color: #52525b;
+}
+
+/* Status Pills: Restrained Monochrome Frame + Surgical Emerald Indicator */
+.campaign-card .badge-active,
+.campaign-card .badge-distribution,
+.campaign-card .badge-closed,
+.campaign-card .badge-disbursed-geist {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 9999px;
+  font-size: 0.67rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  background: #111113;
+  border: 1px solid #262626;
+  color: #ededed;
+  box-sizing: border-box;
+}
+
+.campaign-card .badge-distribution .material-symbols-outlined,
+.campaign-card .badge-disbursed-geist .material-symbols-outlined {
+  color: #10b981;
+  font-size: 13px !important;
+}
+
+.campaign-card .badge-disbursed-geist {
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.campaign-card .badge-disbursed-geist:hover {
+  border-color: #3f3f46;
+  background: #18181b;
+}
+
+.campaign-card .badge-active .status-dot {
+  width: 6px;
+  height: 6px;
+  background: #10b981;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.18);
+  animation: none;
+}
+
+.campaign-card .badge-closed {
+  color: #71717a;
+}
+
+[data-theme="light"] .campaign-card .badge-active,
+[data-theme="light"] .campaign-card .badge-distribution,
+[data-theme="light"] .campaign-card .badge-closed,
+[data-theme="light"] .campaign-card .badge-disbursed-geist {
+  background: #fafafa;
+  border-color: #e4e4e7;
+  color: #18181b;
+}
+
+[data-theme="light"] .campaign-card .badge-closed {
+  color: #71717a;
+}
+
+.campaign-eyebrow-id {
+  margin-left: auto;
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, monospace);
+  font-size: 0.69rem;
+  font-weight: 500;
+  color: #71717a;
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  letter-spacing: 0.02em;
+}
+
+/* Title */
+.campaign-card .campaign-title-marquee-wrapper {
+  margin: 0 !important;
+  height: 26px !important;
+  min-height: 26px !important;
+  max-height: 26px !important;
+  line-height: 26px !important;
+}
+
+.campaign-card .campaign-title-track {
+  height: 26px;
+  min-height: 26px;
+  max-height: 26px;
+  line-height: 26px;
+}
+
+.campaign-card .campaign-title {
+  font-size: 1.08rem;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  color: #ffffff;
+}
+
+[data-theme="light"] .campaign-card .campaign-title {
+  color: #09090b;
+}
+
+/* ── Unboxed Inline Attribution Row (Zero Pill Soup, Zero Cyan Location Pill) ── */
+.campaign-card .campaign-org-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 0 !important;
+  padding: 0;
+}
+
+.campaign-card .campaign-org-badge,
+.campaign-card .campaign-location-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 0 !important;
+  margin: 0 !important;
+  background: transparent !important;
+  border: none !important;
+  border-radius: 4px !important;
+  box-shadow: none !important;
+  font-size: 0.78rem !important;
+  font-weight: 500 !important;
+  color: #a1a1aa !important;
+  cursor: pointer;
+  min-width: 0;
+  max-width: 100%;
+  transition: color 0.14s ease !important;
+}
+
+.campaign-card .campaign-org-badge {
+  color: #ededed !important;
+  font-weight: 600 !important;
+}
+
+.campaign-card .campaign-org-badge:hover,
+.campaign-card .campaign-location-badge:hover {
+  background: transparent !important;
+  border-color: transparent !important;
+  color: #ffffff !important;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+.campaign-card .campaign-org-badge:hover .campaign-org-name,
+.campaign-card .campaign-location-badge:hover .campaign-location-text {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.campaign-card .campaign-org-icon,
+.campaign-card .campaign-location-icon {
+  font-size: 14px !important;
+  color: #71717a !important;
+  flex-shrink: 0;
+}
+
+.campaign-card .campaign-org-verified-badge {
+  display: inline-flex;
+  align-items: center;
+  color: #10b981 !important;
+}
+
+.campaign-card .campaign-org-verified-badge .material-symbols-outlined {
+  font-size: 14px !important;
+  color: #10b981 !important;
+}
+
+.campaign-card .campaign-org-arrow {
+  font-size: 14px !important;
+  color: #52525b !important;
+  margin-left: -2px;
+}
+
+.campaign-org-sep {
+  color: #3f3f46;
+  font-size: 0.85rem;
+  user-select: none;
+}
+
+[data-theme="light"] .campaign-card .campaign-org-badge {
+  color: #09090b !important;
+}
+
+[data-theme="light"] .campaign-card .campaign-location-badge {
+  color: #52525b !important;
+}
+
+[data-theme="light"] .campaign-card .campaign-org-badge:hover,
+[data-theme="light"] .campaign-card .campaign-location-badge:hover {
+  color: #09090b !important;
+}
+
+[data-theme="light"] .campaign-org-sep {
+  color: #d4d4d8;
+}
+
+/* ── Refined Multi-Rail Progress Section ── */
+.campaign-card .multi-rail-wrapper {
+  margin-top: 2px;
+}
+
+.campaign-card .multi-rail-header {
+  margin-bottom: 7px;
+  gap: 10px;
+}
+
+.campaign-card .multi-rail-goal-text {
+  font-size: 0.8rem;
+  color: #71717a;
+  font-variant-numeric: tabular-nums;
+}
+
+.campaign-card .multi-rail-goal-text strong {
+  font-size: 1.02rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: #ffffff;
+  font-variant-numeric: tabular-nums;
+}
+
+[data-theme="light"] .campaign-card .multi-rail-goal-text strong {
+  color: #09090b;
+}
+
+.campaign-card .multi-rail-pct-badge {
+  height: 24px;
+  padding: 0 9px;
+  border-radius: 9999px;
+  background: #111113;
+  border: 1px solid #262626;
+  color: #ededed;
+  font-size: 0.72rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  box-shadow: none;
+}
+
+.campaign-card .multi-rail-pct-badge .material-symbols-outlined {
+  color: #10b981;
+}
+
+.campaign-card .multi-rail-pct-badge:hover,
+.campaign-card .multi-rail-pct-badge.is-active {
+  background: #18181b;
+  border-color: #3f3f46;
+  color: #ffffff;
+  transform: none;
+}
+
+[data-theme="light"] .campaign-card .multi-rail-pct-badge {
+  background: #fafafa;
+  border-color: #e4e4e7;
+  color: #18181b;
+}
+
+[data-theme="light"] .campaign-card .multi-rail-pct-badge:hover,
+[data-theme="light"] .campaign-card .multi-rail-pct-badge.is-active {
+  background: #f4f4f5;
+  border-color: #a1a1aa;
+  color: #09090b;
+}
+
+/* Razor-Clean 6px Track */
+.campaign-card .multi-rail-track-wrap {
+  height: 6px;
+  background: #18181b;
+  border: none;
+  border-radius: 9999px;
+}
+
+[data-theme="light"] .campaign-card .multi-rail-track-wrap {
+  background: #e4e4e7;
+  border: none;
+}
+
+.campaign-card .multi-rail-track-wrap:hover {
+  border-color: transparent;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.08);
+}
+
+[data-theme="light"] .campaign-card .multi-rail-track-wrap:hover {
+  box-shadow: 0 0 0 2px rgba(9, 9, 11, 0.08);
+}
+
+.campaign-card .multi-rail-track-inner {
+  box-shadow: none;
+}
+
+/* Clean Metadata Strip & Subtle Tags */
+.campaign-card .campaign-meta-strip {
+  margin-top: 2px;
+  padding-top: 8px;
+  border-top: 1px solid #18181b;
+  font-size: 0.74rem;
+  color: #888888;
+}
+
+[data-theme="light"] .campaign-card .campaign-meta-strip {
+  border-top-color: #f4f4f5;
+  color: #71717a;
+}
+
+.campaign-card .campaign-meta-pill {
+  font-size: 0.74rem;
+  color: #888888;
+  font-variant-numeric: tabular-nums;
+}
+
+.campaign-card .campaign-meta-pill strong {
+  color: #ededed;
+  font-weight: 600;
+}
+
+[data-theme="light"] .campaign-card .campaign-meta-pill strong {
+  color: #09090b;
+}
+
+.campaign-card .campaign-tags-row {
+  margin-top: 2px;
+  gap: 5px;
+}
+
+.campaign-card .campaign-tag-pill {
+  background: #111113;
+  border: 1px solid #1f1f1f;
+  color: #71717a;
+  font-size: 0.69rem;
+  font-weight: 500;
+  padding: 2px 7px;
+  border-radius: 6px;
+}
+
+.campaign-card .campaign-tag-pill:hover {
+  border-color: #3f3f46;
+  color: #d4d4d8;
+}
+
+[data-theme="light"] .campaign-card .campaign-tag-pill {
+  background: #fafafa;
+  border-color: #e4e4e7;
+  color: #71717a;
+}
+
+[data-theme="light"] .campaign-card .campaign-tag-pill:hover {
+  border-color: #a1a1aa;
+  color: #09090b;
+}
+
+/* ── Right Action Console (List View: Hairline Divider, Zero Box-in-Box) ── */
+.campaigns-list .campaign-actions {
+  width: 276px;
+  min-width: 276px;
+  max-width: 276px;
+  padding-left: 18px;
+  border-left: 1px solid #1f1f1f;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+[data-theme="light"] .campaigns-list .campaign-actions {
+  border-left-color: #e4e4e7;
+}
+
+.campaigns-list .donate-box-card {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  box-shadow: none;
+  gap: 7px;
+}
+
+.campaigns-grid .campaign-actions {
+  background: #060606;
+  border-top: 1px solid #1f1f1f;
+  border-radius: 0 0 13px 13px;
+  padding: 13px 16px 14px;
+  gap: 9px;
+}
+
+[data-theme="light"] .campaigns-grid .campaign-actions {
+  background: #fafafa;
+  border-top-color: #e4e4e7;
+}
+
+.campaigns-grid .donate-box-card {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  box-shadow: none;
+  gap: 7px;
+}
+
+.donate-box-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.donate-box-eyebrow {
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #71717a;
+}
+
+.campaign-card .donate-input-wrapper {
+  background: #000000;
+  border: 1px solid #262626;
+  border-radius: 8px;
+  box-shadow: none;
+}
+
+.campaign-card .donate-input-wrapper:focus-within {
+  border-color: #52525b;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.06);
+}
+
+[data-theme="light"] .campaign-card .donate-input-wrapper {
+  background: #ffffff;
+  border-color: #e4e4e7;
+}
+
+[data-theme="light"] .campaign-card .donate-input-wrapper:focus-within {
+  border-color: #09090b;
+  box-shadow: 0 0 0 2px rgba(9, 9, 11, 0.08);
+}
+
+.campaign-card .donate-peso-prefix {
+  color: #71717a;
+  font-size: 0.85rem;
+}
+
+.campaign-card .donate-input-field {
+  height: 34px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.campaign-card .donate-cta-btn {
+  height: 34px;
+  padding: 0 13px;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  background: #ffffff !important;
+  color: #000000 !important;
+  border: 1px solid #ffffff !important;
+  box-shadow: none !important;
+}
+
+.campaign-card .donate-cta-btn:hover:not(:disabled) {
+  background: #e4e4e7 !important;
+  border-color: #e4e4e7 !important;
+}
+
+[data-theme="light"] .campaign-card .donate-cta-btn {
+  background: #09090b !important;
+  color: #ffffff !important;
+  border: 1px solid #09090b !important;
+}
+
+[data-theme="light"] .campaign-card .donate-cta-btn:hover:not(:disabled) {
+  background: #27272a !important;
+  border-color: #27272a !important;
+}
+
+/* Symmetrical 2-Column Secondary Buttons (Details & Map | Public Ledger) */
+.campaign-card .campaign-actions-secondary-btns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  width: 100%;
+}
+
+.campaign-card .campaign-actions-secondary-btns > .btn {
+  height: 32px;
+  padding: 0 8px;
+  border-radius: 8px;
+  font-size: 0.74rem;
+  font-weight: 500;
+  background: #0a0a0a;
+  border: 1px solid #262626;
+  color: #d4d4d8;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  justify-content: center;
+  gap: 5px;
+}
+
+.campaign-card .campaign-actions-secondary-btns > .btn:hover {
+  background: #141416;
+  border-color: #3f3f46;
+  color: #ffffff;
+}
+
+.campaign-card .campaign-actions-secondary-btns > .btn:only-child {
+  grid-column: 1 / -1;
+}
+
+[data-theme="light"] .campaign-card .campaign-actions-secondary-btns > .btn {
+  background: #ffffff;
+  border-color: #e4e4e7;
+  color: #27272a;
+}
+
+[data-theme="light"] .campaign-card .campaign-actions-secondary-btns > .btn:hover {
+  background: #f4f4f5;
+  border-color: #a1a1aa;
+  color: #09090b;
+}
+
+/* Flush Full-Width Utility Bar (Track | Share) */
+.campaign-card .campaign-utility-footer {
+  margin-top: auto;
+  padding-top: 8px;
+  border-top: 1px solid #18181b;
+  justify-content: stretch;
+}
+
+[data-theme="light"] .campaign-card .campaign-utility-footer {
+  border-top-color: #e4e4e7;
+}
+
+.campaign-card .campaign-utility-cluster {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+  width: 100%;
+  gap: 0;
+  padding: 0;
+  background: #060606;
+  border: 1px solid #222225;
+  border-radius: 8px;
+  box-shadow: none;
+  backdrop-filter: none;
+  overflow: hidden;
+}
+
+[data-theme="light"] .campaign-card .campaign-utility-cluster {
+  background: #ffffff;
+  border-color: #e4e4e7;
+  box-shadow: none;
+}
+
+.campaign-card .campaign-utility-pill {
+  justify-content: center;
+  height: 30px;
+  padding: 0 10px;
+  border: none;
+  border-radius: 0;
+  color: #a1a1aa;
+  font-size: 0.73rem;
+  font-weight: 500;
+}
+
+.campaign-card .campaign-utility-pill + .campaign-utility-pill {
+  border-left: 1px solid #222225;
+}
+
+[data-theme="light"] .campaign-card .campaign-utility-pill {
+  color: #52525b;
+}
+
+[data-theme="light"] .campaign-card .campaign-utility-pill + .campaign-utility-pill {
+  border-left-color: #e4e4e7;
+}
+
+.campaign-card .campaign-utility-pill:hover {
+  transform: none;
+  background: #141416 !important;
+  border-color: transparent !important;
+  color: #ffffff !important;
+}
+
+.campaign-card .campaign-utility-pill:hover .utility-icon {
+  color: #ffffff !important;
+  transform: none !important;
+}
+
+[data-theme="light"] .campaign-card .campaign-utility-pill:hover {
+  background: #f4f4f5 !important;
+  color: #09090b !important;
+}
+
+[data-theme="light"] .campaign-card .campaign-utility-pill:hover .utility-icon {
+  color: #09090b !important;
+}
+
+.campaign-card .campaign-utility-pill.track-pill.active,
+.campaign-card .campaign-utility-pill.share-pill.copied {
+  background: #141416 !important;
+  color: #ffffff !important;
+  border-color: transparent !important;
+}
+
+.campaign-card .campaign-utility-pill.track-pill.active .utility-icon,
+.campaign-card .campaign-utility-pill.share-pill.copied .utility-icon {
+  color: #10b981 !important;
+}
+
+[data-theme="light"] .campaign-card .campaign-utility-pill.track-pill.active,
+[data-theme="light"] .campaign-card .campaign-utility-pill.share-pill.copied {
+  background: #f4f4f5 !important;
+  color: #09090b !important;
+}
+
+/* Responsive List Card Stack */
+@media (max-width: 900px) {
+  .campaigns-list .campaign-card-body {
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .campaigns-list .campaign-media {
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+    height: 190px;
+    min-height: 190px;
+    max-height: 190px;
+  }
+
+  .campaigns-list .campaign-info {
+    width: 100%;
+    flex: 1 0 auto;
+  }
+
+  .campaigns-list .campaign-actions {
+    width: 100%;
+    min-width: 0;
+    max-width: none;
+    padding-left: 0;
+    padding-top: 14px;
+    border-left: none;
+    border-top: 1px solid #1f1f1f;
+  }
+
+  [data-theme="light"] .campaigns-list .campaign-actions {
+    border-top-color: #e4e4e7;
+  }
+}
