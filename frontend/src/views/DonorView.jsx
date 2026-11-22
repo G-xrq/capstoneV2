@@ -2180,58 +2180,50 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
                       ))}
                     </div>
 
-                    {/* Institutional Vercel Pagination Footer */}
-                    <div className="ec-pagination-bar">
-                      <span className="rcp-page-summary">
-                        Showing <strong>{startIdx}–{endIdx}</strong> of <strong>{filteredCampaigns.length}</strong> {filteredCampaigns.length === 1 ? 'campaign' : 'campaigns'}
-                      </span>
+                    {/* Clean Centered Pagination Controls */}
+                    <div className="ec-pagination-centered">
+                      <button
+                        type="button"
+                        className="ec-pag-btn ec-pag-btn--icon"
+                        disabled={currentPage === 1}
+                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                        title="Previous Page"
+                        aria-label="Previous Page"
+                      >
+                        <span className="material-symbols-outlined">chevron_left</span>
+                      </button>
 
-                      <div className="rcp-page-controls">
-                        <button
-                          type="button"
-                          className="rcp-page-btn"
-                          disabled={currentPage === 1}
-                          onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                          title="Previous Page"
-                        >
-                          <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>chevron_left</span>
-                          <span>Prev</span>
-                        </button>
+                      {getPaginationItems(currentPage, totalPages, 7).map((item, idx) => {
+                        if (item === '...') {
+                          return (
+                            <span key={`ellipsis-${idx}`} className="ec-pag-ellipsis">
+                              …
+                            </span>
+                          );
+                        }
+                        const pageNum = Number(item);
+                        return (
+                          <button
+                            key={pageNum}
+                            type="button"
+                            className={`ec-pag-btn ${currentPage === pageNum ? 'is-active' : ''}`}
+                            onClick={() => setCurrentPage(pageNum)}
+                          >
+                            {pageNum}
+                          </button>
+                        );
+                      })}
 
-                        <div className="rcp-page-nums">
-                          {getPaginationItems(currentPage, totalPages, 7).map((item, idx) => {
-                            if (item === '...') {
-                              return (
-                                <span key={`ellipsis-${idx}`} className="rcp-page-ellipsis">
-                                  …
-                                </span>
-                              );
-                            }
-                            const pageNum = Number(item);
-                            return (
-                              <button
-                                key={pageNum}
-                                type="button"
-                                className={`rcp-page-num ${currentPage === pageNum ? 'active' : ''}`}
-                                onClick={() => setCurrentPage(pageNum)}
-                              >
-                                {pageNum}
-                              </button>
-                            );
-                          })}
-                        </div>
-
-                        <button
-                          type="button"
-                          className="rcp-page-btn"
-                          disabled={currentPage >= Math.max(1, totalPages)}
-                          onClick={() => setCurrentPage(p => Math.min(Math.max(1, totalPages), p + 1))}
-                          title="Next Page"
-                        >
-                          <span>Next</span>
-                          <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>chevron_right</span>
-                        </button>
-                      </div>
+                      <button
+                        type="button"
+                        className="ec-pag-btn ec-pag-btn--icon"
+                        disabled={currentPage >= Math.max(1, totalPages)}
+                        onClick={() => setCurrentPage(p => Math.min(Math.max(1, totalPages), p + 1))}
+                        title="Next Page"
+                        aria-label="Next Page"
+                      >
+                        <span className="material-symbols-outlined">chevron_right</span>
+                      </button>
                     </div>
                   </>
                 )}

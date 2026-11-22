@@ -3138,6 +3138,12 @@ export default function CampaignCard(props) {
             </>
           )}
 
+          {/* Category Badge inside Cover Media (Charitable Aid / Disaster Relief) */}
+          <div className="campaign-media-cat-badge" title={catInfo.label}>
+            <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>{catInfo.icon}</span>
+            <span>{catInfo.label}</span>
+          </div>
+
           {/* Disaster Evidence Photos Badge */}
           {coverData.hasDisasterPhotos && (
             <div className="campaign-media-evidence-badge" title={`${coverData.disasterPhotosCount} disaster impact evidence photo(s) attached`}>
@@ -3159,11 +3165,6 @@ export default function CampaignCard(props) {
         <div className="campaign-info">
           {/* Top Meta Row: Clean, Uncrowded Badges */}
           <div className="campaign-header-top">
-            <div className={`campaign-category-pill ${catInfo.colorClass}`}>
-              <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>{catInfo.icon}</span>
-              <span>{catInfo.label}</span>
-            </div>
-
             {isTargetFromUrl && (
               <span className="campaign-targeted-badge" title="You were directed directly to this campaign via a shared link">
                 <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>share_location</span>
@@ -3492,11 +3493,13 @@ export default function CampaignCard(props) {
                     <span className="tag-overflow-popover-label">
                       {campaignTags.length - 3} more tag{campaignTags.length - 3 !== 1 ? 's' : ''}
                     </span>
-                    {campaignTags.slice(3).map((tag, idx) => (
-                      <span key={idx} className="campaign-tag-pill">
-                        #{tag.replace(/^#/, '')}
-                      </span>
-                    ))}
+                    <div className="tag-overflow-grid">
+                      {campaignTags.slice(3).map((tag, idx) => (
+                        <span key={idx} className="campaign-tag-pill">
+                          #{tag.replace(/^#/, '')}
+                        </span>
+                      ))}
+                    </div>
                   </div>
                 </div>
               )}
