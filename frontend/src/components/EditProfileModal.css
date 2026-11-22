@@ -5970,3 +5970,114 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* ── EPM2 POLISH: NGO BANNER/LOGO ALIGNMENT & PAYOUT RAILS BALANCE ── */
+
+.epm2-ngo-banner {
+  height: 108px;
+}
+
+.epm2-ngo-id-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 6px 2px 0;
+}
+
+.epm2-ngo-id-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  flex: 1;
+}
+
+.epm2-ngo-logo-btn {
+  margin-top: -36px;
+  position: relative;
+  z-index: 3;
+}
+
+.epm2-ngo-id-copy {
+  min-width: 0;
+}
+
+.epm2-ngo-logo-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.epm2-btn--sm {
+  height: 29px;
+  padding: 0 11px;
+  font-size: 0.74rem;
+}
+
+.epm2-seg-group--full {
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.epm2-seg-group--full .epm2-seg-btn {
+  justify-content: center;
+  width: 100%;
+}
+
+.epm2-nowrap {
+  white-space: nowrap;
+}
+
+.epm2-inline-carrier {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #a1a1aa;
+}
+
+.epm2-rail-status-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid #1c1c1e;
+  background: #060606;
+  font-size: 0.73rem;
+  color: #888888;
+  line-height: 1.4;
+}
+
+[data-theme="light"] .epm2-rail-status-box {
+  background: #fafafa;
+  border-color: #e4e4e7;
+  color: #52525b;
+}
+
+.epm2-qr-img-frame {
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+
+.epm2-qr-img-frame:hover {
+  transform: scale(1.02);
+}
+
+.epm2-qr-card-foot {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-top: 8px;
+  border-top: 1px solid #1c1c1e;
+}
+
+[data-theme="light"] .epm2-qr-card-foot {
+  border-top-color: #e4e4e7;
+}

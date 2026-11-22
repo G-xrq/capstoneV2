@@ -2277,7 +2277,7 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
                 {isOrg && activeTab === 'org_details' && (
                   <div className="epm2-pane" key="epm2-org-details">
 
-                    {/* Refined Cover Banner + Overlapping Logo Section */}
+                    {/* Banner + Cleanly Anchored Logo & Identity Row */}
                     <div className="epm2-section">
                       <div
                         className="epm2-ngo-banner"
@@ -2303,7 +2303,7 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
                               bannerInputRef.current?.click();
                             }}
                           >
-                            <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>photo_camera</span>
+                            <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>photo_camera</span>
                             <span>{bannerUrl ? 'Change Banner' : 'Upload Banner'}</span>
                           </button>
                           {bannerUrl && (
@@ -2316,18 +2316,17 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
                               }}
                               title="Remove cover banner"
                             >
-                              <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>delete</span>
-                              <span>Remove</span>
+                              <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>delete</span>
                             </button>
                           )}
                         </div>
                       </div>
 
-                      <div className="epm2-ngo-identity-bar">
-                        <div className="epm2-ngo-identity-left">
+                      <div className="epm2-ngo-id-row">
+                        <div className="epm2-ngo-id-left">
                           <button
                             type="button"
-                            className="epm2-avatar-btn"
+                            className="epm2-avatar-btn epm2-ngo-logo-btn"
                             onClick={() => fileInputRef.current?.click()}
                             title="Change organization logo"
                           >
@@ -2335,17 +2334,17 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
                               {avatarUrl && (avatarUrl.startsWith('data:') || avatarUrl.startsWith('http')) ? (
                                 <img src={avatarUrl} alt="Logo" />
                               ) : avatarUrl && avatarUrl.length < 30 ? (
-                                <span className="material-symbols-outlined" style={{ fontSize: '30px' }}>{avatarUrl}</span>
+                                <span className="material-symbols-outlined" style={{ fontSize: '28px' }}>{avatarUrl}</span>
                               ) : (
                                 <span>{userInitials}</span>
                               )}
                             </div>
                             <span className="epm2-avatar-overlay">
-                              <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>photo_camera</span>
+                              <span className="material-symbols-outlined" style={{ fontSize: '17px' }}>photo_camera</span>
                             </span>
                           </button>
 
-                          <div className="epm2-avatar-meta">
+                          <div className="epm2-ngo-id-copy">
                             <div className="epm2-name-line">
                               <h4>{orgName || 'Organization Profile'}</h4>
                               {(currentUser?.verification_status === 'Approved' || currentUser?.Verification_Status === 'Approved') && (
@@ -2359,7 +2358,7 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
                             </div>
                             <p className="epm2-sub-line">
                               {(currentUser?.verification_status === 'Approved' || currentUser?.Verification_Status === 'Approved')
-                                ? `SEC & DSWD Accredited NGO · ${verifiedDateStr}`
+                                ? `SEC & DSWD Accredited · ${verifiedDateStr}`
                                 : (currentUser?.verification_status === 'Pending' || currentUser?.Verification_Status === 'Pending')
                                   ? `Accreditation Pending · ${verifiedDateStr}`
                                   : 'Registered Humanitarian Entity'}
@@ -2367,10 +2366,10 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
                           </div>
                         </div>
 
-                        <div className="epm2-btn-row" style={{ marginTop: 0 }}>
+                        <div className="epm2-ngo-logo-actions">
                           <button
                             type="button"
-                            className="epm2-btn epm2-btn--solid"
+                            className="epm2-btn epm2-btn--solid epm2-btn--sm"
                             onClick={() => fileInputRef.current?.click()}
                           >
                             {avatarUrl ? 'Change Logo' : 'Upload Logo'}
@@ -2378,7 +2377,7 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
                           {(avatarUrl || originalImageSrc) && (avatarUrl?.startsWith('data:') || avatarUrl?.startsWith('http') || originalImageSrc?.startsWith('data:') || originalImageSrc?.startsWith('http')) && (
                             <button
                               type="button"
-                              className="epm2-btn epm2-btn--outline"
+                              className="epm2-btn epm2-btn--outline epm2-btn--sm"
                               onClick={handleOpenAdjuster}
                               title="Adjust logo framing"
                             >
@@ -2388,10 +2387,11 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
                           {avatarUrl && (
                             <button
                               type="button"
-                              className="epm2-btn epm2-btn--ghost-danger"
+                              className="epm2-btn epm2-btn--ghost-danger epm2-btn--sm"
                               onClick={handleRemovePhoto}
+                              title="Remove logo"
                             >
-                              Remove
+                              <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>delete</span>
                             </button>
                           )}
                         </div>
@@ -2402,7 +2402,7 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
                     <div className="epm2-section">
                       <div className="epm2-grid-2">
                         <div className="epm2-field">
-                          <label htmlFor="epm2-org-name" className="epm2-field-title">Official Organization Name</label>
+                          <label htmlFor="epm2-org-name" className="epm2-label-sm">Official Organization Name</label>
                           <input
                             id="epm2-org-name"
                             type="text"
@@ -2415,7 +2415,7 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
                         </div>
 
                         <div className="epm2-field">
-                          <label htmlFor="epm2-org-web" className="epm2-field-title">Official Website</label>
+                          <label htmlFor="epm2-org-web" className="epm2-label-sm">Official Website</label>
                           <input
                             id="epm2-org-web"
                             type="url"
@@ -2441,6 +2441,7 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
                         id="epm2-org-bio"
                         className="epm2-textarea"
                         rows="3"
+                        maxLength={500}
                         value={bio}
                         onChange={e => setBio(e.target.value)}
                         placeholder="Describe your organization's mission, emergency focus, and disaster response capabilities..."
@@ -2733,19 +2734,26 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
                 {/* ══════════════════════════════════════════════════
                   NGO: PAYOUT RAILS TAB (CLEAN VERCEL REWORK)
                  ══════════════════════════════════════════════════ */}
-                {isOrg && activeTab === 'org_payments' && (
+                {isOrg && activeTab === 'org_payments' && (() => {
+                  const gcashReady = Boolean(gcashNumber || gcashQrUrl || gcashName);
+                  const mayaReady = Boolean(mayaNumber || mayaQrUrl || mayaName);
+                  const bankReady = Boolean(bankAccountNumber || bankQrUrl || bankName);
+                  const gcashCheck = validatePhMobile(gcashNumber, { required: false });
+                  const mayaCheck = validatePhMobile(mayaNumber, { required: false });
+
+                  return (
                   <div className="epm2-pane" key="epm2-org-payments">
 
-                    {/* Header & Segmented Channel Selector */}
+                    {/* Header & Full-Width 3-Column Channel Switcher */}
                     <div className="epm2-section">
                       <div className="epm2-field-head">
                         <div>
                           <span className="epm2-field-title">Donation Receiving Channels</span>
-                          <p className="epm2-field-sub">Configure official GCash, Maya, and Bank channels synced to campaign checkouts.</p>
+                          <p className="epm2-field-sub">Official GCash, Maya, and Bank channels synced directly to donor checkouts.</p>
                         </div>
                       </div>
 
-                      <div className="epm2-seg-group" role="tablist" aria-label="Payout rail channels">
+                      <div className="epm2-seg-group epm2-seg-group--full" role="tablist" aria-label="Payout rail channels">
                         <button
                           type="button"
                           role="tab"
@@ -2753,7 +2761,7 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
                           className={`epm2-seg-btn ${activePaymentChannelTab === 'gcash' ? 'active' : ''}`}
                           onClick={() => setActivePaymentChannelTab('gcash')}
                         >
-                          <span className={`epm2-dot ${(gcashNumber || gcashQrUrl || gcashName) ? '' : 'is-off'}`} />
+                          <span className={`epm2-dot ${gcashReady ? '' : 'is-off'}`} />
                           <span>GCash</span>
                         </button>
 
@@ -2764,7 +2772,7 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
                           className={`epm2-seg-btn ${activePaymentChannelTab === 'maya' ? 'active' : ''}`}
                           onClick={() => setActivePaymentChannelTab('maya')}
                         >
-                          <span className={`epm2-dot ${(mayaNumber || mayaQrUrl || mayaName) ? '' : 'is-off'}`} />
+                          <span className={`epm2-dot ${mayaReady ? '' : 'is-off'}`} />
                           <span>Maya</span>
                         </button>
 
@@ -2775,7 +2783,7 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
                           className={`epm2-seg-btn ${activePaymentChannelTab === 'bank' ? 'active' : ''}`}
                           onClick={() => setActivePaymentChannelTab('bank')}
                         >
-                          <span className={`epm2-dot ${(bankAccountNumber || bankQrUrl) ? '' : 'is-off'}`} />
+                          <span className={`epm2-dot ${bankReady ? '' : 'is-off'}`} />
                           <span>Bank Transfer</span>
                         </button>
                       </div>
@@ -2799,32 +2807,78 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
                             </div>
 
                             <div className="epm2-field">
-                              <label htmlFor="epm2-gcash-num" className="epm2-label-sm">GCash Receiving Number</label>
+                              <div className="epm2-field-head" style={{ alignItems: 'center' }}>
+                                <label htmlFor="epm2-gcash-num" className="epm2-label-sm">GCash Receiving Number</label>
+                                {gcashCheck.state === 'valid' && (
+                                  <span className="epm2-inline-carrier">
+                                    <span className="epm2-dot" />
+                                    <span>{gcashCheck.carrier}</span>
+                                  </span>
+                                )}
+                              </div>
                               <input
                                 id="epm2-gcash-num"
                                 type="tel"
                                 inputMode="numeric"
                                 maxLength={13}
-                                className="epm2-input epm2-mono"
+                                className={`epm2-input epm2-mono ${gcashCheck.state === 'invalid' ? 'is-error' : ''}`}
                                 placeholder="0992 982 4615"
                                 value={formatPhMobileDisplay(gcashNumber)}
                                 onChange={e => setGcashNumber(formatPhMobileDisplay(e.target.value))}
                               />
+                              {gcashCheck.state === 'invalid' && (
+                                <p className="epm2-error-text">{gcashCheck.message}</p>
+                              )}
+                            </div>
+
+                            <div className="epm2-rail-status-box">
+                              <span className={`epm2-dot ${gcashReady ? '' : 'is-off'}`} />
+                              <span>
+                                {gcashReady
+                                  ? 'GCash channel active for donor checkout & OCR verification.'
+                                  : 'Add an account number or QR voucher to activate GCash.'}
+                              </span>
                             </div>
                           </div>
 
                           <div className="epm2-qr-slot">
                             <div className="epm2-qr-slot-head">
-                              <span className="epm2-label-sm">GCash QR Code</span>
-                              <div className="epm2-qr-slot-actions">
-                                <button
-                                  type="button"
-                                  className="epm2-btn epm2-btn--outline epm2-btn--xs"
-                                  onClick={() => setShowQrPicker('GCash')}
+                              <span className="epm2-label-sm epm2-nowrap">QR Voucher</span>
+                              <button
+                                type="button"
+                                className="epm2-btn epm2-btn--outline epm2-btn--xs"
+                                onClick={() => setShowQrPicker('GCash')}
+                              >
+                                Library ({savedQrLibrary.filter(q => q.payment_method === 'GCash').length})
+                              </button>
+                            </div>
+
+                            <input
+                              type="file"
+                              ref={gcashFileInputRef}
+                              accept="image/*"
+                              onChange={e => handleQrUpload(e.target.files?.[0], setGcashQrUrl, 'GCash')}
+                              style={{ display: 'none' }}
+                            />
+
+                            {gcashQrUrl ? (
+                              <div className="epm2-qr-preview">
+                                <div
+                                  className="epm2-qr-img-frame"
+                                  onClick={() => gcashFileInputRef.current?.click()}
+                                  title="Click to upload replacement QR"
                                 >
-                                  Library ({savedQrLibrary.filter(q => q.payment_method === 'GCash').length})
-                                </button>
-                                {gcashQrUrl && (
+                                  <img src={gcashQrUrl} alt="Organization GCash QR" />
+                                </div>
+                                <div className="epm2-qr-card-foot">
+                                  <button
+                                    type="button"
+                                    className="epm2-btn epm2-btn--outline epm2-btn--xs"
+                                    style={{ flex: 1 }}
+                                    onClick={() => gcashFileInputRef.current?.click()}
+                                  >
+                                    Replace
+                                  </button>
                                   <button
                                     type="button"
                                     className="epm2-btn epm2-btn--ghost-danger epm2-btn--xs"
@@ -2832,33 +2886,18 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
                                   >
                                     Remove
                                   </button>
-                                )}
-                              </div>
-                            </div>
-
-                            {gcashQrUrl ? (
-                              <div className="epm2-qr-preview">
-                                <div className="epm2-qr-img-frame">
-                                  <img src={gcashQrUrl} alt="Organization GCash QR" />
                                 </div>
-                                <span className="epm2-qr-status">
-                                  <span className="epm2-dot" />
-                                  <span>GCash QR Attached</span>
-                                </span>
                               </div>
                             ) : (
-                              <label className="epm2-qr-dropzone">
+                              <button
+                                type="button"
+                                className="epm2-qr-dropzone"
+                                onClick={() => gcashFileInputRef.current?.click()}
+                              >
                                 <span className="material-symbols-outlined epm2-qr-drop-icon">qr_code_scanner</span>
                                 <span className="epm2-qr-drop-title">Upload GCash QR</span>
                                 <span className="epm2-qr-drop-sub">Auto-crop &amp; OCR enabled</span>
-                                <input
-                                  type="file"
-                                  ref={gcashFileInputRef}
-                                  accept="image/*"
-                                  onChange={e => handleQrUpload(e.target.files?.[0], setGcashQrUrl, 'GCash')}
-                                  style={{ display: 'none' }}
-                                />
-                              </label>
+                              </button>
                             )}
                           </div>
                         </div>
@@ -2883,32 +2922,78 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
                             </div>
 
                             <div className="epm2-field">
-                              <label htmlFor="epm2-maya-num" className="epm2-label-sm">Maya Receiving Number</label>
+                              <div className="epm2-field-head" style={{ alignItems: 'center' }}>
+                                <label htmlFor="epm2-maya-num" className="epm2-label-sm">Maya Receiving Number</label>
+                                {mayaCheck.state === 'valid' && (
+                                  <span className="epm2-inline-carrier">
+                                    <span className="epm2-dot" />
+                                    <span>{mayaCheck.carrier}</span>
+                                  </span>
+                                )}
+                              </div>
                               <input
                                 id="epm2-maya-num"
                                 type="tel"
                                 inputMode="numeric"
                                 maxLength={13}
-                                className="epm2-input epm2-mono"
+                                className={`epm2-input epm2-mono ${mayaCheck.state === 'invalid' ? 'is-error' : ''}`}
                                 placeholder="0918 765 1430"
                                 value={formatPhMobileDisplay(mayaNumber)}
                                 onChange={e => setMayaNumber(formatPhMobileDisplay(e.target.value))}
                               />
+                              {mayaCheck.state === 'invalid' && (
+                                <p className="epm2-error-text">{mayaCheck.message}</p>
+                              )}
+                            </div>
+
+                            <div className="epm2-rail-status-box">
+                              <span className={`epm2-dot ${mayaReady ? '' : 'is-off'}`} />
+                              <span>
+                                {mayaReady
+                                  ? 'Maya channel active for donor checkout & OCR verification.'
+                                  : 'Add an account number or QR voucher to activate Maya.'}
+                              </span>
                             </div>
                           </div>
 
                           <div className="epm2-qr-slot">
                             <div className="epm2-qr-slot-head">
-                              <span className="epm2-label-sm">Maya QR Code</span>
-                              <div className="epm2-qr-slot-actions">
-                                <button
-                                  type="button"
-                                  className="epm2-btn epm2-btn--outline epm2-btn--xs"
-                                  onClick={() => setShowQrPicker('Maya')}
+                              <span className="epm2-label-sm epm2-nowrap">QR Voucher</span>
+                              <button
+                                type="button"
+                                className="epm2-btn epm2-btn--outline epm2-btn--xs"
+                                onClick={() => setShowQrPicker('Maya')}
+                              >
+                                Library ({savedQrLibrary.filter(q => q.payment_method === 'Maya').length})
+                              </button>
+                            </div>
+
+                            <input
+                              type="file"
+                              ref={mayaFileInputRef}
+                              accept="image/*"
+                              onChange={e => handleQrUpload(e.target.files?.[0], setMayaQrUrl, 'Maya')}
+                              style={{ display: 'none' }}
+                            />
+
+                            {mayaQrUrl ? (
+                              <div className="epm2-qr-preview">
+                                <div
+                                  className="epm2-qr-img-frame"
+                                  onClick={() => mayaFileInputRef.current?.click()}
+                                  title="Click to upload replacement QR"
                                 >
-                                  Library ({savedQrLibrary.filter(q => q.payment_method === 'Maya').length})
-                                </button>
-                                {mayaQrUrl && (
+                                  <img src={mayaQrUrl} alt="Organization Maya QR" />
+                                </div>
+                                <div className="epm2-qr-card-foot">
+                                  <button
+                                    type="button"
+                                    className="epm2-btn epm2-btn--outline epm2-btn--xs"
+                                    style={{ flex: 1 }}
+                                    onClick={() => mayaFileInputRef.current?.click()}
+                                  >
+                                    Replace
+                                  </button>
                                   <button
                                     type="button"
                                     className="epm2-btn epm2-btn--ghost-danger epm2-btn--xs"
@@ -2916,33 +3001,18 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
                                   >
                                     Remove
                                   </button>
-                                )}
-                              </div>
-                            </div>
-
-                            {mayaQrUrl ? (
-                              <div className="epm2-qr-preview">
-                                <div className="epm2-qr-img-frame">
-                                  <img src={mayaQrUrl} alt="Organization Maya QR" />
                                 </div>
-                                <span className="epm2-qr-status">
-                                  <span className="epm2-dot" />
-                                  <span>Maya QR Attached</span>
-                                </span>
                               </div>
                             ) : (
-                              <label className="epm2-qr-dropzone">
+                              <button
+                                type="button"
+                                className="epm2-qr-dropzone"
+                                onClick={() => mayaFileInputRef.current?.click()}
+                              >
                                 <span className="material-symbols-outlined epm2-qr-drop-icon">qr_code_scanner</span>
                                 <span className="epm2-qr-drop-title">Upload Maya QR</span>
                                 <span className="epm2-qr-drop-sub">Auto-crop &amp; OCR enabled</span>
-                                <input
-                                  type="file"
-                                  ref={mayaFileInputRef}
-                                  accept="image/*"
-                                  onChange={e => handleQrUpload(e.target.files?.[0], setMayaQrUrl, 'Maya')}
-                                  style={{ display: 'none' }}
-                                />
-                              </label>
+                              </button>
                             )}
                           </div>
                         </div>
@@ -3005,16 +3075,42 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
 
                           <div className="epm2-qr-slot">
                             <div className="epm2-qr-slot-head">
-                              <span className="epm2-label-sm">InstaPay / Bank QR</span>
-                              <div className="epm2-qr-slot-actions">
-                                <button
-                                  type="button"
-                                  className="epm2-btn epm2-btn--outline epm2-btn--xs"
-                                  onClick={() => setShowQrPicker('Bank')}
+                              <span className="epm2-label-sm epm2-nowrap">QR Voucher</span>
+                              <button
+                                type="button"
+                                className="epm2-btn epm2-btn--outline epm2-btn--xs"
+                                onClick={() => setShowQrPicker('Bank')}
+                              >
+                                Library ({savedQrLibrary.filter(q => q.payment_method === 'Bank').length})
+                              </button>
+                            </div>
+
+                            <input
+                              type="file"
+                              ref={bankFileInputRef}
+                              accept="image/*"
+                              onChange={e => handleQrUpload(e.target.files?.[0], setBankQrUrl, 'Bank')}
+                              style={{ display: 'none' }}
+                            />
+
+                            {bankQrUrl ? (
+                              <div className="epm2-qr-preview">
+                                <div
+                                  className="epm2-qr-img-frame"
+                                  onClick={() => bankFileInputRef.current?.click()}
+                                  title="Click to upload replacement QR"
                                 >
-                                  Library ({savedQrLibrary.filter(q => q.payment_method === 'Bank').length})
-                                </button>
-                                {bankQrUrl && (
+                                  <img src={bankQrUrl} alt="Organization Bank QR" />
+                                </div>
+                                <div className="epm2-qr-card-foot">
+                                  <button
+                                    type="button"
+                                    className="epm2-btn epm2-btn--outline epm2-btn--xs"
+                                    style={{ flex: 1 }}
+                                    onClick={() => bankFileInputRef.current?.click()}
+                                  >
+                                    Replace
+                                  </button>
                                   <button
                                     type="button"
                                     className="epm2-btn epm2-btn--ghost-danger epm2-btn--xs"
@@ -3022,33 +3118,18 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
                                   >
                                     Remove
                                   </button>
-                                )}
-                              </div>
-                            </div>
-
-                            {bankQrUrl ? (
-                              <div className="epm2-qr-preview">
-                                <div className="epm2-qr-img-frame">
-                                  <img src={bankQrUrl} alt="Organization Bank QR" />
                                 </div>
-                                <span className="epm2-qr-status">
-                                  <span className="epm2-dot" />
-                                  <span>Bank QR Attached</span>
-                                </span>
                               </div>
                             ) : (
-                              <label className="epm2-qr-dropzone">
+                              <button
+                                type="button"
+                                className="epm2-qr-dropzone"
+                                onClick={() => bankFileInputRef.current?.click()}
+                              >
                                 <span className="material-symbols-outlined epm2-qr-drop-icon">qr_code_scanner</span>
                                 <span className="epm2-qr-drop-title">Upload Bank QR</span>
                                 <span className="epm2-qr-drop-sub">InstaPay / PESONet supported</span>
-                                <input
-                                  type="file"
-                                  ref={bankFileInputRef}
-                                  accept="image/*"
-                                  onChange={e => handleQrUpload(e.target.files?.[0], setBankQrUrl, 'Bank')}
-                                  style={{ display: 'none' }}
-                                />
-                              </label>
+                              </button>
                             )}
                           </div>
                         </div>
@@ -3056,7 +3137,8 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
                     )}
 
                   </div>
-                )}
+                  );
+                })()}
 
                 {/* ══════════════════════════════════════════════════
                   NGO: ACCREDITATION TAB (CLEAN VERCEL REWORK)
