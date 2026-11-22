@@ -2628,8 +2628,8 @@ export default function OrganizationView({
                 </div>
               </div>
 
-              {/* ── 1. Organization Cover Banner + Editorial Geist Hero ── */}
-              <div className="dbo-editorial-hero dbo-editorial-hero--org" id="tour-ngo-welcome">
+              {/* ── 1. Unified Organization Profile Hero (Atmospheric Banner + Identity + Hairline Stat Deck) ── */}
+              <div className="dbo-org-hero-card" id="tour-ngo-welcome">
                 {(() => {
                   const rawBanner = currentUser?.banner_url || '';
                   const isImageBanner = Boolean(
@@ -2662,7 +2662,7 @@ export default function OrganizationView({
                   );
                 })()}
 
-                <div className="dbo-hero-content">
+                <div className="dbo-hero-content dbo-org-hero-body">
                   <div className="dbo-hero-main-row dbo-org-identity-row">
                     <div className="dbo-hero-identity" id="tour-ngo-identity">
                       <div className="dbo-hero-avatar dbo-org-overlap-avatar">
@@ -2755,8 +2755,10 @@ export default function OrganizationView({
                     </div>
                   )}
 
-                  {/* Bare Hairline Stat Strip (Zero Duplicate Cards, Zero Heavy Boxes) */}
-                  <div className="dbo-bare-stats cols-4" id="tour-ngo-metrics">
+                </div>
+
+                {/* Integrated Bottom Hairline Stat Deck */}
+                <div className="dbo-bare-stats cols-4 dbo-org-stats-deck" id="tour-ngo-metrics">
                     <button
                       type="button"
                       className="dbo-bare-stat clickable"
@@ -2822,8 +2824,7 @@ export default function OrganizationView({
                         </span>
                         <span className="dbo-bare-lbl">SEC Legal Standing</span>
                       </span>
-                    </button>
-                  </div>
+                  </button>
                 </div>
               </div>
 
