@@ -794,11 +794,13 @@ export default function LandingView({
     return (processedCampaigns || []).slice(start, start + CAMPAIGNS_PER_PAGE);
   }, [processedCampaigns, currentPage, CAMPAIGNS_PER_PAGE]);
 
-  // ── 1. Bottom Scroll Progress Line (1-2px fixed at bottom) ──
+  // ── 1. Bottom Scroll Progress Line (1-2px fixed at bottom) & Back-to-Top ──
   const [scrollProgress, setScrollProgress] = useState(0);
+  const [showBackToTop, setShowBackToTop] = useState(false);
 
   useEffect(() => {
     const handleScrollProgress = () => {
+      setShowBackToTop(window.scrollY > 420);
       const scrollHeight = document.documentElement.scrollHeight - window.innerHeight;
       if (scrollHeight > 0) {
         const progress = Math.min(100, Math.max(0, (window.scrollY / scrollHeight) * 100));
@@ -2167,6 +2169,18 @@ export default function LandingView({
           </div>
         </div>
       </section>
+
+      {/* ── Floating Back-to-Top Button (Pops up above ReliefAI when scrolled) ── */}
+      <button
+        type="button"
+        className={`bbdrts-back-to-top${showBackToTop ? ' is-visible' : ''}`}
+        onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+        aria-label="Back to top"
+        title="Back to top"
+        tabIndex={showBackToTop ? 0 : -1}
+      >
+        <span className="material-symbols-outlined">arrow_upward</span>
+      </button>
 
     </div>
   );

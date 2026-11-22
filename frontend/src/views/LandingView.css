@@ -3164,3 +3164,96 @@ body.radar-fullscreen-active .bbdrts-radar-footer-bar {
   pointer-events: none !important;
   opacity: 0 !important;
 }
+
+/* ============================================================
+   FLOATING BACK-TO-TOP BUTTON (RIGHT ABOVE RELIEFAI TRIGGER)
+   ============================================================ */
+.bbdrts-back-to-top {
+  position: fixed;
+  right: 24px;
+  bottom: 86px;
+  z-index: 899;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border-radius: 9999px;
+  background: rgba(10, 10, 10, 0.92);
+  border: 1px solid #262626;
+  color: #ededed;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateY(10px) scale(0.92);
+  transition: opacity 200ms ease, visibility 200ms ease, transform 220ms cubic-bezier(0.16, 1, 0.3, 1), background-color 160ms ease, border-color 160ms ease, color 160ms ease;
+}
+
+.bbdrts-back-to-top .material-symbols-outlined {
+  font-size: 18px;
+}
+
+.bbdrts-back-to-top.is-visible {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translateY(0) scale(1);
+}
+
+.bbdrts-back-to-top:hover {
+  background: #141416;
+  border-color: #3f3f46;
+  color: #ffffff;
+  transform: translateY(-2px) scale(1);
+}
+
+.bbdrts-back-to-top:active {
+  transform: translateY(0) scale(0.96);
+}
+
+[data-theme="light"] .bbdrts-back-to-top {
+  background: rgba(255, 255, 255, 0.94);
+  border-color: #e4e4e7;
+  color: #18181b;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.1);
+}
+
+[data-theme="light"] .bbdrts-back-to-top:hover {
+  background: #ffffff;
+  border-color: #a1a1aa;
+  color: #000000;
+}
+
+/* Hide cleanly when ReliefAI chat window or any modal dialog is open */
+body:has(.bbdrts-copilot-window) .bbdrts-back-to-top,
+body:has([role="dialog"]) .bbdrts-back-to-top,
+body:has(.bbdrts-modal-overlay) .bbdrts-back-to-top,
+body:has(.modal-backdrop) .bbdrts-back-to-top,
+body:has(.modal-backdrop-auth) .bbdrts-back-to-top,
+body:has(.bbdrts-modal-backdrop) .bbdrts-back-to-top,
+body.has-modal-open .bbdrts-back-to-top {
+  opacity: 0 !important;
+  pointer-events: none !important;
+  visibility: hidden !important;
+  transform: translateY(10px) scale(0.92) !important;
+}
+
+@media (max-width: 640px) {
+  .bbdrts-back-to-top {
+    right: 16px;
+    bottom: 78px;
+    width: 38px;
+    height: 38px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bbdrts-back-to-top {
+    transition: opacity 150ms ease;
+  }
+}
