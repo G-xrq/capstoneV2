@@ -374,14 +374,13 @@ function getRegionForProvinceName(provinceName) {
 // Official Barangay Registry for Philippine Municipalities (Priority: Southern Leyte & Eastern/Central Visayas)
 const PH_MUNICIPALITY_BARANGAYS = {
   'maasin city': [
-    'Abgao', 'Asuncion', 'Bactul I', 'Bactul II', 'Bato', 'Bilibol', 'Budi-an', 'Combado', 'Cabawan',
-    'Canturing', 'Cagnituan', 'Dongon', 'Guadalupe', 'Hanginan', 'Hantag', 'Hinapu Daku', 'Hinapu Gamay',
-    'Ibarra', 'Isagani', 'Laboon', 'Lanao', 'Lib-og', 'Lonoy', 'Lunas', 'Mahayahay', 'Malapoc Norte',
-    'Malapoc Sur', 'Mambajao', 'Manhilo', 'Mantahan', 'Maria Clara', 'Matin-ao', 'Nasaug', 'Ngaran',
-    'Nonok Norte', 'Nonok Sur', 'Panan-awan', 'Pansaan', 'Pasay', 'Pinhawan', 'Rizal', 'San Agustin',
-    'San Isidro', 'San Jose', 'San Rafael', 'Santa Cruz', 'Santa Rosa', 'Santo Niño', 'Santo Rosario',
-    'Soro-soro', 'Tagnipa', 'Tam-is', 'Tawid', 'Tigbawan', 'Tomoy-tomoy', 'Tunga-tunga', 'Acasio', 'Basak',
-    'Baugo', 'Canto-od', 'Hinaguimitan', 'Libertad', 'Libhu', 'Looc', 'Mabini', 'San Roque', 'San Vicente', 'Suba', 'Teresa'
+    'Abgao', 'Acasia', 'Asuncion', 'Bactul I', 'Bactul II', 'Badiang', 'Bagtican', 'Basak', 'Bato I', 'Bato II',
+    'Batuan', 'Baugo', 'Bilibol', 'Bogo', 'Cabadiangan', 'Cabulihan', 'Cagnituan', 'Cambooc', 'Cansirong', 'Canturing',
+    'Canyuom', 'Combado', 'Dongon', 'Gawisan', 'Guadalupe', 'Hanginan', 'Hantag', 'Hinapu Daku', 'Hinapu Gamay', 'Ibarra',
+    'Isagani', 'Laboon', 'Lanao', 'Lib-og', 'Libertad', 'Libhu', 'Lonoy', 'Lunas', 'Mahayahay', 'Malapoc Norte',
+    'Malapoc Sur', 'Mambajao', 'Manhilo', 'Mantahan', 'Maria Clara', 'Matin-ao', 'Nasaug', 'Nati', 'Nonok Norte', 'Nonok Sur',
+    'Panan-awan', 'Pansaan', 'Pasay', 'Pinascohan', 'Rizal', 'San Agustin', 'San Isidro', 'San Jose', 'San Rafael', 'Santa Cruz',
+    'Santa Rosa', 'Santo Niño', 'Santo Rosario', 'Soro-soro', 'Tagnipa', 'Tam-is', 'Tawid', 'Tigbawan', 'Tomoy-tomoy', 'Tunga-tunga'
   ],
   'sogod': [
     'Zone I', 'Zone II', 'Zone III', 'Zone IV', 'Zone V',

@@ -9474,6 +9474,52 @@ app.get('/api/geocode/search', async (req, res) => {
   };
 
   try {
+    // Tier 0 (0ms, 100% Exact Official PSA/NAMRIA HIRES): Southern Leyte & Maasin City barangay/city forward pinpointing
+    const isSouthernLeyteQuery =
+      !targetState || /southern\s+leyte/i.test(targetState);
+    let slTargetBrgy = null;
+    if (isSouthernLeyteQuery && cleanBarangay && rawCity) {
+      slTargetBrgy = findSouthernLeyteBarangay(cleanBarangay, rawCity);
+      // If user is pinning a barangay directly (no specific street or landmark), return exact official HIRES interior centroid immediately!
+      if (slTargetBrgy && !rawStreet && !rawLandmark) {
+        return cacheAndSend([{
+          lat: String(slTargetBrgy.center[0]),
+          lon: String(slTargetBrgy.center[1]),
+          name: slTargetBrgy.name,
+          display_name: `${slTargetBrgy.name}, ${slTargetBrgy.city}, ${slTargetBrgy.province}, ${slTargetBrgy.region}, ${slTargetBrgy.zip}, Philippines`,
+          type: 'village',
+          class: 'place',
+          address: {
+            village: slTargetBrgy.name,
+            city: slTargetBrgy.city,
+            state: slTargetBrgy.province,
+            region: 'Eastern Visayas',
+            postcode: slTargetBrgy.zip,
+            country: 'Philippines'
+          }
+        }]);
+      }
+    } else if (isSouthernLeyteQuery && !cleanBarangay && !rawStreet && !rawLandmark && rawCity) {
+      const slCity = getSouthernLeyteCityCenter(rawCity);
+      if (slCity) {
+        return cacheAndSend([{
+          lat: String(slCity.center[0]),
+          lon: String(slCity.center[1]),
+          name: slCity.name,
+          display_name: `${slCity.name}, ${slCity.province}, ${slCity.region}, ${slCity.zip}, Philippines`,
+          type: 'city',
+          class: 'place',
+          address: {
+            city: slCity.name,
+            state: slCity.province,
+            region: 'Eastern Visayas',
+            postcode: slCity.zip,
+            country: 'Philippines'
+          }
+        }]);
+      }
+    }
+
     const queryStrings = [];
     const addQuery = (parts) => {
       const str = parts.map((p) => String(p || '').trim()).filter(Boolean).join(', ');
@@ -9544,6 +9590,31 @@ app.get('/api/geocode/search', async (req, res) => {
               bestCandidates = ranked;
             }
             if (topScore >= highConfidenceThreshold) {
+              if (slTargetBrgy) {
+                const topHit = ranked[0];
+                const dLat = parseFloat(topHit.lat) - slTargetBrgy.center[0];
+                const dLon = parseFloat(topHit.lon) - slTargetBrgy.center[1];
+                const polyCheck = lookupSouthernLeytePoint(parseFloat(topHit.lat), parseFloat(topHit.lon));
+                const insideSameBrgy = polyCheck && polyCheck.name.toLowerCase() === slTargetBrgy.name.toLowerCase();
+                if (!insideSameBrgy && Math.hypot(dLat, dLon) > 0.015) {
+                  // Nominatim hit a road/place in a DIFFERENT barangay; keep exact target barangay!
+                  return cacheAndSend([{
+                    lat: String(slTargetBrgy.center[0]),
+                    lon: String(slTargetBrgy.center[1]),
+                    name: slTargetBrgy.name,
+                    display_name: `${slTargetBrgy.name}, ${slTargetBrgy.city}, ${slTargetBrgy.province}, ${slTargetBrgy.region}, ${slTargetBrgy.zip}, Philippines`,
+                    type: 'village',
+                    class: 'place',
+                    address: {
+                      village: slTargetBrgy.name,
+                      city: slTargetBrgy.city,
+                      state: slTargetBrgy.province,
+                      postcode: slTargetBrgy.zip,
+                      country: 'Philippines'
+                    }
+                  }]);
+                }
+              }
               return cacheAndSend(ranked);
             }
           }
@@ -9607,6 +9678,25 @@ app.get('/api/geocode/search', async (req, res) => {
 
     if (bestCandidates.length > 0 && bestTopScore >= 25) {
       return cacheAndSend(bestCandidates);
+    }
+
+    // Tier 2.5: Exact Southern Leyte HIRES Barangay polygon fallback (if street/landmark missed in OSM)
+    if (slTargetBrgy) {
+      return cacheAndSend([{
+        lat: String(slTargetBrgy.center[0]),
+        lon: String(slTargetBrgy.center[1]),
+        name: slTargetBrgy.name,
+        display_name: `${slTargetBrgy.name}, ${slTargetBrgy.city}, ${slTargetBrgy.province}, ${slTargetBrgy.region}, ${slTargetBrgy.zip}, Philippines`,
+        type: 'village',
+        class: 'place',
+        address: {
+          village: slTargetBrgy.name,
+          city: slTargetBrgy.city,
+          state: slTargetBrgy.province,
+          postcode: slTargetBrgy.zip,
+          country: 'Philippines'
+        }
+      }]);
     }
 
     // Tier 3: Exact offline anchor match ONLY if online geocoders failed or had no trustworthy city match
@@ -9740,6 +9830,14 @@ const {
   getRegionForProvinceName,
   resolveAccurateBarangayAndStreet
 } = require('./philippineGeoResolver');
+const {
+  lookupSouthernLeytePoint,
+  findSouthernLeyteBarangay,
+  getSouthernLeyteBarangaysForCity,
+  getSouthernLeyteCityCenter,
+  lookupNationwidePoint,
+  findNationwideBarangay
+} = require('./services/phBarangayPolygonService');
 
 function parsePhilippineAddress(a = {}, dataName = '', lat = null, lon = null) {
   const numLat = lat != null ? parseFloat(lat) : null;
@@ -9849,7 +9947,7 @@ function parsePhilippineAddress(a = {}, dataName = '', lat = null, lon = null) {
   };
 }
 
-// ── Official PSA PSGC Barangay Registry (All 1,634 PH Cities/Municipalities & 42,000+ Barangays) ──
+// ── Official PSA PSGC Barangay Registry & Exact Polygon Resolution (PSGC 2026-3Q) ──
 let psgcProvincesCache = null;
 let psgcCitiesCache = null;
 let psgcMasterLoadPromise = null;
@@ -9899,7 +9997,22 @@ async function resolveOfficialPsgcBarangays(cityInput, provinceInput = '') {
   const rawCity = String(cityInput || '').trim();
   const rawProv = String(provinceInput || '').trim();
   if (!rawCity) {
-    return { city: '', province: rawProv, psgcCode: '', source: 'none', barangays: [] };
+    return { city: '', province: rawProv, psgcCode: '', psgc10DigitCode: '', source: 'none', barangays: [] };
+  }
+
+  // Tier 0 (0ms): Official PSA/NAMRIA HIRES Southern Leyte dataset (includes all 70 barangays of Maasin City)
+  if (!rawProv || /southern\s+leyte/i.test(rawProv)) {
+    const slList = getSouthernLeyteBarangaysForCity(rawCity);
+    if (slList.length > 0) {
+      return {
+        city: rawCity,
+        province: 'Southern Leyte',
+        psgcCode: /maasin/i.test(rawCity) ? '086407000' : '',
+        psgc10DigitCode: /maasin/i.test(rawCity) ? '0806407000' : '',
+        source: 'PSA/NAMRIA PSGC 2026-3Q',
+        barangays: slList
+      };
+    }
   }
 
   const normCity = normalizePsgcKey(rawCity);
@@ -9913,7 +10026,6 @@ async function resolveOfficialPsgcBarangays(cityInput, provinceInput = '') {
 
     let candidates = psgcCitiesCache.filter((c) => normalizePsgcKey(c.name) === normCity);
 
-    // Handle Manila / Quezon City / Caloocan / Pasay / Makati etc. or slight alias differences
     if (candidates.length === 0 && normCity) {
       candidates = psgcCitiesCache.filter((c) => {
         const cn = normalizePsgcKey(c.name);
@@ -9942,11 +10054,13 @@ async function resolveOfficialPsgcBarangays(cityInput, provinceInput = '') {
       const best = scored[0];
       if (best && (!normProv || best.score >= 20)) {
         const psgcCode = best.c.code;
+        const psgc10DigitCode = best.c.psgc10DigitCode || '';
         if (psgcBarangaysCache.has(psgcCode)) {
           return {
             city: best.c.name,
             province: best.cProvName || rawProv,
             psgcCode,
+            psgc10DigitCode,
             source: 'PSA PSGC',
             barangays: psgcBarangaysCache.get(psgcCode)
           };
@@ -9971,6 +10085,7 @@ async function resolveOfficialPsgcBarangays(cityInput, provinceInput = '') {
                 city: best.c.name,
                 province: best.cProvName || rawProv,
                 psgcCode,
+                psgc10DigitCode,
                 source: 'PSA PSGC',
                 barangays: names
               };
@@ -9981,80 +10096,15 @@ async function resolveOfficialPsgcBarangays(cityInput, provinceInput = '') {
     }
   }
 
-  // Offline fallback: local curated barangays if PSGC API is unreachable
   const localList = getBarangaysForCity(rawCity);
   return {
     city: rawCity,
     province: rawProv,
     psgcCode: '',
+    psgc10DigitCode: '',
     source: localList.length > 0 ? 'Local Registry' : 'none',
     barangays: [...localList].sort((a, b) => a.localeCompare(b, 'en', { numeric: true, sensitivity: 'base' }))
   };
-}
-
-function levenshtein1(a, b) {
-  if (Math.abs(a.length - b.length) > 1) return 2;
-  let i = 0, j = 0, edits = 0;
-  while (i < a.length && j < b.length) {
-    if (a[i] === b[j]) {
-      i++; j++;
-    } else {
-      edits++;
-      if (edits > 1) return 2;
-      if (a.length > b.length) i++;
-      else if (b.length > a.length) j++;
-      else { i++; j++; }
-    }
-  }
-  if (i < a.length || j < b.length) edits++;
-  return edits;
-}
-
-function normalizeBarangayCompare(str) {
-  const romanToArabic = { i: '1', ii: '2', iii: '3', iv: '4', v: '5', vi: '6', vii: '7', viii: '8', ix: '9', x: '10' };
-  return String(str || '')
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .replace(/^(brgy\.?|barangay)\s+/i, '')
-    .replace(/\s*\((pob\.?|poblacion)\)/gi, '')
-    .replace(/\b(pob\.?|poblacion)\b/gi, (m, _, offset, full) => (full.trim().toLowerCase() === m.toLowerCase() ? 'poblacion' : ''))
-    .replace(/\bzone\s+(i|ii|iii|iv|v|vi|vii|viii|ix|x)\b/gi, (_, r) => `zone ${romanToArabic[r.toLowerCase()] || r}`)
-    .replace(/\bsto\.?\b/g, 'santo')
-    .replace(/\bsta\.?\b/g, 'santa')
-    .replace(/[^a-z0-9\-]+/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
-
-function matchOfficialPsgcBarangay(candidate, officialBarangays = []) {
-  if (!candidate || !Array.isArray(officialBarangays) || officialBarangays.length === 0) return '';
-  const candNorm = normalizeBarangayCompare(candidate);
-  if (!candNorm || candNorm.length < 1) return '';
-
-  // Pass 1: Exact normalized PSA PSGC match
-  for (const official of officialBarangays) {
-    const offNorm = normalizeBarangayCompare(official);
-    if (offNorm === candNorm) return official;
-  }
-
-  // Pass 2: Safe 1-character typo tolerance ONLY for longer names (>= 6 chars) with matching prefix & suffix
-  // (e.g., OSM "Malapuc Sur" -> official PSA "Malapoc Sur"; never confuses "Bactul I" vs "Bactul II")
-  if (candNorm.length >= 6) {
-    for (const official of officialBarangays) {
-      const offNorm = normalizeBarangayCompare(official);
-      if (
-        offNorm.length >= 6 &&
-        offNorm.slice(0, 3) === candNorm.slice(0, 3) &&
-        offNorm.slice(-3) === candNorm.slice(-3) &&
-        levenshtein1(candNorm, offNorm) === 1
-      ) {
-        return official;
-      }
-    }
-  }
-
-  return '';
 }
 
 // Public Endpoint: Official PSA PSGC Barangays for any Philippine City / Municipality
@@ -10094,11 +10144,15 @@ app.get('/api/geocode/reverse', async (req, res) => {
     return res.json(reverseGeocodeCache.get(cacheKey));
   }
 
+  // STEP 0 (0ms): Exact Mathematical Point-in-Polygon Check against Bundled HIRES Official PSA/NAMRIA 2026-3Q
+  // Boundaries for ALL 500 Barangays of Southern Leyte (including ALL 70 Barangays of Maasin City)!
+  const slExactHit = lookupSouthernLeytePoint(numLat, numLon);
+
   let rawAddress = {};
   let dataName = '';
   let displayName = '';
 
-  // Priority 1: Nominatim (4.0s timeout, English labels, building/road zoom=18)
+  // Priority 1: Nominatim (for exact street/road & real named landmarks/buildings; and admin info outside Southern Leyte)
   try {
     const url = `https://nominatim.openstreetmap.org/reverse?format=json&addressdetails=1&accept-language=en&zoom=18&lat=${numLat}&lon=${numLon}`;
     const osmRes = await fetchWithTimeout(
@@ -10116,8 +10170,8 @@ app.get('/api/geocode/reverse', async (req, res) => {
     }
   } catch (_) {}
 
-  // Priority 2 (Parallel): If Nominatim omitted city/municipality OR road, query BigDataCloud (official PH admin boundaries) + Photon (roads & buildings) simultaneously!
-  const missingCity = !rawAddress.city && !rawAddress.town && !rawAddress.municipality;
+  // Priority 2 (Parallel): Enrich missing road/POI (Photon) and missing city outside Southern Leyte (BigDataCloud)
+  const missingCity = !slExactHit && !rawAddress.city && !rawAddress.town && !rawAddress.municipality;
   const missingRoad = !rawAddress.road;
 
   if (missingCity || missingRoad) {
@@ -10136,7 +10190,6 @@ app.get('/api/geocode/reverse', async (req, res) => {
       ).then((r) => (r.ok ? r.json() : null))
     ]);
 
-    // Authoritative administrative boundaries from BigDataCloud (prevents Photon barangay-as-city bugs!)
     const bdc = bdcSettled.status === 'fulfilled' ? bdcSettled.value : null;
     if (bdc) {
       const bdcCity = bdc.city || bdc.locality || '';
@@ -10150,56 +10203,76 @@ app.get('/api/geocode/reverse', async (req, res) => {
         rawAddress.postcode = bdc.postcode;
       }
       const adminLevels = bdc.localityInfo?.administrative || [];
-      if (!rawAddress.village && !rawAddress.suburb) {
-        const brgyLvl = adminLevels.find((lvl) => lvl.adminLevel === 10 || /barangay/i.test(lvl.description || ''));
-        if (brgyLvl?.name) rawAddress.village = brgyLvl.name;
-      }
       const provLvl = adminLevels.find((lvl) => lvl.adminLevel === 4 || /province/i.test(lvl.description || ''));
       if (provLvl?.name && (!rawAddress.state || /region/i.test(rawAddress.state))) {
         rawAddress.province = provLvl.name;
       }
     }
 
-    // Street, building POI, and fallback locality from Photon
     const pData = photonSettled.status === 'fulfilled' ? photonSettled.value : null;
     const props = pData?.features?.[0]?.properties;
     if (props) {
-      if (!rawAddress.city && !rawAddress.town && !rawAddress.municipality && (props.city || props.town)) {
+      if (!slExactHit && !rawAddress.city && !rawAddress.town && !rawAddress.municipality && (props.city || props.town)) {
         rawAddress.city = props.city || props.town;
       }
-      if (!rawAddress.suburb && !rawAddress.village && (props.district || props.locality)) {
-        rawAddress.suburb = props.district || props.locality;
-      }
       if (!rawAddress.road && props.street) rawAddress.road = props.street;
-      if (!rawAddress.state && !rawAddress.province && props.state) rawAddress.state = props.state;
+      if (!slExactHit && !rawAddress.state && !rawAddress.province && props.state) rawAddress.state = props.state;
       if (!rawAddress.postcode && props.postcode) rawAddress.postcode = props.postcode;
       if (!dataName && props.name && props.name !== props.street && props.name !== props.city) {
         dataName = props.name;
-      }
-      if (!displayName) {
-        displayName = [props.street || props.name, rawAddress.city || props.city || props.town, rawAddress.province || rawAddress.state || props.state, 'Philippines'].filter(Boolean).join(', ');
       }
     }
   }
 
   const parsed = parsePhilippineAddress(rawAddress, dataName, numLat, numLon);
 
-  // Official PSA PSGC Barangay Verification:
-  // OSM lacks complete admin_level=10 barangay polygons across the Philippines, so reverse-geocoded barangays are
-  // frequently wrong neighboring villages, subdivisions, or street names.
-  // Policy: NEVER silently auto-fill parsed.barangay! Validate any OSM candidate strictly against official PSA PSGC
-  // barangays for this city/municipality and return it ONLY as parsed.suggestedBarangay for explicit NGO confirmation.
-  const psgcInfo = await resolveOfficialPsgcBarangays(parsed.city, parsed.province);
-  const rawOsmBarangay = parsed.barangay || '';
-  const verifiedSuggestion = matchOfficialPsgcBarangay(rawOsmBarangay, psgcInfo.barangays);
+  if (slExactHit) {
+    // AUTHORITATIVE LOCK: Use mathematically exact PSA/NAMRIA HIRES 2026-3Q boundary polygon for Maasin City & Southern Leyte!
+    // Never let wrong OSM volunteer village tags (like Laboon/Malapuc/Mahayahay) override the true official boundary!
+    parsed.barangay = slExactHit.name;
+    parsed.city = slExactHit.city;
+    parsed.province = slExactHit.province;
+    parsed.region = slExactHit.region;
+    parsed.zip = slExactHit.zip || parsed.zip || '6600';
+    parsed.country = 'Philippines';
+    parsed.barangayVerified = true;
+    parsed.barangaySource = 'PSA/NAMRIA HIRES 2026-3Q';
+    parsed.psgcBarangays = getSouthernLeyteBarangaysForCity(slExactHit.city);
+    parsed.psgcSource = 'PSA/NAMRIA PSGC 2026-3Q';
 
-  parsed.barangay = '';
-  parsed.suggestedBarangay = verifiedSuggestion;
-  parsed.psgcBarangays = psgcInfo.barangays;
-  parsed.psgcSource = psgcInfo.source;
+    // Ensure landmark is not just an outdated/misspelled OSM barangay name
+    if (
+      parsed.landmark &&
+      (parsed.landmark.toLowerCase() === slExactHit.name.toLowerCase() ||
+        parsed.landmark.toLowerCase() === String(rawAddress.village || '').toLowerCase() ||
+        parsed.landmark.toLowerCase() === String(rawAddress.quarter || '').toLowerCase())
+    ) {
+      parsed.landmark = '';
+    }
+  } else {
+    // Nationwide exact PSA/NAMRIA 2026-3Q Barangay Polygon lookup (all other 1,615 PH cities/municipalities!)
+    const psgcInfo = await resolveOfficialPsgcBarangays(parsed.city, parsed.province);
+    const nwHit = psgcInfo.psgc10DigitCode
+      ? await lookupNationwidePoint(numLat, numLon, psgcInfo.psgc10DigitCode)
+      : null;
+
+    if (nwHit && nwHit.name) {
+      parsed.barangay = nwHit.name;
+      parsed.barangayVerified = true;
+      parsed.barangaySource = 'PSA/NAMRIA 2026-3Q';
+    } else {
+      // Never auto-fill an unverified OSM point guess!
+      parsed.barangay = '';
+      parsed.barangayVerified = false;
+      parsed.barangaySource = '';
+    }
+    parsed.psgcBarangays = psgcInfo.barangays;
+    parsed.psgcSource = psgcInfo.source;
+  }
 
   const formattedAddress = [
     parsed.street,
+    parsed.barangay,
     parsed.city,
     parsed.province,
     parsed.region,

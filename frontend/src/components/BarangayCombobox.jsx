@@ -29,8 +29,6 @@ export default function BarangayCombobox({
   onChange,
   city = '',
   province = '',
-  suggestedBarangay = '',
-  onDismissSuggestion,
   prefetchedBarangays = [],
   prefetchedForCity = '',
   disabled = false,
@@ -49,7 +47,7 @@ export default function BarangayCombobox({
   const provKey = normKey(province);
   const cacheKey = `${cityKey}|${provKey}`;
 
-  // Hydrate immediately if map reverse-geocode already delivered official PSA PSGC barangays for this city
+  // Hydrate immediately when map reverse-geocode already delivered official PSA PSGC barangays for this city
   useEffect(() => {
     if (
       Array.isArray(prefetchedBarangays) &&
@@ -57,9 +55,9 @@ export default function BarangayCombobox({
       cityKey &&
       normKey(prefetchedForCity) === cityKey
     ) {
-      clientPsgcCache.set(cacheKey, { barangays: prefetchedBarangays, source: 'PSA PSGC' });
+      clientPsgcCache.set(cacheKey, { barangays: prefetchedBarangays, source: 'PSA/NAMRIA PSGC' });
       setOptions(prefetchedBarangays);
-      setSource('PSA PSGC');
+      setSource('PSA/NAMRIA PSGC');
     }
   }, [prefetchedBarangays, prefetchedForCity, cityKey, cacheKey]);
 
@@ -108,7 +106,7 @@ export default function BarangayCombobox({
       } finally {
         if (!cancelled) setLoading(false);
       }
-    }, 240);
+    }, 220);
 
     return () => {
       cancelled = true;
@@ -146,11 +144,6 @@ export default function BarangayCombobox({
     const valNorm = normBrgy(value);
     return options.some((opt) => normBrgy(opt) === valNorm);
   }, [value, options]);
-
-  const showSuggestion = Boolean(
-    suggestedBarangay &&
-    normBrgy(suggestedBarangay) !== normBrgy(value)
-  );
 
   const handleSelect = (brgyName) => {
     if (onChange) onChange(brgyName);
@@ -205,7 +198,6 @@ export default function BarangayCombobox({
           }}
         />
 
-        {/* Right indicator: loading spinner, verified check, or dropdown chevron */}
         <button
           type="button"
           tabIndex={-1}
@@ -339,68 +331,6 @@ export default function BarangayCombobox({
               })
             )}
           </div>
-        </div>
-      )}
-
-      {/* Optional Unconfirmed Map-Nearby Hint (NEVER silently auto-filled!) */}
-      {showSuggestion && !disabled && (
-        <div
-          style={{
-            marginTop: '5px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: '6px',
-            padding: '4px 8px',
-            borderRadius: '7px',
-            fontSize: '0.71rem',
-            background: isEdit ? 'rgba(245, 158, 11, 0.08)' : 'var(--bg-inset, rgba(245, 158, 11, 0.08))',
-            border: '1px solid rgba(245, 158, 11, 0.28)',
-            color: isEdit ? '#d4d4d8' : 'var(--text-secondary)'
-          }}
-        >
-          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            Map nearby (verify): <strong style={{ color: isEdit ? '#fafafa' : 'var(--text-primary)' }}>{suggestedBarangay}</strong>
-          </span>
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
-            <button
-              type="button"
-              onClick={() => {
-                handleSelect(suggestedBarangay);
-                if (onDismissSuggestion) onDismissSuggestion();
-              }}
-              style={{
-                background: 'rgba(34, 197, 94, 0.14)',
-                color: '#22c55e',
-                border: '1px solid rgba(34, 197, 94, 0.3)',
-                borderRadius: '5px',
-                padding: '1px 7px',
-                fontSize: '0.69rem',
-                fontWeight: 700,
-                cursor: 'pointer'
-              }}
-            >
-              Use
-            </button>
-            {onDismissSuggestion && (
-              <button
-                type="button"
-                onClick={onDismissSuggestion}
-                title="Dismiss suggestion"
-                style={{
-                  background: 'transparent',
-                  border: 'none',
-                  color: isEdit ? '#71717a' : 'var(--text-muted)',
-                  cursor: 'pointer',
-                  padding: '0 2px',
-                  display: 'inline-flex',
-                  alignItems: 'center'
-                }}
-              >
-                <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>close</span>
-              </button>
-            )}
-          </span>
         </div>
       )}
     </div>

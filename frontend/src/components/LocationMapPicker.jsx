@@ -198,14 +198,14 @@ export default function LocationMapPicker({
     if (address) setSearchInput(address);
   }, [address]);
 
-  // Parse default coordinates (Fallback: Maasin City, Southern Leyte: 10.1333, 124.8667)
+  // Parse default coordinates (Fallback: Maasin City Poblacion, Southern Leyte: 10.1327, 124.8385)
   const parseCoords = (gpsStr) => {
-    if (!gpsStr) return [10.1333, 124.8667];
+    if (!gpsStr) return [10.1327, 124.8385];
     const match = gpsStr.match(/(-?\d+\.\d+).*?(-?\d+\.\d+)/);
     if (match) {
       return [parseFloat(match[1]), parseFloat(match[2])];
     }
-    return [10.1333, 124.8667];
+    return [10.1327, 124.8385];
   };
 
   const initialCoords = parseCoords(gps);
@@ -250,8 +250,10 @@ export default function LocationMapPicker({
     if (data?.parsed) {
       const p = data.parsed;
       const region = p.region || getRegionForProvince(p.province) || getRegionForProvinceName(p.province) || '';
+      const verifiedBrgy = p.barangay || '';
       const formattedAddress = [
         p.street,
+        verifiedBrgy,
         p.city,
         p.province,
         region,
@@ -265,8 +267,8 @@ export default function LocationMapPicker({
       if (onChangeGranularAddressRef.current) {
         onChangeGranularAddressRef.current({
           street: p.street || '',
-          barangay: '',
-          suggestedBarangay: p.suggestedBarangay || '',
+          barangay: verifiedBrgy,
+          barangayVerified: Boolean(p.barangayVerified),
           psgcBarangays: Array.isArray(p.psgcBarangays) ? p.psgcBarangays : [],
           psgcSource: p.psgcSource || '',
           city: p.city || '',

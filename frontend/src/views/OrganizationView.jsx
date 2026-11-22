@@ -685,7 +685,6 @@ export default function OrganizationView({
   const [locationRegion, setLocationRegion] = useState('');
   const [street, setStreet] = useState('');
   const [barangay, setBarangay] = useState('');
-  const [mapSuggestedBarangay, setMapSuggestedBarangay] = useState('');
   const [prefetchedPsgcBarangays, setPrefetchedPsgcBarangays] = useState({ city: '', list: [] });
   const [city, setCity] = useState('');
   const [province, setProvince] = useState('');
@@ -1436,13 +1435,13 @@ export default function OrganizationView({
     setCurrentPageMy(1);
   }, [categoryFilterMy, urgencyFilterMy, selectedTagsMy, campaignSortMy, searchQueryMy]);
 
-  const handleGranularAddressFromMap = ({ street: s = '', suggestedBarangay = '', psgcBarangays = [], city: c = '', province: p = '', region: r = '', country: cnt = 'Philippines', zip: z = '', landmark: l = '' }) => {
+  const handleGranularAddressFromMap = ({ street: s = '', barangay: b = '', psgcBarangays = [], city: c = '', province: p = '', region: r = '', country: cnt = 'Philippines', zip: z = '', landmark: l = '' }) => {
     const resolvedRegion = r || (p ? getRegionForProvince(p) : '') || '';
     const normCityKey = (v) => String(v || '').toLowerCase().replace(/^city of\s+/i, '').replace(/\s+city$/i, '').trim();
     const isSameCity = Boolean(city && c && normCityKey(city) === normCityKey(c));
-    // NEVER silently auto-fill unverified OSM barangays!
-    // Preserve confirmed barangay when fine-tuning pin within the same city; clear stale barangay when moving to a new city.
-    const nextBarangay = isSameCity ? barangay : '';
+    // Directly apply mathematically verified PSA/NAMRIA polygon barangay!
+    // If offshore/unmatched inside same city, preserve user's existing barangay; if moving to a different city, clear stale barangay.
+    const nextBarangay = b || (isSameCity ? barangay : '');
 
     setStreet(s);
     setBarangay(nextBarangay);
@@ -1452,7 +1451,6 @@ export default function OrganizationView({
     setCountry(cnt || 'Philippines');
     setZipCode(z);
     setLandmark(l);
-    setMapSuggestedBarangay(suggestedBarangay || '');
     if (Array.isArray(psgcBarangays) && psgcBarangays.length > 0 && c) {
       setPrefetchedPsgcBarangays({ city: c, list: psgcBarangays });
     }
@@ -4787,7 +4785,6 @@ export default function OrganizationView({
                                   onClick={() => {
                                     setStreet('');
                                     setBarangay('');
-                                    setMapSuggestedBarangay('');
                                     setCity('');
                                     setProvince('');
                                     setRegion('');
@@ -4838,8 +4835,6 @@ export default function OrganizationView({
                                   }}
                                   city={city}
                                   province={province}
-                                  suggestedBarangay={mapSuggestedBarangay}
-                                  onDismissSuggestion={() => setMapSuggestedBarangay('')}
                                   prefetchedBarangays={prefetchedPsgcBarangays.list}
                                   prefetchedForCity={prefetchedPsgcBarangays.city}
                                   disabled={creating}
@@ -5027,7 +5022,7 @@ export default function OrganizationView({
                                 whiteSpace: 'nowrap'
                               }}>
                                 <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>my_location</span>
-                                <span>GPS: {gpsCoordinates || '10.1333° N, 124.8667° E'}</span>
+                                <span>GPS: {gpsCoordinates || '10.1327° N, 124.8385° E'}</span>
                               </div>
                             </div>
                           </div>
@@ -5111,7 +5106,7 @@ export default function OrganizationView({
                             </div>
                             <div style={{ marginTop: '8px', fontSize: '0.72rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '6px' }}>
                               <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>info</span>
-                              <span>Pinning auto-fills City, Province, Region, ZIP &amp; GPS. Barangay uses the official PSA PSGC list so map pin guesses never insert false barangay info.</span>
+                              <span>Click or drag the pin to auto-fill official PSA/NAMRIA Barangay, City, Province, Region, ZIP &amp; GPS. Clicking Find Location pins your typed address without overwriting your text.</span>
                             </div>
                           </div>
 
