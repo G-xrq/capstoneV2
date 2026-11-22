@@ -4700,14 +4700,6 @@ export default function OrganizationView({
                             </div>
                           </div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <button
-                              type="button"
-                              className="btn btn-ghost btn-xs"
-                              onClick={() => setShowAllTags(prev => !prev)}
-                              style={{ fontSize: '0.72rem', color: 'var(--accent, #22c55e)' }}
-                            >
-                              {showAllTags ? 'Show Category Tags' : 'Show All Tags'}
-                            </button>
                             <span style={{ fontSize: '0.74rem', color: selectedTags.length > 0 ? 'var(--accent)' : 'var(--text-muted)', fontWeight: 600 }}>
                               {selectedTags.length} Selected
                             </span>
@@ -4716,7 +4708,7 @@ export default function OrganizationView({
                         </div>
 
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                          {(showAllTags ? PRESET_CAMPAIGN_TAGS : (category === 'CD' ? CHARITY_TAGS : DISASTER_TAGS)).map((tag) => {
+                          {[...(category === 'CD' ? CHARITY_TAGS : DISASTER_TAGS), ...PRESET_CAMPAIGN_TAGS.filter(t => !(category === 'CD' ? CHARITY_TAGS : DISASTER_TAGS).includes(t))].map((tag) => {
                             const isSelected = selectedTags.includes(tag);
                             const isAuto = autoDetectedTagsRef.current.includes(tag) && isSelected;
                             return (
