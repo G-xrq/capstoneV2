@@ -88,6 +88,252 @@ const NGO_AVATAR_PRESETS = [
   { id: 'domain', icon: 'domain', label: 'Institutional Center', color: '#10b981' }
 ];
 
+
+// ── Philippine Mobile Number Formatter (0000 000 0000) & NTC Carrier Validator ──
+const PH_CARRIER_PREFIXES = {
+  'Globe / TM': new Set([
+    '0817', '0905', '0906', '0915', '0916', '0917', '0926', '0927',
+    '0935', '0936', '0937', '0945', '0953', '0954', '0955', '0956',
+    '0965', '0966', '0967', '0975', '0976', '0977', '0978', '0979',
+    '0995', '0996', '0997'
+  ]),
+  'Smart / TNT': new Set([
+    '0813', '0907', '0908', '0909', '0910', '0911', '0912', '0913', '0914',
+    '0918', '0919', '0920', '0921', '0922', '0923', '0924', '0925',
+    '0928', '0929', '0930', '0931', '0932', '0933', '0934', '0938', '0939',
+    '0940', '0941', '0942', '0943', '0944', '0946', '0947', '0948', '0949',
+    '0950', '0951', '0961', '0962', '0963', '0964', '0968', '0969', '0970',
+    '0981', '0985', '0989', '0998', '0999'
+  ]),
+  'DITO': new Set([
+    '0895', '0896', '0897', '0898', '0991', '0992', '0993', '0994'
+  ])
+};
+
+function normalizePhMobileDigits(raw) {
+  let digits = String(raw || '').replace(/\D/g, '');
+  if (digits.startsWith('63') && digits.length >= 11) {
+    digits = '0' + digits.slice(2);
+  } else if (digits.length === 10 && digits.startsWith('9')) {
+    digits = '0' + digits;
+  }
+  return digits.slice(0, 11);
+}
+
+function formatPhMobileDisplay(raw) {
+  const digits = normalizePhMobileDigits(raw);
+  if (!digits) return '';
+  if (digits.length <= 4) return digits;
+  if (digits.length <= 7) return `${digits.slice(0, 4)} ${digits.slice(4)}`;
+  return `${digits.slice(0, 4)} ${digits.slice(4, 7)} ${digits.slice(7, 11)}`;
+}
+
+function validatePhMobile(raw, { required = false } = {}) {
+  const digits = normalizePhMobileDigits(raw);
+  if (!digits) {
+    return required
+      ? { state: 'invalid', valid: false, carrier: '', message: 'A valid 11-digit Philippine mobile number is required.' }
+      : { state: 'empty', valid: true, carrier: '', message: '' };
+  }
+  if (digits.length < 11) {
+    return {
+      state: 'incomplete',
+      valid: false,
+      carrier: '',
+      message: `${digits.length}/11 digits · Format: 09XX XXX XXXX`
+    };
+  }
+  const prefix = digits.slice(0, 4);
+  let matchedCarrier = '';
+  for (const [carrier, set] of Object.entries(PH_CARRIER_PREFIXES)) {
+    if (set.has(prefix)) {
+      matchedCarrier = carrier;
+      break;
+    }
+  }
+  if (!matchedCarrier) {
+    return {
+      state: 'invalid',
+      valid: false,
+      carrier: '',
+      message: `Prefix ${prefix} is not a recognized Philippine mobile network.`
+    };
+  }
+  if (/(\d)\1{6}$/.test(digits)) {
+    return {
+      state: 'invalid',
+      valid: false,
+      carrier: '',
+      message: 'Please enter a real active mobile number (repeated digits rejected).'
+    };
+  }
+  return {
+    state: 'valid',
+    valid: true,
+    carrier: matchedCarrier,
+    message: `Valid Philippine mobile (${matchedCarrier})`
+  };
+}
+
+// ── Custom Searchable / Typeable Vercel Combobox Dropdown ──
+function SearchableLocationSelect({
+  id,
+  value,
+  options = [],
+  onChange,
+  placeholder = 'Select or type to search...',
+  disabled = false,
+  emptyMessage = 'No matching locations'
+}) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const [highlightIdx, setHighlightIdx] = useState(0);
+  const containerRef = useRef(null);
+  const inputRef = useRef(null);
+
+  const selectedOption = options.find((opt) => opt.value === value) || null;
+
+  const filtered = query.trim()
+    ? options.filter((opt) => opt.label.toLowerCase().includes(query.trim().toLowerCase()))
+    : options;
+
+  useEffect(() => {
+    const handleOutside = (e) => {
+      if (containerRef.current && !containerRef.current.contains(e.target)) {
+        setOpen(false);
+        setQuery('');
+      }
+    };
+    document.addEventListener('mousedown', handleOutside);
+    return () => document.removeEventListener('mousedown', handleOutside);
+  }, []);
+
+  useEffect(() => {
+    setHighlightIdx(0);
+  }, [query, open]);
+
+  const handleSelectOption = (opt) => {
+    onChange({ target: { value: opt.value } });
+    setOpen(false);
+    setQuery('');
+    inputRef.current?.blur();
+  };
+
+  const handleClear = (e) => {
+    e.stopPropagation();
+    onChange({ target: { value: '' } });
+    setQuery('');
+    setOpen(true);
+    inputRef.current?.focus();
+  };
+
+  const handleKeyDown = (e) => {
+    if (disabled) return;
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      if (!open) setOpen(true);
+      else setHighlightIdx((idx) => Math.min(filtered.length - 1, idx + 1));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setHighlightIdx((idx) => Math.max(0, idx - 1));
+    } else if (e.key === 'Enter' && open) {
+      e.preventDefault();
+      if (filtered[highlightIdx]) {
+        handleSelectOption(filtered[highlightIdx]);
+      }
+    } else if (e.key === 'Escape' && open) {
+      e.preventDefault();
+      e.stopPropagation();
+      setOpen(false);
+      setQuery('');
+    }
+  };
+
+  return (
+    <div
+      ref={containerRef}
+      className={`epm2-combo ${open ? 'is-open' : ''} ${disabled ? 'is-disabled' : ''}`}
+    >
+      <div
+        className="epm2-combo-control"
+        onClick={() => {
+          if (disabled) return;
+          setOpen(true);
+          inputRef.current?.focus();
+        }}
+      >
+        <input
+          ref={inputRef}
+          id={id}
+          type="text"
+          className="epm2-combo-input"
+          value={open ? query : (selectedOption ? selectedOption.label : '')}
+          placeholder={open ? 'Type to search...' : placeholder}
+          disabled={disabled}
+          autoComplete="off"
+          onFocus={() => {
+            if (!disabled) {
+              setOpen(true);
+              setQuery('');
+            }
+          }}
+          onChange={(e) => {
+            setQuery(e.target.value);
+            if (!open) setOpen(true);
+          }}
+          onKeyDown={handleKeyDown}
+        />
+
+        {!disabled && (value || query) && (
+          <button
+            type="button"
+            className="epm2-combo-clear"
+            onClick={handleClear}
+            tabIndex={-1}
+            aria-label="Clear selection"
+          >
+            <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>close</span>
+          </button>
+        )}
+
+        <span className="material-symbols-outlined epm2-combo-chev">expand_more</span>
+      </div>
+
+      {open && !disabled && (
+        <div className="epm2-combo-menu" role="listbox">
+          {filtered.length === 0 ? (
+            <div className="epm2-combo-empty">{emptyMessage}</div>
+          ) : (
+            filtered.map((opt, idx) => {
+              const isSelected = opt.value === value;
+              const isHighlighted = idx === highlightIdx;
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  role="option"
+                  aria-selected={isSelected}
+                  className={`epm2-combo-opt ${isSelected ? 'is-selected' : ''} ${isHighlighted ? 'is-highlighted' : ''}`}
+                  onMouseEnter={() => setHighlightIdx(idx)}
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    handleSelectOption(opt);
+                  }}
+                >
+                  <span className="epm2-combo-opt-label">{opt.label}</span>
+                  {isSelected && (
+                    <span className="material-symbols-outlined epm2-combo-check">check</span>
+                  )}
+                </button>
+              );
+            })
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function EditProfileModal({ currentUser, onClose, onProfileUpdated, theme, setTheme }) {
   const { showSuccess, showError, showWarning } = useToast();
   const fileInputRef = useRef(null);
@@ -153,7 +399,7 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
   const [bannerUrl, setBannerUrl] = useState(currentUser?.banner_url || initialPrefs.banner_url || '');
   const [originalImageSrc, setOriginalImageSrc] = useState(currentUser?.avatar_url || '');
   const [originalBannerSrc, setOriginalBannerSrc] = useState(currentUser?.banner_url || initialPrefs.banner_url || '');
-  const [phone, setPhone] = useState(currentUser?.phone || '');
+  const [phone, setPhone] = useState(() => formatPhMobileDisplay(currentUser?.phone || ''));
   const [location, setLocation] = useState(currentUser?.location || '');
 
   const verifiedDateStr = currentUser?.verified_date
@@ -865,6 +1111,19 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
         setDisplayNameError(clientErr);
         return;
       }
+      const donorPhoneCheck = validatePhMobile(phone, { required: false });
+      if (!donorPhoneCheck.valid) {
+        setActiveTab('contact');
+        showError(donorPhoneCheck.message, 'Invalid Contact Number');
+        return;
+      }
+    } else {
+      const ngoPhoneCheck = validatePhMobile(phone, { required: true });
+      if (!ngoPhoneCheck.valid) {
+        setActiveTab('org_contact');
+        showError(ngoPhoneCheck.message, 'Valid Mobile Number Required');
+        return;
+      }
     }
 
     setSaveState('saving');
@@ -1375,41 +1634,71 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
                 {/* ══════════════════════════════════════════════════
                   DONOR: CONTACT & LOCATION TAB (CLEAN VERCEL REWORK)
                  ══════════════════════════════════════════════════ */}
-                {!isOrg && !isAdmin && activeTab === 'contact' && (
+                {!isOrg && !isAdmin && activeTab === 'contact' && (() => {
+                  const phoneCheck = validatePhMobile(phone, { required: false });
+                  return (
                   <div className="epm2-pane" key="epm2-contact">
 
-                    {/* Section 1: Mobile Contact Number */}
+                    {/* Section 1: Mobile Contact Number (Strict 0000 000 0000 + Real NTC Carrier Verification) */}
                     <div className="epm2-section">
                       <div className="epm2-field-head">
                         <div>
                           <label htmlFor="epm2-donor-phone" className="epm2-field-title">Mobile Number</label>
-                          <p className="epm2-field-sub">Used for regional dispatch alerts and donation verification updates.</p>
+                          <p className="epm2-field-sub">Optional for donors. Validated against Philippine mobile networks (09XX XXX XXXX).</p>
                         </div>
+                        {phoneCheck.state === 'valid' && (
+                          <span className="epm2-status-pill">
+                            <span className="epm2-dot" />
+                            <span>{phoneCheck.carrier}</span>
+                          </span>
+                        )}
+                        {(phoneCheck.state === 'invalid' || phoneCheck.state === 'incomplete') && (
+                          <span className="epm2-status-pill is-warn">
+                            <span className="epm2-dot is-warn" />
+                            <span>{phoneCheck.state === 'incomplete' ? 'Incomplete' : 'Unrecognized prefix'}</span>
+                          </span>
+                        )}
                       </div>
 
-                      <div className="epm2-phone-wrap">
-                        <span className="epm2-phone-prefix">PH +63</span>
+                      <div className={`epm2-phone-wrap ${phoneCheck.state === 'invalid' ? 'is-error' : ''}`}>
+                        <span className="epm2-phone-prefix">PH</span>
                         <input
                           id="epm2-donor-phone"
                           type="tel"
-                          className="epm2-phone-input"
-                          value={phone ? phone.replace(/^\+63\s*/, '').replace(/^0+/, '') : ''}
-                          onChange={e => {
-                            const raw = e.target.value.replace(/[^0-9]/g, '');
-                            const cleaned = raw.replace(/^0+/, '');
-                            setPhone(cleaned ? `+63 ${cleaned}` : '');
-                          }}
-                          placeholder="912 345 6789"
+                          inputMode="numeric"
+                          maxLength={13}
+                          className="epm2-phone-input epm2-mono"
+                          value={formatPhMobileDisplay(phone)}
+                          onChange={e => setPhone(formatPhMobileDisplay(e.target.value))}
+                          onBlur={() => setPhone(prev => formatPhMobileDisplay(prev))}
+                          placeholder="0917 123 4567"
                         />
+                        {phone && (
+                          <button
+                            type="button"
+                            className="epm2-combo-clear"
+                            style={{ marginRight: '8px' }}
+                            onClick={() => setPhone('')}
+                            aria-label="Clear mobile number"
+                          >
+                            <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>close</span>
+                          </button>
+                        )}
                       </div>
+
+                      {phoneCheck.message && (
+                        <p className={phoneCheck.valid ? 'epm2-note-text' : 'epm2-error-text'}>
+                          {phoneCheck.message}
+                        </p>
+                      )}
                     </div>
 
-                    {/* Section 2: Registered Philippine Location (PSGC) */}
+                    {/* Section 2: Registered Philippine Location (Searchable PSGC Comboboxes) */}
                     <div className="epm2-section">
                       <div className="epm2-field-head">
                         <div>
                           <span className="epm2-field-title">Registered Location</span>
-                          <p className="epm2-field-sub">Philippine Standard Geographic Code (PSGC) for localized disaster matching.</p>
+                          <p className="epm2-field-sub">Type or select your Region, Province, City, and Barangay.</p>
                         </div>
                         {(regionName || provinceName || cityName || barangayName) && (
                           <span className="epm2-status-pill" title="Selected location">
@@ -1424,105 +1713,49 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
                       <div className="epm2-grid-2">
                         <div className="epm2-field">
                           <label htmlFor="epm2-region" className="epm2-label-sm">Region</label>
-                          <div className="epm2-select-wrap">
-                            <select
-                              id="epm2-region"
-                              className="epm2-select"
-                              value={regionCode}
-                              onChange={handleRegionSelect}
-                            >
-                              <option value="">
-                                {regionList.length > 0 ? 'Select region' : 'Loading regions...'}
-                              </option>
-                              {regionList.map((r) => (
-                                <option key={r.region_code} value={r.region_code}>
-                                  {r.region_name}
-                                </option>
-                              ))}
-                            </select>
-                            <span className="material-symbols-outlined epm2-select-chev">expand_more</span>
-                          </div>
+                          <SearchableLocationSelect
+                            id="epm2-region"
+                            value={regionCode}
+                            options={regionList.map((r) => ({ value: r.region_code, label: r.region_name }))}
+                            onChange={handleRegionSelect}
+                            placeholder={regionList.length > 0 ? 'Search or select region...' : 'Loading regions...'}
+                          />
                         </div>
 
                         <div className="epm2-field">
                           <label htmlFor="epm2-province" className="epm2-label-sm">Province</label>
-                          <div className="epm2-select-wrap">
-                            <select
-                              id="epm2-province"
-                              className="epm2-select"
-                              value={provinceCode}
-                              onChange={handleProvinceSelect}
-                              disabled={!regionCode || provinceList.length === 0}
-                            >
-                              <option value="">
-                                {!regionCode
-                                  ? 'Select region first'
-                                  : provinceList.length > 0
-                                    ? 'Select province'
-                                    : 'No provinces available'}
-                              </option>
-                              {provinceList.map((p) => (
-                                <option key={p.province_code} value={p.province_code}>
-                                  {p.province_name}
-                                </option>
-                              ))}
-                            </select>
-                            <span className="material-symbols-outlined epm2-select-chev">expand_more</span>
-                          </div>
+                          <SearchableLocationSelect
+                            id="epm2-province"
+                            value={provinceCode}
+                            options={provinceList.map((p) => ({ value: p.province_code, label: p.province_name }))}
+                            onChange={handleProvinceSelect}
+                            disabled={!regionCode || provinceList.length === 0}
+                            placeholder={!regionCode ? 'Select region first' : 'Search or select province...'}
+                          />
                         </div>
 
                         <div className="epm2-field">
                           <label htmlFor="epm2-city" className="epm2-label-sm">Municipality / City</label>
-                          <div className="epm2-select-wrap">
-                            <select
-                              id="epm2-city"
-                              className="epm2-select"
-                              value={cityCode}
-                              onChange={handleCitySelect}
-                              disabled={!provinceCode || cityList.length === 0}
-                            >
-                              <option value="">
-                                {!provinceCode
-                                  ? 'Select province first'
-                                  : cityList.length > 0
-                                    ? 'Select municipality / city'
-                                    : 'No cities available'}
-                              </option>
-                              {cityList.map((c) => (
-                                <option key={c.city_code} value={c.city_code}>
-                                  {c.city_name}
-                                </option>
-                              ))}
-                            </select>
-                            <span className="material-symbols-outlined epm2-select-chev">expand_more</span>
-                          </div>
+                          <SearchableLocationSelect
+                            id="epm2-city"
+                            value={cityCode}
+                            options={cityList.map((c) => ({ value: c.city_code, label: c.city_name }))}
+                            onChange={handleCitySelect}
+                            disabled={!provinceCode || cityList.length === 0}
+                            placeholder={!provinceCode ? 'Select province first' : 'Search or select city...'}
+                          />
                         </div>
 
                         <div className="epm2-field">
                           <label htmlFor="epm2-brgy" className="epm2-label-sm">Barangay</label>
-                          <div className="epm2-select-wrap">
-                            <select
-                              id="epm2-brgy"
-                              className="epm2-select"
-                              value={barangayCode}
-                              onChange={handleBarangaySelect}
-                              disabled={!cityCode || barangayList.length === 0}
-                            >
-                              <option value="">
-                                {!cityCode
-                                  ? 'Select city first'
-                                  : barangayList.length > 0
-                                    ? 'Select barangay'
-                                    : 'No barangays available'}
-                              </option>
-                              {barangayList.map((b) => (
-                                <option key={b.brgy_code} value={b.brgy_code}>
-                                  {b.brgy_name}
-                                </option>
-                              ))}
-                            </select>
-                            <span className="material-symbols-outlined epm2-select-chev">expand_more</span>
-                          </div>
+                          <SearchableLocationSelect
+                            id="epm2-brgy"
+                            value={barangayCode}
+                            options={barangayList.map((b) => ({ value: b.brgy_code, label: b.brgy_name }))}
+                            onChange={handleBarangaySelect}
+                            disabled={!cityCode || barangayList.length === 0}
+                            placeholder={!cityCode ? 'Select city first' : 'Search or select barangay...'}
+                          />
                         </div>
                       </div>
                     </div>
@@ -1547,7 +1780,8 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
                     </div>
 
                   </div>
-                )}
+                  );
+                })()}
 
                 {/* ══════════════════════════════════════════════════
                   DONOR: ADDITIONAL INFO TAB (CLEAN VERCEL REWORK)
@@ -2157,181 +2391,159 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
                 {/* ══════════════════════════════════════════════════
                   ORGANIZATION TABS: HOTLINES & REGIONAL BASE
                  ══════════════════════════════════════════════════ */}
-                {isOrg && activeTab === 'org_contact' && (
-                  <div className="bbdrts-studio-pane fade-in">
+                {isOrg && activeTab === 'org_contact' && (() => {
+                  const ngoPhoneCheck = validatePhMobile(phone, { required: true });
+                  return (
+                  <div className="epm2-pane" key="epm2-org-contact">
 
-                    {/* Emergency Dispatch & Hotlines */}
-                    <div className="bbdrts-studio-card">
-                      <div className="bbdrts-studio-card-header">
-                        <div className="bbdrts-studio-card-title-wrap">
-                          <span className="material-symbols-outlined" style={{ color: 'var(--accent, #22c55e)' }}>support_agent</span>
-                          <div>
-                            <h5>Emergency Operations & Hotlines</h5>
-                            <span>Direct dispatch numbers for urgent disaster response coordination.</span>
-                          </div>
+                    {/* Section 1: Emergency Operations & Mandatory Verified PH Mobile Dispatch */}
+                    <div className="epm2-section">
+                      <div className="epm2-field-head">
+                        <div>
+                          <span className="epm2-field-title">Emergency Dispatch &amp; Hotlines</span>
+                          <p className="epm2-field-sub">Verified Philippine mobile number is required for NGO relief coordination.</p>
                         </div>
+                        {ngoPhoneCheck.state === 'valid' ? (
+                          <span className="epm2-status-pill">
+                            <span className="epm2-dot" />
+                            <span>{ngoPhoneCheck.carrier}</span>
+                          </span>
+                        ) : (
+                          <span className="epm2-status-pill is-warn">
+                            <span className="epm2-dot is-warn" />
+                            <span>Required</span>
+                          </span>
+                        )}
                       </div>
 
-                      <div className="bbdrts-studio-grid-2">
-                        <div className="bbdrts-studio-field-box">
-                          <label className="bbdrts-studio-label">24/7 Disaster Operations Hotline</label>
+                      <div className="epm2-grid-2">
+                        <div className="epm2-field">
+                          <label htmlFor="epm2-ngo-hotline" className="epm2-label-sm">24/7 Operations Hotline</label>
                           <input
+                            id="epm2-ngo-hotline"
                             type="text"
-                            className="bbdrts-studio-input"
+                            className="epm2-input"
                             value={emergencyHotline}
                             onChange={e => setEmergencyHotline(e.target.value)}
                             placeholder="e.g. (053) 570-9111 / 143"
                           />
                         </div>
 
-                        {/* Mobile Number */}
-                        <div className="bbdrts-studio-field-box">
-                          <label className="bbdrts-studio-label">Primary Mobile Dispatch</label>
-                          <input
-                            type="tel"
-                            className="bbdrts-studio-input"
-                            value={phone}
-                            onChange={e => setPhone(e.target.value)}
-                            placeholder="e.g. +63 917 888 9999"
+                        <div className="epm2-field">
+                          <label htmlFor="epm2-ngo-phone" className="epm2-label-sm">Primary Mobile Dispatch *</label>
+                          <div className={`epm2-phone-wrap ${!ngoPhoneCheck.valid && phone ? 'is-error' : ''}`}>
+                            <span className="epm2-phone-prefix">PH</span>
+                            <input
+                              id="epm2-ngo-phone"
+                              type="tel"
+                              inputMode="numeric"
+                              maxLength={13}
+                              className="epm2-phone-input epm2-mono"
+                              value={formatPhMobileDisplay(phone)}
+                              onChange={e => setPhone(formatPhMobileDisplay(e.target.value))}
+                              onBlur={() => setPhone(prev => formatPhMobileDisplay(prev))}
+                              placeholder="0917 888 9999"
+                              required
+                            />
+                          </div>
+                          {ngoPhoneCheck.message && (
+                            <p className={ngoPhoneCheck.valid ? 'epm2-note-text' : 'epm2-error-text'}>
+                              {ngoPhoneCheck.message}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Section 2: Headquarters / Regional Base (Searchable PSGC Comboboxes) */}
+                    <div className="epm2-section">
+                      <div className="epm2-field-head">
+                        <div>
+                          <span className="epm2-field-title">Headquarters Location (PSGC)</span>
+                          <p className="epm2-field-sub">Type or select your Region, Province, City, and Barangay.</p>
+                        </div>
+                        {(barangayName || cityName || provinceName || regionName) && (
+                          <span className="epm2-status-pill">
+                            <span className="epm2-dot" />
+                            <span>
+                              {[barangayName ? `Brgy. ${barangayName}` : '', cityName, provinceName].filter(Boolean).join(', ') || regionName}
+                            </span>
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="epm2-grid-2">
+                        <div className="epm2-field">
+                          <label htmlFor="epm2-ngo-region" className="epm2-label-sm">Region</label>
+                          <SearchableLocationSelect
+                            id="epm2-ngo-region"
+                            value={regionCode}
+                            options={regionList.map((r) => ({ value: r.region_code, label: r.region_name }))}
+                            onChange={handleRegionSelect}
+                            placeholder={regionList.length > 0 ? 'Search or select region...' : 'Loading regions...'}
+                          />
+                        </div>
+
+                        <div className="epm2-field">
+                          <label htmlFor="epm2-ngo-province" className="epm2-label-sm">Province / District</label>
+                          <SearchableLocationSelect
+                            id="epm2-ngo-province"
+                            value={provinceCode}
+                            options={provinceList.map((p) => ({ value: p.province_code, label: p.province_name }))}
+                            onChange={handleProvinceSelect}
+                            disabled={!regionCode || provinceList.length === 0}
+                            placeholder={!regionCode ? 'Select region first' : 'Search or select province...'}
+                          />
+                        </div>
+
+                        <div className="epm2-field">
+                          <label htmlFor="epm2-ngo-city" className="epm2-label-sm">Municipality / City</label>
+                          <SearchableLocationSelect
+                            id="epm2-ngo-city"
+                            value={cityCode}
+                            options={cityList.map((c) => ({ value: c.city_code, label: c.city_name }))}
+                            onChange={handleCitySelect}
+                            disabled={!provinceCode || cityList.length === 0}
+                            placeholder={!provinceCode ? 'Select province first' : 'Search or select city...'}
+                          />
+                        </div>
+
+                        <div className="epm2-field">
+                          <label htmlFor="epm2-ngo-brgy" className="epm2-label-sm">Barangay</label>
+                          <SearchableLocationSelect
+                            id="epm2-ngo-brgy"
+                            value={barangayCode}
+                            options={barangayList.map((b) => ({ value: b.brgy_code, label: b.brgy_name }))}
+                            onChange={handleBarangaySelect}
+                            disabled={!cityCode || barangayList.length === 0}
+                            placeholder={!cityCode ? 'Select city first' : 'Search or select barangay...'}
                           />
                         </div>
                       </div>
                     </div>
 
-                    {/* 4-Tier Cascading PSGC Location Selector */}
-                    <div className="bbdrts-studio-card" style={{ marginTop: '14px' }}>
-                      <div className="bbdrts-studio-card-header">
-                        <div className="bbdrts-studio-card-title-wrap">
-                          <span className="material-symbols-outlined" style={{ color: 'var(--accent, #22c55e)' }}>location_on</span>
-                          <div>
-                            <h5>Headquarters / Regional Base (PSGC)</h5>
-                            <span>Official Philippine Standard Geographic Code location for emergency dispatch.</span>
-                          </div>
+                    {/* Section 3: Disaster Broadcast SMS Alerts */}
+                    <div className="epm2-section">
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={notifSmsAlerts}
+                        className="epm2-switch-row"
+                        onClick={() => setNotifSmsAlerts(prev => !prev)}
+                      >
+                        <div>
+                          <span className="epm2-field-title">Disaster Dispatch &amp; Emergency SMS Alerts</span>
+                          <p className="epm2-field-sub">Receive immediate SMS alerts when emergency relief campaigns are assigned to your base.</p>
                         </div>
-                      </div>
-
-                      <div className="bbdrts-studio-grid-2">
-                        <div className="bbdrts-studio-field-box">
-                          <label className="bbdrts-studio-label">1. Region</label>
-                          <select
-                            className="bbdrts-studio-select"
-                            value={regionCode}
-                            onChange={handleRegionSelect}
-                          >
-                            <option value="">
-                              {regionList.length > 0 ? `-- Select Administrative Region (${regionList.length} Total) --` : 'Loading Philippine Regions...'}
-                            </option>
-                            {regionList.map((r) => (
-                              <option key={r.region_code} value={r.region_code}>
-                                {r.region_name}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-
-                        <div className="bbdrts-studio-field-box">
-                          <label className="bbdrts-studio-label">2. Province / District</label>
-                          <select
-                            className="bbdrts-studio-select"
-                            value={provinceCode}
-                            onChange={handleProvinceSelect}
-                            disabled={!regionCode || provinceList.length === 0}
-                          >
-                            <option value="">
-                              {regionCode
-                                ? (provinceList.length > 0
-                                  ? `-- Select Province (${provinceList.length}) --`
-                                  : 'No Provinces in Region / Independent District')
-                                : '-- Select Region First --'}
-                            </option>
-                            {provinceList.map((p) => (
-                              <option key={p.province_code} value={p.province_code}>
-                                {p.province_name}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-
-                        <div className="bbdrts-studio-field-box">
-                          <label className="bbdrts-studio-label">3. City / Municipality</label>
-                          <select
-                            className="bbdrts-studio-select"
-                            value={cityCode}
-                            onChange={handleCitySelect}
-                            disabled={!provinceCode || cityList.length === 0}
-                          >
-                            <option value="">
-                              {provinceCode
-                                ? (cityList.length > 0
-                                  ? `-- Select City / Municipality (${cityList.length}) --`
-                                  : 'No Cities Found')
-                                : '-- Select Province First --'}
-                            </option>
-                            {cityList.map((c) => (
-                              <option key={c.city_code} value={c.city_code}>
-                                {c.city_name}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-
-                        <div className="bbdrts-studio-field-box">
-                          <label className="bbdrts-studio-label">4. Barangay</label>
-                          <select
-                            className="bbdrts-studio-select"
-                            value={barangayCode}
-                            onChange={handleBarangaySelect}
-                            disabled={!cityCode || barangayList.length === 0}
-                          >
-                            <option value="">
-                              {cityCode
-                                ? (barangayList.length > 0
-                                  ? `-- Select Barangay (${barangayList.length}) --`
-                                  : 'No Barangays Found')
-                                : '-- Select City / Municipality First --'}
-                            </option>
-                            {barangayList.map((b) => (
-                              <option key={b.brgy_code} value={b.brgy_code}>
-                                {b.brgy_name}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                      </div>
-
-                      {(barangayName || cityName || provinceName || regionName) && (
-                        <div className="bbdrts-psgc-summary-pill" style={{ marginTop: '12px' }}>
-                          <span className="material-symbols-outlined" style={{ fontSize: '15px', color: 'var(--accent, #22c55e)' }}>pin_drop</span>
-                          <span>
-                            <strong>Operational HQ:</strong> {[
-                              barangayName ? `Brgy. ${barangayName}` : '',
-                              cityName,
-                              provinceName,
-                              regionName
-                            ].filter(Boolean).join(', ')}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Disaster Broadcast Notification Alerts */}
-                    <div className="bbdrts-studio-card" style={{ marginTop: '14px' }}>
-                      <label className="bbdrts-toggle-row">
-                        <div className="bbdrts-toggle-meta">
-                          <strong>Disaster Dispatch & Emergency SMS Alerts</strong>
-                          <span>Receive immediate SMS alerts when emergency relief campaigns are assigned to your base.</span>
-                        </div>
-                        <input
-                          type="checkbox"
-                          className="bbdrts-switch-checkbox"
-                          checked={notifSmsAlerts}
-                          onChange={e => setNotifSmsAlerts(e.target.checked)}
-                        />
-                      </label>
+                        <span className={`epm2-switch ${notifSmsAlerts ? 'is-on' : ''}`}>
+                          <span className="epm2-switch-thumb" />
+                        </span>
+                      </button>
                     </div>
 
                   </div>
-                )}
+                  );
+                })()}
 
                 {isOrg && activeTab === 'org_additional' && (
                   <div className="bbdrts-studio-pane fade-in">
@@ -3148,152 +3360,147 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
         <div className="bbdrts-cropper-overlay" data-theme={theme || document.documentElement.getAttribute('data-theme') || 'dark'} onClick={() => setCropper(prev => ({ ...prev, active: false }))}>
           <div className={`bbdrts-cropper-modal ${isBannerMode ? 'banner-mode' : ''}`} onClick={e => e.stopPropagation()}>
 
-            <div className="bbdrts-cropper-header">
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span className="material-symbols-outlined" style={{ color: 'var(--accent, #22c55e)' }}>
-                  {isBannerMode ? 'aspect_ratio' : 'tune'}
-                </span>
-                <strong>{isBannerMode ? 'Adjust Cover Banner (3:1 Landscape)' : 'Adjust Image (1:1 Ratio)'}</strong>
+            <div className="epm2-crop-header">
+              <div className="epm2-crop-title-row">
+                <h4>{isBannerMode ? 'Adjust Cover Banner' : 'Adjust Photo'}</h4>
+                <span className="epm2-kbd">{isBannerMode ? '3:1' : '1:1'}</span>
               </div>
               <button
                 type="button"
-                className="bbdrts-edit-profile-close-btn"
+                className="epm2-close-btn"
                 onClick={() => setCropper(prev => ({ ...prev, active: false }))}
+                aria-label="Close adjuster"
               >
-                <span className="material-symbols-outlined">close</span>
+                <span className="material-symbols-outlined" style={{ fontSize: '17px' }}>close</span>
               </button>
             </div>
 
-            <div className="bbdrts-cropper-body">
-              <p className="bbdrts-cropper-instruction">
+            <div className="epm2-crop-body">
+              <p className="epm2-crop-hint">
                 {isBannerMode
-                  ? 'Drag anywhere to position cover banner • Use slider or scroll wheel to zoom'
-                  : 'Drag anywhere to pan photo • Use slider or scroll wheel to zoom'}
+                  ? 'Drag to reposition banner · Scroll or use slider to zoom'
+                  : 'Drag to reposition photo · Scroll or use slider to zoom'}
               </p>
 
-              {/* Dynamic Viewport Box (1:1 Square or 3:1 Banner Landscape) */}
-              <div
-                className={`bbdrts-cropper-viewport ${isBannerMode ? 'banner-viewport' : ''}`}
-                style={{
-                  width: `${viewportW}px`,
-                  height: `${viewportH}px`,
-                  borderRadius: isBannerMode ? '12px' : '16px'
-                }}
-                onPointerDown={handlePointerDown}
-                onPointerMove={handlePointerMove}
-                onPointerUp={handlePointerUp}
-                onPointerCancel={handlePointerUp}
-                onWheel={handleWheelZoom}
-              >
-                {/* Background Image undergoing Pan, Zoom & Rotation with explicit base dimension */}
-                <img
-                  ref={cropperImgRef}
-                  src={cropper.imageSrc}
-                  alt="Adjust Source"
-                  className="bbdrts-cropper-img"
+              {/* Recessed Obsidian Framing Stage */}
+              <div className="epm2-crop-stage">
+                <div
+                  className={`bbdrts-cropper-viewport epm2-crop-viewport ${isBannerMode ? 'banner-viewport' : ''}`}
                   style={{
-                    width: `${baseW}px`,
-                    height: `${baseH}px`,
-                    maxWidth: 'none',
-                    maxHeight: 'none',
-                    transform: `translate(${cropper.panX}px, ${cropper.panY}px) rotate(${cropper.rotation}deg) scale(${cropper.zoom})`,
-                    transformOrigin: 'center center',
-                    pointerEvents: 'none',
-                    userSelect: 'none'
+                    width: `${viewportW}px`,
+                    height: `${viewportH}px`,
+                    borderRadius: isBannerMode ? '10px' : '12px'
                   }}
-                  draggable={false}
-                />
+                  onPointerDown={handlePointerDown}
+                  onPointerMove={handlePointerMove}
+                  onPointerUp={handlePointerUp}
+                  onPointerCancel={handlePointerUp}
+                  onWheel={handleWheelZoom}
+                >
+                  <img
+                    ref={cropperImgRef}
+                    src={cropper.imageSrc}
+                    alt="Adjust Source"
+                    className="bbdrts-cropper-img"
+                    style={{
+                      width: `${baseW}px`,
+                      height: `${baseH}px`,
+                      maxWidth: 'none',
+                      maxHeight: 'none',
+                      transform: `translate(${cropper.panX}px, ${cropper.panY}px) rotate(${cropper.rotation}deg) scale(${cropper.zoom})`,
+                      transformOrigin: 'center center',
+                      pointerEvents: 'none',
+                      userSelect: 'none'
+                    }}
+                    draggable={false}
+                  />
 
-                {/* 3x3 Rule-of-Thirds Framing Grid Overlay */}
-                <div className="bbdrts-cropper-grid-overlay">
-                  <div className="bbdrts-grid-line-v v1" />
-                  <div className="bbdrts-grid-line-v v2" />
-                  <div className="bbdrts-grid-line-h h1" />
-                  <div className="bbdrts-grid-line-h h2" />
+                  <div className="bbdrts-cropper-grid-overlay epm2-crop-grid">
+                    <div className="bbdrts-grid-line-v v1" />
+                    <div className="bbdrts-grid-line-v v2" />
+                    <div className="bbdrts-grid-line-h h1" />
+                    <div className="bbdrts-grid-line-h h2" />
+                  </div>
+
+                  {!isBannerMode && <div className="bbdrts-cropper-circular-mask epm2-crop-mask" />}
                 </div>
-
-                {/* Circular Mask Overlay (Only in 1:1 Avatar Mode) */}
-                {!isBannerMode && <div className="bbdrts-cropper-circular-mask" />}
               </div>
 
-              {/* Adjuster Action Tools (Rotate, Reset) */}
-              <div className="bbdrts-adjuster-tools-bar">
-                <button
-                  type="button"
-                  className="bbdrts-adjuster-action-btn"
-                  onClick={handleRotate}
-                  title="Rotate 90°"
-                >
-                  <span className="material-symbols-outlined">rotate_right</span>
-                  <span>Rotate</span>
-                </button>
+              {/* Unified Zoom Slider + Rotate / Reset Controls */}
+              <div className="epm2-crop-controls">
+                <div className="epm2-crop-zoom-row">
+                  <button
+                    type="button"
+                    className="epm2-crop-icon-btn"
+                    onClick={() => handleZoomChange(cropper.zoom - 0.1)}
+                    title="Zoom out"
+                  >
+                    <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>remove</span>
+                  </button>
 
-                <button
-                  type="button"
-                  className="bbdrts-adjuster-action-btn"
-                  onClick={handleResetAdjuster}
-                  title="Reset Zoom & Alignment"
-                >
-                  <span className="material-symbols-outlined">restart_alt</span>
-                  <span>Reset</span>
-                </button>
-              </div>
-
-              {/* Centered Zoom Bar: [Zoom Out] ─── Slider ─── [Zoom In] 100% */}
-              <div className="bbdrts-cropper-zoom-bar">
-                <button
-                  type="button"
-                  className="bbdrts-cropper-zoom-btn"
-                  onClick={() => handleZoomChange(cropper.zoom - 0.1)}
-                  title="Zoom Out"
-                >
-                  <span className="material-symbols-outlined">zoom_out</span>
-                </button>
-
-                <div className="bbdrts-zoom-slider-container">
                   <input
                     type="range"
-                    className="bbdrts-cropper-zoom-slider"
+                    className="epm2-crop-slider"
                     min="1"
                     max="3.5"
                     step="0.02"
                     value={cropper.zoom}
                     onChange={e => handleZoomChange(parseFloat(e.target.value))}
+                    aria-label="Zoom level"
                   />
+
+                  <button
+                    type="button"
+                    className="epm2-crop-icon-btn"
+                    onClick={() => handleZoomChange(cropper.zoom + 0.1)}
+                    title="Zoom in"
+                  >
+                    <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>add</span>
+                  </button>
+
+                  <span className="epm2-crop-pct">{(cropper.zoom * 100).toFixed(0)}%</span>
                 </div>
 
-                <button
-                  type="button"
-                  className="bbdrts-cropper-zoom-btn"
-                  onClick={() => handleZoomChange(cropper.zoom + 0.1)}
-                  title="Zoom In"
-                >
-                  <span className="material-symbols-outlined">zoom_in</span>
-                </button>
+                <div className="epm2-crop-tools">
+                  <button
+                    type="button"
+                    className="epm2-btn epm2-btn--outline"
+                    onClick={handleRotate}
+                    title="Rotate 90° clockwise"
+                  >
+                    <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>rotate_right</span>
+                    <span>Rotate 90°</span>
+                  </button>
 
-                <span className="bbdrts-cropper-zoom-label">{(cropper.zoom * 100).toFixed(0)}%</span>
+                  <button
+                    type="button"
+                    className="epm2-btn epm2-btn--outline"
+                    onClick={handleResetAdjuster}
+                    title="Reset framing"
+                  >
+                    <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>restart_alt</span>
+                    <span>Reset</span>
+                  </button>
+                </div>
               </div>
-
             </div>
 
-            <div className="bbdrts-cropper-footer">
+            <div className="epm2-crop-footer">
               <button
                 type="button"
-                className="bbdrts-edit-btn-cancel"
+                className="epm2-btn epm2-btn--outline"
                 onClick={() => setCropper(prev => ({ ...prev, active: false }))}
               >
                 Cancel
               </button>
               <button
                 type="button"
-                className="bbdrts-edit-btn-save"
+                className="epm2-btn epm2-btn--solid"
                 onClick={handleApplyCrop}
               >
-                <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>check</span>
-                <span>{isBannerMode ? 'Set Cover Banner' : 'Set Image'}</span>
+                <span>{isBannerMode ? 'Apply Cover Banner' : 'Apply Photo'}</span>
               </button>
             </div>
-
           </div>
         </div>
       )}
