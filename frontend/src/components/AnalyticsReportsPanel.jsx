@@ -195,20 +195,21 @@ export default function AnalyticsReportsPanel({ mode = 'admin', onNavigateTab })
 
   return (
     <div className="va-root analytics-panel-root">
-      {/* ── Top Bar: Clean Geist Heading + Single-Row Controls ── */}
-      <header className="va-header">
-        <div className="va-header-title-wrap">
-          <h2 className="va-page-title">
-            {isAdmin ? 'Analytics & Reports' : 'NGO Analytics & Reports'}
+      {/* ── Top Bar: Unified .admin-page-header Matching DonorView & OrganizationView ── */}
+      <header className="admin-page-header va-header">
+        <div className="admin-page-title-wrap">
+          <h2 className="admin-page-title">
+            <span className="material-symbols-outlined icon" style={{ color: 'var(--text-primary)' }}>analytics</span>
+            <span>{isAdmin ? 'Analytics & Reports' : 'Analytics & Reports'}</span>
           </h2>
-          <p className="va-page-sub">
+          <p className="admin-page-sub">
             {isAdmin
               ? 'Contribution velocity, rail share, donor & NGO cohorts, and formatted exports.'
               : `Fundraising velocity, channel share, and exports for ${analytics?.meta?.orgName || 'your organization'}.`}
           </p>
         </div>
 
-        <div className="va-controls analytics-header-controls">
+        <div className="admin-page-header-actions va-controls analytics-header-controls">
           <div className="va-range-group" role="group" aria-label="Time window filter">
             {RANGE_OPTIONS.map((r) => (
               <button

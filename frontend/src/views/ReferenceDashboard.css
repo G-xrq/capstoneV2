@@ -4018,8 +4018,12 @@ textarea.deploy-field-input {
   display: flex;
   flex-direction: column;
   gap: 18px;
-  margin-top: 8px;
+  margin-top: 0;
   font-family: var(--font-sans, -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', Roboto, sans-serif);
+}
+
+.sec-v2-wrap > .admin-page-header {
+  margin-bottom: 0;
 }
 
 /* ── Status Badge ── */

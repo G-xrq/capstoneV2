@@ -2493,7 +2493,7 @@ export default function OrganizationView({
               onClick={() => { setActiveTab('analytics'); setMobileSidebarOpen(false); }}
               title="Fundraising Analytics, Trends & Excel/PDF Reports"
             >
-              <span className="material-symbols-outlined" style={{ color: activeTab === 'analytics' ? '#10b981' : 'inherit' }}>analytics</span>
+              <span className="material-symbols-outlined">analytics</span>
               <span>Analytics &amp; Reports</span>
             </button>
 
@@ -2534,7 +2534,7 @@ export default function OrganizationView({
                 onClick={() => { setActiveTab('radar-heatmap'); setMobileSidebarOpen(false); }}
                 title={wt.reliefRadar}
               >
-                <span className="material-symbols-outlined" style={{ color: activeTab === 'radar-heatmap' ? '#38bdf8' : 'inherit' }}>radar</span>
+                <span className="material-symbols-outlined">radar</span>
                 <span>{wt.reliefRadar}</span>
               </button>
             )}
@@ -2614,12 +2614,12 @@ export default function OrganizationView({
           const heroBtnBd = heroBannerActive ? 'rgba(255,255,255,0.18)' : 'var(--border)';
           const heroDivider = heroBannerActive ? 'rgba(255,255,255,0.1)' : 'var(--border)';
           return (
-            <>
-              {/* Institutional Vercel Page Header */}
+            <div key="tab-org-dashboard" className="donor-tab-transition">
+              {/* Institutional Vercel Page Header (Matches DonorView) */}
               <div className="admin-page-header" id="tour-ngo-dashboard-header">
                 <div className="admin-page-title-wrap">
                   <h2 className="admin-page-title">
-                    <span className="material-symbols-outlined" style={{ fontSize: '24px', color: '#16a34a' }}>space_dashboard</span>
+                    <span className="material-symbols-outlined icon" style={{ color: 'var(--text-primary)' }}>space_dashboard</span>
                     <span>{wt.orgOverviewTitle}</span>
                   </h2>
                   <p className="admin-page-sub">
@@ -2995,17 +2995,17 @@ export default function OrganizationView({
                   )}
                 </div>
               </div>
-            </>
+            </div>
           );
         })()}
 
         {/* ── 2. ALL CAMPAIGNS TAB ── */}
         {activeTab === 'all-campaigns' && (
-          <div style={{ marginTop: '8px' }}>
+          <div key="tab-org-all-campaigns" className="donor-tab-transition">
             <div className="admin-page-header" id="tour-ngo-all-campaigns-header">
               <div className="admin-page-title-wrap">
                 <h2 className="admin-page-title">
-                  <span className="material-symbols-outlined" style={{ fontSize: '24px', color: '#16a34a' }}>public</span>
+                  <span className="material-symbols-outlined icon" style={{ color: 'var(--text-primary)' }}>public</span>
                   <span>All Relief Campaigns</span>
                 </h2>
                 <p className="admin-page-sub">
@@ -3016,18 +3016,12 @@ export default function OrganizationView({
               <div className="admin-page-header-actions">
                 <button
                   type="button"
-                  className="btn btn-ghost btn-sm"
+                  className="dbo-cmd-btn"
                   onClick={fetchCampaigns}
                   disabled={fetchingCampaigns}
                 >
-                  {fetchingCampaigns ? (
-                    <div className="spinner spinner-light" />
-                  ) : (
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                      <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>refresh</span>
-                      <span>Refresh</span>
-                    </span>
-                  )}
+                  <span className={`material-symbols-outlined ${fetchingCampaigns ? 'spinning' : ''}`} style={{ fontSize: '15px' }}>refresh</span>
+                  <span>{fetchingCampaigns ? 'Refreshing...' : 'Refresh'}</span>
                 </button>
               </div>
             </div>
@@ -3450,11 +3444,11 @@ export default function OrganizationView({
 
         {/* ── 3. MY CAMPAIGNS TAB ── */}
         {activeTab === 'my-campaigns' && (
-          <div style={{ marginTop: '8px' }}>
+          <div key="tab-org-my-campaigns" className="donor-tab-transition">
             <div className="admin-page-header" id="tour-ngo-my-campaigns-header">
               <div className="admin-page-title-wrap">
                 <h2 className="admin-page-title">
-                  <span className="material-symbols-outlined" style={{ fontSize: '24px', color: '#16a34a' }}>campaign</span>
+                  <span className="material-symbols-outlined icon" style={{ color: 'var(--text-primary)' }}>campaign</span>
                   <span>My Campaigns</span>
                 </h2>
                 <p className="admin-page-sub">
@@ -3465,18 +3459,12 @@ export default function OrganizationView({
               <div className="admin-page-header-actions">
                 <button
                   type="button"
-                  className="btn btn-ghost btn-sm"
+                  className="dbo-cmd-btn"
                   onClick={fetchCampaigns}
                   disabled={fetchingCampaigns}
                 >
-                  {fetchingCampaigns ? (
-                    <div className="spinner spinner-light" />
-                  ) : (
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                      <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>refresh</span>
-                      <span>Refresh</span>
-                    </span>
-                  )}
+                  <span className={`material-symbols-outlined ${fetchingCampaigns ? 'spinning' : ''}`} style={{ fontSize: '15px' }}>refresh</span>
+                  <span>{fetchingCampaigns ? 'Refreshing...' : 'Refresh'}</span>
                 </button>
               </div>
             </div>
@@ -3921,7 +3909,7 @@ export default function OrganizationView({
 
         {/* ── 4. DEPLOY CAMPAIGN TAB ── */}
         {activeTab === 'create' && (
-          <div style={{ marginTop: '8px' }} id="tour-ngo-create-form">
+          <div key="tab-org-create" className="donor-tab-transition" id="tour-ngo-create-form">
             {/* Institutional Vercel Page Header */}
             <div className="admin-page-header" id="tour-ngo-create-header">
               <div className="admin-page-title-wrap">
@@ -5674,11 +5662,11 @@ export default function OrganizationView({
 
         {/* ── 5. DONATION LEDGER TAB ── */}
         {activeTab === 'ledger' && (
-          <div style={{ marginTop: '8px', paddingBottom: '130px' }}>
+          <div key="tab-org-ledger" className="donor-tab-transition" style={{ paddingBottom: '130px' }}>
             <div className="admin-page-header" id="tour-ngo-ledger-header">
               <div className="admin-page-title-wrap">
                 <h2 className="admin-page-title">
-                  <span className="material-symbols-outlined" style={{ fontSize: '24px', color: '#16a34a' }}>receipt_long</span>
+                  <span className="material-symbols-outlined icon" style={{ color: 'var(--text-primary)' }}>receipt_long</span>
                   <span>Donation Ledger</span>
                 </h2>
                 <p className="admin-page-sub">
@@ -5689,49 +5677,39 @@ export default function OrganizationView({
               <div className="admin-page-header-actions">
                 <button
                   type="button"
-                  className="btn btn-ghost btn-sm"
+                  className="dbo-cmd-btn"
                   onClick={fetchOrgDonations}
                   disabled={loadingOrgDonations}
                   title="Re-query the blockchain and database for latest transactions"
-                  style={{ borderRadius: '8px', padding: '6px 12px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
                 >
-                  {loadingOrgDonations ? (
-                    <div className="spinner spinner-light" />
-                  ) : (
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                      <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>sync</span>
-                      <span>Sync Ledger</span>
-                    </span>
-                  )}
+                  <span className={`material-symbols-outlined ${loadingOrgDonations ? 'spinning' : ''}`} style={{ fontSize: '15px' }}>sync</span>
+                  <span>{loadingOrgDonations ? 'Syncing...' : 'Sync Ledger'}</span>
                 </button>
                 <button
                   type="button"
-                  className="btn btn-outline btn-sm"
+                  className="dbo-cmd-btn"
                   onClick={() => window.print()}
                   title="Print formal audit report"
-                  style={{ borderRadius: '8px', padding: '6px 14px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
                 >
-                  <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>print</span>
+                  <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>print</span>
                   <span>Audit Report</span>
                 </button>
                 <button
                   type="button"
-                  className="btn btn-outline btn-sm"
+                  className="dbo-cmd-btn"
                   onClick={() => setShowDeclareDepositModal(true)}
                   title="Declare a GCash, Maya, or Bank transfer received without a donor receipt upload"
-                  style={{ borderRadius: '8px', padding: '6px 13px', display: 'inline-flex', alignItems: 'center', gap: '6px', borderColor: 'rgba(16, 185, 129, 0.45)', color: '#10b981' }}
                 >
-                  <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>add_card</span>
-                  <span>Log Unclaimed Deposit</span>
+                  <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>add_card</span>
+                  <span>Log Deposit</span>
                 </button>
                 <button
                   type="button"
-                  className="btn btn-primary btn-sm"
+                  className="dbo-cmd-btn dbo-cmd-btn--primary"
                   onClick={handleExportLedgerCsv}
                   title="Export filtered ledger records to a standard CSV spreadsheet"
-                  style={{ borderRadius: '8px', padding: '6px 14px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
                 >
-                  <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>file_download</span>
+                  <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>file_download</span>
                   <span>Export CSV</span>
                 </button>
               </div>
@@ -7078,12 +7056,12 @@ export default function OrganizationView({
                 : 'Submission required';
 
           return (
-            <div className="sec-v2-wrap">
-              {/* ── Page Header ── */}
+            <div key="tab-org-sec-kyc" className="sec-v2-wrap donor-tab-transition">
+              {/* ── Page Header (Matches DonorView) ── */}
               <div className="admin-page-header" id="tour-ngo-sec-header">
                 <div className="admin-page-title-wrap">
                   <h2 className="admin-page-title">
-                    <span className="material-symbols-outlined" style={{ fontSize: '22px', color: isKycApproved ? '#10b981' : 'var(--text-primary)' }}>verified_user</span>
+                    <span className="material-symbols-outlined icon" style={{ color: 'var(--text-primary)' }}>verified_user</span>
                     <span>SEC Accreditation &amp; KYC</span>
                   </h2>
                   <p className="admin-page-sub">
@@ -7094,27 +7072,20 @@ export default function OrganizationView({
                 <div className="admin-page-header-actions">
                   <button
                     type="button"
-                    className="btn btn-ghost btn-sm"
+                    className="dbo-cmd-btn"
                     onClick={fetchKycData}
                     disabled={kycLoading}
                     title="Reload verification status from server"
                   >
-                    {kycLoading ? (
-                      <div className="spinner spinner-light" />
-                    ) : (
-                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
-                        <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>refresh</span>
-                        <span>Refresh</span>
-                      </span>
-                    )}
+                    <span className={`material-symbols-outlined ${kycLoading ? 'spinning' : ''}`} style={{ fontSize: '15px' }}>refresh</span>
+                    <span>{kycLoading ? 'Refreshing...' : 'Refresh'}</span>
                   </button>
 
                   {isKycApproved ? (
                     <button
                       type="button"
-                      className="btn btn-outline btn-sm"
+                      className="dbo-cmd-btn"
                       onClick={() => setShowKycFormOverride(!showKycFormOverride)}
-                      style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
                     >
                       <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>
                         {showKycFormOverride ? 'close' : 'edit'}
@@ -7124,10 +7095,9 @@ export default function OrganizationView({
                   ) : (
                     <button
                       type="button"
-                      className="btn btn-outline btn-sm"
+                      className="dbo-cmd-btn"
                       onClick={handleAutofillDemoSec}
                       title="Fill sample Philippine non-profit credentials for demonstration"
-                      style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
                     >
                       <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>bolt</span>
                       <span>Fill Sample Data</span>
@@ -8000,16 +7970,29 @@ export default function OrganizationView({
 
         {/* ── 5.8. DISASTER RELIEF RADAR HEATMAP TAB (NGO STRATEGIC DISPATCH) ── */}
         {activeTab === 'radar-heatmap' && (
-          <div style={{ marginTop: '8px' }}>
+          <div key="tab-org-radar" className="rr-page donor-tab-transition">
             <div className="admin-page-header" id="tour-ngo-radar-header">
               <div className="admin-page-title-wrap">
                 <h2 className="admin-page-title">
-                  <span className="material-symbols-outlined" style={{ fontSize: '24px', color: '#16a34a' }}>radar</span>
+                  <span className="material-symbols-outlined icon" style={{ color: 'var(--text-primary)' }}>radar</span>
                   <span>{wt.reliefRadar}</span>
                 </h2>
                 <p className="admin-page-sub">
                   {wt.radarSub}
                 </p>
+              </div>
+
+              <div className="admin-page-header-actions">
+                <button
+                  type="button"
+                  className="dbo-cmd-btn"
+                  onClick={fetchCampaigns}
+                  disabled={fetchingCampaigns}
+                  title="Refresh live geospatial telemetry from ledger"
+                >
+                  <span className={`material-symbols-outlined ${fetchingCampaigns ? 'spinning' : ''}`} style={{ fontSize: '15px' }}>refresh</span>
+                  <span>{fetchingCampaigns ? 'Refreshing...' : 'Refresh'}</span>
+                </button>
               </div>
             </div>
 
@@ -8031,7 +8014,7 @@ export default function OrganizationView({
 
         {/* ── 5.9. NGO ANALYTICS & REPORTS TAB ── */}
         {activeTab === 'analytics' && (
-          <div style={{ marginTop: '8px' }}>
+          <div key="tab-org-analytics" className="donor-tab-transition">
             <AnalyticsReportsPanel
               mode="organization"
               onNavigateTab={(tab) => setActiveTab(tab)}
@@ -8041,8 +8024,9 @@ export default function OrganizationView({
 
         {/* ── 6. PROFILE & SETTINGS TAB ── */}
         {activeTab === 'settings' && (
-          <div style={{ marginTop: '8px' }}>
+          <div key="tab-org-settings" className="donor-tab-transition">
             <SettingsPanel
+              pageTitle={wt.profileSettings}
               contract={contract}
               currentUser={currentUser}
               walletAddress={walletAddress}
