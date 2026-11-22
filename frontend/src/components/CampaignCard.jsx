@@ -1216,6 +1216,13 @@ export default function CampaignCard(props) {
   const [instantSimulating, setInstantSimulating] = useState(false);
   const [instantSettlingOnChain, setInstantSettlingOnChain] = useState(false);
   const [instantReceipt, setInstantReceipt] = useState(null);
+  const [qrCopiedKey, setQrCopiedKey] = useState(null);
+  const copyInstantValue = (key, val) => {
+    if (!val) return;
+    try { navigator.clipboard?.writeText(String(val)); } catch (_) {}
+    setQrCopiedKey(key);
+    setTimeout(() => setQrCopiedKey((prev) => (prev === key ? null : prev)), 1600);
+  };
 
   const handleSimulateXenditQr = async () => {
     if (!activeIntent?.intentId) return;
@@ -4582,11 +4589,11 @@ export default function CampaignCard(props) {
               className={`card bounce-in${!isPaymentProcessing && donateStep === 0 ? ' vc-donate-shell' : ''}${!isPaymentProcessing && donateStep === 8 ? ' vc-donate-shell vc-donate-shell--qr' : ''}${isPaymentProcessing ? ' vc-donate-shell vc-donate-shell--processing' : ''}`}
               style={{
                 position: 'relative',
-                width: isPaymentProcessing ? '464px' : ((donateStep === 6 || donateStep === 7) ? '880px' : ((donateStep === 0 || (donateStep === 8 && !instantReceipt && !instantSettlingOnChain)) ? '740px' : '460px')),
+                width: isPaymentProcessing ? '464px' : ((donateStep === 6 || donateStep === 7) ? '880px' : ((donateStep === 0 || (donateStep === 8 && !instantReceipt && !instantSettlingOnChain)) ? '748px' : '464px')),
                 maxWidth: '94vw',
                 maxHeight: '92dvh',
                 overflowY: 'auto',
-                padding: (isPaymentProcessing || (!isPaymentProcessing && donateStep === 0)) ? '0px' : '24px',
+                padding: (isPaymentProcessing || (!isPaymentProcessing && (donateStep === 0 || donateStep === 8))) ? '0px' : '24px',
                 background: isPaymentProcessing ? undefined : 'var(--surface)',
                 border: isPaymentProcessing ? undefined : '1px solid var(--border)',
                 boxShadow: isPaymentProcessing ? undefined : 'var(--shadow-card, 0 25px 50px -12px rgba(0, 0, 0, 0.7))',
@@ -4920,7 +4927,7 @@ export default function CampaignCard(props) {
                                 const cleaned = e.target.value.replace(/[^0-9.]/g, '').replace(/(\..*)\./g, '$1');
                                 setAmount(cleaned);
                               }}
-                              placeholder="500"
+                              placeholder="0"
                               autoComplete="off"
                             />
                             <span className="vc-currency-badge">PHP</span>
@@ -5030,21 +5037,31 @@ export default function CampaignCard(props) {
                           </div>
 
                           <div className="vc-summary-total">
-                            <span className="vc-summary-total-label">Total</span>
+                            <span className="vc-summary-total-label">Total due</span>
                             <span className={`vc-summary-total-val${hasAmount ? '' : ' empty'}`}>
-                              ₱{hasAmount
-                                ? parsedAmount.toLocaleString('en-US', {
+                              {hasAmount ? (
+                                <>
+                                  ₱{parsedAmount.toLocaleString('en-US', {
                                     minimumFractionDigits: parsedAmount % 1 ? 2 : 0,
                                     maximumFractionDigits: 2
-                                  })
-                                : '0.00'}
+                                  })}
+                                  <span className="vc-summary-total-unit">PHP</span>
+                                </>
+                              ) : (
+                                <span className="vc-summary-placeholder">Enter amount</span>
+                              )}
                             </span>
                           </div>
 
                           <div className="vc-summary-note">
-                            {isInstant
-                              ? 'Generates a single-use QR Ph code. Automatically verified via webhook and sealed on Sepolia—no screenshot upload needed.'
-                              : 'Displays the NGO QR code and a unique BB-XXXX tracking note code for fast AI receipt verification.'}
+                            <span className="material-symbols-outlined vc-summary-note-icon">
+                              {isInstant ? 'bolt' : 'document_scanner'}
+                            </span>
+                            <span>
+                              {isInstant
+                                ? 'Generates a single-use QR Ph code. Auto-verified via webhook and sealed on Sepolia — no slip upload needed.'
+                                : 'Shows the NGO QR code with a unique BB-XXXX tracking code for fast AI receipt verification.'}
+                            </span>
                           </div>
                         </div>
 
@@ -5061,10 +5078,14 @@ export default function CampaignCard(props) {
                                 <span>Preparing QR Ph...</span>
                               </>
                             ) : (
-                              <span>
-                                Continue with {channelLabel}
-                                {hasAmount ? ` · ₱${parsedAmount.toLocaleString('en-US', { maximumFractionDigits: 2 })}` : ''}
-                              </span>
+                              <>
+                                <span>
+                                  {hasAmount
+                                    ? `Donate ₱${parsedAmount.toLocaleString('en-US', { maximumFractionDigits: 2 })} via ${channelLabel}`
+                                    : `Continue with ${channelLabel}`}
+                                </span>
+                                <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>arrow_forward</span>
+                              </>
                             )}
                           </button>
                           <div className="vc-donate-micro">
@@ -6035,276 +6056,304 @@ export default function CampaignCard(props) {
 
               )}
 
-              {/* ── STEP 8: Instant Auto-Verified Gateway Checkout (Strict Vercel Geist UI) ── */}
-              {!isPaymentProcessing && donateStep === 8 && activeIntent && (
-                <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '16px', fontFamily: 'var(--font-sans, inherit)' }}>
-                  <style>{`
-                    @keyframes vaReveal {
-                      0% { opacity: 0; transform: translateY(6px); }
-                      100% { opacity: 1; transform: translateY(0); }
-                    }
-                    @keyframes vaCheckDraw {
-                      0% { stroke-dashoffset: 36; }
-                      100% { stroke-dashoffset: 0; }
-                    }
-                    @keyframes vaSpin {
-                      to { transform: rotate(360deg); }
-                    }
-                  `}</style>
+              {/* ── STEP 8: Instant Auto-Verified Gateway Checkout (Unified Stripe / Vercel Geist) ── */}
+              {!isPaymentProcessing && donateStep === 8 && activeIntent && (() => {
+                const payMethod = instantReceipt?.paymentMethod || activeIntent.paymentMethod || 'GCash';
+                const payMethodLow = String(payMethod).toLowerCase();
+                const payBadgeClass = payMethodLow.includes('maya') ? 'maya' : (payMethodLow.includes('gcash') ? 'gcash' : 'bank');
+                const payAmountNum = Math.round(Number(instantReceipt?.amountPhp || activeIntent.amountPhp || 0));
+                const trackCode = instantReceipt?.trackingCode || activeIntent.trackingCode || '';
+                const handleCloseStep8 = () => {
+                  if (instantReceipt) {
+                    window.dispatchEvent(new CustomEvent('bbdrts_donation_success'));
+                    onDonated?.();
+                    setModalOpen(false);
+                  }
+                  setDonateStep(0);
+                  setInstantReceipt(null);
+                  setInstantSettlingOnChain(false);
+                };
 
-                  {/* Minimal Geist Header */}
-                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px', borderBottom: '1px solid var(--border, #222)', paddingBottom: '14px' }}>
-                    <div style={{ minWidth: 0 }}>
-                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.72rem', fontWeight: 500, color: 'var(--text-muted, #888)', marginBottom: '4px' }}>
-                        <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: instantReceipt ? '#10b981' : '#3291FF', display: 'inline-block' }} />
-                        <span>{activeIntent.provider === 'xendit_qrph' ? 'QR Ph · Auto-Verified' : 'Gateway · Auto-Verified'}</span>
-                      </div>
-                      <h3 style={{ margin: 0, fontSize: '1.06rem', fontWeight: 600, letterSpacing: '-0.02em', color: 'var(--text-primary, #ededed)' }}>
-                        {instantReceipt
-                          ? 'Donation verified'
-                          : instantSettlingOnChain
-                            ? 'Finalizing on-chain proof'
-                            : `${activeIntent.paymentMethod} Instant Checkout`}
-                      </h3>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (instantReceipt) {
-                          window.dispatchEvent(new CustomEvent('bbdrts_donation_success'));
-                          onDonated?.();
-                          setModalOpen(false);
-                        }
-                        setDonateStep(0);
-                        setInstantReceipt(null);
-                        setInstantSettlingOnChain(false);
-                      }}
-                      style={{
-                        background: 'transparent',
-                        border: '1px solid var(--border, #262626)',
-                        color: 'var(--text-muted, #888)',
-                        width: '30px',
-                        height: '30px',
-                        borderRadius: '6px',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        flexShrink: 0
-                      }}
-                      title="Close"
-                    >
-                      <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>close</span>
-                    </button>
-                  </div>
+                /* ── STATE C: DONATION VERIFIED ARCHIVAL RECEIPT ── */
+                if (instantReceipt) {
+                  const tx = instantReceipt.txHash || '';
+                  return (
+                    <div className="qr8-shell qr8-shell--verified fade-in">
+                      <div className="qr8-top-bar is-success" aria-hidden="true" />
+                      <div className="qr8-ambient-emerald" aria-hidden="true" />
 
-                  {instantReceipt ? (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', animation: 'vaReveal 0.36s cubic-bezier(0.16, 1, 0.3, 1) both' }}>
-                      {/* Crisp Monochrome Hero Confirmation */}
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', padding: '10px 0 4px', gap: '10px' }}>
-                        <div style={{
-                          width: '44px',
-                          height: '44px',
-                          borderRadius: '50%',
-                          background: 'rgba(16, 185, 129, 0.1)',
-                          border: '1px solid rgba(16, 185, 129, 0.35)',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center'
-                        }}>
-                          <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
-                            <path
-                              d="M5 13l4 4L19 7"
-                              stroke="#10b981"
-                              strokeWidth="2.2"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              style={{ strokeDasharray: 36, strokeDashoffset: 0, animation: 'vaCheckDraw 0.45s cubic-bezier(0.22, 1, 0.36, 1) 0.08s both' }}
-                            />
-                          </svg>
-                        </div>
-                        <div style={{ fontSize: '2.1rem', fontWeight: 600, letterSpacing: '-0.04em', fontVariantNumeric: 'tabular-nums', color: 'var(--text-primary, #ededed)', lineHeight: 1.05 }}>
-                          ₱{Number(instantReceipt.amountPhp || activeIntent.amountPhp).toLocaleString('en-US')}
-                        </div>
-                        <div style={{ fontSize: '0.78rem', color: 'var(--text-muted, #888)' }}>
-                          Credited to campaign and sealed gaslessly on Ethereum Sepolia
-                        </div>
-                      </div>
-
-                      {/* Vercel Geist Key-Value Receipt Table */}
-                      <div style={{ border: '1px solid var(--border, #222)', borderRadius: '8px', background: 'var(--bg-inset, #0a0a0a)', overflow: 'hidden' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', padding: '10px 14px', borderBottom: '1px solid var(--border, #1f1f1f)', fontSize: '0.78rem' }}>
-                          <span style={{ color: 'var(--text-muted, #888)' }}>Campaign</span>
-                          <span style={{ color: 'var(--text-primary, #ededed)', fontWeight: 500, textAlign: 'right', maxWidth: '68%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{camp.title}</span>
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', padding: '10px 14px', borderBottom: '1px solid var(--border, #1f1f1f)', fontSize: '0.78rem' }}>
-                          <span style={{ color: 'var(--text-muted, #888)' }}>Channel</span>
-                          <span style={{ color: 'var(--text-primary, #ededed)', fontWeight: 500 }}>{instantReceipt.paymentMethod || activeIntent.paymentMethod} · QR Ph</span>
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', padding: '10px 14px', borderBottom: '1px solid var(--border, #1f1f1f)', fontSize: '0.78rem' }}>
-                          <span style={{ color: 'var(--text-muted, #888)' }}>Reference</span>
-                          <span style={{ color: 'var(--text-primary, #ededed)', fontFamily: 'var(--font-mono, monospace)', fontSize: '0.75rem' }}>{instantReceipt.trackingCode || activeIntent.trackingCode}</span>
-                        </div>
-                        {instantReceipt.txHash && (
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', padding: '10px 14px', borderBottom: '1px solid var(--border, #1f1f1f)', fontSize: '0.78rem' }}>
-                            <span style={{ color: 'var(--text-muted, #888)' }}>Audit Proof</span>
-                            <a
-                              href={`https://sepolia.etherscan.io/tx/${instantReceipt.txHash}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              style={{ color: '#3291FF', fontFamily: 'var(--font-mono, monospace)', fontSize: '0.74rem', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
-                            >
-                              <span>{instantReceipt.txHash.slice(0, 10)}…{instantReceipt.txHash.slice(-6)}</span>
-                              <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>north_east</span>
-                            </a>
+                      {/* Flush Recessed Header */}
+                      <div className="qr8-header">
+                        <div className="qr8-head-left">
+                          <span className="material-symbols-outlined qr8-head-ico is-emerald">verified</span>
+                          <div className="qr8-head-text">
+                            <span className="qr8-head-title">Official Donation Receipt</span>
+                            <span className="qr8-head-sub">
+                              {activeIntent.provider === 'xendit_qrph' ? 'QR Ph · Auto-Verified' : 'Gateway · Auto-Verified'}
+                            </span>
                           </div>
-                        )}
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', padding: '10px 14px', fontSize: '0.78rem' }}>
-                          <span style={{ color: 'var(--text-muted, #888)' }}>Status</span>
-                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', color: '#10b981', fontWeight: 500 }}>
-                            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10b981' }} />
-                            <span>Verified On-Chain</span>
+                        </div>
+                        <div className="qr8-head-right">
+                          <span className="qr8-status-pill is-verified">
+                            <span className="qr8-status-dot is-emerald" />
+                            <span>VERIFIED</span>
                           </span>
+                          <button type="button" className="vc-donate-close-btn" onClick={handleCloseStep8} aria-label="Close">
+                            <span className="material-symbols-outlined" style={{ fontSize: '17px' }}>close</span>
+                          </button>
                         </div>
                       </div>
 
-                      {/* Geist Footer Actions */}
-                      <div style={{ display: 'grid', gridTemplateColumns: instantReceipt.txHash ? '1fr 1fr' : '1fr', gap: '8px', paddingTop: '2px' }}>
-                        {instantReceipt.txHash && (
+                      {/* Celebratory Hero */}
+                      <div className="qr8-body qr8-body--compact">
+                        <div className="qr8-verified-hero">
+                          <div className="qr8-check-outer">
+                            <div className="qr8-check-inner">
+                              <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                                <path
+                                  d="M5 13l4 4L19 7"
+                                  stroke="#10b981"
+                                  strokeWidth="2.4"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  className="qr8-check-path"
+                                />
+                              </svg>
+                            </div>
+                          </div>
+
+                          <div className="qr8-hero-amt-row">
+                            <span className="qr8-hero-amt">₱{payAmountNum.toLocaleString('en-US')}</span>
+                            <span className="qr8-hero-unit">PHP</span>
+                          </div>
+                          <div className="qr8-verified-heading">Thank you for your donation</div>
+                          <p className="qr8-verified-desc">
+                            Credited to campaign and notarized gaslessly on Ethereum Sepolia.
+                          </p>
+                        </div>
+
+                        {/* Clean Hairline Receipt Table */}
+                        <div className="qr8-meta-table">
+                          <div className="qr8-meta-row qr8-meta-row--wrap">
+                            <span className="qr8-meta-k">Campaign</span>
+                            <span className="qr8-meta-v qr8-meta-v--clamp" title={camp.title}>{camp.title}</span>
+                          </div>
+                          <div className="qr8-meta-row">
+                            <span className="qr8-meta-k">Channel</span>
+                            <span className="qr8-meta-v">{payMethod} · QR Ph</span>
+                          </div>
+                          {trackCode && (
+                            <div className="qr8-meta-row">
+                              <span className="qr8-meta-k">Reference</span>
+                              <span className="qr8-meta-v qr8-meta-v--actions">
+                                <span className="pp-mono">{trackCode}</span>
+                                <button
+                                  type="button"
+                                  className={`qr8-copy-btn${qrCopiedKey === 'ref' ? ' is-copied' : ''}`}
+                                  onClick={() => copyInstantValue('ref', trackCode)}
+                                  title="Copy reference code"
+                                >
+                                  <span className="material-symbols-outlined">
+                                    {qrCopiedKey === 'ref' ? 'check' : 'content_copy'}
+                                  </span>
+                                </button>
+                              </span>
+                            </div>
+                          )}
+                          {tx && (
+                            <div className="qr8-meta-row">
+                              <span className="qr8-meta-k">Audit Proof</span>
+                              <span className="qr8-meta-v qr8-meta-v--actions">
+                                <a
+                                  href={`https://sepolia.etherscan.io/tx/${tx}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="qr8-tx-link pp-mono"
+                                >
+                                  <span>{tx.slice(0, 10)}…{tx.slice(-6)}</span>
+                                  <span className="material-symbols-outlined">open_in_new</span>
+                                </a>
+                                <button
+                                  type="button"
+                                  className={`qr8-copy-btn${qrCopiedKey === 'tx' ? ' is-copied' : ''}`}
+                                  onClick={() => copyInstantValue('tx', tx)}
+                                  title="Copy transaction hash"
+                                >
+                                  <span className="material-symbols-outlined">
+                                    {qrCopiedKey === 'tx' ? 'check' : 'content_copy'}
+                                  </span>
+                                </button>
+                              </span>
+                            </div>
+                          )}
+                          <div className="qr8-meta-row">
+                            <span className="qr8-meta-k">Status</span>
+                            <span className="qr8-meta-v qr8-status-inline">
+                              <span className="qr8-status-dot is-emerald" />
+                              <span>Verified On-Chain</span>
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Flush Recessed Action Footer */}
+                      <div className={`qr8-footer qr8-footer--actions${tx ? ' has-two' : ''}`}>
+                        {tx && (
                           <a
-                            href={`https://sepolia.etherscan.io/tx/${instantReceipt.txHash}`}
+                            href={`https://sepolia.etherscan.io/tx/${tx}`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            style={{
-                              height: '38px',
-                              borderRadius: '6px',
-                              border: '1px solid var(--border, #262626)',
-                              background: 'transparent',
-                              color: 'var(--text-primary, #ededed)',
-                              fontSize: '0.8rem',
-                              fontWeight: 500,
-                              textDecoration: 'none',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              gap: '6px'
-                            }}
+                            className="qr8-btn qr8-btn--secondary"
                           >
-                            <span>Etherscan</span>
-                            <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>north_east</span>
+                            <span>View on Etherscan</span>
+                            <span className="material-symbols-outlined">north_east</span>
                           </a>
                         )}
                         <button
                           type="button"
-                          onClick={() => {
-                            window.dispatchEvent(new CustomEvent('bbdrts_donation_success'));
-                            onDonated?.();
-                            setModalOpen(false);
-                            setDonateStep(0);
-                            setInstantReceipt(null);
-                            setInstantSettlingOnChain(false);
-                          }}
-                          style={{
-                            height: '38px',
-                            borderRadius: '6px',
-                            border: 'none',
-                            background: 'var(--text-primary, #ededed)',
-                            color: 'var(--bg-card, #0a0a0a)',
-                            fontSize: '0.8rem',
-                            fontWeight: 600,
-                            cursor: 'pointer'
-                          }}
+                          className="qr8-btn qr8-btn--primary"
+                          onClick={handleCloseStep8}
                         >
                           Done
                         </button>
                       </div>
                     </div>
-                  ) : instantSettlingOnChain ? (
-                    /* Vercel Deployment-Style 2-Step Live Progress */
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', animation: 'vaReveal 0.28s ease both' }}>
-                      <div style={{ border: '1px solid var(--border, #222)', borderRadius: '8px', background: 'var(--bg-inset, #0a0a0a)', overflow: 'hidden' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px', borderBottom: '1px solid var(--border, #1f1f1f)' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                            <span style={{ width: '18px', height: '18px', borderRadius: '50%', background: 'rgba(16, 185, 129, 0.14)', border: '1px solid rgba(16, 185, 129, 0.4)', color: '#10b981', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px' }}>
-                              <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>check</span>
-                            </span>
-                            <div>
-                              <div style={{ fontSize: '0.8rem', fontWeight: 500, color: 'var(--text-primary, #ededed)' }}>Payment received</div>
-                              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted, #888)' }}>
-                                ₱{Number(activeIntent.amountPhp || 0).toLocaleString('en-US')} via {activeIntent.paymentMethod} · Ref {activeIntent.trackingCode}
-                              </div>
-                            </div>
-                          </div>
-                          <span style={{ fontSize: '0.7rem', color: '#10b981', fontWeight: 500 }}>Confirmed</span>
-                        </div>
+                  );
+                }
 
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 14px' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                            <span style={{ width: '18px', height: '18px', borderRadius: '50%', border: '1.5px solid var(--border, #333)', borderTopColor: 'var(--text-primary, #ededed)', display: 'inline-block', animation: 'vaSpin 0.8s linear infinite' }} />
-                            <div>
-                              <div style={{ fontSize: '0.8rem', fontWeight: 500, color: 'var(--text-primary, #ededed)' }}>Sealing proof on Ethereum Sepolia</div>
-                              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted, #888)' }}>Gasless relayer notarizing transaction hash…</div>
-                            </div>
-                          </div>
-                          <span style={{ fontSize: '0.7rem', color: 'var(--text-muted, #888)', fontFamily: 'var(--font-mono, monospace)' }}>In progress</span>
+                /* ── STATE B: FINALIZING ON-CHAIN PROOF (Unified Stripe / Vercel Geist) ── */
+                if (instantSettlingOnChain) {
+                  return (
+                    <div className="pp-shell fade-in">
+                      <div className="pp-progress-track" aria-hidden="true">
+                        <div className="pp-progress-bar" />
+                      </div>
+
+                      <div className="pp-header">
+                        <div className="pp-rail-id">
+                          <span className="material-symbols-outlined">qr_code_2</span>
+                          <span>{payMethod} · QR Ph Auto-Verified</span>
+                        </div>
+                        <div className="pp-status-chip">
+                          <span className="pp-status-dot" />
+                          <span>NOTARIZING</span>
                         </div>
                       </div>
+
+                      <div className="pp-body">
+                        <div className="pp-hero">
+                          <div className="pp-icon-stage" aria-hidden="true">
+                            <div className="pp-icon-well">
+                              <span className="material-symbols-outlined">hub</span>
+                            </div>
+                            <div className="pp-icon-ring" />
+                          </div>
+                          <h3 className="pp-title">Finalizing On-Chain Proof</h3>
+                          <p className="pp-subtitle">
+                            Payment confirmed. Sealing your immutable relief receipt on Ethereum Sepolia.
+                          </p>
+                        </div>
+
+                        <div className="pp-amount-card">
+                          <span className="pp-amount-eyebrow">Confirmed Contribution</span>
+                          <div className="pp-amount-row">
+                            <span className="pp-amount-val">₱{payAmountNum.toLocaleString('en-US')}</span>
+                            <span className="pp-amount-unit">PHP</span>
+                          </div>
+                          <span className="pp-amount-note">
+                            <span className="material-symbols-outlined">verified_user</span>
+                            <span>{payMethod} · Ref {trackCode}</span>
+                          </span>
+                        </div>
+
+                        <div className="pp-steps">
+                          <div className="pp-step is-done">
+                            <span className="pp-step-node">
+                              <span className="material-symbols-outlined">check</span>
+                            </span>
+                            <span className="pp-step-label">Payment received via {payMethod}</span>
+                            <span className="pp-step-tag">Confirmed</span>
+                          </div>
+                          <div className="pp-step is-active">
+                            <span className="pp-step-node">
+                              <span className="pp-step-spinner" />
+                            </span>
+                            <span className="pp-step-label">Sealing proof on Ethereum Sepolia</span>
+                            <span className="pp-step-tag">Active</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="pp-footer">
+                        <span className="material-symbols-outlined">lock</span>
+                        <span>Gasless Sepolia Relayer · 0% Platform Fee · Immutable Audit Trail</span>
+                      </div>
                     </div>
-                  ) : (
-                    <>
-                      {/* Balanced 2-Column Vercel Geist Checkout Grid (Zero Scroll, Zero Tinted Clutter) */}
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '18px', alignItems: 'stretch' }}>
-                        {/* Left Column: Monochrome Framed Dynamic QR Ph */}
-                        {activeIntent.provider === 'xendit_qrph' && activeIntent.qrString ? (
-                          <div style={{
-                            border: '1px solid var(--border, #222)',
-                            borderRadius: '10px',
-                            background: 'var(--bg-inset, #0a0a0a)',
-                            padding: '18px',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: '12px'
-                          }}>
-                            {(() => {
-                              const qrPayload = activeIntent.liveMode ? activeIntent.qrString : (activeIntent.mobilePayUrl || activeIntent.qrString);
-                              return (
-                                <div style={{ background: '#ffffff', padding: '12px 14px 14px', borderRadius: '12px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', boxShadow: '0 2px 12px rgba(0,0,0,0.28)' }}>
-                                  {/* Authentic Philippine QR Ph Header Mark */}
-                                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', lineHeight: 1 }}>
+                  );
+                }
+
+                /* ── STATE A: DYNAMIC QR PH INSTANT CHECKOUT ── */
+                return (
+                  <div className="qr8-shell fade-in">
+                    {/* Flush Recessed Header */}
+                    <div className="qr8-header">
+                      <div className="qr8-head-left">
+                        <div className={`vc-channel-icon ${payBadgeClass}`}>
+                          {payBadgeClass === 'gcash' ? 'G' : payBadgeClass === 'maya' ? 'maya' : (
+                            <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>credit_card</span>
+                          )}
+                        </div>
+                        <div className="qr8-head-text">
+                          <span className="qr8-head-title">{payMethod} Instant Checkout</span>
+                          <span className="qr8-head-sub">
+                            {activeIntent.provider === 'xendit_qrph' ? 'QR Ph · Automatic Webhook Verification' : 'Gateway · Automatic Verification'}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="qr8-head-right">
+                        <span className="qr8-status-pill">
+                          <span className="qr8-status-dot is-live" />
+                          <span>AWAITING SCAN</span>
+                        </span>
+                        <button type="button" className="vc-donate-close-btn" onClick={handleCloseStep8} aria-label="Close">
+                          <span className="material-symbols-outlined" style={{ fontSize: '17px' }}>close</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Balanced Split 2-Column QR Stage & Order Panel */}
+                    <div className="qr8-split">
+                      {/* Left: QR Ph Stage */}
+                      <div className="qr8-stage">
+                        {activeIntent.provider === 'xendit_qrph' && activeIntent.qrString ? (() => {
+                          const qrPayload = activeIntent.liveMode ? activeIntent.qrString : (activeIntent.mobilePayUrl || activeIntent.qrString);
+                          return (
+                            <>
+                              <div className="qr8-frame-wrap">
+                                <span className="qr8-corner tl" aria-hidden="true" />
+                                <span className="qr8-corner tr" aria-hidden="true" />
+                                <span className="qr8-corner bl" aria-hidden="true" />
+                                <span className="qr8-corner br" aria-hidden="true" />
+                                <div className="qr8-paper-card">
+                                  <div className="qr8-qrph-mark">
                                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                                       <path d="M4 13V6.5A2.5 2.5 0 0 1 6.5 4H13" stroke="#0038A8" strokeWidth="3.2" strokeLinecap="round" />
                                       <path d="M20 11v6.5a2.5 2.5 0 0 1-2.5 2.5H11" stroke="#CE1126" strokeWidth="3.2" strokeLinecap="round" />
                                       <circle cx="12" cy="12" r="3.4" fill="#FCD116" />
                                     </svg>
-                                    <span style={{ fontWeight: 800, fontSize: '0.92rem', letterSpacing: '-0.03em' }}>
+                                    <span className="qr8-qrph-wordmark">
                                       <span style={{ color: '#CE1126' }}>QR</span>
                                       <span style={{ color: '#0038A8' }}> Ph</span>
                                     </span>
                                   </div>
-                                  <div style={{ position: 'relative', lineHeight: 0 }}>
+                                  <div className="qr8-code-box">
                                     <img
-                                      src={`https://api.qrserver.com/v1/create-qr-code/?size=192x192&ecc=H&margin=2&color=000000&bgcolor=ffffff&data=${encodeURIComponent(qrPayload)}`}
+                                      src={`https://api.qrserver.com/v1/create-qr-code/?size=196x196&ecc=H&margin=2&color=000000&bgcolor=ffffff&data=${encodeURIComponent(qrPayload)}`}
                                       alt="Dynamic QR Ph Code"
-                                      style={{ width: '192px', height: '192px', display: 'block', borderRadius: '4px' }}
+                                      className="qr8-code-img"
                                     />
-                                    {/* Centered Official QR Ph Tricolor Emblem */}
-                                    <div style={{
-                                      position: 'absolute',
-                                      top: '50%',
-                                      left: '50%',
-                                      transform: 'translate(-50%, -50%)',
-                                      width: '38px',
-                                      height: '38px',
-                                      borderRadius: '9px',
-                                      background: '#ffffff',
-                                      display: 'flex',
-                                      alignItems: 'center',
-                                      justifyContent: 'center',
-                                      boxShadow: '0 1px 4px rgba(0,0,0,0.14)'
-                                    }}>
-                                      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-label="QR Ph">
+                                    <div className="qr8-code-emblem" aria-hidden="true">
+                                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
                                         <path d="M4 13.5V6.5A2.5 2.5 0 0 1 6.5 4H13.5" stroke="#0038A8" strokeWidth="3.4" strokeLinecap="round" />
                                         <path d="M20 10.5v7a2.5 2.5 0 0 1-2.5 2.5h-7" stroke="#CE1126" strokeWidth="3.4" strokeLinecap="round" />
                                         <circle cx="12" cy="12" r="3.8" fill="#FCD116" />
@@ -6312,147 +6361,131 @@ export default function CampaignCard(props) {
                                     </div>
                                   </div>
                                 </div>
-                              );
-                            })()}
-                            <div style={{ textAlign: 'center' }}>
-                              <div style={{ fontSize: '0.76rem', fontWeight: 500, color: 'var(--text-primary, #ededed)' }}>
-                                {activeIntent.liveMode ? 'Scan with GCash, Maya, or Bank App' : 'Scan with phone camera'}
                               </div>
-                              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', marginTop: '4px', fontSize: '0.71rem', color: 'var(--text-muted, #888)' }}>
-                                <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#3291FF', display: 'inline-block' }} />
-                                <span>Listening for confirmation…</span>
+                              <div className="qr8-scan-copy">
+                                <div className="qr8-scan-title">
+                                  {activeIntent.liveMode ? 'Scan with GCash, Maya, or Bank App' : 'Scan with your phone camera'}
+                                </div>
+                                <div className="qr8-listen-pill">
+                                  <span className="qr8-status-dot is-live" />
+                                  <span>Listening for instant confirmation…</span>
+                                </div>
                               </div>
-                            </div>
-                          </div>
-                        ) : activeIntent.checkoutUrl ? (
-                          <div style={{
-                            border: '1px solid var(--border, #222)',
-                            borderRadius: '10px',
-                            background: 'var(--bg-inset, #0a0a0a)',
-                            padding: '20px',
-                            display: 'flex',
-                            flexDirection: 'column',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            gap: '12px',
-                            textAlign: 'center'
-                          }}>
+                            </>
+                          );
+                        })() : activeIntent.checkoutUrl ? (
+                          <div className="qr8-external-wrap">
                             <a
                               href={activeIntent.checkoutUrl}
                               target="_blank"
                               rel="noopener noreferrer"
-                              style={{
-                                width: '100%',
-                                height: '38px',
-                                borderRadius: '6px',
-                                background: 'var(--text-primary, #ededed)',
-                                color: 'var(--bg-card, #0a0a0a)',
-                                fontSize: '0.8rem',
-                                fontWeight: 600,
-                                textDecoration: 'none',
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                gap: '6px'
-                              }}
+                              className="qr8-btn qr8-btn--primary"
                             >
                               <span>Open Xendit Checkout</span>
-                              <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>north_east</span>
+                              <span className="material-symbols-outlined">north_east</span>
                             </a>
-                            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted, #888)' }}>
-                              Waiting for automatic payment confirmation…
-                            </div>
+                            <span className="qr8-listen-pill">
+                              <span className="qr8-status-dot is-live" />
+                              <span>Waiting for automatic confirmation…</span>
+                            </span>
                           </div>
                         ) : null}
+                      </div>
 
-                        {/* Right Column: Crisp Geist Summary Table & Actions */}
-                        <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: '12px' }}>
-                          <div>
-                            <div style={{ fontSize: '0.7rem', fontWeight: 500, color: 'var(--text-muted, #888)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '4px' }}>
-                              Total Contribution
-                            </div>
-                            <div style={{ fontSize: '1.9rem', fontWeight: 600, letterSpacing: '-0.04em', fontVariantNumeric: 'tabular-nums', color: 'var(--text-primary, #ededed)', lineHeight: 1.05, marginBottom: '14px' }}>
-                              ₱{Number(activeIntent.amountPhp || 0).toLocaleString('en-US')}
-                            </div>
-
-                            <div style={{ border: '1px solid var(--border, #222)', borderRadius: '8px', background: 'var(--bg-inset, #0a0a0a)', overflow: 'hidden' }}>
-                              <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', padding: '9px 12px', borderBottom: '1px solid var(--border, #1f1f1f)', fontSize: '0.76rem' }}>
-                                <span style={{ color: 'var(--text-muted, #888)' }}>Campaign</span>
-                                <span style={{ color: 'var(--text-primary, #ededed)', fontWeight: 500, textAlign: 'right', maxWidth: '65%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{camp.title}</span>
-                              </div>
-                              <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', padding: '9px 12px', borderBottom: '1px solid var(--border, #1f1f1f)', fontSize: '0.76rem' }}>
-                                <span style={{ color: 'var(--text-muted, #888)' }}>Channel</span>
-                                <span style={{ color: 'var(--text-primary, #ededed)', fontWeight: 500 }}>{activeIntent.paymentMethod} · QR Ph</span>
-                              </div>
-                              <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', padding: '9px 12px', borderBottom: '1px solid var(--border, #1f1f1f)', fontSize: '0.76rem' }}>
-                                <span style={{ color: 'var(--text-muted, #888)' }}>Reference</span>
-                                <span style={{ color: 'var(--text-primary, #ededed)', fontFamily: 'var(--font-mono, monospace)', fontSize: '0.73rem' }}>{activeIntent.trackingCode}</span>
-                              </div>
-                              <div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', padding: '9px 12px', fontSize: '0.76rem' }}>
-                                <span style={{ color: 'var(--text-muted, #888)' }}>Verification</span>
-                                <span style={{ color: '#10b981', fontWeight: 500 }}>Auto-Webhook · Sepolia</span>
-                              </div>
+                      {/* Right: Recessed Order Panel */}
+                      <div className="qr8-panel">
+                        <div className="qr8-panel-top">
+                          <div className="qr8-amt-block">
+                            <span className="qr8-amt-lbl">Total Contribution</span>
+                            <div className="qr8-amt-row">
+                              <span className="qr8-amt-val">₱{payAmountNum.toLocaleString('en-US')}</span>
+                              <span className="qr8-amt-unit">PHP</span>
                             </div>
                           </div>
 
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                            <p style={{ margin: 0, fontSize: '0.72rem', color: 'var(--text-muted, #888)', lineHeight: 1.45 }}>
-                              Single-use QR locked to this campaign. No screenshot upload needed — proof seals automatically on-chain once paid.
-                            </p>
-                            {!activeIntent.liveMode && activeIntent.provider === 'xendit_qrph' && (
-                              <button
-                                type="button"
-                                disabled={instantSimulating}
-                                onClick={handleSimulateXenditQr}
-                                style={{
-                                  height: '36px',
-                                  borderRadius: '6px',
-                                  border: '1px solid var(--border, #2a2a2a)',
-                                  background: 'var(--bg-inset, #111)',
-                                  color: 'var(--text-primary, #ededed)',
-                                  fontSize: '0.76rem',
-                                  fontWeight: 500,
-                                  cursor: instantSimulating ? 'wait' : 'pointer',
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                  gap: '6px'
-                                }}
-                              >
-                                <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>
-                                  {instantSimulating ? 'hourglass_top' : 'qr_code_scanner'}
-                                </span>
-                                <span>{instantSimulating ? 'Confirming via Xendit Test API…' : 'Simulate Scan (Test Mode)'}</span>
-                              </button>
-                            )}
+                          <div className="qr8-meta-table">
+                            <div className="qr8-meta-row qr8-meta-row--wrap">
+                              <span className="qr8-meta-k">Campaign</span>
+                              <span className="qr8-meta-v qr8-meta-v--clamp" title={camp.title}>{camp.title}</span>
+                            </div>
+                            <div className="qr8-meta-row">
+                              <span className="qr8-meta-k">Channel</span>
+                              <span className="qr8-meta-v">{payMethod} · QR Ph</span>
+                            </div>
+                            <div className="qr8-meta-row">
+                              <span className="qr8-meta-k">Reference</span>
+                              <span className="qr8-meta-v qr8-meta-v--actions">
+                                <span className="pp-mono">{trackCode}</span>
+                                <button
+                                  type="button"
+                                  className={`qr8-copy-btn${qrCopiedKey === 'qrref' ? ' is-copied' : ''}`}
+                                  onClick={() => copyInstantValue('qrref', trackCode)}
+                                  title="Copy reference code"
+                                >
+                                  <span className="material-symbols-outlined">
+                                    {qrCopiedKey === 'qrref' ? 'check' : 'content_copy'}
+                                  </span>
+                                </button>
+                              </span>
+                            </div>
+                            <div className="qr8-meta-row">
+                              <span className="qr8-meta-k">Settlement</span>
+                              <span className="qr8-meta-v qr8-status-inline">
+                                <span className="qr8-status-dot is-emerald" />
+                                <span>Auto-Webhook · Sepolia</span>
+                              </span>
+                            </div>
                           </div>
                         </div>
-                      </div>
 
-                      {/* Quiet Geist Footer */}
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--border, #222)', paddingTop: '12px' }}>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setCheckoutMode('manual');
-                            setDonateStep(0);
-                          }}
-                          style={{ background: 'transparent', border: 'none', color: 'var(--text-muted, #888)', fontSize: '0.74rem', cursor: 'pointer', padding: 0 }}
-                        >
-                          Use Direct QR &amp; Receipt Upload →
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setDonateStep(0)}
-                          style={{ height: '32px', padding: '0 12px', borderRadius: '6px', border: '1px solid var(--border, #262626)', background: 'transparent', color: 'var(--text-secondary, #a1a1aa)', fontSize: '0.75rem', fontWeight: 500, cursor: 'pointer' }}
-                        >
-                          Back
-                        </button>
+                        <div className="qr8-panel-bottom">
+                          <div className="qr8-lock-note">
+                            <span className="material-symbols-outlined">verified_user</span>
+                            <span>Single-use QR locked to this campaign. No screenshot upload needed — proof seals automatically once paid.</span>
+                          </div>
+                          {!activeIntent.liveMode && activeIntent.provider === 'xendit_qrph' && (
+                            <button
+                              type="button"
+                              disabled={instantSimulating}
+                              onClick={handleSimulateXenditQr}
+                              className="qr8-sim-btn"
+                            >
+                              <span className="material-symbols-outlined">
+                                {instantSimulating ? 'hourglass_top' : 'qr_code_scanner'}
+                              </span>
+                              <span>{instantSimulating ? 'Confirming via Xendit Test API…' : 'Simulate Scan'}</span>
+                              <span className="qr8-sim-tag">TEST</span>
+                            </button>
+                          )}
+                        </div>
                       </div>
-                    </>
-                  )}
-                </div>
-              )}
+                    </div>
+
+                    {/* Flush Recessed Footer */}
+                    <div className="qr8-footer">
+                      <button
+                        type="button"
+                        className="qr8-back-btn"
+                        onClick={() => setDonateStep(0)}
+                      >
+                        <span className="material-symbols-outlined">arrow_back</span>
+                        <span>Back</span>
+                      </button>
+                      <button
+                        type="button"
+                        className="qr8-switch-link"
+                        onClick={() => {
+                          setCheckoutMode('manual');
+                          setDonateStep(0);
+                        }}
+                      >
+                        <span>Prefer Direct QR &amp; Slip Upload?</span>
+                        <span className="material-symbols-outlined">arrow_forward</span>
+                      </button>
+                    </div>
+                  </div>
+                );
+              })()}
 
               {/* ── STEP 7: Institutional E-Wallet (GCash / Maya) Terminal ── */}
               {!isPaymentProcessing && donateStep === 7 && (

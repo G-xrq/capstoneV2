@@ -15,7 +15,9 @@
 }
 
 .vc-donate-shell--qr {
-  padding: 24px !important;
+  padding: 0 !important;
+  background: #0a0a0a !important;
+  border-color: #262626 !important;
 }
 
 [data-theme="light"] .vc-donate-shell {
@@ -38,12 +40,12 @@
   gap: 16px;
   padding: 18px 24px;
   border-bottom: 1px solid #1f1f23;
-  background: #000000;
+  background: #060606;
 }
 
 [data-theme="light"] .vc-donate-header {
-  border-bottom-color: #ececee;
-  background: #ffffff;
+  border-bottom-color: #e4e4e7;
+  background: #fafafa;
 }
 
 .vc-donate-header-left {
@@ -1271,5 +1273,885 @@
   .pp-step-spinner,
   .pp-status-dot {
     animation: none;
+  }
+}
+
+/* ── Step 0 Polished Summary Enhancements ── */
+.vc-summary-total-unit {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #71717a;
+  margin-left: 5px;
+  letter-spacing: 0.04em;
+}
+
+.vc-summary-placeholder {
+  font-size: 0.88rem;
+  font-weight: 500;
+  color: #52525b;
+}
+
+.vc-summary-note {
+  display: flex !important;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 10px 11px !important;
+  margin-top: 12px !important;
+  border-radius: 8px !important;
+  background: rgba(255, 255, 255, 0.025) !important;
+  border: 1px solid #1f1f23 !important;
+  font-size: 0.72rem !important;
+  line-height: 1.48 !important;
+  color: #888888 !important;
+}
+
+.vc-summary-note-icon {
+  font-size: 14px;
+  color: #a1a1aa;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+[data-theme="light"] .vc-summary-note {
+  background: #ffffff !important;
+  border-color: #e4e4e7 !important;
+  color: #52525b !important;
+}
+
+/* ============================================================
+   STEP 8: QR PH INSTANT CHECKOUT & VERIFIED RECEIPT (Vercel Geist)
+   ============================================================ */
+[data-theme="light"] .vc-donate-shell--qr {
+  background: #ffffff !important;
+  border-color: #e4e4e7 !important;
+}
+
+.qr8-shell {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  background: #0a0a0a;
+  color: #ededed;
+  font-family: var(--font-sans, "Inter", system-ui, -apple-system, sans-serif);
+  overflow: hidden;
+}
+
+[data-theme="light"] .qr8-shell {
+  background: #ffffff;
+  color: #09090b;
+}
+
+.qr8-top-bar {
+  height: 2px;
+  width: 100%;
+  flex-shrink: 0;
+}
+
+.qr8-top-bar.is-success {
+  background: linear-gradient(90deg, transparent 5%, #10b981 35%, #34d399 50%, #10b981 65%, transparent 95%);
+}
+
+.qr8-ambient-emerald {
+  position: absolute;
+  top: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 240px;
+  height: 160px;
+  background: radial-gradient(circle, rgba(16, 185, 129, 0.14) 0%, rgba(16, 185, 129, 0) 70%);
+  pointer-events: none;
+}
+
+/* Flush Header */
+.qr8-header {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 20px;
+  background: #060606;
+  border-bottom: 1px solid #1f1f1f;
+}
+
+[data-theme="light"] .qr8-header {
+  background: #fafafa;
+  border-bottom-color: #e4e4e7;
+}
+
+.qr8-head-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.qr8-head-ico {
+  font-size: 20px;
+  color: #a1a1aa;
+}
+
+.qr8-head-ico.is-emerald {
+  color: #10b981;
+}
+
+.qr8-head-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.qr8-head-title {
+  font-size: 0.92rem;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  color: #ffffff;
+  line-height: 1.25;
+}
+
+[data-theme="light"] .qr8-head-title {
+  color: #09090b;
+}
+
+.qr8-head-sub {
+  font-size: 0.71rem;
+  color: #71717a;
+  margin-top: 1px;
+}
+
+.qr8-head-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.qr8-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 9999px;
+  background: #0a0a0a;
+  border: 1px solid #262626;
+  font-size: 0.61rem;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  color: #d4d4d8;
+}
+
+.qr8-status-pill.is-verified {
+  color: #10b981;
+  border-color: rgba(16, 185, 129, 0.3);
+  background: rgba(16, 185, 129, 0.08);
+}
+
+[data-theme="light"] .qr8-status-pill {
+  background: #ffffff;
+  border-color: #e4e4e7;
+  color: #27272a;
+}
+
+.qr8-status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.qr8-status-dot.is-live {
+  background: #38bdf8;
+  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.22);
+  animation: ppPulse 1.6s ease-in-out infinite;
+}
+
+.qr8-status-dot.is-emerald {
+  background: #10b981;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
+}
+
+/* Split 2-Col QR Checkout */
+.qr8-split {
+  display: grid;
+  grid-template-columns: 1fr 1.04fr;
+  align-items: stretch;
+}
+
+@media (max-width: 680px) {
+  .qr8-split {
+    grid-template-columns: 1fr;
+  }
+}
+
+.qr8-stage {
+  padding: 24px 22px;
+  background: #0a0a0a;
+  border-right: 1px solid #1f1f1f;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+}
+
+[data-theme="light"] .qr8-stage {
+  background: #ffffff;
+  border-right-color: #e4e4e7;
+}
+
+@media (max-width: 680px) {
+  .qr8-stage {
+    border-right: none;
+    border-bottom: 1px solid #1f1f1f;
+  }
+  [data-theme="light"] .qr8-stage {
+    border-bottom-color: #e4e4e7;
+  }
+}
+
+/* Viewfinder Corner Frame around QR Paper Card */
+.qr8-frame-wrap {
+  position: relative;
+  padding: 10px;
+}
+
+.qr8-corner {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  border-color: #3f3f46;
+  border-style: solid;
+  pointer-events: none;
+}
+
+[data-theme="light"] .qr8-corner {
+  border-color: #a1a1aa;
+}
+
+.qr8-corner.tl { top: 0; left: 0; border-width: 2px 0 0 2px; border-top-left-radius: 6px; }
+.qr8-corner.tr { top: 0; right: 0; border-width: 2px 2px 0 0; border-top-right-radius: 6px; }
+.qr8-corner.bl { bottom: 0; left: 0; border-width: 0 0 2px 2px; border-bottom-left-radius: 6px; }
+.qr8-corner.br { bottom: 0; right: 0; border-width: 0 2px 2px 0; border-bottom-right-radius: 6px; }
+
+.qr8-paper-card {
+  background: #ffffff;
+  padding: 12px 14px 14px;
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+  border: 1px solid #e4e4e7;
+}
+
+.qr8-qrph-mark {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  line-height: 1;
+}
+
+.qr8-qrph-wordmark {
+  font-weight: 800;
+  font-size: 0.92rem;
+  letter-spacing: -0.03em;
+}
+
+.qr8-code-box {
+  position: relative;
+  line-height: 0;
+}
+
+.qr8-code-img {
+  width: 192px;
+  height: 192px;
+  display: block;
+  border-radius: 4px;
+}
+
+.qr8-code-emblem {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 36px;
+  height: 36px;
+  border-radius: 9px;
+  background: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.16);
+}
+
+.qr8-scan-copy {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  text-align: center;
+}
+
+.qr8-scan-title {
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: #ededed;
+}
+
+[data-theme="light"] .qr8-scan-title {
+  color: #09090b;
+}
+
+.qr8-listen-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  background: #060606;
+  border: 1px solid #1f1f1f;
+  font-size: 0.7rem;
+  color: #a1a1aa;
+}
+
+[data-theme="light"] .qr8-listen-pill {
+  background: #fafafa;
+  border-color: #e4e4e7;
+  color: #52525b;
+}
+
+.qr8-external-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  max-width: 240px;
+}
+
+/* Right Recessed Order Panel */
+.qr8-panel {
+  padding: 22px 22px;
+  background: #060606;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+[data-theme="light"] .qr8-panel {
+  background: #fafafa;
+}
+
+.qr8-panel-top {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.qr8-amt-block {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.qr8-amt-lbl {
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #71717a;
+}
+
+.qr8-amt-row {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.qr8-amt-val {
+  font-size: 1.95rem;
+  font-weight: 700;
+  letter-spacing: -0.035em;
+  line-height: 1.08;
+  color: #ffffff;
+  font-variant-numeric: tabular-nums;
+}
+
+[data-theme="light"] .qr8-amt-val {
+  color: #09090b;
+}
+
+.qr8-amt-unit {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #71717a;
+}
+
+/* Hairline Receipt Meta Table */
+.qr8-meta-table {
+  border-radius: 10px;
+  background: #0a0a0a;
+  border: 1px solid #1f1f1f;
+  overflow: hidden;
+}
+
+[data-theme="light"] .qr8-meta-table {
+  background: #ffffff;
+  border-color: #e4e4e7;
+}
+
+.qr8-meta-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 13px;
+  font-size: 0.76rem;
+}
+
+.qr8-meta-row--wrap {
+  align-items: flex-start;
+}
+
+.qr8-meta-row + .qr8-meta-row {
+  border-top: 1px solid #18181b;
+}
+
+[data-theme="light"] .qr8-meta-row + .qr8-meta-row {
+  border-top-color: #f4f4f5;
+}
+
+.qr8-meta-k {
+  color: #71717a;
+  font-size: 0.72rem;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.qr8-meta-v {
+  color: #ededed;
+  font-weight: 500;
+  text-align: right;
+  min-width: 0;
+}
+
+[data-theme="light"] .qr8-meta-v {
+  color: #09090b;
+}
+
+.qr8-meta-v--clamp {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  line-height: 1.35;
+}
+
+.qr8-meta-v--actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.qr8-copy-btn {
+  width: 22px;
+  height: 22px;
+  border-radius: 5px;
+  border: 1px solid #262626;
+  background: #060606;
+  color: #a1a1aa;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  transition: border-color 0.14s ease, color 0.14s ease;
+}
+
+.qr8-copy-btn .material-symbols-outlined {
+  font-size: 12px;
+}
+
+.qr8-copy-btn:hover {
+  border-color: #3f3f46;
+  color: #ffffff;
+}
+
+.qr8-copy-btn.is-copied {
+  border-color: #10b981;
+  color: #10b981;
+}
+
+[data-theme="light"] .qr8-copy-btn {
+  background: #fafafa;
+  border-color: #e4e4e7;
+  color: #52525b;
+}
+
+.qr8-tx-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #38bdf8;
+  text-decoration: none;
+  font-size: 0.73rem;
+}
+
+.qr8-tx-link:hover {
+  text-decoration: underline;
+}
+
+.qr8-tx-link .material-symbols-outlined {
+  font-size: 12px;
+}
+
+[data-theme="light"] .qr8-tx-link {
+  color: #0284c7;
+}
+
+.qr8-status-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #10b981 !important;
+  font-weight: 600;
+}
+
+.qr8-panel-bottom {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.qr8-lock-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  font-size: 0.71rem;
+  line-height: 1.48;
+  color: #71717a;
+}
+
+.qr8-lock-note .material-symbols-outlined {
+  font-size: 14px;
+  color: #10b981;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.qr8-sim-btn {
+  width: 100%;
+  height: 36px;
+  padding: 0 12px;
+  border-radius: 8px;
+  border: 1px solid #262626;
+  background: #0a0a0a;
+  color: #ededed;
+  font-size: 0.76rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  transition: background 0.14s ease, border-color 0.14s ease;
+}
+
+.qr8-sim-btn:hover:not(:disabled) {
+  background: #141416;
+  border-color: #3f3f46;
+}
+
+.qr8-sim-btn .material-symbols-outlined {
+  font-size: 15px;
+}
+
+.qr8-sim-tag {
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: #18181b;
+  border: 1px solid #27272a;
+  color: #a1a1aa;
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
+[data-theme="light"] .qr8-sim-btn {
+  background: #ffffff;
+  border-color: #e4e4e7;
+  color: #09090b;
+}
+
+[data-theme="light"] .qr8-sim-btn:hover:not(:disabled) {
+  background: #f4f4f5;
+  border-color: #a1a1aa;
+}
+
+[data-theme="light"] .qr8-sim-tag {
+  background: #f4f4f5;
+  border-color: #e4e4e7;
+  color: #52525b;
+}
+
+/* Verified Receipt Body */
+.qr8-body--compact {
+  position: relative;
+  z-index: 2;
+  padding: 24px 22px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.qr8-verified-hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.qr8-check-outer {
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  padding: 4px;
+  border: 1px solid rgba(16, 185, 129, 0.35);
+  background: rgba(16, 185, 129, 0.07);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 14px;
+}
+
+.qr8-check-inner {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: rgba(16, 185, 129, 0.14);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.qr8-check-path {
+  stroke-dasharray: 36;
+  stroke-dashoffset: 0;
+  animation: qr8CheckDraw 0.45s cubic-bezier(0.22, 1, 0.36, 1) 0.06s both;
+}
+
+@keyframes qr8CheckDraw {
+  0% { stroke-dashoffset: 36; }
+  100% { stroke-dashoffset: 0; }
+}
+
+.qr8-hero-amt-row {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.qr8-hero-amt {
+  font-size: 2.1rem;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  line-height: 1.05;
+  color: #ffffff;
+  font-variant-numeric: tabular-nums;
+}
+
+[data-theme="light"] .qr8-hero-amt {
+  color: #09090b;
+}
+
+.qr8-hero-unit {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #71717a;
+}
+
+.qr8-verified-heading {
+  margin-top: 8px;
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: #ededed;
+}
+
+[data-theme="light"] .qr8-verified-heading {
+  color: #09090b;
+}
+
+.qr8-verified-desc {
+  margin: 4px 0 0;
+  font-size: 0.75rem;
+  color: #888888;
+  max-width: 320px;
+  line-height: 1.45;
+}
+
+[data-theme="light"] .qr8-verified-desc {
+  color: #52525b;
+}
+
+/* Flush Recessed Footer */
+.qr8-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 20px;
+  background: #060606;
+  border-top: 1px solid #1f1f1f;
+}
+
+[data-theme="light"] .qr8-footer {
+  background: #fafafa;
+  border-top-color: #e4e4e7;
+}
+
+.qr8-footer--actions {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+  padding: 14px 22px;
+}
+
+.qr8-footer--actions.has-two {
+  grid-template-columns: 1fr 1.15fr;
+}
+
+.qr8-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 30px;
+  padding: 0 10px;
+  border-radius: 7px;
+  border: 1px solid #262626;
+  background: #0a0a0a;
+  color: #d4d4d8;
+  font-size: 0.74rem;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: border-color 0.14s ease, color 0.14s ease;
+}
+
+.qr8-back-btn .material-symbols-outlined {
+  font-size: 14px;
+}
+
+.qr8-back-btn:hover {
+  border-color: #3f3f46;
+  color: #ffffff;
+}
+
+[data-theme="light"] .qr8-back-btn {
+  background: #ffffff;
+  border-color: #e4e4e7;
+  color: #27272a;
+}
+
+.qr8-switch-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: transparent;
+  border: none;
+  padding: 0;
+  color: #888888;
+  font-size: 0.73rem;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: color 0.14s ease;
+}
+
+.qr8-switch-link .material-symbols-outlined {
+  font-size: 14px;
+}
+
+.qr8-switch-link:hover {
+  color: #ffffff;
+}
+
+[data-theme="light"] .qr8-switch-link:hover {
+  color: #09090b;
+}
+
+.qr8-btn {
+  height: 38px;
+  padding: 0 14px;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  font-family: inherit;
+  text-decoration: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: background 0.14s ease, border-color 0.14s ease;
+}
+
+.qr8-btn .material-symbols-outlined {
+  font-size: 14px;
+}
+
+.qr8-btn--primary {
+  background: #ffffff;
+  border: 1px solid #ffffff;
+  color: #000000;
+}
+
+.qr8-btn--primary:hover {
+  background: #e4e4e7;
+  border-color: #e4e4e7;
+}
+
+[data-theme="light"] .qr8-btn--primary {
+  background: #09090b;
+  border-color: #09090b;
+  color: #ffffff;
+}
+
+.qr8-btn--secondary {
+  background: #0a0a0a;
+  border: 1px solid #262626;
+  color: #ededed;
+}
+
+.qr8-btn--secondary:hover {
+  background: #141416;
+  border-color: #3f3f46;
+}
+
+[data-theme="light"] .qr8-btn--secondary {
+  background: #ffffff;
+  border-color: #e4e4e7;
+  color: #09090b;
+}
+
+@media (max-width: 480px) {
+  .qr8-header {
+    padding: 12px 14px;
+  }
+  .qr8-status-pill {
+    display: none;
+  }
+  .qr8-footer {
+    flex-wrap: wrap;
+    padding: 12px 14px;
+  }
+  .qr8-footer--actions.has-two {
+    grid-template-columns: 1fr;
   }
 }
