@@ -25,6 +25,7 @@ import DisbursementProofModal from '../components/DisbursementProofModal';
 import { useToast } from '../context/ToastContext';
 import { API_URL } from '../config';
 import { useRealtimeSync } from '../hooks/useRealtimeSync';
+import LiveCounter from '../components/LiveCounter';
 import { CONTRACT_ADDRESS } from '../contractConfig';
 import { getPaginationItems } from '../utils/pagination';
 import { getWorkspaceStrings } from '../data/workspaceTranslations';
@@ -1297,7 +1298,7 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
                         <span className="material-symbols-outlined">payments</span>
                       </span>
                       <span className="dbo-bare-text">
-                        <span className="dbo-bare-val">₱{Math.round(totalDonatedPhp).toLocaleString('en-US')}</span>
+                        <LiveCounter value={Math.round(totalDonatedPhp)} prefix="₱" duration={1050} className="dbo-bare-val" />
                         <span className="dbo-bare-lbl">{wt.metricTotalContributed}</span>
                       </span>
                       {contributionSparkline.hasData && (
@@ -1332,7 +1333,7 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
                         <span className="material-symbols-outlined">campaign</span>
                       </span>
                       <span className="dbo-bare-text">
-                        <span className="dbo-bare-val">{activeCampaignsCount}</span>
+                        <LiveCounter value={activeCampaignsCount} duration={850} className="dbo-bare-val" />
                         <span className="dbo-bare-lbl">{wt.metricLiveAppeals}</span>
                       </span>
                     </button>
@@ -1342,9 +1343,7 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
                         <span className="material-symbols-outlined">groups</span>
                       </span>
                       <span className="dbo-bare-text">
-                        <span className="dbo-bare-val">
-                          {estimatedFamiliesAided > 0 ? `~${estimatedFamiliesAided.toLocaleString()}` : '0'}
-                        </span>
+                        <LiveCounter value={estimatedFamiliesAided} prefix={estimatedFamiliesAided > 0 ? '~' : ''} duration={950} className="dbo-bare-val" />
                         <span className="dbo-bare-lbl">
                           {interfaceMode === 'simplified' ? 'People & Families Aided' : 'Families Reached'}
                         </span>
@@ -1733,20 +1732,20 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
                   <div className="ec-head-stat">
                     <span className="ec-head-stat-val">
                       <span className="ec-live-dot" />
-                      <span>₱{Math.round(raisedPhp).toLocaleString('en-US', { maximumFractionDigits: 0 })}</span>
+                      <LiveCounter value={Math.round(raisedPhp)} prefix="₱" duration={1050} />
                     </span>
                     <span className="ec-head-stat-lbl">raised to date</span>
                   </div>
                   <div className="ec-head-stat">
-                    <span className="ec-head-stat-val">{activeDrivesCount}</span>
+                    <LiveCounter value={activeDrivesCount} duration={800} className="ec-head-stat-val" />
                     <span className="ec-head-stat-lbl">active drives</span>
                   </div>
                   <div className="ec-head-stat">
-                    <span className="ec-head-stat-val">{fundedCount}</span>
+                    <LiveCounter value={fundedCount} duration={800} className="ec-head-stat-val" />
                     <span className="ec-head-stat-lbl">fully funded</span>
                   </div>
                   <div className="ec-head-stat">
-                    <span className="ec-head-stat-val">{orgCount}</span>
+                    <LiveCounter value={orgCount} duration={800} className="ec-head-stat-val" />
                     <span className="ec-head-stat-lbl">partner NGOs</span>
                   </div>
                 </div>
@@ -2295,7 +2294,7 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
               <div className="rcp-summary-band">
                 <div className="rcp-band-cell rcp-band-cell--primary">
                   <div className="rcp-band-val-row">
-                    <span className="rcp-band-total">₱{Math.round(totalDonatedPhp).toLocaleString('en-US')}</span>
+                    <LiveCounter value={Math.round(totalDonatedPhp)} prefix="₱" duration={1050} className="rcp-band-total" />
                     <span className={`rcp-audit-pill ${hasAnyShortage ? 'is-alert' : 'is-ok'}`}>
                       <span className={`rcp-live-dot ${hasAnyShortage ? 'is-alert' : ''}`} />
                       <span>{hasAnyShortage ? 'Shortage Notarized' : '100% Balanced'}</span>
@@ -2305,12 +2304,12 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
                 </div>
 
                 <div className="rcp-band-cell">
-                  <span className="rcp-band-num">{totalReceiptsLen}</span>
+                  <LiveCounter value={totalReceiptsLen} duration={850} className="rcp-band-num" />
                   <span className="rcp-band-lbl">Receipts ({drReceiptsCount} DR · {cdReceiptsCount} CD)</span>
                 </div>
 
                 <div className="rcp-band-cell">
-                  <span className="rcp-band-num">{uniqueCausesCount}</span>
+                  <LiveCounter value={uniqueCausesCount} duration={850} className="rcp-band-num" />
                   <span className="rcp-band-lbl">Campaigns Supported</span>
                 </div>
 

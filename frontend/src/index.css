@@ -2794,3 +2794,20 @@ path.leaflet-interactive:focus-visible,
   }
 }
 
+
+/* ── Live Real-Time Counter Teal Glow & Roll Animation (Parity with Landing Hero) ── */
+.bbdrts-live-counter {
+  display: inline-block;
+  font-variant-numeric: tabular-nums;
+  transition: color 0.35s ease, text-shadow 0.35s ease;
+}
+
+.bbdrts-live-counter.is-live-bump {
+  color: #14b8a6 !important;
+  text-shadow: 0 0 16px rgba(20, 184, 166, 0.55), 0 0 6px rgba(16, 185, 129, 0.35);
+}
+
+[data-theme="light"] .bbdrts-live-counter.is-live-bump {
+  color: #0d9488 !important;
+  text-shadow: 0 0 12px rgba(13, 148, 136, 0.3);
+}

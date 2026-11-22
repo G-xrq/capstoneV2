@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { ethers } from 'ethers';
 import { isLocalhost, API_URL } from '../config';
 import { useRealtimeSync } from '../hooks/useRealtimeSync';
+import LiveCounter from '../components/LiveCounter';
 import CampaignCard, { shortAddr, formatCampaignTitle, formatEthAmt, getCampaignCategoryInfo } from '../components/CampaignCard';
 import { ROLES, MAX_ORGANIZATIONS } from '../roleConfig';
 import { CONTRACT_ADDRESS } from '../contractConfig';
@@ -1794,7 +1795,7 @@ export default function AdminView({
                     <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#10b981' }}>payments</span>
                   </div>
                   <div className="admin-metric-value" style={{ color: '#10b981' }}>
-                    ₱{totalRaisedPhp.toLocaleString('en-US')}
+                    <LiveCounter value={totalRaisedPhp} prefix="₱" duration={1050} />
                   </div>
                   <div className="admin-metric-sub">
                     Gasless Sepolia Audited Total
@@ -1811,7 +1812,7 @@ export default function AdminView({
                     <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#38bdf8' }}>rocket_launch</span>
                   </div>
                   <div className="admin-metric-value">
-                    {campaigns?.length || 0}
+                    <LiveCounter value={campaigns?.length || 0} duration={800} />
                   </div>
                   <div className="admin-metric-sub">
                     {activeCampaigns} active · {concludedCampaigns} concluded
@@ -1828,7 +1829,7 @@ export default function AdminView({
                     <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#a855f7' }}>corporate_fare</span>
                   </div>
                   <div className="admin-metric-value">
-                    {approvedOrgsCount || effectiveModCount}
+                    <LiveCounter value={approvedOrgsCount || effectiveModCount} duration={800} />
                   </div>
                   <div className="admin-metric-sub">
                     Verified non-profit relief partners
@@ -3240,7 +3241,7 @@ export default function AdminView({
                     <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#10b981' }}>payments</span>
                   </div>
                   <div className="admin-metric-value" style={{ color: '#10b981' }}>
-                    ₱{totalLedgerPhp.toLocaleString()}
+                    <LiveCounter value={totalLedgerPhp} prefix="₱" duration={1050} />
                   </div>
                   <div className="admin-metric-sub">
                     Gasless Sepolia Blockchain Audited
@@ -3253,7 +3254,7 @@ export default function AdminView({
                     <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#38bdf8' }}>receipt_long</span>
                   </div>
                   <div className="admin-metric-value">
-                    {ledgerData.onChain.length + approvedManualCount} <span style={{ fontSize: '0.80rem', color: 'var(--text-muted)' }}>/ {ledgerData.onChain.length + ledgerData.manual.length}</span>
+                    <LiveCounter value={ledgerData.onChain.length + approvedManualCount} duration={850} /> <span style={{ fontSize: '0.80rem', color: 'var(--text-muted)' }}>/ {ledgerData.onChain.length + ledgerData.manual.length}</span>
                   </div>
                   <div className="admin-metric-sub">
                     100% Sepolia EVM & Slip Reconciled

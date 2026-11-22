@@ -4,6 +4,7 @@ import { ethers } from 'ethers';
 import Tesseract from 'tesseract.js';
 import { isLocalhost, API_URL } from '../config';
 import { useRealtimeSync } from '../hooks/useRealtimeSync';
+import LiveCounter from '../components/LiveCounter';
 import CampaignCard, { shortAddr, formatCampaignTitle, formatEthAmt, progressPct, getOrgDisplayName, getCampaignTags, getCampaignAuditDetails, getCampaignCategoryInfo, getCampaignCoverData } from '../components/CampaignCard';
 import LocationMapPicker from '../components/LocationMapPicker';
 import { ROLES } from '../roleConfig';
@@ -2665,7 +2666,7 @@ export default function OrganizationView({
                       Total aid mobilized
                     </div>
                     <div className="db-impact-value" style={{ color: heroText }}>
-                      ₱{(totalRaisedByMe * 170000).toLocaleString('en-US', { maximumFractionDigits: 0 })}
+                      <LiveCounter value={Math.round(totalRaisedByMe * 170000)} prefix="₱" duration={1050} />
                       <span className="db-impact-unit">PHP</span>
                     </div>
                     <div className="db-impact-sub">
@@ -2766,7 +2767,7 @@ export default function OrganizationView({
                     <span className="material-symbols-outlined dbo-metric-icon">payments</span>
                   </div>
                   <div className="dbo-metric-number accent">
-                    ₱{(totalRaisedByMe * 170000).toLocaleString('en-US', { maximumFractionDigits: 0 })}
+                    <LiveCounter value={Math.round(totalRaisedByMe * 170000)} prefix="₱" duration={1050} />
                   </div>
                   <p className="dbo-metric-caption">
                     <span>Combined Multi-Rail Total · Sepolia Notarized</span>
@@ -2779,7 +2780,7 @@ export default function OrganizationView({
                     <span className="material-symbols-outlined dbo-metric-icon">rocket_launch</span>
                   </div>
                   <div className="dbo-metric-number">
-                    {myCampaigns.length}
+                    <LiveCounter value={myCampaigns.length} duration={800} />
                   </div>
                   <p className="dbo-metric-caption">
                     <span>{myCampaigns.filter(c => c.isActive).length} active · {myCampaigns.filter(c => !c.isActive).length} concluded</span>
@@ -2792,10 +2793,10 @@ export default function OrganizationView({
                     <span className="material-symbols-outlined dbo-metric-icon">receipt_long</span>
                   </div>
                   <div className="dbo-metric-number">
-                    {orgDonations ? orgDonations.length : 0}
+                    <LiveCounter value={orgDonations ? orgDonations.length : 0} duration={850} />
                   </div>
                   <p className="dbo-metric-caption">
-                    <span>≈ ₱{((orgDonations || []).reduce((s, d) => s + (d.phpAmount || Math.round((parseFloat(d.amount || 0)) * 170000)), 0)).toLocaleString('en-US', { maximumFractionDigits: 0 })} PHP total</span>
+                    <span>≈ <LiveCounter value={Math.round((orgDonations || []).reduce((s, d) => s + (d.phpAmount || Math.round((parseFloat(d.amount || 0)) * 170000)), 0))} prefix="₱" duration={1050} /> PHP total</span>
                   </p>
                 </div>
 
@@ -6342,7 +6343,7 @@ export default function OrganizationView({
                   <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#10b981' }}>payments</span>
                 </div>
                 <div style={{ fontSize: '1.45rem', fontWeight: 800, color: '#ededed', fontFamily: 'var(--font-mono, monospace)', letterSpacing: '-0.02em' }}>
-                  ₱{(totalRaisedByMe * 170000).toLocaleString('en-US', { maximumFractionDigits: 0 })} <span style={{ fontSize: '0.80rem', color: '#888888' }}>PHP</span>
+                  <LiveCounter value={Math.round(totalRaisedByMe * 170000)} prefix="₱" duration={1050} /> <span style={{ fontSize: '0.80rem', color: '#888888' }}>PHP</span>
                 </div>
                 <div style={{ fontSize: '0.74rem', color: '#10b981', fontWeight: 500 }}>
                   Gasless Sepolia Audited Total
@@ -6358,7 +6359,7 @@ export default function OrganizationView({
                   <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#38bdf8' }}>receipt_long</span>
                 </div>
                 <div style={{ fontSize: '1.45rem', fontWeight: 800, color: '#ededed', fontFamily: 'var(--font-mono, monospace)', letterSpacing: '-0.02em' }}>
-                  {ledgerTelemetry.totalCount} <span style={{ fontSize: '0.80rem', color: '#888888' }}>Recorded</span>
+                  <LiveCounter value={ledgerTelemetry.totalCount} duration={850} /> <span style={{ fontSize: '0.80rem', color: '#888888' }}>Recorded</span>
                 </div>
                 <div style={{ fontSize: '0.74rem', color: '#38bdf8', fontWeight: 500 }}>
                   100% Sepolia EVM Audited
@@ -6374,7 +6375,7 @@ export default function OrganizationView({
                   <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#a78bfa' }}>account_balance_wallet</span>
                 </div>
                 <div style={{ fontSize: '1.45rem', fontWeight: 800, color: '#ededed', fontFamily: 'var(--font-mono, monospace)', letterSpacing: '-0.02em' }}>
-                  {ledgerTelemetry.railCounts.gcash + ledgerTelemetry.railCounts.maya + ledgerTelemetry.railCounts.bank} <span style={{ fontSize: '0.80rem', color: '#888888' }}>PHP Gifts</span>
+                  <LiveCounter value={ledgerTelemetry.railCounts.gcash + ledgerTelemetry.railCounts.maya + ledgerTelemetry.railCounts.bank} duration={850} /> <span style={{ fontSize: '0.80rem', color: '#888888' }}>PHP Donations</span>
                 </div>
                 <div style={{ fontSize: '0.74rem', color: '#888888' }}>
                   GCash ({ledgerTelemetry.railCounts.gcash}) · Maya ({ledgerTelemetry.railCounts.maya}) · Bank/Card ({ledgerTelemetry.railCounts.bank})

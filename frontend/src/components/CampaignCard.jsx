@@ -10,6 +10,7 @@ import EditCampaignModal from './EditCampaignModal';
 import DisburseModal from './DisburseModal';
 import DisbursementProofModal from './DisbursementProofModal';
 import { API_URL } from '../config';
+import LiveCounter from './LiveCounter';
 import { autoCropQrScreenshot } from '../utils/qrCropper';
 import { formatPhoneNumber } from '../utils/formatters';
 import { getWorkspaceStrings } from '../data/workspaceTranslations';
@@ -3258,7 +3259,7 @@ export default function CampaignCard(props) {
             {/* Header: Goal & Total Percent (Clickable trigger for dropdown) */}
             <div className="multi-rail-header">
               <span className="multi-rail-goal-text">
-                <strong>₱{totalRaisedPhp.toLocaleString('en-US', { maximumFractionDigits: 0 })}</strong> raised of ₱{(camp.targetAmountPhp || camp.target_amount_php || Math.round(parseFloat(camp.targetAmount || 0) * 170000)).toLocaleString('en-US', { maximumFractionDigits: 0 })} goal
+                <strong><LiveCounter value={totalRaisedPhp} prefix="₱" duration={1050} /></strong> raised of ₱{(camp.targetAmountPhp || camp.target_amount_php || Math.round(parseFloat(camp.targetAmount || 0) * 170000)).toLocaleString('en-US', { maximumFractionDigits: 0 })} goal
               </span>
 
               <div className="multi-rail-header-right">
