@@ -2599,20 +2599,20 @@ export default function OrganizationView({
 
 
 
-        {/* ── 1. DASHBOARD OVERVIEW TAB ONLY ── */}
+        {/* ── 1. DASHBOARD OVERVIEW TAB ONLY (Exact DonorView Editorial Geist Architecture) ── */}
         {activeTab === 'dashboard' && (() => {
-          /* true when a real image banner is set → dark overlay is active → need white text */
-          const heroBannerActive = !!(currentUser?.banner_url && (
-            currentUser.banner_url.startsWith('data:') ||
-            currentUser.banner_url.startsWith('http') ||
-            currentUser.banner_url.startsWith('/')
-          ));
-          const heroText = heroBannerActive ? '#ffffff' : 'var(--text-primary)';
-          const heroSub = heroBannerActive ? 'rgba(255,255,255,0.75)' : 'var(--text-secondary)';
-          const heroDot = heroBannerActive ? 'rgba(255,255,255,0.3)' : 'var(--border)';
-          const heroBtnBg = heroBannerActive ? 'rgba(255,255,255,0.08)' : 'var(--bg-inset)';
-          const heroBtnBd = heroBannerActive ? 'rgba(255,255,255,0.18)' : 'var(--border)';
-          const heroDivider = heroBannerActive ? 'rgba(255,255,255,0.1)' : 'var(--border)';
+          const isSecApproved = currentUser?.verification_status === 'Approved' || kycStatusData?.Verification_Status === 'Approved';
+          const activeOpsCount = (myCampaigns || []).filter((c) => c.isActive).length;
+          const concludedOpsCount = (myCampaigns || []).length - activeOpsCount;
+          const totalRaisedPhp = Math.round(totalRaisedByMe * 170000);
+          const totalTargetPhp = (myCampaigns || []).reduce(
+            (sum, c) => sum + Number(c.targetAmountPhp || c.target_amount_php || Math.round((parseFloat(c.targetAmount) || 0) * 170000)),
+            0
+          );
+          const overallFundingPct = totalTargetPhp > 0 ? Math.min(100, Math.round((totalRaisedPhp / totalTargetPhp) * 100)) : 0;
+          const donationsCount = orgDonations ? orgDonations.length : 0;
+          const sortedOps = [...(myCampaigns || [])].sort((a, b) => Number(Boolean(b.isActive)) - Number(Boolean(a.isActive)));
+
           return (
             <div key="tab-org-dashboard" className="donor-tab-transition">
               {/* Institutional Vercel Page Header (Matches DonorView) */}
@@ -2628,371 +2628,463 @@ export default function OrganizationView({
                 </div>
               </div>
 
-              {/* Compact Organization Hero */}
-              <div
-                className="db-hero"
-                id="tour-ngo-welcome"
-                style={{
-                  ...(currentUser?.banner_url && (currentUser.banner_url.startsWith('data:') || currentUser.banner_url.startsWith('http') || currentUser.banner_url.startsWith('/'))
-                    ? { backgroundImage: `linear-gradient(rgba(10,12,18,0.75), rgba(10,12,18,0.92)), url(${currentUser.banner_url})`, backgroundSize: 'cover', backgroundPosition: 'center' }
-                    : currentUser?.banner_url && currentUser.banner_url.startsWith('linear-gradient')
-                      ? { background: currentUser.banner_url }
-                      : {})
-                }}
-              >
-                <div className="db-hero-row">
-                  {/* Left: Avatar & Identity */}
-                  <div className="db-identity" id="tour-ngo-identity">
-                    <div className="db-avatar" style={heroBannerActive ? { background: 'rgba(255,255,255,0.1)', borderColor: 'rgba(255,255,255,0.24)' } : undefined}>
-                      {currentUser?.avatar_url && (currentUser.avatar_url.startsWith('data:') || currentUser.avatar_url.startsWith('http')) ? (
-                        <img src={currentUser.avatar_url} alt="Profile" />
-                      ) : currentUser?.avatar_url && currentUser.avatar_url.length < 30 ? (
-                        <span className="material-symbols-outlined" style={{ fontSize: '25px', color: 'var(--accent)' }}>{currentUser.avatar_url}</span>
-                      ) : (
-                        orgInitials
+              {/* ── 1. Borderless Editorial Hero with Vercel Geist 3D Isometric Backdrop ── */}
+              <div className="dbo-editorial-hero" id="tour-ngo-welcome">
+                <div className="dbo-hero-bg-mesh" aria-hidden="true" />
+
+                <div className="dbo-hero-content">
+                  <div className="dbo-hero-main-row">
+                    <div className="dbo-hero-identity" id="tour-ngo-identity">
+                      <div className="dbo-hero-avatar">
+                        {currentUser?.avatar_url && (currentUser.avatar_url.startsWith('data:') || currentUser.avatar_url.startsWith('http')) ? (
+                          <img src={currentUser.avatar_url} alt="Profile" />
+                        ) : currentUser?.avatar_url && currentUser.avatar_url.length < 30 ? (
+                          <span className="material-symbols-outlined" style={{ fontSize: '24px', color: 'var(--text-primary)' }}>{currentUser.avatar_url}</span>
+                        ) : (
+                          orgInitials
+                        )}
+                      </div>
+                      <div className="dbo-hero-title-group">
+                        <div className="dbo-hero-name-row">
+                          <h1 className="dbo-hero-name">{orgDisplayName || 'Organization Dashboard'}</h1>
+                          {isSecApproved && (
+                            <span
+                              className="material-symbols-outlined dbo-hero-verified-icon"
+                              title="SEC Accredited Non-Profit Organization"
+                              aria-label="SEC Accredited"
+                            >
+                              verified
+                            </span>
+                          )}
+                        </div>
+                        <p className="dbo-hero-sub">
+                          {isSecApproved
+                            ? 'SEC-accredited relief operations notarized gaslessly on Ethereum Sepolia.'
+                            : 'Complete SEC accreditation to unlock verified relief campaign deployment.'}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="dbo-hero-actions" id="tour-ngo-actions">
+                      <button
+                        type="button"
+                        className="dbo-cmd-btn dbo-cmd-btn--primary"
+                        onClick={() => setActiveTab('create')}
+                        title="Deploy a new disaster relief or charitable campaign"
+                      >
+                        <span>{wt.deployCampaign}</span>
+                        <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>arrow_forward</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        className="dbo-cmd-btn"
+                        onClick={() => setActiveTab('analytics')}
+                        title="View fundraising analytics and export reports"
+                      >
+                        <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>analytics</span>
+                        <span>Analytics</span>
+                      </button>
+
+                      {interfaceMode !== 'simplified' && (
+                        <a
+                          href="https://sepolia.etherscan.io"
+                          target="_blank"
+                          rel="noreferrer"
+                          className="dbo-cmd-ghost"
+                          title="View Sepolia network explorer"
+                        >
+                          <span>{wt.publicLedger}</span>
+                          <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>north_east</span>
+                        </a>
                       )}
                     </div>
+                  </div>
 
-                    <div style={{ minWidth: 0 }}>
-                      <h1 className="db-title" style={{ color: heroText }}>
-                        {orgDisplayName || 'Organization Dashboard'}
-                      </h1>
-                      <div className="db-meta" style={{ color: heroSub }}>
-                        <span className={`db-chip ${currentUser?.verification_status === 'Approved' ? 'db-chip--ok' : 'db-chip--warn'}`}>
-                          <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>
-                            {currentUser?.verification_status === 'Approved' ? 'verified' : 'hourglass_top'}
-                          </span>
-                          <span>{currentUser?.verification_status === 'Approved' ? 'SEC accredited' : 'Accreditation pending'}</span>
+                  {/* Inline Action Notice: SEC Accreditation Pending */}
+                  {!isSecApproved && (
+                    <div className="dbo-pending-banner">
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+                        <span className="material-symbols-outlined" style={{ color: '#f59e0b', fontSize: '19px', flexShrink: 0 }}>
+                          verified_user
                         </span>
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                          <span className="material-symbols-outlined" style={{ fontSize: '13px', color: '#10b981' }}>verified_user</span>
-                          <span>Gasless Sepolia Audit Active</span>
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Right: Mobilized Aid Summary */}
-                  <div className="db-impact" id="tour-ngo-impact">
-                    <div className="db-impact-label" style={heroBannerActive ? { color: 'rgba(255,255,255,0.6)' } : undefined}>
-                      Total aid mobilized
-                    </div>
-                    <div className="db-impact-value" style={{ color: heroText }}>
-                      <LiveCounter value={Math.round(totalRaisedByMe * 170000)} prefix="₱" duration={1050} />
-                      <span className="db-impact-unit">PHP</span>
-                    </div>
-                    <div className="db-impact-sub">
-                      Gasless Sepolia notarized · {myCampaigns.length} operation{myCampaigns.length !== 1 ? 's' : ''}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Action Row */}
-                <div className="db-actions" id="tour-ngo-actions" style={{ borderTopColor: heroDivider }}>
-                  <button
-                    type="button"
-                    className="db-btn db-btn--primary"
-                    onClick={() => setActiveTab('create')}
-                  >
-                    <span className="material-symbols-outlined">rocket_launch</span>
-                    <span>{wt.deployCampaign}</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    className="db-btn"
-                    style={heroBannerActive ? { background: heroBtnBg, borderColor: heroBtnBd, color: heroText } : undefined}
-                    onClick={() => setActiveTab('analytics')}
-                  >
-                    <span className="material-symbols-outlined">analytics</span>
-                    <span>Analytics &amp; Reports</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    className="db-btn"
-                    style={heroBannerActive ? { background: heroBtnBg, borderColor: heroBtnBd, color: heroText } : undefined}
-                    onClick={() => setActiveTab('ledger')}
-                  >
-                    <span className="material-symbols-outlined">receipt_long</span>
-                    <span>Donation Ledger</span>
-                  </button>
-
-                  {interfaceMode !== 'simplified' && (
-                    <button
-                      type="button"
-                      className="db-btn"
-                      style={heroBannerActive ? { background: heroBtnBg, borderColor: heroBtnBd, color: heroText } : undefined}
-                      onClick={() => setActiveTab('radar-heatmap')}
-                    >
-                      <span className="material-symbols-outlined">radar</span>
-                      <span>{wt.openRadar}</span>
-                    </button>
-                  )}
-
-                  {interfaceMode !== 'simplified' && (
-                    <a
-                      href="https://sepolia.etherscan.io"
-                      target="_blank"
-                      rel="noreferrer"
-                      className="db-btn"
-                      style={heroBannerActive ? { background: heroBtnBg, borderColor: heroBtnBd, color: heroText, marginLeft: 'auto' } : { marginLeft: 'auto' }}
-                    >
-                      <span className="material-symbols-outlined">analytics</span>
-                      <span>{wt.publicLedger}</span>
-                      <span className="material-symbols-outlined" style={{ fontSize: '15px', marginLeft: '2px' }}>open_in_new</span>
-                    </a>
-                  )}
-                </div>
-              </div>
-
-              {/* Action Required: SEC Accreditation Banner (when pending) */}
-              {(currentUser?.verification_status !== 'Approved' && kycStatusData?.Verification_Status !== 'Approved') && (
-                <div className="db-banner">
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <div className="db-banner-icon">
-                      <span className="material-symbols-outlined" style={{ fontSize: '22px' }}>verified_user</span>
-                    </div>
-                    <div>
-                      <div className="db-banner-title">SEC non-profit accreditation pending</div>
-                      <div className="db-banner-desc">
-                        Submit your SEC registration number, board of trustees, and certificate to unlock on-chain campaign deployment.
-                      </div>
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    className="db-btn db-btn--primary"
-                    onClick={() => { fetchKycData(); setActiveTab('sec-kyc'); }}
-                  >
-                    <span>Complete SEC Verification</span>
-                    <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>arrow_forward</span>
-                  </button>
-                </div>
-              )}
-
-              {/* ── 2. Clean 4-Card Metric Grid ── */}
-              <div className="dbo-metrics-row" id="tour-ngo-metrics">
-                <div className="dbo-metric-card">
-                  <div className="dbo-metric-head">
-                    <span className="dbo-metric-title">Total Aid Mobilized</span>
-                    <span className="material-symbols-outlined dbo-metric-icon">payments</span>
-                  </div>
-                  <div className="dbo-metric-number accent">
-                    <LiveCounter value={Math.round(totalRaisedByMe * 170000)} prefix="₱" duration={1050} />
-                  </div>
-                  <p className="dbo-metric-caption">
-                    <span>Combined Multi-Rail Total · Sepolia Notarized</span>
-                  </p>
-                </div>
-
-                <div className="dbo-metric-card interactive" onClick={() => setActiveTab('my-campaigns')} title="Manage operations">
-                  <div className="dbo-metric-head">
-                    <span className="dbo-metric-title">Relief Operations</span>
-                    <span className="material-symbols-outlined dbo-metric-icon">rocket_launch</span>
-                  </div>
-                  <div className="dbo-metric-number">
-                    <LiveCounter value={myCampaigns.length} duration={800} />
-                  </div>
-                  <p className="dbo-metric-caption">
-                    <span>{myCampaigns.filter(c => c.isActive).length} active · {myCampaigns.filter(c => !c.isActive).length} concluded</span>
-                  </p>
-                </div>
-
-                <div className="dbo-metric-card interactive" onClick={() => setActiveTab('ledger')} title="View donation ledger">
-                  <div className="dbo-metric-head">
-                    <span className="dbo-metric-title">Donations Received</span>
-                    <span className="material-symbols-outlined dbo-metric-icon">receipt_long</span>
-                  </div>
-                  <div className="dbo-metric-number">
-                    <LiveCounter value={orgDonations ? orgDonations.length : 0} duration={850} />
-                  </div>
-                  <p className="dbo-metric-caption">
-                    <span>≈ <LiveCounter value={Math.round((orgDonations || []).reduce((s, d) => s + (d.phpAmount || Math.round((parseFloat(d.amount || 0)) * 170000)), 0))} prefix="₱" duration={1050} /> PHP total</span>
-                  </p>
-                </div>
-
-                <div className="dbo-metric-card interactive" onClick={() => { fetchKycData(); setActiveTab('sec-kyc'); }} title="View SEC accreditation">
-                  <div className="dbo-metric-head">
-                    <span className="dbo-metric-title">SEC Accreditation</span>
-                    <span className="material-symbols-outlined dbo-metric-icon" style={currentUser?.verification_status === 'Approved' ? { color: '#16a34a' } : { color: '#f59e0b' }}>
-                      {currentUser?.verification_status === 'Approved' ? 'verified' : 'hourglass_top'}
-                    </span>
-                  </div>
-                  <div className="dbo-metric-number" style={{ fontSize: '1.2rem', color: currentUser?.verification_status === 'Approved' ? '#16a34a' : '#f59e0b' }}>
-                    {currentUser?.verification_status === 'Approved' ? 'Accredited' : 'Pending'}
-                  </div>
-                  <p className="dbo-metric-caption">
-                    <span>{currentUser?.verification_status === 'Approved' ? 'Non-profit certified for escrow' : 'Awaiting admin verification'}</span>
-                  </p>
-                </div>
-              </div>
-
-              {/* ── 3. My Relief Operations Section ── */}
-              <div className="dbo-section-wrapper">
-                <div className="dbo-clean-section-header">
-                  <h2 className="dbo-clean-heading">
-                    <span className="material-symbols-outlined" style={{ fontSize: '20px', color: '#0284c7' }}>rocket_launch</span>
-                    <span>My Deployed Relief Operations</span>
-                  </h2>
-                  <button type="button" className="dbo-clean-link" onClick={() => setActiveTab('my-campaigns')}>
-                    <span>Manage all {myCampaigns.length} campaigns</span>
-                    <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>arrow_forward</span>
-                  </button>
-                </div>
-
-                {fetchingCampaigns && myCampaigns.length === 0 ? (
-                  <div className="empty-state">
-                    <div className="spinner spinner-light" style={{ width: 28, height: 28 }} />
-                    <div className="empty-title">Reading from blockchain…</div>
-                  </div>
-                ) : myCampaigns.length === 0 ? (
-                  <div className="db-empty-state">
-                    <div className="db-empty-icon"><span className="material-symbols-outlined">rocket_launch</span></div>
-                    <div className="db-empty-title">You haven't deployed any campaigns yet</div>
-                    <div className="db-empty-desc">Start your first relief operation to receive contributions via GCash, Maya, cards, and Philippine bank transfer.</div>
-                    <button
-                      type="button"
-                      className="dbo-card-btn primary"
-                      style={{ display: 'inline-flex', width: 'auto', padding: '8px 18px', marginTop: '10px' }}
-                      onClick={() => setActiveTab('create')}
-                    >
-                      <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>add</span>
-                      <span>Deploy First Campaign</span>
-                    </button>
-                  </div>
-                ) : (
-                  <div className="dbo-campaigns-grid">
-                    {myCampaigns.slice(0, 3).map((camp) => {
-                      const pct = progressPct(camp.currentAmount, camp.targetAmount);
-                      const cover = getCampaignCoverData(camp);
-                      const catInfo = getCampaignCategoryInfo(camp);
-                      const campPhpTarget = (camp.targetAmountPhp || camp.target_amount_php || Math.round((parseFloat(camp.targetAmount) || 0) * 170000)).toLocaleString('en-US');
-                      const campPhpCurrent = Math.round((parseFloat(camp.currentAmount) || 0) * 170000).toLocaleString('en-US');
-
-                      return (
-                        <div className="dbo-clean-card" key={camp.id}>
-                          <div
-                            className="dbo-clean-card-thumb"
-                            style={cover.imageUrl ? { backgroundImage: `url(${cover.imageUrl})` } : undefined}
-                          >
-                            <div className="dbo-clean-card-badges">
-                              <span className={`dbo-pill-mini ${camp.isActive ? '' : 'urgent'}`}>
-                                {camp.isActive ? 'Active' : 'Concluded'}
-                              </span>
-                              <span className="dbo-pill-mini">{catInfo.label}</span>
-                            </div>
-                          </div>
-
-                          <div className="dbo-clean-card-body">
-                            <h3 className="dbo-clean-card-title" title={camp.title}>
-                              {formatCampaignTitle(camp.title, camp.id)}
-                            </h3>
-
-                            <p className="dbo-clean-card-location">
-                              <span className="material-symbols-outlined" style={{ fontSize: '14px', color: '#ef4444' }}>location_on</span>
-                              <span>{cover.locationTag || 'Philippines'}</span>
-                            </p>
-
-                            <div className="dbo-clean-progress-block">
-                              <div className="dbo-clean-progress-bar">
-                                <div className="dbo-clean-progress-fill" style={{ width: `${Math.min(100, parseFloat(pct) || 0)}%` }} />
-                              </div>
-                              <div className="dbo-clean-progress-labels">
-                                <span><strong>₱{campPhpCurrent}</strong> of ₱{campPhpTarget}</span>
-                                <span style={{ color: '#16a34a', fontWeight: 700 }}>{pct}%</span>
-                              </div>
-                            </div>
-
-                            <div className="dbo-clean-card-actions">
-                              <button
-                                type="button"
-                                className="dbo-card-btn primary"
-                                onClick={() => setActiveTab('my-campaigns')}
-                              >
-                                <span>Manage</span>
-                                <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>tune</span>
-                              </button>
-                              <button
-                                type="button"
-                                className="dbo-card-btn secondary"
-                                onClick={() => setActiveTab('ledger')}
-                              >
-                                <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>receipt_long</span>
-                                <span>Ledger</span>
-                              </button>
-                            </div>
-                          </div>
+                        <div style={{ fontSize: '0.78rem', color: 'var(--text-primary)' }}>
+                          <strong>SEC Accreditation Pending:</strong>{' '}
+                          Submit your SEC registration, signatory IDs, and certificate to unlock relief campaign deployment.
                         </div>
-                      );
-                    })}
+                      </div>
+                      <button
+                        type="button"
+                        className="dbo-cmd-btn dbo-cmd-btn--primary"
+                        onClick={() => { fetchKycData(); setActiveTab('sec-kyc'); }}
+                        style={{ height: '30px', padding: '0 12px', fontSize: '0.74rem', flexShrink: 0 }}
+                      >
+                        <span>Complete Verification</span>
+                        <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>arrow_forward</span>
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Bare Hairline Stat Strip (Zero Duplicate Cards, Zero Heavy Boxes) */}
+                  <div className="dbo-bare-stats cols-4" id="tour-ngo-metrics">
+                    <button
+                      type="button"
+                      className="dbo-bare-stat clickable"
+                      onClick={() => setActiveTab('analytics')}
+                      title="Inspect mobilized aid telemetry and channel breakdown"
+                    >
+                      <span className="dbo-bare-icon-box" aria-hidden="true">
+                        <span className="material-symbols-outlined">payments</span>
+                      </span>
+                      <span className="dbo-bare-text">
+                        <LiveCounter value={totalRaisedPhp} prefix="₱" duration={1050} className="dbo-bare-val" />
+                        <span className="dbo-bare-lbl">Total Aid Mobilized</span>
+                      </span>
+                    </button>
+
+                    <button
+                      type="button"
+                      className="dbo-bare-stat clickable"
+                      onClick={() => setActiveTab('my-campaigns')}
+                      title="Manage your deployed relief operations"
+                    >
+                      <span className="dbo-bare-icon-box" aria-hidden="true">
+                        <span className="material-symbols-outlined">rocket_launch</span>
+                      </span>
+                      <span className="dbo-bare-text">
+                        <LiveCounter value={myCampaigns.length} duration={850} className="dbo-bare-val" />
+                        <span className="dbo-bare-lbl">
+                          {activeOpsCount} active · {concludedOpsCount} concluded
+                        </span>
+                      </span>
+                    </button>
+
+                    <button
+                      type="button"
+                      className="dbo-bare-stat clickable"
+                      onClick={() => setActiveTab('ledger')}
+                      title="Open immutable donation ledger"
+                    >
+                      <span className="dbo-bare-icon-box" aria-hidden="true">
+                        <span className="material-symbols-outlined">receipt_long</span>
+                      </span>
+                      <span className="dbo-bare-text">
+                        <LiveCounter value={donationsCount} duration={850} className="dbo-bare-val" />
+                        <span className="dbo-bare-lbl">Donations Received</span>
+                      </span>
+                    </button>
+
+                    <button
+                      type="button"
+                      className="dbo-bare-stat clickable"
+                      onClick={() => { fetchKycData(); setActiveTab('sec-kyc'); }}
+                      title="Review SEC accreditation and KYC registry"
+                    >
+                      <span className="dbo-bare-icon-box" aria-hidden="true">
+                        <span className="material-symbols-outlined" style={{ color: isSecApproved ? '#10b981' : '#f59e0b' }}>
+                          {isSecApproved ? 'verified_user' : 'hourglass_top'}
+                        </span>
+                      </span>
+                      <span className="dbo-bare-text">
+                        <span className="dbo-bare-val dbo-bare-val--tier" style={{ color: isSecApproved ? '#10b981' : '#f59e0b' }}>
+                          <span>{isSecApproved ? 'Accredited' : 'Pending'}</span>
+                          <span className="material-symbols-outlined" style={{ fontSize: '14px', opacity: 0.6 }}>north_east</span>
+                        </span>
+                        <span className="dbo-bare-lbl">SEC Legal Standing</span>
+                      </span>
+                    </button>
                   </div>
-                )}
+                </div>
               </div>
 
-              {/* ── 4. Recent Inbound Aid Activity ── */}
-              <div className="dbo-section-wrapper">
-                <div className="dbo-clean-section-header">
-                  <h2 className="dbo-clean-heading">
-                    <span className="material-symbols-outlined" style={{ fontSize: '20px', color: '#16a34a' }}>receipt_long</span>
-                    <span>Recent Inbound Aid</span>
-                  </h2>
-                  <button type="button" className="dbo-clean-link" onClick={() => setActiveTab('ledger')}>
-                    <span>View all {orgDonations ? orgDonations.length : 0} receipts</span>
-                    <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>arrow_forward</span>
-                  </button>
-                </div>
+              {/* ── 2. Editorial Bento Workspace (1+2 Deployed Operations + Inbound Aid Feed & Goal Pacing) ── */}
+              <div className="dbo-workspace-split">
+                {/* Left Column: My Deployed Operations (1 Lead Spotlight + 2 Compact Cards) */}
+                <div className="dbo-workspace-col">
+                  <div className="dbo-section-bar">
+                    <div className="dbo-section-title-group">
+                      <h2 className="dbo-section-title">Deployed Operations</h2>
+                      <span className="dbo-count-pill">{myCampaigns.length}</span>
+                    </div>
+                    <button type="button" className="dbo-clean-link" onClick={() => setActiveTab('my-campaigns')}>
+                      <span>Manage all</span>
+                      <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>arrow_forward</span>
+                    </button>
+                  </div>
 
-                <div className="dbo-feed-card">
-                  {(!orgDonations || orgDonations.length === 0) ? (
-                    <div style={{ padding: '24px 20px', textAlign: 'center' }}>
-                      <div style={{ fontSize: '0.88rem', fontWeight: 600, color: 'var(--text-secondary)' }}>No inbound donations recorded yet.</div>
-                      <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: '4px 0 0' }}>
-                        When donors contribute to your relief missions, verified receipts will appear here in real time.
-                      </p>
+                  {fetchingCampaigns && myCampaigns.length === 0 ? (
+                    <div className="db-empty-state">
+                      <div className="spinner spinner-light" style={{ width: 24, height: 24, margin: '0 auto 10px' }} />
+                      <div className="db-empty-title">Reading relief operations…</div>
+                    </div>
+                  ) : sortedOps.length === 0 ? (
+                    <div className="db-empty-state">
+                      <div className="db-empty-icon"><span className="material-symbols-outlined">rocket_launch</span></div>
+                      <div className="db-empty-title">No relief operations deployed yet</div>
+                      <div className="db-empty-desc">Launch your first campaign to accept verified GCash, Maya, and bank contributions.</div>
+                      <button
+                        type="button"
+                        className="dbo-row-donate-btn"
+                        style={{ display: 'inline-flex', margin: '12px auto 0' }}
+                        onClick={() => setActiveTab('create')}
+                      >
+                        <span>Deploy First Campaign</span>
+                        <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>arrow_forward</span>
+                      </button>
                     </div>
                   ) : (
-                    <div>
-                      {orgDonations.slice(0, 4).map((d, dIdx) => {
-                        const rail = (d.paymentMethod || d.Payment_Method || 'CARD').toUpperCase();
-                        const railClass = rail.includes('GCASH') ? 'gcash' : rail.includes('MAYA') ? 'maya' : 'bank';
-                        const ethAmt = parseFloat(d.amount || d.Amount || 0);
-                        const phpVal = d.phpAmount || Math.round(ethAmt * 170000);
-                        const txHash = d.txHash || d.Tx_Hash;
-                        const donorName = d.donorName || d.donor_name || 'Generous Contributor';
-                        const campTitle = d.campaignTitle || d.campaign_title || 'Relief Campaign';
+                    <div className="dbo-bento-appeals">
+                      {/* Lead Spotlight Operation (#1) */}
+                      {(() => {
+                        const camp = sortedOps[0];
+                        if (!camp) return null;
+                        const pct = progressPct(camp.currentAmount, camp.targetAmount);
+                        const cover = getCampaignCoverData(camp);
+                        const catInfo = getCampaignCategoryInfo(camp);
+                        const campPhpTarget = (camp.targetAmountPhp || camp.target_amount_php || Math.round((parseFloat(camp.targetAmount) || 0) * 170000)).toLocaleString('en-US');
+                        const campPhpCurrent = Math.round((parseFloat(camp.currentAmount) || 0) * 170000).toLocaleString('en-US');
 
                         return (
-                          <div className="dbo-feed-row" key={dIdx}>
-                            <div className="dbo-feed-info">
-                              <span className={`dbo-feed-rail ${railClass}`}>
-                                {rail.includes('GCASH') ? 'GCASH' : rail.includes('MAYA') ? 'MAYA' : 'BANK / CARD'}
-                              </span>
-                              <div className="dbo-feed-text">
-                                <div className="dbo-feed-title" title={campTitle}>{campTitle}</div>
-                                <div className="dbo-feed-meta">From: {donorName}</div>
-                              </div>
+                          <div className="dbo-spotlight-card">
+                            <div
+                              className="dbo-spotlight-media"
+                              style={cover.imageUrl ? { backgroundImage: `url(${cover.imageUrl})` } : undefined}
+                            >
+                              <div className="dbo-spotlight-scrim" />
                             </div>
-                            <div className="dbo-feed-right">
-                              <div className="dbo-feed-amt">+₱{phpVal.toLocaleString('en-US')}</div>
-                              {txHash && (
-                                <a
-                                  href={`https://sepolia.etherscan.io/tx/${txHash}`}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="dbo-feed-link"
-                                  title="View on Sepolia Etherscan"
-                                >
-                                  <span>{shortAddr(txHash)}</span>
-                                  <span className="material-symbols-outlined" style={{ fontSize: '11px' }}>open_in_new</span>
-                                </a>
-                              )}
+
+                            <div className="dbo-spotlight-body">
+                              <div className="dbo-appeal-meta-pills">
+                                <span className="dbo-cat-chip">{catInfo.label}</span>
+                                {!camp.isActive && <span className="dbo-cat-chip urgent">Concluded</span>}
+                                <span className="dbo-loc-text">{cover.locationTag || 'Philippines'}</span>
+                              </div>
+
+                              <h3 className="dbo-spotlight-title" title={camp.title}>
+                                {formatCampaignTitle(camp.title, camp.id)}
+                              </h3>
+
+                              <div className="dbo-spotlight-progress">
+                                <div className="dbo-clean-progress-bar">
+                                  <div className="dbo-clean-progress-fill" style={{ width: `${Math.min(100, parseFloat(pct) || 0)}%` }} />
+                                </div>
+                                <div className="dbo-clean-progress-labels">
+                                  <span><strong>₱{campPhpCurrent}</strong> <span className="dbo-goal-muted">/ ₱{campPhpTarget}</span></span>
+                                  <span className="dbo-pct-val">{pct}%</span>
+                                </div>
+                              </div>
+
+                              <div className="dbo-spotlight-footer">
+                                <span className="dbo-org-label">{camp.isActive ? 'Active operation' : 'Concluded operation'}</span>
+                                <div className="dbo-appeal-row-actions">
+                                  <button
+                                    type="button"
+                                    className="dbo-row-icon-btn"
+                                    onClick={() => setActiveTab('ledger')}
+                                    title="Inspect campaign receipts in ledger"
+                                    aria-label="Inspect ledger"
+                                  >
+                                    <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>receipt_long</span>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="dbo-row-donate-btn"
+                                    onClick={() => {
+                                      setActiveTab('my-campaigns');
+                                      setSearchQueryMy(camp.title || '');
+                                    }}
+                                  >
+                                    <span>Manage</span>
+                                    <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>arrow_forward</span>
+                                  </button>
+                                </div>
+                              </div>
                             </div>
                           </div>
                         );
-                      })}
+                      })()}
+
+                      {/* Secondary 2-Column Compact Operations (#2 & #3) */}
+                      {sortedOps.length > 1 && (
+                        <div className="dbo-secondary-grid">
+                          {sortedOps.slice(1, 3).map((camp) => {
+                            const pct = progressPct(camp.currentAmount, camp.targetAmount);
+                            const cover = getCampaignCoverData(camp);
+                            const catInfo = getCampaignCategoryInfo(camp);
+                            const campPhpTarget = (camp.targetAmountPhp || camp.target_amount_php || Math.round((parseFloat(camp.targetAmount) || 0) * 170000)).toLocaleString('en-US');
+                            const campPhpCurrent = Math.round((parseFloat(camp.currentAmount) || 0) * 170000).toLocaleString('en-US');
+
+                            return (
+                              <div className="dbo-mini-appeal-card" key={camp.id}>
+                                <div
+                                  className="dbo-mini-media"
+                                  style={cover.imageUrl ? { backgroundImage: `url(${cover.imageUrl})` } : undefined}
+                                >
+                                  <div className="dbo-mini-scrim" />
+                                  <span className="dbo-mini-cat-chip">{catInfo.label}</span>
+                                </div>
+
+                                <div className="dbo-mini-body">
+                                  <h3 className="dbo-mini-title" title={camp.title}>
+                                    {formatCampaignTitle(camp.title, camp.id)}
+                                  </h3>
+
+                                  <div className="dbo-mini-progress">
+                                    <div className="dbo-clean-progress-bar">
+                                      <div className="dbo-clean-progress-fill" style={{ width: `${Math.min(100, parseFloat(pct) || 0)}%` }} />
+                                    </div>
+                                    <div className="dbo-clean-progress-labels">
+                                      <span><strong>₱{campPhpCurrent}</strong> <span className="dbo-goal-muted">/ ₱{campPhpTarget}</span></span>
+                                      <span className="dbo-pct-val">{pct}%</span>
+                                    </div>
+                                  </div>
+
+                                  <div className="dbo-mini-footer">
+                                    <span className="dbo-loc-text">{cover.locationTag || 'Philippines'}</span>
+                                    <div className="dbo-appeal-row-actions">
+                                      <button
+                                        type="button"
+                                        className="dbo-row-icon-btn"
+                                        onClick={() => setActiveTab('ledger')}
+                                        title="View ledger"
+                                        aria-label="View ledger"
+                                      >
+                                        <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>receipt_long</span>
+                                      </button>
+                                      <button
+                                        type="button"
+                                        className="dbo-row-donate-btn"
+                                        onClick={() => {
+                                          setActiveTab('my-campaigns');
+                                          setSearchQueryMy(camp.title || '');
+                                        }}
+                                      >
+                                        <span>Manage</span>
+                                        <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>arrow_forward</span>
+                                      </button>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
                     </div>
                   )}
+                </div>
+
+                {/* Right Column: Recent Inbound Aid Feed + Overall Mobilization Pacing */}
+                <div className="dbo-workspace-col">
+                  <div className="dbo-section-bar">
+                    <div className="dbo-section-title-group">
+                      <h2 className="dbo-section-title">Recent Inbound Aid</h2>
+                      {donationsCount > 0 && <span className="dbo-count-pill">{donationsCount}</span>}
+                    </div>
+                    <button type="button" className="dbo-clean-link" onClick={() => setActiveTab('ledger')}>
+                      <span>Open ledger</span>
+                      <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>arrow_forward</span>
+                    </button>
+                  </div>
+
+                  <div className="dbo-ledger-card">
+                    {donationsCount === 0 ? (
+                      <div style={{ padding: '28px 20px', textAlign: 'center' }}>
+                        <div style={{ fontSize: '0.86rem', fontWeight: 600, color: 'var(--text-primary)' }}>No inbound donations recorded yet</div>
+                        <p style={{ fontSize: '0.76rem', color: 'var(--text-secondary)', margin: '6px 0 0', lineHeight: 1.5 }}>
+                          Verified GCash, Maya, and Bank contributions to your relief drives will appear here in real time.
+                        </p>
+                      </div>
+                    ) : (
+                      <>
+                        <div>
+                          {orgDonations.slice(0, 5).map((d, dIdx) => {
+                            const rail = (d.paymentMethod || d.Payment_Method || 'PHP').toUpperCase();
+                            const ethAmt = parseFloat(d.amount || d.Amount || 0);
+                            const phpVal = d.phpAmount || Math.round(ethAmt * 170000);
+                            const txHash = d.txHash || d.Tx_Hash;
+                            const donorName = d.donorName || d.donor_name || 'Verified Contributor';
+                            const campTitle = d.campaignTitle || d.campaign_title || 'Relief Operation';
+
+                            return (
+                              <div className="dbo-feed-row" key={dIdx}>
+                                <div className="dbo-feed-info">
+                                  <span className="dbo-feed-rail">
+                                    {rail.includes('GCASH') ? 'GCASH' : rail.includes('MAYA') ? 'MAYA' : (rail.includes('BANK') || rail.includes('CARD')) ? 'BANK' : 'PHP'}
+                                  </span>
+                                  <div className="dbo-feed-text">
+                                    <div className="dbo-feed-title" title={campTitle}>{campTitle}</div>
+                                    <div className="dbo-feed-meta">
+                                      <span className="dbo-emerald-dot-sm" />
+                                      <span>{donorName}</span>
+                                      {txHash && (
+                                        <>
+                                          <span style={{ opacity: 0.35 }}>·</span>
+                                          <a
+                                            href={`https://sepolia.etherscan.io/tx/${txHash}`}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="dbo-feed-link"
+                                            title="View on Sepolia Etherscan"
+                                          >
+                                            <span>{shortAddr(txHash)}</span>
+                                            <span className="material-symbols-outlined" style={{ fontSize: '10px' }}>north_east</span>
+                                          </a>
+                                        </>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                                <div className="dbo-feed-amt">+₱{phpVal.toLocaleString('en-US')}</div>
+                              </div>
+                            );
+                          })}
+                        </div>
+
+                        <button
+                          type="button"
+                          className="dbo-ledger-footer-btn"
+                          onClick={() => setActiveTab('ledger')}
+                        >
+                          <span>View all {donationsCount} notarized receipts</span>
+                          <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>arrow_forward</span>
+                        </button>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Operational Funding Pacing & Quick Analytics Card */}
+                  <button
+                    type="button"
+                    className="dbo-milestone-card"
+                    onClick={() => setActiveTab('analytics')}
+                    title="Open Fundraising Analytics & Export Reports"
+                  >
+                    <div className="dbo-milestone-top">
+                      <div className="dbo-milestone-left">
+                        <span className="dbo-milestone-label">Portfolio Goal Pacing</span>
+                        <span className="dbo-milestone-name">
+                          {overallFundingPct}% of combined targets mobilized
+                        </span>
+                      </div>
+                      <span className="dbo-milestone-cta">
+                        <span>Analytics</span>
+                        <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>north_east</span>
+                      </span>
+                    </div>
+
+                    <div className="dbo-clean-progress-bar" style={{ marginTop: '12px' }}>
+                      <div
+                        className="dbo-clean-progress-fill"
+                        style={{ width: `${Math.min(100, Math.max(totalRaisedPhp > 0 ? 4 : 0, overallFundingPct))}%` }}
+                      />
+                    </div>
+
+                    <div className="dbo-milestone-foot">
+                      <span>Raised: <strong>₱{totalRaisedPhp.toLocaleString('en-US')}</strong></span>
+                      <span>Goal: ₱{totalTargetPhp.toLocaleString('en-US')}</span>
+                    </div>
+                  </button>
                 </div>
               </div>
             </div>
@@ -3914,7 +4006,7 @@ export default function OrganizationView({
             <div className="admin-page-header" id="tour-ngo-create-header">
               <div className="admin-page-title-wrap">
                 <h2 className="admin-page-title">
-                  <span className="material-symbols-outlined icon" style={{ color: 'var(--text-primary)' }}>campaign</span>
+                  <span className="material-symbols-outlined icon" style={{ color: 'var(--text-primary)' }}>rocket_launch</span>
                   <span>Create Campaign</span>
                 </h2>
                 <p className="admin-page-sub">
