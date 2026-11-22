@@ -2155,3 +2155,84 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* Archival Certificate Shortcut Row inside Step 4 Receipt */
+.qr8-cert-banner {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 11px 13px;
+  border-radius: 10px;
+  background: #060606;
+  border: 1px solid rgba(212, 175, 55, 0.28);
+  text-align: left;
+  font-family: inherit;
+  cursor: pointer;
+  transition: border-color 0.14s ease, background 0.14s ease;
+}
+
+.qr8-cert-banner:hover {
+  border-color: rgba(212, 175, 55, 0.55);
+  background: #0e0d0a;
+}
+
+[data-theme="light"] .qr8-cert-banner {
+  background: #fdfbf6;
+  border-color: rgba(161, 122, 24, 0.28);
+}
+
+[data-theme="light"] .qr8-cert-banner:hover {
+  background: #f8f3e6;
+  border-color: rgba(161, 122, 24, 0.55);
+}
+
+.qr8-cert-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  background: rgba(212, 175, 55, 0.12);
+  border: 1px solid rgba(212, 175, 55, 0.3);
+  color: #e6c66a;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.qr8-cert-icon .material-symbols-outlined {
+  font-size: 18px;
+}
+
+[data-theme="light"] .qr8-cert-icon {
+  color: #8a6412;
+}
+
+.qr8-cert-copy {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.qr8-cert-copy strong {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+[data-theme="light"] .qr8-cert-copy strong {
+  color: #09090b;
+}
+
+.qr8-cert-copy span {
+  font-size: 0.7rem;
+  color: #888888;
+}
+
+.qr8-cert-arrow {
+  font-size: 16px;
+  color: #71717a;
+  flex-shrink: 0;
+}

@@ -2811,6 +2811,10 @@ export default function CampaignCard(props) {
       setTimeout(() => {
         setGatewayLoading(false);
         setDonateStep(4); // Master Success Phase of CampaignCard
+        showSuccess?.(
+          `₱${Math.round(Number(finalAmount || 0)).toLocaleString('en-US')} via ${gatewayMethod || 'GCash'} confirmed & sealed on Sepolia!`,
+          'Donation Confirmed'
+        );
         onDonated?.(); // Refresh
         fetchHistory(true); // Refresh ledger
         window.dispatchEvent(new CustomEvent('bbdrts_donation_success'));
@@ -2881,8 +2885,15 @@ export default function CampaignCard(props) {
       }
 
       setDonateStep(4); // Success Phase
+      showSuccess?.(
+        paymentMethod === 'Credit Card'
+          ? `₱${Math.round(Number(amount || 0)).toLocaleString('en-US')} card contribution confirmed & notarized on Sepolia!`
+          : `₱${Math.round(Number(amount || 0)).toLocaleString('en-US')} ${paymentMethod} receipt submitted for verification.`,
+        paymentMethod === 'Credit Card' ? 'Donation Confirmed' : 'Receipt Submitted'
+      );
       onDonated?.();
       fetchHistory(true);
+      window.dispatchEvent(new CustomEvent('bbdrts_donation_success'));
     } catch (e) {
       showWarning(e.message, "Submission Failed");
     } finally {
@@ -4586,18 +4597,18 @@ export default function CampaignCard(props) {
 
             <div
               ref={modalCardRef}
-              className={`card bounce-in${!isPaymentProcessing && donateStep === 0 ? ' vc-donate-shell' : ''}${!isPaymentProcessing && donateStep === 8 ? ' vc-donate-shell vc-donate-shell--qr' : ''}${isPaymentProcessing ? ' vc-donate-shell vc-donate-shell--processing' : ''}`}
+              className={`card bounce-in${!isPaymentProcessing && donateStep === 0 ? ' vc-donate-shell' : ''}${!isPaymentProcessing && (donateStep === 8 || donateStep === 4) ? ' vc-donate-shell vc-donate-shell--qr' : ''}${isPaymentProcessing ? ' vc-donate-shell vc-donate-shell--processing' : ''}`}
               style={{
                 position: 'relative',
                 width: isPaymentProcessing ? '464px' : ((donateStep === 6 || donateStep === 7) ? '880px' : ((donateStep === 0 || (donateStep === 8 && !instantReceipt && !instantSettlingOnChain)) ? '748px' : '464px')),
                 maxWidth: '94vw',
                 maxHeight: '92dvh',
                 overflowY: 'auto',
-                padding: (isPaymentProcessing || (!isPaymentProcessing && (donateStep === 0 || donateStep === 8))) ? '0px' : '24px',
+                padding: (isPaymentProcessing || (!isPaymentProcessing && (donateStep === 0 || donateStep === 4 || donateStep === 8))) ? '0px' : '24px',
                 background: isPaymentProcessing ? undefined : 'var(--surface)',
                 border: isPaymentProcessing ? undefined : '1px solid var(--border)',
                 boxShadow: isPaymentProcessing ? undefined : 'var(--shadow-card, 0 25px 50px -12px rgba(0, 0, 0, 0.7))',
-                borderRadius: (isPaymentProcessing || (!isPaymentProcessing && (donateStep === 0 || donateStep === 8))) ? '14px' : '18px',
+                borderRadius: (isPaymentProcessing || (!isPaymentProcessing && (donateStep === 0 || donateStep === 4 || donateStep === 8))) ? '14px' : '18px',
                 transition: 'width 0.25s ease'
               }}
             >
@@ -5300,184 +5311,162 @@ export default function CampaignCard(props) {
                 </div>
               )}
 
-              {/* ── STEP 4: Verified Cryptographic Receipt Screen ── */}
-              {!isPaymentProcessing && donateStep === 4 && (
-                <div className="fade-in" style={{ textAlign: 'center', padding: '16px 8px 8px' }}>
-                  <div className="success-circle-container" style={{ margin: '0 auto 14px' }}>
-                    <span
-                      className="material-symbols-outlined check-icon-pop"
-                      style={{ fontSize: '2.6rem', color: '#22c55e' }}
-                    >
-                      verified
-                    </span>
-                  </div>
-                  <h3 style={{ margin: '0 0 4px', color: 'var(--text-primary, #fff)', fontSize: '1.3rem', fontWeight: 800 }}>Contribution Successful!</h3>
-                  <p style={{ color: 'var(--text-muted, #94a3b8)', fontSize: '0.82rem', margin: 0 }}>
-                    Your funds have been recorded on the immutable smart contract ledger.
-                  </p>
+              {/* ── STEP 4: Verified Cryptographic Receipt Screen (Unified Vercel Geist) ── */}
+              {!isPaymentProcessing && donateStep === 4 && (() => {
+                const paidPhp = Math.round(Number(amount || 0));
+                const isRealMinedTx = Boolean(txHash && txHash.startsWith('0x') && txHash.length === 66 && !txHash.startsWith('0x19ddb'));
+                const explorerUrl = isRealMinedTx
+                  ? `${SEPOLIA_EXPLORER}${txHash}`
+                  : 'https://sepolia.etherscan.io/address/0xB8Effb4f0394946a01da9C5342fC2e70c1E99ddA';
+                const channelDisplay = cardNumber ? `${cardType && cardType !== 'unknown' ? cardType.toUpperCase() : 'Card'} ·••• ${cardNumber.replace(/\D/g, '').slice(-4) || '4242'}` : (gatewayMethod || 'Verified Relief Rail');
+                const handleDone = () => {
+                  setModalOpen(false);
+                  setAmount('');
+                  setDonateStep(0);
+                };
 
-                  {/* Receipt Data Box */}
-                  <div style={{ margin: '18px 0', padding: '16px', background: 'var(--bg-card, rgba(255,255,255,0.02))', borderRadius: '12px', textAlign: 'left', border: '1px solid rgba(34, 197, 94, 0.25)' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', borderBottom: '1px solid var(--border, rgba(255,255,255,0.08))', paddingBottom: '8px' }}>
-                      <span style={{ fontSize: '0.72rem', color: 'var(--text-muted, #94a3b8)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Verified On-Chain Receipt</span>
-                      <span style={{ fontSize: '0.72rem', color: '#22c55e', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
-                        <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>check</span>
-                        CONFIRMED
-                      </span>
-                    </div>
+                return (
+                  <div className="qr8-shell qr8-shell--verified fade-in">
+                    <div className="qr8-top-bar is-success" aria-hidden="true" />
+                    <div className="qr8-ambient-emerald" aria-hidden="true" />
 
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                      <span style={{ fontSize: '0.82rem', color: 'var(--text-muted, #94a3b8)' }}>Campaign:</span>
-                      <strong style={{ fontSize: '0.84rem', color: 'var(--text-primary, #fff)', maxWidth: '200px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{camp.title}</strong>
-                    </div>
-
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                      <span style={{ fontSize: '0.82rem', color: 'var(--text-muted, #94a3b8)' }}>Amount:</span>
-                      <strong style={{ fontSize: '0.96rem', color: '#22c55e' }}>₱{Number(amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })} PHP</strong>
-                    </div>
-
-                    {txHash && (() => {
-                      const isRealMinedTx = txHash.startsWith('0x') && txHash.length === 66 && !txHash.startsWith('0x19ddb');
-                      const explorerUrl = isRealMinedTx
-                        ? `${SEPOLIA_EXPLORER}${txHash}`
-                        : 'https://sepolia.etherscan.io/address/0xB8Effb4f0394946a01da9C5342fC2e70c1E99ddA';
-                      const linkTitle = isRealMinedTx
-                        ? 'Inspect mined transaction on Sepolia Etherscan'
-                        : 'Inspect verified contract on Sepolia Etherscan';
-                      return (
-                        <div style={{ paddingTop: '8px', borderTop: '1px solid var(--border, rgba(255,255,255,0.08))' }}>
-                          <div style={{ fontSize: '0.72rem', color: 'var(--text-muted, #94a3b8)', marginBottom: '4px' }}>Transaction Proof:</div>
-                          <a
-                            href={explorerUrl}
-                            target="_blank"
-                            rel="noreferrer"
-                            style={{ color: '#22c55e', textDecoration: 'none', wordBreak: 'break-all', fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: '6px', fontFamily: 'monospace' }}
-                            title={linkTitle}
-                          >
-                            <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>open_in_new</span>
-                            {txHash.slice(0, 20)}...{txHash.slice(-10)}
-                          </a>
+                    {/* Flush Recessed Header */}
+                    <div className="qr8-header">
+                      <div className="qr8-head-left">
+                        <span className="material-symbols-outlined qr8-head-ico is-emerald">verified</span>
+                        <div className="qr8-head-text">
+                          <span className="qr8-head-title">Official Donation Receipt</span>
+                          <span className="qr8-head-sub">Gasless Sepolia Audited Ledger</span>
                         </div>
-                      );
-                    })()}
+                      </div>
+                      <div className="qr8-head-right">
+                        <span className="qr8-status-pill is-verified">
+                          <span className="qr8-status-dot is-emerald" />
+                          <span>CONFIRMED</span>
+                        </span>
+                        <button type="button" className="vc-donate-close-btn" onClick={handleDone} aria-label="Close">
+                          <span className="material-symbols-outlined" style={{ fontSize: '17px' }}>close</span>
+                        </button>
+                      </div>
+                    </div>
 
-                    {/* Two-Sided Settlement Audit: Sender Card (Debited) -> Receiver NGO Account (Credited) */}
-                    {cardNumber && (
-                      <div style={{ marginTop: '12px', paddingTop: '10px', borderTop: '1px dashed rgba(255,255,255,0.12)', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                        <div style={{ background: 'rgba(0,0,0,0.28)', padding: '10px', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.08)' }}>
-                          <div style={{ fontSize: '0.68rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}>
-                            <span className="material-symbols-outlined" style={{ fontSize: '14px', color: '#38bdf8' }}>credit_card</span>
-                            Sender Card (Debited)
-                          </div>
-                          <div style={{ fontSize: '0.80rem', color: '#fff', fontWeight: 700, marginTop: '4px' }}>
-                            {cardName || 'Gester Macaldo'}
-                          </div>
-                          <div style={{ fontSize: '0.72rem', color: '#94a3b8', fontFamily: 'monospace', marginTop: '2px' }}>
-                            •••• {cardNumber.replace(/\s+/g, '').slice(-4) || '4242'} ({cardType?.toUpperCase() || 'VISA'})
-                          </div>
-                          <div style={{ fontSize: '0.76rem', color: '#ef4444', fontWeight: 800, marginTop: '4px' }}>
-                            -₱{Number(amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })} PHP
+                    {/* Celebratory Hero & Receipt Ledger */}
+                    <div className="qr8-body qr8-body--compact">
+                      <div className="qr8-verified-hero">
+                        <div className="qr8-check-outer">
+                          <div className="qr8-check-inner">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                              <path
+                                d="M5 13l4 4L19 7"
+                                stroke="#10b981"
+                                strokeWidth="2.4"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                className="qr8-check-path"
+                              />
+                            </svg>
                           </div>
                         </div>
 
-                        <div style={{ background: 'rgba(34, 197, 94, 0.06)', padding: '10px', borderRadius: '8px', border: '1px solid rgba(34, 197, 94, 0.22)' }}>
-                          <div style={{ fontSize: '0.68rem', color: '#22c55e', textTransform: 'uppercase', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}>
-                            <span className="material-symbols-outlined" style={{ fontSize: '14px', color: '#22c55e' }}>account_balance</span>
-                            Receiver NGO (Credited)
+                        <div className="qr8-hero-amt-row">
+                          <span className="qr8-hero-amt">₱{paidPhp.toLocaleString('en-US')}</span>
+                          <span className="qr8-hero-unit">PHP</span>
+                        </div>
+                        <div className="qr8-verified-heading">Contribution Successful!</div>
+                        <p className="qr8-verified-desc">
+                          Thank you for your generosity. Your donation has been recorded on the immutable relief ledger.
+                        </p>
+                      </div>
+
+                      <div className="qr8-meta-table">
+                        <div className="qr8-meta-row qr8-meta-row--wrap">
+                          <span className="qr8-meta-k">Campaign</span>
+                          <span className="qr8-meta-v qr8-meta-v--clamp" title={camp.title}>{camp.title}</span>
+                        </div>
+                        <div className="qr8-meta-row">
+                          <span className="qr8-meta-k">Recipient NGO</span>
+                          <span className="qr8-meta-v">{getOrgDisplayName(camp.orgAddress, camp.orgName, camp.id)}</span>
+                        </div>
+                        <div className="qr8-meta-row">
+                          <span className="qr8-meta-k">Channel</span>
+                          <span className="qr8-meta-v">{channelDisplay}</span>
+                        </div>
+                        {txHash && (
+                          <div className="qr8-meta-row">
+                            <span className="qr8-meta-k">Audit Proof</span>
+                            <span className="qr8-meta-v qr8-meta-v--actions">
+                              <a
+                                href={explorerUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="qr8-tx-link pp-mono"
+                              >
+                                <span>{txHash.length > 18 ? `${txHash.slice(0, 10)}…${txHash.slice(-6)}` : txHash}</span>
+                                <span className="material-symbols-outlined">open_in_new</span>
+                              </a>
+                              <button
+                                type="button"
+                                className={`qr8-copy-btn${qrCopiedKey === 'step4tx' ? ' is-copied' : ''}`}
+                                onClick={() => copyInstantValue('step4tx', txHash)}
+                                title="Copy transaction proof"
+                              >
+                                <span className="material-symbols-outlined">
+                                  {qrCopiedKey === 'step4tx' ? 'check' : 'content_copy'}
+                                </span>
+                              </button>
+                            </span>
                           </div>
-                          <div style={{ fontSize: '0.80rem', color: '#fff', fontWeight: 700, marginTop: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                            {camp.orgName || 'BBDRTS Relief Foundation'}
-                          </div>
-                          <div style={{ fontSize: '0.72rem', color: '#94a3b8', fontFamily: 'monospace', marginTop: '2px' }}>
-                            {camp.bankName || 'BDO Unibank'} • {camp.bankAccountNumber || '1092 8847 2910'}
-                          </div>
-                          <div style={{ fontSize: '0.76rem', color: '#22c55e', fontWeight: 800, marginTop: '4px' }}>
-                            +₱{Number(amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })} PHP
-                          </div>
+                        )}
+                        <div className="qr8-meta-row">
+                          <span className="qr8-meta-k">Status</span>
+                          <span className="qr8-meta-v qr8-status-inline">
+                            <span className="qr8-status-dot is-emerald" />
+                            <span>Verified On-Chain</span>
+                          </span>
                         </div>
                       </div>
-                    )}
-                  </div>
 
-                  {/* Donor Recognition & Certificate Callout */}
-                  <div style={{
-                    margin: '12px 0 16px',
-                    padding: '12px 14px',
-                    background: 'linear-gradient(135deg, rgba(217, 119, 6, 0.12), rgba(245, 158, 11, 0.05))',
-                    border: '1px solid rgba(245, 158, 11, 0.35)',
-                    borderRadius: '10px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '12px',
-                    textAlign: 'left'
-                  }}>
-                    <div style={{
-                      width: '38px',
-                      height: '38px',
-                      borderRadius: '50%',
-                      background: 'linear-gradient(135deg, #d97706, #b45309)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      flexShrink: 0,
-                      boxShadow: '0 2px 8px rgba(217, 119, 6, 0.4)'
-                    }}>
-                      <span className="material-symbols-outlined" style={{ color: '#fff', fontSize: '20px' }}>workspace_premium</span>
+                      {/* Clean Certificate Shortcut */}
+                      <button
+                        type="button"
+                        className="qr8-cert-banner"
+                        onClick={() => setCertModalOpen(true)}
+                      >
+                        <span className="qr8-cert-icon">
+                          <span className="material-symbols-outlined">workspace_premium</span>
+                        </span>
+                        <span className="qr8-cert-copy">
+                          <strong>Official Donor Certificate Ready</strong>
+                          <span>View your updated Giving Circle &amp; printable certificate</span>
+                        </span>
+                        <span className="material-symbols-outlined qr8-cert-arrow">arrow_forward</span>
+                      </button>
                     </div>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: '0.84rem', fontWeight: 800, color: 'var(--text-primary, #fff)', letterSpacing: '0.2px' }}>
-                        Certificate of Philanthropy Minted
-                      </div>
-                      <div style={{ fontSize: '0.74rem', color: 'var(--text-muted, #94a3b8)', marginTop: '2px', lineHeight: 1.3 }}>
-                        Your support is recorded on the verified relief ledger. Claim and download your official credential.
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setCertModalOpen(true)}
-                      style={{
-                        padding: '8px 12px',
-                        background: 'linear-gradient(135deg, #d97706, #b45309)',
-                        color: '#fff',
-                        border: 'none',
-                        borderRadius: '8px',
-                        fontWeight: 700,
-                        fontSize: '0.76rem',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '5px',
-                        whiteSpace: 'nowrap',
-                        boxShadow: '0 2px 6px rgba(0,0,0,0.2)'
-                      }}
-                    >
-                      <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>military_tech</span>
-                      <span>View Honors</span>
-                    </button>
-                  </div>
 
-                  <div style={{ display: 'flex', gap: '10px' }}>
-                    <button
-                      className="btn btn-outline"
-                      style={{ flex: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
-                      onClick={() => {
-                        if (txHash) navigator.clipboard.writeText(txHash);
-                        showSuccess('Transaction hash copied to clipboard!', 'Proof Copied');
-                      }}
-                    >
-                      <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>content_copy</span>
-                      <span>Copy Proof</span>
-                    </button>
-                    <button
-                      className="btn btn-primary"
-                      style={{ flex: 1.5 }}
-                      onClick={() => { setModalOpen(false); setAmount(''); }}
-                    >
-                      Complete & Close
-                    </button>
+                    {/* Flush Recessed Footer Actions */}
+                    <div className={`qr8-footer qr8-footer--actions${txHash ? ' has-two' : ''}`}>
+                      {txHash && (
+                        <a
+                          href={explorerUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="qr8-btn qr8-btn--secondary"
+                        >
+                          <span>View on Etherscan</span>
+                          <span className="material-symbols-outlined">north_east</span>
+                        </a>
+                      )}
+                      <button
+                        type="button"
+                        className="qr8-btn qr8-btn--primary"
+                        onClick={handleDone}
+                      >
+                        Done
+                      </button>
+                    </div>
                   </div>
-                </div>
-              )}
+                );
+              })()}
 
               {/* ── STEP 6: Institutional Card & Bank Checkout ── */}
               {!isPaymentProcessing && donateStep === 6 && (

@@ -1396,7 +1396,7 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
                     </button>
                   </div>
 
-                  {fetchingCampaigns ? (
+                  {fetchingCampaigns && campaigns.length === 0 ? (
                     <div className="dbo-appeals-stack">
                       <DbSkeletonCampRow />
                       <DbSkeletonCampRow />
@@ -2122,7 +2122,7 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
 
               {/* ── 3. Campaign Directory Stage ── */}
               <div className="ec-campaigns-stage">
-                {fetchingCampaigns ? (
+                {fetchingCampaigns && campaigns.length === 0 ? (
                   <div
                     className={isGridView ? 'campaigns-grid' : 'campaigns-list'}
                     aria-busy="true"
@@ -2181,7 +2181,7 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
                           interfaceMode={interfaceMode}
                           lowBandwidthMode={lowBandwidthMode}
                           language={language}
-                          onDonated={fetchCampaigns}
+                          onDonated={() => fetchCampaigns({ silent: true })}
                           onOpenNgoProfile={onOpenNgoProfile}
                         />
                       ))}

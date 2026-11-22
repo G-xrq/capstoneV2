@@ -3387,7 +3387,7 @@ export default function OrganizationView({
                     <CampaignCard key={camp.id} camp={camp} contract={contract}
                       role={ROLES.ORGANIZATION} walletAddress={walletAddress} currentUser={currentUser}
                       interfaceMode={interfaceMode} lowBandwidthMode={lowBandwidthMode} language={language}
-                      onDonated={fetchCampaigns} onDeactivated={fetchCampaigns} onCampaignUpdated={fetchCampaigns} />
+                      onDonated={() => fetchCampaigns({ silent: true })} onDeactivated={() => fetchCampaigns({ silent: true })} onCampaignUpdated={() => fetchCampaigns({ silent: true })} />
                   ))}
                 </div>
 
@@ -3858,7 +3858,7 @@ export default function OrganizationView({
                     <CampaignCard key={camp.id} camp={camp} contract={contract}
                       role={ROLES.ORGANIZATION} walletAddress={walletAddress} currentUser={currentUser}
                       interfaceMode={interfaceMode} lowBandwidthMode={lowBandwidthMode} language={language}
-                      onDonated={fetchCampaigns} onDeactivated={fetchCampaigns} onCampaignUpdated={fetchCampaigns} />
+                      onDonated={() => fetchCampaigns({ silent: true })} onDeactivated={() => fetchCampaigns({ silent: true })} onCampaignUpdated={() => fetchCampaigns({ silent: true })} />
                   ))}
                 </div>
 

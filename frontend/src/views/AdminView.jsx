@@ -3873,7 +3873,7 @@ export default function AdminView({
                     disabled={fetchingCampaigns}
                     title="Synchronize on-chain and off-chain campaigns"
                   >
-                    {fetchingCampaigns ? (
+                    {fetchingCampaigns && campaigns.length === 0 ? (
                       <div className="spinner spinner-light" style={{ width: '12px', height: '12px' }} />
                     ) : (
                       <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>sync</span>
@@ -4011,7 +4011,7 @@ export default function AdminView({
                         contract={contract}
                         walletAddress={walletAddress}
                         role={role}
-                        onDonationSuccess={fetchCampaigns}
+                        onDonationSuccess={() => fetchCampaigns({ silent: true })}
                         currentUser={currentUser}
                         theme={theme}
                         onOpenNgoProfile={onOpenNgoProfile}
