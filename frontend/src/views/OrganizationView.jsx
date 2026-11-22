@@ -5193,176 +5193,96 @@ export default function OrganizationView({
                       {/* Section 3: Official Multi-Channel E-Wallet & Bank Settings */}
                       {(() => {
                         const profileReliefData = getProfileReliefChannels();
+                        const gcashReady = Boolean(gcashNumber || gcashQrUrl || gcashName);
+                        const mayaReady = Boolean(mayaNumber || mayaQrUrl || mayaName);
+                        const bankReady = Boolean(bankAccountNumber || bankQrUrl || bankName);
+                        const gcashLibCount = savedQrList.filter(q => q.payment_method === 'GCash').length;
+                        const mayaLibCount = savedQrList.filter(q => q.payment_method === 'Maya').length;
+                        const bankLibCount = savedQrList.filter(q => q.payment_method === 'Bank').length;
+
+                        const channels = [
+                          {
+                            id: 'gcash',
+                            name: 'GCash',
+                            dot: '#007DFE',
+                            ready: gcashReady,
+                            summary: gcashReady ? [gcashNumber, gcashQrUrl ? 'QR attached' : ''].filter(Boolean).join(' · ') || gcashName : 'Click to add account'
+                          },
+                          {
+                            id: 'maya',
+                            name: 'Maya',
+                            dot: '#00d68f',
+                            ready: mayaReady,
+                            summary: mayaReady ? [mayaNumber, mayaQrUrl ? 'QR attached' : ''].filter(Boolean).join(' · ') || mayaName : 'Click to add account'
+                          },
+                          {
+                            id: 'bank',
+                            name: 'Bank Transfer',
+                            dot: '#a855f7',
+                            ready: bankReady,
+                            summary: bankReady ? [bankName, bankAccountNumber || (bankQrUrl ? 'QR attached' : '')].filter(Boolean).join(' · ') : 'Click to add bank'
+                          }
+                        ];
+
                         return (
-                          <div className="deploy-section-card">
-                            <div className="deploy-section-header" style={{ marginBottom: '14px' }}>
-                              <div className="deploy-section-title-wrap">
-                                <div className="deploy-section-icon-badge">
-                                  <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>account_balance_wallet</span>
-                                </div>
-                                <div>
-                                  <h3 className="deploy-section-title">5. Official Donation Receiving Methods</h3>
-                                  <div className="deploy-section-subtitle">
-                                    Configure receiving channels for donors contributing via GCash, Maya, or direct Bank Transfer.
-                                  </div>
+                          <div className="deploy-section-card dc-pay-section">
+                            <div className="deploy-section-header dc-pay-header">
+                              <div>
+                                <h3 className="deploy-section-title">Receiving Payment Channels</h3>
+                                <div className="deploy-section-subtitle">
+                                  Choose where donors send direct transfers. You can configure one or all three channels.
                                 </div>
                               </div>
-                              <span className="deploy-step-pill">Step 5 of 5</span>
-                            </div>
 
-                            {/* Payment Channel Switcher & Actions Toolbar */}
-                            <div style={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'space-between',
-                              gap: '12px',
-                              marginBottom: '16px',
-                              flexWrap: 'wrap'
-                            }}>
-                              {/* Segmented Pill Tab Selector */}
-                              <div style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                background: 'var(--bg-subcard, rgba(255, 255, 255, 0.05))',
-                                padding: '4px',
-                                borderRadius: '12px',
-                                border: '1px solid var(--border, rgba(255, 255, 255, 0.1))',
-                                gap: '4px',
-                                maxWidth: '100%',
-                                overflowX: 'auto'
-                              }}>
-                                <button
-                                  type="button"
-                                  onClick={() => setActivePaymentChannelTab('gcash')}
-                                  style={{
-                                    padding: '7px 18px',
-                                    borderRadius: '8px',
-                                    border: 'none',
-                                    background: activePaymentChannelTab === 'gcash' ? '#007DFE' : 'transparent',
-                                    color: activePaymentChannelTab === 'gcash' ? '#ffffff' : 'var(--text-secondary)',
-                                    fontSize: '0.82rem',
-                                    fontWeight: 700,
-                                    cursor: 'pointer',
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    gap: '8px',
-                                    transition: 'all 0.15s ease',
-                                    whiteSpace: 'nowrap'
-                                  }}
-                                >
-                                  <span style={{
-                                    width: '8px',
-                                    height: '8px',
-                                    borderRadius: '50%',
-                                    background: (gcashNumber || gcashQrUrl || gcashName) ? (activePaymentChannelTab === 'gcash' ? '#ffffff' : '#22c55e') : 'rgba(255,255,255,0.3)'
-                                  }} />
-                                  <span>GCash</span>
-                                  {(gcashNumber || gcashQrUrl || gcashName) && <span className="material-symbols-outlined" style={{ fontSize: '13px', opacity: 0.9 }}>check</span>}
-                                </button>
-
-                                <button
-                                  type="button"
-                                  onClick={() => setActivePaymentChannelTab('maya')}
-                                  style={{
-                                    padding: '7px 18px',
-                                    borderRadius: '8px',
-                                    border: 'none',
-                                    background: activePaymentChannelTab === 'maya' ? '#00b87c' : 'transparent',
-                                    color: activePaymentChannelTab === 'maya' ? '#ffffff' : 'var(--text-secondary)',
-                                    fontSize: '0.82rem',
-                                    fontWeight: 700,
-                                    cursor: 'pointer',
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    gap: '8px',
-                                    transition: 'all 0.15s ease',
-                                    whiteSpace: 'nowrap'
-                                  }}
-                                >
-                                  <span style={{
-                                    width: '8px',
-                                    height: '8px',
-                                    borderRadius: '50%',
-                                    background: (mayaNumber || mayaQrUrl || mayaName) ? (activePaymentChannelTab === 'maya' ? '#ffffff' : '#22c55e') : 'rgba(255,255,255,0.3)'
-                                  }} />
-                                  <span>Maya</span>
-                                  {(mayaNumber || mayaQrUrl || mayaName) && <span className="material-symbols-outlined" style={{ fontSize: '13px', opacity: 0.9 }}>check</span>}
-                                </button>
-
-                                <button
-                                  type="button"
-                                  onClick={() => setActivePaymentChannelTab('bank')}
-                                  style={{
-                                    padding: '7px 18px',
-                                    borderRadius: '8px',
-                                    border: 'none',
-                                    background: activePaymentChannelTab === 'bank' ? '#16a34a' : 'transparent',
-                                    color: activePaymentChannelTab === 'bank' ? '#ffffff' : 'var(--text-secondary)',
-                                    fontSize: '0.82rem',
-                                    fontWeight: 700,
-                                    cursor: 'pointer',
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    gap: '8px',
-                                    transition: 'all 0.15s ease',
-                                    whiteSpace: 'nowrap'
-                                  }}
-                                >
-                                  <span style={{
-                                    width: '8px',
-                                    height: '8px',
-                                    borderRadius: '50%',
-                                    background: (bankAccountNumber || bankQrUrl) ? (activePaymentChannelTab === 'bank' ? '#ffffff' : '#22c55e') : 'rgba(255,255,255,0.3)'
-                                  }} />
-                                  <span>Direct Bank Deposit</span>
-                                  {(bankAccountNumber || bankQrUrl) && <span className="material-symbols-outlined" style={{ fontSize: '13px', opacity: 0.9 }}>check</span>}
-                                </button>
-                              </div>
-
-                              {/* Import Verified Channels from Profile */}
                               {profileReliefData.hasAny && (
                                 <button
                                   type="button"
-                                  className="btn btn-secondary btn-sm"
+                                  className="dc-pay-import-btn"
                                   onClick={handleAutofillFromProfile}
-                                  style={{
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    gap: '6px',
-                                    fontSize: '0.78rem',
-                                    fontWeight: 600,
-                                    padding: '7px 14px',
-                                    borderRadius: '8px'
-                                  }}
-                                  title="Import verified payment channels and QR codes from your Organization Profile"
+                                  title="Autofill GCash, Maya, and Bank details from your NGO Profile"
                                 >
-                                  <span className="material-symbols-outlined" style={{ fontSize: '16px', color: 'var(--accent)' }}>
-                                    sync
-                                  </span>
-                                  Import Channels from Profile
+                                  <span className="material-symbols-outlined">sync</span>
+                                  <span>Autofill from Profile</span>
                                 </button>
                               )}
                             </div>
 
-                            {/* ── 1. GCASH CHANNEL ── */}
-                            {activePaymentChannelTab === 'gcash' && (
-                              <div
-                                className="fade-in"
-                                style={{
-                                  background: 'rgba(0, 125, 254, 0.04)',
-                                  padding: '18px 20px',
-                                  borderRadius: '12px',
-                                  border: '1px solid rgba(0, 125, 254, 0.28)'
-                                }}
-                              >
-                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: '20px', alignItems: 'stretch' }}>
-                                  {/* Left Column: GCash Account Details */}
-                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                                    <div>
-                                      <label className="deploy-input-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
-                                        <span className="material-symbols-outlined" style={{ color: '#007DFE', fontSize: '18px' }}>badge</span>
-                                        Official GCash Account Name
-                                      </label>
+                            {/* 3 Clear Interactive Channel Cards */}
+                            <div className="dc-pay-tabs" role="tablist" aria-label="Payment channels">
+                              {channels.map((ch) => {
+                                const isActive = activePaymentChannelTab === ch.id;
+                                return (
+                                  <button
+                                    key={ch.id}
+                                    type="button"
+                                    role="tab"
+                                    aria-selected={isActive}
+                                    className={`dc-pay-tab${isActive ? ' is-active' : ''}`}
+                                    onClick={() => setActivePaymentChannelTab(ch.id)}
+                                  >
+                                    <div className="dc-pay-tab-top">
+                                      <span className="dc-pay-tab-name">
+                                        <span className="dc-pay-brand-dot" style={{ background: ch.dot }} />
+                                        <span>{ch.name}</span>
+                                      </span>
+                                      <span className={`dc-pay-status${ch.ready ? ' is-ready' : ''}`}>
+                                        {ch.ready ? 'Ready' : 'Not set'}
+                                      </span>
+                                    </div>
+                                    <span className="dc-pay-tab-sub">{ch.summary}</span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+
+                            {/* Clean Neutral 2-Column Editor Panel */}
+                            <div className="dc-pay-editor fade-in" key={activePaymentChannelTab}>
+                              {/* ── 1. GCASH ── */}
+                              {activePaymentChannelTab === 'gcash' && (
+                                <div className="dc-pay-grid">
+                                  <div className="dc-pay-fields">
+                                    <div className="dc-pay-field">
+                                      <label className="dc-pay-lbl">GCash Account Name</label>
                                       <input
                                         className="input deploy-field-input"
                                         type="text"
@@ -5371,70 +5291,44 @@ export default function OrganizationView({
                                         onChange={(e) => setGcashName(e.target.value)}
                                         disabled={creating}
                                       />
-                                      <span style={{ fontSize: '0.73rem', color: 'var(--text-muted)', marginTop: '4px', display: 'block' }}>
-                                        Registered name displayed on GCash app confirmation.
-                                      </span>
+                                      <span className="dc-field-sub">Registered name shown to donors in the GCash app.</span>
                                     </div>
 
-                                    <div>
-                                      <label className="deploy-input-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
-                                        <span className="material-symbols-outlined" style={{ color: '#007DFE', fontSize: '18px' }}>smartphone</span>
-                                        Official GCash Receiving Number
-                                      </label>
+                                    <div className="dc-pay-field">
+                                      <label className="dc-pay-lbl">GCash Mobile Number</label>
                                       <input
-                                        className="input deploy-field-input"
+                                        className="input deploy-field-input dc-pay-mono"
                                         type="text"
                                         placeholder="0992 982 4615"
                                         value={gcashNumber}
                                         onChange={(e) => setGcashNumber(formatPhoneNumber(e.target.value))}
                                         disabled={creating}
-                                        style={{ fontFamily: 'monospace', fontWeight: 700 }}
                                       />
-                                      <span style={{ fontSize: '0.73rem', color: 'var(--text-muted)', marginTop: '4px', display: 'block' }}>
-                                        Donors can copy and send funds directly to this GCash account.
-                                      </span>
+                                      <span className="dc-field-sub">11-digit mobile number for direct GCash transfers.</span>
                                     </div>
                                   </div>
 
-                                  {/* Right Column: GCash QR Code */}
-                                  <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                                      <label className="deploy-input-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', margin: 0 }}>
-                                        <span className="material-symbols-outlined" style={{ color: '#007DFE', fontSize: '18px' }}>qr_code</span>
-                                        GCash QR Code Image
-                                      </label>
-
-                                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                  <div className="dc-pay-qr-col">
+                                    <div className="dc-pay-qr-bar">
+                                      <span className="dc-pay-lbl">GCash QR Code</span>
+                                      <div className="dc-pay-qr-acts">
                                         <button
                                           type="button"
+                                          className="dc-pay-mini-btn"
                                           onClick={() => setShowSelectQrModal('GCash')}
-                                          style={{
-                                            background: 'rgba(0, 125, 254, 0.1)',
-                                            border: '1px solid rgba(0, 125, 254, 0.3)',
-                                            color: '#007DFE',
-                                            fontSize: '0.72rem',
-                                            padding: '2px 8px',
-                                            borderRadius: '6px',
-                                            cursor: 'pointer',
-                                            fontWeight: 700,
-                                            display: 'inline-flex',
-                                            alignItems: 'center',
-                                            gap: '4px'
-                                          }}
-                                          title="Pick from reusable QR library"
                                         >
-                                          <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>qr_code_2</span>
-                                          <span>Select QR Code ({savedQrList.filter(q => q.payment_method === 'GCash').length})</span>
+                                          <span className="material-symbols-outlined">qr_code_2</span>
+                                          <span>Library ({gcashLibCount})</span>
                                         </button>
-
                                         {gcashQrUrl && (
                                           <button
                                             type="button"
+                                            className="dc-pay-mini-btn dc-pay-mini-btn--danger"
                                             onClick={() => {
                                               setGcashQrUrl('');
                                               setSelectedGcashQrId(null);
                                             }}
-                                            style={{ background: 'transparent', border: 'none', color: '#ef4444', fontSize: '0.73rem', cursor: 'pointer', fontWeight: 600 }}
+                                            title="Remove QR"
                                           >
                                             Remove
                                           </button>
@@ -5443,98 +5337,31 @@ export default function OrganizationView({
                                     </div>
 
                                     {gcashQrUrl ? (
-                                      <div style={{
-                                        flex: 1,
-                                        minHeight: '140px',
-                                        position: 'relative',
-                                        borderRadius: '10px',
-                                        overflow: 'hidden',
-                                        border: '1.5px solid rgba(0, 125, 254, 0.45)',
-                                        background: 'var(--bg-subcard)',
-                                        padding: '12px',
-                                        display: 'flex',
-                                        flexDirection: 'column',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        textAlign: 'center'
-                                      }}>
-                                        <img
-                                          src={gcashQrUrl}
-                                          alt="Organization GCash QR"
-                                          style={{ maxHeight: '110px', maxWidth: '100%', objectFit: 'contain', borderRadius: '8px' }}
-                                        />
-                                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', marginTop: '6px', fontSize: '0.74rem', color: '#007DFE', fontWeight: 700 }}>
-                                          <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>verified</span>
-                                          GCash QR Attached
-                                        </div>
+                                      <div className="dc-pay-qr-preview">
+                                        <img src={gcashQrUrl} alt="Organization GCash QR" className="dc-pay-qr-img" />
+                                        <span className="dc-pay-qr-tag">
+                                          <span className="material-symbols-outlined">check_circle</span>
+                                          <span>QR attached</span>
+                                        </span>
                                       </div>
                                     ) : (
-                                      <label style={{
-                                        flex: 1,
-                                        minHeight: '140px',
-                                        display: 'flex',
-                                        flexDirection: 'column',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        padding: '16px',
-                                        border: '1.5px dashed rgba(0, 125, 254, 0.4)',
-                                        borderRadius: '10px',
-                                        cursor: 'pointer',
-                                        background: 'rgba(0, 125, 254, 0.03)',
-                                        transition: 'all 0.2s ease',
-                                        textAlign: 'center'
-                                      }}>
-                                        <span className="material-symbols-outlined" style={{ fontSize: '32px', color: '#007DFE', marginBottom: '6px' }}>
-                                          qr_code_scanner
-                                        </span>
-                                        <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                                          Upload GCash QR
-                                        </span>
-                                        <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-                                          PNG, JPG or WebP image
-                                        </span>
-                                        <input
-                                          type="file"
-                                          accept="image/*"
-                                          onChange={handleGcashQrUpload}
-                                          style={{ display: 'none' }}
-                                          disabled={creating}
-                                        />
+                                      <label className="dc-pay-qr-drop">
+                                        <span className="material-symbols-outlined dc-pay-qr-ico">qr_code_scanner</span>
+                                        <span className="dc-pay-qr-drop-title">Upload GCash QR</span>
+                                        <span className="dc-pay-qr-drop-sub">PNG, JPG, or WebP</span>
+                                        <input type="file" accept="image/*" onChange={handleGcashQrUpload} style={{ display: 'none' }} disabled={creating} />
                                       </label>
                                     )}
-
-                                    <label style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '6px', fontSize: '0.72rem', color: 'var(--text-muted)', cursor: 'pointer' }}>
-                                      <input
-                                        type="checkbox"
-                                        checked={saveToLibraryChecked}
-                                        onChange={e => setSaveToLibraryChecked(e.target.checked)}
-                                      />
-                                      <span>Save uploaded QR codes to Reusable Settings Library</span>
-                                    </label>
                                   </div>
                                 </div>
-                              </div>
-                            )}
+                              )}
 
-                            {/* ── 2. MAYA CHANNEL ── */}
-                            {activePaymentChannelTab === 'maya' && (
-                              <div
-                                className="fade-in"
-                                style={{
-                                  background: 'rgba(0, 214, 143, 0.04)',
-                                  padding: '18px 20px',
-                                  borderRadius: '12px',
-                                  border: '1px solid rgba(0, 214, 143, 0.28)'
-                                }}
-                              >
-                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: '20px', alignItems: 'stretch' }}>
-                                  {/* Left Column: Maya Account Details */}
-                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                                    <div>
-                                      <label className="deploy-input-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
-                                        <span className="material-symbols-outlined" style={{ color: '#00d68f', fontSize: '18px' }}>badge</span>
-                                        Official Maya Account Name
-                                      </label>
+                              {/* ── 2. MAYA ── */}
+                              {activePaymentChannelTab === 'maya' && (
+                                <div className="dc-pay-grid">
+                                  <div className="dc-pay-fields">
+                                    <div className="dc-pay-field">
+                                      <label className="dc-pay-lbl">Maya Account / Merchant Name</label>
                                       <input
                                         className="input deploy-field-input"
                                         type="text"
@@ -5543,70 +5370,44 @@ export default function OrganizationView({
                                         onChange={(e) => setMayaName(e.target.value)}
                                         disabled={creating}
                                       />
-                                      <span style={{ fontSize: '0.73rem', color: 'var(--text-muted)', marginTop: '4px', display: 'block' }}>
-                                        Registered merchant or account name inside Maya.
-                                      </span>
+                                      <span className="dc-field-sub">Registered merchant or recipient name in Maya.</span>
                                     </div>
 
-                                    <div>
-                                      <label className="deploy-input-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
-                                        <span className="material-symbols-outlined" style={{ color: '#00d68f', fontSize: '18px' }}>account_circle</span>
-                                        Official Maya Number or @Username
-                                      </label>
+                                    <div className="dc-pay-field">
+                                      <label className="dc-pay-lbl">Maya Number or @Username</label>
                                       <input
-                                        className="input deploy-field-input"
+                                        className="input deploy-field-input dc-pay-mono"
                                         type="text"
                                         placeholder="0992 982 4615"
                                         value={mayaNumber}
                                         onChange={(e) => setMayaNumber(formatPhoneNumber(e.target.value))}
                                         disabled={creating}
-                                        style={{ fontFamily: 'monospace', fontWeight: 700 }}
                                       />
-                                      <span style={{ fontSize: '0.73rem', color: 'var(--text-muted)', marginTop: '4px', display: 'block' }}>
-                                        Donors using Maya can transfer directly to this number or username.
-                                      </span>
+                                      <span className="dc-field-sub">Donors can send funds directly to this Maya account.</span>
                                     </div>
                                   </div>
 
-                                  {/* Right Column: Maya QR Code */}
-                                  <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                                      <label className="deploy-input-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', margin: 0 }}>
-                                        <span className="material-symbols-outlined" style={{ color: '#00d68f', fontSize: '18px' }}>qr_code</span>
-                                        Maya QR Code Image
-                                      </label>
-
-                                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                  <div className="dc-pay-qr-col">
+                                    <div className="dc-pay-qr-bar">
+                                      <span className="dc-pay-lbl">Maya QR Code</span>
+                                      <div className="dc-pay-qr-acts">
                                         <button
                                           type="button"
+                                          className="dc-pay-mini-btn"
                                           onClick={() => setShowSelectQrModal('Maya')}
-                                          style={{
-                                            background: 'rgba(0, 214, 143, 0.1)',
-                                            border: '1px solid rgba(0, 214, 143, 0.3)',
-                                            color: '#00d68f',
-                                            fontSize: '0.72rem',
-                                            padding: '2px 8px',
-                                            borderRadius: '6px',
-                                            cursor: 'pointer',
-                                            fontWeight: 700,
-                                            display: 'inline-flex',
-                                            alignItems: 'center',
-                                            gap: '4px'
-                                          }}
-                                          title="Pick from reusable QR library"
                                         >
-                                          <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>qr_code_2</span>
-                                          <span>Select QR Code ({savedQrList.filter(q => q.payment_method === 'Maya').length})</span>
+                                          <span className="material-symbols-outlined">qr_code_2</span>
+                                          <span>Library ({mayaLibCount})</span>
                                         </button>
-
                                         {mayaQrUrl && (
                                           <button
                                             type="button"
+                                            className="dc-pay-mini-btn dc-pay-mini-btn--danger"
                                             onClick={() => {
                                               setMayaQrUrl('');
                                               setSelectedMayaQrId(null);
                                             }}
-                                            style={{ background: 'transparent', border: 'none', color: '#ef4444', fontSize: '0.73rem', cursor: 'pointer', fontWeight: 600 }}
+                                            title="Remove QR"
                                           >
                                             Remove
                                           </button>
@@ -5615,98 +5416,31 @@ export default function OrganizationView({
                                     </div>
 
                                     {mayaQrUrl ? (
-                                      <div style={{
-                                        flex: 1,
-                                        minHeight: '140px',
-                                        position: 'relative',
-                                        borderRadius: '10px',
-                                        overflow: 'hidden',
-                                        border: '1.5px solid rgba(0, 214, 143, 0.45)',
-                                        background: 'var(--bg-subcard)',
-                                        padding: '12px',
-                                        display: 'flex',
-                                        flexDirection: 'column',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        textAlign: 'center'
-                                      }}>
-                                        <img
-                                          src={mayaQrUrl}
-                                          alt="Organization Maya QR"
-                                          style={{ maxHeight: '110px', maxWidth: '100%', objectFit: 'contain', borderRadius: '8px' }}
-                                        />
-                                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', marginTop: '6px', fontSize: '0.74rem', color: '#00d68f', fontWeight: 700 }}>
-                                          <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>verified</span>
-                                          Maya QR Attached
-                                        </div>
+                                      <div className="dc-pay-qr-preview">
+                                        <img src={mayaQrUrl} alt="Organization Maya QR" className="dc-pay-qr-img" />
+                                        <span className="dc-pay-qr-tag">
+                                          <span className="material-symbols-outlined">check_circle</span>
+                                          <span>QR attached</span>
+                                        </span>
                                       </div>
                                     ) : (
-                                      <label style={{
-                                        flex: 1,
-                                        minHeight: '140px',
-                                        display: 'flex',
-                                        flexDirection: 'column',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        padding: '16px',
-                                        border: '1.5px dashed rgba(0, 214, 143, 0.4)',
-                                        borderRadius: '10px',
-                                        cursor: 'pointer',
-                                        background: 'rgba(0, 214, 143, 0.03)',
-                                        transition: 'all 0.2s ease',
-                                        textAlign: 'center'
-                                      }}>
-                                        <span className="material-symbols-outlined" style={{ fontSize: '32px', color: '#00d68f', marginBottom: '6px' }}>
-                                          qr_code_scanner
-                                        </span>
-                                        <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                                          Upload Maya QR
-                                        </span>
-                                        <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-                                          PNG, JPG or WebP image
-                                        </span>
-                                        <input
-                                          type="file"
-                                          accept="image/*"
-                                          onChange={handleMayaQrUpload}
-                                          style={{ display: 'none' }}
-                                          disabled={creating}
-                                        />
+                                      <label className="dc-pay-qr-drop">
+                                        <span className="material-symbols-outlined dc-pay-qr-ico">qr_code_scanner</span>
+                                        <span className="dc-pay-qr-drop-title">Upload Maya QR</span>
+                                        <span className="dc-pay-qr-drop-sub">PNG, JPG, or WebP</span>
+                                        <input type="file" accept="image/*" onChange={handleMayaQrUpload} style={{ display: 'none' }} disabled={creating} />
                                       </label>
                                     )}
-
-                                    <label style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '6px', fontSize: '0.72rem', color: 'var(--text-muted)', cursor: 'pointer' }}>
-                                      <input
-                                        type="checkbox"
-                                        checked={saveToLibraryChecked}
-                                        onChange={e => setSaveToLibraryChecked(e.target.checked)}
-                                      />
-                                      <span>Save uploaded QR codes to Reusable Settings Library</span>
-                                    </label>
                                   </div>
                                 </div>
-                              </div>
-                            )}
+                              )}
 
-                            {/* ── 3. DIRECT BANK DEPOSIT CHANNEL ── */}
-                            {activePaymentChannelTab === 'bank' && (
-                              <div
-                                className="fade-in"
-                                style={{
-                                  background: 'rgba(22, 163, 74, 0.04)',
-                                  padding: '18px 20px',
-                                  borderRadius: '12px',
-                                  border: '1px solid rgba(22, 163, 74, 0.28)'
-                                }}
-                              >
-                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: '20px', alignItems: 'stretch' }}>
-                                  {/* Left Column: Bank Account Details */}
-                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                                    <div>
-                                      <label className="deploy-input-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
-                                        <span className="material-symbols-outlined" style={{ color: 'var(--accent)', fontSize: '18px' }}>account_balance</span>
-                                        Bank Name
-                                      </label>
+                              {/* ── 3. DIRECT BANK TRANSFER ── */}
+                              {activePaymentChannelTab === 'bank' && (
+                                <div className="dc-pay-grid">
+                                  <div className="dc-pay-fields">
+                                    <div className="dc-pay-field">
+                                      <label className="dc-pay-lbl">Bank Name</label>
                                       <input
                                         className="input deploy-field-input"
                                         list="ph-bank-options"
@@ -5729,150 +5463,96 @@ export default function OrganizationView({
                                       </datalist>
                                     </div>
 
-                                    <div>
-                                      <label className="deploy-input-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
-                                        <span className="material-symbols-outlined" style={{ color: 'var(--accent)', fontSize: '18px' }}>person</span>
-                                        Account Beneficiary Name
-                                      </label>
-                                      <input
-                                        className="input deploy-field-input"
-                                        type="text"
-                                        placeholder="e.g., Philippine Red Cross or BBDRTS Relief Partner"
-                                        value={bankAccountName}
-                                        onChange={(e) => setBankAccountName(e.target.value)}
-                                        disabled={creating}
-                                      />
-                                    </div>
+                                    <div className="dc-pay-bank-pair">
+                                      <div className="dc-pay-field">
+                                        <label className="dc-pay-lbl">Account Name</label>
+                                        <input
+                                          className="input deploy-field-input"
+                                          type="text"
+                                          placeholder="Account holder name"
+                                          value={bankAccountName}
+                                          onChange={(e) => setBankAccountName(e.target.value)}
+                                          disabled={creating}
+                                        />
+                                      </div>
 
-                                    <div>
-                                      <label className="deploy-input-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
-                                        <span className="material-symbols-outlined" style={{ color: 'var(--accent)', fontSize: '18px' }}>numbers</span>
-                                        Account Number
-                                      </label>
-                                      <input
-                                        className="input deploy-field-input"
-                                        type="text"
-                                        placeholder="e.g., 0012 3456 7890"
-                                        value={bankAccountNumber}
-                                        onChange={(e) => setBankAccountNumber(e.target.value)}
-                                        disabled={creating}
-                                        style={{ fontFamily: 'monospace', fontWeight: 700 }}
-                                      />
+                                      <div className="dc-pay-field">
+                                        <label className="dc-pay-lbl">Account Number</label>
+                                        <input
+                                          className="input deploy-field-input dc-pay-mono"
+                                          type="text"
+                                          placeholder="0012 3456 7890"
+                                          value={bankAccountNumber}
+                                          onChange={(e) => setBankAccountNumber(e.target.value)}
+                                          disabled={creating}
+                                        />
+                                      </div>
                                     </div>
                                   </div>
 
-                                  {/* Right Column: Bank QR / InstaPay */}
-                                  <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                                      <label className="deploy-input-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', margin: 0 }}>
-                                        <span className="material-symbols-outlined" style={{ color: 'var(--accent)', fontSize: '18px' }}>qr_code</span>
-                                        Bank Transfer QR / InstaPay QR (Optional)
-                                      </label>
-                                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                        {savedQrList.filter(q => q.payment_method === 'Bank').length > 0 && (
+                                  <div className="dc-pay-qr-col">
+                                    <div className="dc-pay-qr-bar">
+                                      <span className="dc-pay-lbl">InstaPay / Bank QR (Optional)</span>
+                                      <div className="dc-pay-qr-acts">
+                                        {bankLibCount > 0 && (
                                           <button
                                             type="button"
+                                            className="dc-pay-mini-btn"
                                             onClick={() => setShowSelectQrModal('Bank')}
-                                            style={{
-                                              background: 'rgba(34, 197, 94, 0.1)',
-                                              border: '1px solid rgba(34, 197, 94, 0.3)',
-                                              color: '#22c55e',
-                                              fontSize: '0.72rem',
-                                              padding: '2px 8px',
-                                              borderRadius: '6px',
-                                              cursor: 'pointer',
-                                              fontWeight: 700,
-                                              display: 'inline-flex',
-                                              alignItems: 'center',
-                                              gap: '4px'
-                                            }}
-                                            title="Pick from reusable QR library"
                                           >
-                                            <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>qr_code_2</span>
-                                            <span>Select QR Code ({savedQrList.filter(q => q.payment_method === 'Bank').length})</span>
+                                            <span className="material-symbols-outlined">qr_code_2</span>
+                                            <span>Library ({bankLibCount})</span>
                                           </button>
                                         )}
-
                                         {bankQrUrl && (
                                           <button
                                             type="button"
+                                            className="dc-pay-mini-btn dc-pay-mini-btn--danger"
                                             onClick={() => {
                                               setBankQrUrl('');
                                               setSelectedBankQrId(null);
                                             }}
-                                            style={{ background: 'transparent', border: 'none', color: '#ef4444', fontSize: '0.73rem', cursor: 'pointer', fontWeight: 600 }}
+                                            title="Remove QR"
                                           >
-                                            Remove QR
+                                            Remove
                                           </button>
                                         )}
                                       </div>
                                     </div>
 
                                     {bankQrUrl ? (
-                                      <div style={{
-                                        flex: 1,
-                                        minHeight: '140px',
-                                        position: 'relative',
-                                        borderRadius: '10px',
-                                        overflow: 'hidden',
-                                        border: '1.5px solid var(--accent)',
-                                        background: 'var(--bg-subcard)',
-                                        padding: '12px',
-                                        display: 'flex',
-                                        flexDirection: 'column',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        textAlign: 'center'
-                                      }}>
-                                        <img
-                                          src={bankQrUrl}
-                                          alt="Organization Bank QR"
-                                          style={{ maxHeight: '110px', maxWidth: '100%', objectFit: 'contain', borderRadius: '8px' }}
-                                        />
-                                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', marginTop: '6px', fontSize: '0.74rem', color: 'var(--accent)', fontWeight: 700 }}>
-                                          <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>verified</span>
-                                          Bank QR Attached
-                                        </div>
+                                      <div className="dc-pay-qr-preview">
+                                        <img src={bankQrUrl} alt="Organization Bank QR" className="dc-pay-qr-img" />
+                                        <span className="dc-pay-qr-tag">
+                                          <span className="material-symbols-outlined">check_circle</span>
+                                          <span>QR attached</span>
+                                        </span>
                                       </div>
                                     ) : (
-                                      <label style={{
-                                        flex: 1,
-                                        minHeight: '140px',
-                                        display: 'flex',
-                                        flexDirection: 'column',
-                                        alignItems: 'center',
-                                        justifyContent: 'center',
-                                        padding: '16px',
-                                        border: '1.5px dashed rgba(22, 163, 74, 0.4)',
-                                        borderRadius: '10px',
-                                        cursor: 'pointer',
-                                        background: 'rgba(22, 163, 74, 0.03)',
-                                        transition: 'all 0.2s ease',
-                                        textAlign: 'center'
-                                      }}>
-                                        <span className="material-symbols-outlined" style={{ fontSize: '32px', color: 'var(--accent)', marginBottom: '6px' }}>
-                                          account_balance
-                                        </span>
-                                        <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                                          Upload Bank / InstaPay QR
-                                        </span>
-                                        <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-                                          PNG, JPG or WebP image
-                                        </span>
-                                        <input
-                                          type="file"
-                                          accept="image/*"
-                                          onChange={handleBankQrUpload}
-                                          style={{ display: 'none' }}
-                                          disabled={creating}
-                                        />
+                                      <label className="dc-pay-qr-drop">
+                                        <span className="material-symbols-outlined dc-pay-qr-ico">account_balance</span>
+                                        <span className="dc-pay-qr-drop-title">Upload Bank / InstaPay QR</span>
+                                        <span className="dc-pay-qr-drop-sub">PNG, JPG, or WebP</span>
+                                        <input type="file" accept="image/*" onChange={handleBankQrUpload} style={{ display: 'none' }} disabled={creating} />
                                       </label>
                                     )}
                                   </div>
                                 </div>
-                              </div>
-                            )}
+                              )}
 
+                              {/* Single Clean Footer Switch for QR Library Saving */}
+                              <div className="dc-pay-editor-foot">
+                                <label className="dc-pay-save-toggle">
+                                  <input
+                                    type="checkbox"
+                                    checked={saveToLibraryChecked}
+                                    onChange={(e) => setSaveToLibraryChecked(e.target.checked)}
+                                  />
+                                  <span className="dc-pay-switch" aria-hidden="true" />
+                                  <span>Save newly uploaded QR codes to your reusable library</span>
+                                </label>
+                              </div>
+                            </div>
                           </div>
                         );
                       })()}
