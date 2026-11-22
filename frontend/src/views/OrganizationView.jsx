@@ -1449,7 +1449,7 @@ export default function OrganizationView({
       b,
       c,
       p,
-      resolvedRegion ? `(${resolvedRegion})` : '',
+      resolvedRegion,
       z,
       cnt || 'Philippines',
       l ? `(Landmark: ${l})` : ''
@@ -2304,7 +2304,7 @@ export default function OrganizationView({
         const allocations = null;
 
         // Construct full address from granular input fields if map picker wasn't clicked
-        const constructedAddress = [street, barangay, city, province, region ? `(${region})` : '', zipCode, country, landmark ? `(Landmark: ${landmark})` : '']
+        const constructedAddress = [street, barangay, city, province, region, zipCode, country, landmark ? `(Landmark: ${landmark})` : '']
           .map(s => (s || '').trim())
           .filter(Boolean)
           .join(', ');
@@ -4803,7 +4803,7 @@ export default function OrganizationView({
                                 value={street}
                                 onChange={(e) => {
                                   setStreet(e.target.value);
-                                  setLocationRegion([e.target.value, barangay, city, province, region ? `(${region})` : '', zipCode, country, landmark ? `(Landmark: ${landmark})` : ''].filter(Boolean).join(', '));
+                                  setLocationRegion([e.target.value, barangay, city, province, region, zipCode, country, landmark ? `(Landmark: ${landmark})` : ''].filter(Boolean).join(', '));
                                 }}
                                 disabled={creating}
                               />
@@ -4820,7 +4820,7 @@ export default function OrganizationView({
                                   value={barangay}
                                   onChange={(e) => {
                                     setBarangay(e.target.value);
-                                    setLocationRegion([street, e.target.value, city, province, region ? `(${region})` : '', zipCode, country, landmark ? `(Landmark: ${landmark})` : ''].filter(Boolean).join(', '));
+                                    setLocationRegion([street, e.target.value, city, province, region, zipCode, country, landmark ? `(Landmark: ${landmark})` : ''].filter(Boolean).join(', '));
                                   }}
                                   disabled={creating}
                                 />
@@ -4835,7 +4835,7 @@ export default function OrganizationView({
                                   value={city}
                                   onChange={(e) => {
                                     setCity(e.target.value);
-                                    setLocationRegion([street, barangay, e.target.value, province, region ? `(${region})` : '', zipCode, country, landmark ? `(Landmark: ${landmark})` : ''].filter(Boolean).join(', '));
+                                    setLocationRegion([street, barangay, e.target.value, province, region, zipCode, country, landmark ? `(Landmark: ${landmark})` : ''].filter(Boolean).join(', '));
                                   }}
                                   disabled={creating}
                                 />
@@ -4857,7 +4857,7 @@ export default function OrganizationView({
                                     setProvince(provVal);
                                     const autoReg = getRegionForProvince(provVal);
                                     if (autoReg) setRegion(autoReg);
-                                    setLocationRegion([street, barangay, city, provVal, (autoReg || region) ? `(${autoReg || region})` : '', zipCode, country, landmark ? `(Landmark: ${landmark})` : ''].filter(Boolean).join(', '));
+                                    setLocationRegion([street, barangay, city, provVal, (autoReg || region), zipCode, country, landmark ? `(Landmark: ${landmark})` : ''].filter(Boolean).join(', '));
                                   }}
                                   disabled={creating}
                                 />
@@ -4871,7 +4871,7 @@ export default function OrganizationView({
                                   value={zipCode}
                                   onChange={(e) => {
                                     setZipCode(e.target.value);
-                                    setLocationRegion([street, barangay, city, province, region ? `(${region})` : '', e.target.value, country, landmark ? `(Landmark: ${landmark})` : ''].filter(Boolean).join(', '));
+                                    setLocationRegion([street, barangay, city, province, region, e.target.value, country, landmark ? `(Landmark: ${landmark})` : ''].filter(Boolean).join(', '));
                                   }}
                                   disabled={creating}
                                 />
@@ -4892,7 +4892,7 @@ export default function OrganizationView({
                                   onChange={(e) => {
                                     const regVal = e.target.value;
                                     setRegion(regVal);
-                                    setLocationRegion([street, barangay, city, province, regVal ? `(${regVal})` : '', zipCode, country, landmark ? `(Landmark: ${landmark})` : ''].filter(Boolean).join(', '));
+                                    setLocationRegion([street, barangay, city, province, regVal, zipCode, country, landmark ? `(Landmark: ${landmark})` : ''].filter(Boolean).join(', '));
                                   }}
                                   disabled={creating}
                                 />
@@ -4911,7 +4911,7 @@ export default function OrganizationView({
                                   value={country}
                                   onChange={(e) => {
                                     setCountry(e.target.value);
-                                    setLocationRegion([street, barangay, city, province, region ? `(${region})` : '', zipCode, e.target.value, landmark ? `(Landmark: ${landmark})` : ''].filter(Boolean).join(', '));
+                                    setLocationRegion([street, barangay, city, province, region, zipCode, e.target.value, landmark ? `(Landmark: ${landmark})` : ''].filter(Boolean).join(', '));
                                   }}
                                   disabled={creating}
                                 />
@@ -4930,7 +4930,7 @@ export default function OrganizationView({
                                 value={landmark}
                                 onChange={(e) => {
                                   setLandmark(e.target.value);
-                                  setLocationRegion([street, barangay, city, province, region ? `(${region})` : '', zipCode, country, e.target.value ? `(Landmark: ${e.target.value})` : ''].filter(Boolean).join(', '));
+                                  setLocationRegion([street, barangay, city, province, region, zipCode, country, e.target.value ? `(Landmark: ${e.target.value})` : ''].filter(Boolean).join(', '));
                                 }}
                                 disabled={creating}
                               />
@@ -5058,13 +5058,16 @@ export default function OrganizationView({
                                 onChangeGps={(coords) => setGpsCoordinates(coords)}
                                 onLocationFound={(res) => {
                                   setIsFindingLocation(false);
+                                  const nextZip = (!zipCode && res.address?.postcode && /^\d{4}$/.test(String(res.address.postcode).trim())) ? String(res.address.postcode).trim() : zipCode;
+                                  const nextReg = region || (province ? getRegionForProvince(province) : '');
+                                  if (nextZip !== zipCode) setZipCode(nextZip);
+                                  if (nextReg && nextReg !== region) setRegion(nextReg);
+                                  const preservedAddr = [street, barangay, city, province, nextReg, nextZip, country || 'Philippines', landmark ? `(Landmark: ${landmark})` : ''].filter(Boolean).join(', ');
+                                  if (preservedAddr) setLocationRegion(preservedAddr);
                                   showSuccess(
-                                    `Location found: ${res.name || res.display_name?.split(',')[0] || 'Map pinned successfully'}.`,
-                                    'Map Location Set'
+                                    `Pinned on map (${res.display_name?.split(',').slice(0, 2).join(',') || city || province}). Your typed address fields were preserved.`,
+                                    'Map Location Pinned'
                                   );
-                                  if (!zipCode && res.address?.postcode) {
-                                    setZipCode(res.address.postcode);
-                                  }
                                 }}
                                 onSearchStatus={(status) => {
                                   setIsFindingLocation(false);
@@ -5083,6 +5086,10 @@ export default function OrganizationView({
                                 markerShape="redPin"
                                 defaultLayer="street"
                               />
+                            </div>
+                            <div style={{ marginTop: '8px', fontSize: '0.72rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                              <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>info</span>
+                              <span>Click or drag the pin to auto-fill from the map. Clicking Find Location pins your typed address without overwriting your text.</span>
                             </div>
                           </div>
 

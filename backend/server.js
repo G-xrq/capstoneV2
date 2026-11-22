@@ -9292,98 +9292,355 @@ app.get('/api/public/organizations/:id', async (req, res) => {
   }
 });
 
-// ── Geocoding Proxy Endpoints (Multi-tier Structured Search & Zoom Enrichment) ──
+// ── Geocoding Proxy Endpoints (Accurate Multi-Tier Search & Honest Reverse Geocode) ──
+const searchGeocodeCache = new Map();
+
+function extractOsmRegionName(regionLabel) {
+  if (!regionLabel) return '';
+  const str = String(regionLabel).trim();
+  const parenMatch = str.match(/\(([^)]+)\)/);
+  if (parenMatch && parenMatch[1]) {
+    const inside = parenMatch[1].trim();
+    if (inside === 'NCR') return 'Metro Manila';
+    if (inside === 'CAR') return 'Cordillera Administrative Region';
+    if (inside === 'BARMM') return 'Bangsamoro';
+    if (inside === 'NIR') return 'Negros Island Region';
+    if (inside.length > 4) return inside;
+  }
+  return str.replace(/^Region\s+[IVX0-9A-Z]+\s*/i, '').trim();
+}
+
+function scoreGeocodeCandidate(item, { rawStreet, rawBarangay, rawCity, targetState, targetRegion, rawLandmark }) {
+  const hay = [
+    item.display_name || '',
+    item.name || '',
+    item.address?.road || '',
+    item.address?.quarter || '',
+    item.address?.suburb || '',
+    item.address?.village || '',
+    item.address?.city || '',
+    item.address?.town || '',
+    item.address?.municipality || '',
+    item.address?.state || '',
+    item.address?.province || '',
+    item.address?.region || ''
+  ].join(' ').toLowerCase();
+
+  const normText = (v) =>
+    String(v || '')
+      .toLowerCase()
+      .replace(/^(brgy\.?|barangay)\s+/i, '')
+      .replace(/^city of\s+/i, '')
+      .replace(/\s+city$/i, '')
+      .trim();
+
+  const sCity = normText(rawCity);
+  const sProv = normText(targetState);
+  const sReg = String(targetRegion || '').toLowerCase().trim();
+  const sBrgy = normText(rawBarangay);
+  const sStreet = normText(rawStreet);
+  const sLandmark = normText(rawLandmark);
+
+  const itemCity = normText(item.address?.city || item.address?.municipality || item.address?.town || '');
+  const itemName = normText(item.name || '');
+  const itemBrgy = normText(item.address?.quarter || item.address?.suburb || item.address?.village || item.address?.neighbourhood || '');
+  const itemRoad = normText(item.address?.road || '');
+  const itemClass = String(item.class || '').toLowerCase();
+  const itemType = String(item.type || '').toLowerCase();
+
+  let score = 0;
+
+  // Province OR Region match (Philippine HUCs/ICCs like Naga, Baguio, Tacloban, Cebu omit province in OSM)
+  if (sProv && hay.includes(sProv)) {
+    score += 40;
+  } else if (sReg && hay.includes(sReg)) {
+    score += 30;
+  } else if (sProv) {
+    score -= 40;
+  }
+
+  // City / Municipality match (penalize results located in a different municipality or matching only the whole province!)
+  const isProvinceLevelResult =
+    !itemCity &&
+    (item.addresstype === 'state' ||
+      item.addresstype === 'province' ||
+      (item.address?.state && normText(item.address.state) === itemName));
+
+  if (sCity) {
+    if (isProvinceLevelResult) {
+      score -= 50;
+    } else if (itemCity === sCity || ((itemClass === 'boundary' || itemClass === 'place') && itemName === sCity)) {
+      score += 60;
+    } else if (itemCity && itemCity !== sCity) {
+      score -= 55;
+    } else if (hay.includes(sCity)) {
+      score += 15;
+    } else {
+      score -= 30;
+    }
+  }
+
+  // Barangay match
+  if (sBrgy) {
+    if (itemBrgy === sBrgy || itemName === sBrgy) {
+      score += 40;
+    } else if (hay.includes(sBrgy)) {
+      score += 25;
+    }
+  }
+
+  // Street match
+  if (sStreet) {
+    if (itemRoad && (itemRoad === sStreet || itemRoad.includes(sStreet) || sStreet.includes(itemRoad))) {
+      score += 35;
+    } else if (hay.includes(sStreet)) {
+      score += 20;
+    }
+  }
+
+  // Landmark match
+  if (sLandmark && hay.includes(sLandmark)) {
+    score += 25;
+  }
+
+  // Feature-type ranking: when user didn't enter a street or landmark, prefer administrative boundaries & places over roads/shops/bus stops
+  if (!sStreet && !sLandmark) {
+    if (itemClass === 'boundary' || itemClass === 'place') {
+      score += 40;
+      if (['administrative', 'city', 'town', 'municipality', 'village', 'suburb', 'quarter'].includes(itemType)) {
+        score += 10;
+      }
+    } else if (['highway', 'shop', 'amenity', 'leisure', 'aeroway', 'tourism', 'landuse'].includes(itemClass)) {
+      score -= 35;
+    }
+  }
+
+  return score;
+}
+
+async function fetchWithTimeout(url, options = {}, timeoutMs = 4000) {
+  const controller = new AbortController();
+  const tid = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } finally {
+    clearTimeout(tid);
+  }
+}
+
 app.get('/api/geocode/search', async (req, res) => {
-  const { q, street, barangay, city, state, province } = req.query;
+  const { q, street, barangay, city, state, province, landmark } = req.query;
   const targetState = (province || state || '').trim();
   const rawCity = (city || '').trim();
   const rawBarangay = (barangay || '').trim();
   const rawStreet = (street || '').trim();
+  const rawLandmark = (landmark || '').trim();
 
-  // Clean common Philippine prefixes/suffixes that can prevent OSM matches
-  const cleanCity = rawCity.replace(/\s*city$/i, '').trim();
+  const cleanCity = rawCity.replace(/^city of\s+/i, '').replace(/\s*city$/i, '').trim();
   const cleanBarangay = rawBarangay.replace(/^(barangay|brgy\.?)\s*/i, '').trim();
+  const targetRegionFull = targetState ? getRegionForProvinceName(targetState) : '';
+  const targetRegion = extractOsmRegionName(targetRegionFull);
 
-  const headers = { 'User-Agent': 'BBDRTS-Disaster-Relief/2.0 (contact@bbdrts.gov.ph)' };
+  const cacheKey = JSON.stringify({
+    q: (q || '').trim().toLowerCase(),
+    rawStreet: rawStreet.toLowerCase(),
+    rawBarangay: cleanBarangay.toLowerCase(),
+    rawCity: cleanCity.toLowerCase(),
+    targetState: targetState.toLowerCase(),
+    rawLandmark: rawLandmark.toLowerCase()
+  });
+
+  if (searchGeocodeCache.has(cacheKey)) {
+    return res.json(searchGeocodeCache.get(cacheKey));
+  }
+
+  const headers = { 'User-Agent': 'BBDRTS-Disaster-Relief/2.0 (contact@bbdrts.gov.ph)', 'Accept-Language': 'en' };
+  const scoreCtx = { rawStreet, rawBarangay, rawCity, targetState, targetRegion, rawLandmark };
+
+  const rankCandidates = (list) => {
+    if (!Array.isArray(list) || list.length === 0) return [];
+    return [...list].sort((a, b) => scoreGeocodeCandidate(b, scoreCtx) - scoreGeocodeCandidate(a, scoreCtx));
+  };
+
+  const cacheAndSend = (results) => {
+    if (Array.isArray(results) && results.length > 0) {
+      if (searchGeocodeCache.size > 500) {
+        const firstKey = searchGeocodeCache.keys().next().value;
+        searchGeocodeCache.delete(firstKey);
+      }
+      searchGeocodeCache.set(cacheKey, results);
+    }
+    return res.json(results);
+  };
 
   try {
-    // 1. Structured candidate queries if granular fields provided
-    if (rawCity || targetState || rawBarangay || rawStreet) {
-      const candidates = [];
+    const queryStrings = [];
+    const addQuery = (parts) => {
+      const str = parts.map((p) => String(p || '').trim()).filter(Boolean).join(', ');
+      if (str && !queryStrings.includes(str)) queryStrings.push(str);
+    };
 
-      // 1a. Barangay + City + Province (Highest priority)
-      if (rawBarangay && rawCity && targetState) {
-        candidates.push(`https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&countrycodes=ph&limit=5&q=${encodeURIComponent(`${rawBarangay}, ${rawCity}, ${targetState}, Philippines`)}`);
-        if (cleanBarangay !== rawBarangay || cleanCity !== rawCity) {
-          candidates.push(`https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&countrycodes=ph&limit=5&q=${encodeURIComponent(`${cleanBarangay}, ${cleanCity}, ${targetState}, Philippines`)}`);
-        }
-      } else if (rawBarangay && rawCity) {
-        candidates.push(`https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&countrycodes=ph&limit=5&q=${encodeURIComponent(`${rawBarangay}, ${rawCity}, Philippines`)}`);
-        if (cleanBarangay !== rawBarangay) {
-          candidates.push(`https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&countrycodes=ph&limit=5&q=${encodeURIComponent(`${cleanBarangay}, ${cleanCity || rawCity}, Philippines`)}`);
+    // Priority cascade: most specific -> broader (including OSM Region variant for Philippine HUCs/ICCs!)
+    if (rawStreet && cleanBarangay && rawCity && targetState) {
+      addQuery([rawStreet, cleanBarangay, rawCity, targetState, 'Philippines']);
+      if (targetRegion) addQuery([rawStreet, cleanBarangay, cleanCity || rawCity, targetRegion, 'Philippines']);
+    }
+    if (cleanBarangay && rawCity && targetState) {
+      addQuery([cleanBarangay, rawCity, targetState, 'Philippines']);
+      if (cleanCity && cleanCity.toLowerCase() !== rawCity.toLowerCase()) {
+        addQuery([cleanBarangay, cleanCity, targetState, 'Philippines']);
+      }
+      if (targetRegion) {
+        addQuery([cleanBarangay, cleanCity || rawCity, targetRegion, 'Philippines']);
+      }
+    } else if (cleanBarangay && rawCity) {
+      addQuery([cleanBarangay, rawCity, 'Philippines']);
+    }
+    if (rawLandmark && rawCity && targetState) {
+      addQuery([rawLandmark, rawCity, targetState, 'Philippines']);
+      if (targetRegion) addQuery([rawLandmark, cleanCity || rawCity, targetRegion, 'Philippines']);
+    }
+    if (rawStreet && rawCity && targetState) {
+      addQuery([rawStreet, rawCity, targetState, 'Philippines']);
+      if (targetRegion) addQuery([rawStreet, cleanCity || rawCity, targetRegion, 'Philippines']);
+    }
+    if (rawCity && targetState) {
+      addQuery([rawCity, targetState, 'Philippines']);
+      if (targetRegion) {
+        addQuery([rawCity, targetRegion, 'Philippines']);
+        if (cleanCity && cleanCity.toLowerCase() !== rawCity.toLowerCase()) {
+          addQuery([cleanCity, targetRegion, 'Philippines']);
         }
       }
-
-      // 1b. Street + Barangay / City (if street is provided)
-      if (rawStreet && rawCity) {
-        candidates.push(`https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&countrycodes=ph&limit=5&q=${encodeURIComponent(`${rawStreet}, ${rawCity}, ${targetState}`)}`);
+      if (cleanCity && cleanCity.toLowerCase() !== rawCity.toLowerCase()) {
+        addQuery([cleanCity, targetState, 'Philippines']);
       }
+    } else if (rawCity) {
+      addQuery([rawCity, 'Philippines']);
+    } else if (targetState) {
+      addQuery([targetState, 'Philippines']);
+    }
+    if (q && q.trim()) {
+      addQuery([q.trim()]);
+    }
 
-      // 1c. City + Province
-      if (rawCity && targetState) {
-        candidates.push(`https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&countrycodes=ph&limit=5&city=${encodeURIComponent(rawCity)}&state=${encodeURIComponent(targetState)}&country=Philippines`);
-        candidates.push(`https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&countrycodes=ph&limit=5&q=${encodeURIComponent(`${rawCity}, ${targetState}, Philippines`)}`);
-        if (cleanCity !== rawCity) {
-          candidates.push(`https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&countrycodes=ph&limit=5&q=${encodeURIComponent(`${cleanCity}, ${targetState}, Philippines`)}`);
-        }
-      } else if (rawCity) {
-        candidates.push(`https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&countrycodes=ph&limit=5&city=${encodeURIComponent(rawCity)}&country=Philippines`);
-        if (cleanCity !== rawCity) {
-          candidates.push(`https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&countrycodes=ph&limit=5&city=${encodeURIComponent(cleanCity)}&country=Philippines`);
-        }
-      } else if (targetState) {
-        candidates.push(`https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&countrycodes=ph&limit=5&state=${encodeURIComponent(targetState)}&country=Philippines`);
-      }
+    // Threshold for immediate high-confidence match (avoids stopping on a road/bus stop in a neighboring town)
+    const highConfidenceThreshold = rawStreet || rawLandmark ? 75 : cleanBarangay ? 120 : rawCity ? 115 : 50;
+    let bestCandidates = [];
+    let bestTopScore = -Infinity;
 
-      for (const url of candidates) {
-        try {
-          const fetchRes = await fetch(url, { headers });
-          if (fetchRes.ok) {
-            const data = await fetchRes.json();
-            if (Array.isArray(data) && data.length > 0) {
-              return res.json(data);
+    // Tier 1: Nominatim (PH-constrained, ranked by city/province/region/feature-type match)
+    for (const qs of queryStrings) {
+      try {
+        const url = `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&countrycodes=ph&accept-language=en&limit=5&q=${encodeURIComponent(qs)}`;
+        const fetchRes = await fetchWithTimeout(url, { headers }, 4000);
+        if (fetchRes.ok) {
+          const data = await fetchRes.json();
+          const ranked = rankCandidates(data);
+          if (ranked.length > 0) {
+            const topScore = scoreGeocodeCandidate(ranked[0], scoreCtx);
+            if (topScore > bestTopScore) {
+              bestTopScore = topScore;
+              bestCandidates = ranked;
+            }
+            if (topScore >= highConfidenceThreshold) {
+              return cacheAndSend(ranked);
             }
           }
-        } catch (e) {
-          // try next candidate
         }
+      } catch (_) {}
+    }
+
+    // Return best Nominatim hit if reasonably valid (score >= 40)
+    if (bestCandidates.length > 0 && bestTopScore >= 40) {
+      return cacheAndSend(bestCandidates);
+    }
+
+    // Tier 2: Photon Komoot fallback (avoids Nominatim rate-limits / misses)
+    for (const qs of queryStrings.slice(0, 4)) {
+      try {
+        const pUrl = `https://photon.komoot.io/api/?q=${encodeURIComponent(qs)}&limit=5&lat=12.8797&lon=121.7740`;
+        const pRes = await fetchWithTimeout(pUrl, { headers }, 4000);
+        if (pRes.ok) {
+          const pData = await pRes.json();
+          const feats = (pData?.features || []).filter((f) => {
+            const cc = String(f?.properties?.countrycode || '').toUpperCase();
+            return !cc || cc === 'PH';
+          });
+          if (feats.length > 0) {
+            const normalized = feats.map((f) => {
+              const p = f.properties || {};
+              const [lon, lat] = f.geometry?.coordinates || [0, 0];
+              const disp = [p.name, p.street, p.district || p.locality, p.city || p.town, p.state, p.postcode, 'Philippines'].filter(Boolean).join(', ');
+              return {
+                lat: String(lat),
+                lon: String(lon),
+                name: p.name || p.city || p.town || '',
+                display_name: disp,
+                type: p.osm_value || p.type || 'city',
+                class: p.osm_key || 'place',
+                address: {
+                  road: p.street || '',
+                  suburb: p.district || p.locality || '',
+                  city: p.city || p.town || '',
+                  state: p.state || '',
+                  postcode: p.postcode || '',
+                  country: 'Philippines'
+                }
+              };
+            });
+            const ranked = rankCandidates(normalized);
+            if (ranked.length > 0) {
+              const topScore = scoreGeocodeCandidate(ranked[0], scoreCtx);
+              if (topScore > bestTopScore) {
+                bestTopScore = topScore;
+                bestCandidates = ranked;
+              }
+              if (topScore >= highConfidenceThreshold) {
+                return cacheAndSend(ranked);
+              }
+            }
+          }
+        }
+      } catch (_) {}
+    }
+
+    if (bestCandidates.length > 0 && bestTopScore >= 25) {
+      return cacheAndSend(bestCandidates);
+    }
+
+    // Tier 3: Exact offline anchor match ONLY if online geocoders failed or had no trustworthy city match
+    if (cleanCity) {
+      const anchorMatch = PH_MUNICIPALITY_ANCHORS.find((a) => {
+        const aCity = a.name.toLowerCase().replace(/\s+city$/i, '').trim();
+        const aProv = a.province.toLowerCase().trim();
+        const cityMatches = aCity === cleanCity.toLowerCase();
+        const provMatches = !targetState || aProv.includes(targetState.toLowerCase()) || targetState.toLowerCase().includes(aProv);
+        return cityMatches && provMatches;
+      });
+      if (anchorMatch) {
+        return cacheAndSend([{
+          lat: String(anchorMatch.lat),
+          lon: String(anchorMatch.lon),
+          name: anchorMatch.name,
+          display_name: `${anchorMatch.name}, ${anchorMatch.province}, Philippines`,
+          type: 'city',
+          class: 'place',
+          address: {
+            city: anchorMatch.name,
+            state: anchorMatch.province,
+            postcode: anchorMatch.zip || '',
+            country: 'Philippines'
+          }
+        }]);
       }
     }
 
-    // 2. Freeform query fallback
-    if (q && q.trim()) {
-      const cleanQ = q.trim();
-      const freeformUrl = `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&countrycodes=ph&limit=5&q=${encodeURIComponent(cleanQ)}`;
-      const osmRes = await fetch(freeformUrl, { headers });
-      if (osmRes.ok) {
-        const data = await osmRes.json();
-        if (Array.isArray(data) && data.length > 0) {
-          return res.json(data);
-        }
-      }
-
-      // Global fallback
-      const globalUrl = `https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=5&q=${encodeURIComponent(cleanQ)}`;
-      const globalRes = await fetch(globalUrl, { headers });
-      if (globalRes.ok) {
-        const globalData = await globalRes.json();
-        if (Array.isArray(globalData) && globalData.length > 0) {
-          return res.json(globalData);
-        }
-      }
+    if (bestCandidates.length > 0) {
+      return cacheAndSend(bestCandidates);
     }
 
-    res.json([]);
+    return res.json([]);
   } catch (err) {
     console.warn('Geocode search error:', err.message);
     res.status(500).json({ error: 'Geocoding search service unavailable' });
@@ -9478,84 +9735,106 @@ const {
   PH_MUNICIPALITY_ANCHORS,
   ACCREDITED_MUNICIPALITY_NAMES,
   findNearestPhilippineAnchor,
+  getBarangaysForCity,
   resolvePhilippineZip,
   getRegionForProvinceName,
   resolveAccurateBarangayAndStreet
 } = require('./philippineGeoResolver');
 
 function parsePhilippineAddress(a = {}, dataName = '', lat = null, lon = null) {
-  const numLat = lat != null ? parseFloat(lat) : 10.1333;
-  const numLon = lon != null ? parseFloat(lon) : 124.8667;
-  const anchor = findNearestPhilippineAnchor(numLat, numLon);
+  const numLat = lat != null ? parseFloat(lat) : null;
+  const numLon = lon != null ? parseFloat(lon) : null;
+  const polyProv = (numLat != null && numLon != null) ? findPhilippineProvince(numLat, numLon) : null;
+  const anchor = (numLat != null && numLon != null) ? findNearestPhilippineAnchor(numLat, numLon) : null;
+  const anchorDist = (anchor && numLat != null && numLon != null) ? Math.hypot(numLat - anchor.lat, numLon - anchor.lon) : Infinity;
 
-  // 1. Province & Region
+  // 1. Honest Province & Region Resolution
   let province = '';
-  if (a.state && !/Region/i.test(a.state)) {
-    province = a.state;
-  } else if (a.province && !/Region/i.test(a.province)) {
-    province = a.province;
-  } else if (a.region && !/Region/i.test(a.region) && a.region !== 'Eastern Visayas' && a.region !== 'Central Visayas') {
-    province = a.region;
+  const stateCand = a.province || a.state || '';
+  if (stateCand && !/region\s+[ivx0-9]/i.test(stateCand) && !/^philippines$/i.test(stateCand)) {
+    province = stateCand.trim();
+  }
+  if (!province && polyProv?.name) {
+    province = polyProv.name;
+  }
+  if (!province && anchor && anchorDist <= 0.18) {
+    province = anchor.province;
+  }
+  if (/^metropolitan manila$/i.test(province) || /^national capital region$/i.test(province)) {
+    province = 'Metro Manila';
   }
 
-  if (!province || /Philippines/i.test(province) || /Visayas/i.test(province)) {
-    province = anchor ? anchor.province : 'Southern Leyte';
+  let region = getRegionForProvinceName(province);
+  if (!region && polyProv?.region) {
+    region = polyProv.region;
   }
-  if (province === 'Metropolitan Manila') province = 'Metro Manila';
+  if (!region && a.region && /region/i.test(a.region)) {
+    region = a.region.trim();
+  }
 
-  const region = a.region && /Region/i.test(a.region)
-    ? a.region
-    : getRegionForProvinceName(province);
+  // 2. Honest Municipality / City (Prefer official municipality over Photon mis-tagged barangays)
+  const workingAddress = { ...a };
+  let city = (workingAddress.city || workingAddress.municipality || workingAddress.town || workingAddress.locality || '').trim();
+  if (/^City of /i.test(city)) {
+    city = city.replace(/^City of /i, '').trim() + ' City';
+  }
+  if (province === 'Metro Manila' && !city && workingAddress.city_district) {
+    city = workingAddress.city_district.trim();
+  }
 
-  // 2. Municipality / City
-  let rawCity = a.city || a.town || a.municipality || a.locality || a.city_district || '';
-  let city = '';
-  let demotedBarangay = '';
-
-  if (rawCity) {
-    if (/^City of /i.test(rawCity)) {
-      rawCity = rawCity.replace(/^City of /i, '').trim() + ' City';
+  // Guard: If OSM/Photon mis-tagged a known BARANGAY of a nearby city as "city" (e.g. "Laboon" -> barangay of "Maasin City")
+  if (city && anchor && anchorDist <= 0.18) {
+    const cityLower = city.toLowerCase().trim();
+    const isKnownMunicipality =
+      /\bcity$/i.test(cityLower) || ACCREDITED_MUNICIPALITY_NAMES.has(cityLower);
+    if (!isKnownMunicipality) {
+      const anchorBrgys = getBarangaysForCity(anchor.name);
+      const isActuallyBarangay = anchorBrgys.some(
+        (b) => b.toLowerCase().replace(/\s*\(poblacion\)|\s*\(pob\.?\)/i, '').trim() === cityLower
+      );
+      if (isActuallyBarangay) {
+        if (!workingAddress.village && !workingAddress.suburb && !workingAddress.quarter) {
+          workingAddress.village = city;
+        }
+        city = anchor.name;
+      }
     }
-    const cleanLower = rawCity.toLowerCase().trim();
-    if (ACCREDITED_MUNICIPALITY_NAMES.has(cleanLower) || cleanLower.includes('city')) {
-      city = rawCity;
-    } else if (anchor && Math.hypot(numLat - anchor.lat, numLon - anchor.lon) < 0.15) {
+  }
+
+  // Normalize missing "City" suffix if it matches the nearest verified city anchor (e.g. "Maasin" -> "Maasin City")
+  if (city && anchor && anchorDist <= 0.15) {
+    const cityBase = city.toLowerCase().trim();
+    if (anchor.name.toLowerCase() === `${cityBase} city`) {
       city = anchor.name;
-      demotedBarangay = rawCity;
-    } else {
-      city = rawCity;
     }
   }
 
-  if (!city || city.toLowerCase() === province.toLowerCase()) {
-    city = anchor ? anchor.name : 'Maasin City';
+  if ((!city || city.toLowerCase() === province.toLowerCase()) && anchor && anchorDist <= 0.12) {
+    city = anchor.name;
   }
 
-  // 3. High-Accuracy Barangay & Street Resolution
-  const enhancedA = { ...a };
-  if (demotedBarangay && !enhancedA.quarter && !enhancedA.village) {
-    enhancedA.quarter = demotedBarangay;
-  }
-  const { barangay, street } = resolveAccurateBarangayAndStreet(enhancedA, dataName, city, province, numLat, numLon);
+  // 3. Honest Barangay & Street (ONLY real geocoder data; tight barangay fallback; ZERO fake streets)
+  const { barangay, street } = resolveAccurateBarangayAndStreet(workingAddress, dataName, city, province, numLat, numLon);
 
-  // 4. Postal Code
-  let zip = a.postcode || a.zip || a.postal_code || '';
-  if (!zip || String(zip).trim().length !== 4) {
-    zip = resolvePhilippineZip(city, province) || (anchor ? anchor.zip : '6600');
+  // 4. Honest Postal Code (4-digit PH ZIP or empty — NEVER default to 6600!)
+  let zip = String(workingAddress.postcode || workingAddress.zip || workingAddress.postal_code || '').trim();
+  if (!/^\d{4}$/.test(zip)) {
+    zip = resolvePhilippineZip(city, province) || '';
   }
 
-  // 5. Landmark
+  // 5. Honest Landmark (ONLY if OSM/Photon returned an actual named POI/building/amenity — NEVER invent fake Evacuation Centers!)
   let landmark = '';
-
-  if (a.amenity || a.historic || a.leisure || a.tourism || a.office || a.shop) {
-    landmark = a.name || a.amenity || a.tourism || a.leisure || a.historic || a.office || a.shop || '';
-  } else if (dataName && dataName !== street && dataName !== barangay && dataName !== city && dataName !== province) {
+  const poiCandidate = workingAddress.amenity || workingAddress.building || workingAddress.historic || workingAddress.leisure || workingAddress.tourism || workingAddress.office || workingAddress.shop || '';
+  if (poiCandidate && !/^(yes|building|house|residential)$/i.test(poiCandidate)) {
+    landmark = (dataName && dataName.length > 2) ? dataName : poiCandidate;
+  } else if (
+    dataName &&
+    dataName.length > 2 &&
+    ![street, barangay, city, province, region, 'Philippines'].some(
+      (v) => v && v.toLowerCase() === dataName.toLowerCase()
+    )
+  ) {
     landmark = dataName;
-  }
-
-
-  if (!landmark) {
-    landmark = `${city} Disaster Evacuation Center / Municipal Gymnasium`;
   }
 
   return {
@@ -9565,7 +9844,7 @@ function parsePhilippineAddress(a = {}, dataName = '', lat = null, lon = null) {
     province,
     region,
     zip,
-    country: 'Philippines',
+    country: workingAddress.country || 'Philippines',
     landmark
   };
 }
@@ -9582,8 +9861,11 @@ app.get('/api/geocode/reverse', async (req, res) => {
 
   const numLat = parseFloat(lat);
   const numLon = parseFloat(targetLon);
-  const cacheKey = `${numLat.toFixed(4)},${numLon.toFixed(4)}`;
+  if (!Number.isFinite(numLat) || !Number.isFinite(numLon)) {
+    return res.status(400).json({ error: 'Invalid coordinates' });
+  }
 
+  const cacheKey = `${numLat.toFixed(4)},${numLon.toFixed(4)}`;
   if (reverseGeocodeCache.has(cacheKey)) {
     return res.json(reverseGeocodeCache.get(cacheKey));
   }
@@ -9592,17 +9874,14 @@ app.get('/api/geocode/reverse', async (req, res) => {
   let dataName = '';
   let displayName = '';
 
-  // Priority 1: Nominatim (with 1.8s timeout)
+  // Priority 1: Nominatim (4.0s timeout, English labels, building/road zoom=18)
   try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 1800);
-    const url = `https://nominatim.openstreetmap.org/reverse?format=json&addressdetails=1&zoom=18&lat=${numLat}&lon=${numLon}`;
-    const osmRes = await fetch(url, {
-      headers: { 'User-Agent': 'BBDRTS-Disaster-Relief/2.0 (contact@bbdrts.gov.ph)' },
-      signal: controller.signal
-    });
-    clearTimeout(timeoutId);
-
+    const url = `https://nominatim.openstreetmap.org/reverse?format=json&addressdetails=1&accept-language=en&zoom=18&lat=${numLat}&lon=${numLon}`;
+    const osmRes = await fetchWithTimeout(
+      url,
+      { headers: { 'User-Agent': 'BBDRTS-Disaster-Relief/2.0 (contact@bbdrts.gov.ph)', 'Accept-Language': 'en' } },
+      4000
+    );
     if (osmRes.ok) {
       const data = await osmRes.json();
       if (data?.address) {
@@ -9611,50 +9890,74 @@ app.get('/api/geocode/reverse', async (req, res) => {
         displayName = data.display_name || '';
       }
     }
-  } catch (err) {
-    // Fallback to Photon
-  }
+  } catch (_) {}
 
-  // Priority 2: Photon Komoot API if city/town is missing or Nominatim rate-limited
-  if (!rawAddress.city && !rawAddress.town && !rawAddress.municipality) {
-    try {
-      const pUrl = `https://photon.komoot.io/reverse?lat=${numLat}&lon=${numLon}`;
-      const pRes = await fetch(pUrl, { headers: { 'User-Agent': 'BBDRTS-Disaster-Relief/2.0' } });
-      if (pRes.ok) {
-        const pData = await pRes.json();
-        if (pData?.features?.[0]?.properties) {
-          const props = pData.features[0].properties;
-          rawAddress.city = props.city || props.town || rawAddress.city;
-          if (!rawAddress.road) rawAddress.road = props.street || props.name || '';
-          if (!rawAddress.state) rawAddress.state = props.state || '';
-          if (!rawAddress.postcode && props.postcode) rawAddress.postcode = props.postcode;
-          if (!displayName && props.name) {
-            displayName = [props.name, props.city, props.state, 'Philippines'].filter(Boolean).join(', ');
-          }
-        }
+  // Priority 2 (Parallel): If Nominatim omitted city/municipality OR road, query BigDataCloud (official PH admin boundaries) + Photon (roads & buildings) simultaneously!
+  const missingCity = !rawAddress.city && !rawAddress.town && !rawAddress.municipality;
+  const missingRoad = !rawAddress.road;
+
+  if (missingCity || missingRoad) {
+    const [bdcSettled, photonSettled] = await Promise.allSettled([
+      missingCity
+        ? fetchWithTimeout(
+            `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${numLat}&longitude=${numLon}&localityLanguage=en`,
+            {},
+            3500
+          ).then((r) => (r.ok ? r.json() : null))
+        : Promise.resolve(null),
+      fetchWithTimeout(
+        `https://photon.komoot.io/reverse?lat=${numLat}&lon=${numLon}`,
+        { headers: { 'User-Agent': 'BBDRTS-Disaster-Relief/2.0' } },
+        3500
+      ).then((r) => (r.ok ? r.json() : null))
+    ]);
+
+    // Authoritative administrative boundaries from BigDataCloud (prevents Photon barangay-as-city bugs!)
+    const bdc = bdcSettled.status === 'fulfilled' ? bdcSettled.value : null;
+    if (bdc) {
+      const bdcCity = bdc.city || bdc.locality || '';
+      if (missingCity && bdcCity) {
+        rawAddress.city = bdcCity;
       }
-    } catch (photonErr) {
-      // Fallback to BigDataCloud
+      if (!rawAddress.state && bdc.principalSubdivision) {
+        rawAddress.state = bdc.principalSubdivision;
+      }
+      if (!rawAddress.postcode && bdc.postcode) {
+        rawAddress.postcode = bdc.postcode;
+      }
+      const adminLevels = bdc.localityInfo?.administrative || [];
+      if (!rawAddress.village && !rawAddress.suburb) {
+        const brgyLvl = adminLevels.find((lvl) => lvl.adminLevel === 10 || /barangay/i.test(lvl.description || ''));
+        if (brgyLvl?.name) rawAddress.village = brgyLvl.name;
+      }
+      const provLvl = adminLevels.find((lvl) => lvl.adminLevel === 4 || /province/i.test(lvl.description || ''));
+      if (provLvl?.name && (!rawAddress.state || /region/i.test(rawAddress.state))) {
+        rawAddress.province = provLvl.name;
+      }
+    }
+
+    // Street, building POI, and fallback locality from Photon
+    const pData = photonSettled.status === 'fulfilled' ? photonSettled.value : null;
+    const props = pData?.features?.[0]?.properties;
+    if (props) {
+      if (!rawAddress.city && !rawAddress.town && !rawAddress.municipality && (props.city || props.town)) {
+        rawAddress.city = props.city || props.town;
+      }
+      if (!rawAddress.suburb && !rawAddress.village && (props.district || props.locality)) {
+        rawAddress.suburb = props.district || props.locality;
+      }
+      if (!rawAddress.road && props.street) rawAddress.road = props.street;
+      if (!rawAddress.state && !rawAddress.province && props.state) rawAddress.state = props.state;
+      if (!rawAddress.postcode && props.postcode) rawAddress.postcode = props.postcode;
+      if (!dataName && props.name && props.name !== props.street && props.name !== props.city) {
+        dataName = props.name;
+      }
+      if (!displayName) {
+        displayName = [props.street || props.name, props.district || props.locality, rawAddress.city || props.city || props.town, rawAddress.province || rawAddress.state || props.state, 'Philippines'].filter(Boolean).join(', ');
+      }
     }
   }
 
-  // Priority 3: BigDataCloud free client API if still missing city/town
-  if (!rawAddress.city && !rawAddress.town && !rawAddress.municipality) {
-    try {
-      const bdcUrl = `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${numLat}&longitude=${numLon}&localityLanguage=en`;
-      const bdcRes = await fetch(bdcUrl);
-      if (bdcRes.ok) {
-        const bdc = await bdcRes.json();
-        if (bdc.city || bdc.locality) {
-          rawAddress.city = bdc.city || bdc.locality || '';
-          if (!rawAddress.state && bdc.principalSubdivision) rawAddress.state = bdc.principalSubdivision;
-          if (!rawAddress.postcode && bdc.postcode) rawAddress.postcode = bdc.postcode;
-        }
-      }
-    } catch (bdcErr) {}
-  }
-
-  // Guarantee 100% accurate, complete parsed fields
   const parsed = parsePhilippineAddress(rawAddress, dataName, numLat, numLon);
 
   const formattedAddress = [
@@ -9662,7 +9965,7 @@ app.get('/api/geocode/reverse', async (req, res) => {
     parsed.barangay,
     parsed.city,
     parsed.province,
-    parsed.region ? `(${parsed.region})` : '',
+    parsed.region,
     parsed.zip,
     parsed.country
   ].filter(Boolean).join(', ');
@@ -9673,8 +9976,7 @@ app.get('/api/geocode/reverse', async (req, res) => {
     parsed
   };
 
-  // Only cache high-quality responses with resolved city and province
-  if (parsed.city && parsed.province) {
+  if (parsed.city || parsed.province) {
     if (reverseGeocodeCache.size > 1000) {
       const firstKey = reverseGeocodeCache.keys().next().value;
       reverseGeocodeCache.delete(firstKey);

@@ -258,21 +258,21 @@ export default function EditCampaignModal({ camp, isOpen, onClose, onSaved }) {
   // Two-way sync from Map pin / click to granular inputs
   const handleGranularAddressFromMap = ({ street: s = '', barangay: b = '', city: c = '', province: p = '', region: r = '', country: cnt = 'Philippines', zip: z = '', landmark: l = '', fullAddress = '' }) => {
     const resolvedRegion = r || (p ? getRegionForProvince(p) : '') || '';
-    if (s) setStreet(s);
-    if (b) setBarangay(b);
-    if (c) setCity(c);
-    if (p) setProvince(p);
-    if (resolvedRegion) setRegion(resolvedRegion);
+    setStreet(s);
+    setBarangay(b);
+    setCity(c);
+    setProvince(p);
+    setRegion(resolvedRegion);
     setCountry(cnt || 'Philippines');
-    if (z) setZipCode(z);
-    if (l) setLandmark(l);
+    setZipCode(z);
+    setLandmark(l);
 
     const constructed = fullAddress || [
       s,
       b,
       c,
       p,
-      resolvedRegion ? `(${resolvedRegion})` : '',
+      resolvedRegion,
       z,
       cnt || 'Philippines',
       l ? `(Landmark: ${l})` : ''

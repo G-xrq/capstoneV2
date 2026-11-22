@@ -177,6 +177,7 @@ export default function LocationMapPicker({
   const containerRef = useRef(null);
   const markerRef = useRef(null);
   const tileLayerRef = useRef(null);
+  const reverseSeqRef = useRef(0);
   const [activeMapLayer, setActiveMapLayer] = useState(defaultLayer);
   const [geocoding, setGeocoding] = useState(false);
   const [searchInput, setSearchInput] = useState(address || '');
@@ -245,19 +246,16 @@ export default function LocationMapPicker({
   const updateFromReverseData = (data, lat, lng) => {
     const numLat = typeof lat === 'number' ? lat : parseFloat(lat);
     const numLng = typeof lng === 'number' ? lng : parseFloat(lng);
-    const latFormatted = numLat.toFixed(4);
-    const lngFormatted = numLng.toFixed(4);
-    const newGps = `${latFormatted}° N, ${lngFormatted}° E`;
 
     if (data?.parsed) {
       const p = data.parsed;
-      const region = p.region || getRegionForProvinceName(p.province) || '';
+      const region = p.region || getRegionForProvince(p.province) || getRegionForProvinceName(p.province) || '';
       const formattedAddress = [
         p.street,
         p.barangay,
         p.city,
         p.province,
-        region ? `(${region})` : '',
+        region,
         p.zip,
         p.country || 'Philippines'
       ].filter(Boolean).join(', ');
@@ -271,7 +269,7 @@ export default function LocationMapPicker({
           barangay: p.barangay || '',
           city: p.city || '',
           province: p.province || '',
-          region: region,
+          region,
           country: p.country || 'Philippines',
           zip: p.zip || '',
           landmark: p.landmark || '',
@@ -284,16 +282,24 @@ export default function LocationMapPicker({
       return;
     }
 
-    // 100% Infallible Fallback: Use client-side ground anchor resolver
+    // Honest offline fallback (strictly proximity-bound; never fabricates streets, ZIPs, or landmarks)
+    const polyProv = findPhilippineProvince(numLat, numLng);
     const fallbackGeo = resolvePhilippineGeo(numLat, numLng);
-    const provFallback = fallbackGeo.province;
-    const cityFallback = fallbackGeo.city;
-    const regFallback = fallbackGeo.region;
-    const brgyFallback = fallbackGeo.barangay;
-    const zipFallback = fallbackGeo.zip;
-    const streetFallback = fallbackGeo.street;
-    const landmarkFallback = fallbackGeo.landmark;
-    const formattedAddress = fallbackGeo.fullAddress;
+    const provFallback = fallbackGeo.province || polyProv?.name || '';
+    const cityFallback = fallbackGeo.city || '';
+    const regFallback = fallbackGeo.region || polyProv?.region || getRegionForProvince(provFallback) || getRegionForProvinceName(provFallback) || '';
+    const brgyFallback = fallbackGeo.barangay || '';
+    const zipFallback = fallbackGeo.zip || resolvePhilippineZip(cityFallback, provFallback) || '';
+    const streetFallback = fallbackGeo.street || '';
+    const formattedAddress = [
+      streetFallback,
+      brgyFallback,
+      cityFallback,
+      provFallback,
+      regFallback,
+      zipFallback,
+      'Philippines'
+    ].filter(Boolean).join(', ');
 
     if (onChangeAddressRef.current) {
       onChangeAddressRef.current(formattedAddress);
@@ -307,7 +313,7 @@ export default function LocationMapPicker({
         region: regFallback,
         country: 'Philippines',
         zip: zipFallback,
-        landmark: landmarkFallback,
+        landmark: '',
         fullAddress: formattedAddress
       });
     }
@@ -318,6 +324,7 @@ export default function LocationMapPicker({
   };
 
   const performReverseGeocode = async (lat, lng) => {
+    const seq = ++reverseSeqRef.current;
     const latFormatted = lat.toFixed(4);
     const lngFormatted = lng.toFixed(4);
     const newGps = `${latFormatted}° N, ${lngFormatted}° E`;
@@ -325,34 +332,45 @@ export default function LocationMapPicker({
     if (onChangeGpsRef.current) onChangeGpsRef.current(newGps);
     setGeocoding(true);
 
-    // Priority 1: Backend proxy (/api/geocode/reverse) - fast, resilient, zero-CORS, ground-truth augmented
+    // Priority 1: Backend proxy (/api/geocode/reverse)
     try {
       const res = await fetch(`${API_URL}/api/geocode/reverse?lat=${lat}&lon=${lng}`);
+      if (seq !== reverseSeqRef.current) return;
       if (res.ok) {
         const data = await res.json();
+        if (seq !== reverseSeqRef.current) return;
         if (data && (data.parsed || data.address || data.display_name)) {
           updateFromReverseData(data, lat, lng);
           setGeocoding(false);
           return;
         }
       }
-    } catch (e) {
-      // Continue to fallback
-    }
+    } catch (_) {}
 
-    // Priority 2: Photon API
+    // Priority 2: Direct Photon fallback (honest fields only, zero hallucinated landmarks/cities)
     try {
       const photonRes = await fetch(`https://photon.komoot.io/reverse?lat=${lat}&lon=${lng}`);
+      if (seq !== reverseSeqRef.current) return;
       if (photonRes.ok) {
         const photonData = await photonRes.json();
+        if (seq !== reverseSeqRef.current) return;
         if (photonData?.features?.length > 0) {
-          const props = photonData.features[0].properties;
-          const anchor = findNearestPhilippineAnchor(lat, lng);
-          const city = props.city || props.town || (anchor ? anchor.name : 'Maasin City');
-          const province = props.state || (anchor ? anchor.province : 'Southern Leyte');
-          const region = getRegionForProvinceName(province);
-          const zip = props.postcode || resolvePhilippineZip(city, province) || (anchor ? anchor.zip : '6600');
-          const { barangay, street } = resolveAccurateBarangayAndStreet(props, props.name || '', city, province, lat, lng);
+          const props = photonData.features[0].properties || {};
+          const polyProv = findPhilippineProvince(lat, lng);
+          const province = props.state || polyProv?.name || '';
+          const city = props.city || props.town || '';
+          const region = getRegionForProvince(province) || getRegionForProvinceName(province) || polyProv?.region || '';
+          const zip = props.postcode || resolvePhilippineZip(city, province) || '';
+          const rawForResolver = {
+            road: props.street || '',
+            suburb: props.district || props.locality || '',
+            city
+          };
+          const { barangay, street } = resolveAccurateBarangayAndStreet(rawForResolver, props.name || '', city, province, lat, lng);
+          const realLandmark = (
+            props.name &&
+            ![street, barangay, city, province, 'Philippines'].some((v) => v && v.toLowerCase() === String(props.name).toLowerCase())
+          ) ? props.name : '';
 
           updateFromReverseData({
             parsed: {
@@ -362,17 +380,18 @@ export default function LocationMapPicker({
               province,
               region,
               zip,
-              country: 'Philippines',
-              landmark: `${city} Municipal Evacuation Center`
+              country: props.country || 'Philippines',
+              landmark: realLandmark
             }
           }, lat, lng);
           setGeocoding(false);
           return;
         }
       }
-    } catch (e) {}
+    } catch (_) {}
 
-    // Priority 3: Infallible Offline Ground Anchor (Zero Failure)
+    if (seq !== reverseSeqRef.current) return;
+    // Priority 3: Honest proximity-bounded offline fallback
     updateFromReverseData(null, lat, lng);
     setGeocoding(false);
   };
@@ -463,12 +482,15 @@ export default function LocationMapPicker({
     };
   }, []);
 
-  // Update map when GPS prop changes externally
+  // Update map when GPS prop changes externally (skip if pin is already at these coordinates)
   useEffect(() => {
     if (mapRef.current && markerRef.current && gps) {
       const coords = parseCoords(gps);
-      markerRef.current.setLatLng(coords);
-      mapRef.current.setView(coords, mapRef.current.getZoom(), { animate: false });
+      const curr = markerRef.current.getLatLng();
+      if (!curr || Math.abs(curr.lat - coords[0]) > 0.0001 || Math.abs(curr.lng - coords[1]) > 0.0001) {
+        markerRef.current.setLatLng(coords);
+        mapRef.current.setView(coords, mapRef.current.getZoom(), { animate: false });
+      }
     }
   }, [gps]);
 
@@ -499,9 +521,9 @@ export default function LocationMapPicker({
         markerRef.current.unbindPopup();
       }
 
+      // Invalidate any pending reverse-geocode request so manual search results are NEVER overwritten
+      reverseSeqRef.current += 1;
       if (onChangeGpsRef.current) onChangeGpsRef.current(newGps);
-      // Immediately run reverse geocode on the found coordinates so all address inputs are 100% synchronized
-      performReverseGeocode(lat, lon);
     };
 
     // Priority 1: Structured backend proxy search
@@ -512,6 +534,7 @@ export default function LocationMapPicker({
         if (structured.province || structured.state) params.set('state', (structured.province || structured.state).trim());
         if (structured.barangay) params.set('barangay', structured.barangay.trim());
         if (structured.street) params.set('street', structured.street.trim());
+        if (structured.landmark) params.set('landmark', structured.landmark.trim());
         if (structured.country) params.set('country', structured.country.trim());
         if (cleanQuery) params.set('q', cleanQuery);
 
@@ -601,14 +624,7 @@ export default function LocationMapPicker({
         const newGps = `${latFormatted}° N, ${lngFormatted}° E`;
         if (onChangeGps) onChangeGps(newGps);
 
-        // Reverse geocode this exact GPS point
-        fetch(`${API_URL}/api/geocode/reverse?lat=${lat}&lon=${lng}`)
-          .then(r => r.json())
-          .then(data => {
-            if (data) updateFromReverseData(data, lat, lng);
-            setGeocoding(false);
-          })
-          .catch(() => setGeocoding(false));
+        performReverseGeocode(lat, lng);
       },
       (err) => {
         setGeocoding(false);

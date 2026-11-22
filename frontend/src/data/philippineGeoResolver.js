@@ -200,47 +200,154 @@ export function findNearestPhilippineAnchor(lat, lon) {
   return nearest;
 }
 
+// Complete 82 Philippine Provinces -> Official PSGC Region Map (17 Regions + NCR + NIR)
+const PH_PROVINCE_TO_REGION = {
+  // NCR
+  'metro manila': 'National Capital Region (NCR)',
+  'metropolitan manila': 'National Capital Region (NCR)',
+  'ncr': 'National Capital Region (NCR)',
+  'manila': 'National Capital Region (NCR)',
+  // CAR
+  'abra': 'Cordillera Administrative Region (CAR)',
+  'apayao': 'Cordillera Administrative Region (CAR)',
+  'benguet': 'Cordillera Administrative Region (CAR)',
+  'ifugao': 'Cordillera Administrative Region (CAR)',
+  'kalinga': 'Cordillera Administrative Region (CAR)',
+  'mountain province': 'Cordillera Administrative Region (CAR)',
+  // Region I
+  'ilocos norte': 'Region I (Ilocos Region)',
+  'ilocos sur': 'Region I (Ilocos Region)',
+  'la union': 'Region I (Ilocos Region)',
+  'pangasinan': 'Region I (Ilocos Region)',
+  // Region II
+  'batanes': 'Region II (Cagayan Valley)',
+  'cagayan': 'Region II (Cagayan Valley)',
+  'isabela': 'Region II (Cagayan Valley)',
+  'nueva vizcaya': 'Region II (Cagayan Valley)',
+  'quirino': 'Region II (Cagayan Valley)',
+  // Region III
+  'aurora': 'Region III (Central Luzon)',
+  'bataan': 'Region III (Central Luzon)',
+  'bulacan': 'Region III (Central Luzon)',
+  'nueva ecija': 'Region III (Central Luzon)',
+  'pampanga': 'Region III (Central Luzon)',
+  'tarlac': 'Region III (Central Luzon)',
+  'zambales': 'Region III (Central Luzon)',
+  // Region IV-A
+  'batangas': 'Region IV-A (CALABARZON)',
+  'cavite': 'Region IV-A (CALABARZON)',
+  'laguna': 'Region IV-A (CALABARZON)',
+  'quezon': 'Region IV-A (CALABARZON)',
+  'rizal': 'Region IV-A (CALABARZON)',
+  // MIMAROPA
+  'marinduque': 'MIMAROPA Region',
+  'occidental mindoro': 'MIMAROPA Region',
+  'oriental mindoro': 'MIMAROPA Region',
+  'palawan': 'MIMAROPA Region',
+  'romblon': 'MIMAROPA Region',
+  // Region V
+  'albay': 'Region V (Bicol Region)',
+  'camarines norte': 'Region V (Bicol Region)',
+  'camarines sur': 'Region V (Bicol Region)',
+  'catanduanes': 'Region V (Bicol Region)',
+  'masbate': 'Region V (Bicol Region)',
+  'sorsogon': 'Region V (Bicol Region)',
+  // Region VI
+  'aklan': 'Region VI (Western Visayas)',
+  'antique': 'Region VI (Western Visayas)',
+  'capiz': 'Region VI (Western Visayas)',
+  'guimaras': 'Region VI (Western Visayas)',
+  'iloilo': 'Region VI (Western Visayas)',
+  // NIR
+  'negros occidental': 'Negros Island Region (NIR)',
+  'negros oriental': 'Negros Island Region (NIR)',
+  'siquijor': 'Negros Island Region (NIR)',
+  // Region VII
+  'bohol': 'Region VII (Central Visayas)',
+  'cebu': 'Region VII (Central Visayas)',
+  // Region VIII
+  'biliran': 'Region VIII (Eastern Visayas)',
+  'eastern samar': 'Region VIII (Eastern Visayas)',
+  'leyte': 'Region VIII (Eastern Visayas)',
+  'northern samar': 'Region VIII (Eastern Visayas)',
+  'samar': 'Region VIII (Eastern Visayas)',
+  'western samar': 'Region VIII (Eastern Visayas)',
+  'southern leyte': 'Region VIII (Eastern Visayas)',
+  // Region IX
+  'zamboanga del norte': 'Region IX (Zamboanga Peninsula)',
+  'zamboanga del sur': 'Region IX (Zamboanga Peninsula)',
+  'zamboanga sibugay': 'Region IX (Zamboanga Peninsula)',
+  // Region X
+  'bukidnon': 'Region X (Northern Mindanao)',
+  'camiguin': 'Region X (Northern Mindanao)',
+  'lanao del norte': 'Region X (Northern Mindanao)',
+  'misamis occidental': 'Region X (Northern Mindanao)',
+  'misamis oriental': 'Region X (Northern Mindanao)',
+  // Region XI
+  'davao de oro': 'Region XI (Davao Region)',
+  'compostela valley': 'Region XI (Davao Region)',
+  'davao del norte': 'Region XI (Davao Region)',
+  'davao del sur': 'Region XI (Davao Region)',
+  'davao occidental': 'Region XI (Davao Region)',
+  'davao oriental': 'Region XI (Davao Region)',
+  // Region XII
+  'cotabato': 'Region XII (SOCCSKSARGEN)',
+  'north cotabato': 'Region XII (SOCCSKSARGEN)',
+  'sarangani': 'Region XII (SOCCSKSARGEN)',
+  'south cotabato': 'Region XII (SOCCSKSARGEN)',
+  'sultan kudarat': 'Region XII (SOCCSKSARGEN)',
+  // Region XIII (Caraga)
+  'agusan del norte': 'Region XIII (Caraga)',
+  'agusan del sur': 'Region XIII (Caraga)',
+  'dinagat islands': 'Region XIII (Caraga)',
+  'surigao del norte': 'Region XIII (Caraga)',
+  'surigao del sur': 'Region XIII (Caraga)',
+  // BARMM
+  'basilan': 'Bangsamoro Autonomous Region in Muslim Mindanao (BARMM)',
+  'lanao del sur': 'Bangsamoro Autonomous Region in Muslim Mindanao (BARMM)',
+  'maguindanao': 'Bangsamoro Autonomous Region in Muslim Mindanao (BARMM)',
+  'maguindanao del norte': 'Bangsamoro Autonomous Region in Muslim Mindanao (BARMM)',
+  'maguindanao del sur': 'Bangsamoro Autonomous Region in Muslim Mindanao (BARMM)',
+  'sulu': 'Bangsamoro Autonomous Region in Muslim Mindanao (BARMM)',
+  'tawi-tawi': 'Bangsamoro Autonomous Region in Muslim Mindanao (BARMM)'
+};
+
 export function resolvePhilippineZip(city, province) {
-  if (!city && !province) return '6600';
+  if (!city) return '';
   const c = String(city || '').toLowerCase().trim();
+  const cClean = c.replace(/^city of\s+/i, '').replace(/\s+city$/i, '').trim();
   const p = String(province || '').toLowerCase().trim();
 
+  // Disambiguate towns that exist in multiple provinces (e.g. Liloan, San Juan, San Fernando)
+  if (p) {
+    const disambig = `${cClean} (${p})`;
+    if (PH_POSTAL_CODES[disambig]) return PH_POSTAL_CODES[disambig];
+    if (cClean === 'liloan' && p.includes('cebu')) return '6002';
+    if (cClean === 'liloan' && p.includes('southern leyte')) return '6612';
+    if (cClean === 'san juan' && (p.includes('manila') || p.includes('ncr'))) return '1500';
+    if (cClean === 'san juan' && p.includes('southern leyte')) return '6611';
+    if (cClean === 'san fernando' && p.includes('pampanga')) return '2000';
+    if (cClean === 'san fernando' && p.includes('cebu')) return '6018';
+    if (cClean === 'san fernando' && p.includes('la union')) return '2500';
+    if (cClean === 'naga' && p.includes('camarines sur')) return '4400';
+    if (cClean === 'naga' && p.includes('cebu')) return '6037';
+  }
+
   if (PH_POSTAL_CODES[c]) return PH_POSTAL_CODES[c];
-  for (const [k, v] of Object.entries(PH_POSTAL_CODES)) {
-    if (c.includes(k) || k.includes(c)) return v;
-  }
-  if (PH_POSTAL_CODES[p]) return PH_POSTAL_CODES[p];
-  for (const [k, v] of Object.entries(PH_POSTAL_CODES)) {
-    if (p.includes(k)) return v;
-  }
-  return '6600';
+  if (PH_POSTAL_CODES[cClean]) return PH_POSTAL_CODES[cClean];
+  return '';
 }
 
 export function getRegionForProvinceName(provinceName) {
-  if (!provinceName) return 'Eastern Visayas (Region VIII)';
-  const p = provinceName.toLowerCase().trim();
-  if (p.includes('southern leyte') || p.includes('leyte') || p.includes('biliran') || p.includes('samar')) {
-    return 'Eastern Visayas (Region VIII)';
+  if (!provinceName) return '';
+  const p = String(provinceName).toLowerCase().replace(/^province of\s+/i, '').trim();
+  if (PH_PROVINCE_TO_REGION[p]) return PH_PROVINCE_TO_REGION[p];
+  // Match longest province key first so "southern leyte" wins over "leyte", "davao del sur" over "davao"
+  const keys = Object.keys(PH_PROVINCE_TO_REGION).sort((a, b) => b.length - a.length);
+  for (const k of keys) {
+    if (p.includes(k)) return PH_PROVINCE_TO_REGION[k];
   }
-  if (p.includes('cebu') || p.includes('bohol') || p.includes('siquijor') || p.includes('negros oriental')) {
-    return 'Central Visayas (Region VII)';
-  }
-  if (p.includes('manila') || p.includes('ncr')) {
-    return 'National Capital Region (NCR)';
-  }
-  if (p.includes('davao')) {
-    return 'Davao Region (Region XI)';
-  }
-  if (p.includes('iloilo') || p.includes('negros occidental') || p.includes('capiz') || p.includes('aklan') || p.includes('antique')) {
-    return 'Western Visayas (Region VI)';
-  }
-  if (p.includes('pampanga') || p.includes('bulacan') || p.includes('tarlac') || p.includes('nueva ecija') || p.includes('bataan') || p.includes('zambales') || p.includes('aurora')) {
-    return 'Central Luzon (Region III)';
-  }
-  if (p.includes('cavite') || p.includes('laguna') || p.includes('batangas') || p.includes('rizal') || p.includes('quezon')) {
-    return 'CALABARZON (Region IV-A)';
-  }
-  return 'Eastern Visayas (Region VIII)';
+  return '';
 }
 
 // Official Barangay Registry for Philippine Municipalities (Priority: Southern Leyte & Eastern/Central Visayas)
@@ -407,143 +514,104 @@ export const PH_BARANGAY_MICRO_ANCHORS = [
 
 export function resolveAccurateBarangayAndStreet(rawAddress, dataName, city, province, lat, lon) {
   const a = rawAddress || {};
-  const cityKey = (city || '').toLowerCase().replace(' city', '').trim();
-  const knownBarangays = PH_MUNICIPALITY_BARANGAYS[cityKey] || PH_MUNICIPALITY_BARANGAYS[(city || '').toLowerCase().trim()] || [];
+  const cityCleanLower = String(city || '').toLowerCase().replace(/^city of\s+/i, '').replace(/\s+city$/i, '').trim();
+  const provCleanLower = String(province || '').toLowerCase().trim();
+  const knownBarangays =
+    PH_MUNICIPALITY_BARANGAYS[String(city || '').toLowerCase().trim()] ||
+    PH_MUNICIPALITY_BARANGAYS[cityCleanLower] ||
+    PH_MUNICIPALITY_BARANGAYS[`${cityCleanLower} city`] ||
+    [];
 
-  const candidates = [
-    a.village,
+  const rawCandidates = [
     a.quarter,
     a.suburb,
+    a.village,
     a.neighbourhood,
     a.hamlet,
-    a.city_district,
     a.subdistrict,
-    a.county
-  ].filter(Boolean).map(c => {
-    // Normalize Zone Arabic numerals to Roman (OSM uses "Zone 5", official list uses "Zone V")
-    return String(c).replace(/^Zone\s+(\d+)$/i, (_, n) => {
-      const num = parseInt(n, 10);
-      const romans = ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'];
-      return `Zone ${romans[num] || num}`;
+    a.city_district
+  ]
+    .filter(Boolean)
+    .map((c) =>
+      String(c)
+        .trim()
+        .replace(/^Zone\s+(\d+)$/i, (_, n) => {
+          const num = parseInt(n, 10);
+          const romans = ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'];
+          return `Zone ${romans[num] || num}`;
+        })
+    )
+    .filter((c) => {
+      const low = c.toLowerCase().replace(/^(brgy\.?|barangay)\s*/i, '').trim();
+      if (!low || low.length < 2) return false;
+      if (low === cityCleanLower || low === String(city || '').toLowerCase().trim()) return false;
+      if (provCleanLower && low === provCleanLower) return false;
+      if (/^(philippines|region\s+[ivx0-9]+)/i.test(low)) return false;
+      return true;
     });
-  });
-
 
   let detectedBarangay = '';
   let usedIndex = -1;
 
-  // 1. Search known barangays
-  // Sort known barangays longest-first to prefer more specific matches (e.g. "Zone III" before "Zone I")
-  const sortedKnownBarangays = [...knownBarangays].sort((a, b) => b.length - a.length);
-
-  for (let i = 0; i < candidates.length; i++) {
-    const cand = candidates[i].trim();
-    const candClean = cand.toLowerCase().replace(/^(brgy\.?|barangay)\s*/i, '').trim();
-    if (!candClean || candClean.length < 3) continue;
-    const matched = sortedKnownBarangays.find(b => {
-      const bLower = b.toLowerCase();
-      if (bLower === candClean) return true;
-      if (candClean.length >= 4) {
-        // Word-boundary substring match — prevents "Zone I" matching "Zone III"
-        const bMatchesCand = bLower.includes(candClean) && (bLower.length === candClean.length || /[\s\-,]/.test(bLower[candClean.length] || ''));
-        const candMatchesB = candClean.includes(bLower) && (candClean.length === bLower.length || /[\s\-,]/.test(candClean[bLower.length] || ''));
-        return bMatchesCand || candMatchesB;
-      }
-      return false;
-    });
-    if (matched) {
-      detectedBarangay = matched;
-      usedIndex = i;
-      break;
-    }
-  }
-
-
-  // 2. Check if candidate starts with Barangay / Brgy / Zone
-  if (!detectedBarangay) {
-    for (let i = 0; i < candidates.length; i++) {
-      const cand = candidates[i].trim();
-      if (/^(brgy|barangay|zone)/i.test(cand) && !cand.toLowerCase().includes(city.toLowerCase())) {
-        detectedBarangay = cand;
+  if (knownBarangays.length > 0) {
+    const sortedKnown = [...knownBarangays].sort((x, y) => y.length - x.length);
+    for (let i = 0; i < rawCandidates.length; i++) {
+      const candClean = rawCandidates[i].toLowerCase().replace(/^(brgy\.?|barangay)\s*/i, '').trim();
+      const matched = sortedKnown.find((b) => {
+        const bLower = b.toLowerCase().replace(/\s*\(poblacion\)|\s*\(pob\.?\)/i, '').trim();
+        return bLower === candClean;
+      });
+      if (matched) {
+        detectedBarangay = matched;
         usedIndex = i;
         break;
       }
     }
   }
 
-  // 3. Coordinate-based micro-anchor nearest match
-  let nearestMicro = null;
-  let minDist = Infinity;
-  if (lat && lon) {
+  if (!detectedBarangay && rawCandidates.length > 0) {
+    const best = rawCandidates.find((c) => !/\b(congressional|legislative)\s+district\b/i.test(c)) || rawCandidates[0];
+    detectedBarangay = best.replace(/^(brgy\.?|barangay)\s+/i, '').trim();
+    usedIndex = rawCandidates.indexOf(best);
+  }
+
+  if (!detectedBarangay && lat && lon && cityCleanLower) {
+    let nearestMicro = null;
+    let minDist = Infinity;
     for (const m of PH_BARANGAY_MICRO_ANCHORS) {
-      if (city && !m.city.toLowerCase().includes(cityKey)) continue;
-      const d = Math.hypot(lat - m.lat, lon - m.lon);
+      if (!m.city.toLowerCase().includes(cityCleanLower)) continue;
+      const d = Math.hypot(parseFloat(lat) - m.lat, parseFloat(lon) - m.lon);
       if (d < minDist) {
         minDist = d;
         nearestMicro = m;
       }
     }
+    if (nearestMicro && minDist <= 0.015) {
+      detectedBarangay = nearestMicro.barangay;
+    }
   }
 
-  if (!detectedBarangay && nearestMicro && minDist < 0.08) {
-    detectedBarangay = nearestMicro.barangay;
-  }
-
-  if (!detectedBarangay) {
-    detectedBarangay = a.village || a.quarter || (knownBarangays[0] || 'Poblacion');
-  }
-
-  // Normalize Zone numbers to Roman numerals
   if (/^zone\s+(\d+)$/i.test(detectedBarangay)) {
     const num = parseInt(detectedBarangay.replace(/\D/g, ''), 10);
     const roman = ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'][num] || num;
     detectedBarangay = `Zone ${roman}`;
   }
 
-  // 4. Resolve Street
-  let rawRoad = a.road || a.street || a.pedestrian || a.footway || a.path || a.residential || a.highway || '';
+  const rawRoad = a.road || a.street || a.pedestrian || a.footway || a.path || a.residential || a.highway || '';
   let street = '';
 
   if (rawRoad && rawRoad.toLowerCase() !== detectedBarangay.toLowerCase()) {
-    if (a.house_number) {
-      street = `${a.house_number} ${rawRoad}`;
-    } else {
-      street = rawRoad;
-    }
+    street = a.house_number ? `${a.house_number} ${rawRoad}` : rawRoad;
   }
 
-  // If no road from OSM, check candidates for Purok / Sitio / Street
   if (!street) {
-    for (let i = 0; i < candidates.length; i++) {
+    for (let i = 0; i < rawCandidates.length; i++) {
       if (i === usedIndex) continue;
-      const cand = candidates[i].trim();
-      if (/^(purok|sitio)/i.test(cand) || cand.toLowerCase().includes('purok') || cand.toLowerCase().includes('sitio')) {
+      const cand = rawCandidates[i];
+      if (/^(purok|sitio)\b/i.test(cand)) {
         street = cand;
         break;
       }
-      if (cand.toLowerCase() !== detectedBarangay.toLowerCase() && cand.toLowerCase() !== city.toLowerCase()) {
-        street = cand.toLowerCase().includes('street') ? cand : `${cand} Street`;
-        break;
-      }
-    }
-  }
-
-  // If road is still empty, check nearest micro-anchor street
-  if (!street && nearestMicro && nearestMicro.barangay.toLowerCase() === detectedBarangay.toLowerCase()) {
-    street = nearestMicro.street;
-  }
-
-  // If POI / amenity is available
-  if (!street && dataName && !dataName.toLowerCase().includes(detectedBarangay.toLowerCase()) && !dataName.toLowerCase().includes(city.toLowerCase())) {
-    street = `${dataName} Access Road`;
-  }
-
-  // Infallible fallback
-  if (!street) {
-    if (detectedBarangay.toLowerCase().includes('zone') || detectedBarangay.toLowerCase().includes('poblacion')) {
-      street = 'Rizal Street';
-    } else {
-      street = `${detectedBarangay} Barangay Road`;
     }
   }
 
@@ -554,14 +622,19 @@ export function resolvePhilippineGeo(lat, lon) {
   const numLat = typeof lat === 'number' ? lat : parseFloat(lat);
   const numLon = typeof lon === 'number' ? lon : parseFloat(lon);
   const anchor = findNearestPhilippineAnchor(numLat, numLon);
-  const prov = anchor ? anchor.province : 'Southern Leyte';
-  const city = anchor ? anchor.name : 'Maasin City';
-  const reg = anchor ? anchor.region : 'Eastern Visayas (Region VIII)';
+  const anchorDist = anchor ? Math.hypot(numLat - anchor.lat, numLon - anchor.lon) : Infinity;
 
-  const { barangay, street } = resolveAccurateBarangayAndStreet({}, '', city, prov, numLat, numLon);
-  const zip = anchor ? anchor.zip : resolvePhilippineZip(city, prov);
-  const landmark = `${city} Disaster Evacuation Center / Municipal Gymnasium`;
-  const fullAddress = `${street}, ${barangay}, ${city}, ${prov}, (${reg}), ${zip}, Philippines`;
+  const useAnchor = Boolean(anchor && anchorDist <= 0.15);
+  const prov = useAnchor ? anchor.province : '';
+  const city = useAnchor ? anchor.name : '';
+  const reg = prov ? getRegionForProvinceName(prov) : '';
+  const zip = useAnchor ? (anchor.zip || resolvePhilippineZip(city, prov)) : '';
+
+  const { barangay, street } = useAnchor
+    ? resolveAccurateBarangayAndStreet({}, '', city, prov, numLat, numLon)
+    : { barangay: '', street: '' };
+
+  const fullAddress = [street, barangay, city, prov, reg, zip, 'Philippines'].filter(Boolean).join(', ');
 
   return {
     street,
@@ -571,9 +644,7 @@ export function resolvePhilippineGeo(lat, lon) {
     region: reg,
     country: 'Philippines',
     zip,
-    landmark,
+    landmark: '',
     fullAddress
   };
 }
-
-
