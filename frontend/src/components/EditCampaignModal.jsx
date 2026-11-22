@@ -6,6 +6,7 @@ import { formatPhoneNumber, cleanPhoneNumber } from '../utils/formatters';
 import { autoCropQrScreenshot } from '../utils/qrCropper';
 import { getRegions, getRegionForProvince } from '../data/philippineGeoData';
 import LocationMapPicker from './LocationMapPicker';
+import BarangayCombobox from './BarangayCombobox';
 import './EditCampaignModal.css';
 
 const PRESET_CAMPAIGN_TAGS = [
@@ -54,6 +55,8 @@ export default function EditCampaignModal({ camp, isOpen, onClose, onSaved }) {
   // Granular Address Details (Deploy Campaign Image 3 Standard)
   const [street, setStreet] = useState('');
   const [barangay, setBarangay] = useState('');
+  const [mapSuggestedBarangay, setMapSuggestedBarangay] = useState('');
+  const [prefetchedPsgcBarangays, setPrefetchedPsgcBarangays] = useState({ city: '', list: [] });
   const [city, setCity] = useState('');
   const [province, setProvince] = useState('');
   const [region, setRegion] = useState('');
@@ -183,6 +186,7 @@ export default function EditCampaignModal({ camp, isOpen, onClose, onSaved }) {
         tagsArr = rawTags.split(',').map(t => t.trim().replace(/^#/, '')).filter(Boolean);
       }
       setSelectedTags(tagsArr);
+      setMapSuggestedBarangay('');
       setCurrentStep(1);
       setDeliveryDatePickerOpen(false);
       setShowUrgencyDropdown(false);
@@ -247,7 +251,7 @@ export default function EditCampaignModal({ camp, isOpen, onClose, onSaved }) {
       nextBarangay,
       nextCity,
       nextProvince,
-      nextRegion ? `(${nextRegion})` : '',
+      nextRegion,
       nextZip,
       nextCountry || 'Philippines',
       nextLandmark ? `(Landmark: ${nextLandmark})` : ''
@@ -256,20 +260,28 @@ export default function EditCampaignModal({ camp, isOpen, onClose, onSaved }) {
   };
 
   // Two-way sync from Map pin / click to granular inputs
-  const handleGranularAddressFromMap = ({ street: s = '', barangay: b = '', city: c = '', province: p = '', region: r = '', country: cnt = 'Philippines', zip: z = '', landmark: l = '', fullAddress = '' }) => {
+  const handleGranularAddressFromMap = ({ street: s = '', suggestedBarangay = '', psgcBarangays = [], city: c = '', province: p = '', region: r = '', country: cnt = 'Philippines', zip: z = '', landmark: l = '' }) => {
     const resolvedRegion = r || (p ? getRegionForProvince(p) : '') || '';
+    const normCityKey = (v) => String(v || '').toLowerCase().replace(/^city of\s+/i, '').replace(/\s+city$/i, '').trim();
+    const isSameCity = Boolean(city && c && normCityKey(city) === normCityKey(c));
+    const nextBarangay = isSameCity ? barangay : '';
+
     setStreet(s);
-    setBarangay(b);
+    setBarangay(nextBarangay);
     setCity(c);
     setProvince(p);
     setRegion(resolvedRegion);
     setCountry(cnt || 'Philippines');
     setZipCode(z);
     setLandmark(l);
+    setMapSuggestedBarangay(suggestedBarangay || '');
+    if (Array.isArray(psgcBarangays) && psgcBarangays.length > 0 && c) {
+      setPrefetchedPsgcBarangays({ city: c, list: psgcBarangays });
+    }
 
-    const constructed = fullAddress || [
+    const constructed = [
       s,
-      b,
+      nextBarangay,
       c,
       p,
       resolvedRegion,
@@ -875,6 +887,7 @@ export default function EditCampaignModal({ camp, isOpen, onClose, onSaved }) {
                           onClick={() => {
                             setStreet('');
                             setBarangay('');
+                            setMapSuggestedBarangay('');
                             setCity('');
                             setProvince('');
                             setRegion('');
@@ -909,13 +922,22 @@ export default function EditCampaignModal({ camp, isOpen, onClose, onSaved }) {
                     {/* 2. Barangay & Municipality / City */}
                     <div className="bbdrts-edit-grid-2">
                       <div className="bbdrts-field">
-                        <label>Barangay</label>
-                        <div className="bbdrts-input-wrap">
-                          <input
-                            type="text"
-                            placeholder="e.g., Barangay Abgao"
+                        <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px' }}>
+                          <span>Barangay</span>
+                          <span style={{ fontSize: '0.64rem', color: '#71717a', fontWeight: 600 }}>PSA PSGC</span>
+                        </label>
+                        <div className="bbdrts-input-wrap" style={{ overflow: 'visible' }}>
+                          <BarangayCombobox
                             value={barangay}
-                            onChange={(e) => updateGranularField('barangay', e.target.value)}
+                            onChange={(val) => updateGranularField('barangay', val)}
+                            city={city}
+                            province={province}
+                            suggestedBarangay={mapSuggestedBarangay}
+                            onDismissSuggestion={() => setMapSuggestedBarangay('')}
+                            prefetchedBarangays={prefetchedPsgcBarangays.list}
+                            prefetchedForCity={prefetchedPsgcBarangays.city}
+                            placeholder="Select or type Barangay"
+                            variant="edit"
                           />
                         </div>
                       </div>
@@ -1100,7 +1122,6 @@ export default function EditCampaignModal({ camp, isOpen, onClose, onSaved }) {
                       <LocationMapPicker
                         address={locationRegion}
                         gps={gpsCoordinates}
-                        onChangeAddress={(addr) => setLocationRegion(addr)}
                         onChangeGranularAddress={handleGranularAddressFromMap}
                         onChangeGps={(coords) => setGpsCoordinates(coords)}
                         onLocationFound={(res) => {

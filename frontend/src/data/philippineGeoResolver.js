@@ -575,22 +575,7 @@ export function resolveAccurateBarangayAndStreet(rawAddress, dataName, city, pro
     usedIndex = rawCandidates.indexOf(best);
   }
 
-  if (!detectedBarangay && lat && lon && cityCleanLower) {
-    let nearestMicro = null;
-    let minDist = Infinity;
-    for (const m of PH_BARANGAY_MICRO_ANCHORS) {
-      if (!m.city.toLowerCase().includes(cityCleanLower)) continue;
-      const d = Math.hypot(parseFloat(lat) - m.lat, parseFloat(lon) - m.lon);
-      if (d < minDist) {
-        minDist = d;
-        nearestMicro = m;
-      }
-    }
-    if (nearestMicro && minDist <= 0.015) {
-      detectedBarangay = nearestMicro.barangay;
-    }
-  }
-
+  // NOTE: NEVER guess barangay from approximate lat/lon micro-anchors!
   if (/^zone\s+(\d+)$/i.test(detectedBarangay)) {
     const num = parseInt(detectedBarangay.replace(/\D/g, ''), 10);
     const roman = ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'][num] || num;
@@ -600,7 +585,7 @@ export function resolveAccurateBarangayAndStreet(rawAddress, dataName, city, pro
   const rawRoad = a.road || a.street || a.pedestrian || a.footway || a.path || a.residential || a.highway || '';
   let street = '';
 
-  if (rawRoad && rawRoad.toLowerCase() !== detectedBarangay.toLowerCase()) {
+  if (rawRoad) {
     street = a.house_number ? `${a.house_number} ${rawRoad}` : rawRoad;
   }
 
@@ -630,11 +615,11 @@ export function resolvePhilippineGeo(lat, lon) {
   const reg = prov ? getRegionForProvinceName(prov) : '';
   const zip = useAnchor ? (anchor.zip || resolvePhilippineZip(city, prov)) : '';
 
-  const { barangay, street } = useAnchor
-    ? resolveAccurateBarangayAndStreet({}, '', city, prov, numLat, numLon)
-    : { barangay: '', street: '' };
+  // Offline mode NEVER fabricates barangay or street from rough lat/lon anchors
+  const barangay = '';
+  const street = '';
 
-  const fullAddress = [street, barangay, city, prov, reg, zip, 'Philippines'].filter(Boolean).join(', ');
+  const fullAddress = [city, prov, reg, zip, 'Philippines'].filter(Boolean).join(', ');
 
   return {
     street,

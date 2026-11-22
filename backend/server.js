@@ -9849,6 +9849,230 @@ function parsePhilippineAddress(a = {}, dataName = '', lat = null, lon = null) {
   };
 }
 
+// ── Official PSA PSGC Barangay Registry (All 1,634 PH Cities/Municipalities & 42,000+ Barangays) ──
+let psgcProvincesCache = null;
+let psgcCitiesCache = null;
+let psgcMasterLoadPromise = null;
+const psgcBarangaysCache = new Map();
+
+function normalizePsgcKey(val) {
+  return String(val || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/^city of\s+/i, '')
+    .replace(/^municipality of\s+/i, '')
+    .replace(/\s+city$/i, '')
+    .replace(/\bsto\.?\b/g, 'santo')
+    .replace(/\bsta\.?\b/g, 'santa')
+    .replace(/\bst\.?\b/g, 'saint')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+}
+
+async function ensurePsgcMasterLoaded() {
+  if (psgcProvincesCache && psgcCitiesCache) return true;
+  if (!psgcMasterLoadPromise) {
+    psgcMasterLoadPromise = (async () => {
+      try {
+        const [provRes, cityRes] = await Promise.all([
+          fetchWithTimeout('https://psgc.gitlab.io/api/provinces/', { headers: { Accept: 'application/json' } }, 6000),
+          fetchWithTimeout('https://psgc.gitlab.io/api/cities-municipalities/', { headers: { Accept: 'application/json' } }, 6000)
+        ]);
+        if (provRes.ok && cityRes.ok) {
+          psgcProvincesCache = await provRes.json();
+          psgcCitiesCache = await cityRes.json();
+          return true;
+        }
+      } catch (err) {
+        console.warn('PSA PSGC master index fetch failed (using local fallback):', err.message);
+      } finally {
+        psgcMasterLoadPromise = null;
+      }
+      return false;
+    })();
+  }
+  return psgcMasterLoadPromise;
+}
+
+async function resolveOfficialPsgcBarangays(cityInput, provinceInput = '') {
+  const rawCity = String(cityInput || '').trim();
+  const rawProv = String(provinceInput || '').trim();
+  if (!rawCity) {
+    return { city: '', province: rawProv, psgcCode: '', source: 'none', barangays: [] };
+  }
+
+  const normCity = normalizePsgcKey(rawCity);
+  const normProv = normalizePsgcKey(rawProv);
+  const prefersCity = /\bcity\b/i.test(rawCity);
+  const isNcr = /^(metro manila|metropolitan manila|national capital region|ncr)$/i.test(rawProv);
+
+  const loaded = await ensurePsgcMasterLoaded();
+  if (loaded && Array.isArray(psgcCitiesCache) && Array.isArray(psgcProvincesCache)) {
+    const provCodeToName = new Map(psgcProvincesCache.map((p) => [p.code, p.name]));
+
+    let candidates = psgcCitiesCache.filter((c) => normalizePsgcKey(c.name) === normCity);
+
+    // Handle Manila / Quezon City / Caloocan / Pasay / Makati etc. or slight alias differences
+    if (candidates.length === 0 && normCity) {
+      candidates = psgcCitiesCache.filter((c) => {
+        const cn = normalizePsgcKey(c.name);
+        return cn === normCity || (normCity.length >= 4 && (cn.startsWith(normCity + ' ') || cn.endsWith(' ' + normCity)));
+      });
+    }
+
+    if (candidates.length > 0) {
+      const scored = candidates.map((c) => {
+        let score = 0;
+        const cProvName = provCodeToName.get(c.provinceCode) || '';
+        const cProvNorm = normalizePsgcKey(cProvName);
+        if (normalizePsgcKey(c.name) === normCity) score += 50;
+        if (prefersCity && c.isCity) score += 15;
+        if (isNcr && c.regionCode === '130000000') {
+          score += 60;
+        } else if (normProv) {
+          if (cProvNorm && cProvNorm === normProv) score += 60;
+          else if (cProvNorm && (cProvNorm.includes(normProv) || normProv.includes(cProvNorm))) score += 35;
+          else if (c.regionCode === '130000000' && /manila/i.test(normProv)) score += 45;
+          else score -= 30;
+        }
+        return { c, cProvName, score };
+      }).sort((a, b) => b.score - a.score);
+
+      const best = scored[0];
+      if (best && (!normProv || best.score >= 20)) {
+        const psgcCode = best.c.code;
+        if (psgcBarangaysCache.has(psgcCode)) {
+          return {
+            city: best.c.name,
+            province: best.cProvName || rawProv,
+            psgcCode,
+            source: 'PSA PSGC',
+            barangays: psgcBarangaysCache.get(psgcCode)
+          };
+        }
+
+        try {
+          const bRes = await fetchWithTimeout(
+            `https://psgc.gitlab.io/api/cities-municipalities/${psgcCode}/barangays/`,
+            { headers: { Accept: 'application/json' } },
+            5000
+          );
+          if (bRes.ok) {
+            const bList = await bRes.json();
+            const names = Array.isArray(bList)
+              ? [...new Set(bList.map((b) => String(b.name || '').trim()).filter(Boolean))].sort((a, b) =>
+                  a.localeCompare(b, 'en', { numeric: true, sensitivity: 'base' })
+                )
+              : [];
+            if (names.length > 0) {
+              psgcBarangaysCache.set(psgcCode, names);
+              return {
+                city: best.c.name,
+                province: best.cProvName || rawProv,
+                psgcCode,
+                source: 'PSA PSGC',
+                barangays: names
+              };
+            }
+          }
+        } catch (_) {}
+      }
+    }
+  }
+
+  // Offline fallback: local curated barangays if PSGC API is unreachable
+  const localList = getBarangaysForCity(rawCity);
+  return {
+    city: rawCity,
+    province: rawProv,
+    psgcCode: '',
+    source: localList.length > 0 ? 'Local Registry' : 'none',
+    barangays: [...localList].sort((a, b) => a.localeCompare(b, 'en', { numeric: true, sensitivity: 'base' }))
+  };
+}
+
+function levenshtein1(a, b) {
+  if (Math.abs(a.length - b.length) > 1) return 2;
+  let i = 0, j = 0, edits = 0;
+  while (i < a.length && j < b.length) {
+    if (a[i] === b[j]) {
+      i++; j++;
+    } else {
+      edits++;
+      if (edits > 1) return 2;
+      if (a.length > b.length) i++;
+      else if (b.length > a.length) j++;
+      else { i++; j++; }
+    }
+  }
+  if (i < a.length || j < b.length) edits++;
+  return edits;
+}
+
+function normalizeBarangayCompare(str) {
+  const romanToArabic = { i: '1', ii: '2', iii: '3', iv: '4', v: '5', vi: '6', vii: '7', viii: '8', ix: '9', x: '10' };
+  return String(str || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/^(brgy\.?|barangay)\s+/i, '')
+    .replace(/\s*\((pob\.?|poblacion)\)/gi, '')
+    .replace(/\b(pob\.?|poblacion)\b/gi, (m, _, offset, full) => (full.trim().toLowerCase() === m.toLowerCase() ? 'poblacion' : ''))
+    .replace(/\bzone\s+(i|ii|iii|iv|v|vi|vii|viii|ix|x)\b/gi, (_, r) => `zone ${romanToArabic[r.toLowerCase()] || r}`)
+    .replace(/\bsto\.?\b/g, 'santo')
+    .replace(/\bsta\.?\b/g, 'santa')
+    .replace(/[^a-z0-9\-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function matchOfficialPsgcBarangay(candidate, officialBarangays = []) {
+  if (!candidate || !Array.isArray(officialBarangays) || officialBarangays.length === 0) return '';
+  const candNorm = normalizeBarangayCompare(candidate);
+  if (!candNorm || candNorm.length < 1) return '';
+
+  // Pass 1: Exact normalized PSA PSGC match
+  for (const official of officialBarangays) {
+    const offNorm = normalizeBarangayCompare(official);
+    if (offNorm === candNorm) return official;
+  }
+
+  // Pass 2: Safe 1-character typo tolerance ONLY for longer names (>= 6 chars) with matching prefix & suffix
+  // (e.g., OSM "Malapuc Sur" -> official PSA "Malapoc Sur"; never confuses "Bactul I" vs "Bactul II")
+  if (candNorm.length >= 6) {
+    for (const official of officialBarangays) {
+      const offNorm = normalizeBarangayCompare(official);
+      if (
+        offNorm.length >= 6 &&
+        offNorm.slice(0, 3) === candNorm.slice(0, 3) &&
+        offNorm.slice(-3) === candNorm.slice(-3) &&
+        levenshtein1(candNorm, offNorm) === 1
+      ) {
+        return official;
+      }
+    }
+  }
+
+  return '';
+}
+
+// Public Endpoint: Official PSA PSGC Barangays for any Philippine City / Municipality
+app.get('/api/geo/barangays', async (req, res) => {
+  try {
+    const city = String(req.query.city || '').trim();
+    const province = String(req.query.province || req.query.state || '').trim();
+    if (!city) {
+      return res.json({ city: '', province, psgcCode: '', source: 'none', barangays: [] });
+    }
+    const result = await resolveOfficialPsgcBarangays(city, province);
+    return res.json(result);
+  } catch (err) {
+    console.warn('PSGC barangays endpoint error:', err.message);
+    return res.json({ city: req.query.city || '', province: req.query.province || '', psgcCode: '', source: 'error', barangays: [] });
+  }
+});
+
 // In-memory cache for reverse geocoding to prevent rate-limiting
 const reverseGeocodeCache = new Map();
 
@@ -9953,16 +10177,29 @@ app.get('/api/geocode/reverse', async (req, res) => {
         dataName = props.name;
       }
       if (!displayName) {
-        displayName = [props.street || props.name, props.district || props.locality, rawAddress.city || props.city || props.town, rawAddress.province || rawAddress.state || props.state, 'Philippines'].filter(Boolean).join(', ');
+        displayName = [props.street || props.name, rawAddress.city || props.city || props.town, rawAddress.province || rawAddress.state || props.state, 'Philippines'].filter(Boolean).join(', ');
       }
     }
   }
 
   const parsed = parsePhilippineAddress(rawAddress, dataName, numLat, numLon);
 
+  // Official PSA PSGC Barangay Verification:
+  // OSM lacks complete admin_level=10 barangay polygons across the Philippines, so reverse-geocoded barangays are
+  // frequently wrong neighboring villages, subdivisions, or street names.
+  // Policy: NEVER silently auto-fill parsed.barangay! Validate any OSM candidate strictly against official PSA PSGC
+  // barangays for this city/municipality and return it ONLY as parsed.suggestedBarangay for explicit NGO confirmation.
+  const psgcInfo = await resolveOfficialPsgcBarangays(parsed.city, parsed.province);
+  const rawOsmBarangay = parsed.barangay || '';
+  const verifiedSuggestion = matchOfficialPsgcBarangay(rawOsmBarangay, psgcInfo.barangays);
+
+  parsed.barangay = '';
+  parsed.suggestedBarangay = verifiedSuggestion;
+  parsed.psgcBarangays = psgcInfo.barangays;
+  parsed.psgcSource = psgcInfo.source;
+
   const formattedAddress = [
     parsed.street,
-    parsed.barangay,
     parsed.city,
     parsed.province,
     parsed.region,
@@ -9971,7 +10208,7 @@ app.get('/api/geocode/reverse', async (req, res) => {
   ].filter(Boolean).join(', ');
 
   const finalResponse = {
-    display_name: displayName || formattedAddress,
+    display_name: formattedAddress || displayName,
     address: rawAddress,
     parsed
   };

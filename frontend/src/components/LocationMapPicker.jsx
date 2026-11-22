@@ -252,7 +252,6 @@ export default function LocationMapPicker({
       const region = p.region || getRegionForProvince(p.province) || getRegionForProvinceName(p.province) || '';
       const formattedAddress = [
         p.street,
-        p.barangay,
         p.city,
         p.province,
         region,
@@ -266,7 +265,10 @@ export default function LocationMapPicker({
       if (onChangeGranularAddressRef.current) {
         onChangeGranularAddressRef.current({
           street: p.street || '',
-          barangay: p.barangay || '',
+          barangay: '',
+          suggestedBarangay: p.suggestedBarangay || '',
+          psgcBarangays: Array.isArray(p.psgcBarangays) ? p.psgcBarangays : [],
+          psgcSource: p.psgcSource || '',
           city: p.city || '',
           province: p.province || '',
           region,
@@ -282,18 +284,14 @@ export default function LocationMapPicker({
       return;
     }
 
-    // Honest offline fallback (strictly proximity-bound; never fabricates streets, ZIPs, or landmarks)
+    // Honest offline fallback (strictly proximity-bound; never fabricates barangays, streets, ZIPs, or landmarks)
     const polyProv = findPhilippineProvince(numLat, numLng);
     const fallbackGeo = resolvePhilippineGeo(numLat, numLng);
     const provFallback = fallbackGeo.province || polyProv?.name || '';
     const cityFallback = fallbackGeo.city || '';
     const regFallback = fallbackGeo.region || polyProv?.region || getRegionForProvince(provFallback) || getRegionForProvinceName(provFallback) || '';
-    const brgyFallback = fallbackGeo.barangay || '';
     const zipFallback = fallbackGeo.zip || resolvePhilippineZip(cityFallback, provFallback) || '';
-    const streetFallback = fallbackGeo.street || '';
     const formattedAddress = [
-      streetFallback,
-      brgyFallback,
       cityFallback,
       provFallback,
       regFallback,
@@ -306,8 +304,11 @@ export default function LocationMapPicker({
     }
     if (onChangeGranularAddressRef.current) {
       onChangeGranularAddressRef.current({
-        street: streetFallback,
-        barangay: brgyFallback,
+        street: '',
+        barangay: '',
+        suggestedBarangay: '',
+        psgcBarangays: [],
+        psgcSource: '',
         city: cityFallback,
         province: provFallback,
         region: regFallback,
@@ -366,16 +367,19 @@ export default function LocationMapPicker({
             suburb: props.district || props.locality || '',
             city
           };
-          const { barangay, street } = resolveAccurateBarangayAndStreet(rawForResolver, props.name || '', city, province, lat, lng);
+          const { street } = resolveAccurateBarangayAndStreet(rawForResolver, props.name || '', city, province, lat, lng);
           const realLandmark = (
             props.name &&
-            ![street, barangay, city, province, 'Philippines'].some((v) => v && v.toLowerCase() === String(props.name).toLowerCase())
+            ![street, city, province, 'Philippines'].some((v) => v && v.toLowerCase() === String(props.name).toLowerCase())
           ) ? props.name : '';
 
           updateFromReverseData({
             parsed: {
               street,
-              barangay,
+              barangay: '',
+              suggestedBarangay: '',
+              psgcBarangays: [],
+              psgcSource: '',
               city,
               province,
               region,

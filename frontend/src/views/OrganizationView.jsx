@@ -7,6 +7,7 @@ import { useRealtimeSync } from '../hooks/useRealtimeSync';
 import LiveCounter from '../components/LiveCounter';
 import CampaignCard, { shortAddr, formatCampaignTitle, formatEthAmt, progressPct, getOrgDisplayName, getCampaignTags, getCampaignAuditDetails, getCampaignCategoryInfo, getCampaignCoverData } from '../components/CampaignCard';
 import LocationMapPicker from '../components/LocationMapPicker';
+import BarangayCombobox from '../components/BarangayCombobox';
 import { ROLES } from '../roleConfig';
 import SettingsPanel from '../components/SettingsPanel';
 import DisasterRadarHeatmap from '../components/DisasterRadarHeatmap';
@@ -684,6 +685,8 @@ export default function OrganizationView({
   const [locationRegion, setLocationRegion] = useState('');
   const [street, setStreet] = useState('');
   const [barangay, setBarangay] = useState('');
+  const [mapSuggestedBarangay, setMapSuggestedBarangay] = useState('');
+  const [prefetchedPsgcBarangays, setPrefetchedPsgcBarangays] = useState({ city: '', list: [] });
   const [city, setCity] = useState('');
   const [province, setProvince] = useState('');
   const [region, setRegion] = useState('');
@@ -1433,20 +1436,30 @@ export default function OrganizationView({
     setCurrentPageMy(1);
   }, [categoryFilterMy, urgencyFilterMy, selectedTagsMy, campaignSortMy, searchQueryMy]);
 
-  const handleGranularAddressFromMap = ({ street: s = '', barangay: b = '', city: c = '', province: p = '', region: r = '', country: cnt = 'Philippines', zip: z = '', landmark: l = '', fullAddress = '' }) => {
+  const handleGranularAddressFromMap = ({ street: s = '', suggestedBarangay = '', psgcBarangays = [], city: c = '', province: p = '', region: r = '', country: cnt = 'Philippines', zip: z = '', landmark: l = '' }) => {
     const resolvedRegion = r || (p ? getRegionForProvince(p) : '') || '';
+    const normCityKey = (v) => String(v || '').toLowerCase().replace(/^city of\s+/i, '').replace(/\s+city$/i, '').trim();
+    const isSameCity = Boolean(city && c && normCityKey(city) === normCityKey(c));
+    // NEVER silently auto-fill unverified OSM barangays!
+    // Preserve confirmed barangay when fine-tuning pin within the same city; clear stale barangay when moving to a new city.
+    const nextBarangay = isSameCity ? barangay : '';
+
     setStreet(s);
-    setBarangay(b);
+    setBarangay(nextBarangay);
     setCity(c);
     setProvince(p);
     setRegion(resolvedRegion);
     setCountry(cnt || 'Philippines');
     setZipCode(z);
     setLandmark(l);
+    setMapSuggestedBarangay(suggestedBarangay || '');
+    if (Array.isArray(psgcBarangays) && psgcBarangays.length > 0 && c) {
+      setPrefetchedPsgcBarangays({ city: c, list: psgcBarangays });
+    }
 
-    const constructed = fullAddress || [
+    const constructed = [
       s,
-      b,
+      nextBarangay,
       c,
       p,
       resolvedRegion,
@@ -4774,6 +4787,7 @@ export default function OrganizationView({
                                   onClick={() => {
                                     setStreet('');
                                     setBarangay('');
+                                    setMapSuggestedBarangay('');
                                     setCity('');
                                     setProvince('');
                                     setRegion('');
@@ -4812,17 +4826,26 @@ export default function OrganizationView({
                             {/* 2. Barangay & Municipality / City */}
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                               <div>
-                                <label className="deploy-input-label">Barangay</label>
-                                <input
-                                  className="input deploy-field-input"
-                                  type="text"
-                                  placeholder="e.g., Barangay Abgao"
+                                <label className="deploy-input-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '6px' }}>
+                                  <span>Barangay</span>
+                                  <span style={{ fontSize: '0.64rem', fontWeight: 600, color: 'var(--text-muted)', letterSpacing: '0.02em' }}>PSA PSGC</span>
+                                </label>
+                                <BarangayCombobox
                                   value={barangay}
-                                  onChange={(e) => {
-                                    setBarangay(e.target.value);
-                                    setLocationRegion([street, e.target.value, city, province, region, zipCode, country, landmark ? `(Landmark: ${landmark})` : ''].filter(Boolean).join(', '));
+                                  onChange={(val) => {
+                                    setBarangay(val);
+                                    setLocationRegion([street, val, city, province, region, zipCode, country, landmark ? `(Landmark: ${landmark})` : ''].filter(Boolean).join(', '));
                                   }}
+                                  city={city}
+                                  province={province}
+                                  suggestedBarangay={mapSuggestedBarangay}
+                                  onDismissSuggestion={() => setMapSuggestedBarangay('')}
+                                  prefetchedBarangays={prefetchedPsgcBarangays.list}
+                                  prefetchedForCity={prefetchedPsgcBarangays.city}
                                   disabled={creating}
+                                  inputClassName="input deploy-field-input"
+                                  placeholder="Select or type Barangay"
+                                  variant="deploy"
                                 />
                               </div>
                               <div>
@@ -5053,7 +5076,6 @@ export default function OrganizationView({
                               <LocationMapPicker
                                 address={locationRegion}
                                 gps={gpsCoordinates}
-                                onChangeAddress={(addr) => setLocationRegion(addr)}
                                 onChangeGranularAddress={handleGranularAddressFromMap}
                                 onChangeGps={(coords) => setGpsCoordinates(coords)}
                                 onLocationFound={(res) => {
@@ -5089,7 +5111,7 @@ export default function OrganizationView({
                             </div>
                             <div style={{ marginTop: '8px', fontSize: '0.72rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '6px' }}>
                               <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>info</span>
-                              <span>Click or drag the pin to auto-fill from the map. Clicking Find Location pins your typed address without overwriting your text.</span>
+                              <span>Pinning auto-fills City, Province, Region, ZIP &amp; GPS. Barangay uses the official PSA PSGC list so map pin guesses never insert false barangay info.</span>
                             </div>
                           </div>
 

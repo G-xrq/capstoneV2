@@ -707,16 +707,8 @@ function resolveAccurateBarangayAndStreet(rawAddress, dataName, city, province, 
     usedIndex = rawCandidates.indexOf(best);
   }
 
-  // 3. Only if geocoder returned NO barangay at all, allow a tight (<= 0.015 deg ~ 1.6 km) verified centroid fallback
-  if (!detectedBarangay && lat && lon && city) {
-    const nearest = findNearestBarangayCoord(lat, lon, city);
-    if (nearest) {
-      const dist = Math.hypot(parseFloat(lat) - nearest.lat, parseFloat(lon) - nearest.lon);
-      if (dist <= 0.015) {
-        detectedBarangay = nearest.name;
-      }
-    }
-  }
+  // NOTE: NEVER guess barangay from approximate lat/lon micro-anchors!
+  // Rural OSM lacks official NAMRIA/PSA admin_level=10 barangay polygons, so proximity guessing causes false barangay data.
 
   // Normalize Zone numbers to Roman numerals
   if (/^zone\s+(\d+)$/i.test(detectedBarangay)) {
@@ -729,7 +721,7 @@ function resolveAccurateBarangayAndStreet(rawAddress, dataName, city, province, 
   const rawRoad = a.road || a.street || a.pedestrian || a.footway || a.path || a.residential || a.highway || '';
   let street = '';
 
-  if (rawRoad && rawRoad.toLowerCase() !== detectedBarangay.toLowerCase()) {
+  if (rawRoad) {
     street = a.house_number ? `${a.house_number} ${rawRoad}` : rawRoad;
   }
 
@@ -760,11 +752,11 @@ function resolvePhilippineGeo(lat, lon) {
   const reg = prov ? getRegionForProvinceName(prov) : '';
   const zip = useAnchor ? (anchor.zip || resolvePhilippineZip(city, prov)) : '';
 
-  const { barangay, street } = useAnchor
-    ? resolveAccurateBarangayAndStreet({}, '', city, prov, numLat, numLon)
-    : { barangay: '', street: '' };
+  // Offline mode NEVER fabricates barangay or street from rough lat/lon anchors
+  const barangay = '';
+  const street = '';
 
-  const fullAddress = [street, barangay, city, prov, reg, zip, 'Philippines'].filter(Boolean).join(', ');
+  const fullAddress = [city, prov, reg, zip, 'Philippines'].filter(Boolean).join(', ');
 
   return {
     street,
