@@ -2370,11 +2370,21 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
                         <div className="epm2-btn-row" style={{ marginTop: 0 }}>
                           <button
                             type="button"
-                            className="epm2-btn epm2-btn--outline"
+                            className="epm2-btn epm2-btn--solid"
                             onClick={() => fileInputRef.current?.click()}
                           >
                             {avatarUrl ? 'Change Logo' : 'Upload Logo'}
                           </button>
+                          {(avatarUrl || originalImageSrc) && (avatarUrl?.startsWith('data:') || avatarUrl?.startsWith('http') || originalImageSrc?.startsWith('data:') || originalImageSrc?.startsWith('http')) && (
+                            <button
+                              type="button"
+                              className="epm2-btn epm2-btn--outline"
+                              onClick={handleOpenAdjuster}
+                              title="Adjust logo framing"
+                            >
+                              Adjust
+                            </button>
+                          )}
                           {avatarUrl && (
                             <button
                               type="button"
@@ -2425,6 +2435,7 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
                           <label htmlFor="epm2-org-bio" className="epm2-field-title">Humanitarian Mission Statement</label>
                           <p className="epm2-field-sub">Displayed on your public NGO audit profile and active relief campaigns.</p>
                         </div>
+                        <span className="epm2-kbd">{(bio || '').length} / 500</span>
                       </div>
                       <textarea
                         id="epm2-org-bio"
@@ -2596,305 +2607,228 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
                   );
                 })()}
 
+                {/* ══════════════════════════════════════════════════
+                  NGO: ADDITIONAL INFO TAB (CLEAN VERCEL REWORK)
+                 ══════════════════════════════════════════════════ */}
                 {isOrg && activeTab === 'org_additional' && (
-                  <div className="bbdrts-studio-pane fade-in">
-                    <div className="bbdrts-studio-card">
-                      <div className="bbdrts-studio-card-header">
-                        <div className="bbdrts-studio-card-title-wrap">
-                          <div className="bbdrts-studio-card-icon-box">
-                            <span className="material-symbols-outlined">info</span>
-                          </div>
-                          <div>
-                            <h5>Institutional Background & Operational Profile (Optional)</h5>
-                            <span>Optional organizational information visible to donors, relief partners, and humanitarian audits.</span>
-                          </div>
+                  <div className="epm2-pane" key="epm2-org-additional">
+
+                    {/* Section 1: Institutional Links & Logistics */}
+                    <div className="epm2-section">
+                      <div className="epm2-field-head">
+                        <div>
+                          <span className="epm2-field-title">Operational Details &amp; Links</span>
+                          <p className="epm2-field-sub">Public links and headquarters logistics displayed on your NGO profile.</p>
                         </div>
                       </div>
 
-                      <div className="bbdrts-studio-field-box">
-                        <label className="bbdrts-studio-label">
-                          Official NGO Website
-                          <span className="bbdrts-opt-tag" style={{ marginLeft: '6px', fontSize: '0.68rem', opacity: 0.65 }}>(Optional)</span>
-                        </label>
-                        <div className="bbdrts-input-icon-wrap">
-                          <span className="material-symbols-outlined bbdrts-input-icon">language</span>
+                      <div className="epm2-grid-2">
+                        <div className="epm2-field">
+                          <label htmlFor="epm2-ngo-social" className="epm2-label-sm">Official Social Media Page</label>
                           <input
-                            type="url"
-                            className="bbdrts-studio-input"
-                            value={website}
-                            onChange={e => setWebsite(e.target.value)}
-                            placeholder="https://www.redcross.org.ph"
-                            maxLength={160}
-                          />
-                        </div>
-                        <span className="bbdrts-status-hint">Official humanitarian website or operations portal.</span>
-                      </div>
-
-                      <div className="bbdrts-studio-field-box">
-                        <label className="bbdrts-studio-label">
-                          Official Social Media Page / Channel
-                          <span className="bbdrts-opt-tag" style={{ marginLeft: '6px', fontSize: '0.68rem', opacity: 0.65 }}>(Optional)</span>
-                        </label>
-                        <div className="bbdrts-input-icon-wrap">
-                          <span className="material-symbols-outlined bbdrts-input-icon">share</span>
-                          <input
+                            id="epm2-ngo-social"
                             type="text"
-                            className="bbdrts-studio-input"
+                            className="epm2-input"
                             value={socialLink}
                             onChange={e => setSocialLink(e.target.value)}
-                            placeholder="https://facebook.com/your-ngo or @officialhandle"
+                            placeholder="https://facebook.com/your-ngo or @handle"
                             maxLength={140}
                           />
                         </div>
-                        <span className="bbdrts-status-hint">Verified organization Facebook, X (Twitter), or YouTube page.</span>
-                      </div>
 
-                      <div className="bbdrts-studio-field-box">
-                        <label className="bbdrts-studio-label">
-                          Mission Statement & Core Mandate
-                          <span className="bbdrts-opt-tag" style={{ marginLeft: '6px', fontSize: '0.68rem', opacity: 0.65 }}>(Optional)</span>
-                        </label>
-                        <textarea
-                          className="bbdrts-studio-textarea"
-                          value={missionStatement}
-                          onChange={e => setMissionStatement(e.target.value)}
-                          placeholder="Provide a brief summary of your organization's humanitarian mandate, community goals, and disaster response mission..."
-                          rows={3}
-                          maxLength={350}
-                        />
-                        <span className="bbdrts-status-hint">Displayed on public NGO audit profile and campaign headers.</span>
-                      </div>
-
-                      <div className="bbdrts-studio-field-box">
-                        <label className="bbdrts-studio-label">
-                          Primary Disaster Response Focus Areas
-                          <span className="bbdrts-opt-tag" style={{ marginLeft: '6px', fontSize: '0.68rem', opacity: 0.65 }}>(Optional)</span>
-                        </label>
-                        <div className="bbdrts-input-icon-wrap">
-                          <span className="material-symbols-outlined bbdrts-input-icon">travel_explore</span>
+                        <div className="epm2-field">
+                          <label htmlFor="epm2-ngo-landmark" className="epm2-label-sm">HQ Landmark / Logistics Base</label>
                           <input
+                            id="epm2-ngo-landmark"
                             type="text"
-                            className="bbdrts-studio-input"
-                            value={focusAreas}
-                            onChange={e => setFocusAreas(e.target.value)}
-                            placeholder="e.g. Typhoon Emergency Relief, Medical First Response, Water & Sanitation"
-                            maxLength={160}
-                          />
-                        </div>
-                        <span className="bbdrts-status-hint">Key sectors of expertise and deployment capability.</span>
-                      </div>
-
-                      <div className="bbdrts-studio-field-box">
-                        <label className="bbdrts-studio-label">
-                          Headquarters Landmark / Campus Directions
-                          <span className="bbdrts-opt-tag" style={{ marginLeft: '6px', fontSize: '0.68rem', opacity: 0.65 }}>(Optional)</span>
-                        </label>
-                        <div className="bbdrts-input-icon-wrap">
-                          <span className="material-symbols-outlined bbdrts-input-icon">apartment</span>
-                          <input
-                            type="text"
-                            className="bbdrts-studio-input"
+                            className="epm2-input"
                             value={hqLandmark}
                             onChange={e => setHqLandmark(e.target.value)}
-                            placeholder="e.g. Near Provincial Capitol, Beside City Hall Complex"
+                            placeholder="e.g. Near Provincial Capitol"
                             maxLength={120}
                           />
                         </div>
-                        <span className="bbdrts-status-hint">Physical landmarks to assist in-person aid deliveries and logistics dispatch.</span>
                       </div>
                     </div>
+
+                    {/* Section 2: Primary Disaster Response Focus Areas + Interactive Chips */}
+                    <div className="epm2-section">
+                      <div className="epm2-field-head">
+                        <div>
+                          <label htmlFor="epm2-ngo-focus" className="epm2-field-title">Disaster Response Focus Areas</label>
+                          <p className="epm2-field-sub">Key humanitarian sectors and field deployment capabilities.</p>
+                        </div>
+                      </div>
+
+                      <input
+                        id="epm2-ngo-focus"
+                        type="text"
+                        className="epm2-input"
+                        value={focusAreas}
+                        onChange={e => setFocusAreas(e.target.value)}
+                        placeholder="e.g. Typhoon Relief, Medical First Response, Clean Water"
+                        maxLength={160}
+                      />
+
+                      <div className="epm2-chip-row">
+                        {[
+                          'Typhoon Relief',
+                          'Flood Evacuation',
+                          'Medical First Response',
+                          'Food & Clean Water',
+                          'Search & Rescue',
+                          'Shelter Rebuilding',
+                          'Psychosocial Support'
+                        ].map((area) => {
+                          const hasArea = (focusAreas || '').toLowerCase().includes(area.toLowerCase());
+                          return (
+                            <button
+                              key={area}
+                              type="button"
+                              className={`epm2-chip ${hasArea ? 'is-selected' : ''}`}
+                              onClick={() => {
+                                if (hasArea) {
+                                  const next = (focusAreas || '')
+                                    .split(',')
+                                    .map(s => s.trim())
+                                    .filter(s => s && s.toLowerCase() !== area.toLowerCase())
+                                    .join(', ');
+                                  setFocusAreas(next);
+                                } else {
+                                  setFocusAreas(prev => prev ? `${prev}, ${area}` : area);
+                                }
+                              }}
+                            >
+                              {hasArea ? '✓ ' : '+ '}{area}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Section 3: Core Mandate Summary */}
+                    <div className="epm2-section">
+                      <div className="epm2-field-head">
+                        <div>
+                          <label htmlFor="epm2-ngo-mandate" className="epm2-field-title">Core Mandate Summary</label>
+                          <p className="epm2-field-sub">Short public mandate displayed in campaign headers and audit profiles.</p>
+                        </div>
+                        <span className="epm2-kbd">{(missionStatement || '').length} / 350</span>
+                      </div>
+
+                      <textarea
+                        id="epm2-ngo-mandate"
+                        className="epm2-textarea"
+                        value={missionStatement}
+                        onChange={e => setMissionStatement(e.target.value)}
+                        placeholder="Summarize your organization's core disaster response mandate and community goals..."
+                        rows={3}
+                        maxLength={350}
+                      />
+                    </div>
+
                   </div>
                 )}
 
+                {/* ══════════════════════════════════════════════════
+                  NGO: PAYOUT RAILS TAB (CLEAN VERCEL REWORK)
+                 ══════════════════════════════════════════════════ */}
                 {isOrg && activeTab === 'org_payments' && (
-                  <div className="bbdrts-studio-pane fade-in">
-                    <div className="bbdrts-studio-banner-notice">
-                      <VercelIcon name="account_balance_wallet" size={18} color="#38bdf8" />
-                      <div>
-                        <strong>Official Donation Receiving Channels &amp; QR Codes</strong>
-                        <span>Configure receiving channels for donors contributing via GCash, Maya, or direct Bank Transfer. Synchronizes with campaign deployment.</span>
-                      </div>
-                    </div>
+                  <div className="epm2-pane" key="epm2-org-payments">
 
-                    {/* Payment Channel Switcher Toolbar matching Step 5 */}
-                    <div style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      gap: '12px',
-                      flexWrap: 'wrap'
-                    }}>
-                      <div style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        background: 'rgba(255, 255, 255, 0.05)',
-                        padding: '4px',
-                        borderRadius: '10px',
-                        border: '1px solid #262626',
-                        gap: '4px'
-                      }}>
+                    {/* Header & Segmented Channel Selector */}
+                    <div className="epm2-section">
+                      <div className="epm2-field-head">
+                        <div>
+                          <span className="epm2-field-title">Donation Receiving Channels</span>
+                          <p className="epm2-field-sub">Configure official GCash, Maya, and Bank channels synced to campaign checkouts.</p>
+                        </div>
+                      </div>
+
+                      <div className="epm2-seg-group" role="tablist" aria-label="Payout rail channels">
                         <button
                           type="button"
+                          role="tab"
+                          aria-selected={activePaymentChannelTab === 'gcash'}
+                          className={`epm2-seg-btn ${activePaymentChannelTab === 'gcash' ? 'active' : ''}`}
                           onClick={() => setActivePaymentChannelTab('gcash')}
-                          style={{
-                            padding: '6px 16px',
-                            borderRadius: '6px',
-                            border: 'none',
-                            background: activePaymentChannelTab === 'gcash' ? '#007DFE' : 'transparent',
-                            color: activePaymentChannelTab === 'gcash' ? '#ffffff' : '#888888',
-                            fontSize: '0.82rem',
-                            fontWeight: 600,
-                            cursor: 'pointer',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '8px',
-                            transition: 'all 0.12s ease'
-                          }}
                         >
-                          <span style={{
-                            width: '8px',
-                            height: '8px',
-                            borderRadius: '50%',
-                            background: (gcashNumber || gcashQrUrl || gcashName) ? (activePaymentChannelTab === 'gcash' ? '#ffffff' : '#22c55e') : 'rgba(255,255,255,0.3)'
-                          }} />
+                          <span className={`epm2-dot ${(gcashNumber || gcashQrUrl || gcashName) ? '' : 'is-off'}`} />
                           <span>GCash</span>
-                          {(gcashNumber || gcashQrUrl || gcashName) && <VercelIcon name="check" size={12} color={activePaymentChannelTab === 'gcash' ? '#ffffff' : '#22c55e'} />}
                         </button>
 
                         <button
                           type="button"
+                          role="tab"
+                          aria-selected={activePaymentChannelTab === 'maya'}
+                          className={`epm2-seg-btn ${activePaymentChannelTab === 'maya' ? 'active' : ''}`}
                           onClick={() => setActivePaymentChannelTab('maya')}
-                          style={{
-                            padding: '6px 16px',
-                            borderRadius: '6px',
-                            border: 'none',
-                            background: activePaymentChannelTab === 'maya' ? '#00b87c' : 'transparent',
-                            color: activePaymentChannelTab === 'maya' ? '#ffffff' : '#888888',
-                            fontSize: '0.82rem',
-                            fontWeight: 600,
-                            cursor: 'pointer',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '8px',
-                            transition: 'all 0.12s ease'
-                          }}
                         >
-                          <span style={{
-                            width: '8px',
-                            height: '8px',
-                            borderRadius: '50%',
-                            background: (mayaNumber || mayaQrUrl || mayaName) ? (activePaymentChannelTab === 'maya' ? '#ffffff' : '#22c55e') : 'rgba(255,255,255,0.3)'
-                          }} />
+                          <span className={`epm2-dot ${(mayaNumber || mayaQrUrl || mayaName) ? '' : 'is-off'}`} />
                           <span>Maya</span>
-                          {(mayaNumber || mayaQrUrl || mayaName) && <VercelIcon name="check" size={12} color={activePaymentChannelTab === 'maya' ? '#ffffff' : '#22c55e'} />}
                         </button>
 
                         <button
                           type="button"
+                          role="tab"
+                          aria-selected={activePaymentChannelTab === 'bank'}
+                          className={`epm2-seg-btn ${activePaymentChannelTab === 'bank' ? 'active' : ''}`}
                           onClick={() => setActivePaymentChannelTab('bank')}
-                          style={{
-                            padding: '6px 16px',
-                            borderRadius: '6px',
-                            border: 'none',
-                            background: activePaymentChannelTab === 'bank' ? '#16a34a' : 'transparent',
-                            color: activePaymentChannelTab === 'bank' ? '#ffffff' : '#888888',
-                            fontSize: '0.82rem',
-                            fontWeight: 600,
-                            cursor: 'pointer',
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '8px',
-                            transition: 'all 0.12s ease'
-                          }}
                         >
-                          <span style={{
-                            width: '8px',
-                            height: '8px',
-                            borderRadius: '50%',
-                            background: (bankAccountNumber || bankQrUrl) ? (activePaymentChannelTab === 'bank' ? '#ffffff' : '#22c55e') : 'rgba(255,255,255,0.3)'
-                          }} />
-                          <span>Direct Bank Deposit</span>
-                          {(bankAccountNumber || bankQrUrl) && <VercelIcon name="check" size={12} color={activePaymentChannelTab === 'bank' ? '#ffffff' : '#22c55e'} />}
+                          <span className={`epm2-dot ${(bankAccountNumber || bankQrUrl) ? '' : 'is-off'}`} />
+                          <span>Bank Transfer</span>
                         </button>
                       </div>
                     </div>
 
-                    {/* ── 1. GCASH CHANNEL ── */}
+                    {/* 1. GCASH CHANNEL */}
                     {activePaymentChannelTab === 'gcash' && (
-                      <div className="bbdrts-studio-card fade-in">
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: '20px', alignItems: 'stretch' }}>
-                          {/* Left Column: Account Details */}
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                            <div className="bbdrts-studio-field-box">
-                              <label className="bbdrts-studio-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                <VercelIcon name="badge" size={16} color="#007DFE" />
-                                Official GCash Account Name
-                              </label>
+                      <div className="epm2-section" key="rail-gcash">
+                        <div className="epm2-rail-grid">
+                          <div className="epm2-rail-fields">
+                            <div className="epm2-field">
+                              <label htmlFor="epm2-gcash-name" className="epm2-label-sm">GCash Account Name</label>
                               <input
+                                id="epm2-gcash-name"
                                 type="text"
-                                className="bbdrts-studio-input"
-                                placeholder="e.g., Philippine Red Cross - Southern Leyte"
+                                className="epm2-input"
+                                placeholder="e.g. Philippine Red Cross - Southern Leyte"
                                 value={gcashName}
                                 onChange={e => setGcashName(e.target.value)}
                               />
-                              <span className="bbdrts-field-hint">
-                                Registered name displayed on GCash app confirmation.
-                              </span>
                             </div>
 
-                            <div className="bbdrts-studio-field-box">
-                              <label className="bbdrts-studio-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                <VercelIcon name="phone_iphone" size={16} color="#007DFE" />
-                                Official GCash Receiving Number
-                              </label>
+                            <div className="epm2-field">
+                              <label htmlFor="epm2-gcash-num" className="epm2-label-sm">GCash Receiving Number</label>
                               <input
-                                type="text"
-                                className="bbdrts-studio-input"
+                                id="epm2-gcash-num"
+                                type="tel"
+                                inputMode="numeric"
+                                maxLength={13}
+                                className="epm2-input epm2-mono"
                                 placeholder="0992 982 4615"
-                                value={gcashNumber}
-                                onChange={e => setGcashNumber(formatPhoneNumber(e.target.value))}
-                                style={{ fontFamily: 'monospace', fontWeight: 600 }}
+                                value={formatPhMobileDisplay(gcashNumber)}
+                                onChange={e => setGcashNumber(formatPhMobileDisplay(e.target.value))}
                               />
-                              <span className="bbdrts-field-hint">
-                                Donors can copy and send funds directly to this GCash account.
-                              </span>
                             </div>
                           </div>
 
-                          {/* Right Column: GCash QR Code Preview / Dropzone */}
-                          <div style={{ display: 'flex', flexDirection: 'column' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                              <label className="bbdrts-studio-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', margin: 0 }}>
-                                <VercelIcon name="qr_code" size={16} color="#007DFE" />
-                                GCash QR Code Image
-                              </label>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <div className="epm2-qr-slot">
+                            <div className="epm2-qr-slot-head">
+                              <span className="epm2-label-sm">GCash QR Code</span>
+                              <div className="epm2-qr-slot-actions">
                                 <button
                                   type="button"
+                                  className="epm2-btn epm2-btn--outline epm2-btn--xs"
                                   onClick={() => setShowQrPicker('GCash')}
-                                  style={{
-                                    background: 'rgba(0, 125, 254, 0.1)',
-                                    border: '1px solid rgba(0, 125, 254, 0.3)',
-                                    color: '#007DFE',
-                                    fontSize: '0.74rem',
-                                    padding: '3px 8px',
-                                    borderRadius: '6px',
-                                    cursor: 'pointer',
-                                    fontWeight: 600,
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    gap: '4px'
-                                  }}
-                                  title="Pick from reusable QR library"
                                 >
-                                  <VercelIcon name="qr_code_2" size={13} color="#007DFE" />
-                                  <span>Select QR Code ({savedQrLibrary.filter(q => q.payment_method === 'GCash').length})</span>
+                                  Library ({savedQrLibrary.filter(q => q.payment_method === 'GCash').length})
                                 </button>
                                 {gcashQrUrl && (
                                   <button
                                     type="button"
+                                    className="epm2-btn epm2-btn--ghost-danger epm2-btn--xs"
                                     onClick={() => setGcashQrUrl('')}
-                                    style={{ background: 'transparent', border: 'none', color: '#ef4444', fontSize: '0.74rem', cursor: 'pointer', fontWeight: 600 }}
                                   >
                                     Remove
                                   </button>
@@ -2903,54 +2837,20 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
                             </div>
 
                             {gcashQrUrl ? (
-                              <div style={{
-                                flex: 1,
-                                minHeight: '140px',
-                                position: 'relative',
-                                borderRadius: '8px',
-                                overflow: 'hidden',
-                                border: '1.5px solid rgba(0, 125, 254, 0.45)',
-                                background: '#111111',
-                                padding: '12px',
-                                display: 'flex',
-                                flexDirection: 'column',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                textAlign: 'center'
-                              }}>
-                                <img
-                                  src={gcashQrUrl}
-                                  alt="Organization GCash QR"
-                                  style={{ maxHeight: '110px', maxWidth: '100%', objectFit: 'contain', borderRadius: '6px' }}
-                                />
-                                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', marginTop: '6px', fontSize: '0.74rem', color: '#007DFE', fontWeight: 600 }}>
-                                  <VercelIcon name="verified" size={14} color="#007DFE" />
-                                  GCash QR Attached
+                              <div className="epm2-qr-preview">
+                                <div className="epm2-qr-img-frame">
+                                  <img src={gcashQrUrl} alt="Organization GCash QR" />
                                 </div>
+                                <span className="epm2-qr-status">
+                                  <span className="epm2-dot" />
+                                  <span>GCash QR Attached</span>
+                                </span>
                               </div>
                             ) : (
-                              <label style={{
-                                flex: 1,
-                                minHeight: '140px',
-                                display: 'flex',
-                                flexDirection: 'column',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                padding: '16px',
-                                border: '1.5px dashed rgba(0, 125, 254, 0.4)',
-                                borderRadius: '8px',
-                                cursor: 'pointer',
-                                background: 'rgba(0, 125, 254, 0.03)',
-                                transition: 'all 0.15s ease',
-                                textAlign: 'center'
-                              }}>
-                                <VercelIcon name="qr_code_scanner" size={32} color="#007DFE" style={{ marginBottom: '6px' }} />
-                                <span style={{ fontSize: '0.82rem', fontWeight: 600, color: '#ededed' }}>
-                                  Upload GCash QR
-                                </span>
-                                <span style={{ fontSize: '0.72rem', color: '#888888', marginTop: '2px' }}>
-                                  PNG, JPG or WebP image • Auto-crop &amp; OCR enabled
-                                </span>
+                              <label className="epm2-qr-dropzone">
+                                <span className="material-symbols-outlined epm2-qr-drop-icon">qr_code_scanner</span>
+                                <span className="epm2-qr-drop-title">Upload GCash QR</span>
+                                <span className="epm2-qr-drop-sub">Auto-crop &amp; OCR enabled</span>
                                 <input
                                   type="file"
                                   ref={gcashFileInputRef}
@@ -2965,82 +2865,54 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
                       </div>
                     )}
 
-                    {/* ── 2. MAYA CHANNEL ── */}
+                    {/* 2. MAYA CHANNEL */}
                     {activePaymentChannelTab === 'maya' && (
-                      <div className="bbdrts-studio-card fade-in">
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: '20px', alignItems: 'stretch' }}>
-                          {/* Left Column: Account Details */}
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                            <div className="bbdrts-studio-field-box">
-                              <label className="bbdrts-studio-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                <VercelIcon name="badge" size={16} color="#00b87c" />
-                                Official Maya Account Name
-                              </label>
+                      <div className="epm2-section" key="rail-maya">
+                        <div className="epm2-rail-grid">
+                          <div className="epm2-rail-fields">
+                            <div className="epm2-field">
+                              <label htmlFor="epm2-maya-name" className="epm2-label-sm">Maya Account / Merchant Name</label>
                               <input
+                                id="epm2-maya-name"
                                 type="text"
-                                className="bbdrts-studio-input"
-                                placeholder="e.g., Philippine Red Cross or Official Merchant Name"
+                                className="epm2-input"
+                                placeholder="e.g. Philippine Red Cross Official"
                                 value={mayaName}
                                 onChange={e => setMayaName(e.target.value)}
                               />
-                              <span className="bbdrts-field-hint">
-                                Registered account or merchant name displayed inside Maya.
-                              </span>
                             </div>
 
-                            <div className="bbdrts-studio-field-box">
-                              <label className="bbdrts-studio-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                <VercelIcon name="phone_iphone" size={16} color="#00b87c" />
-                                Official Maya Relief Number
-                              </label>
+                            <div className="epm2-field">
+                              <label htmlFor="epm2-maya-num" className="epm2-label-sm">Maya Receiving Number</label>
                               <input
-                                type="text"
-                                className="bbdrts-studio-input"
+                                id="epm2-maya-num"
+                                type="tel"
+                                inputMode="numeric"
+                                maxLength={13}
+                                className="epm2-input epm2-mono"
                                 placeholder="0918 765 1430"
-                                value={mayaNumber}
-                                onChange={e => setMayaNumber(formatPhoneNumber(e.target.value))}
-                                style={{ fontFamily: 'monospace', fontWeight: 600 }}
+                                value={formatPhMobileDisplay(mayaNumber)}
+                                onChange={e => setMayaNumber(formatPhMobileDisplay(e.target.value))}
                               />
-                              <span className="bbdrts-field-hint">
-                                Donors can send relief funds via Maya mobile or merchant account ID.
-                              </span>
                             </div>
                           </div>
 
-                          {/* Right Column: Maya QR Code Preview / Dropzone */}
-                          <div style={{ display: 'flex', flexDirection: 'column' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                              <label className="bbdrts-studio-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', margin: 0 }}>
-                                <VercelIcon name="qr_code" size={16} color="#00b87c" />
-                                Maya QR Code Image
-                              </label>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <div className="epm2-qr-slot">
+                            <div className="epm2-qr-slot-head">
+                              <span className="epm2-label-sm">Maya QR Code</span>
+                              <div className="epm2-qr-slot-actions">
                                 <button
                                   type="button"
+                                  className="epm2-btn epm2-btn--outline epm2-btn--xs"
                                   onClick={() => setShowQrPicker('Maya')}
-                                  style={{
-                                    background: 'rgba(0, 184, 124, 0.1)',
-                                    border: '1px solid rgba(0, 184, 124, 0.3)',
-                                    color: '#00b87c',
-                                    fontSize: '0.74rem',
-                                    padding: '3px 8px',
-                                    borderRadius: '6px',
-                                    cursor: 'pointer',
-                                    fontWeight: 600,
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    gap: '4px'
-                                  }}
-                                  title="Pick from reusable QR library"
                                 >
-                                  <VercelIcon name="qr_code_2" size={13} color="#00b87c" />
-                                  <span>Select QR Code ({savedQrLibrary.filter(q => q.payment_method === 'Maya').length})</span>
+                                  Library ({savedQrLibrary.filter(q => q.payment_method === 'Maya').length})
                                 </button>
                                 {mayaQrUrl && (
                                   <button
                                     type="button"
+                                    className="epm2-btn epm2-btn--ghost-danger epm2-btn--xs"
                                     onClick={() => setMayaQrUrl('')}
-                                    style={{ background: 'transparent', border: 'none', color: '#ef4444', fontSize: '0.74rem', cursor: 'pointer', fontWeight: 600 }}
                                   >
                                     Remove
                                   </button>
@@ -3049,54 +2921,20 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
                             </div>
 
                             {mayaQrUrl ? (
-                              <div style={{
-                                flex: 1,
-                                minHeight: '140px',
-                                position: 'relative',
-                                borderRadius: '8px',
-                                overflow: 'hidden',
-                                border: '1.5px solid rgba(0, 184, 124, 0.45)',
-                                background: '#111111',
-                                padding: '12px',
-                                display: 'flex',
-                                flexDirection: 'column',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                textAlign: 'center'
-                              }}>
-                                <img
-                                  src={mayaQrUrl}
-                                  alt="Organization Maya QR"
-                                  style={{ maxHeight: '110px', maxWidth: '100%', objectFit: 'contain', borderRadius: '6px' }}
-                                />
-                                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', marginTop: '6px', fontSize: '0.74rem', color: '#00b87c', fontWeight: 600 }}>
-                                  <VercelIcon name="verified" size={14} color="#00b87c" />
-                                  Maya QR Attached
+                              <div className="epm2-qr-preview">
+                                <div className="epm2-qr-img-frame">
+                                  <img src={mayaQrUrl} alt="Organization Maya QR" />
                                 </div>
+                                <span className="epm2-qr-status">
+                                  <span className="epm2-dot" />
+                                  <span>Maya QR Attached</span>
+                                </span>
                               </div>
                             ) : (
-                              <label style={{
-                                flex: 1,
-                                minHeight: '140px',
-                                display: 'flex',
-                                flexDirection: 'column',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                padding: '16px',
-                                border: '1.5px dashed rgba(0, 184, 124, 0.4)',
-                                borderRadius: '8px',
-                                cursor: 'pointer',
-                                background: 'rgba(0, 184, 124, 0.03)',
-                                transition: 'all 0.15s ease',
-                                textAlign: 'center'
-                              }}>
-                                <VercelIcon name="qr_code_scanner" size={32} color="#00b87c" style={{ marginBottom: '6px' }} />
-                                <span style={{ fontSize: '0.82rem', fontWeight: 600, color: '#ededed' }}>
-                                  Upload Maya QR
-                                </span>
-                                <span style={{ fontSize: '0.72rem', color: '#888888', marginTop: '2px' }}>
-                                  PNG, JPG or WebP image • Auto-crop &amp; OCR enabled
-                                </span>
+                              <label className="epm2-qr-dropzone">
+                                <span className="material-symbols-outlined epm2-qr-drop-icon">qr_code_scanner</span>
+                                <span className="epm2-qr-drop-title">Upload Maya QR</span>
+                                <span className="epm2-qr-drop-sub">Auto-crop &amp; OCR enabled</span>
                                 <input
                                   type="file"
                                   ref={mayaFileInputRef}
@@ -3111,35 +2949,33 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
                       </div>
                     )}
 
-                    {/* ── 3. DIRECT BANK DEPOSIT CHANNEL ── */}
+                    {/* 3. DIRECT BANK TRANSFER CHANNEL */}
                     {activePaymentChannelTab === 'bank' && (
-                      <div className="bbdrts-studio-card fade-in">
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(290px, 1fr))', gap: '20px', alignItems: 'stretch' }}>
-                          {/* Left Column: Bank Account Details */}
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                            <div className="bbdrts-studio-field-box">
-                              <label className="bbdrts-studio-label">Bank / Financial Institution</label>
+                      <div className="epm2-section" key="rail-bank">
+                        <div className="epm2-rail-grid">
+                          <div className="epm2-rail-fields">
+                            <div className="epm2-field">
+                              <label htmlFor="epm2-bank-name" className="epm2-label-sm">Bank / Institution</label>
                               <input
+                                id="epm2-bank-name"
                                 type="text"
-                                className="bbdrts-studio-input"
+                                className="epm2-input"
                                 value={bankName}
                                 onChange={e => {
                                   const bName = e.target.value;
                                   setBankName(bName);
                                   setBankDetails([bName, bankAccountName, bankAccountNumber ? `Acct: ${bankAccountNumber}` : ''].filter(Boolean).join(' • '));
                                 }}
-                                placeholder="e.g. Land Bank of the Philippines (LBP) / BDO"
+                                placeholder="e.g. Land Bank of the Philippines / BDO"
                               />
-                              <span className="bbdrts-field-hint">
-                                Official commercial or universal bank institution.
-                              </span>
                             </div>
 
-                            <div className="bbdrts-studio-field-box">
-                              <label className="bbdrts-studio-label">Bank Account Number</label>
+                            <div className="epm2-field">
+                              <label htmlFor="epm2-bank-num" className="epm2-label-sm">Account Number</label>
                               <input
+                                id="epm2-bank-num"
                                 type="text"
-                                className="bbdrts-studio-input font-mono"
+                                className="epm2-input epm2-mono"
                                 value={bankAccountNumber}
                                 onChange={e => {
                                   const bNum = e.target.value;
@@ -3147,66 +2983,42 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
                                   setBankDetails([bankName, bankAccountName, bNum ? `Acct: ${bNum}` : ''].filter(Boolean).join(' • '));
                                 }}
                                 placeholder="e.g. 0142-8891-23"
-                                style={{ fontFamily: 'monospace', fontWeight: 600 }}
                               />
-                              <span className="bbdrts-field-hint">
-                                Designated relief savings or current checking account number.
-                              </span>
                             </div>
 
-                            <div className="bbdrts-studio-field-box">
-                              <label className="bbdrts-studio-label">Bank Account Holder Name</label>
+                            <div className="epm2-field">
+                              <label htmlFor="epm2-bank-holder" className="epm2-label-sm">Account Holder Name</label>
                               <input
+                                id="epm2-bank-holder"
                                 type="text"
-                                className="bbdrts-studio-input"
+                                className="epm2-input"
                                 value={bankAccountName}
                                 onChange={e => {
                                   const bAcctName = e.target.value;
                                   setBankAccountName(bAcctName);
                                   setBankDetails([bankName, bAcctName, bankAccountNumber ? `Acct: ${bankAccountNumber}` : ''].filter(Boolean).join(' • '));
                                 }}
-                                placeholder="e.g. Philippine Red Cross - Southern Leyte Chapter"
+                                placeholder="Registered institutional account name"
                               />
-                              <span className="bbdrts-field-hint">
-                                Exact corporate or institutional account holder name registered with the bank.
-                              </span>
                             </div>
                           </div>
 
-                          {/* Right Column: Bank QR Code Preview / Dropzone */}
-                          <div style={{ display: 'flex', flexDirection: 'column' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                              <label className="bbdrts-studio-label" style={{ display: 'flex', alignItems: 'center', gap: '6px', margin: 0 }}>
-                                <VercelIcon name="qr_code" size={16} color="#16a34a" />
-                                Bank Transfer / InstaPay QR Image
-                              </label>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <div className="epm2-qr-slot">
+                            <div className="epm2-qr-slot-head">
+                              <span className="epm2-label-sm">InstaPay / Bank QR</span>
+                              <div className="epm2-qr-slot-actions">
                                 <button
                                   type="button"
+                                  className="epm2-btn epm2-btn--outline epm2-btn--xs"
                                   onClick={() => setShowQrPicker('Bank')}
-                                  style={{
-                                    background: 'rgba(22, 163, 74, 0.1)',
-                                    border: '1px solid rgba(22, 163, 74, 0.3)',
-                                    color: '#16a34a',
-                                    fontSize: '0.74rem',
-                                    padding: '3px 8px',
-                                    borderRadius: '6px',
-                                    cursor: 'pointer',
-                                    fontWeight: 600,
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    gap: '4px'
-                                  }}
-                                  title="Pick from reusable QR library"
                                 >
-                                  <VercelIcon name="qr_code_2" size={13} color="#16a34a" />
-                                  <span>Select QR Code ({savedQrLibrary.filter(q => q.payment_method === 'Bank').length})</span>
+                                  Library ({savedQrLibrary.filter(q => q.payment_method === 'Bank').length})
                                 </button>
                                 {bankQrUrl && (
                                   <button
                                     type="button"
+                                    className="epm2-btn epm2-btn--ghost-danger epm2-btn--xs"
                                     onClick={() => setBankQrUrl('')}
-                                    style={{ background: 'transparent', border: 'none', color: '#ef4444', fontSize: '0.74rem', cursor: 'pointer', fontWeight: 600 }}
                                   >
                                     Remove
                                   </button>
@@ -3215,54 +3027,20 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
                             </div>
 
                             {bankQrUrl ? (
-                              <div style={{
-                                flex: 1,
-                                minHeight: '140px',
-                                position: 'relative',
-                                borderRadius: '8px',
-                                overflow: 'hidden',
-                                border: '1.5px solid rgba(22, 163, 74, 0.45)',
-                                background: '#111111',
-                                padding: '12px',
-                                display: 'flex',
-                                flexDirection: 'column',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                textAlign: 'center'
-                              }}>
-                                <img
-                                  src={bankQrUrl}
-                                  alt="Organization Bank QR"
-                                  style={{ maxHeight: '110px', maxWidth: '100%', objectFit: 'contain', borderRadius: '6px' }}
-                                />
-                                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', marginTop: '6px', fontSize: '0.74rem', color: '#16a34a', fontWeight: 600 }}>
-                                  <VercelIcon name="verified" size={14} color="#16a34a" />
-                                  Bank QR Attached
+                              <div className="epm2-qr-preview">
+                                <div className="epm2-qr-img-frame">
+                                  <img src={bankQrUrl} alt="Organization Bank QR" />
                                 </div>
+                                <span className="epm2-qr-status">
+                                  <span className="epm2-dot" />
+                                  <span>Bank QR Attached</span>
+                                </span>
                               </div>
                             ) : (
-                              <label style={{
-                                flex: 1,
-                                minHeight: '140px',
-                                display: 'flex',
-                                flexDirection: 'column',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                padding: '16px',
-                                border: '1.5px dashed rgba(22, 163, 74, 0.4)',
-                                borderRadius: '8px',
-                                cursor: 'pointer',
-                                background: 'rgba(22, 163, 74, 0.03)',
-                                transition: 'all 0.15s ease',
-                                textAlign: 'center'
-                              }}>
-                                <VercelIcon name="qr_code_scanner" size={32} color="#16a34a" style={{ marginBottom: '6px' }} />
-                                <span style={{ fontSize: '0.82rem', fontWeight: 600, color: '#ededed' }}>
-                                  Upload Bank QR
-                                </span>
-                                <span style={{ fontSize: '0.72rem', color: '#888888', marginTop: '2px' }}>
-                                  PNG, JPG or WebP image • InstaPay / PESONet
-                                </span>
+                              <label className="epm2-qr-dropzone">
+                                <span className="material-symbols-outlined epm2-qr-drop-icon">qr_code_scanner</span>
+                                <span className="epm2-qr-drop-title">Upload Bank QR</span>
+                                <span className="epm2-qr-drop-sub">InstaPay / PESONet supported</span>
                                 <input
                                   type="file"
                                   ref={bankFileInputRef}
@@ -3276,46 +3054,81 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
                         </div>
                       </div>
                     )}
+
                   </div>
                 )}
 
+                {/* ══════════════════════════════════════════════════
+                  NGO: ACCREDITATION TAB (CLEAN VERCEL REWORK)
+                 ══════════════════════════════════════════════════ */}
                 {isOrg && activeTab === 'org_kyc' && (
-                  <div className="bbdrts-studio-pane fade-in">
-                    <div className="bbdrts-studio-card">
-                      <div className="bbdrts-studio-card-header">
-                        <div className="bbdrts-studio-card-title-wrap">
-                          <span className="material-symbols-outlined" style={{ color: 'var(--accent, #22c55e)' }}>verified</span>
-                          <div>
-                            <h5>Government Compliance & SEC Accreditation</h5>
-                            <span>Official regulatory credentials verified on the protocol network.</span>
-                          </div>
+                  <div className="epm2-pane" key="epm2-org-kyc">
+
+                    <div className="epm2-section">
+                      <div className="epm2-field-head">
+                        <div>
+                          <span className="epm2-field-title">Government Compliance &amp; Accreditation</span>
+                          <p className="epm2-field-sub">Official regulatory credentials verified on the BBDRTS protocol.</p>
                         </div>
                       </div>
 
-                      <div className="bbdrts-studio-credentials-list">
-                        <div className="bbdrts-studio-cred-row">
-                          <div className="bbdrts-studio-cred-meta">
-                            <span className="bbdrts-studio-cred-label">SEC Registration Number</span>
-                            <span className="bbdrts-studio-cred-val font-mono">{currentUser?.sec_registration_no || 'SEC-CN2020-001234'}</span>
+                      <div className="epm2-kv-card">
+                        <div className="epm2-kv-row">
+                          <div className="epm2-kv-info">
+                            <span className="epm2-kv-lbl">SEC Registration Number</span>
+                            <span className="epm2-kv-val epm2-mono">
+                              {currentUser?.sec_registration_no || currentUser?.Sec_Registration_No || 'SEC-CN2020-001234'}
+                            </span>
                           </div>
-                          <span className="bbdrts-verified-badge-inline">
-                            <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>verified</span>
-                            SEC Registered
+                          <span className="epm2-status-pill">
+                            <span className="epm2-dot" />
+                            <span>SEC Registered</span>
                           </span>
                         </div>
 
-                        <div className="bbdrts-studio-cred-row">
-                          <div className="bbdrts-studio-cred-meta">
-                            <span className="bbdrts-studio-cred-label">DSWD Accreditation Number</span>
-                            <span className="bbdrts-studio-cred-val font-mono">{currentUser?.dswd_accreditation_no || 'DSWD-SB-A-2024-0089'}</span>
+                        <div className="epm2-kv-row">
+                          <div className="epm2-kv-info">
+                            <span className="epm2-kv-lbl">DSWD Accreditation Number</span>
+                            <span className="epm2-kv-val epm2-mono">
+                              {currentUser?.dswd_accreditation_no || currentUser?.Dswd_Accreditation_No || 'DSWD-SB-A-2024-0089'}
+                            </span>
                           </div>
-                          <span className="bbdrts-verified-badge-inline">
-                            <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>verified</span>
-                            DSWD Accredited
+                          <span className="epm2-status-pill">
+                            <span className="epm2-dot" />
+                            <span>DSWD Accredited</span>
+                          </span>
+                        </div>
+
+                        <div className="epm2-kv-row">
+                          <div className="epm2-kv-info">
+                            <span className="epm2-kv-lbl">Verification Standing</span>
+                            <span className="epm2-kv-val">
+                              {currentUser?.verification_status || currentUser?.Verification_Status || 'Approved'}
+                            </span>
+                          </div>
+                          <span className="epm2-status-pill">
+                            <span className="epm2-dot" />
+                            <span>Verified NGO</span>
+                          </span>
+                        </div>
+
+                        <div className="epm2-kv-row">
+                          <div className="epm2-kv-info">
+                            <span className="epm2-kv-lbl">Blockchain Audit Ledger</span>
+                            <span className="epm2-kv-val">Gasless Ethereum Sepolia · Chain ID 11155111</span>
+                          </div>
+                          <span className="epm2-status-pill">
+                            <span className="epm2-dot" />
+                            <span>Active</span>
                           </span>
                         </div>
                       </div>
+
+                      <p className="epm2-note-text" style={{ marginTop: '4px' }}>
+                        Regulatory registration numbers are verified by BBDRTS administrators and cannot be altered directly.
+                      </p>
                     </div>
+
                   </div>
                 )}
 
