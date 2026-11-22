@@ -240,8 +240,8 @@ export const DONOR_TIERS = [
   {
     tierNumber: 1,
     id: 'tier-1',
-    name: 'First-Time Giver',
-    subtitle: 'Emergency Food & Water',
+    name: 'Kind Giver',
+    subtitle: 'Food & Clean Water',
     minPhp: 1,
     minEth: 0.000006,
     IconComponent: BadgeTier1Contributor,
@@ -254,7 +254,7 @@ export const DONOR_TIERS = [
   {
     tierNumber: 2,
     id: 'tier-2',
-    name: 'Caring Giver',
+    name: 'Care Supporter',
     subtitle: 'Family Relief Packs',
     minPhp: 1000,
     minEth: 0.006,
@@ -268,8 +268,8 @@ export const DONOR_TIERS = [
   {
     tierNumber: 3,
     id: 'tier-3',
-    name: 'Relief Supporter',
-    subtitle: 'Medical & First-Aid Kits',
+    name: 'Relief Ally',
+    subtitle: 'Medical & First-Aid',
     minPhp: 5000,
     minEth: 0.03,
     IconComponent: BadgeTier3ReliefPartner,
@@ -282,8 +282,8 @@ export const DONOR_TIERS = [
   {
     tierNumber: 4,
     id: 'tier-4',
-    name: 'Shelter Supporter',
-    subtitle: 'Emergency Family Shelters',
+    name: 'Shelter Giver',
+    subtitle: 'Emergency Shelters',
     minPhp: 10000,
     minEth: 0.06,
     IconComponent: BadgeTier4Benefactor,
@@ -296,8 +296,8 @@ export const DONOR_TIERS = [
   {
     tierNumber: 5,
     id: 'tier-5',
-    name: 'Compassionate Giver',
-    subtitle: 'Community Health & Clinics',
+    name: 'Aid Advocate',
+    subtitle: 'Community Health',
     minPhp: 25000,
     minEth: 0.15,
     IconComponent: BadgeTier5Advocate,
@@ -310,8 +310,8 @@ export const DONOR_TIERS = [
   {
     tierNumber: 6,
     id: 'tier-6',
-    name: 'Barangay Relief Sponsor',
-    subtitle: 'Local Relief Distributions',
+    name: 'Relief Sponsor',
+    subtitle: 'Barangay Drives',
     minPhp: 50000,
     minEth: 0.30,
     IconComponent: BadgeTier6Philanthropist,
@@ -324,8 +324,8 @@ export const DONOR_TIERS = [
   {
     tierNumber: 7,
     id: 'tier-7',
-    name: 'Emergency Aid Sponsor',
-    subtitle: 'Rapid Disaster Response',
+    name: 'Care Partner',
+    subtitle: 'Rapid Response',
     minPhp: 100000,
     minEth: 0.60,
     IconComponent: BadgeTier7Humanitarian,
@@ -338,8 +338,8 @@ export const DONOR_TIERS = [
   {
     tierNumber: 8,
     id: 'tier-8',
-    name: 'Humanitarian Partner',
-    subtitle: 'Clean Water & Solar Power',
+    name: 'Aid Sustainer',
+    subtitle: 'Water & Solar Power',
     minPhp: 250000,
     minEth: 1.50,
     IconComponent: BadgeTier8DistinguishedHumanitarian,
@@ -352,8 +352,8 @@ export const DONOR_TIERS = [
   {
     tierNumber: 9,
     id: 'tier-9',
-    name: 'Relief Mission Partner',
-    subtitle: 'Provincial Aid Logistics',
+    name: 'Relief Steward',
+    subtitle: 'Provincial Logistics',
     minPhp: 500000,
     minEth: 3.00,
     IconComponent: BadgeTier9PatronOfRelief,
@@ -366,8 +366,8 @@ export const DONOR_TIERS = [
   {
     tierNumber: 10,
     id: 'tier-10',
-    name: 'Major Relief Donor',
-    subtitle: 'Community Recovery & Livelihood',
+    name: 'Major Donor',
+    subtitle: 'Community Recovery',
     minPhp: 1000000,
     minEth: 6.00,
     IconComponent: BadgeTier10GrandBenefactor,
@@ -380,8 +380,8 @@ export const DONOR_TIERS = [
   {
     tierNumber: 11,
     id: 'tier-11',
-    name: 'Principal Relief Benefactor',
-    subtitle: 'Schools & Evacuation Centers',
+    name: 'Lead Benefactor',
+    subtitle: 'Schools & Shelters',
     minPhp: 2500000,
     minEth: 15.00,
     IconComponent: BadgeTier11PrincipalBenefactor,
@@ -394,8 +394,8 @@ export const DONOR_TIERS = [
   {
     tierNumber: 12,
     id: 'tier-12',
-    name: 'Humanitarian Benefactor',
-    subtitle: 'Typhoon-Resilient Homes',
+    name: 'Honorary Patron',
+    subtitle: 'Resilient Homes',
     minPhp: 5000000,
     minEth: 30.00,
     IconComponent: BadgeTier12LegacyBenefactor,
@@ -408,8 +408,8 @@ export const DONOR_TIERS = [
   {
     tierNumber: 13,
     id: 'tier-13',
-    name: 'Regional Relief Benefactor',
-    subtitle: 'Inter-Island Aid & Fleet',
+    name: 'Grand Benefactor',
+    subtitle: 'Inter-Island Aid',
     minPhp: 10000000,
     minEth: 60.00,
     IconComponent: BadgeTier13SovereignGuardian,
@@ -422,8 +422,8 @@ export const DONOR_TIERS = [
   {
     tierNumber: 14,
     id: 'tier-14',
-    name: 'National Relief Patron',
-    subtitle: 'Nationwide Emergency Operations',
+    name: 'Founding Patron',
+    subtitle: 'National Operations',
     minPhp: 25000000,
     minEth: 150.00,
     IconComponent: BadgeTier14ChampionOfHope,
@@ -436,7 +436,7 @@ export const DONOR_TIERS = [
   {
     tierNumber: 15,
     id: 'tier-15',
-    name: 'Lifetime Humanitarian Patron',
+    name: 'Legacy Trustee',
     subtitle: 'Enduring Relief Legacy',
     minPhp: 50000000,
     minEth: 300.00,
@@ -1293,7 +1293,7 @@ export function DonorTierModal({
                       </div>
                       <div className="dic-standing-row">
                         <span className="dic-standing-pill">
-                          {activeTier ? activeTier.name : 'First-Time Giver'}
+                          {activeTier ? activeTier.name : 'Kind Giver'}
                         </span>
                         {activeTier?.subtitle && !activeTier.name.toLowerCase().includes(activeTier.subtitle.toLowerCase()) && (
                           <span className="dic-standing-sub">{activeTier.subtitle}</span>
@@ -1449,7 +1449,7 @@ export function DonorTierModal({
                         <div className="dic-diploma-ribbon-copy">
                           <span className="dic-diploma-ribbon-eyebrow">HONORED GIVING CIRCLE</span>
                           <span className="dic-diploma-ribbon-name">
-                            {activeTier ? activeTier.name : 'First-Time Giver'}
+                            {activeTier ? activeTier.name : 'Kind Giver'}
                           </span>
                         </div>
                       </div>
@@ -1457,15 +1457,44 @@ export function DonorTierModal({
 
                     {/* Symmetrical 3-Column Ceremonial Footer (Identical on Desktop & Mobile) */}
                     <div className="dic-diploma-footer">
-                      {/* Left: Official Authority Signature */}
+                      {/* Left: Official Signatory */}
                       <div className="dic-diploma-sig-col">
-                        <svg className="dic-signature-svg" viewBox="0 0 130 34" fill="none" aria-hidden="true">
-                          <path d="M8 25C16 10 24 8 27 19C30 27 36 12 43 16C48 19 52 13 58 17C64 21 71 11 78 18C84 24 92 14 102 18C109 20 116 17 123 15" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                          <path d="M16 29C44 26 84 25 114 27" stroke="currentColor" strokeWidth="0.7" strokeOpacity="0.45" strokeLinecap="round" />
+                        <svg className="dic-signature-svg" viewBox="0 0 210 58" fill="none" aria-hidden="true">
+                          {/* Slanted cursive capital initial */}
+                          <path
+                            d="M28 44C32 30 39 14 45 8C47 6 49 7 47 12C43 21 35 33 27 39C24 41 25 36 30 31C38 23 50 14 57 16C62 17.5 58 26 48 30C42 32.5 39 33 44 36C49 39 55 43 62 39"
+                            stroke="currentColor"
+                            strokeWidth="1.8"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                          {/* Connected cursive given-name flourish */}
+                          <path
+                            d="M62 39C66 36 70 29 73 29C75 29 73 36 70 38C68 39 71 39 76 34C80 30 83 25 85 26C86 27 82 35 84 37C86 39 92 31 96 27C99 24 103 15 106 11C108 9 106 17 101 28C97 36 96 40 99 39C103 38 108 30 112 30C114 30 111 36 114 37C117 38 122 30 126 30C128 30 126 37 129 37C133 37 139 27 143 20C145 16 144 21 140 31C137 39 133 48 129 51C126 53 128 45 136 38C144 31 151 28 156 32C159 35 165 34 174 31C180 29 186 28 192 27"
+                            stroke="currentColor"
+                            strokeWidth="1.55"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                          {/* Crisp ink crossbar & i-dot for authentic handwriting texture */}
+                          <path
+                            d="M94 21C101 19.5 110 18.5 117 18"
+                            stroke="currentColor"
+                            strokeWidth="1.25"
+                            strokeLinecap="round"
+                          />
+                          <circle cx="85.5" cy="19.5" r="1.25" fill="currentColor" />
+                          <path
+                            d="M54 46C88 42.5 132 41 168 42"
+                            stroke="currentColor"
+                            strokeWidth="0.9"
+                            strokeOpacity="0.55"
+                            strokeLinecap="round"
+                          />
                         </svg>
                         <div className="dic-diploma-sig-line" />
-                        <span className="dic-diploma-sig-title">BBDRTS Relief Authority</span>
-                        <span className="dic-diploma-sig-sub">Humanitarian Audit Council</span>
+                        <span className="dic-diploma-sig-title">Registry Director</span>
+                        <span className="dic-diploma-sig-sub">BBDRTS Donation Platform</span>
                       </div>
 
                       {/* Center: Embossed Gold & Emerald Official Notary Seal */}

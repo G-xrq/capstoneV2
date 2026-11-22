@@ -3669,11 +3669,11 @@
 }
 
 .dic-signature-svg {
-  width: clamp(56px, 15cqw, 112px);
+  width: clamp(72px, 19cqw, 140px);
   height: auto;
   color: var(--cert-ink);
-  opacity: 0.85;
-  margin-bottom: 1px;
+  opacity: 0.92;
+  margin-bottom: -3px;
 }
 
 .dic-diploma-sig-line {
