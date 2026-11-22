@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import DonorBadge from "./DonorBadge.jsx";
 import "./LiveTrackerModal.css";
 import { API_URL } from "../config";
+import { useRealtimeSync } from "../hooks/useRealtimeSync";
 
 const RAIL_CONFIG = {
   GCASH: { label: "GCash",       icon: "smartphone",             color: "#0ea5e9" },
@@ -188,7 +189,7 @@ export default function LiveTrackerModal({ isOpen, onClose, theme }) {
 
   useEffect(() => {
     if (!isOpen || isPaused) return;
-    const interval = setInterval(() => fetchLiveStream(true), 4000);
+    const interval = setInterval(() => fetchLiveStream(true), 12000);
     const onDonation = () => fetchLiveStream(true);
     window.addEventListener("bbdrts_donation_success", onDonation);
     return () => {
@@ -196,6 +197,12 @@ export default function LiveTrackerModal({ isOpen, onClose, theme }) {
       window.removeEventListener("bbdrts_donation_success", onDonation);
     };
   }, [isOpen, isPaused, fetchLiveStream]);
+
+  useRealtimeSync(
+    ["donations", "manual_donations", "campaigns"],
+    () => fetchLiveStream(true),
+    { enabled: isOpen && !isPaused, debounceMs: 180 }
+  );
 
   useEffect(() => {
     if (!isOpen) return;

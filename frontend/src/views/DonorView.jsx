@@ -24,6 +24,7 @@ import SidebarToggleIcon from '../components/SidebarToggleIcon';
 import DisbursementProofModal from '../components/DisbursementProofModal';
 import { useToast } from '../context/ToastContext';
 import { API_URL } from '../config';
+import { useRealtimeSync } from '../hooks/useRealtimeSync';
 import { CONTRACT_ADDRESS } from '../contractConfig';
 import { getPaginationItems } from '../utils/pagination';
 import { getWorkspaceStrings } from '../data/workspaceTranslations';
@@ -687,8 +688,9 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
     try {
       const token = localStorage.getItem('bbdrts_token');
       if (!token) return;
-      const res = await fetch(`${API_URL}/api/donations/intents/me`, {
-        headers: { Authorization: `Bearer ${token}` }
+      const res = await fetch(`${API_URL}/api/donations/intents/me?_t=${Date.now()}`, {
+        headers: { Authorization: `Bearer ${token}` },
+        cache: 'no-store'
       });
       if (res.ok) {
         const list = await res.json();
@@ -708,14 +710,16 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
     } catch (_) {}
   };
 
-  const fetchMyDonations = async () => {
-    setLoadingMyDonations(true);
+  const fetchMyDonations = async (arg) => {
+    const silent = Boolean(arg && typeof arg === 'object' && arg.silent === true);
+    if (!silent) setLoadingMyDonations(true);
     try {
       const token = localStorage.getItem('bbdrts_token');
       const apiUrl = API_URL;
       if (token) {
-        const res = await fetch(`${apiUrl}/api/donations/me`, {
-          headers: { 'Authorization': `Bearer ${token}` }
+        const res = await fetch(`${apiUrl}/api/donations/me?_t=${Date.now()}`, {
+          headers: { 'Authorization': `Bearer ${token}` },
+          cache: 'no-store'
         });
         if (res.ok) {
           const list = await res.json();
@@ -723,12 +727,14 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
           return;
         }
       }
-      setMyDonations([]);
+      if (!silent) setMyDonations([]);
     } catch (err) {
-      console.error("Failed to fetch donor history:", err);
-      setMyDonations([]);
+      if (!silent) {
+        console.error("Failed to fetch donor history:", err);
+        setMyDonations([]);
+      }
     } finally {
-      setLoadingMyDonations(false);
+      if (!silent) setLoadingMyDonations(false);
     }
   };
 
@@ -736,6 +742,16 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
     fetchMyDonations();
     fetchPendingIntents();
   }, [walletAddress]);
+
+  // Live real-time sync: immediately reflect new donations, manual verifications, and disbursements
+  useRealtimeSync(
+    ['donations', 'manual_donations', 'campaigns', 'disbursements'],
+    () => {
+      fetchMyDonations({ silent: true });
+      fetchPendingIntents();
+    },
+    { debounceMs: 250 }
+  );
 
   const effectiveDonorKey = walletAddress || currentUser?.wallet_address;
   const globalCumulative = globalDonorRegistry.get(effectiveDonorKey, currentUser?.id);

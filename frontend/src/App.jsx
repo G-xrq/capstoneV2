@@ -17,6 +17,7 @@ import GlobalBroadcastBanner from './components/GlobalBroadcastBanner';
 import MaintenanceGuardModal from './components/MaintenanceGuardModal';
 import PersonalizationOnboarding from './components/PersonalizationOnboarding';
 import { useLivePresence } from './hooks/useLivePresence';
+import { useRealtimeSync } from './hooks/useRealtimeSync';
 import { useToast } from './context/ToastContext';
 import './App.css';
 import { isLocalhost, API_URL, apiFetch } from './config';
@@ -898,17 +899,20 @@ export default function App() {
   };
 
   /* ── 4. Fetch campaigns ──────────────────────────────── */
-  const fetchCampaigns = async (contractOverride) => {
+  const fetchCampaigns = useCallback(async (arg) => {
+    const silent = Boolean(arg && typeof arg === 'object' && arg.silent === true);
     try {
-      setFetchingCampaigns(true);
+      if (!silent) setFetchingCampaigns(true);
       let dbCampaigns = [];
+      let fetchedOk = false;
       try {
-        const res = await fetch(`${API_URL}/api/campaigns`);
+        const res = await fetch(`${API_URL}/api/campaigns?_t=${Date.now()}`, { cache: 'no-store' });
         if (res.ok) {
           dbCampaigns = await res.json();
+          fetchedOk = true;
         }
       } catch (e) {
-        console.error('Offline DB Sync failed:', e);
+        if (!silent) console.error('Offline DB Sync failed:', e);
       }
 
       // Merge client-side localStorage cached campaigns (only enrich existing DB campaigns)
@@ -960,7 +964,7 @@ export default function App() {
       }
 
       // Immediately display campaigns from DB without waiting for Sepolia RPC
-      if (dbCampaigns && dbCampaigns.length > 0) {
+      if (fetchedOk && Array.isArray(dbCampaigns)) {
         setCampaigns(dbCampaigns);
         try {
           localStorage.setItem('bbdrts_cached_campaigns_v2', JSON.stringify(dbCampaigns));
@@ -969,15 +973,54 @@ export default function App() {
 
       // Campaigns & PHP totals are served directly from the audited DB + gasless Sepolia relayer ledger.
     } catch (err) {
-      console.error('Campaign sync error:', err);
+      if (!silent) console.error('Campaign sync error:', err);
     } finally {
-      setFetchingCampaigns(false);
+      if (!silent) setFetchingCampaigns(false);
     }
-  };
+  }, []);
+
+  const refreshCurrentUser = useCallback(async () => {
+    const token = localStorage.getItem('bbdrts_token');
+    if (!token || token === 'direct_admin_access_token') return;
+    try {
+      const res = await fetch(`${API_URL}/api/auth/me?_t=${Date.now()}`, {
+        headers: { 'Authorization': `Bearer ${token}` },
+        cache: 'no-store'
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.user) {
+          setDbUser((prev) => {
+            if (!prev) return prev;
+            const nextJson = JSON.stringify(data.user);
+            const prevJson = JSON.stringify(prev);
+            return nextJson === prevJson ? prev : data.user;
+          });
+        }
+      }
+    } catch (_) {}
+  }, []);
 
   useEffect(() => {
     fetchCampaigns();
-  }, []);
+    const onDonationEvent = () => fetchCampaigns({ silent: true });
+    window.addEventListener('bbdrts_donation_success', onDonationEvent);
+    return () => window.removeEventListener('bbdrts_donation_success', onDonationEvent);
+  }, [fetchCampaigns]);
+
+  // Real-time live sync: immediately update campaigns across all dashboards on any backend mutation
+  useRealtimeSync(
+    ['campaigns', 'donations', 'manual_donations', 'disbursements', 'qr_codes'],
+    () => fetchCampaigns({ silent: true }),
+    { debounceMs: 220 }
+  );
+
+  // Real-time live sync: immediately refresh signed-in user status (e.g. NGO KYC approval, profile changes)
+  useRealtimeSync(
+    ['profile', 'organizations'],
+    () => refreshCurrentUser(),
+    { enabled: Boolean(dbUser), debounceMs: 350 }
+  );
 
 
 

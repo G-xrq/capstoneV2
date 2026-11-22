@@ -4,7 +4,8 @@ import { useToast } from '../context/ToastContext';
 import DisbursementProofModal from './DisbursementProofModal';
 import './NotificationCenter.css';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+import { API_URL } from '../config';
+import { useRealtimeSync } from '../hooks/useRealtimeSync';
 
 // Rich text formatter to highlight important details (Amounts, ETH, Quotes, References, Legal Acts)
 function renderFormattedMessage(text) {
@@ -276,9 +277,17 @@ export default function NotificationCenter({ dbUser, theme, onSelectNotification
     fetchNotifications(1, false, filter);
     const pollInterval = setInterval(() => {
       fetchNotifications(1, false, filter);
-    }, 4000);
+    }, 20000);
     return () => clearInterval(pollInterval);
   }, [dbUser, filter]);
+
+  useRealtimeSync(
+    ['notifications', 'donations', 'manual_donations', 'disbursements', 'organizations', 'announcements'],
+    () => {
+      if (dbUser) fetchNotifications(1, false, activeFilterRef.current);
+    },
+    { enabled: Boolean(dbUser), debounceMs: 250 }
+  );
 
   // Silently prefetch Trash & Inbox when panel opens so switching Inbox <-> Trash is 0ms instant
   useEffect(() => {

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { API_URL } from '../config';
+import { realtimeSync } from '../utils/realtimeSync';
 import './DonorBadge.css';
 
 /**
@@ -566,8 +567,7 @@ class DonorRegistry {
 
   async fetchGlobalTotals() {
     try {
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001';
-      const res = await fetch(`${apiUrl}/api/donors/cumulative-totals`);
+      const res = await fetch(`${API_URL}/api/donors/cumulative-totals?_t=${Date.now()}`, { cache: 'no-store' });
       if (res.ok) {
         const data = await res.json();
         Object.entries(data).forEach(([k, v]) => {
@@ -581,6 +581,11 @@ class DonorRegistry {
 }
 
 export const globalDonorRegistry = new DonorRegistry();
+if (typeof window !== 'undefined') {
+  realtimeSync.subscribe(['donations', 'manual_donations'], () => {
+    globalDonorRegistry.fetchGlobalTotals();
+  });
+}
 
 /**
  * Calculates current recognized Giving Society strictly based on cumulative donations

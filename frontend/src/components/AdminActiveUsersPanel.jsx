@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { API_URL } from '../config';
 import { useToast } from '../context/ToastContext';
 import { getLiveSessionId } from '../hooks/useLivePresence';
+import { useRealtimeSync } from '../hooks/useRealtimeSync';
 import '../views/VercelAdminTables.css';
 import './AdminActiveUsersPanel.css';
 
@@ -166,6 +167,12 @@ export default function AdminActiveUsersPanel({ onPresenceSummaryChange }) {
       setRefreshing(false);
     }
   }, [windowMinutes, onPresenceSummaryChange, showError]);
+
+  useRealtimeSync(
+    ['presence'],
+    () => { if (autoRefresh) fetchActiveUsers(true); },
+    { enabled: autoRefresh, debounceMs: 400 }
+  );
 
   useEffect(() => {
     fetchActiveUsers(false);

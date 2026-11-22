@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { API_URL } from '../config';
+import { useRealtimeSync } from '../hooks/useRealtimeSync';
 import './DisbursementProofModal.css';
 
 const SEPOLIA_EXPLORER = 'https://sepolia.etherscan.io/tx/';
@@ -81,6 +82,21 @@ export default function DisbursementProofModal({ camp, isOpen, onClose, theme })
     fetchDisbursementsAndDetails();
     return () => { isMounted = false; };
   }, [isOpen, campId]);
+
+  useRealtimeSync(
+    ['disbursements', 'campaigns'],
+    async () => {
+      if (!isOpen || !campId) return;
+      try {
+        const res = await fetch(`${API_URL}/api/campaigns/${campId}/disbursements?_t=${Date.now()}`, { cache: 'no-store' });
+        if (res.ok) {
+          const data = await res.json();
+          setDisbursements(Array.isArray(data) ? data : []);
+        }
+      } catch (_) {}
+    },
+    { enabled: Boolean(isOpen && campId), debounceMs: 250 }
+  );
 
   if (!isOpen || !camp) return null;
 

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { API_URL } from '../config';
+import { useRealtimeSync } from '../hooks/useRealtimeSync';
 import './MaintenanceGuardModal.css';
 
 export default function MaintenanceGuardModal({
@@ -97,7 +98,7 @@ export default function MaintenanceGuardModal({
 
     const interval = setInterval(() => {
       fetchStatus(false);
-    }, 4000);
+    }, 20000);
 
     return () => {
       window.removeEventListener('bbdrts_maintenance_changed', handleMaintEvent);
@@ -105,6 +106,12 @@ export default function MaintenanceGuardModal({
       clearInterval(interval);
     };
   }, []);
+
+  useRealtimeSync(
+    ['maintenance'],
+    () => fetchStatus(false),
+    { debounceMs: 150 }
+  );
 
   // 1-Tap Direct Admin Access Handler (Bypasses barrier directly into Admin Console)
   const handleDirectAdminBypass = () => {

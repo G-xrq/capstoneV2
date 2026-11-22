@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { ethers } from 'ethers';
 import Tesseract from 'tesseract.js';
 import { isLocalhost, API_URL } from '../config';
+import { useRealtimeSync } from '../hooks/useRealtimeSync';
 import CampaignCard, { shortAddr, formatCampaignTitle, formatEthAmt, progressPct, getOrgDisplayName, getCampaignTags, getCampaignAuditDetails, getCampaignCategoryInfo, getCampaignCoverData } from '../components/CampaignCard';
 import LocationMapPicker from '../components/LocationMapPicker';
 import { ROLES } from '../roleConfig';
@@ -1457,43 +1458,47 @@ export default function OrganizationView({
 
 
   // Fetch Organization Received Donations
-  const fetchOrgDonations = async () => {
+  const fetchOrgDonations = async (arg) => {
+    const silent = Boolean(arg && typeof arg === 'object' && arg.silent === true);
     try {
-      setLoadingOrgDonations(true);
+      if (!silent) setLoadingOrgDonations(true);
       const token = localStorage.getItem('bbdrts_token');
       if (!token) return;
       const apiUrl = API_URL;
-      const res = await fetch(`${apiUrl}/api/donations/me`, {
-        headers: { 'Authorization': `Bearer ${token}` }
+      const res = await fetch(`${apiUrl}/api/donations/me?_t=${Date.now()}`, {
+        headers: { 'Authorization': `Bearer ${token}` },
+        cache: 'no-store'
       });
       if (res.ok) {
         const data = await res.json();
         setOrgDonations(Array.isArray(data) ? data : []);
       }
     } catch (err) {
-      console.error('Failed to fetch org donations:', err);
+      if (!silent) console.error('Failed to fetch org donations:', err);
     } finally {
-      setLoadingOrgDonations(false);
+      if (!silent) setLoadingOrgDonations(false);
     }
   };
 
-  const fetchPendingDonations = async () => {
+  const fetchPendingDonations = async (arg) => {
+    const silent = Boolean(arg && typeof arg === 'object' && arg.silent === true);
     try {
-      setLoadingPending(true);
+      if (!silent) setLoadingPending(true);
       const token = localStorage.getItem('bbdrts_token');
       if (!token) return;
       const apiUrl = API_URL;
-      const res = await fetch(`${apiUrl}/api/manual-donations/pending`, {
-        headers: { 'Authorization': `Bearer ${token}` }
+      const res = await fetch(`${apiUrl}/api/manual-donations/pending?_t=${Date.now()}`, {
+        headers: { 'Authorization': `Bearer ${token}` },
+        cache: 'no-store'
       });
       if (res.ok) {
         const data = await res.json();
         setPendingDonations(Array.isArray(data) ? data : []);
       }
     } catch (err) {
-      console.error('Failed to fetch pending donations:', err);
+      if (!silent) console.error('Failed to fetch pending donations:', err);
     } finally {
-      setLoadingPending(false);
+      if (!silent) setLoadingPending(false);
     }
   };
 
@@ -1787,18 +1792,21 @@ export default function OrganizationView({
     }
   ], []);
 
-  const fetchKycData = async () => {
+  const fetchKycData = async (arg) => {
+    const silent = Boolean(arg && typeof arg === 'object' && arg.silent === true);
     try {
-      setKycLoading(true);
+      if (!silent) setKycLoading(true);
       const token = localStorage.getItem('bbdrts_token');
       if (!token) return;
       const apiUrl = API_URL;
-      const res = await fetch(`${apiUrl}/api/organization/kyc`, {
-        headers: { 'Authorization': `Bearer ${token}` }
+      const res = await fetch(`${apiUrl}/api/organization/kyc?_t=${Date.now()}`, {
+        headers: { 'Authorization': `Bearer ${token}` },
+        cache: 'no-store'
       });
       if (res.ok) {
         const data = await res.json();
         setKycStatusData(data);
+        if (silent) return;
         if (data.secRegistrationNo) setSecRegNo(data.secRegistrationNo);
         if (data.dswdAccreditationNo) setDswdNo(data.dswdAccreditationNo);
         if (data.boardMembers) setBoardMembersText(data.boardMembers);
@@ -1817,11 +1825,33 @@ export default function OrganizationView({
         if (data.secCertificateUrl) setSecCertUrl(normalizeSecDocUrl(data.secCertificateUrl));
       }
     } catch (err) {
-      console.error('Failed to load KYC data:', err);
+      if (!silent) console.error('Failed to load KYC data:', err);
     } finally {
-      setKycLoading(false);
+      if (!silent) setKycLoading(false);
     }
   };
+
+  // Live real-time sync: immediately reflect incoming donations, manual receipts, KYC status, and QR updates
+  useRealtimeSync(
+    ['donations', 'manual_donations', 'campaigns', 'disbursements'],
+    () => {
+      fetchOrgDonations({ silent: true });
+      fetchPendingDonations({ silent: true });
+    },
+    { debounceMs: 250 }
+  );
+
+  useRealtimeSync(
+    ['organizations', 'profile'],
+    () => fetchKycData({ silent: true }),
+    { debounceMs: 300 }
+  );
+
+  useRealtimeSync(
+    ['qr_codes'],
+    () => fetchSavedQrCodes(),
+    { debounceMs: 300 }
+  );
 
   const handleKycCertUpload = (e) => {
     const file = e.target.files?.[0];

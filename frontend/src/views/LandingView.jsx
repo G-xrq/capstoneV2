@@ -8,6 +8,7 @@ import CampaignCard, {
 import DisasterRadarHeatmap from '../components/DisasterRadarHeatmap';
 import { contractAddress } from '../contractConfig';
 import { API_URL } from '../config';
+import { useRealtimeSync } from '../hooks/useRealtimeSync';
 import { getPaginationItems } from '../utils/pagination';
 import './LandingView.css';
 
@@ -679,19 +680,21 @@ export default function LandingView({
     };
 
     fetchLandingData();
-    const liveTimer = window.setInterval(pollLiveStats, 10000);
-    const onFocusOrVisible = () => {
-      if (document.visibilityState !== 'hidden') pollLiveStats();
-    };
-    window.addEventListener('focus', onFocusOrVisible);
-    document.addEventListener('visibilitychange', onFocusOrVisible);
+    const liveTimer = window.setInterval(pollLiveStats, 20000);
+    const onRealtimeLanding = () => fetchLandingData();
+    window.addEventListener('bbdrts_landing_realtime_refresh', onRealtimeLanding);
     return () => {
       isMounted = false;
       window.clearInterval(liveTimer);
-      window.removeEventListener('focus', onFocusOrVisible);
-      document.removeEventListener('visibilitychange', onFocusOrVisible);
+      window.removeEventListener('bbdrts_landing_realtime_refresh', onRealtimeLanding);
     };
   }, []);
+
+  useRealtimeSync(
+    ['campaigns', 'donations', 'manual_donations', 'disbursements', 'organizations'],
+    () => window.dispatchEvent(new CustomEvent('bbdrts_landing_realtime_refresh')),
+    { debounceMs: 250 }
+  );
 
   // Global Navigation Listener for Landing View
   useEffect(() => {

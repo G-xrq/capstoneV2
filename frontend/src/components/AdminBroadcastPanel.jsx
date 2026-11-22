@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { API_URL } from '../config';
+import { useRealtimeSync } from '../hooks/useRealtimeSync';
 import { useToast } from '../context/ToastContext';
 import '../views/VercelAdminTables.css';
 import './AdminBroadcastPanel.css';
@@ -51,8 +52,8 @@ export default function AdminBroadcastPanel({ onActiveCountChange }) {
     pushNotification: true
   });
 
-  const fetchAnnouncements = async () => {
-    setLoading(true);
+  const fetchAnnouncements = async (silent = false) => {
+    if (!silent) setLoading(true);
     try {
       const token = localStorage.getItem('bbdrts_token') || localStorage.getItem('token');
       const res = await fetch(`${API_URL}/api/admin/announcements`, {
@@ -68,13 +69,19 @@ export default function AdminBroadcastPanel({ onActiveCountChange }) {
     } catch (err) {
       console.error('Failed to load announcements:', err);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
   useEffect(() => {
     fetchAnnouncements();
   }, []);
+
+  useRealtimeSync(
+    ['announcements'],
+    () => fetchAnnouncements(true),
+    { debounceMs: 220 }
+  );
 
   const handleCreateAnnouncement = async (e) => {
     e.preventDefault();

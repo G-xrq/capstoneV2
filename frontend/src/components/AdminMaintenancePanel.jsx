@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { API_URL } from '../config';
+import { useRealtimeSync } from '../hooks/useRealtimeSync';
 import { useToast } from '../context/ToastContext';
 import CustomDateTimePicker from './CustomDateTimePicker';
 import '../views/VercelAdminTables.css';
@@ -133,8 +134,8 @@ export default function AdminMaintenancePanel({ onMaintenanceStateChange, forced
   const [savingMaintenance, setSavingMaintenance] = useState(false);
 
   // Fetch Backups
-  const fetchBackups = async () => {
-    setBackupsLoading(true);
+  const fetchBackups = async (silent = false) => {
+    if (!silent) setBackupsLoading(true);
     try {
       const token = localStorage.getItem('bbdrts_token') || localStorage.getItem('token');
       const res = await fetch(`${API_URL}/api/admin/backups`, {
@@ -147,7 +148,7 @@ export default function AdminMaintenancePanel({ onMaintenanceStateChange, forced
     } catch (err) {
       console.warn('Failed to load database backups:', err.message);
     } finally {
-      setBackupsLoading(false);
+      if (!silent) setBackupsLoading(false);
     }
   };
 
@@ -169,6 +170,12 @@ export default function AdminMaintenancePanel({ onMaintenanceStateChange, forced
     fetchBackups();
     fetchMaintenance();
   }, []);
+
+  useRealtimeSync(
+    ['backups'],
+    () => fetchBackups(true),
+    { debounceMs: 250 }
+  );
 
   // ── Handlers: Database Backups ──
   const handleCreateSnapshot = async (format = 'sql') => {

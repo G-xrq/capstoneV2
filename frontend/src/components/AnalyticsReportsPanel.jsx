@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { API_URL } from '../config';
+import { useRealtimeSync } from '../hooks/useRealtimeSync';
 import { useToast } from '../context/ToastContext';
 import {
   AnimatedNumber,
@@ -104,6 +105,12 @@ export default function AnalyticsReportsPanel({ mode = 'admin', onNavigateTab })
   useEffect(() => {
     fetchAnalytics(false);
   }, [fetchAnalytics]);
+
+  useRealtimeSync(
+    ['analytics', 'donations', 'manual_donations', 'campaigns', 'disbursements', 'organizations'],
+    () => fetchAnalytics(true),
+    { debounceMs: 450 }
+  );
 
   const handleExport = (format) => {
     setExportMenuOpen(false);

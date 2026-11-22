@@ -3,7 +3,8 @@ import { createPortal } from 'react-dom';
 import DonorBadge, { DonorTierModal, getDonorTier, DONOR_TIERS } from './DonorBadge';
 import './LeaderboardModal.css';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+import { API_URL } from '../config';
+import { useRealtimeSync } from '../hooks/useRealtimeSync';
 
 export default function LeaderboardModal({
   isOpen,
@@ -72,6 +73,23 @@ export default function LeaderboardModal({
       isMounted = false;
     };
   }, [isOpen, timeframe]);
+
+  // Silently keep leaderboard live while open
+  useRealtimeSync(
+    ['donations', 'manual_donations', 'organizations'],
+    async () => {
+      try {
+        const token = localStorage.getItem('bbdrts_token') || localStorage.getItem('token');
+        const headers = token ? { Authorization: `Bearer ${token}` } : {};
+        const res = await fetch(`${API_URL}/api/leaderboard?timeframe=${timeframe}&_t=${Date.now()}`, { headers, cache: 'no-store' });
+        if (res.ok) {
+          const json = await res.json();
+          if (json) setData(json);
+        }
+      } catch (_) {}
+    },
+    { enabled: isOpen, debounceMs: 300 }
+  );
 
   // Keyboard accessibility: Escape closes modal
   useEffect(() => {

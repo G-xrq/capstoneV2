@@ -16,6 +16,7 @@ const blockchainRelayer = require('./services/blockchainRelayer');
 const xenditService = require('./services/xenditService');
 const { logActivity } = require('./services/activityLogger');
 const analyticsService = require('./services/analyticsService');
+const realtimeBus = require('./services/realtimeBus');
 
 const app = express();
 
@@ -27,7 +28,14 @@ const PHP_RAIL_SQL = (alias = 'dt') => `(
   OR UPPER(COALESCE(${alias}.Payment_Method, '')) LIKE '%CREDIT%'
   OR UPPER(COALESCE(${alias}.Tx_Hash, '')) LIKE 'FIAT-%'
 )`;
-app.use(compression()); // Fast GZIP compression for all responses
+app.use(compression({
+  filter: (req, res) => {
+    if (req.path === '/api/realtime/stream' || (req.headers.accept && req.headers.accept.includes('text/event-stream'))) {
+      return false;
+    }
+    return compression.filter(req, res);
+  }
+})); // Fast GZIP compression for all responses (bypassed for real-time SSE stream)
 const PORT = process.env.PORT || 3001;
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) {
@@ -54,6 +62,7 @@ process.on('unhandledRejection', (reason) => {
 app.use(cors()); // Allow all origins for Capstone flexibility
 app.use(express.json({ limit: '25mb' }));
 app.use(express.urlencoded({ extended: true, limit: '25mb' }));
+app.use(realtimeBus.realtimeAutoPublishMiddleware); // Automatic real-time dashboard broadcast on all 2xx mutations
 
 // ── Security Headers Middleware ─────────────────────────────
 app.use((req, res, next) => {
@@ -10884,6 +10893,12 @@ app.get('/api/organization/analytics', authenticateToken, async (req, res) => {
     res.status(500).json({ error: 'Failed to generate organization analytics: ' + err.message });
   }
 });
+
+// ═════════════════════════════════════════════════════════════════════════════
+// REAL-TIME DASHBOARD LIVE SYNC ENDPOINTS (SSE PUSH + VERSION CATCH-UP)
+// ═════════════════════════════════════════════════════════════════════════════
+app.get('/api/realtime/stream', realtimeBus.handleStream);
+app.get('/api/realtime/version', realtimeBus.handleVersion);
 
 // Start Server
 if (process.env.NODE_ENV !== 'test') {

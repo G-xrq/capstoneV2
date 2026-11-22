@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { API_URL } from '../config';
+import { useRealtimeSync } from '../hooks/useRealtimeSync';
 import './GlobalBroadcastBanner.css';
 
 export default function GlobalBroadcastBanner({ userRole = 'donor' }) {
@@ -35,10 +36,16 @@ export default function GlobalBroadcastBanner({ userRole = 'donor' }) {
 
   useEffect(() => {
     fetchActiveAnnouncements();
-    // Poll every 60s for new high-priority broadcasts
+    // Quiet 60s fallback poll alongside instant SSE push
     const timer = setInterval(fetchActiveAnnouncements, 60000);
     return () => clearInterval(timer);
   }, [userRole]);
+
+  useRealtimeSync(
+    ['announcements'],
+    () => fetchActiveAnnouncements(),
+    { debounceMs: 180 }
+  );
 
   // Active visible announcements (excluding dismissed)
   const visibleAnnouncements = announcements.filter(a => !dismissedIds.includes(a.id));

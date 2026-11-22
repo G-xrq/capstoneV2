@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { ethers } from 'ethers';
 import { isLocalhost, API_URL } from '../config';
+import { useRealtimeSync } from '../hooks/useRealtimeSync';
 import CampaignCard, { shortAddr, formatCampaignTitle, formatEthAmt, getCampaignCategoryInfo } from '../components/CampaignCard';
 import { ROLES, MAX_ORGANIZATIONS } from '../roleConfig';
 import { CONTRACT_ADDRESS } from '../contractConfig';
@@ -698,16 +699,20 @@ export default function AdminView({
   const [auditRoleFilter, setAuditRoleFilter] = useState('ALL');
   const [auditDateRange, setAuditDateRange] = useState('all');
   const [auditPage, setAuditPage] = useState(1);
+  const auditPageRef = useRef(1);
+  auditPageRef.current = auditPage;
   const [auditLimit] = useState(15);
   const [selectedAuditLog, setSelectedAuditLog] = useState(null);
 
-  const loadAuditLogs = async (targetPage = 1) => {
-    setAuditLogsLoading(true);
+  const loadAuditLogs = async (targetPage = 1, arg) => {
+    const silent = Boolean(arg && typeof arg === 'object' && arg.silent === true);
+    const resolvedPage = typeof targetPage === 'number' ? targetPage : auditPageRef.current || 1;
+    if (!silent) setAuditLogsLoading(true);
     const startT = Date.now();
     try {
       let token = await getAdminToken();
       const params = new URLSearchParams({
-        page: String(targetPage),
+        page: String(resolvedPage),
         limit: String(auditLimit),
         search: auditSearchQuery,
         category: auditCategoryFilter,
@@ -732,16 +737,18 @@ export default function AdminView({
         if (data.summary) {
           setAuditLogsSummary(data.summary);
         }
-        setAuditPage(data.page || targetPage);
+        setAuditPage(data.page || resolvedPage);
       }
     } catch (err) {
-      console.error('Failed to load activity logs:', err);
+      if (!silent) console.error('Failed to load activity logs:', err);
     } finally {
-      const elapsed = Date.now() - startT;
-      if (elapsed < 450) {
-        await new Promise(r => setTimeout(r, 450 - elapsed));
+      if (!silent) {
+        const elapsed = Date.now() - startT;
+        if (elapsed < 450) {
+          await new Promise(r => setTimeout(r, 450 - elapsed));
+        }
+        setAuditLogsLoading(false);
       }
-      setAuditLogsLoading(false);
     }
   };
 
@@ -851,8 +858,9 @@ export default function AdminView({
     }
   };
 
-  const loadFinancialLedger = async () => {
-    setLedgerLoading(true);
+  const loadFinancialLedger = async (arg) => {
+    const silent = Boolean(arg && typeof arg === 'object' && arg.silent === true);
+    if (!silent) setLedgerLoading(true);
     const startT = Date.now();
     try {
       let token = await getAdminToken();
@@ -873,13 +881,15 @@ export default function AdminView({
         });
       }
     } catch (err) {
-      console.error('Failed to load financial ledger:', err);
+      if (!silent) console.error('Failed to load financial ledger:', err);
     } finally {
-      const elapsed = Date.now() - startT;
-      if (elapsed < 450) {
-        await new Promise(r => setTimeout(r, 450 - elapsed));
+      if (!silent) {
+        const elapsed = Date.now() - startT;
+        if (elapsed < 450) {
+          await new Promise(r => setTimeout(r, 450 - elapsed));
+        }
+        setLedgerLoading(false);
       }
-      setLedgerLoading(false);
     }
   };
 
@@ -987,8 +997,9 @@ export default function AdminView({
   const [disbursementsLoading, setDisbursementsLoading] = useState(false);
   const [disbursementSearch, setDisbursementSearch] = useState('');
 
-  const loadDisbursements = async () => {
-    setDisbursementsLoading(true);
+  const loadDisbursements = async (arg) => {
+    const silent = Boolean(arg && typeof arg === 'object' && arg.silent === true);
+    if (!silent) setDisbursementsLoading(true);
     const startT = Date.now();
     try {
       let token = await getAdminToken();
@@ -1006,13 +1017,15 @@ export default function AdminView({
         setDisbursementsList(Array.isArray(data) ? data : []);
       }
     } catch (err) {
-      console.error('Failed to load aid disbursements:', err);
+      if (!silent) console.error('Failed to load aid disbursements:', err);
     } finally {
-      const elapsed = Date.now() - startT;
-      if (elapsed < 450) {
-        await new Promise(r => setTimeout(r, 450 - elapsed));
+      if (!silent) {
+        const elapsed = Date.now() - startT;
+        if (elapsed < 450) {
+          await new Promise(r => setTimeout(r, 450 - elapsed));
+        }
+        setDisbursementsLoading(false);
       }
-      setDisbursementsLoading(false);
     }
   };
 
@@ -1043,9 +1056,10 @@ export default function AdminView({
   const [auditNotes, setAuditNotes] = useState('Duly verified against Philippine SEC Non-Stock Corporate Standards. Identity and non-profit charter confirmed.');
   const [txModal, setTxModal] = useState({ show: false, step: 0, hash: '', type: '', addr: '' });
 
-  const loadOrganizations = async () => {
+  const loadOrganizations = async (arg) => {
+    const silent = Boolean(arg && typeof arg === 'object' && arg.silent === true);
     try {
-      setOrgLoading(true);
+      if (!silent) setOrgLoading(true);
       let token = await getAdminToken();
       let res = await fetch(`${API_URL}/api/admin/organizations`, {
         headers: { 'Authorization': `Bearer ${token}` }
@@ -1061,9 +1075,9 @@ export default function AdminView({
         setOrganizations(Array.isArray(data) ? data : []);
       }
     } catch (err) {
-      console.error('Error loading organizations:', err);
+      if (!silent) console.error('Error loading organizations:', err);
     } finally {
-      setOrgLoading(false);
+      if (!silent) setOrgLoading(false);
     }
   };
 
@@ -1330,6 +1344,31 @@ export default function AdminView({
     loadDisbursements();
     if (contract) loadModerators();
   }, [contract, walletAddress]);
+
+  // ── REAL-TIME LIVE SYNC ACROSS ALL ADMIN GOVERNANCE TABLES ──
+  useRealtimeSync(
+    ['organizations', 'profile'],
+    () => loadOrganizations({ silent: true }),
+    { debounceMs: 280 }
+  );
+
+  useRealtimeSync(
+    ['disbursements', 'campaigns'],
+    () => loadDisbursements({ silent: true }),
+    { debounceMs: 280 }
+  );
+
+  useRealtimeSync(
+    ['donations', 'manual_donations'],
+    () => loadFinancialLedger({ silent: true }),
+    { debounceMs: 280 }
+  );
+
+  useRealtimeSync(
+    ['audit', 'campaigns', 'donations', 'manual_donations', 'disbursements', 'organizations', 'announcements', 'maintenance', 'backups'],
+    () => loadAuditLogs(auditPageRef.current, { silent: true }),
+    { debounceMs: 400 }
+  );
 
   // Overall Financial Totals
   const totalRaisedEth = (campaigns || [])

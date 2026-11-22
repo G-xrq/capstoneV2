@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import SecCertificateModal from './SecCertificateModal';
 import VercelIcon from './VercelIcon';
 import { formatPhoneNumber } from '../utils/formatters';
+import { useRealtimeSync } from '../hooks/useRealtimeSync';
 import './NgoProfileModal.css';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
@@ -171,6 +172,12 @@ export default function NgoProfileModal({ orgId, orgData, onClose, onSelectCampa
       fetchProfile(orgId);
     }
   }, [orgId, orgData, fetchProfile]);
+
+  useRealtimeSync(
+    ['organizations', 'campaigns', 'donations', 'disbursements', 'profile'],
+    () => { if (orgId) fetchProfile(orgId); },
+    { enabled: Boolean(orgId), debounceMs: 300 }
+  );
 
   // Synchronize modal sidebar toggle with custom event and universal keyboard shortcuts
   useEffect(() => {
