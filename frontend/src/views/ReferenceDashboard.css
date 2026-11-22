@@ -6119,3 +6119,71 @@ textarea.deploy-field-input {
     border-bottom-color: #e4e4e7;
   }
 }
+
+/* Real DonorView CampaignCard Preview Stage inside Step 5 */
+.dc-pv-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 7px;
+  background: #0a0a0a;
+  border: 1px solid #262626;
+}
+
+[data-theme="light"] .dc-pv-toggle {
+  background: #ffffff;
+  border-color: #e4e4e7;
+}
+
+.dc-pv-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 24px;
+  padding: 0 9px;
+  border-radius: 5px;
+  border: none;
+  background: transparent;
+  color: #888888;
+  font-family: inherit;
+  font-size: 0.7rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 140ms ease, color 140ms ease;
+}
+
+.dc-pv-toggle-btn .material-symbols-outlined {
+  font-size: 14px;
+}
+
+.dc-pv-toggle-btn.is-active {
+  background: #ffffff;
+  color: #000000;
+  font-weight: 600;
+}
+
+[data-theme="light"] .dc-pv-toggle-btn {
+  color: #52525b;
+}
+
+[data-theme="light"] .dc-pv-toggle-btn.is-active {
+  background: #09090b;
+  color: #ffffff;
+}
+
+.dc-real-preview-stage {
+  pointer-events: none;
+  user-select: none;
+}
+
+.dc-real-preview-list {
+  margin: 0 !important;
+}
+
+.dc-real-preview-grid {
+  display: grid !important;
+  grid-template-columns: minmax(0, 390px) !important;
+  justify-content: center;
+  margin: 0 !important;
+}

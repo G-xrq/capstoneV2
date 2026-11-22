@@ -1122,6 +1122,7 @@ export default function OrganizationView({
   const [dragOverPhotoIdx, setDragOverPhotoIdx] = useState(null);
   const disasterFileInputRef = useRef(null);
   const [deployStep, setDeployStep] = useState(1);
+  const [previewViewMode, setPreviewViewMode] = useState('list');
 
   const moveDisasterImage = (fromIdx, toIdx) => {
     if (fromIdx === toIdx || fromIdx < 0 || toIdx < 0) return;
@@ -5101,93 +5102,100 @@ export default function OrganizationView({
                   {/* ── Step 5: Official Receiving Channels & Review ── */}
                   {deployStep === 5 && (
                     <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
-                      {/* Pre-Flight Operation Review — Live Donor Card Preview */}
-                      <div className="dc-preflight-panel">
-                        <div className="dc-preflight-head">
-                          <div className="dc-preflight-title-row">
-                            <span className="material-symbols-outlined">fact_check</span>
-                            <span>Pre-Flight Operation Review</span>
-                          </div>
-                          <span className="dc-preflight-badge">
-                            <span className="dc-live-dot" />
-                            <span>Live Donor Preview</span>
-                          </span>
-                        </div>
-
-                        <div className="dc-preflight-body">
-                          <div className="dc-donor-preview dc-donor-preview--wide">
-                            <div className="dc-dp-cover">
-                              {disasterImages && disasterImages.length > 0 ? (
-                                <img src={disasterImages[0]} alt="Campaign cover preview" className="dc-dp-img" />
-                              ) : (
-                                <div className="dc-dp-empty">
-                                  <span className="material-symbols-outlined">
-                                    {category === 'CD' ? 'volunteer_activism' : 'flood'}
-                                  </span>
-                                  <span>No cover photo attached</span>
-                                </div>
-                              )}
-                              <div className="dc-dp-badges">
-                                <span className="dc-dp-chip">
-                                  {category === 'CD' ? 'Community Aid' : 'Disaster Relief'}
+                      {/* Pre-Flight Operation Review — Real DonorView CampaignCard Preview */}
+                      {(() => {
+                        const targetPhpVal = Math.max(0, Math.round(Number(targetAmount || 0)));
+                        const resolvedLoc = [barangay, city, province].filter(Boolean).join(', ') || locationRegion || 'Philippines';
+                        const previewCamp = {
+                          id: 999999,
+                          title: title.trim() || 'Untitled Campaign',
+                          category: category || 'DR',
+                          description: description.trim() || 'No mission story added yet.',
+                          targetAmount: targetPhpVal / 170000,
+                          targetAmountPhp: targetPhpVal,
+                          target_amount_php: targetPhpVal,
+                          currentAmount: 0,
+                          currentAmountPhp: 0,
+                          current_amount_php: 0,
+                          isActive: true,
+                          orgName: orgDisplayName || currentUser?.name || 'Your Organization',
+                          orgAddress: walletAddress || currentUser?.wallet_address || '',
+                          locationRegion: resolvedLoc,
+                          location_region: resolvedLoc,
+                          urgency: urgency || 'STABLE (CHARITABLE AID)',
+                          targetDate: targetDate || '',
+                          target_date: targetDate || '',
+                          beneficiariesImpact: beneficiariesImpact || '',
+                          beneficiaries_impact: beneficiariesImpact || '',
+                          tags: Array.isArray(selectedTags) ? selectedTags : [],
+                          disasterImages: Array.isArray(disasterImages) ? disasterImages : [],
+                          imageUrl: Array.isArray(disasterImages) && disasterImages.length > 0 ? disasterImages[0] : '',
+                          gcashName,
+                          gcashNumber,
+                          gcashQrUrl,
+                          mayaName,
+                          mayaNumber,
+                          mayaQrUrl,
+                          bankQrUrl,
+                          donorCount: 0,
+                          railBreakdown: {
+                            gcash: { php: 0, count: 0 },
+                            maya: { php: 0, count: 0 },
+                            bank: { php: 0, count: 0 },
+                            eth: { php: 0, count: 0 }
+                          }
+                        };
+                        return (
+                          <div className="dc-preflight-panel">
+                            <div className="dc-preflight-head">
+                              <div className="dc-preflight-title-row">
+                                <span className="material-symbols-outlined">fact_check</span>
+                                <span>Pre-Flight Operation Review</span>
+                                <span className="dc-preflight-badge">
+                                  <span className="dc-live-dot" />
+                                  <span>Donor View</span>
                                 </span>
-                                {urgency && (
-                                  <span className={`dc-dp-chip${(urgency.includes('HIGH') || urgency.includes('CRITICAL')) ? ' is-crit' : (urgency.includes('MEDIUM') || urgency.includes('URGENT') || urgency.includes('REHAB')) ? ' is-urg' : ' is-std'}`}>
-                                    {(urgency.includes('HIGH') || urgency.includes('CRITICAL')) ? 'Critical' : (urgency.includes('MEDIUM') || urgency.includes('URGENT') || urgency.includes('REHAB')) ? 'Urgent' : 'Standard'}
-                                  </span>
-                                )}
+                              </div>
+
+                              <div className="dc-pv-toggle" role="group" aria-label="Preview layout">
+                                <button
+                                  type="button"
+                                  className={`dc-pv-toggle-btn${previewViewMode === 'list' ? ' is-active' : ''}`}
+                                  onClick={() => setPreviewViewMode('list')}
+                                >
+                                  <span className="material-symbols-outlined">view_agenda</span>
+                                  <span>List</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  className={`dc-pv-toggle-btn${previewViewMode === 'grid' ? ' is-active' : ''}`}
+                                  onClick={() => setPreviewViewMode('grid')}
+                                >
+                                  <span className="material-symbols-outlined">grid_view</span>
+                                  <span>Grid</span>
+                                </button>
                               </div>
                             </div>
 
-                            <div className="dc-dp-body">
-                              <div className="dc-dp-top-meta">
-                                <div className="dc-dp-org">
-                                  <span>{orgDisplayName || 'Your Organization'}</span>
-                                  <span className="material-symbols-outlined dc-dp-ver">verified</span>
-                                </div>
-                                <span className="dc-dp-photo-count">
-                                  {disasterImages.length} {disasterImages.length === 1 ? 'photo' : 'photos'}
-                                </span>
-                              </div>
-
-                              <div className={`dc-dp-title${title.trim() ? '' : ' is-muted'}`}>
-                                {title.trim() || 'Untitled Campaign'}
-                              </div>
-
-                              <div className="dc-dp-loc">
-                                <span className="material-symbols-outlined">location_on</span>
-                                <span>{[city, province].filter(Boolean).join(', ') || 'Location not pinned yet'}</span>
-                              </div>
-
-                              {(selectedTags.length > 0 || beneficiariesImpact.trim()) && (
-                                <div className="dc-dp-tags">
-                                  {selectedTags.slice(0, 4).map((t) => (
-                                    <span key={t} className="dc-dp-tag">{t}</span>
-                                  ))}
-                                  {selectedTags.length > 4 && (
-                                    <span className="dc-dp-tag">+{selectedTags.length - 4}</span>
-                                  )}
-                                  {beneficiariesImpact.trim() && (
-                                    <span className="dc-dp-tag">{beneficiariesImpact.trim()}</span>
-                                  )}
-                                </div>
-                              )}
-
-                              <div className="dc-dp-progress">
-                                <div className="dc-dp-nums">
-                                  <span className="dc-dp-raised">₱0 raised</span>
-                                  <span className="dc-dp-goal">of ₱{Math.round(Number(targetAmount || 0)).toLocaleString('en-US')}</span>
-                                </div>
-                                <div className="dc-dp-track"><div className="dc-dp-fill" /></div>
-                                <div className="dc-dp-foot">
-                                  <span>{targetDate ? `Due ${formatSelectedDeliveryDate(targetDate)}` : 'No due date set'}</span>
-                                  <span>0% funded</span>
+                            <div className="dc-preflight-body">
+                              <div className="dc-real-preview-stage" aria-label="Read-only preview of donor campaign card">
+                                <div className={previewViewMode === 'grid' ? 'campaigns-grid dc-real-preview-grid' : 'campaigns-list dc-real-preview-list'}>
+                                  <CampaignCard
+                                    camp={previewCamp}
+                                    contract={contract}
+                                    role={ROLES.DONOR}
+                                    walletAddress={walletAddress}
+                                    currentUser={currentUser}
+                                    interfaceMode={interfaceMode}
+                                    lowBandwidthMode={lowBandwidthMode}
+                                    language={language}
+                                  />
                                 </div>
                               </div>
                             </div>
                           </div>
-                        </div>
-                      </div>
+                        );
+                      })()}
 
                       {/* Section 3: Official Multi-Channel E-Wallet & Bank Settings */}
                       {(() => {
