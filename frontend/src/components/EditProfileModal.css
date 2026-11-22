@@ -5486,7 +5486,13 @@
   scrollbar-color: #2e2e2e transparent;
 }
 
-[data-theme="light"] .epm2-combo-menu {
+.epm2-combo-menu--portaled {
+  font-family: var(--font-sans, 'Inter', -apple-system, BlinkMacSystemFont, sans-serif);
+  box-sizing: border-box;
+}
+
+[data-theme="light"] .epm2-combo-menu,
+.epm2-combo-menu[data-theme="light"] {
   background: #ffffff;
   border-color: #e4e4e7;
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.12);

@@ -175,7 +175,7 @@ function validatePhMobile(raw, { required = false } = {}) {
   };
 }
 
-// ── Custom Searchable / Typeable Vercel Combobox Dropdown ──
+// ── Custom Searchable / Typeable Vercel Combobox Dropdown (Portaled — Zero Overflow Clipping) ──
 function SearchableLocationSelect({
   id,
   value,
@@ -188,7 +188,9 @@ function SearchableLocationSelect({
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [highlightIdx, setHighlightIdx] = useState(0);
+  const [menuPos, setMenuPos] = useState(null);
   const containerRef = useRef(null);
+  const menuRef = useRef(null);
   const inputRef = useRef(null);
 
   const selectedOption = options.find((opt) => opt.value === value) || null;
@@ -197,9 +199,42 @@ function SearchableLocationSelect({
     ? options.filter((opt) => opt.label.toLowerCase().includes(query.trim().toLowerCase()))
     : options;
 
+  const updateMenuPosition = () => {
+    if (!containerRef.current) return;
+    const rect = containerRef.current.getBoundingClientRect();
+    const spaceBelow = window.innerHeight - rect.bottom - 12;
+    const spaceAbove = rect.top - 12;
+    const preferredH = 224;
+    const openUpward = spaceBelow < 180 && spaceAbove > spaceBelow;
+    const maxHeight = Math.max(120, Math.min(preferredH, openUpward ? spaceAbove - 6 : spaceBelow - 6));
+    const themeAttr = containerRef.current.closest('[data-theme]')?.getAttribute('data-theme') || 'dark';
+    setMenuPos({
+      left: rect.left,
+      width: rect.width,
+      top: openUpward ? undefined : rect.bottom + 5,
+      bottom: openUpward ? window.innerHeight - rect.top + 5 : undefined,
+      maxHeight,
+      theme: themeAttr
+    });
+  };
+
+  useEffect(() => {
+    if (!open) return;
+    updateMenuPosition();
+    const handleReposition = () => updateMenuPosition();
+    window.addEventListener('resize', handleReposition);
+    window.addEventListener('scroll', handleReposition, true);
+    return () => {
+      window.removeEventListener('resize', handleReposition);
+      window.removeEventListener('scroll', handleReposition, true);
+    };
+  }, [open, filtered.length]);
+
   useEffect(() => {
     const handleOutside = (e) => {
-      if (containerRef.current && !containerRef.current.contains(e.target)) {
+      const inControl = containerRef.current && containerRef.current.contains(e.target);
+      const inMenu = menuRef.current && menuRef.current.contains(e.target);
+      if (!inControl && !inMenu) {
         setOpen(false);
         setQuery('');
       }
@@ -299,8 +334,23 @@ function SearchableLocationSelect({
         <span className="material-symbols-outlined epm2-combo-chev">expand_more</span>
       </div>
 
-      {open && !disabled && (
-        <div className="epm2-combo-menu" role="listbox">
+      {open && !disabled && menuPos && typeof document !== 'undefined' && createPortal(
+        <div
+          ref={menuRef}
+          className="epm2-combo-menu epm2-combo-menu--portaled"
+          data-theme={menuPos.theme}
+          role="listbox"
+          style={{
+            position: 'fixed',
+            left: `${menuPos.left}px`,
+            width: `${menuPos.width}px`,
+            top: menuPos.top !== undefined ? `${menuPos.top}px` : 'auto',
+            bottom: menuPos.bottom !== undefined ? `${menuPos.bottom}px` : 'auto',
+            maxHeight: `${menuPos.maxHeight}px`,
+            zIndex: 2147483647
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
           {filtered.length === 0 ? (
             <div className="epm2-combo-empty">{emptyMessage}</div>
           ) : (
@@ -328,7 +378,8 @@ function SearchableLocationSelect({
               );
             })
           )}
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
