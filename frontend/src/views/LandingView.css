@@ -412,17 +412,13 @@
 }
 
 [data-theme="light"] .bbdrts-btn-ghost {
-  color: #18181b;
-  background: #ececef;
-  border-color: #d4d4d8;
-  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, transform 0.15s ease;
+  color: #27272a;
+  background: transparent;
+  border-color: transparent;
 }
 
 [data-theme="light"] .bbdrts-btn-ghost:hover {
-  color: #09090b;
-  background: #e4e4e7;
-  border-color: #a1a1aa;
-  transform: translateY(-1px);
+  color: #000000;
 }
 
 /* ── Clean Vercel Hairline Stat Strip (Non-Overlapping Flex-Auto Layout) ── */
