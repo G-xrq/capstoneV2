@@ -108,7 +108,7 @@ const triggerCelebration = (cardEl) => {
 const DONOR_HIGHLIGHTS = [
   {
     icon: 'verified_user',
-    title: 'Direct Giving · 0% Platform Fees',
+    title: 'Direct Giving · Transparent Fees',
     desc: '100% of your PHP contribution goes straight to accredited relief drives with gasless Sepolia proof.'
   },
   {

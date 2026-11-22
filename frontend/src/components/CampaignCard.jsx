@@ -4847,7 +4847,7 @@ export default function CampaignCard(props) {
                     {/* Flush Recessed Security Footer */}
                     <div className="pp-footer">
                       <span className="material-symbols-outlined">lock</span>
-                      <span>256-Bit TLS Encrypted · 0% Platform Fee · Immutable Audit Trail</span>
+                      <span>256-Bit TLS Encrypted · 0% BBDRTS Markup · Immutable Audit Trail</span>
                     </div>
                   </div>
                 );
@@ -5147,9 +5147,15 @@ export default function CampaignCard(props) {
                               <span className="vc-summary-v">{isAnonymous ? 'Anonymous' : 'Public Ledger'}</span>
                             </div>
                             <div className="vc-summary-row">
-                              <span className="vc-summary-k">Platform fee</span>
+                              <span className="vc-summary-k">BBDRTS fee</span>
                               <span className="vc-summary-v free">₱0.00</span>
                             </div>
+                            {isInstant && (
+                              <div className="vc-summary-row">
+                                <span className="vc-summary-k">Gateway fee</span>
+                                <span className="vc-summary-v">Xendit standard</span>
+                              </div>
+                            )}
                             <div className="vc-summary-row">
                               <span className="vc-summary-k">Audit ledger</span>
                               <span className="vc-summary-v">Sepolia · Gasless</span>
@@ -5210,7 +5216,7 @@ export default function CampaignCard(props) {
                           </button>
                           <div className="vc-donate-micro">
                             <span className="material-symbols-outlined">lock</span>
-                            <span>100% goes directly to verified relief</span>
+                            <span>{isInstant ? '0% BBDRTS markup · Standard Xendit fee applies' : '0% BBDRTS markup · Direct to verified NGO'}</span>
                           </div>
                         </div>
                       </div>
@@ -5791,7 +5797,7 @@ export default function CampaignCard(props) {
                               Donation Amount (PHP)
                             </label>
                             <span style={{ fontSize: '0.72rem', color: '#10b981', fontWeight: 600 }}>
-                              0% Fee · Sepolia Audited
+                              0% BBDRTS Markup · Sepolia Audited
                             </span>
                           </div>
 
@@ -5851,7 +5857,7 @@ export default function CampaignCard(props) {
 
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', color: 'var(--text-muted, #94a3b8)', fontSize: '0.8rem' }}>
                           <span>Processing & Gas Fee:</span>
-                          <span style={{ color: '#22c55e', fontWeight: 600 }}>₱0.00 (Zero Non-Profit Fee)</span>
+                          <span style={{ color: '#22c55e', fontWeight: 600 }}>₱0.00 BBDRTS Fee (Gateway fees may apply)</span>
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '10px', borderTop: '1px solid var(--border, rgba(255,255,255,0.08))' }}>
                           <span style={{ fontSize: '0.84rem', fontWeight: 700, color: 'var(--text-primary, #fff)' }}>Total Settlement:</span>
@@ -6385,7 +6391,7 @@ export default function CampaignCard(props) {
 
                       <div className="pp-footer">
                         <span className="material-symbols-outlined">lock</span>
-                        <span>Gasless Sepolia Relayer · 0% Platform Fee · Immutable Audit Trail</span>
+                        <span>Gasless Sepolia Relayer · Xendit QR Ph · Immutable Audit Trail</span>
                       </div>
                     </div>
                   );
@@ -6952,7 +6958,7 @@ export default function CampaignCard(props) {
                           </span>
                           <span className="dt7-summary-sep" aria-hidden="true" />
                           <span className="dt7-summary-item">
-                            <span className="dt7-summary-k">Platform fee</span>
+                            <span className="dt7-summary-k">BBDRTS fee</span>
                             <strong className="dt7-summary-v dt7-free-val">₱0.00</strong>
                           </span>
                         </div>

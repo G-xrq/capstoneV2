@@ -974,8 +974,8 @@ export default function LandingView({
                 </div>
                 <div className="bbdrts-hero-stat-sep" />
                 <div className="bbdrts-hero-stat-item">
-                  <div className="bbdrts-hero-stat-val">0%</div>
-                  <div className="bbdrts-hero-stat-lbl">Platform Fee</div>
+                  <div className="bbdrts-hero-stat-val">100%</div>
+                  <div className="bbdrts-hero-stat-lbl">On-Chain Audited</div>
                 </div>
               </div>
             </div>
@@ -1429,7 +1429,7 @@ export default function LandingView({
                 <li>
                   <span className="material-symbols-outlined icon-success">check_circle</span>
                   <div>
-                    <strong>Checked NGOs &amp; Direct Aid:</strong> Verified organizations run approved drives with 0% platform fees and public spending limits tied to funds raised.
+                    <strong>Checked NGOs &amp; Direct Aid:</strong> Verified organizations run approved drives with 0% BBDRTS commission and public spending limits tied to funds raised.
                   </div>
                 </li>
                 <li>
@@ -1798,7 +1798,7 @@ export default function LandingView({
               </div>
               <h3 className="bbdrts-step-title">Pick How to Pay</h3>
               <p className="bbdrts-step-desc">
-                Donate easily in Philippine Pesos using GCash (QR Ph), Maya, Credit/Debit Cards, or Bank Transfer with 0% platform fees.
+                Donate easily in Philippine Pesos using GCash (QR Ph), Maya, Credit/Debit Cards, or Bank Transfer with 0% BBDRTS commission (standard payment gateway fees may apply).
               </p>
             </div>
 
@@ -1856,12 +1856,12 @@ export default function LandingView({
               </div>
               <h4 className="bbdrts-rail-title">Scan to Donate via QR Ph</h4>
               <p className="bbdrts-rail-desc">
-                Send from your GCash app using QR Ph and upload your slip for AI reference checks with 0% fees taken out.
+                Send from your GCash app using Instant QR Ph (via Xendit) or Direct NGO QR with fast AI reference verification.
               </p>
               <div className="bbdrts-rail-features">
                 <div className="bbdrts-rail-feature-item">
                   <span className="material-symbols-outlined check-icon">check_circle</span>
-                  <span>0% fees taken out</span>
+                  <span>0% BBDRTS markup</span>
                 </div>
                 <div className="bbdrts-rail-feature-item">
                   <span className="material-symbols-outlined check-icon">check_circle</span>
@@ -1891,7 +1891,7 @@ export default function LandingView({
               <div className="bbdrts-rail-features">
                 <div className="bbdrts-rail-feature-item">
                   <span className="material-symbols-outlined check-icon">check_circle</span>
-                  <span>0% fees taken out</span>
+                  <span>0% BBDRTS markup</span>
                 </div>
                 <div className="bbdrts-rail-feature-item">
                   <span className="material-symbols-outlined check-icon">check_circle</span>
@@ -2016,7 +2016,7 @@ export default function LandingView({
               </div>
               <h3 className="bbdrts-persona-title">Run Campaigns Without the Hassle</h3>
               <p className="bbdrts-persona-desc">
-                Submit your organization&apos;s papers once, start relief or charity drives with 0% fees, and share clear proof with your donors.
+                Submit your organization&apos;s papers once, start relief or charity drives with 0% BBDRTS commission, and share clear proof with your donors.
               </p>
               <div className="bbdrts-persona-actions">
                 <button
@@ -2127,7 +2127,7 @@ export default function LandingView({
               {openFaqIndex === 4 && (
                 <div className="bbdrts-faq-answer">
                   <p>
-                    <strong>Zero fees (0%).</strong> BBDRTS is a capstone project built at Saint Joseph College, College of Computer Studies, to make giving open and trustworthy. 100% of your donation goes to the verified campaign.
+                    <strong>0% BBDRTS platform commission.</strong> BBDRTS is a capstone project built at Saint Joseph College, College of Computer Studies, and sponsors Ethereum Sepolia gas fees. Standard third-party processing fees from Xendit (for Instant QR Ph) or your bank/e-wallet may apply depending on the payment method.
                   </p>
                 </div>
               )}

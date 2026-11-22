@@ -1760,7 +1760,7 @@ export default function AuthView({ onLoginSuccess, onBack, theme, onToggleTheme,
                         ? 'Register with SEC or DSWD credentials for admin approval before posting drives and logging spending reports.'
                         : 'Run approved campaigns, verify pending wallet slips, and upload itemized store receipts and delivery proof for donors.')
                     : (isRegistering
-                        ? 'Donate in Philippine Pesos via GCash, Maya, cards, or bank transfer—with gasless Sepolia blockchain records and 0% platform fees.'
+                        ? 'Donate in Philippine Pesos via Xendit QR Ph, GCash, Maya, cards, or bank transfer—with gasless Sepolia records and 0% BBDRTS commission.'
                         : 'Browse verified campaigns, give via GCash, Maya, cards, or bank transfer, and inspect gasless blockchain records alongside NGO spending proof.')}
                 </p>
               </div>
@@ -1771,7 +1771,7 @@ export default function AuthView({ onLoginSuccess, onBack, theme, onToggleTheme,
                   <span className="pulse-dot"></span>
                   <span>Sepolia Network Live</span>
                   <span className="pill-dot-sep">•</span>
-                  <span className="pill-subtext">0% Platform Fees</span>
+                  <span className="pill-subtext">Gasless On-Chain Proof</span>
                 </div>
 
                 <div className="brand-trust-labels">

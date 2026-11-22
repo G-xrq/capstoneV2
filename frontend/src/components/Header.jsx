@@ -500,7 +500,7 @@ export default function Header({
                       >
                         <span className="material-symbols-outlined">verified_user</span>
                         <div className="bbdrts-dropdown-action-text">
-                          <span className="bbdrts-dropdown-action-title">Payment Rails &amp; 0% Fee</span>
+                          <span className="bbdrts-dropdown-action-title">Payment Rails &amp; Fees</span>
                           <span className="bbdrts-dropdown-action-desc">GCash, Maya, Bank &amp; Card direct routing</span>
                         </div>
                       </button>
@@ -901,7 +901,7 @@ export default function Header({
                   </button>
                   <button type="button" className="bbdrts-mobile-nav-link" onClick={handleTransparencyClick}>
                     <span className="material-symbols-outlined">verified_user</span>
-                    <span>Payment Rails &amp; 0% Fee</span>
+                    <span>Payment Rails &amp; Fees</span>
                   </button>
                   <button type="button" className="bbdrts-mobile-nav-link" onClick={handleFaqClick}>
                     <span className="material-symbols-outlined">help</span>

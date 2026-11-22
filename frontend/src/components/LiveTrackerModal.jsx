@@ -795,7 +795,7 @@ export default function LiveTrackerModal({ isOpen, onClose, theme }) {
             <span>
               {isDocked
                 ? "Sepolia + TiDB Live"
-                : "0% Platform Fee · Direct Relief Escrow · Sepolia EVM"}
+                : "0% BBDRTS Markup · Gasless Sepolia EVM · Direct Relief"}
             </span>
           </div>
 

@@ -340,7 +340,7 @@ export default function TermsPolicyModal({ isOpen, onClose, initialTab = 'agreem
                   </p>
                   <ul className="vercel-legal-bullet-list">
                     <li>
-                      <strong>Direct Recipient Routing:</strong> Donations made via QR Ph, GCash, Maya, credit/debit card, or direct Philippine bank transfer go to the verified account of the accredited NGO with 0% platform fees.
+                      <strong>Direct Recipient Routing:</strong> Donations made via QR Ph (Xendit), GCash, Maya, credit/debit card, or direct Philippine bank transfer settle to the verified NGO with 0% BBDRTS platform commission (standard third-party Xendit or bank/e-wallet processing fees may apply).
                     </li>
                     <li>
                       <strong>Receipt Reference Deduplication:</strong> Every uploaded payment slip is parsed by our automated AI Vision OCR engine. Bank and e-wallet reference numbers are cryptographically hashed and deduplicated to prevent counterfeit or recycled slips.

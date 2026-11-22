@@ -128,9 +128,9 @@ export default function SmartContractModal({ isOpen, onClose, theme }) {
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', padding: '10px 14px', borderRadius: '10px', background: isLight ? '#f1f5f9' : 'rgba(255, 255, 255, 0.02)', border: isLight ? '1px solid rgba(0,0,0,0.05)' : '1px solid rgba(255,255,255,0.05)' }}>
               <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#22c55e', marginTop: '2px' }}>account_balance</span>
               <div>
-                <strong style={{ fontSize: '0.84rem', color: isLight ? '#0f172a' : '#ffffff' }}>0% Platform Fees:</strong>
+                <strong style={{ fontSize: '0.84rem', color: isLight ? '#0f172a' : '#ffffff' }}>0% BBDRTS Commission:</strong>
                 <span style={{ fontSize: '0.8rem', color: isLight ? '#64748b' : '#94a3b8', marginLeft: '6px' }}>
-                  100% of all received PHP donations (GCash, Maya, cards, and bank transfers) settle directly to verified NGO accounts with zero platform fees, anchored gaslessly on Ethereum Sepolia.
+                  BBDRTS takes 0% platform commission and sponsors Ethereum Sepolia gas fees. Standard third-party processing fees from Xendit (Instant QR Ph) or your bank/e-wallet may apply.
                 </span>
               </div>
             </div>

@@ -2394,7 +2394,7 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
 
                   <div className="rcp-ch-footer">
                     <span className="rcp-live-dot" />
-                    <span>0% Platform Fee · Gasless Sepolia Relay</span>
+                    <span>0% BBDRTS Markup · Gasless Sepolia Relay</span>
                   </div>
                 </div>
               </div>
