@@ -3914,18 +3914,18 @@ export default function OrganizationView({
             <div className="admin-page-header" id="tour-ngo-create-header">
               <div className="admin-page-title-wrap">
                 <h2 className="admin-page-title">
-                  <span className="material-symbols-outlined" style={{ fontSize: '24px', color: '#16a34a' }}>rocket_launch</span>
-                  <span>Deploy Campaign</span>
+                  <span className="material-symbols-outlined" style={{ fontSize: '22px', color: 'var(--text-primary)' }}>add_circle</span>
+                  <span>Create Campaign</span>
                 </h2>
                 <p className="admin-page-sub">
-                  Launch an accredited disaster relief campaign under your verified organization identity (<strong>{orgDisplayName || 'your organization'}</strong>).
+                  Set up a verified relief drive under <strong>{orgDisplayName || 'your organization'}</strong>.
                 </p>
               </div>
 
               <div className="admin-page-header-actions">
-                <span className="admin-header-badge" style={{ color: '#16a34a' }}>
-                  <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>verified</span>
-                  <span>Accredited Protocol</span>
+                <span className="deploy-verified-pill">
+                  <span className="deploy-verified-dot" />
+                  <span>Verified NGO</span>
                 </span>
                 {walletAddress && (
                   <span className="admin-header-badge">
@@ -3950,15 +3950,15 @@ export default function OrganizationView({
                 </div>
               </div>
             ) : (
-              <div className="card glow fade-in deploy-campaign-card">
-                {/* Interactive Multi-Step Stepper Bar */}
-                <div className="deploy-stepper-bar">
+              <div className="fade-in deploy-campaign-card">
+                {/* Flush 5-Step Underline Stepper Bar */}
+                <div className="deploy-stepper-bar" role="tablist" aria-label="Campaign creation steps">
                   {[
                     { num: 1, label: 'Overview' },
                     { num: 2, label: 'Story & Media' },
                     { num: 3, label: 'Relief Focus' },
                     { num: 4, label: 'Location' },
-                    { num: 5, label: 'Payment & Deploy' }
+                    { num: 5, label: 'Payout & Launch' }
                   ].map(st => {
                     const isActive = deployStep === st.num;
                     const isCompleted = deployStep > st.num;
@@ -3966,25 +3966,22 @@ export default function OrganizationView({
                       <button
                         key={st.num}
                         type="button"
+                        role="tab"
+                        aria-selected={isActive}
                         onClick={() => setDeployStep(st.num)}
-                        className={`deploy-step-indicator ${isActive ? 'active' : ''} ${isCompleted ? 'completed' : ''}`}
-                        title={`Click to jump to Step ${st.num}: ${st.label}`}
+                        className={`deploy-step-indicator${isActive ? ' active' : ''}${isCompleted ? ' completed' : ''}`}
+                        title={`Step ${st.num}: ${st.label}`}
                       >
                         <span className="deploy-step-indicator-num">
-                          {isCompleted ? <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>check</span> : `0${st.num}`}
+                          {isCompleted ? <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>check</span> : `0${st.num}`}
                         </span>
-                        <span>{st.label}</span>
+                        <span className="deploy-step-indicator-label">{st.label}</span>
                       </button>
                     );
                   })}
                 </div>
 
-                {/* Slim Progress Bar */}
-                <div className="deploy-wizard-progress-track">
-                  <div className="deploy-wizard-progress-bar" style={{ width: `${deployStep * 20}%` }} />
-                </div>
-
-                <form className="create-form" onSubmit={handleCreateCampaign} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                <form className="create-form deploy-wizard-form" onSubmit={handleCreateCampaign}>
                   {/* ── Step 1: Campaign Overview & Target ── */}
                   {deployStep === 1 && (
                     <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
@@ -4007,7 +4004,7 @@ export default function OrganizationView({
                           <span className="deploy-step-pill">Step 1 of 5</span>
                         </div>
 
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
+                        <div className="deploy-step1-grid">
                           {/* Campaign Title (Full Width) */}
                           <div style={{ gridColumn: '1 / -1' }}>
                             <label className="deploy-input-label">
@@ -4183,11 +4180,19 @@ export default function OrganizationView({
                                 }}
                               />
                             </div>
-                            {targetAmount && !isNaN(parseFloat(targetAmount)) && parseFloat(targetAmount) > 0 && (
-                              <div style={{ marginTop: '4px', fontSize: '0.74rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                <span>PHP Goal · Automatically tracked on Sepolia audit ledger</span>
-                              </div>
-                            )}
+                            <div className="deploy-quick-targets">
+                              {[25000, 50000, 100000, 250000, 500000].map((amt) => (
+                                <button
+                                  key={amt}
+                                  type="button"
+                                  className={`deploy-quick-target-btn${Number(targetAmount) === amt ? ' is-active' : ''}`}
+                                  onClick={() => !creating && setTargetAmount(String(amt))}
+                                  disabled={creating}
+                                >
+                                  ₱{amt >= 1000 ? `${amt / 1000}K` : amt}
+                                </button>
+                              ))}
+                            </div>
                           </div>
 
                           {/* SWAPPED INPUT ORDER: 1. Target Due Date * (Custom Web3 Calendar Popover) */}
@@ -6245,8 +6250,8 @@ export default function OrganizationView({
                             <><div className="spinner" /> Deploying Campaign to Ledger…</>
                           ) : (
                             <>
-                              <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>rocket_launch</span>
-                              <span>Deploy Relief Operation to Ledger</span>
+                              <span className="material-symbols-outlined" style={{ fontSize: '17px' }}>check_circle</span>
+                              <span>Launch Campaign</span>
                             </>
                           )}
                         </button>
