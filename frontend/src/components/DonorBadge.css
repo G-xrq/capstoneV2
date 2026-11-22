@@ -2803,3 +2803,1791 @@
   border-color: #262626 !important;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04) !important;
 }
+
+/* ============================================================
+   DONOR IMPACT & CERTIFICATE MODAL — VERCEL GEIST ARCHITECTURE
+   Obsidian Surfaces · 1px Hairlines · Museum-Grade Certificate
+   Full Dark & Light Mode Parity · Zero Nested Box Clutter
+   ============================================================ */
+
+.dic-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 999999;
+  background: rgba(0, 0, 0, 0.78);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+.dic-backdrop[data-theme="light"] {
+  background: rgba(9, 9, 11, 0.45);
+}
+
+.dic-modal {
+  width: 100% !important;
+  max-width: 780px !important;
+  height: min(820px, 90vh) !important;
+  max-height: 90vh !important;
+  padding: 0 !important;
+  background: #0a0a0a !important;
+  border: 1px solid #262626 !important;
+  border-radius: 14px !important;
+  box-shadow: 0 28px 72px rgba(0, 0, 0, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.05) !important;
+  display: flex !important;
+  flex-direction: column !important;
+  overflow: hidden !important;
+  color: #ededed;
+  font-family: var(--font-sans, 'Inter', system-ui, sans-serif);
+}
+
+.dic-modal[data-theme="light"] {
+  background: #ffffff !important;
+  border-color: #e4e4e7 !important;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.16) !important;
+  color: #09090b;
+}
+
+.dic-mono {
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+}
+
+.dic-live-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.18);
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+/* ── 1. Flush Header ── */
+.dic-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 16px 22px;
+  background: #060606;
+  border-bottom: 1px solid #1f1f1f;
+  flex-shrink: 0;
+}
+
+.dic-modal[data-theme="light"] .dic-header {
+  background: #fafafa;
+  border-bottom-color: #e4e4e7;
+}
+
+.dic-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.dic-header-emblem {
+  width: 36px;
+  height: 36px;
+  border-radius: 9px;
+  background: #0a0a0a;
+  border: 1px solid #262626;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.dic-modal[data-theme="light"] .dic-header-emblem {
+  background: #ffffff;
+  border-color: #e4e4e7;
+}
+
+.dic-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: #ffffff;
+  line-height: 1.25;
+}
+
+.dic-modal[data-theme="light"] .dic-title {
+  color: #09090b;
+}
+
+.dic-subtitle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
+  font-size: 0.73rem;
+  color: #71717a;
+}
+
+.dic-sub-sep {
+  opacity: 0.45;
+}
+
+.dic-close-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid #262626;
+  background: #0a0a0a;
+  color: #a1a1aa;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.14s ease, border-color 0.14s ease, color 0.14s ease;
+}
+
+.dic-close-btn .material-symbols-outlined {
+  font-size: 17px;
+}
+
+.dic-close-btn:hover {
+  background: #18181b;
+  border-color: #3f3f46;
+  color: #ffffff;
+}
+
+.dic-modal[data-theme="light"] .dic-close-btn {
+  background: #ffffff;
+  border-color: #e4e4e7;
+  color: #71717a;
+}
+
+.dic-modal[data-theme="light"] .dic-close-btn:hover {
+  background: #f4f4f5;
+  border-color: #a1a1aa;
+  color: #09090b;
+}
+
+/* ── 2. Flush Horizontal Underline Tab Rail ── */
+.dic-tab-rail {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 0 22px;
+  background: #0a0a0a;
+  border-bottom: 1px solid #1f1f1f;
+  flex-shrink: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.dic-tab-rail::-webkit-scrollbar {
+  display: none;
+}
+
+.dic-modal[data-theme="light"] .dic-tab-rail {
+  background: #ffffff;
+  border-bottom-color: #e4e4e7;
+}
+
+.dic-tab {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 44px;
+  padding: 0 2px;
+  border: none;
+  background: transparent;
+  color: #71717a;
+  font-size: 0.81rem;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color 0.14s ease;
+}
+
+.dic-tab .material-symbols-outlined {
+  font-size: 16px;
+}
+
+.dic-tab:hover {
+  color: #d4d4d8;
+}
+
+.dic-tab.is-active {
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.dic-tab.is-active::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 2px;
+  background: #ffffff;
+  border-radius: 2px 2px 0 0;
+}
+
+.dic-modal[data-theme="light"] .dic-tab:hover {
+  color: #27272a;
+}
+
+.dic-modal[data-theme="light"] .dic-tab.is-active {
+  color: #09090b;
+}
+
+.dic-modal[data-theme="light"] .dic-tab.is-active::after {
+  background: #09090b;
+}
+
+.dic-tab-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 18px;
+  padding: 0 6px;
+  border-radius: 9999px;
+  background: #161618;
+  border: 1px solid #262626;
+  color: #a1a1aa;
+  font-size: 0.67rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.dic-tab.is-active .dic-tab-count {
+  background: #1f1f23;
+  color: #ffffff;
+}
+
+.dic-modal[data-theme="light"] .dic-tab-count {
+  background: #f4f4f5;
+  border-color: #e4e4e7;
+  color: #52525b;
+}
+
+.dic-modal[data-theme="light"] .dic-tab.is-active .dic-tab-count {
+  background: #e4e4e7;
+  color: #09090b;
+}
+
+/* ── 3. Scrollable Body Stage ── */
+.dic-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 20px 22px 24px;
+}
+
+.dic-body::-webkit-scrollbar {
+  width: 6px;
+}
+
+.dic-body::-webkit-scrollbar-thumb {
+  background: #262626;
+  border-radius: 6px;
+}
+
+.dic-modal[data-theme="light"] .dic-body::-webkit-scrollbar-thumb {
+  background: #d4d4d8;
+}
+
+.dic-pane {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* ── TAB 1: Unboxed Identity & Standing Strip ── */
+.dic-identity-strip {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid #1f1f1f;
+}
+
+.dic-modal[data-theme="light"] .dic-identity-strip {
+  border-bottom-color: #e4e4e7;
+}
+
+.dic-identity-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.dic-identity-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
+.dic-identity-medallion {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: #060606;
+  border: 1px solid #262626;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.dic-modal[data-theme="light"] .dic-identity-medallion {
+  background: #fafafa;
+  border-color: #e4e4e7;
+}
+
+.dic-identity-name-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dic-donor-name {
+  margin: 0;
+  font-size: 1.35rem;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  color: #ffffff;
+  line-height: 1.2;
+}
+
+.dic-modal[data-theme="light"] .dic-donor-name {
+  color: #09090b;
+}
+
+.dic-verified-icon {
+  display: inline-flex;
+  align-items: center;
+  color: #10b981;
+}
+
+.dic-verified-icon .material-symbols-outlined {
+  font-size: 18px;
+}
+
+.dic-standing-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+.dic-standing-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 9px;
+  border-radius: 9999px;
+  background: #111113;
+  border: 1px solid #262626;
+  color: #ededed;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.dic-modal[data-theme="light"] .dic-standing-pill {
+  background: #f4f4f5;
+  border-color: #e4e4e7;
+  color: #18181b;
+}
+
+.dic-standing-sub {
+  font-size: 0.74rem;
+  color: #71717a;
+}
+
+.dic-identity-total {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+.dic-total-val {
+  font-size: 1.65rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: #ffffff;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.dic-modal[data-theme="light"] .dic-total-val {
+  color: #09090b;
+}
+
+.dic-total-lbl {
+  font-size: 0.72rem;
+  color: #71717a;
+}
+
+.dic-dedication-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  background: #060606;
+  border: 1px solid #1f1f1f;
+  font-size: 0.76rem;
+  font-style: italic;
+  color: #d4d4d8;
+}
+
+.dic-dedication-line .material-symbols-outlined {
+  font-size: 14px;
+  color: #10b981;
+}
+
+.dic-modal[data-theme="light"] .dic-dedication-line {
+  background: #fafafa;
+  border-color: #e4e4e7;
+  color: #3f3f46;
+}
+
+.dic-standing-desc {
+  margin: 0;
+  font-size: 0.8rem;
+  color: #a1a1aa;
+  line-height: 1.5;
+}
+
+.dic-modal[data-theme="light"] .dic-standing-desc {
+  color: #52525b;
+}
+
+/* 4-Column Hairline KPI Band */
+.dic-kpi-band {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  padding: 12px 0;
+  border-top: 1px solid #1f1f1f;
+  border-bottom: 1px solid #1f1f1f;
+}
+
+.dic-modal[data-theme="light"] .dic-kpi-band {
+  border-top-color: #e4e4e7;
+  border-bottom-color: #e4e4e7;
+}
+
+.dic-kpi-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 0 14px;
+  border-left: 1px solid #1f1f1f;
+}
+
+.dic-modal[data-theme="light"] .dic-kpi-cell {
+  border-left-color: #e4e4e7;
+}
+
+.dic-kpi-cell:first-child {
+  padding-left: 0;
+  border-left: none;
+}
+
+.dic-kpi-cell:last-child {
+  padding-right: 0;
+}
+
+.dic-kpi-val {
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: #ffffff;
+  font-variant-numeric: tabular-nums;
+}
+
+.dic-modal[data-theme="light"] .dic-kpi-val {
+  color: #09090b;
+}
+
+.dic-kpi-lbl {
+  font-size: 0.7rem;
+  color: #71717a;
+}
+
+/* Inline Next-Tier Progress */
+.dic-milestone-inline {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.dic-milestone-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: 0.75rem;
+  color: #d4d4d8;
+}
+
+.dic-modal[data-theme="light"] .dic-milestone-row {
+  color: #27272a;
+}
+
+.dic-milestone-left strong {
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.dic-modal[data-theme="light"] .dic-milestone-left strong {
+  color: #09090b;
+}
+
+.dic-milestone-muted {
+  color: #71717a;
+  font-variant-numeric: tabular-nums;
+}
+
+.dic-milestone-right {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dic-milestone-pct {
+  color: #10b981;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.dic-progress-track {
+  width: 100%;
+  height: 4px;
+  border-radius: 9999px;
+  background: #1a1a1d;
+  overflow: hidden;
+}
+
+.dic-modal[data-theme="light"] .dic-progress-track {
+  background: #e4e4e7;
+}
+
+.dic-progress-fill {
+  height: 100%;
+  border-radius: 9999px;
+  background: linear-gradient(90deg, #0d9488 0%, #10b981 100%);
+  transition: width 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ── Official Museum-Grade Certificate ── */
+.dic-cert-shell {
+  background: #060606 !important;
+  border: 1px solid #262626 !important;
+  border-radius: 14px !important;
+  padding: 0 !important;
+  margin-bottom: 0 !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04) !important;
+  overflow: hidden;
+}
+
+.dic-modal[data-theme="light"] .dic-cert-shell {
+  background: #fafafa !important;
+  border-color: #e4e4e7 !important;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.04) !important;
+}
+
+.dic-cert-document {
+  position: relative;
+  margin: 12px;
+  padding: 26px 28px 22px !important;
+  background: radial-gradient(circle at 50% 0%, rgba(16, 185, 129, 0.06) 0%, #000000 58%) !important;
+  border: 1px solid #242428 !important;
+  border-radius: 10px !important;
+  text-align: center;
+}
+
+.dic-modal[data-theme="light"] .dic-cert-document {
+  background: radial-gradient(circle at 50% 0%, rgba(16, 185, 129, 0.05) 0%, #ffffff 55%) !important;
+  border-color: #e4e4e7 !important;
+}
+
+/* Subtle Architectural Corner Marks */
+.dic-corner {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  pointer-events: none;
+  border-color: #3f3f46;
+  border-style: solid;
+}
+
+.dic-modal[data-theme="light"] .dic-corner {
+  border-color: #d4d4d8;
+}
+
+.dic-corner--tl { top: 10px; left: 10px; border-width: 1px 0 0 1px; }
+.dic-corner--tr { top: 10px; right: 10px; border-width: 1px 1px 0 0; }
+.dic-corner--bl { bottom: 10px; left: 10px; border-width: 0 0 1px 1px; }
+.dic-corner--br { bottom: 10px; right: 10px; border-width: 0 1px 1px 0; }
+
+.dic-cert-top {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.dic-cert-seal-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 9999px;
+  background: #0a0a0a;
+  border: 1px solid #262626;
+  color: #a1a1aa;
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+}
+
+.dic-cert-seal-pill .material-symbols-outlined {
+  font-size: 13px;
+  color: #10b981;
+}
+
+.dic-modal[data-theme="light"] .dic-cert-seal-pill {
+  background: #fafafa;
+  border-color: #e4e4e7;
+  color: #52525b;
+}
+
+.dic-cert-org {
+  font-size: 0.64rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  color: #71717a;
+  margin-top: 2px;
+}
+
+.dic-cert-heading {
+  margin: 4px 0 0;
+  font-size: 1.32rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #ffffff;
+}
+
+.dic-modal[data-theme="light"] .dic-cert-heading {
+  color: #09090b;
+}
+
+.dic-cert-rule {
+  width: 48px;
+  height: 1px;
+  background: #3f3f46;
+  margin: 6px auto 14px;
+}
+
+.dic-modal[data-theme="light"] .dic-cert-rule {
+  background: #d4d4d8;
+}
+
+.dic-cert-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.dic-cert-presented {
+  margin: 0 0 6px;
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  color: #71717a;
+}
+
+.dic-cert-recipient {
+  margin: 0 0 12px;
+  padding: 0 28px 6px;
+  font-size: 1.75rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: #ffffff;
+  border-bottom: 1px solid #3f3f46;
+  min-width: 220px;
+}
+
+.dic-modal[data-theme="light"] .dic-cert-recipient {
+  color: #09090b;
+  border-bottom-color: #d4d4d8;
+}
+
+.dic-cert-citation {
+  margin: 0 auto 16px;
+  max-width: 510px;
+  font-size: 0.78rem;
+  line-height: 1.55;
+  color: #a1a1aa;
+}
+
+.dic-modal[data-theme="light"] .dic-cert-citation {
+  color: #52525b;
+}
+
+.dic-cert-merit-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 14px 7px 9px;
+  border-radius: 9999px;
+  background: #0a0a0a;
+  border: 1px solid #262626;
+  margin-bottom: 18px;
+}
+
+.dic-modal[data-theme="light"] .dic-cert-merit-pill {
+  background: #fafafa;
+  border-color: #e4e4e7;
+}
+
+.dic-cert-merit-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dic-cert-merit-copy {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+}
+
+.dic-cert-merit-tier {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.dic-modal[data-theme="light"] .dic-cert-merit-tier {
+  color: #09090b;
+}
+
+.dic-cert-merit-amt {
+  font-size: 0.69rem;
+  color: #888888;
+  font-variant-numeric: tabular-nums;
+}
+
+.dic-cert-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  padding-top: 14px;
+  border-top: 1px solid #1f1f1f;
+  text-align: left;
+}
+
+.dic-modal[data-theme="light"] .dic-cert-meta-grid {
+  border-top-color: #e4e4e7;
+}
+
+.dic-cert-meta-col {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.dic-cert-meta-col--center {
+  text-align: center;
+  align-items: center;
+}
+
+.dic-cert-meta-col--right {
+  text-align: right;
+  align-items: flex-end;
+}
+
+.dic-cert-meta-k {
+  font-size: 0.59rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: #71717a;
+}
+
+.dic-cert-meta-v {
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: #d4d4d8;
+}
+
+.dic-modal[data-theme="light"] .dic-cert-meta-v {
+  color: #27272a;
+}
+
+.dic-cert-meta-v--ok {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dic-cert-hash-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.72rem;
+  color: #ededed;
+  text-decoration: none;
+}
+
+.dic-cert-hash-link .material-symbols-outlined {
+  font-size: 12px;
+  color: #71717a;
+}
+
+.dic-cert-hash-link:hover {
+  text-decoration: underline;
+}
+
+.dic-modal[data-theme="light"] .dic-cert-hash-link {
+  color: #09090b;
+}
+
+/* Certificate Action Bar */
+.dic-cert-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 12px 14px !important;
+  border-top: 1px solid #1f1f1f;
+  background: #060606;
+  flex-wrap: wrap;
+}
+
+.dic-modal[data-theme="light"] .dic-cert-actions {
+  background: #fafafa;
+  border-top-color: #e4e4e7;
+}
+
+/* Unified Monochrome Buttons */
+.dic-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 14px;
+  border-radius: 8px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.14s ease, border-color 0.14s ease, color 0.14s ease;
+}
+
+.dic-btn .material-symbols-outlined {
+  font-size: 15px;
+}
+
+.dic-btn--sm {
+  height: 31px;
+  padding: 0 13px;
+  font-size: 0.76rem;
+}
+
+.dic-btn--primary {
+  background: #ffffff;
+  color: #000000;
+  border: 1px solid #ffffff;
+}
+
+.dic-btn--primary:hover {
+  background: #e4e4e7;
+  border-color: #e4e4e7;
+}
+
+.dic-modal[data-theme="light"] .dic-btn--primary {
+  background: #09090b;
+  color: #ffffff;
+  border-color: #09090b;
+}
+
+.dic-modal[data-theme="light"] .dic-btn--primary:hover {
+  background: #27272a;
+  border-color: #27272a;
+}
+
+.dic-btn--secondary {
+  background: #0a0a0a;
+  color: #ededed;
+  border: 1px solid #262626;
+  font-weight: 500;
+}
+
+.dic-btn--secondary:hover {
+  background: #161618;
+  border-color: #3f3f46;
+  color: #ffffff;
+}
+
+.dic-modal[data-theme="light"] .dic-btn--secondary {
+  background: #ffffff;
+  color: #18181b;
+  border-color: #e4e4e7;
+}
+
+.dic-modal[data-theme="light"] .dic-btn--secondary:hover {
+  background: #f4f4f5;
+  border-color: #a1a1aa;
+}
+
+.dic-btn--ghost {
+  margin-left: auto;
+  background: transparent;
+  border: 1px solid transparent;
+  color: #a1a1aa;
+  font-weight: 500;
+  padding: 0 10px;
+}
+
+.dic-btn--ghost:hover {
+  color: #ffffff;
+  background: #141416;
+}
+
+.dic-modal[data-theme="light"] .dic-btn--ghost {
+  color: #52525b;
+}
+
+.dic-modal[data-theme="light"] .dic-btn--ghost:hover {
+  color: #09090b;
+  background: #f4f4f5;
+}
+
+/* ── TAB 2: Institutional Complete Ledger ── */
+.dic-ledger-topbar {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.dic-section-title {
+  margin: 0;
+  font-size: 0.96rem;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  color: #ffffff;
+}
+
+.dic-modal[data-theme="light"] .dic-section-title {
+  color: #09090b;
+}
+
+.dic-section-sub {
+  margin: 3px 0 0;
+  font-size: 0.75rem;
+  color: #71717a;
+}
+
+.dic-section-sub strong {
+  color: #d4d4d8;
+}
+
+.dic-modal[data-theme="light"] .dic-section-sub strong {
+  color: #18181b;
+}
+
+/* Monochrome Segmented Rail Filter */
+.dic-rail-seg {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 9px;
+  background: #060606;
+  border: 1px solid #262626;
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.dic-modal[data-theme="light"] .dic-rail-seg {
+  background: #f4f4f5;
+  border-color: #e4e4e7;
+}
+
+.dic-rail-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 10px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #888888;
+  font-size: 0.74rem;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.14s ease, color 0.14s ease;
+}
+
+.dic-rail-btn:hover:not(.is-active) {
+  color: #ededed;
+  background: #141416;
+}
+
+.dic-rail-btn.is-active {
+  background: #ffffff;
+  color: #000000;
+  font-weight: 600;
+}
+
+.dic-modal[data-theme="light"] .dic-rail-btn {
+  color: #52525b;
+}
+
+.dic-modal[data-theme="light"] .dic-rail-btn:hover:not(.is-active) {
+  color: #09090b;
+  background: #e4e4e7;
+}
+
+.dic-modal[data-theme="light"] .dic-rail-btn.is-active {
+  background: #09090b;
+  color: #ffffff;
+}
+
+.dic-rail-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.dic-rail-count {
+  font-size: 0.67rem;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.75;
+}
+
+/* Unified Hairline Ledger Panel */
+.dic-ledger-panel {
+  border-radius: 12px;
+  border: 1px solid #262626;
+  background: #060606;
+  overflow: hidden;
+}
+
+.dic-modal[data-theme="light"] .dic-ledger-panel {
+  background: #ffffff;
+  border-color: #e4e4e7;
+}
+
+.dic-ledger-list-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 9px 16px;
+  background: #0a0a0a;
+  border-bottom: 1px solid #1f1f1f;
+  font-size: 0.64rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: #71717a;
+}
+
+.dic-modal[data-theme="light"] .dic-ledger-list-head {
+  background: #fafafa;
+  border-bottom-color: #e4e4e7;
+}
+
+.dic-ledger-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 12px 16px;
+  border-bottom: 1px solid #18181b;
+  transition: background 0.14s ease;
+}
+
+.dic-ledger-row:last-of-type {
+  border-bottom: none;
+}
+
+.dic-ledger-row:hover {
+  background: #0e0e10;
+}
+
+.dic-modal[data-theme="light"] .dic-ledger-row {
+  border-bottom-color: #f4f4f5;
+}
+
+.dic-modal[data-theme="light"] .dic-ledger-row:hover {
+  background: #fafafa;
+}
+
+.dic-ledger-row-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  flex: 1;
+}
+
+.dic-ledger-icon-well {
+  position: relative;
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  background: #0a0a0a;
+  border: 1px solid #262626;
+  color: #a1a1aa;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.dic-ledger-icon-well .material-symbols-outlined {
+  font-size: 16px;
+}
+
+.dic-modal[data-theme="light"] .dic-ledger-icon-well {
+  background: #fafafa;
+  border-color: #e4e4e7;
+  color: #52525b;
+}
+
+.dic-ledger-icon-dot {
+  position: absolute;
+  bottom: -2px;
+  right: -2px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 2px solid #060606;
+}
+
+.dic-modal[data-theme="light"] .dic-ledger-icon-dot {
+  border-color: #ffffff;
+}
+
+.dic-ledger-info {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.dic-ledger-camp {
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: #ffffff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dic-modal[data-theme="light"] .dic-ledger-camp {
+  color: #09090b;
+}
+
+.dic-ledger-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  font-size: 0.72rem;
+  color: #71717a;
+}
+
+.dic-ledger-channel {
+  color: #a1a1aa;
+  font-weight: 500;
+}
+
+.dic-modal[data-theme="light"] .dic-ledger-channel {
+  color: #3f3f46;
+}
+
+.dic-ledger-hash-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 2px;
+}
+
+.dic-hash-link,
+.dic-hash-verified {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.69rem;
+  color: #a1a1aa;
+  text-decoration: none;
+}
+
+.dic-hash-link .material-symbols-outlined,
+.dic-hash-verified .material-symbols-outlined {
+  font-size: 12px;
+  color: #10b981;
+}
+
+.dic-hash-link:hover {
+  color: #ffffff;
+  text-decoration: underline;
+}
+
+.dic-modal[data-theme="light"] .dic-hash-link {
+  color: #52525b;
+}
+
+.dic-modal[data-theme="light"] .dic-hash-link:hover {
+  color: #09090b;
+}
+
+.dic-hash-copy {
+  background: transparent;
+  border: none;
+  padding: 2px;
+  color: #71717a;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  border-radius: 4px;
+}
+
+.dic-hash-copy .material-symbols-outlined {
+  font-size: 13px;
+}
+
+.dic-hash-copy:hover {
+  color: #ffffff;
+}
+
+.dic-modal[data-theme="light"] .dic-hash-copy:hover {
+  color: #09090b;
+}
+
+.dic-ledger-amt {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.dic-ledger-php {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: #ffffff;
+  font-variant-numeric: tabular-nums;
+}
+
+.dic-modal[data-theme="light"] .dic-ledger-php {
+  color: #09090b;
+}
+
+.dic-ledger-verified-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.66rem;
+  color: #71717a;
+}
+
+/* Ledger Skeleton & Empty */
+.dic-ledger-skel-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 16px;
+  border-bottom: 1px solid #18181b;
+}
+
+.dic-skel {
+  border-radius: 6px;
+  background: linear-gradient(90deg, #121214 25%, #1d1d20 50%, #121214 75%);
+  background-size: 200% 100%;
+  animation: donorShimmer 1.4s infinite;
+}
+
+.dic-modal[data-theme="light"] .dic-skel {
+  background: linear-gradient(90deg, #f4f4f5 25%, #e4e4e7 50%, #f4f4f5 75%);
+  background-size: 200% 100%;
+}
+
+.dic-skel--icon { width: 34px; height: 34px; flex-shrink: 0; }
+.dic-skel-col { flex: 1; display: flex; flex-direction: column; gap: 6px; }
+.dic-skel--title { width: 56%; height: 13px; }
+.dic-skel--sub { width: 38%; height: 10px; }
+.dic-skel--amt { width: 68px; height: 16px; }
+
+.dic-empty-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 6px;
+  padding: 44px 20px;
+  border-radius: 12px;
+  border: 1px dashed #262626;
+  background: #060606;
+  color: #71717a;
+}
+
+.dic-modal[data-theme="light"] .dic-empty-box {
+  background: #fafafa;
+  border-color: #d4d4d8;
+}
+
+.dic-empty-title {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #ededed;
+}
+
+.dic-modal[data-theme="light"] .dic-empty-title {
+  color: #09090b;
+}
+
+.dic-empty-sub {
+  font-size: 0.76rem;
+}
+
+/* Ledger Pagination Footer */
+.dic-ledger-pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 16px;
+  background: #0a0a0a;
+  border-top: 1px solid #1f1f1f;
+}
+
+.dic-modal[data-theme="light"] .dic-ledger-pager {
+  background: #fafafa;
+  border-top-color: #e4e4e7;
+}
+
+.dic-pager-info {
+  font-size: 0.72rem;
+  color: #71717a;
+  font-variant-numeric: tabular-nums;
+}
+
+.dic-pager-info strong {
+  color: #ffffff;
+}
+
+.dic-modal[data-theme="light"] .dic-pager-info strong {
+  color: #09090b;
+}
+
+.dic-pager-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dic-pager-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  height: 28px;
+  padding: 0 9px;
+  border-radius: 6px;
+  border: 1px solid #262626;
+  background: #060606;
+  color: #d4d4d8;
+  font-size: 0.72rem;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.dic-pager-btn .material-symbols-outlined {
+  font-size: 15px;
+}
+
+.dic-pager-btn:hover:not(:disabled) {
+  background: #161618;
+  border-color: #3f3f46;
+  color: #ffffff;
+}
+
+.dic-pager-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.dic-modal[data-theme="light"] .dic-pager-btn {
+  background: #ffffff;
+  border-color: #e4e4e7;
+  color: #27272a;
+}
+
+.dic-modal[data-theme="light"] .dic-pager-btn:hover:not(:disabled) {
+  background: #f4f4f5;
+  color: #09090b;
+}
+
+.dic-pager-page {
+  font-size: 0.72rem;
+  color: #71717a;
+  padding: 0 6px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── TAB 3: Clean 2-Column 15-Tier Recognition Grid (Zero Duplicate Icons) ── */
+.dic-tiers-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #1f1f1f;
+}
+
+.dic-modal[data-theme="light"] .dic-tiers-summary {
+  border-bottom-color: #e4e4e7;
+}
+
+.dic-tiers-summary-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.dic-tiers-progress-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  background: #060606;
+  border: 1px solid #262626;
+  font-size: 0.73rem;
+  color: #a1a1aa;
+  font-variant-numeric: tabular-nums;
+}
+
+.dic-tiers-progress-pill strong {
+  color: #ffffff;
+}
+
+.dic-modal[data-theme="light"] .dic-tiers-progress-pill {
+  background: #fafafa;
+  border-color: #e4e4e7;
+  color: #52525b;
+}
+
+.dic-modal[data-theme="light"] .dic-tiers-progress-pill strong {
+  color: #09090b;
+}
+
+.dic-tiers-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.dic-tier-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 14px;
+  border-radius: 11px;
+  background: #060606;
+  border: 1px solid #1f1f1f;
+  transition: border-color 0.14s ease, background 0.14s ease;
+}
+
+.dic-modal[data-theme="light"] .dic-tier-card {
+  background: #fafafa;
+  border-color: #e4e4e7;
+}
+
+.dic-tier-card.is-current {
+  background: #111113;
+  border-color: #52525b;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.dic-modal[data-theme="light"] .dic-tier-card.is-current {
+  background: #ffffff;
+  border-color: #09090b;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+}
+
+.dic-tier-card.is-locked {
+  opacity: 0.6;
+}
+
+.dic-tier-card-top {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+}
+
+.dic-tier-medallion {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #0a0a0a;
+  border: 1px solid #262626;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.dic-modal[data-theme="light"] .dic-tier-medallion {
+  background: #ffffff;
+  border-color: #e4e4e7;
+}
+
+.dic-tier-head-copy {
+  flex: 1;
+  min-width: 0;
+}
+
+.dic-tier-rank-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.dic-tier-index {
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: #71717a;
+}
+
+.dic-tier-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.64rem;
+  font-weight: 600;
+}
+
+.dic-tier-status--current {
+  padding: 1px 7px;
+  border-radius: 9999px;
+  background: #18181b;
+  border: 1px solid #3f3f46;
+  color: #ffffff;
+}
+
+.dic-modal[data-theme="light"] .dic-tier-status--current {
+  background: #09090b;
+  border-color: #09090b;
+  color: #ffffff;
+}
+
+.dic-tier-status--unlocked {
+  color: #10b981;
+}
+
+.dic-tier-status--unlocked .material-symbols-outlined {
+  font-size: 13px;
+}
+
+.dic-tier-status--locked {
+  color: #52525b;
+}
+
+.dic-tier-status--locked .material-symbols-outlined {
+  font-size: 13px;
+}
+
+.dic-tier-name {
+  margin-top: 2px;
+  font-size: 0.88rem;
+  font-weight: 650;
+  color: #ffffff;
+  line-height: 1.25;
+}
+
+.dic-modal[data-theme="light"] .dic-tier-name {
+  color: #09090b;
+}
+
+.dic-tier-sub {
+  font-size: 0.71rem;
+  color: #71717a;
+  margin-top: 1px;
+}
+
+.dic-tier-desc {
+  margin: 0;
+  font-size: 0.73rem;
+  line-height: 1.45;
+  color: #a1a1aa;
+}
+
+.dic-modal[data-theme="light"] .dic-tier-desc {
+  color: #52525b;
+}
+
+.dic-tier-footer {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding-top: 8px;
+  border-top: 1px solid #18181b;
+}
+
+.dic-modal[data-theme="light"] .dic-tier-footer {
+  border-top-color: #e4e4e7;
+}
+
+.dic-tier-threshold {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #ededed;
+  font-variant-numeric: tabular-nums;
+}
+
+.dic-modal[data-theme="light"] .dic-tier-threshold {
+  color: #09090b;
+}
+
+.dic-tier-threshold-lbl {
+  font-size: 0.66rem;
+  color: #71717a;
+}
+
+/* ── 4. Flush Recessed Modal Footer ── */
+.dic-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 22px;
+  background: #060606;
+  border-top: 1px solid #1f1f1f;
+  flex-shrink: 0;
+}
+
+.dic-modal[data-theme="light"] .dic-footer {
+  background: #fafafa;
+  border-top-color: #e4e4e7;
+}
+
+.dic-footer-left {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.72rem;
+  color: #71717a;
+}
+
+/* ── Responsive Adjustments ── */
+@media (max-width: 680px) {
+  .dic-backdrop {
+    padding: 10px;
+  }
+
+  .dic-modal {
+    height: 92vh !important;
+    max-height: 92vh !important;
+  }
+
+  .dic-header,
+  .dic-tab-rail,
+  .dic-body,
+  .dic-footer {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .dic-identity-total {
+    align-items: flex-start;
+  }
+
+  .dic-kpi-band {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px 0;
+  }
+
+  .dic-kpi-cell:nth-child(odd) {
+    padding-left: 0;
+    border-left: none;
+  }
+
+  .dic-cert-document {
+    margin: 8px;
+    padding: 20px 16px 18px !important;
+  }
+
+  .dic-cert-recipient {
+    font-size: 1.4rem;
+    min-width: 0;
+  }
+
+  .dic-cert-meta-grid {
+    grid-template-columns: 1fr;
+    text-align: left;
+  }
+
+  .dic-cert-meta-col--center,
+  .dic-cert-meta-col--right {
+    text-align: left;
+    align-items: flex-start;
+  }
+
+  .dic-tiers-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .dic-btn--ghost {
+    margin-left: 0;
+  }
+}
+
+/* Print Stylesheet Preservation for Certificate */
+@media print {
+  .dic-cert-document {
+    background: #ffffff !important;
+    border: 1.5px solid #18181b !important;
+    color: #000000 !important;
+  }
+  .dic-cert-heading,
+  .dic-cert-recipient,
+  .dic-cert-merit-tier,
+  .dic-cert-meta-v {
+    color: #000000 !important;
+  }
+  .dic-cert-actions,
+  .dic-header,
+  .dic-tab-rail,
+  .dic-footer,
+  .dic-identity-strip {
+    display: none !important;
+  }
+}

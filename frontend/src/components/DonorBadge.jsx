@@ -1029,7 +1029,7 @@ export function DonorTierModal({
   const [ledgerFilter, setLedgerFilter] = useState('ALL');
   const [railLoading, setRailLoading] = useState(false);
   const [ledgerPage, setLedgerPage] = useState(1);
-  const LEDGER_PAGE_SIZE = 4;
+  const LEDGER_PAGE_SIZE = 6;
   const railTimerRef = useRef(null);
 
   useEffect(() => {
@@ -1189,581 +1189,569 @@ export function DonorTierModal({
     setTimeout(() => setCopiedProof(false), 3000);
   };
 
+  const unlockedTierCount = DONOR_TIERS.filter(t => totalPhp >= t.minPhp).length;
+  const activeTierNum = activeTier?.tierNumber || 0;
+  const certSerial = `BBDRTS-${String(activeTierNum || 1).padStart(2, '0')}-${String(effectiveDonations || 1).padStart(4, '0')}`;
+  const issuedDateStr = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+
   return typeof document !== 'undefined' ? createPortal(
-    <div className="donor-modal-backdrop" data-theme={currentTheme} onClick={onClose}>
+    <div className="donor-modal-backdrop dic-backdrop" data-theme={currentTheme} onClick={onClose}>
       <div
-        className={`donor-modal-card fade-in theme-${currentTheme}`}
+        className={`donor-modal-card dic-modal fade-in theme-${currentTheme}`}
         data-theme={currentTheme}
         onClick={(e) => e.stopPropagation()}
-        style={{
-          height: 'min(840px, 88vh)',
-          minHeight: 'min(840px, 88vh)',
-          maxHeight: '88vh',
-          display: 'flex',
-          flexDirection: 'column',
-          overflow: 'hidden',
-          boxSizing: 'border-box'
-        }}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Donor Impact and Certificate"
       >
-        
-        {/* Modal Header */}
-        <div className="donor-modal-header" style={{ flexShrink: 0 }}>
-          <div className="donor-modal-title-wrap">
-            <div className="donor-modal-header-icon-box">
-              <ActiveIcon size={20} />
+        {/* ── 1. Flush Institutional Header ── */}
+        <div className="dic-header">
+          <div className="dic-header-left">
+            <div className="dic-header-emblem">
+              <ActiveIcon size={22} />
             </div>
-            <div>
-              <h3 className="donor-modal-title">Donor Impact & Certificate</h3>
-              <div className="donor-modal-subtitle">
-                <span className="donor-live-dot" />
-                <span>Verified Disaster Relief Donations</span>
-                <span className="donor-modal-sub-sep">•</span>
-                <span>Philippines</span>
+            <div className="dic-header-copy">
+              <h3 className="dic-title">Donor Impact & Certificate</h3>
+              <div className="dic-subtitle">
+                <span className="dic-live-dot" />
+                <span>Verified Humanitarian Record</span>
+                <span className="dic-sub-sep">·</span>
+                <span>Republic of the Philippines</span>
               </div>
             </div>
           </div>
-          <button type="button" className="donor-modal-close" onClick={onClose} title="Close (Esc)" aria-label="Close modal">
+
+          <button
+            type="button"
+            className="dic-close-btn"
+            onClick={onClose}
+            title="Close (Esc)"
+            aria-label="Close modal"
+          >
             <span className="material-symbols-outlined">close</span>
           </button>
         </div>
 
-        {/* Tab Switcher: Vercel Precision Segmented Control */}
-        <div className="donor-portfolio-tabs">
+        {/* ── 2. Flush Horizontal Underline Tab Rail ── */}
+        <div className="dic-tab-rail" role="tablist">
           <button
             type="button"
-            className={`donor-tab-btn ${modalTab === 'portfolio' ? 'is-active' : ''}`}
+            role="tab"
+            aria-selected={modalTab === 'portfolio'}
+            className={`dic-tab ${modalTab === 'portfolio' ? 'is-active' : ''}`}
             onClick={() => setModalTab('portfolio')}
           >
-            <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>workspace_premium</span>
+            <span className="material-symbols-outlined">workspace_premium</span>
             <span>Certificate & Impact</span>
           </button>
           <button
             type="button"
-            className={`donor-tab-btn ${modalTab === 'ledger' ? 'is-active' : ''}`}
+            role="tab"
+            aria-selected={modalTab === 'ledger'}
+            className={`dic-tab ${modalTab === 'ledger' ? 'is-active' : ''}`}
             onClick={() => setModalTab('ledger')}
           >
-            <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>receipt_long</span>
+            <span className="material-symbols-outlined">receipt_long</span>
             <span>Complete Ledger</span>
             {donorTransactions.length > 0 && (
-              <span className="donor-tab-count-badge">
-                {donorTransactions.length}
-              </span>
+              <span className="dic-tab-count">{donorTransactions.length}</span>
             )}
           </button>
           <button
             type="button"
-            className={`donor-tab-btn ${modalTab === 'directory' ? 'is-active' : ''}`}
+            role="tab"
+            aria-selected={modalTab === 'directory'}
+            className={`dic-tab ${modalTab === 'directory' ? 'is-active' : ''}`}
             onClick={() => setModalTab('directory')}
           >
-            <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>history_edu</span>
+            <span className="material-symbols-outlined">military_tech</span>
             <span>Donor Tiers</span>
+            <span className="dic-tab-count">{unlockedTierCount}/{DONOR_TIERS.length}</span>
           </button>
         </div>
 
-        {/* Tab 1: Certificate & Impact */}
-        {modalTab === 'portfolio' && (
-          <div
-            className="donor-portfolio-content"
-            style={{ flex: '1 1 auto', minHeight: 0, overflowY: 'auto', overscrollBehavior: 'contain', paddingRight: '4px' }}
-          >
-            
-            {/* Card 1: Verified Donor Profile & Society Recognition */}
-            <div className="donor-current-card">
-              <div className="donor-profile-eyebrow-row">
-                <span className="donor-profile-eyebrow">VERIFIED DONOR IDENTITY</span>
-              </div>
+        {/* ── 3. Scrollable Content Stage ── */}
+        <div className="dic-body">
 
-              <div className="donor-current-top">
-                <div>
-                  <div className="donor-current-name-row">
-                    <h2 className="donor-current-name">
-                      {donorName}
-                    </h2>
-                    <span className="donor-verified-badge" title="Verified Disaster Relief Contributor">
-                      <span className="material-symbols-outlined" style={{ fontSize: '17px' }}>verified</span>
-                    </span>
-                  </div>
-                  <div className="donor-society-pill-wrap">
-                    <span className="donor-society-pill">
-                      <ActiveIcon size={14} />
-                      <span className="donor-society-name">{activeTier ? activeTier.name : 'Community Supporter'}</span>
-                      {activeTier?.subtitle && !activeTier.name.toLowerCase().includes(activeTier.subtitle.toLowerCase()) && (
-                        <span className="donor-society-sub">• {activeTier.subtitle}</span>
-                      )}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="donor-current-metric">
-                  <div className="donor-metric-amt">₱{Math.round(totalPhp).toLocaleString('en-US')}</div>
-                  <div className="donor-metric-lbl">Total Verified Relief</div>
-                </div>
-              </div>
-
-              {dedication && (
-                <div className="donor-portfolio-dedication">
-                  <span className="material-symbols-outlined" style={{ fontSize: '14px', color: '#10b981' }}>format_quote</span>
-                  <span>“{dedication}”</span>
-                </div>
-              )}
-
-              {activeTier && <p className="donor-current-desc">{activeTier.description}</p>}
-
-              {nextTier && (
-                <div className="donor-milestone-box">
-                  <div className="donor-milestone-header">
-                    <div className="donor-milestone-left">
-                      <span className="donor-milestone-label">Next Recognition:</span>
-                      <span className="donor-milestone-name">{nextTier.name}</span>
-                      <span className="donor-milestone-target">(₱{nextTier.minPhp.toLocaleString('en-US')}+)</span>
+          {/* TAB 1: CERTIFICATE & IMPACT */}
+          {modalTab === 'portfolio' && (
+            <div className="dic-pane dic-portfolio-pane">
+              {/* Unboxed Identity & Standing Strip */}
+              <div className="dic-identity-strip">
+                <div className="dic-identity-top">
+                  <div className="dic-identity-left">
+                    <div className="dic-identity-medallion">
+                      <ActiveIcon size={34} />
                     </div>
-                    <div className="donor-milestone-right">
-                      <span>₱{Math.round(remainingPhp).toLocaleString('en-US')} to unlock</span>
-                      <span className="donor-milestone-pct">({progressPct}%)</span>
-                    </div>
-                  </div>
-                  <div className="donor-milestone-bar-bg">
-                    <div className="donor-milestone-bar-fill" style={{ width: `${Math.min(100, Math.max(2, progressPct))}%` }} />
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Card 2: Donation Summary & Impact KPI Grid */}
-            <div className="donor-impact-footprint-section">
-              <div className="donor-footprint-header-row">
-                <div className="donor-footprint-title-group">
-                  <span className="donor-footprint-eyebrow">BLOCKCHAIN DISASTER RELIEF SUMMARY</span>
-                  <h4 className="donor-footprint-title">Donation Summary</h4>
-                </div>
-                <span className="donor-footprint-badge">
-                  <span className="material-symbols-outlined" style={{ fontSize: '13px', color: '#10b981' }}>verified</span>
-                  Immutable Audit Record
-                </span>
-              </div>
-
-              <div className="donor-footprint-grid">
-                <div className="donor-kpi-card">
-                  <div className="donor-kpi-top">
-                    <span className="donor-kpi-label">TOTAL DONATED</span>
-                    <span className="material-symbols-outlined donor-kpi-icon">payments</span>
-                  </div>
-                  <div className="donor-kpi-val">₱{Math.round(totalPhp).toLocaleString('en-US')}</div>
-                  <div className="donor-kpi-sub">Sepolia notarized relief</div>
-                </div>
-
-                <div className="donor-kpi-card">
-                  <div className="donor-kpi-top">
-                    <span className="donor-kpi-label">RELIEF DRIVES</span>
-                    <span className="material-symbols-outlined donor-kpi-icon">campaign</span>
-                  </div>
-                  <div className="donor-kpi-val">{Math.max(1, campaignsSupported || 1)} Campaigns</div>
-                  <div className="donor-kpi-sub">Verified relief drives helped</div>
-                </div>
-
-                <div className="donor-kpi-card">
-                  <div className="donor-kpi-top">
-                    <span className="donor-kpi-label">DONATIONS</span>
-                    <span className="material-symbols-outlined donor-kpi-icon">receipt_long</span>
-                  </div>
-                  <div className="donor-kpi-val">{effectiveDonations} Records</div>
-                  <div className="donor-kpi-sub">Confirmed on-chain entries</div>
-                </div>
-
-                <div className="donor-kpi-card">
-                  <div className="donor-kpi-top">
-                    <span className="donor-kpi-label">ESCROW STATUS</span>
-                    <span className="material-symbols-outlined donor-kpi-icon">lock_open</span>
-                  </div>
-                  <div className="donor-kpi-val">100% Escrow</div>
-                  <div className="donor-kpi-sub">Funds released upon verification</div>
-                </div>
-              </div>
-            </div>
-
-            {/* Certificate of Appreciation */}
-            <div className="donor-certificate-frame">
-              <div className="donor-cert-inner">
-                <div className="donor-cert-header">
-                  <div className="donor-cert-gov-seal">
-                    <span className="material-symbols-outlined" style={{ fontSize: '22px', color: '#10b981' }}>verified_user</span>
-                  </div>
-                  <div className="donor-cert-org">
-                    BLOCKCHAIN-BASED DONATION & RELIEF TRANSPARENCY SYSTEM
-                  </div>
-                  <div className="donor-cert-network-sub">
-                    Official Certificate of Humanitarian Relief • Republic of the Philippines
-                  </div>
-                  <div className="donor-cert-main-title">
-                    CERTIFICATE OF APPRECIATION
-                  </div>
-                  <div className="donor-cert-hairline" />
-                </div>
-
-                <div className="donor-cert-body">
-                  <p className="donor-cert-intro">This certificate is proudly presented to</p>
-                  <h1 className="donor-cert-holder-name">
-                    <span className="donor-cert-name-underline">{donorName}</span>
-                  </h1>
-                  <p className="donor-cert-prose">
-                    for generously supporting disaster relief operations in the Philippines. Your verified donations help provide emergency food, clean water, and vital aid to families affected by disasters.
-                  </p>
-
-                  <div className="donor-cert-badge-row">
-                    <div className="donor-cert-badge-circle" style={{ borderColor: activeTier ? activeTier.border : '#10b981' }}>
-                      <ActiveIcon size={26} />
-                    </div>
-                    <div className="donor-cert-badge-text">
-                      <div className="donor-cert-society-name" style={{ color: activeTier ? activeTier.color : '#10b981' }}>
-                        {activeTier ? activeTier.name : 'Community Contributor'}
+                    <div className="dic-identity-meta">
+                      <div className="dic-identity-name-row">
+                        <h2 className="dic-donor-name">{donorName}</h2>
+                        <span className="dic-verified-icon" title="Verified Disaster Relief Contributor">
+                          <span className="material-symbols-outlined">verified</span>
+                        </span>
                       </div>
-                      <div className="donor-cert-society-meta">
-                        Total Donated: <strong>₱{Math.round(totalPhp).toLocaleString('en-US')} PHP</strong>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="donor-cert-footer-grid">
-                    {isActualTx && (
-                      <div className="donor-cert-col" style={{ textAlign: 'left' }}>
-                        <span className="donor-cert-meta-lbl">LATEST MINED TRANSACTION</span>
-                        <a
-                          href={`https://sepolia.etherscan.io/tx/${effectiveTxHash}`}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="donor-cert-hash-link"
-                          title="View Mined Transaction on Sepolia Etherscan"
-                        >
-                          {String(effectiveTxHash).slice(0, 10)}...{String(effectiveTxHash).slice(-8)}
-                          <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>open_in_new</span>
-                        </a>
-                      </div>
-                    )}
-
-                    <div className="donor-cert-col" style={{ textAlign: 'right' }}>
-                      <span className="donor-cert-meta-lbl">TRANSPARENCY GUARANTEE</span>
-                      <span className="donor-cert-standard-val">
-                        <span className="material-symbols-outlined" style={{ fontSize: '13px', color: '#10b981' }}>verified</span>
-                        100% On-Chain Relief Escrow
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Certificate Action Bar - Clean Vercel Buttons */}
-              <div className="donor-cert-actions-bar">
-                <button
-                  type="button"
-                  className="donor-cert-btn-primary"
-                  onClick={handlePrintCertificate}
-                  title="Print Certificate"
-                >
-                  <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>print</span>
-                  <span>Print Certificate</span>
-                </button>
-
-                <button
-                  type="button"
-                  className="donor-cert-btn-secondary"
-                  onClick={handleCopyProof}
-                  title="Copy verification link to clipboard"
-                >
-                  <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>
-                    {copiedProof ? 'check_circle' : 'content_copy'}
-                  </span>
-                  <span>{copiedProof ? 'Link Copied!' : 'Copy Proof Link'}</span>
-                </button>
-              </div>
-            </div>
-
-          </div>
-        )}
-
-        {/* Tab 2: Complete Blockchain Ledger */}
-        {modalTab === 'ledger' && (
-          <div
-            className="donor-ledger-content"
-            style={{ flex: '1 1 auto', minHeight: 0, overflowY: 'auto', overscrollBehavior: 'contain', paddingRight: '4px' }}
-          >
-            <div className="donor-ledger-header">
-              <div>
-                <h4 className="donor-ledger-title" style={{ margin: 0, fontSize: '0.96rem', fontWeight: 800, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span className="material-symbols-outlined" style={{ color: '#10b981', fontSize: '20px' }}>verified</span>
-                  <span>Complete On-Chain Donation History</span>
-                </h4>
-                <p style={{ margin: '3px 0 0', fontSize: '0.74rem', color: 'var(--text-muted)' }}>
-                  All verified disaster relief contributions made by <strong>{donorName}</strong>.
-                </p>
-              </div>
-
-              <div className="donor-ledger-stats-pill">
-                <span>Total: <strong>₱{Math.round(totalPhp).toLocaleString('en-US')}</strong></span>
-                <span style={{ opacity: 0.6 }}>•</span>
-                <span><strong>{donorTransactions.length}</strong> {donorTransactions.length === 1 ? 'Record' : 'Records'}</span>
-              </div>
-            </div>
-
-            {/* Filter Pills */}
-            <div className="donor-ledger-filter-row">
-              {LEDGER_RAILS.map(rail => {
-                const count = getRailCount(rail.id);
-                if (rail.id !== 'ALL' && count === 0) return null;
-                const isActive = ledgerFilter === rail.id;
-
-                return (
-                  <button
-                    key={rail.id}
-                    type="button"
-                    className={`donor-ledger-filter-btn ${isActive ? 'is-active' : ''}`}
-                    style={{
-                      '--rail-color': rail.color,
-                      '--rail-bg': rail.bg,
-                      '--rail-glow': rail.glow
-                    }}
-                    onClick={() => handleRailFilterChange(rail.id)}
-                    title={`Filter by ${rail.label}`}
-                  >
-                    <span
-                      className="material-symbols-outlined rail-icon"
-                      style={{ color: rail.color }}
-                    >
-                      {rail.icon}
-                    </span>
-                    <span>{rail.label}</span>
-                    <span className="filter-count-pill">{count}</span>
-                  </button>
-                );
-              })}
-            </div>
-
-            {loadingTx || railLoading ? (
-              <div className="donor-ledger-skeleton-list">
-                {[1, 2, 3, 4].map(i => (
-                  <div key={i} className="donor-ledger-skeleton-card">
-                    <div className="donor-ledger-skeleton-avatar" />
-                    <div className="donor-ledger-skeleton-details">
-                      <div className="donor-ledger-skeleton-pill title" />
-                      <div className="donor-ledger-skeleton-pill sub-date" />
-                      <div className="donor-ledger-skeleton-pill hash" />
-                    </div>
-                    <div className="donor-ledger-skeleton-amounts">
-                      <div className="donor-ledger-skeleton-pill amt-php" />
-                      <div className="donor-ledger-skeleton-pill amt-eth" />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : filteredTxList.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '40px 20px', background: 'rgba(255,255,255,0.02)', borderRadius: '12px', border: '1px dashed var(--border)' }}>
-                <span className="material-symbols-outlined" style={{ fontSize: '32px', color: 'var(--text-muted)', marginBottom: '8px' }}>receipt_long</span>
-                <div style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-primary)' }}>No transactions found</div>
-                <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '4px' }}>
-                  No donation records match the selected payment rail.
-                </div>
-              </div>
-            ) : (
-              <div className="donor-ledger-list donor-data-fade-in">
-                {pagedTxList.map((tx, idx) => {
-                  const pm = (tx.paymentMethod || 'CARD').toUpperCase();
-                  const isGcash = pm.includes('GCASH');
-                  const isMaya = pm.includes('MAYA');
-                  const railColor = isGcash ? '#007DFE' : isMaya ? '#10b981' : '#a855f7';
-                  const railBg = isGcash ? 'rgba(0, 125, 254, 0.12)' : isMaya ? 'rgba(16, 185, 129, 0.12)' : 'rgba(168, 85, 247, 0.12)';
-                  const railIcon = isGcash ? 'smartphone' : isMaya ? 'account_balance_wallet' : 'credit_card';
-                  const ethAmt = parseFloat(tx.amount || 0);
-                  const phpAmt = Math.round(ethAmt * 170000);
-                  const txHashClean = tx.txHash || '';
-                  const hasRealHash = txHashClean.startsWith('0x') && txHashClean.length === 66;
-                  const formattedDate = tx.createdAt
-                    ? new Date(tx.createdAt).toLocaleDateString('en-US', {
-                        month: 'short',
-                        day: 'numeric',
-                        year: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit'
-                      })
-                    : 'Verified Record';
-
-                  return (
-                    <div key={tx.id || idx} className="donor-ledger-card">
-                      {/* Sleek payment rail avatar - soft rounded square, not a button */}
-                      <div className="donor-ledger-icon-wrap" style={{ background: railBg, color: railColor }}>
-                        <span className="material-symbols-outlined">{railIcon}</span>
-                      </div>
-
-                      {/* Center details */}
-                      <div className="donor-ledger-details">
-                        <div className="donor-ledger-title-line">
-                          <span className="donor-ledger-campaign-name" title={tx.campaignTitle}>
-                            {tx.campaignTitle || `Relief Campaign #${tx.campaignId || 1}`}
-                          </span>
-                        </div>
-
-                        <div className="donor-ledger-sub-line">
-                          <span className="donor-ledger-rail-name" style={{ color: railColor }}>
-                            {(tx.paymentMethod && !/eth|crypto|metamask/i.test(tx.paymentMethod)) ? tx.paymentMethod : 'Bank / Card'}
-                          </span>
-                          <span className="donor-ledger-sep">•</span>
-                          <span>{formattedDate}</span>
-                          {tx.orgName && (
-                            <>
-                              <span className="donor-ledger-sep">•</span>
-                              <span className="donor-ledger-org">{tx.orgName}</span>
-                            </>
-                          )}
-                        </div>
-
-                        {/* Monospace On-Chain Link without bulky buttons */}
-                        {txHashClean && (
-                          <div className="donor-ledger-hash-line">
-                            {hasRealHash ? (
-                              <a
-                                href={`https://sepolia.etherscan.io/tx/${txHashClean}`}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="donor-ledger-hash-link"
-                                title="Inspect transaction on Sepolia Etherscan (opens in new tab)"
-                              >
-                                <span>{txHashClean.slice(0, 10)}...{txHashClean.slice(-8)}</span>
-                                <span className="material-symbols-outlined hash-icon">open_in_new</span>
-                              </a>
-                            ) : (
-                              <span className="donor-ledger-hash-verified" title="Cryptographically verified record">
-                                <span>{txHashClean.slice(0, 10)}...{txHashClean.slice(-8)}</span>
-                                <span className="material-symbols-outlined hash-icon">verified</span>
-                              </span>
-                            )}
-
-                            <button
-                              type="button"
-                              className="donor-ledger-hash-copy"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                navigator.clipboard.writeText(txHashClean);
-                                setCopiedTxId(tx.id || idx);
-                                setTimeout(() => setCopiedTxId(null), 2000);
-                              }}
-                              title="Copy transaction hash"
-                            >
-                              <span className="material-symbols-outlined">
-                                {copiedTxId === (tx.id || idx) ? 'check' : 'content_copy'}
-                              </span>
-                              {copiedTxId === (tx.id || idx) && <span className="copied-toast">Copied</span>}
-                            </button>
-                          </div>
+                      <div className="dic-standing-row">
+                        <span className="dic-standing-pill">
+                          {activeTier ? `Tier ${activeTier.tierNumber} · ${activeTier.name}` : 'Community Supporter'}
+                        </span>
+                        {activeTier?.subtitle && !activeTier.name.toLowerCase().includes(activeTier.subtitle.toLowerCase()) && (
+                          <span className="dic-standing-sub">{activeTier.subtitle}</span>
                         )}
                       </div>
-
-                      {/* Right-aligned amounts */}
-                      <div className="donor-ledger-amounts">
-                        <div className="donor-ledger-php">₱{phpAmt.toLocaleString('en-US')}</div>
-                      </div>
                     </div>
-                  );
-                })}
+                  </div>
 
-                {filteredTxList.length > LEDGER_PAGE_SIZE && (
-                  <div className="donor-ledger-pagination">
-                    <span className="donor-pagination-info">
-                      Showing <strong>{(safeLedgerPage - 1) * LEDGER_PAGE_SIZE + 1}–{Math.min(safeLedgerPage * LEDGER_PAGE_SIZE, filteredTxList.length)}</strong> of <strong>{filteredTxList.length}</strong> records
-                    </span>
-                    <div className="donor-pagination-actions">
-                      <button
-                        type="button"
-                        className="donor-pagination-btn"
-                        disabled={safeLedgerPage <= 1}
-                        onClick={() => setLedgerPage(p => Math.max(1, p - 1))}
-                        title="Previous Page"
-                      >
-                        <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>chevron_left</span>
-                        <span>Previous</span>
-                      </button>
-                      <span className="donor-pagination-pill">
-                        Page {safeLedgerPage} of {totalLedgerPages}
+                  <div className="dic-identity-total">
+                    <span className="dic-total-val">₱{Math.round(totalPhp).toLocaleString('en-US')}</span>
+                    <span className="dic-total-lbl">Total Verified Relief</span>
+                  </div>
+                </div>
+
+                {dedication && (
+                  <div className="dic-dedication-line">
+                    <span className="material-symbols-outlined">format_quote</span>
+                    <span>“{dedication}”</span>
+                  </div>
+                )}
+
+                {activeTier && (
+                  <p className="dic-standing-desc">{activeTier.description}</p>
+                )}
+
+                {/* 4-Column Hairline KPI Strip (Zero Nested Boxes, Zero Duplicate Total) */}
+                <div className="dic-kpi-band">
+                  <div className="dic-kpi-cell">
+                    <span className="dic-kpi-val">{Math.max(1, campaignsSupported || 1)}</span>
+                    <span className="dic-kpi-lbl">Relief Drives Supported</span>
+                  </div>
+                  <div className="dic-kpi-cell">
+                    <span className="dic-kpi-val">{effectiveDonations}</span>
+                    <span className="dic-kpi-lbl">On-Chain Receipts</span>
+                  </div>
+                  <div className="dic-kpi-cell">
+                    <span className="dic-kpi-val">100%</span>
+                    <span className="dic-kpi-lbl">Escrow Protected</span>
+                  </div>
+                  <div className="dic-kpi-cell">
+                    <span className="dic-kpi-val">{activeTier ? `Tier ${activeTier.tierNumber} / 15` : 'Unranked'}</span>
+                    <span className="dic-kpi-lbl">Recognition Standing</span>
+                  </div>
+                </div>
+
+                {/* Inline Next-Tier Milestone Progress */}
+                {nextTier && (
+                  <div className="dic-milestone-inline">
+                    <div className="dic-milestone-row">
+                      <span className="dic-milestone-left">
+                        Next Milestone: <strong>{nextTier.name}</strong>{' '}
+                        <span className="dic-milestone-muted">(₱{nextTier.minPhp.toLocaleString('en-US')}+)</span>
                       </span>
-                      <button
-                        type="button"
-                        className="donor-pagination-btn"
-                        disabled={safeLedgerPage >= totalLedgerPages}
-                        onClick={() => setLedgerPage(p => Math.min(totalLedgerPages, p + 1))}
-                        title="Next Page"
-                      >
-                        <span>Next</span>
-                        <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>chevron_right</span>
-                      </button>
+                      <span className="dic-milestone-right">
+                        <span className="dic-milestone-muted">₱{Math.round(remainingPhp).toLocaleString('en-US')} to unlock</span>
+                        <span className="dic-milestone-pct">{progressPct}%</span>
+                      </span>
+                    </div>
+                    <div className="dic-progress-track">
+                      <div
+                        className="dic-progress-fill"
+                        style={{ width: `${Math.min(100, Math.max(2, progressPct))}%` }}
+                      />
                     </div>
                   </div>
                 )}
               </div>
-            )}
-          </div>
-        )}
 
-        {/* Tab 3: All Donor Badges */}
-        {modalTab === 'directory' && (
-          <div
-            className="donor-directory-content"
-            style={{ flex: '1 1 auto', minHeight: 0, overflowY: 'auto', overscrollBehavior: 'contain', paddingRight: '4px' }}
-          >
-            <div className="donor-ladder-title">
-              <span>Donor Recognition Tiers</span>
-              <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>Verified donor badges based on cumulative disaster relief contributions</span>
-            </div>
+              {/* Museum-Grade Official Certificate of Appreciation */}
+              <div className="donor-certificate-frame dic-cert-shell">
+                <div className="donor-cert-inner dic-cert-document">
+                  {/* Subtle Architectural Corner Registration Marks */}
+                  <span className="dic-corner dic-corner--tl" aria-hidden="true" />
+                  <span className="dic-corner dic-corner--tr" aria-hidden="true" />
+                  <span className="dic-corner dic-corner--bl" aria-hidden="true" />
+                  <span className="dic-corner dic-corner--br" aria-hidden="true" />
 
-            <div className="donor-ladder-list">
-              {DONOR_TIERS.map((t) => {
-                const isCurrent = activeTier?.id === t.id;
-                const isUnlocked = totalPhp >= t.minPhp;
-                const TierIcon = t.IconComponent;
-
-                return (
-                  <div
-                    key={t.id}
-                    className={`donor-tier-row ${isCurrent ? 'is-active' : ''} ${isUnlocked ? 'is-unlocked' : ''}`}
-                    style={{ borderColor: isCurrent ? t.border : undefined }}
-                  >
-                    <div className="donor-tier-left">
-                      <div className="donor-tier-icon-circle" style={{ background: t.bg, borderColor: t.border }}>
-                        <TierIcon size={26} />
-                      </div>
-                      <div className="donor-tier-details">
-                        <div className="donor-tier-row-hdr">
-                          <span className="donor-tier-row-name" style={{ color: isCurrent ? t.color : 'var(--text-primary)' }}>
-                            {t.name}
-                          </span>
-                          {isCurrent && <span className="donor-tier-current-tag">CURRENT TIER</span>}
-                          {isUnlocked && !isCurrent && <span className="donor-tier-unlocked-tag">UNLOCKED</span>}
-                        </div>
-                        <div className="donor-tier-row-sub">{t.subtitle}</div>
-                        <div className="donor-tier-row-crit">
-                          ₱{t.minPhp.toLocaleString('en-US')}+ cumulative verified donations
-                        </div>
-                        <div className="donor-tier-row-desc">
-                          {t.description}
-                        </div>
-                      </div>
+                  <div className="dic-cert-top">
+                    <div className="dic-cert-seal-pill">
+                      <span className="material-symbols-outlined">verified_user</span>
+                      <span>OFFICIAL HUMANITARIAN CREDENTIAL</span>
                     </div>
+                    <div className="dic-cert-org">
+                      BLOCKCHAIN-BASED DONATION & RELIEF TRANSPARENCY SYSTEM
+                    </div>
+                    <h2 className="dic-cert-heading">Certificate of Appreciation</h2>
+                    <div className="dic-cert-rule" />
+                  </div>
 
-                    <div className="donor-tier-badge-visual">
-                      <div className="donor-badge-emblem icon-only" title={t.name}>
-                        <TierIcon size={28} />
+                  <div className="dic-cert-center">
+                    <p className="dic-cert-presented">PROUDLY PRESENTED TO</p>
+                    <h1 className="dic-cert-recipient">{donorName}</h1>
+                    <p className="dic-cert-citation">
+                      In recognition of verified philanthropic contributions supporting emergency disaster response, community recovery, and transparent relief distribution across the Philippines.
+                    </p>
+
+                    <div className="dic-cert-merit-pill">
+                      <span className="dic-cert-merit-icon">
+                        <ActiveIcon size={24} />
+                      </span>
+                      <div className="dic-cert-merit-copy">
+                        <span className="dic-cert-merit-tier">
+                          {activeTier ? activeTier.name : 'Community Contributor'}
+                        </span>
+                        <span className="dic-cert-merit-amt">
+                          ₱{Math.round(totalPhp).toLocaleString('en-US')} PHP · {effectiveDonations} Verified {effectiveDonations === 1 ? 'Receipt' : 'Receipts'}
+                        </span>
                       </div>
                     </div>
                   </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
 
-        {/* Footer */}
-        <div className="donor-modal-footer">
-          <div className="donor-footer-verified">
-            <span className="donor-live-dot" />
-            <span>Cryptographically audited on Sepolia EVM • All records immutable</span>
+                  <div className="dic-cert-meta-grid">
+                    <div className="dic-cert-meta-col">
+                      <span className="dic-cert-meta-k">CREDENTIAL ID</span>
+                      <span className="dic-cert-meta-v dic-mono">{certSerial}</span>
+                    </div>
+
+                    <div className="dic-cert-meta-col dic-cert-meta-col--center">
+                      <span className="dic-cert-meta-k">ISSUED DATE</span>
+                      <span className="dic-cert-meta-v">{issuedDateStr}</span>
+                    </div>
+
+                    <div className="dic-cert-meta-col dic-cert-meta-col--right">
+                      <span className="dic-cert-meta-k">ON-CHAIN VERIFICATION</span>
+                      {isActualTx ? (
+                        <a
+                          href={`https://sepolia.etherscan.io/tx/${effectiveTxHash}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="dic-cert-hash-link dic-mono"
+                          title="Inspect transaction on Sepolia Etherscan"
+                        >
+                          <span>{String(effectiveTxHash).slice(0, 8)}…{String(effectiveTxHash).slice(-6)}</span>
+                          <span className="material-symbols-outlined">open_in_new</span>
+                        </a>
+                      ) : (
+                        <span className="dic-cert-meta-v dic-cert-meta-v--ok">
+                          <span className="dic-live-dot" />
+                          <span>Sepolia Escrow Verified</span>
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Recessed Certificate Action Bar */}
+                <div className="donor-cert-actions-bar dic-cert-actions">
+                  <button
+                    type="button"
+                    className="dic-btn dic-btn--primary"
+                    onClick={handlePrintCertificate}
+                    title="Print or Save Certificate as PDF"
+                  >
+                    <span className="material-symbols-outlined">print</span>
+                    <span>Print / Save PDF</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    className="dic-btn dic-btn--secondary"
+                    onClick={handleCopyProof}
+                    title="Copy verification summary to clipboard"
+                  >
+                    <span className="material-symbols-outlined" style={copiedProof ? { color: '#10b981' } : undefined}>
+                      {copiedProof ? 'check_circle' : 'content_copy'}
+                    </span>
+                    <span>{copiedProof ? 'Proof Copied' : 'Copy Proof'}</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    className="dic-btn dic-btn--ghost"
+                    onClick={() => setModalTab('ledger')}
+                  >
+                    <span>View Full Ledger</span>
+                    <span className="material-symbols-outlined">arrow_forward</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* TAB 2: COMPLETE ON-CHAIN LEDGER */}
+          {modalTab === 'ledger' && (
+            <div className="dic-pane dic-ledger-pane">
+              <div className="dic-ledger-topbar">
+                <div>
+                  <h4 className="dic-section-title">On-Chain Donation History</h4>
+                  <p className="dic-section-sub">
+                    Every notarized relief contribution recorded for <strong>{donorName}</strong>.
+                  </p>
+                </div>
+
+                {/* Clean Monochrome Rail Filter */}
+                <div className="dic-rail-seg" role="group" aria-label="Filter by payment rail">
+                  {LEDGER_RAILS.map(rail => {
+                    const count = getRailCount(rail.id);
+                    if (rail.id !== 'ALL' && count === 0) return null;
+                    const isActive = ledgerFilter === rail.id;
+                    return (
+                      <button
+                        key={rail.id}
+                        type="button"
+                        className={`dic-rail-btn ${isActive ? 'is-active' : ''}`}
+                        onClick={() => handleRailFilterChange(rail.id)}
+                      >
+                        {rail.id !== 'ALL' && (
+                          <span className="dic-rail-dot" style={{ backgroundColor: rail.color }} />
+                        )}
+                        <span>{rail.id === 'ALL' ? 'All' : rail.label}</span>
+                        <span className="dic-rail-count">{count}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {loadingTx || railLoading ? (
+                <div className="dic-ledger-panel">
+                  {[1, 2, 3, 4, 5].map(i => (
+                    <div key={i} className="dic-ledger-skel-row">
+                      <div className="dic-skel dic-skel--icon" />
+                      <div className="dic-skel-col">
+                        <div className="dic-skel dic-skel--title" />
+                        <div className="dic-skel dic-skel--sub" />
+                      </div>
+                      <div className="dic-skel dic-skel--amt" />
+                    </div>
+                  ))}
+                </div>
+              ) : filteredTxList.length === 0 ? (
+                <div className="dic-empty-box">
+                  <span className="material-symbols-outlined">receipt_long</span>
+                  <div className="dic-empty-title">No transactions found</div>
+                  <div className="dic-empty-sub">No verified records match the selected payment channel.</div>
+                </div>
+              ) : (
+                <div className="dic-ledger-panel donor-data-fade-in">
+                  <div className="dic-ledger-list-head">
+                    <span>CAMPAIGN & NOTARIZATION</span>
+                    <span>AMOUNT (PHP)</span>
+                  </div>
+
+                  {pagedTxList.map((tx, idx) => {
+                    const pm = (tx.paymentMethod || 'CARD').toUpperCase();
+                    const isGcash = pm.includes('GCASH');
+                    const isMaya = pm.includes('MAYA');
+                    const railColor = isGcash ? '#0ea5e9' : isMaya ? '#10b981' : '#a855f7';
+                    const railIcon = isGcash ? 'smartphone' : isMaya ? 'account_balance_wallet' : 'credit_card';
+                    const ethAmt = parseFloat(tx.amount || 0);
+                    const phpAmt = Math.round(ethAmt * 170000);
+                    const txHashClean = tx.txHash || '';
+                    const hasRealHash = txHashClean.startsWith('0x') && txHashClean.length === 66;
+                    const formattedDate = tx.createdAt
+                      ? new Date(tx.createdAt).toLocaleDateString('en-US', {
+                          month: 'short',
+                          day: 'numeric',
+                          year: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })
+                      : 'Verified Record';
+
+                    return (
+                      <div key={tx.id || idx} className="dic-ledger-row">
+                        <div className="dic-ledger-row-left">
+                          <div className="dic-ledger-icon-well">
+                            <span className="material-symbols-outlined">{railIcon}</span>
+                            <span className="dic-ledger-icon-dot" style={{ backgroundColor: railColor }} />
+                          </div>
+
+                          <div className="dic-ledger-info">
+                            <div className="dic-ledger-camp" title={tx.campaignTitle}>
+                              {tx.campaignTitle || `Relief Campaign #${tx.campaignId || 1}`}
+                            </div>
+                            <div className="dic-ledger-meta">
+                              <span className="dic-ledger-channel">
+                                {(tx.paymentMethod && !/eth|crypto|metamask/i.test(tx.paymentMethod)) ? tx.paymentMethod : 'Bank / Card'}
+                              </span>
+                              <span className="dic-sub-sep">·</span>
+                              <span>{formattedDate}</span>
+                              {tx.orgName && (
+                                <>
+                                  <span className="dic-sub-sep">·</span>
+                                  <span>{tx.orgName}</span>
+                                </>
+                              )}
+                            </div>
+
+                            {txHashClean && (
+                              <div className="dic-ledger-hash-row">
+                                {hasRealHash ? (
+                                  <a
+                                    href={`https://sepolia.etherscan.io/tx/${txHashClean}`}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="dic-hash-link dic-mono"
+                                    title="Inspect on Sepolia Etherscan"
+                                  >
+                                    <span>{txHashClean.slice(0, 10)}…{txHashClean.slice(-8)}</span>
+                                    <span className="material-symbols-outlined">open_in_new</span>
+                                  </a>
+                                ) : (
+                                  <span className="dic-hash-verified dic-mono">
+                                    <span>{txHashClean.slice(0, 10)}…{txHashClean.slice(-8)}</span>
+                                    <span className="material-symbols-outlined">verified</span>
+                                  </span>
+                                )}
+                                <button
+                                  type="button"
+                                  className="dic-hash-copy"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    navigator.clipboard.writeText(txHashClean);
+                                    setCopiedTxId(tx.id || idx);
+                                    setTimeout(() => setCopiedTxId(null), 2000);
+                                  }}
+                                  title="Copy transaction hash"
+                                >
+                                  <span className="material-symbols-outlined">
+                                    {copiedTxId === (tx.id || idx) ? 'check' : 'content_copy'}
+                                  </span>
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="dic-ledger-amt">
+                          <span className="dic-ledger-php">₱{phpAmt.toLocaleString('en-US')}</span>
+                          <span className="dic-ledger-verified-tag">
+                            <span className="dic-live-dot" />
+                            <span>Notarized</span>
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  {filteredTxList.length > LEDGER_PAGE_SIZE && (
+                    <div className="dic-ledger-pager">
+                      <span className="dic-pager-info">
+                        Showing <strong>{(safeLedgerPage - 1) * LEDGER_PAGE_SIZE + 1}–{Math.min(safeLedgerPage * LEDGER_PAGE_SIZE, filteredTxList.length)}</strong> of <strong>{filteredTxList.length}</strong>
+                      </span>
+                      <div className="dic-pager-controls">
+                        <button
+                          type="button"
+                          className="dic-pager-btn"
+                          disabled={safeLedgerPage <= 1}
+                          onClick={() => setLedgerPage(p => Math.max(1, p - 1))}
+                        >
+                          <span className="material-symbols-outlined">chevron_left</span>
+                          <span>Prev</span>
+                        </button>
+                        <span className="dic-pager-page">
+                          {safeLedgerPage} / {totalLedgerPages}
+                        </span>
+                        <button
+                          type="button"
+                          className="dic-pager-btn"
+                          disabled={safeLedgerPage >= totalLedgerPages}
+                          onClick={() => setLedgerPage(p => Math.min(totalLedgerPages, p + 1))}
+                        >
+                          <span>Next</span>
+                          <span className="material-symbols-outlined">chevron_right</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* TAB 3: 15 DONOR RECOGNITION TIERS (Clean 2-Col Grid, Zero Duplicate Icons) */}
+          {modalTab === 'directory' && (
+            <div className="dic-pane dic-tiers-pane">
+              <div className="dic-tiers-summary">
+                <div className="dic-tiers-summary-top">
+                  <div>
+                    <h4 className="dic-section-title">Humanitarian Recognition Ladder</h4>
+                    <p className="dic-section-sub">
+                      Cumulative verified disaster relief milestones across all accredited NGO campaigns.
+                    </p>
+                  </div>
+                  <div className="dic-tiers-progress-pill">
+                    <span className="dic-live-dot" />
+                    <span><strong>{unlockedTierCount}</strong> of {DONOR_TIERS.length} Unlocked</span>
+                  </div>
+                </div>
+                <div className="dic-progress-track">
+                  <div
+                    className="dic-progress-fill"
+                    style={{ width: `${Math.round((unlockedTierCount / DONOR_TIERS.length) * 100)}%` }}
+                  />
+                </div>
+              </div>
+
+              <div className="dic-tiers-grid">
+                {DONOR_TIERS.map((t) => {
+                  const isCurrent = activeTier?.id === t.id;
+                  const isUnlocked = totalPhp >= t.minPhp;
+                  const TierIcon = t.IconComponent;
+
+                  return (
+                    <div
+                      key={t.id}
+                      className={`dic-tier-card ${isCurrent ? 'is-current' : isUnlocked ? 'is-unlocked' : 'is-locked'}`}
+                    >
+                      <div className="dic-tier-card-top">
+                        <div className="dic-tier-medallion">
+                          <TierIcon size={30} />
+                        </div>
+
+                        <div className="dic-tier-head-copy">
+                          <div className="dic-tier-rank-row">
+                            <span className="dic-tier-index dic-mono">TIER {String(t.tierNumber).padStart(2, '0')}</span>
+                            {isCurrent ? (
+                              <span className="dic-tier-status dic-tier-status--current">
+                                <span className="dic-live-dot" />
+                                <span>Current</span>
+                              </span>
+                            ) : isUnlocked ? (
+                              <span className="dic-tier-status dic-tier-status--unlocked">
+                                <span className="material-symbols-outlined">check_circle</span>
+                                <span>Unlocked</span>
+                              </span>
+                            ) : (
+                              <span className="dic-tier-status dic-tier-status--locked">
+                                <span className="material-symbols-outlined">lock</span>
+                              </span>
+                            )}
+                          </div>
+                          <div className="dic-tier-name">{t.name}</div>
+                          <div className="dic-tier-sub">{t.subtitle}</div>
+                        </div>
+                      </div>
+
+                      <p className="dic-tier-desc">{t.description}</p>
+
+                      <div className="dic-tier-footer">
+                        <span className="dic-tier-threshold">₱{t.minPhp.toLocaleString('en-US')}+</span>
+                        <span className="dic-tier-threshold-lbl">cumulative relief</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* ── 4. Flush Recessed Modal Footer ── */}
+        <div className="dic-footer">
+          <div className="dic-footer-left">
+            <span className="dic-live-dot" />
+            <span>Cryptographically audited on Sepolia EVM · All records immutable</span>
           </div>
-          <button type="button" className="donor-modal-footer-close" onClick={onClose}>
+          <button type="button" className="dic-btn dic-btn--secondary dic-btn--sm" onClick={onClose}>
             Close
           </button>
         </div>
