@@ -3539,6 +3539,12 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
         newTier={unlockedTierModal}
         isOpen={Boolean(unlockedTierModal)}
         onClose={() => setUnlockedTierModal(null)}
+        totalDonatedPhp={totalDonatedPhp}
+        donorName={userDisplayName || ''}
+        onViewCertificate={() => {
+          setUnlockedTierModal(null);
+          setShowTierModal(true);
+        }}
       />
 
       {/* Interactive Guided Onboarding Spotlight Tour */}

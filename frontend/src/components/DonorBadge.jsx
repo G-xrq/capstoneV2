@@ -933,63 +933,124 @@ export function BadgeUpgradeModal({
   newTier,
   isOpen,
   onClose,
-  totalDonatedPhp = 0
+  totalDonatedPhp = 0,
+  donorName = '',
+  onViewCertificate = null
 }) {
   useEffect(() => {
     if (!isOpen || !newTier || typeof document === 'undefined') return;
     const originalOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
+    const onKey = (e) => {
+      if (e.key === 'Escape') onClose?.();
+    };
+    window.addEventListener('keydown', onKey);
     return () => {
       document.body.style.overflow = originalOverflow;
+      window.removeEventListener('keydown', onKey);
     };
-  }, [isOpen, newTier]);
+  }, [isOpen, newTier, onClose]);
 
   if (!isOpen || !newTier) return null;
 
   const Icon = newTier.IconComponent;
+  const resolvedTheme = typeof document !== 'undefined' ? (document.documentElement.getAttribute('data-theme') || 'dark') : 'dark';
+  const cleanDesc = String(newTier.description || '').trim();
+  const formattedDesc = cleanDesc
+    ? cleanDesc.charAt(0).toLowerCase() + cleanDesc.slice(1)
+    : 'strengthens emergency disaster relief and recovery across the Philippines.';
+  const cleanName = donorName && donorName !== 'Verified Donor' && donorName !== 'Verified Contributor' ? donorName : '';
+  const milestonePhp = newTier.minPhp || Math.round((newTier.minEth || 0) * 170000);
+  const displayTotalPhp = totalDonatedPhp > 0 ? Math.round(totalDonatedPhp) : milestonePhp;
 
   const modalNode = (
-    <div className="donor-upgrade-backdrop" onClick={onClose}>
-      <div className="donor-upgrade-card donor-commendation-plaque fade-in" onClick={(e) => e.stopPropagation()}>
-        <div className="donor-plaque-topbar">
-          <span className="donor-plaque-org-tag">PHILIPPINE DISASTER RELIEF TRANSPARENCY NETWORK</span>
-        </div>
+    <div className="donor-upgrade-backdrop" data-theme={resolvedTheme} onClick={onClose}>
+      <div
+        className="donor-upgrade-card donor-commendation-plaque fade-in"
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-label={`New Recognition: ${newTier.name}`}
+      >
+        {/* Top Ceremonial Gold Accent Bar */}
+        <div className="du-top-accent" aria-hidden="true" />
+        {/* Inset Archival Hairline Frame */}
+        <div className="du-inner-frame" aria-hidden="true" />
+        {/* Subtle Ambient Gold Radial Glow */}
+        <div className="du-ambient-glow" aria-hidden="true" />
 
-        <div className="donor-upgrade-emblem-halo" style={{ borderColor: newTier.border }}>
-          <Icon size={64} className="donor-upgrade-svg" />
-        </div>
-
-        <span className="donor-upgrade-eyebrow" style={{ color: newTier.color }}>
-          HONORARY RECOGNITION
-        </span>
-
-        <h2 className="donor-upgrade-title">
-          New Giving Circle Recognized!
-        </h2>
-        <h3 className="donor-upgrade-tier-name" style={{ color: newTier.color }}>
-          {newTier.name}
-        </h3>
-        <p className="donor-upgrade-subtitle">{newTier.subtitle}</p>
-
-        <p className="donor-upgrade-desc">
-          Recognized for distinguished philanthropic support of emergency relief operations: {newTier.description}
-        </p>
-
-        {totalDonatedPhp > 0 && (
-          <div className="donor-plaque-amount-callout">
-            <span className="donor-plaque-amount-lbl">Total Donated</span>
-            <span className="donor-plaque-amount-val">₱{Math.round(totalDonatedPhp).toLocaleString('en-US')} PHP</span>
-          </div>
-        )}
-
-        <div className="donor-upgrade-badge-seal">
-          <span className="material-symbols-outlined" style={{ fontSize: '14px', color: '#10b981' }}>verified</span>
-          <span>Verified on the Blockchain</span>
-        </div>
-
-        <button type="button" className="btn btn-primary btn-full" onClick={onClose} style={{ marginTop: '16px' }}>
-          Continue
+        <button
+          type="button"
+          className="du-close-btn"
+          onClick={onClose}
+          aria-label="Close recognition notice"
+        >
+          <span className="material-symbols-outlined">close</span>
         </button>
+
+        <div className="du-content">
+          <div className="du-org-eyebrow">BBDRTS · Honorary Recognition</div>
+
+          {/* Framed Double-Ring Medallion Crest */}
+          <div className="du-crest-stage">
+            <div className="du-crest-outer">
+              <div className="du-crest-inner">
+                <Icon size={56} className="donor-upgrade-svg" />
+              </div>
+            </div>
+          </div>
+
+          <div className="du-kicker">New Giving Circle Reached</div>
+          <h2 className="du-tier-display">{newTier.name}</h2>
+
+          {newTier.subtitle && (
+            <div className="du-focus-pill">{newTier.subtitle}</div>
+          )}
+
+          <p className="du-appreciation">
+            {cleanName ? (
+              <>Thank you, <strong>{cleanName}</strong>. Your generosity {formattedDesc}</>
+            ) : (
+              <>Thank you for your generosity. Your support {formattedDesc}</>
+            )}
+          </p>
+
+          {/* Compact 2-Column Archival Verification Strip */}
+          <div className="du-stats-strip">
+            <div className="du-stat-cell">
+              <span className="du-stat-lbl">{totalDonatedPhp > 0 ? 'Cumulative Impact' : 'Circle Milestone'}</span>
+              <span className="du-stat-val">
+                ₱{displayTotalPhp.toLocaleString('en-US')}{totalDonatedPhp > 0 ? '' : '+'}
+              </span>
+            </div>
+            <div className="du-stat-cell">
+              <span className="du-stat-lbl">Audit Status</span>
+              <span className="du-stat-val du-stat-val--verified">
+                <span className="du-verified-dot" />
+                <span>Sepolia Verified</span>
+              </span>
+            </div>
+          </div>
+
+          {/* Balanced Action Footer */}
+          <div className={`du-actions${onViewCertificate ? ' has-two' : ''}`}>
+            {onViewCertificate ? (
+              <>
+                <button type="button" className="du-btn du-btn--secondary" onClick={onClose}>
+                  Continue
+                </button>
+                <button type="button" className="du-btn du-btn--primary" onClick={onViewCertificate}>
+                  <span className="material-symbols-outlined">workspace_premium</span>
+                  <span>View Certificate</span>
+                </button>
+              </>
+            ) : (
+              <button type="button" className="du-btn du-btn--primary" onClick={onClose}>
+                Continue
+              </button>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );

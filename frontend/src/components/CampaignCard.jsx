@@ -4579,307 +4579,202 @@ export default function CampaignCard(props) {
 
             <div
               ref={modalCardRef}
-              className={`card bounce-in${!isPaymentProcessing && donateStep === 0 ? ' vc-donate-shell' : ''}${!isPaymentProcessing && donateStep === 8 ? ' vc-donate-shell vc-donate-shell--qr' : ''}`}
+              className={`card bounce-in${!isPaymentProcessing && donateStep === 0 ? ' vc-donate-shell' : ''}${!isPaymentProcessing && donateStep === 8 ? ' vc-donate-shell vc-donate-shell--qr' : ''}${isPaymentProcessing ? ' vc-donate-shell vc-donate-shell--processing' : ''}`}
               style={{
                 position: 'relative',
-                width: isPaymentProcessing ? '540px' : ((donateStep === 6 || donateStep === 7) ? '880px' : ((donateStep === 0 || (donateStep === 8 && !instantReceipt && !instantSettlingOnChain)) ? '740px' : '460px')),
+                width: isPaymentProcessing ? '464px' : ((donateStep === 6 || donateStep === 7) ? '880px' : ((donateStep === 0 || (donateStep === 8 && !instantReceipt && !instantSettlingOnChain)) ? '740px' : '460px')),
                 maxWidth: '94vw',
-                maxHeight: '92vh',
+                maxHeight: '92dvh',
                 overflowY: 'auto',
-                padding: isPaymentProcessing ? '32px 24px' : (!isPaymentProcessing && donateStep === 0 ? '0px' : '24px'),
-                background: isPaymentProcessing ? '#0a0a0a' : 'var(--surface)',
-                border: isPaymentProcessing ? '1px solid #222222' : '1px solid var(--border)',
-                boxShadow: isPaymentProcessing ? '0 25px 65px rgba(0, 0, 0, 0.9)' : 'var(--shadow-card, 0 25px 50px -12px rgba(0, 0, 0, 0.7))',
-                borderRadius: (!isPaymentProcessing && (donateStep === 0 || donateStep === 8)) ? '12px' : '18px',
+                padding: (isPaymentProcessing || (!isPaymentProcessing && donateStep === 0)) ? '0px' : '24px',
+                background: isPaymentProcessing ? undefined : 'var(--surface)',
+                border: isPaymentProcessing ? undefined : '1px solid var(--border)',
+                boxShadow: isPaymentProcessing ? undefined : 'var(--shadow-card, 0 25px 50px -12px rgba(0, 0, 0, 0.7))',
+                borderRadius: (isPaymentProcessing || (!isPaymentProcessing && (donateStep === 0 || donateStep === 8))) ? '14px' : '18px',
                 transition: 'width 0.25s ease'
               }}
             >
 
-              {/* ── Universal Institutional Payment Processing Screen ── */}
+              {/* ── Universal Institutional Payment Processing Screen (Stripe / Vercel Geist) ── */}
               {isPaymentProcessing && (() => {
                 const isEthSign = donateStep === 2;
                 const isEthMine = donateStep === 3;
                 const isCard = donateStep === 6 && isUploading;
                 const isWallet = donateStep === 7 && gatewayLoading;
 
-                let railName = 'GCash';
-                let railColor = '#007DFE';
                 let railIcon = 'account_balance_wallet';
-                let railBadge = 'Official GCash Payment Channel';
+                let railBadge = 'Official GCash Channel';
+                let statusLabel = 'VERIFYING';
                 let title = 'Processing GCash Transfer';
-                let subtitle = 'Cross-referencing payment slip reference with official GCash gateway and recording to on-chain ledger.';
-                let primaryAmount = `₱${parseFloat(amount || 0).toLocaleString()} PHP`;
-                let secondaryAmount = 'Gasless Sepolia Audit Proof';
-                let traceLabel = 'GCash Reference No.';
+                let subtitle = 'Verifying your payment reference and notarizing your receipt on Sepolia.';
+                let amountNumber = `₱${Math.round(parseFloat(amount || 0)).toLocaleString('en-US')}`;
+                let amountUnit = 'PHP';
+                let secondaryCaption = 'Gasless Sepolia Audit Proof';
+                let traceLabel = 'GCash Reference';
                 let traceValue = (refNumber || gatewayRefNo || 'Analyzing slip...').trim();
-                let step1Text = 'Payment Slip & Reference Ingested';
-                let step2Text = 'Validating Reference with GCash Gateway';
-                let step3Text = 'Notarizing to Sepolia EVM Relief Ledger';
+                let step1Text = 'Payment slip & reference ingested';
+                let step2Text = 'Validating reference with GCash gateway';
+                let step3Text = 'Notarizing audit receipt on Sepolia EVM';
 
                 if (isWallet) {
-                  railName = gatewayMethod || 'GCash';
-                  railColor = railName === 'Maya' ? '#00D68F' : '#007DFE';
+                  const railName = gatewayMethod || 'GCash';
                   railIcon = 'account_balance_wallet';
-                  railBadge = `Official ${railName} Payment Channel`;
+                  railBadge = `Official ${railName} Rail`;
+                  statusLabel = 'VERIFYING';
                   title = `Processing ${railName} Transfer`;
-                  subtitle = `Cross-referencing payment slip reference with official ${railName} gateway and recording to on-chain ledger.`;
-                  primaryAmount = `₱${parseFloat(amount || 0).toLocaleString()} PHP`;
-                  secondaryAmount = 'Gasless Sepolia Audit Proof';
-                  traceLabel = `${railName} Reference No.`;
+                  subtitle = `Cross-checking your ${railName} reference and preparing your immutable receipt.`;
+                  amountNumber = `₱${Math.round(parseFloat(amount || 0)).toLocaleString('en-US')}`;
+                  amountUnit = 'PHP';
+                  secondaryCaption = 'Gasless Sepolia Audit Proof';
+                  traceLabel = `${railName} Reference`;
                   traceValue = (refNumber || gatewayRefNo || 'Analyzing slip...').trim();
-                  step1Text = 'Payment Slip & Reference Ingested';
-                  step2Text = `Validating Reference with ${railName} Gateway`;
-                  step3Text = 'Notarizing to Sepolia EVM Relief Ledger';
+                  step1Text = 'Payment slip & reference ingested';
+                  step2Text = `Validating reference with ${railName} gateway`;
+                  step3Text = 'Notarizing audit receipt on Sepolia EVM';
                 } else if (isCard) {
-                  const brand = cardType !== 'unknown' ? cardType.toUpperCase() : 'Credit / Debit Card';
-                  railName = brand;
-                  railColor = '#3b82f6';
+                  const brand = cardType !== 'unknown' ? cardType.toUpperCase() : 'CARD';
                   railIcon = 'credit_card';
-                  railBadge = 'PCI-DSS Level 1 Encrypted Rail';
+                  railBadge = 'PCI-DSS Level 1 · Card Rail';
+                  statusLabel = 'AUTHORIZING';
                   title = 'Authorizing Card Payment';
-                  subtitle = 'Transmitting 256-bit encrypted card payload to direct banking clearing gateway.';
-                  primaryAmount = `₱${parseFloat(amount || 0).toLocaleString()} PHP`;
-                  secondaryAmount = 'Gasless Sepolia Audit Proof';
+                  subtitle = 'Encrypting payload and clearing authorization with your issuing bank.';
+                  amountNumber = `₱${Math.round(parseFloat(amount || 0)).toLocaleString('en-US')}`;
+                  amountUnit = 'PHP';
+                  secondaryCaption = 'Gasless Sepolia Audit Proof';
                   traceLabel = 'Payment Instrument';
                   traceValue = `${brand} •••• ${cardNumber ? cardNumber.replace(/\D/g, '').slice(-4) : '••••'}`;
-                  step1Text = 'Card Details Tokenized & Encrypted';
-                  step2Text = '3D Secure Bank Clearing Authorization';
-                  step3Text = 'Minting Tamper-Proof Audit Voucher';
+                  step1Text = 'Card details tokenized & encrypted';
+                  step2Text = '3D Secure bank clearing authorization';
+                  step3Text = 'Minting tamper-proof audit receipt';
                 } else if (isEthSign) {
-                  railName = 'Sepolia EVM (ETH)';
-                  railColor = '#10b981';
                   railIcon = 'currency_exchange';
-                  railBadge = 'EVM Smart Contract Gateway';
-                  title = 'Awaiting MetaMask Signature';
-                  subtitle = 'Please review and confirm the transaction parameters in your MetaMask browser extension.';
-                  primaryAmount = `${amount || '0'} ETH`;
-                  secondaryAmount = `≈ ₱${(parseFloat(amount || 0) * 170000).toLocaleString()} PHP`;
-                  traceLabel = 'Sender Web3 Wallet';
-                  traceValue = walletAddress ? `${walletAddress.slice(0, 8)}...${walletAddress.slice(-6)}` : 'MetaMask Connected';
-                  step1Text = 'Relief Smart Contract Call Prepared';
-                  step2Text = 'Awaiting Cryptographic Signature in MetaMask';
-                  step3Text = 'Broadcasting to Sepolia Validator Nodes';
+                  railBadge = 'Sepolia EVM · Smart Contract';
+                  statusLabel = 'AWAITING SIGN';
+                  title = 'Awaiting Wallet Signature';
+                  subtitle = 'Review and approve the transaction prompt in your browser wallet.';
+                  amountNumber = `${amount || '0'}`;
+                  amountUnit = 'ETH';
+                  secondaryCaption = `≈ ₱${Math.round(parseFloat(amount || 0) * 170000).toLocaleString('en-US')} PHP`;
+                  traceLabel = 'Sender Wallet';
+                  traceValue = walletAddress ? `${walletAddress.slice(0, 8)}…${walletAddress.slice(-6)}` : 'Connected Wallet';
+                  step1Text = 'Relief smart contract call prepared';
+                  step2Text = 'Awaiting cryptographic signature';
+                  step3Text = 'Broadcasting to Sepolia validators';
                 } else if (isEthMine) {
-                  railName = 'Sepolia EVM (ETH)';
-                  railColor = '#10b981';
                   railIcon = 'hub';
-                  railBadge = 'Consensus Validator Network';
-                  title = 'Mining on Sepolia Blockchain';
-                  subtitle = 'Broadcasting transaction payload to consensus validator nodes. Awaiting block inclusion...';
-                  primaryAmount = `${amount || '0'} ETH`;
-                  secondaryAmount = `≈ ₱${(parseFloat(amount || 0) * 170000).toLocaleString()} PHP`;
+                  railBadge = 'Sepolia Validator Network';
+                  statusLabel = 'CONFIRMING';
+                  title = 'Confirming On-Chain';
+                  subtitle = 'Broadcasting signed payload to Sepolia nodes for block finalization.';
+                  amountNumber = `${amount || '0'}`;
+                  amountUnit = 'ETH';
+                  secondaryCaption = `≈ ₱${Math.round(parseFloat(amount || 0) * 170000).toLocaleString('en-US')} PHP`;
                   traceLabel = 'Transaction Hash';
-                  traceValue = txHash ? `${txHash.slice(0, 10)}...${txHash.slice(-8)}` : 'Broadcasting...';
-                  step1Text = 'Client Signature Cryptographically Verified';
-                  step2Text = 'Consensus Node Mining & State Finalization';
-                  step3Text = 'Generating Immutable Cryptographic Receipt';
+                  traceValue = txHash ? `${txHash.slice(0, 10)}…${txHash.slice(-8)}` : 'Broadcasting…';
+                  step1Text = 'Client signature cryptographically verified';
+                  step2Text = 'Validator consensus & block inclusion';
+                  step3Text = 'Generating immutable audit receipt';
                 }
 
                 return (
-                  <div className="fade-in" style={{
-                    padding: '24px 14px 18px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    textAlign: 'center',
-                    minHeight: '440px',
-                    background: '#0a0a0a',
-                    borderRadius: '14px',
-                    color: '#ededed'
-                  }}>
-                    {/* Top Rail Badge */}
-                    <div style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '6px',
-                      padding: '4px 12px',
-                      borderRadius: '20px',
-                      background: `${railColor}15`,
-                      border: `1px solid ${railColor}40`,
-                      color: railColor,
-                      fontSize: '0.72rem',
-                      fontWeight: 700,
-                      textTransform: 'uppercase',
-                      letterSpacing: '0.05em',
-                      marginBottom: '20px'
-                    }}>
-                      <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>{railIcon}</span>
-                      <span>{railBadge}</span>
+                  <div className="pp-shell fade-in">
+                    {/* Top Hairline Indeterminate Progress Stream */}
+                    <div className="pp-progress-track" aria-hidden="true">
+                      <div className="pp-progress-bar" />
                     </div>
 
-                    {/* Animated Pulsing Ring & Node Icon */}
-                    <div style={{
-                      position: 'relative',
-                      width: '84px',
-                      height: '84px',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      marginBottom: '20px'
-                    }}>
-                      <div style={{
-                        position: 'absolute',
-                        width: '100%',
-                        height: '100%',
-                        borderRadius: '50%',
-                        border: `2px solid ${railColor}45`,
-                        animation: 'ping 1.8s cubic-bezier(0, 0, 0.2, 1) infinite'
-                      }} />
-                      <div style={{
-                        width: '64px',
-                        height: '64px',
-                        borderRadius: '50%',
-                        background: '#111111',
-                        border: `1px solid ${railColor}40`,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        boxShadow: `0 0 35px ${railColor}30`
-                      }}>
-                        <span className="material-symbols-outlined" style={{ fontSize: '28px', color: railColor }}>
-                          {railIcon}
-                        </span>
+                    {/* Flush Recessed Header */}
+                    <div className="pp-header">
+                      <div className="pp-rail-id">
+                        <span className="material-symbols-outlined">{railIcon}</span>
+                        <span>{railBadge}</span>
+                      </div>
+                      <div className="pp-status-chip">
+                        <span className="pp-status-dot" />
+                        <span>{statusLabel}</span>
                       </div>
                     </div>
 
-                    <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#ededed', margin: '0 0 6px 0', letterSpacing: '-0.02em' }}>
-                      {title}
-                    </h3>
-                    <p style={{ fontSize: '0.82rem', color: '#888888', maxWidth: '420px', margin: '0 0 22px 0', lineHeight: 1.5 }}>
-                      {subtitle}
-                    </p>
+                    {/* Main Body */}
+                    <div className="pp-body">
+                      <div className="pp-hero">
+                        <div className="pp-icon-stage" aria-hidden="true">
+                          <div className="pp-icon-well">
+                            <span className="material-symbols-outlined">{railIcon}</span>
+                          </div>
+                          <div className="pp-icon-ring" />
+                        </div>
+                        <h3 className="pp-title">{title}</h3>
+                        <p className="pp-subtitle">{subtitle}</p>
+                      </div>
 
-                    {/* Transaction Financial Summary Box */}
-                    <div style={{
-                      width: '100%',
-                      maxWidth: '460px',
-                      background: '#0e0e0e',
-                      border: '1px solid #222222',
-                      borderRadius: '10px',
-                      padding: '14px 18px',
-                      marginBottom: '18px',
-                      textAlign: 'left',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '9px'
-                    }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ fontSize: '0.72rem', color: '#888888', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Contribution Value</span>
-                        <span style={{ fontSize: '1.05rem', fontWeight: 700, color: railColor, fontFamily: 'var(--font-mono, monospace)' }}>
-                          {primaryAmount}
-                          <span style={{ fontSize: '0.74rem', color: '#888888', fontWeight: 500, marginLeft: '6px' }}>
-                            ({secondaryAmount})
+                      {/* Hero Amount Display (Zero Wrapping) */}
+                      <div className="pp-amount-card">
+                        <span className="pp-amount-eyebrow">Contribution Amount</span>
+                        <div className="pp-amount-row">
+                          <span className="pp-amount-val">{amountNumber}</span>
+                          <span className="pp-amount-unit">{amountUnit}</span>
+                        </div>
+                        <span className="pp-amount-note">
+                          <span className="material-symbols-outlined">verified_user</span>
+                          <span>{secondaryCaption}</span>
+                        </span>
+                      </div>
+
+                      {/* Clean 2-Row Receipt Meta Table */}
+                      <div className="pp-meta-table">
+                        <div className="pp-meta-row">
+                          <span className="pp-meta-key">Campaign</span>
+                          <span className="pp-meta-val" title={camp.title}>{camp.title}</span>
+                        </div>
+                        <div className="pp-meta-row">
+                          <span className="pp-meta-key">{traceLabel}</span>
+                          <span className="pp-meta-val pp-mono">{traceValue}</span>
+                        </div>
+                      </div>
+
+                      {/* Unified 3-Step Verification Checklist (Single Clean Container) */}
+                      <div className="pp-steps">
+                        <div className="pp-step is-done">
+                          <span className="pp-step-node">
+                            <span className="material-symbols-outlined">check</span>
                           </span>
-                        </span>
+                          <span className="pp-step-label">{step1Text}</span>
+                          <span className="pp-step-tag">Done</span>
+                        </div>
+
+                        <div className="pp-step is-active">
+                          <span className="pp-step-node">
+                            <span className="pp-step-spinner" />
+                          </span>
+                          <span className="pp-step-label">{step2Text}</span>
+                          <span className="pp-step-tag">Active</span>
+                        </div>
+
+                        <div className="pp-step is-pending">
+                          <span className="pp-step-node">
+                            <span className="pp-step-hollow" />
+                          </span>
+                          <span className="pp-step-label">{step3Text}</span>
+                          <span className="pp-step-tag">Queued</span>
+                        </div>
                       </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ fontSize: '0.72rem', color: '#888888', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Beneficiary Campaign</span>
-                        <span style={{ fontSize: '0.78rem', color: '#ededed', fontWeight: 600, maxWidth: '240px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={camp.title}>
-                          {camp.title}
-                        </span>
-                      </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ fontSize: '0.72rem', color: '#888888', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{traceLabel}</span>
-                        <span style={{ fontSize: '0.78rem', color: '#ededed', fontFamily: 'var(--font-mono, monospace)', fontWeight: 600 }}>
-                          {traceValue}
-                        </span>
-                      </div>
+
+                      {isEthSign && (
+                        <button
+                          type="button"
+                          className="pp-cancel-btn"
+                          onClick={() => setDonateStep(1)}
+                        >
+                          Cancel &amp; Return to Form
+                        </button>
+                      )}
                     </div>
 
-                    {/* Live 3-Step Verification Pipeline */}
-                    <div style={{
-                      width: '100%',
-                      maxWidth: '460px',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '8px',
-                      marginBottom: '20px',
-                      textAlign: 'left'
-                    }}>
-                      {/* Step 1: Ingested */}
-                      <div style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '10px',
-                        padding: '8px 12px',
-                        borderRadius: '8px',
-                        background: '#121212',
-                        border: '1px solid #1f1f1f',
-                        fontSize: '0.78rem'
-                      }}>
-                        <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#10b981' }}>check_circle</span>
-                        <span style={{ color: '#ededed', fontWeight: 500 }}>{step1Text}</span>
-                      </div>
-
-                      {/* Step 2: In-Flight Processing */}
-                      <div style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '10px',
-                        padding: '8px 12px',
-                        borderRadius: '8px',
-                        background: `${railColor}10`,
-                        border: `1px solid ${railColor}35`,
-                        fontSize: '0.78rem'
-                      }}>
-                        <div className="spinner" style={{ width: '14px', height: '14px', borderWidth: '2px', borderColor: railColor, borderTopColor: 'transparent', flexShrink: 0 }} />
-                        <span style={{ color: '#ffffff', fontWeight: 600 }}>{step2Text}</span>
-                      </div>
-
-                      {/* Step 3: Ledger Notarization */}
-                      <div style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '10px',
-                        padding: '8px 12px',
-                        borderRadius: '8px',
-                        background: '#121212',
-                        border: '1px solid #1c1c1c',
-                        fontSize: '0.78rem',
-                        opacity: 0.55
-                      }}>
-                        <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#666666' }}>radio_button_unchecked</span>
-                        <span style={{ color: '#888888', fontWeight: 500 }}>{step3Text}</span>
-                      </div>
-                    </div>
-
-                    {/* Return button if awaiting metamask signature */}
-                    {isEthSign && (
-                      <button
-                        type="button"
-                        onClick={() => setDonateStep(1)}
-                        style={{
-                          background: 'transparent',
-                          border: '1px solid #333333',
-                          color: '#888888',
-                          borderRadius: '8px',
-                          padding: '6px 16px',
-                          fontSize: '0.75rem',
-                          cursor: 'pointer',
-                          marginBottom: '16px',
-                          transition: 'all 0.15s ease'
-                        }}
-                        onMouseEnter={e => { e.currentTarget.style.color = '#ededed'; e.currentTarget.style.borderColor = '#555555'; }}
-                        onMouseLeave={e => { e.currentTarget.style.color = '#888888'; e.currentTarget.style.borderColor = '#333333'; }}
-                      >
-                        Cancel & Return to Form
-                      </button>
-                    )}
-
-                    {/* Bottom Trust & Security Indicator */}
-                    <div style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                      fontSize: '0.70rem',
-                      color: '#666666',
-                      letterSpacing: '0.04em',
-                      textTransform: 'uppercase',
-                      fontFamily: 'var(--font-mono, monospace)'
-                    }}>
-                      <span style={{ display: 'inline-block', width: '6px', height: '6px', borderRadius: '50%', background: '#10b981' }} />
-                      <span>256-Bit SSL Encrypted Gateway • Tamper-Proof Audit Trail</span>
+                    {/* Flush Recessed Security Footer */}
+                    <div className="pp-footer">
+                      <span className="material-symbols-outlined">lock</span>
+                      <span>256-Bit TLS Encrypted · 0% Platform Fee · Immutable Audit Trail</span>
                     </div>
                   </div>
                 );
