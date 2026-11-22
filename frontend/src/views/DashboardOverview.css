@@ -5652,23 +5652,32 @@
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.07) !important;
 }
 
-/* Tight, Compact List View Proportions (No Bloated Padding) */
+/* Balanced Outer Container Padding (Overrides .card 24px double-padding in List View) */
+.campaigns-list .card.campaign-card {
+  padding: 4px 6px;
+}
+
+.campaigns-grid .card.campaign-card {
+  padding: 0;
+}
+
+/* List View Body Proportions */
 .campaigns-list .campaign-card-body {
-  padding: 12px 14px;
-  gap: 16px;
+  padding: 16px;
+  gap: 20px;
   align-items: stretch;
 }
 
 /* Cover Media Frame */
 .campaigns-list .campaign-media {
-  width: 204px;
-  min-width: 204px;
-  max-width: 204px;
+  width: 210px;
+  min-width: 210px;
+  max-width: 210px;
   height: auto;
-  min-height: 164px;
-  max-height: 192px;
+  min-height: 186px;
+  max-height: 224px;
   align-self: stretch;
-  border-radius: 9px;
+  border-radius: 10px;
   border: 1px solid #1f1f1f;
   background: #060606;
   box-shadow: none;
@@ -5680,8 +5689,8 @@
 }
 
 .campaigns-grid .campaign-media {
-  height: 186px;
-  border-radius: 12px 12px 0 0;
+  height: 196px;
+  border-radius: 13px 13px 0 0;
   border-bottom: 1px solid #1f1f1f;
   background: #060606;
 }
@@ -5767,16 +5776,16 @@
   backdrop-filter: none !important;
 }
 
-/* ── Center Info Column (Compact Vertical Rhythm) ── */
+/* ── Center Info Column ── */
 .campaigns-list .campaign-info {
-  gap: 6px;
+  gap: 8px;
   justify-content: space-between;
-  padding: 1px 0;
+  padding: 2px 0;
 }
 
 .campaigns-grid .campaign-info {
-  padding: 13px 14px 10px;
-  gap: 6px;
+  padding: 15px 16px 12px;
+  gap: 7px;
 }
 
 /* Top Eyebrow Row */
@@ -6506,9 +6515,9 @@
 .campaigns-grid .campaign-actions {
   background: #060606;
   border-top: 1px solid #1f1f1f;
-  border-radius: 0 0 12px 12px;
-  padding: 11px 14px 12px;
-  gap: 8px;
+  border-radius: 0 0 13px 13px;
+  padding: 13px 16px 14px;
+  gap: 9px;
 }
 
 [data-theme="light"] .campaigns-grid .campaign-actions {
