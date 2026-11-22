@@ -65,7 +65,7 @@ const EMERGENCY_HOTLINES = [
 
 export default function Footer({ onNavigate, theme, toggleTheme }) {
   const [copied, setCopied] = useState(false);
-  const [govModal, setGovModal] = useState({ open: false, tab: 'governance' });
+  const [policyModal, setPolicyModal] = useState({ open: false, tab: 'accreditation' });
   const [legalModal, setLegalModal] = useState({ open: false, tab: 'agreement' });
   const [showContractModal, setShowContractModal] = useState(false);
   const [showLiveTracker, setShowLiveTracker] = useState(false);
@@ -73,8 +73,8 @@ export default function Footer({ onNavigate, theme, toggleTheme }) {
   const [showEmergencyModal, setShowEmergencyModal] = useState(false);
   const [copiedHotline, setCopiedHotline] = useState(null);
 
-  const openGov = (tab = 'governance') => {
-    setGovModal({ open: true, tab });
+  const openPolicy = (tab = 'accreditation') => {
+    setPolicyModal({ open: true, tab });
   };
 
   const openLegal = (tab = 'agreement') => {
@@ -160,10 +160,10 @@ export default function Footer({ onNavigate, theme, toggleTheme }) {
     : '0x0000…0000';
 
   return (
-    <footer className="ftv-root" id="footer-governance">
+    <footer className="ftv-root" id="footer-main">
       <div className="container ftv-main">
         <div className="ftv-grid">
-          {/* ── Column 1: Brand, Mission & On-Chain Contract Anchor ── */}
+          {/* ── Column 1: Brand, Mission & Deployed Contract ── */}
           <div className="ftv-brand-col">
             <div className="ftv-brand-head">
               <div className="ftv-logo-box">
@@ -174,12 +174,12 @@ export default function Footer({ onNavigate, theme, toggleTheme }) {
                   <span className="ftv-brand-name">BBDRTS</span>
                   <span className="ftv-region-tag">PH</span>
                 </div>
-                <span className="ftv-brand-sub">Donation &amp; Relief Transparency</span>
+                <span className="ftv-brand-sub">Blockchain-Based Donation &amp; Relief Transparency System</span>
               </div>
             </div>
 
             <p className="ftv-mission">
-              Tamper-proof disaster relief tracking for the Philippines — bridging GCash, Maya, cards, and Ethereum Sepolia milestone proofs.
+              Public disaster relief tracking for the Philippines — supporting Xendit QR Ph (GCash, Maya, InstaPay), direct QR transfers with AI receipt verification, and gasless Ethereum Sepolia audit records.
             </p>
 
             {/* Unified Sepolia Contract Pill */}
@@ -191,7 +191,7 @@ export default function Footer({ onNavigate, theme, toggleTheme }) {
                 title="Copy Sepolia Smart Contract Address"
               >
                 <span className="ftv-contract-dot" />
-                <span className="ftv-contract-lbl">Sepolia</span>
+                <span className="ftv-contract-lbl">Sepolia Contract</span>
                 <span className="ftv-contract-addr">{shortContract}</span>
                 <span className="material-symbols-outlined ftv-contract-ico">
                   {copied ? 'check' : 'content_copy'}
@@ -222,7 +222,12 @@ export default function Footer({ onNavigate, theme, toggleTheme }) {
               </li>
               <li>
                 <button type="button" className="ftv-link" onClick={handleNavigateCampaigns('DR')}>
-                  Disaster Appeals
+                  Disaster Relief
+                </button>
+              </li>
+              <li>
+                <button type="button" className="ftv-link" onClick={handleNavigateCampaigns('CD')}>
+                  Community Drives
                 </button>
               </li>
               <li>
@@ -249,7 +254,7 @@ export default function Footer({ onNavigate, theme, toggleTheme }) {
               </li>
               <li>
                 <button type="button" className="ftv-link" onClick={() => setShowContractModal(true)}>
-                  Smart Contract Audit
+                  Smart Contract Details
                 </button>
               </li>
               <li>
@@ -259,30 +264,40 @@ export default function Footer({ onNavigate, theme, toggleTheme }) {
                   rel="noopener noreferrer"
                   className="ftv-link ftv-link--ext"
                 >
-                  <span>Sepolia Ledger</span>
+                  <span>Sepolia Etherscan</span>
                   <span className="material-symbols-outlined">north_east</span>
                 </a>
               </li>
               <li>
-                <button type="button" className="ftv-link" onClick={() => openGov('allocation')}>
-                  Milestone Fund Policy
+                <button type="button" className="ftv-link" onClick={() => openPolicy('security')}>
+                  Receipt &amp; Ledger Verification
+                </button>
+              </li>
+              <li>
+                <button type="button" className="ftv-link" onClick={() => openPolicy('allocation')}>
+                  Fund Allocation Policy
                 </button>
               </li>
             </ul>
           </div>
 
-          {/* ── Column 4: Governance & Legal ── */}
+          {/* ── Column 4: Policies & Legal ── */}
           <div className="ftv-col">
-            <div className="ftv-col-title">Governance</div>
+            <div className="ftv-col-title">Policies &amp; Legal</div>
             <ul className="ftv-links">
               <li>
-                <button type="button" className="ftv-link" onClick={() => openGov('accreditation')}>
-                  NGO Accreditation
+                <button type="button" className="ftv-link" onClick={() => openPolicy('accreditation')}>
+                  NGO Vetting Standards
+                </button>
+              </li>
+              <li>
+                <button type="button" className="ftv-link" onClick={() => openLegal('agreement')}>
+                  User Agreement
                 </button>
               </li>
               <li>
                 <button type="button" className="ftv-link" onClick={() => openLegal('terms')}>
-                  Terms &amp; User Agreement
+                  Terms of Service
                 </button>
               </li>
               <li>
@@ -292,7 +307,7 @@ export default function Footer({ onNavigate, theme, toggleTheme }) {
               </li>
               <li>
                 <button type="button" className="ftv-link" onClick={() => openLegal('integrity')}>
-                  Anti-Fraud &amp; Integrity
+                  Anti-Fraud Policy
                 </button>
               </li>
             </ul>
@@ -300,7 +315,7 @@ export default function Footer({ onNavigate, theme, toggleTheme }) {
         </div>
       </div>
 
-      {/* ── Bottom Operational Strip (Zero Duplication · Vercel Geist Style) ── */}
+      {/* ── Bottom Bar (Honest & Accurate · Zero Duplication) ── */}
       <div className="ftv-bottom">
         <div className="container ftv-bottom-inner">
           <div className="ftv-bottom-left">
@@ -309,10 +324,10 @@ export default function Footer({ onNavigate, theme, toggleTheme }) {
               type="button"
               className="ftv-status-btn"
               onClick={() => setShowLiveTracker(true)}
-              title="Open live donation activity feed"
+              title="Inspect live donations recorded on Ethereum Sepolia"
             >
               <span className="ftv-status-dot" />
-              <span>All systems operational</span>
+              <span>Sepolia Live Feed</span>
             </button>
           </div>
 
@@ -360,11 +375,11 @@ export default function Footer({ onNavigate, theme, toggleTheme }) {
         </div>
       </div>
 
-      {/* Governance & Compliance Modal */}
+      {/* Platform Policies & Standards Modal */}
       <GovernanceModal
-        isOpen={govModal.open}
-        onClose={() => setGovModal({ ...govModal, open: false })}
-        initialTab={govModal.tab}
+        isOpen={policyModal.open}
+        onClose={() => setPolicyModal((prev) => ({ ...prev, open: false }))}
+        initialTab={policyModal.tab}
       />
 
       {/* Statutory Legal Framework, User Agreement, Terms & Privacy (RA 10173) Modal */}
@@ -375,7 +390,7 @@ export default function Footer({ onNavigate, theme, toggleTheme }) {
         theme={resolvedTheme}
       />
 
-      {/* Smart Contract Verification Modal */}
+      {/* Smart Contract Details Modal */}
       <SmartContractModal
         isOpen={showContractModal}
         onClose={() => setShowContractModal(false)}
@@ -389,7 +404,7 @@ export default function Footer({ onNavigate, theme, toggleTheme }) {
         theme={resolvedTheme}
       />
 
-      {/* Top Benefactors & Leaderboard Modal */}
+      {/* Top Donors & Relief Partners Modal */}
       <LeaderboardModal
         isOpen={showLeaderboard}
         onClose={() => setShowLeaderboard(false)}

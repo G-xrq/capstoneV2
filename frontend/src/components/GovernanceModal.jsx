@@ -1,9 +1,15 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { contractAddress } from '../contractConfig';
 
-export default function GovernanceModal({ isOpen, onClose, initialTab = 'governance' }) {
+export default function GovernanceModal({ isOpen, onClose, initialTab = 'accreditation' }) {
   const [activeTab, setActiveTab] = useState(initialTab);
+
+  useEffect(() => {
+    if (isOpen && initialTab) {
+      setActiveTab(initialTab);
+    }
+  }, [isOpen, initialTab]);
 
   if (!isOpen) return null;
 
@@ -67,10 +73,10 @@ export default function GovernanceModal({ isOpen, onClose, initialTab = 'governa
             </div>
             <div>
               <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-                Institutional Governance & Security Framework
+                Platform Policies &amp; Transparency Standards
               </h3>
               <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                BBDRTS Protocol • Compliance, Accreditation & Calamity Reserve Standards
+                BBDRTS • NGO Vetting, Fund Allocation &amp; Verification Standards
               </div>
             </div>
           </div>
@@ -121,7 +127,7 @@ export default function GovernanceModal({ isOpen, onClose, initialTab = 'governa
             }}
           >
             <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>gavel</span>
-            <span>Terms of Governance</span>
+            <span>Platform Charter</span>
           </button>
 
           <button
@@ -227,15 +233,15 @@ export default function GovernanceModal({ isOpen, onClose, initialTab = 'governa
           {activeTab === 'governance' && (
             <div>
               <h4 style={{ color: 'var(--text-primary)', fontSize: '1rem', marginBottom: '8px' }}>
-                Charter of Humanitarian Governance
+                Humanitarian Transparency Charter
               </h4>
               <p>
-                The Blockchain-Based Donation & Relief Transparency System (BBDRTS) operates under a zero-intermediary charter. All smart contracts and multi-rail payment channels directly escrow and release funds to accredited disaster-relief non-governmental organizations (NGOs) upon cryptographic milestone validation.
+                The Blockchain-Based Donation & Relief Transparency System (BBDRTS) connects donors with vetted Philippine disaster-relief organizations. Donations are processed via Xendit QR Ph (standard third-party payment gateway fees apply) or Direct QR transfer with AI receipt verification, while BBDRTS charges 0% platform commission and notarizes verified records gaslessly on Ethereum Sepolia.
               </p>
               <div style={{ background: 'var(--bg-card-subtle, var(--bg-hover))', border: '1px solid var(--border)', borderRadius: '12px', padding: '14px', marginTop: '12px' }}>
                 <h5 style={{ color: 'var(--accent, #16a34a)', margin: '0 0 6px 0', fontSize: '0.88rem' }}>1. Monetary Contributions Exclusivity</h5>
                 <p style={{ margin: 0, fontSize: '0.82rem' }}>
-                  The BBDRTS protocol exclusively handles <strong>Philippine Peso monetary relief donations</strong> (GCash, Maya, cards, and bank transfer), notarized gaslessly on Ethereum Sepolia. The platform does not coordinate or accept physical in-kind goods collections (such as second-hand clothes or perishable groceries).
+                  BBDRTS exclusively handles <strong>Philippine Peso monetary relief donations</strong> (GCash, Maya, InstaPay/Bank, and Cards via Xendit QR Ph or Direct QR), notarized gaslessly on Ethereum Sepolia. The platform does not coordinate or accept physical in-kind goods collections.
                 </p>
               </div>
 
@@ -306,7 +312,7 @@ export default function GovernanceModal({ isOpen, onClose, initialTab = 'governa
               </p>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '10px' }}>
                 <div style={{ padding: '10px 14px', background: 'var(--bg-card-subtle, var(--bg-hover))', borderRadius: '8px', border: '1px solid var(--border)' }}>
-                  <strong>Zero-Intermediary Routing:</strong> Platform administrators never custody donor funds; contributions move directly to accredited NGO accounts while every record is sealed gaslessly on Ethereum Sepolia.
+                  <strong>Xendit QR Ph &amp; Direct NGO Routing:</strong> Instant QR Ph donations settle through Xendit (standard third-party gateway fees apply) and Direct QR transfers go directly to verified NGO accounts, while BBDRTS charges 0% commission and records every proof gaslessly on Ethereum Sepolia.
                 </div>
                 <div style={{ padding: '10px 14px', background: 'var(--bg-card-subtle, var(--bg-hover))', borderRadius: '8px', border: '1px solid var(--border)' }}>
                   <strong>Multi-Rail Cross-Ledger Hashing:</strong> Every GCash, Maya, and Card transaction receives a SHA-256 cryptographic hash anchored to the immutable ledger.
