@@ -5101,7 +5101,7 @@ export default function OrganizationView({
                   {/* ── Step 5: Official Receiving Channels & Review ── */}
                   {deployStep === 5 && (
                     <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
-                      {/* Pre-Flight Operation Review + Live Donor Card Preview */}
+                      {/* Pre-Flight Operation Review — Live Donor Card Preview */}
                       <div className="dc-preflight-panel">
                         <div className="dc-preflight-head">
                           <div className="dc-preflight-title-row">
@@ -5114,65 +5114,8 @@ export default function OrganizationView({
                           </span>
                         </div>
 
-                        <div className="dc-preflight-grid">
-                          {/* Left: Structured Verification Rows (with quick Edit jumps) */}
-                          <div className="dc-preflight-summary">
-                            <div className="dc-pf-row">
-                              <div className="dc-pf-meta">
-                                <span className="dc-pf-lbl">Campaign Title</span>
-                                <span className={`dc-pf-val${title.trim() ? '' : ' is-muted'}`}>
-                                  {title.trim() || 'Untitled Campaign'}
-                                </span>
-                              </div>
-                              <button type="button" className="dc-pf-edit" onClick={() => setDeployStep(1)}>Edit</button>
-                            </div>
-
-                            <div className="dc-pf-row">
-                              <div className="dc-pf-meta">
-                                <span className="dc-pf-lbl">Category &amp; Target</span>
-                                <span className="dc-pf-val">
-                                  {category === 'DR' ? 'Disaster Relief' : 'Community Aid'} · ₱{Math.round(Number(targetAmount || 0)).toLocaleString('en-US')}
-                                </span>
-                              </div>
-                              <button type="button" className="dc-pf-edit" onClick={() => setDeployStep(1)}>Edit</button>
-                            </div>
-
-                            <div className="dc-pf-row">
-                              <div className="dc-pf-meta">
-                                <span className="dc-pf-lbl">{category === 'CD' ? 'Project Location' : 'Ground Location'}</span>
-                                <span className={`dc-pf-val${(city || province) ? '' : ' is-muted'}`}>
-                                  {[city, province].filter(Boolean).join(', ') || 'Not pinned'}
-                                </span>
-                              </div>
-                              <button type="button" className="dc-pf-edit" onClick={() => setDeployStep(4)}>Edit</button>
-                            </div>
-
-                            <div className="dc-pf-row">
-                              <div className="dc-pf-meta">
-                                <span className="dc-pf-lbl">Timeline &amp; Evidence</span>
-                                <span className="dc-pf-val">
-                                  {formatUrgencyDisplay(urgency).split('(')[0].trim() || 'Standard'}
-                                  {targetDate ? ` · Due ${formatSelectedDeliveryDate(targetDate)}` : ''}
-                                  {` · ${disasterImages.length} ${disasterImages.length === 1 ? 'Photo' : 'Photos'} Attached`}
-                                </span>
-                              </div>
-                              <button type="button" className="dc-pf-edit" onClick={() => setDeployStep(2)}>Edit</button>
-                            </div>
-
-                            <div className="dc-pf-row">
-                              <div className="dc-pf-meta">
-                                <span className="dc-pf-lbl">Relief Focus &amp; Beneficiaries</span>
-                                <span className="dc-pf-val">
-                                  {selectedTags.length > 0 ? `${selectedTags.slice(0, 3).join(', ')}${selectedTags.length > 3 ? ` +${selectedTags.length - 3}` : ''}` : 'No focus tags selected'}
-                                  {beneficiariesImpact.trim() ? ` · ${beneficiariesImpact.trim()}` : ''}
-                                </span>
-                              </div>
-                              <button type="button" className="dc-pf-edit" onClick={() => setDeployStep(3)}>Edit</button>
-                            </div>
-                          </div>
-
-                          {/* Right: Donor-Facing Live Card Preview */}
-                          <div className="dc-donor-preview">
+                        <div className="dc-preflight-body">
+                          <div className="dc-donor-preview dc-donor-preview--wide">
                             <div className="dc-dp-cover">
                               {disasterImages && disasterImages.length > 0 ? (
                                 <img src={disasterImages[0]} alt="Campaign cover preview" className="dc-dp-img" />
@@ -5197,17 +5140,39 @@ export default function OrganizationView({
                             </div>
 
                             <div className="dc-dp-body">
-                              <div className="dc-dp-org">
-                                <span>{orgDisplayName || 'Your Organization'}</span>
-                                <span className="material-symbols-outlined dc-dp-ver">verified</span>
+                              <div className="dc-dp-top-meta">
+                                <div className="dc-dp-org">
+                                  <span>{orgDisplayName || 'Your Organization'}</span>
+                                  <span className="material-symbols-outlined dc-dp-ver">verified</span>
+                                </div>
+                                <span className="dc-dp-photo-count">
+                                  {disasterImages.length} {disasterImages.length === 1 ? 'photo' : 'photos'}
+                                </span>
                               </div>
+
                               <div className={`dc-dp-title${title.trim() ? '' : ' is-muted'}`}>
                                 {title.trim() || 'Untitled Campaign'}
                               </div>
+
                               <div className="dc-dp-loc">
                                 <span className="material-symbols-outlined">location_on</span>
-                                <span>{[city, province].filter(Boolean).join(', ') || 'Philippines'}</span>
+                                <span>{[city, province].filter(Boolean).join(', ') || 'Location not pinned yet'}</span>
                               </div>
+
+                              {(selectedTags.length > 0 || beneficiariesImpact.trim()) && (
+                                <div className="dc-dp-tags">
+                                  {selectedTags.slice(0, 4).map((t) => (
+                                    <span key={t} className="dc-dp-tag">{t}</span>
+                                  ))}
+                                  {selectedTags.length > 4 && (
+                                    <span className="dc-dp-tag">+{selectedTags.length - 4}</span>
+                                  )}
+                                  {beneficiariesImpact.trim() && (
+                                    <span className="dc-dp-tag">{beneficiariesImpact.trim()}</span>
+                                  )}
+                                </div>
+                              )}
+
                               <div className="dc-dp-progress">
                                 <div className="dc-dp-nums">
                                   <span className="dc-dp-raised">₱0 raised</span>
@@ -5215,7 +5180,7 @@ export default function OrganizationView({
                                 </div>
                                 <div className="dc-dp-track"><div className="dc-dp-fill" /></div>
                                 <div className="dc-dp-foot">
-                                  <span>{targetDate ? `Due ${formatSelectedDeliveryDate(targetDate)}` : 'No due date'}</span>
+                                  <span>{targetDate ? `Due ${formatSelectedDeliveryDate(targetDate)}` : 'No due date set'}</span>
                                   <span>0% funded</span>
                                 </div>
                               </div>
