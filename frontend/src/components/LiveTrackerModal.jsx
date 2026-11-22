@@ -11,9 +11,9 @@ const RAIL_CONFIG = {
 };
 
 const TIME_WINDOWS = [
-  { id: "24h",    label: "Today (24h)", shortLabel: "24h",       desc: "Last 24 Hours", maxItems: 20, ms: 24 * 60 * 60 * 1000 },
-  { id: "7d",     label: "7 Days",      shortLabel: "7d",        desc: "Past 7 Days",   maxItems: 20, ms: 7 * 24 * 60 * 60 * 1000 },
-  { id: "latest", label: "Latest 15",   shortLabel: "Latest 15", desc: "Latest 15 Gifts", maxItems: 15, ms: null },
+  { id: "24h",    label: "Today (24h)", compactLabel: "Today",     shortLabel: "24h",       desc: "Last 24 Hours",       maxItems: 20, ms: 24 * 60 * 60 * 1000 },
+  { id: "7d",     label: "7 Days",      compactLabel: "7 Days",    shortLabel: "7d",        desc: "Past 7 Days",         maxItems: 20, ms: 7 * 24 * 60 * 60 * 1000 },
+  { id: "latest", label: "Latest 15",   compactLabel: "Latest 15", shortLabel: "Latest 15", desc: "Latest 15 Donations", maxItems: 15, ms: null },
 ];
 
 function parseUtcDate(dateInput) {
@@ -46,7 +46,7 @@ function AnimatedNumber({ value, prefix = "", suffix = "", decimals = 0 }) {
     if (raf.current) cancelAnimationFrame(raf.current);
     const step = (ts) => {
       if (!startRef.current) startRef.current = ts;
-      const prog = Math.min((ts - startRef.current) / 620, 1);
+      const prog = Math.min((ts - startRef.current) / 520, 1);
       const ease = 1 - Math.pow(1 - prog, 3);
       setDisplay(fromRef.current + (target - fromRef.current) * ease);
       if (prog < 1) raf.current = requestAnimationFrame(step);
@@ -77,7 +77,7 @@ export default function LiveTrackerModal({ isOpen, onClose, theme }) {
   const [currentTime, setCurrentTime] = useState(() => Date.now());
   const prevFirstIdRef                = useRef(null);
 
-  // Floating dock draggable coordinates
+  // Floating dock draggable coordinates (desktop only)
   const [dockPos, setDockPos] = useState(() => {
     const w = typeof window !== "undefined" ? window.innerWidth : 1200;
     const h = typeof window !== "undefined" ? window.innerHeight : 800;
@@ -89,8 +89,23 @@ export default function LiveTrackerModal({ isOpen, onClose, theme }) {
   const isDraggingRef = useRef(false);
   const dragStartRef = useRef({ mouseX: 0, mouseY: 0, posX: 0, posY: 0 });
 
+  // Lock background page scroll cleanly while full modal is open (fixes mobile scroll fights!)
+  useEffect(() => {
+    if (!isOpen || isDocked || typeof document === "undefined") return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [isOpen, isDocked]);
+
+  // Auto-undock on mobile viewports & clamp dock on desktop resize
   useEffect(() => {
     const onResize = () => {
+      if (window.innerWidth <= 780 && isDocked) {
+        setIsDocked(false);
+        return;
+      }
       setDockPos((prev) => ({
         x: Math.min(Math.max(16, prev.x), Math.max(16, window.innerWidth - 392 - 16)),
         y: Math.min(Math.max(16, prev.y), Math.max(16, window.innerHeight - 540 - 16)),
@@ -98,7 +113,7 @@ export default function LiveTrackerModal({ isOpen, onClose, theme }) {
     };
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
-  }, []);
+  }, [isDocked]);
 
   const handleHeaderMouseDown = (e) => {
     if (!isDocked) return;
@@ -128,36 +143,6 @@ export default function LiveTrackerModal({ isOpen, onClose, theme }) {
 
     window.addEventListener("mousemove", onMouseMove);
     window.addEventListener("mouseup", onMouseUp);
-  };
-
-  const handleHeaderTouchStart = (e) => {
-    if (!isDocked || !e.touches || e.touches.length === 0) return;
-    if (e.target.closest("button") || e.target.closest("input") || e.target.closest("a")) return;
-    const touch = e.touches[0];
-    isDraggingRef.current = true;
-    dragStartRef.current = { mouseX: touch.clientX, mouseY: touch.clientY, posX: dockPos.x, posY: dockPos.y };
-
-    const onTouchMove = (moveEvent) => {
-      if (!isDraggingRef.current || !moveEvent.touches || moveEvent.touches.length === 0) return;
-      const t = moveEvent.touches[0];
-      const dx = t.clientX - dragStartRef.current.mouseX;
-      const dy = t.clientY - dragStartRef.current.mouseY;
-      const maxX = Math.max(16, window.innerWidth - 392 - 16);
-      const maxY = Math.max(16, window.innerHeight - 540 - 16);
-      setDockPos({
-        x: Math.min(Math.max(16, dragStartRef.current.posX + dx), maxX),
-        y: Math.min(Math.max(16, dragStartRef.current.posY + dy), maxY),
-      });
-    };
-
-    const onTouchEnd = () => {
-      isDraggingRef.current = false;
-      window.removeEventListener("touchmove", onTouchMove);
-      window.removeEventListener("touchend", onTouchEnd);
-    };
-
-    window.addEventListener("touchmove", onTouchMove, { passive: false });
-    window.addEventListener("touchend", onTouchEnd);
   };
 
   // Live 1-second clock
@@ -244,22 +229,30 @@ export default function LiveTrackerModal({ isOpen, onClose, theme }) {
     return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", hour12: true });
   };
 
-  const activeWindowCfg = TIME_WINDOWS.find((w) => w.id === timeWindow) || TIME_WINDOWS[0];
-
-  // Windowed live subset (True purpose of a live tracker: today/recent pulse, not endless full archive)
-  const windowedDonations = useMemo(() => {
+  // Pre-compute counts per window so tabs show live numbers at a glance
+  const windowBuckets = useMemo(() => {
     const nowMs = Date.now();
-    if (timeWindow === "24h" || timeWindow === "7d") {
-      const cutoff = nowMs - activeWindowCfg.ms;
-      return donations.filter((d) => {
-        const dt = parseUtcDate(d.createdAt);
-        return dt ? dt.getTime() >= cutoff : false;
-      });
+    const cutoff24h = nowMs - 24 * 60 * 60 * 1000;
+    const cutoff7d = nowMs - 7 * 24 * 60 * 60 * 1000;
+    const list24h = [];
+    const list7d = [];
+    for (const d of donations) {
+      const dt = parseUtcDate(d.createdAt);
+      const ts = dt ? dt.getTime() : 0;
+      if (ts >= cutoff24h) list24h.push(d);
+      if (ts >= cutoff7d) list7d.push(d);
     }
-    return donations.slice(0, 15);
-  }, [donations, timeWindow, activeWindowCfg]);
+    return {
+      "24h": list24h,
+      "7d": list7d,
+      latest: donations.slice(0, 15),
+    };
+  }, [donations]);
 
-  // All-time total context (for subtle secondary reference)
+  const activeWindowCfg = TIME_WINDOWS.find((w) => w.id === timeWindow) || TIME_WINDOWS[0];
+  const windowedDonations = windowBuckets[timeWindow] || [];
+
+  // All-time total context (subtle secondary reference)
   const allTimePhp = useMemo(() => {
     if (serverStats?.totalPhp) return Number(serverStats.totalPhp);
     return donations.reduce((s, d) => s + Number(d.amountPhp || 0), 0);
@@ -301,7 +294,7 @@ export default function LiveTrackerModal({ isOpen, onClose, theme }) {
     };
   }, [windowedDonations]);
 
-  // Apply rail + search filter, then enforce bounded live stream cap (no never-ending scroll!)
+  // Apply channel + search filter, strictly capped so stream never becomes an endless scroll
   const { visibleDonations, totalMatched, isCapped } = useMemo(() => {
     const matched = windowedDonations.filter((d) => {
       if (railFilter !== "ALL" && d.rail !== railFilter) return false;
@@ -342,7 +335,6 @@ export default function LiveTrackerModal({ isOpen, onClose, theme }) {
         <div
           className={`ltm-header${isDocked ? " is-draggable" : ""}`}
           onMouseDown={handleHeaderMouseDown}
-          onTouchStart={handleHeaderTouchStart}
         >
           <div className="ltm-header-left">
             {isDocked && (
@@ -363,7 +355,7 @@ export default function LiveTrackerModal({ isOpen, onClose, theme }) {
               </div>
               {!isDocked && (
                 <p className="ltm-subtitle">
-                  Real-time incoming relief stream · Auto-syncs every 4s on Sepolia EVM
+                  Real-time incoming relief donations · Syncs every 4s on Sepolia EVM
                 </p>
               )}
             </div>
@@ -395,7 +387,7 @@ export default function LiveTrackerModal({ isOpen, onClose, theme }) {
 
             <button
               type="button"
-              className={`ltm-tool-btn${isDocked ? " is-active" : ""}`}
+              className={`ltm-tool-btn ltm-pip-btn${isDocked ? " is-active" : ""}`}
               onClick={(e) => { e.stopPropagation(); setIsDocked((p) => !p); }}
               title={isDocked ? "Expand modal" : "Pop out mini live widget"}
               aria-label={isDocked ? "Expand" : "Mini widget"}
@@ -427,16 +419,18 @@ export default function LiveTrackerModal({ isOpen, onClose, theme }) {
           </div>
         </div>
 
-        {/* ── BODY ── */}
+        {/* ── BODY (2-col on Desktop, Single Unified Scroll on Mobile) ── */}
         <div className="ltm-body">
-          {/* LEFT TELEMETRY RAIL (Full View Only — Window-Aware Live Pulse) */}
+          {/* LEFT TELEMETRY RAIL (Desktop Sidebar / Compact Top Band on Mobile) */}
           {!isDocked && (
             <aside className="ltm-left-rail">
               {/* Primary Window Volume */}
-              <div className="ltm-rail-block">
+              <div className="ltm-rail-block ltm-rail-block--hero">
                 <div className="ltm-eyebrow-row">
                   <span className="ltm-eyebrow">{activeWindowCfg.desc}</span>
-                  <span className="ltm-window-tag">{windowStats.txCount} {windowStats.txCount === 1 ? "gift" : "gifts"}</span>
+                  <span className="ltm-window-tag">
+                    {windowStats.txCount} {windowStats.txCount === 1 ? "donation" : "donations"}
+                  </span>
                 </div>
                 <div className="ltm-hero-amt">
                   ₱<AnimatedNumber value={windowStats.totalPhp} />
@@ -464,7 +458,7 @@ export default function LiveTrackerModal({ isOpen, onClose, theme }) {
 
               {/* Most Active Drive Right Now */}
               {windowStats.topCause && (
-                <div className="ltm-rail-block">
+                <div className="ltm-rail-block ltm-top-drive-block">
                   <span className="ltm-eyebrow">Most Active Drive</span>
                   <div className="ltm-top-drive-title" title={windowStats.topCause.title}>
                     {windowStats.topCause.title}
@@ -472,13 +466,15 @@ export default function LiveTrackerModal({ isOpen, onClose, theme }) {
                   <div className="ltm-top-drive-meta">
                     <span>₱{Math.round(windowStats.topCause.php).toLocaleString("en-US")}</span>
                     <span>·</span>
-                    <span>{windowStats.topCause.count} {windowStats.topCause.count === 1 ? "gift" : "gifts"}</span>
+                    <span>
+                      {windowStats.topCause.count} {windowStats.topCause.count === 1 ? "donation" : "donations"}
+                    </span>
                   </div>
                 </div>
               )}
 
               {/* Live Channel Mix (Click to Filter) */}
-              <div className="ltm-rail-block ltm-rail-block--grow">
+              <div className="ltm-rail-block ltm-rail-block--channels">
                 <div className="ltm-eyebrow-row">
                   <span className="ltm-eyebrow">Payment Channels</span>
                   {railFilter !== "ALL" && (
@@ -530,21 +526,34 @@ export default function LiveTrackerModal({ isOpen, onClose, theme }) {
 
           {/* RIGHT LIVE STREAM PANEL */}
           <div className="ltm-stream-col">
-            {/* Toolbar: Time-Window Segmented Switcher + Search */}
+            {/* Toolbar: Time-Window Switcher + Search */}
             <div className={`ltm-toolbar${isDocked ? " ltm-toolbar--docked" : ""}`}>
               <div className="ltm-window-seg" role="tablist" aria-label="Live stream time window">
-                {TIME_WINDOWS.map((win) => (
-                  <button
-                    key={win.id}
-                    type="button"
-                    role="tab"
-                    aria-selected={timeWindow === win.id}
-                    className={`ltm-window-btn${timeWindow === win.id ? " is-active" : ""}`}
-                    onClick={() => setTimeWindow(win.id)}
-                  >
-                    <span>{isDocked ? win.shortLabel : win.label}</span>
-                  </button>
-                ))}
+                {TIME_WINDOWS.map((win) => {
+                  const winCount = (windowBuckets[win.id] || []).length;
+                  return (
+                    <button
+                      key={win.id}
+                      type="button"
+                      role="tab"
+                      aria-selected={timeWindow === win.id}
+                      className={`ltm-window-btn${timeWindow === win.id ? " is-active" : ""}`}
+                      onClick={() => setTimeWindow(win.id)}
+                    >
+                      {isDocked ? (
+                        <span>{win.shortLabel}</span>
+                      ) : (
+                        <>
+                          <span className="ltm-lbl-full">{win.label}</span>
+                          <span className="ltm-lbl-compact">{win.compactLabel}</span>
+                        </>
+                      )}
+                      {win.id !== "latest" && (
+                        <span className="ltm-window-count">{winCount}</span>
+                      )}
+                    </button>
+                  );
+                })}
               </div>
 
               {!isDocked && (
@@ -570,6 +579,23 @@ export default function LiveTrackerModal({ isOpen, onClose, theme }) {
                 </div>
               )}
             </div>
+
+            {/* Active Channel Filter Banner (if filtered) */}
+            {railFilter !== "ALL" && !isDocked && (
+              <div className="ltm-active-filter-bar">
+                <span className="ltm-active-filter-label">
+                  <span className="ltm-channel-dot" style={{ backgroundColor: RAIL_CONFIG[railFilter]?.color }} />
+                  <span>Filtered by <strong>{RAIL_CONFIG[railFilter]?.label}</strong> ({visibleDonations.length})</span>
+                </span>
+                <button
+                  type="button"
+                  className="ltm-clear-link"
+                  onClick={() => setRailFilter("ALL")}
+                >
+                  Clear filter
+                </button>
+              </div>
+            )}
 
             {/* Stream Feed */}
             <div className="ltm-feed-scroll">
@@ -603,7 +629,7 @@ export default function LiveTrackerModal({ isOpen, onClose, theme }) {
                   <p className="ltm-empty-desc">
                     {searchQuery || railFilter !== "ALL"
                       ? "Try clearing your channel filter or switching to a wider time window."
-                      : "The stream is listening live every 4 seconds. New relief contributions will appear here automatically."}
+                      : "The tracker is listening live every 4 seconds. New relief donations will appear here automatically."}
                   </p>
                   <div className="ltm-empty-actions">
                     {(searchQuery || railFilter !== "ALL") && (
@@ -642,7 +668,6 @@ export default function LiveTrackerModal({ isOpen, onClose, theme }) {
                           key={item.id || item.txHash || idx}
                           className={`ltm-row${isNew ? " is-new" : ""}`}
                         >
-                          {/* Compact Monochrome / Photo Avatar */}
                           <div className="ltm-avatar">
                             {isAnon ? (
                               <span className="material-symbols-outlined" title="Anonymous">visibility_off</span>
@@ -655,7 +680,6 @@ export default function LiveTrackerModal({ isOpen, onClose, theme }) {
                             )}
                           </div>
 
-                          {/* Center Info */}
                           <div className="ltm-row-main">
                             <div className="ltm-row-top">
                               <div className="ltm-donor-wrap">
@@ -689,15 +713,19 @@ export default function LiveTrackerModal({ isOpen, onClose, theme }) {
                             </div>
 
                             <div className="ltm-row-meta">
-                              <span className="ltm-meta-rail">
-                                <span className="ltm-channel-dot" style={{ backgroundColor: railCfg.color }} />
-                                <span>{railCfg.label}</span>
-                              </span>
-                              <span className="ltm-meta-sep">·</span>
-                              <span className="ltm-meta-time">
-                                {formatLiveTimeAgo(item.createdAt)}
-                                {!isDocked && ` (${formatExactTime(item.createdAt)})`}
-                              </span>
+                              <div className="ltm-row-meta-left">
+                                <span className="ltm-meta-rail">
+                                  <span className="ltm-channel-dot" style={{ backgroundColor: railCfg.color }} />
+                                  <span>{railCfg.label}</span>
+                                </span>
+                                <span className="ltm-meta-sep">·</span>
+                                <span className="ltm-meta-time">
+                                  {formatLiveTimeAgo(item.createdAt)}
+                                  {!isDocked && (
+                                    <span className="ltm-exact-time"> ({formatExactTime(item.createdAt)})</span>
+                                  )}
+                                </span>
+                              </div>
 
                               {!isDocked && item.txHash && (
                                 <div className="ltm-row-proof">
@@ -739,7 +767,7 @@ export default function LiveTrackerModal({ isOpen, onClose, theme }) {
                     })}
                   </div>
 
-                  {/* Clean Bounded Stream Cap Notice (No Never-Ending Scroll) */}
+                  {/* Clean Bounded Stream Cap Notice */}
                   <div className="ltm-stream-cap">
                     <span>
                       {isCapped

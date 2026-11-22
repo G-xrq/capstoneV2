@@ -1,7 +1,7 @@
 /* ============================================================
    BBDRTS LIVE DONATION TRACKER — VERCEL GEIST REAL-TIME MONITOR
-   Obsidian Surfaces · 1px Hairlines · Windowed Live Pulse
-   Full Dark & Light Mode Parity · Full Modal & Mini PiP Widget
+   Obsidian Surfaces · 1px Hairlines · Windowed Live Stream
+   Full Dark & Light Mode Parity · Rock-Solid Mobile Touch Scroll
    ============================================================ */
 
 .ltm-root {
@@ -29,6 +29,8 @@
   background: rgba(0, 0, 0, 0.78);
   -webkit-backdrop-filter: blur(10px);
   backdrop-filter: blur(10px);
+  overscroll-behavior: contain;
+  touch-action: none;
   z-index: 999998;
   animation: ltmFade 0.16s ease forwards;
 }
@@ -42,7 +44,7 @@
   to { opacity: 1; }
 }
 
-/* ── Main Modal Shell ── */
+/* ── Main Modal Shell (Desktop Centered) ── */
 .ltm-card {
   position: fixed;
   top: 50%;
@@ -50,7 +52,7 @@
   transform: translate(-50%, -50%);
   width: 920px;
   max-width: calc(100vw - 28px);
-  height: min(680px, 86vh);
+  height: min(680px, 86dvh);
   background: #0a0a0a;
   border: 1px solid #262626;
   border-radius: 14px;
@@ -74,7 +76,7 @@
   to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
 }
 
-/* ── Docked Floating Mini Widget (Draggable) ── */
+/* ── Docked Floating Mini Widget (Desktop Draggable) ── */
 .ltm-root.is-docked .ltm-card,
 .ltm-card--docked {
   position: fixed !important;
@@ -82,7 +84,7 @@
   width: 392px !important;
   max-width: calc(100vw - 20px) !important;
   height: 520px !important;
-  max-height: calc(100vh - 20px) !important;
+  max-height: calc(100dvh - 20px) !important;
   border-radius: 14px !important;
   border: 1px solid #3f3f46 !important;
   box-shadow: 0 22px 54px rgba(0, 0, 0, 0.82), inset 0 1px 0 rgba(255, 255, 255, 0.06) !important;
@@ -125,6 +127,7 @@
   align-items: center;
   gap: 11px;
   min-width: 0;
+  flex: 1;
 }
 
 .ltm-drag-handle {
@@ -158,12 +161,15 @@
 
 .ltm-title-block {
   min-width: 0;
+  flex: 1;
 }
 
 .ltm-title-row {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-wrap: nowrap;
+  min-width: 0;
 }
 
 .ltm-title {
@@ -173,6 +179,8 @@
   letter-spacing: -0.02em;
   color: #ffffff;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .ltm-root[data-theme="light"] .ltm-title {
@@ -189,9 +197,10 @@
   background: #0a0a0a;
   border: 1px solid #262626;
   color: #d4d4d8;
-  font-size: 0.62rem;
+  font-size: 0.61rem;
   font-weight: 600;
   letter-spacing: 0.07em;
+  flex-shrink: 0;
 }
 
 .ltm-root[data-theme="light"] .ltm-status-pill {
@@ -263,6 +272,7 @@
   background: #0a0a0a;
   color: #a1a1aa;
   cursor: pointer;
+  flex-shrink: 0;
   transition: background 0.14s ease, border-color 0.14s ease, color 0.14s ease;
 }
 
@@ -300,7 +310,7 @@
   color: #ffffff;
 }
 
-/* ── Main 2-Column Body ── */
+/* ── Main 2-Column Body (Desktop) ── */
 .ltm-body {
   display: flex;
   flex: 1 1 auto;
@@ -308,9 +318,9 @@
   overflow: hidden;
 }
 
-/* ── Left Telemetry Rail (Hairline-Divided, Zero Box Clutter) ── */
+/* ── Left Telemetry Rail ── */
 .ltm-left-rail {
-  width: 274px;
+  width: 270px;
   flex-shrink: 0;
   background: #060606;
   border-right: 1px solid #1f1f1f;
@@ -325,7 +335,7 @@
 }
 
 .ltm-rail-block {
-  padding: 16px 18px;
+  padding: 15px 18px;
   border-bottom: 1px solid #1a1a1d;
   display: flex;
   flex-direction: column;
@@ -340,7 +350,7 @@
   border-bottom-color: #e4e4e7;
 }
 
-.ltm-rail-block--grow {
+.ltm-rail-block--channels {
   flex: 1;
 }
 
@@ -352,7 +362,7 @@
 }
 
 .ltm-eyebrow {
-  font-size: 0.64rem;
+  font-size: 0.63rem;
   font-weight: 600;
   letter-spacing: 0.07em;
   text-transform: uppercase;
@@ -367,7 +377,7 @@
 }
 
 .ltm-hero-amt {
-  font-size: 1.7rem;
+  font-size: 1.65rem;
   font-weight: 700;
   letter-spacing: -0.03em;
   line-height: 1.15;
@@ -407,7 +417,7 @@
 }
 
 .ltm-mini-cell {
-  padding: 13px 18px;
+  padding: 12px 18px;
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -422,7 +432,7 @@
 }
 
 .ltm-mini-val {
-  font-size: 0.98rem;
+  font-size: 0.96rem;
   font-weight: 700;
   letter-spacing: -0.02em;
   color: #ffffff;
@@ -440,7 +450,7 @@
 
 /* Top Active Drive */
 .ltm-top-drive-title {
-  font-size: 0.79rem;
+  font-size: 0.78rem;
   font-weight: 600;
   color: #ededed;
   line-height: 1.35;
@@ -469,7 +479,7 @@
   background: transparent;
   border: none;
   padding: 0;
-  font-size: 0.68rem;
+  font-size: 0.69rem;
   font-weight: 600;
   font-family: inherit;
   color: #ededed;
@@ -641,6 +651,9 @@
 }
 
 .ltm-window-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   height: 27px;
   padding: 0 10px;
   border: none;
@@ -666,6 +679,31 @@
   font-weight: 600;
 }
 
+.ltm-window-count {
+  font-size: 0.65rem;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.72;
+}
+
+.ltm-lbl-compact {
+  display: none;
+}
+
+.ltm-toolbar--docked {
+  padding: 9px 12px;
+}
+
+.ltm-toolbar--docked .ltm-window-seg {
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.ltm-toolbar--docked .ltm-window-btn {
+  justify-content: center;
+  padding: 0 6px;
+}
+
 .ltm-root[data-theme="light"] .ltm-window-btn {
   color: #52525b;
 }
@@ -684,7 +722,7 @@
   position: relative;
   display: flex;
   align-items: center;
-  width: 220px;
+  width: 215px;
   max-width: 45%;
 }
 
@@ -742,12 +780,46 @@
   font-size: 14px;
 }
 
-/* ── Stream Feed (Compact Hairline Rows — Zero Bulky Blue Cards) ── */
+.ltm-active-filter-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 7px 16px;
+  background: #060606;
+  border-bottom: 1px solid #18181b;
+  font-size: 0.72rem;
+  color: #a1a1aa;
+  flex-shrink: 0;
+}
+
+.ltm-root[data-theme="light"] .ltm-active-filter-bar {
+  background: #fafafa;
+  border-bottom-color: #e4e4e7;
+  color: #52525b;
+}
+
+.ltm-active-filter-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ltm-active-filter-label strong {
+  color: #ffffff;
+}
+
+.ltm-root[data-theme="light"] .ltm-active-filter-label strong {
+  color: #09090b;
+}
+
+/* ── Stream Feed ── */
 .ltm-feed-scroll {
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 .ltm-feed-scroll::-webkit-scrollbar {
@@ -912,11 +984,19 @@
 .ltm-row-meta {
   display: flex;
   align-items: center;
-  gap: 6px;
+  justify-content: space-between;
+  gap: 8px;
   flex-wrap: wrap;
   margin-top: 2px;
   font-size: 0.7rem;
   color: #71717a;
+}
+
+.ltm-row-meta-left {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
 }
 
 .ltm-meta-rail {
@@ -925,6 +1005,7 @@
   gap: 5px;
   color: #a1a1aa;
   font-weight: 500;
+  white-space: nowrap;
 }
 
 .ltm-root[data-theme="light"] .ltm-meta-rail {
@@ -937,13 +1018,14 @@
 
 .ltm-meta-time {
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .ltm-row-proof {
-  margin-left: auto;
   display: inline-flex;
   align-items: center;
   gap: 4px;
+  flex-shrink: 0;
 }
 
 .ltm-hash-btn {
@@ -1071,7 +1153,7 @@
   justify-content: center;
   text-align: center;
   gap: 8px;
-  padding: 56px 24px;
+  padding: 48px 20px;
 }
 
 .ltm-empty-icon-well {
@@ -1114,6 +1196,8 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
 }
 
 .ltm-action-btn {
@@ -1188,6 +1272,7 @@
   font-family: inherit;
   cursor: pointer;
   white-space: nowrap;
+  flex-shrink: 0;
   transition: background 0.14s ease, border-color 0.14s ease;
 }
 
@@ -1212,39 +1297,224 @@
   border-color: #a1a1aa;
 }
 
-/* ── Mobile Responsive ── */
+/* ============================================================
+   MOBILE VIEW (<= 780px): Single Unified Touch Scroll, Zero Glitches
+   ============================================================ */
 @media (max-width: 780px) {
+  .ltm-card,
   .ltm-card:not(.ltm-card--docked) {
-    height: 90vh;
-    max-width: calc(100vw - 16px);
+    position: fixed;
+    inset: 10px;
+    top: 10px;
+    left: 10px;
+    right: 10px;
+    bottom: 10px;
+    transform: none !important;
+    animation: none !important;
+    width: auto !important;
+    max-width: none !important;
+    height: auto !important;
+    max-height: calc(100dvh - 20px) !important;
+    border-radius: 14px;
   }
 
+  .ltm-header {
+    padding: 12px 14px;
+    gap: 8px;
+  }
+
+  .ltm-icon-box {
+    width: 30px;
+    height: 30px;
+  }
+
+  .ltm-title {
+    font-size: 0.92rem;
+  }
+
+  .ltm-subtitle,
+  .ltm-clock-pill,
+  .ltm-pip-btn {
+    display: none !important;
+  }
+
+  /* Single clean vertical scroll container — NO nested scroll traps! */
   .ltm-body {
     flex-direction: column;
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    touch-action: pan-y;
   }
 
   .ltm-left-rail {
     width: 100%;
+    flex-shrink: 0;
+    overflow: visible;
+    max-height: none;
     border-right: none;
     border-bottom: 1px solid #1f1f1f;
-    max-height: 180px;
+  }
+
+  .ltm-rail-block--channels {
+    flex: none;
   }
 
   .ltm-root[data-theme="light"] .ltm-left-rail {
     border-bottom-color: #e4e4e7;
   }
 
-  .ltm-clock-pill {
+  .ltm-rail-block {
+    padding: 12px 14px;
+  }
+
+  .ltm-hero-amt {
+    font-size: 1.4rem;
+  }
+
+  .ltm-mini-cell {
+    padding: 10px 14px;
+  }
+
+  .ltm-top-drive-block {
     display: none;
   }
 
+  /* Compact 3-column horizontal payment channels on mobile */
+  .ltm-channel-list {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+  }
+
+  .ltm-channel-btn {
+    padding: 7px 8px;
+    gap: 5px;
+  }
+
+  .ltm-channel-top {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+  }
+
+  .ltm-channel-name {
+    font-size: 0.7rem;
+  }
+
+  .ltm-channel-right {
+    width: 100%;
+    justify-content: space-between;
+    font-size: 0.68rem;
+  }
+
+  .ltm-stream-col {
+    flex: 0 0 auto;
+    overflow: visible;
+  }
+
   .ltm-toolbar {
-    flex-wrap: wrap;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    padding: 10px 14px;
+  }
+
+  .ltm-window-seg {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .ltm-window-btn {
+    justify-content: center;
+    padding: 0 6px;
+    font-size: 0.72rem;
   }
 
   .ltm-search-wrap {
     width: 100%;
     max-width: 100%;
+  }
+
+  .ltm-feed-scroll {
+    flex: none;
+    overflow: visible;
+  }
+
+  .ltm-row {
+    padding: 11px 14px;
+  }
+
+  .ltm-row-meta {
+    gap: 6px;
+  }
+
+  .ltm-footer {
+    padding: 10px 14px;
+  }
+
+  .ltm-footer-left span:last-child {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+/* Narrow phone polish (<= 480px): prevent tab clipping, header squeeze, and wrapped meta rows */
+@media (max-width: 480px) {
+  .ltm-icon-box {
+    display: none;
+  }
+
+  .ltm-header {
+    padding: 11px 12px;
+    gap: 6px;
+  }
+
+  .ltm-title {
+    font-size: 0.88rem;
+  }
+
+  .ltm-header-right {
+    gap: 4px;
+  }
+
+  .ltm-tool-btn {
+    width: 28px;
+    height: 28px;
+  }
+
+  .ltm-lbl-full {
+    display: none;
+  }
+
+  .ltm-lbl-compact {
+    display: inline;
+  }
+
+  .ltm-window-btn {
+    font-size: 0.71rem;
+    padding: 0 4px;
+    gap: 4px;
+  }
+
+  .ltm-exact-time {
+    display: none;
+  }
+
+  .ltm-footer {
+    gap: 8px;
+    padding: 10px 12px;
+  }
+
+  .ltm-footer-cta {
+    padding: 0 10px;
+    font-size: 0.71rem;
   }
 }
 
