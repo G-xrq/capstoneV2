@@ -685,47 +685,102 @@ function CleanQrVoucherDisplay({ qrUrl, gatewayMethod }) {
   }, [qrUrl]);
 
   return (
-    <div className="qr-ph-box" style={{ width: '100%', maxWidth: '290px', margin: '0 auto 16px', textAlign: 'center', padding: '16px', borderRadius: '18px', background: '#FFFFFF', boxShadow: '0 12px 32px rgba(0,0,0,0.35)', border: '1.5px solid #e2e8f0' }}>
-      {/* Integrated Brand Header inside QR Voucher */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', paddingBottom: '10px', marginBottom: '10px', borderBottom: '1.5px solid #f1f5f9' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <div style={{
-            width: '26px',
-            height: '26px',
-            borderRadius: '7px',
-            background: isMaya ? '#000000' : '#007DFE',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            boxShadow: '0 2px 5px rgba(0,0,0,0.15)'
-          }}>
+    <div
+      className="qr-ph-box"
+      style={{
+        width: '100%',
+        maxWidth: '248px',
+        margin: '0 auto',
+        textAlign: 'center',
+        padding: '12px',
+        borderRadius: '14px',
+        background: '#FFFFFF',
+        boxShadow: '0 10px 26px rgba(0,0,0,0.32)',
+        border: '1px solid #e2e8f0'
+      }}
+    >
+      {/* Single-Line Brand Header (Never Wraps) */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '8px',
+          width: '100%',
+          paddingBottom: '8px',
+          marginBottom: '8px',
+          borderBottom: '1px solid #f1f5f9'
+        }}
+      >
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', minWidth: 0 }}>
+          <div
+            style={{
+              width: '22px',
+              height: '22px',
+              borderRadius: '6px',
+              background: isMaya ? '#000000' : '#007DFE',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0
+            }}
+          >
             {isMaya ? (
-              <span style={{ color: '#00d68f', fontWeight: 900, fontSize: '12px', letterSpacing: '-0.5px' }}>m</span>
+              <span style={{ color: '#00d68f', fontWeight: 900, fontSize: '11px' }}>m</span>
             ) : (
-              <span style={{ color: '#ffffff', fontWeight: 900, fontSize: '15px' }}>G</span>
+              <span style={{ color: '#ffffff', fontWeight: 900, fontSize: '13px' }}>G</span>
             )}
           </div>
-          <span style={{ fontSize: '12px', fontWeight: 900, color: '#0f172a', letterSpacing: '0.4px' }}>
-            OFFICIAL {gatewayMethod.toUpperCase()}
+          <span
+            style={{
+              fontSize: '11px',
+              fontWeight: 800,
+              color: '#0f172a',
+              letterSpacing: '0.03em',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            {gatewayMethod.toUpperCase()} QR
           </span>
         </div>
-        <span style={{ fontSize: '9px', fontWeight: 800, color: '#16a34a', background: 'rgba(34, 197, 94, 0.12)', padding: '3px 8px', borderRadius: '10px', textTransform: 'uppercase', letterSpacing: '0.3px' }}>
-          NGO Verified
+        <span
+          style={{
+            fontSize: '9px',
+            fontWeight: 700,
+            color: '#15803d',
+            background: 'rgba(34, 197, 94, 0.12)',
+            padding: '2px 7px',
+            borderRadius: '999px',
+            textTransform: 'uppercase',
+            letterSpacing: '0.04em',
+            whiteSpace: 'nowrap',
+            flexShrink: 0
+          }}
+        >
+          Verified
         </span>
       </div>
 
-      {/* QR Code / Voucher Image */}
-      <div style={{ position: 'relative', width: '100%', minHeight: '220px', maxHeight: '340px', margin: '0 auto', borderRadius: '10px', overflow: 'hidden', background: '#FFFFFF', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      {/* Compact QR Image */}
+      <div
+        style={{
+          position: 'relative',
+          width: '100%',
+          maxHeight: '228px',
+          margin: '0 auto',
+          borderRadius: '8px',
+          overflow: 'hidden',
+          background: '#FFFFFF',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center'
+        }}
+      >
         <img
           src={displayUrl}
           alt={`${gatewayMethod} Official QR`}
-          style={{ width: '100%', maxHeight: '330px', objectFit: 'contain', display: 'block' }}
+          style={{ width: '100%', maxHeight: '224px', objectFit: 'contain', display: 'block' }}
         />
-      </div>
-
-      <div style={{ fontSize: '0.74rem', color: '#64748b', marginTop: '10px', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
-        <span className="material-symbols-outlined" style={{ fontSize: '15px', color: '#007DFE' }}>qr_code_scanner</span>
-        Point your {gatewayMethod} camera to scan
       </div>
     </div>
   );
@@ -6649,15 +6704,8 @@ export default function CampaignCard(props) {
                           )}
                         </div>
 
-                        {/* Unified Hairline Receiving Details + Alphanumeric Note Code */}
+                        {/* Compact 2-Row Receiving & Alphanumeric Note Strip (Fits Above Fold) */}
                         <div className="qr8-meta-table dt7-details-table">
-                          <div className="qr8-meta-row">
-                            <span className="qr8-meta-k">Recipient</span>
-                            <span className="qr8-meta-v" title={acctName || camp.orgName || 'Verified NGO'}>
-                              {acctName || getOrgDisplayName(camp.orgAddress, camp.orgName, camp.id)}
-                            </span>
-                          </div>
-
                           <div className="qr8-meta-row">
                             <span className="qr8-meta-k">{railLabel} No.</span>
                             <span className="qr8-meta-v qr8-meta-v--actions">
@@ -6681,7 +6729,7 @@ export default function CampaignCard(props) {
                           {safeNoteCode && (
                             <div className="qr8-meta-row dt7-note-row">
                               <div className="dt7-note-top">
-                                <span className="qr8-meta-k">Message / Note</span>
+                                <span className="qr8-meta-k">Note Code</span>
                                 <span className="qr8-meta-v qr8-meta-v--actions">
                                   <span className="pp-mono dt7-note-code">{safeNoteCode}</span>
                                   <button
@@ -6700,15 +6748,10 @@ export default function CampaignCard(props) {
                                 </span>
                               </div>
                               <span className="dt7-note-help">
-                                Optional: paste in your {railLabel} message to link your donation (letters &amp; numbers only).
+                                Paste in {railLabel} message (alphanumeric only — no special characters).
                               </span>
                             </div>
                           )}
-
-                          <div className="qr8-meta-row">
-                            <span className="qr8-meta-k">Platform Fee</span>
-                            <span className="qr8-meta-v dt7-free-val">₱0.00</span>
-                          </div>
                         </div>
                       </div>
 
@@ -6898,6 +6941,21 @@ export default function CampaignCard(props) {
                             <span className="vc-switch-thumb" />
                           </span>
                         </label>
+
+                        {/* Compact Recipient & Zero-Fee Summary Line */}
+                        <div className="dt7-summary-line">
+                          <span className="dt7-summary-item">
+                            <span className="dt7-summary-k">Recipient</span>
+                            <strong className="dt7-summary-v" title={acctName || camp.orgName || 'Verified NGO'}>
+                              {acctName || getOrgDisplayName(camp.orgAddress, camp.orgName, camp.id)}
+                            </strong>
+                          </span>
+                          <span className="dt7-summary-sep" aria-hidden="true" />
+                          <span className="dt7-summary-item">
+                            <span className="dt7-summary-k">Platform fee</span>
+                            <strong className="dt7-summary-v dt7-free-val">₱0.00</strong>
+                          </span>
+                        </div>
 
                         {/* Mismatch / Duplicate Banners */}
                         {railMismatchWarning && (

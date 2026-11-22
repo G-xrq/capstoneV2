@@ -2517,7 +2517,8 @@
 }
 
 .dt7-left {
-  padding: 20px 22px;
+  padding: 18px 20px;
+  justify-content: space-between;
   background: #060606;
   border-right: 1px solid #1f1f1f;
   display: flex;
@@ -2541,7 +2542,8 @@
 }
 
 .dt7-right {
-  padding: 20px 22px;
+  padding: 18px 22px;
+  justify-content: space-between;
   background: #0a0a0a;
   display: flex;
   flex-direction: column;
@@ -3125,4 +3127,58 @@
 [data-theme="light"] .dt7-submit-btn:hover:not(:disabled) {
   background: #27272a;
   border-color: #27272a;
+}
+
+/* Balanced Recipient + Fee Summary Strip in Step 7 Right Column */
+.dt7-summary-line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 13px;
+  border-radius: 8px;
+  background: #060606;
+  border: 1px solid #1f1f23;
+  font-size: 0.74rem;
+}
+
+[data-theme="light"] .dt7-summary-line {
+  background: #fafafa;
+  border-color: #e4e4e7;
+}
+
+.dt7-summary-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+
+.dt7-summary-k {
+  color: #71717a;
+  font-size: 0.71rem;
+  white-space: nowrap;
+}
+
+.dt7-summary-v {
+  color: #ededed;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+[data-theme="light"] .dt7-summary-v {
+  color: #09090b;
+}
+
+.dt7-summary-sep {
+  width: 1px;
+  height: 14px;
+  background: #262626;
+  flex-shrink: 0;
+}
+
+[data-theme="light"] .dt7-summary-sep {
+  background: #e4e4e7;
 }
