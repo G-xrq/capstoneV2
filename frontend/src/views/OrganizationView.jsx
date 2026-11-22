@@ -2628,14 +2628,44 @@ export default function OrganizationView({
                 </div>
               </div>
 
-              {/* ── 1. Borderless Editorial Hero with Vercel Geist 3D Isometric Backdrop ── */}
-              <div className="dbo-editorial-hero" id="tour-ngo-welcome">
-                <div className="dbo-hero-bg-mesh" aria-hidden="true" />
+              {/* ── 1. Organization Cover Banner + Editorial Geist Hero ── */}
+              <div className="dbo-editorial-hero dbo-editorial-hero--org" id="tour-ngo-welcome">
+                {(() => {
+                  const rawBanner = currentUser?.banner_url || '';
+                  const isImageBanner = Boolean(
+                    rawBanner &&
+                    (rawBanner.startsWith('data:') || rawBanner.startsWith('http') || rawBanner.startsWith('/'))
+                  );
+                  const isGradientBanner = Boolean(rawBanner && rawBanner.startsWith('linear-gradient'));
+                  const bannerStyle = isImageBanner
+                    ? { backgroundImage: `url(${rawBanner})` }
+                    : isGradientBanner
+                      ? { background: rawBanner }
+                      : undefined;
+
+                  return (
+                    <div
+                      className={`dbo-org-cover-strip ${isImageBanner ? 'has-image' : isGradientBanner ? 'has-gradient' : 'is-default-mesh'}`}
+                      style={bannerStyle}
+                    >
+                      <div className="dbo-org-cover-scrim" aria-hidden="true" />
+                      <button
+                        type="button"
+                        className="dbo-org-cover-edit"
+                        onClick={() => setActiveTab('settings')}
+                        title="Customize organization cover banner in Profile & Settings"
+                      >
+                        <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>photo_camera</span>
+                        <span>Edit Banner</span>
+                      </button>
+                    </div>
+                  );
+                })()}
 
                 <div className="dbo-hero-content">
-                  <div className="dbo-hero-main-row">
+                  <div className="dbo-hero-main-row dbo-org-identity-row">
                     <div className="dbo-hero-identity" id="tour-ngo-identity">
-                      <div className="dbo-hero-avatar">
+                      <div className="dbo-hero-avatar dbo-org-overlap-avatar">
                         {currentUser?.avatar_url && (currentUser.avatar_url.startsWith('data:') || currentUser.avatar_url.startsWith('http')) ? (
                           <img src={currentUser.avatar_url} alt="Profile" />
                         ) : currentUser?.avatar_url && currentUser.avatar_url.length < 30 ? (
