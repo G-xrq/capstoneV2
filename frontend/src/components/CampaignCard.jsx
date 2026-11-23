@@ -1350,33 +1350,49 @@ export default function CampaignCard(props) {
   }, [donateStep, activeIntent, instantReceipt]);
 
   // Real-Time Duplicate Receipt Check Listener for Donor Modal
+  // Only checks when a real reference number is present AND never races with active AI Vision scan
   useEffect(() => {
+    if (aiScanLoading) return;
     const currentRef = (refNumber || gatewayRefNo || '').trim();
-    if (!currentRef && (!receiptBase64 || receiptBase64.length < 100)) {
-      setDuplicateRefWarning(null);
+    const refDigits = currentRef.replace(/\D/g, '');
+    if (refDigits.length < 6) {
+      if (!aiScanResult?.isDuplicateRef) setDuplicateRefWarning(null);
       return;
     }
 
+    let cancelled = false;
+    const controller = new AbortController();
     const timer = setTimeout(async () => {
       try {
         const res = await fetch(`${API_URL}/api/donations/check-duplicate-ref`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
+          signal: controller.signal,
           body: JSON.stringify({ ref_no: currentRef, receipt_base64: receiptBase64 })
         });
+        if (cancelled) return;
         if (res.ok) {
           const data = await res.json();
+          if (cancelled) return;
           if (data.isDuplicate) {
             setDuplicateRefWarning(data.reason || 'This reference number or receipt screenshot has already been recorded on the public ledger.');
           } else {
-            setDuplicateRefWarning(null);
+            // Only clear if the user changed the ref away from an AI-confirmed duplicate
+            const aiDupDigits = (aiScanResult?.extractedRef || '').replace(/\D/g, '');
+            if (!(aiScanResult?.isDuplicateRef && aiDupDigits && aiDupDigits === refDigits)) {
+              setDuplicateRefWarning(null);
+            }
           }
         }
       } catch (_) {}
     }, 350);
 
-    return () => clearTimeout(timer);
-  }, [refNumber, gatewayRefNo, receiptBase64]);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [refNumber, gatewayRefNo, receiptBase64, aiScanLoading, aiScanResult]);
 
   const receiptFileInputRef = useRef(null);
 
@@ -1489,7 +1505,7 @@ export default function CampaignCard(props) {
     const isExpired = flags.some(f => f.includes('EXPIRED_RECEIPT'));
     const isRecipientMismatch = flags.some(f => f.includes('RECIPIENT_MISMATCH') || f.includes('RECIPIENT_NAME_MISMATCH') || f.includes('RECIPIENT_PHONE_MISMATCH'));
     const isTampered = flags.some(f => f.includes('TAMPERED') || f.includes('INVALID_RECEIPT'));
-    const isHighValue = extAmt >= 10000 || currentNumAmount >= 10000 || Boolean(aiScanResult.requiresManualAudit) || flags.some(f => f.includes('HIGH_VALUE'));
+    const isHighValue = extAmt >= 10000 || currentNumAmount >= 10000 || flags.some(f => f.includes('HIGH_VALUE'));
     if (isHighValue && !flags.some(f => f.includes('HIGH_VALUE_AUDIT_REQUIRED'))) {
       const val = extAmt || currentNumAmount;
       flags.push(`HIGH_VALUE_AUDIT_REQUIRED: High-value transfer (₱${val.toLocaleString()} PHP). Mandatory secondary verification against recipient account balance and official SMS notification before confirmation.`);
@@ -2650,7 +2666,6 @@ export default function CampaignCard(props) {
         }
         if (verifyRes.ok) {
           const verifyData = await verifyRes.json();
-          setAiScanResult(verifyData);
           serverExtractedSuccess = true;
 
           // Non-receipt, tampered, expired, or recipient mismatch handling (Hard Fraud Rejection)
@@ -2667,6 +2682,7 @@ export default function CampaignCard(props) {
             );
 
           if (isHardRejection) {
+            setAiScanResult(verifyData);
             setAiScanLoading(false);
             setRefNumber('');
             setGatewayRefNo('');
@@ -2674,6 +2690,7 @@ export default function CampaignCard(props) {
             return;
           }
 
+          // Update amount & ref BEFORE setAiScanResult so AMOUNT_MISMATCH never flashes transiently
           if (verifyData.extractedRef) {
             setRefNumber(verifyData.extractedRef);
             setGatewayRefNo(verifyData.extractedRef);
@@ -2681,6 +2698,7 @@ export default function CampaignCard(props) {
           if (verifyData.extractedAmountPhp && Number(verifyData.extractedAmountPhp) > 0) {
             setAmount(String(verifyData.extractedAmountPhp));
           }
+          setAiScanResult(verifyData);
           if (verifyData.fraudFlags?.some(f => f.includes('RAIL_MISMATCH'))) {
             setRailMismatchWarning(verifyData.fraudFlags.find(f => f.includes('RAIL_MISMATCH')));
           }

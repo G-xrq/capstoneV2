@@ -5002,12 +5002,12 @@ app.get('/api/campaigns/:id/disbursements', async (req, res) => {
 
 
 // ── Duplicate Receipt Check Helper Function ──────────────────────────
-async function checkDuplicateReceipt(refNo, base64Image, excludeManualId = null) {
+async function checkDuplicateReceipt(refNo, base64Image, excludeManualId = null, skipOcr = false) {
   try {
     let testRef = (refNo || '').trim();
 
-    // If refNo is missing or generic, perform server-side OCR to extract real reference number
-    if ((!testRef || testRef.startsWith('REF-') || testRef.startsWith('MANUAL-')) && base64Image) {
+    // If refNo is missing or generic (and caller didn't already run AI Vision), extract via OCR
+    if (!skipOcr && (!testRef || testRef.startsWith('REF-') || testRef.startsWith('MANUAL-')) && base64Image) {
       try {
         const ocrScan = await auditReceiptImage(base64Image, 0, 'GCash');
         if (ocrScan && ocrScan.extractedRef) {
@@ -5082,7 +5082,8 @@ app.post('/api/donations/check-duplicate-ref', async (req, res) => {
   }
 
   const finalRef = (ref_no || extractedRef || '').trim();
-  const dupCheck = await checkDuplicateReceipt(finalRef, receipt_base64);
+  // skipOcr=true here so we never run a duplicate Gemini Vision call if ref_no was already checked above
+  const dupCheck = await checkDuplicateReceipt(finalRef, receipt_base64, null, true);
   return res.json({
     ...dupCheck,
     extractedRef: extractedRef || (dupCheck.isDuplicate ? finalRef : null),
@@ -10323,27 +10324,19 @@ app.post(['/api/verify-receipt-ai', '/api/ai/inspect-receipt'], async (req, res)
       expectedOrgName
     });
 
-    // 2. Anti-Fraud Reference Deduplication Check
+    // 2. Unified Anti-Fraud Reference & Image Deduplication Check (matches /api/donations/check-duplicate-ref 100%)
     let isDuplicateRef = false;
     let existingTxId = null;
-    const targetRef = refNumber || aiResult.extractedRef;
+    const targetRef = aiResult.extractedRef || refNumber || '';
 
-    if (targetRef) {
+    if (targetRef || receiptBase64) {
       try {
-        const [dups] = await db.query(`
-          SELECT Transaction_ID FROM DONATION_TRANSACTION WHERE Tx_Hash LIKE ?
-          UNION
-          SELECT Manual_ID FROM MANUAL_DONATION WHERE Reference_No = ? AND Status = 'Approved'
-          UNION
-          SELECT Manual_ID FROM MANUAL_DONATION WHERE Reference_Number = ? AND Status = 'Approved'
-        `, [`%${targetRef}%`, targetRef, targetRef]);
-
-        if (dups && dups.length > 0) {
+        const dupCheck = await checkDuplicateReceipt(targetRef, receiptBase64, null, true);
+        if (dupCheck && dupCheck.isDuplicate) {
           isDuplicateRef = true;
-          existingTxId = dups[0].Transaction_ID || dups[0].Manual_ID;
-          aiResult.fraudFlags.push(`DUPLICATE_REF_NUMBER: Reference #${targetRef} was already verified in record #${existingTxId}`);
+          aiResult.fraudFlags.push(`DUPLICATE_REF_NUMBER: ${dupCheck.reason}`);
           aiResult.isAiVerified = false;
-          aiResult.confidenceScore = 10;
+          aiResult.confidenceScore = 0;
         }
       } catch (_) {}
     }
