@@ -1142,6 +1142,7 @@ export default function AuthView({ onLoginSuccess, onBack, theme, onToggleTheme,
         ) : <span />}
 
         <div className="auth-topbar-right">
+          {/* Temporarily commented out Admin Access & Preview buttons
           <button
             type="button"
             className="auth-corner-pill"
@@ -1161,6 +1162,7 @@ export default function AuthView({ onLoginSuccess, onBack, theme, onToggleTheme,
             <span className="material-symbols-outlined">tune</span>
             <span>Preview</span>
           </button>
+          */}
 
           {onToggleTheme && (
             <button

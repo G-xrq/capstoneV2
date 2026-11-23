@@ -5,14 +5,15 @@
 .login-split-container {
   position: relative;
   width: 100%;
-  min-height: 100vh;
+  min-height: 100dvh;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 3.5rem 1rem 2.25rem;
+  padding: 4.25rem 1.25rem 2.25rem;
   box-sizing: border-box;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
   background: var(--bg-base);
   isolation: isolate;
   z-index: 10;
@@ -1669,7 +1670,8 @@
 /* ===== RESPONSIVE COLLAPSE (< 768px) ===== */
 @media (max-width: 768px) {
   .login-split-container {
-    padding: 1.25rem 1rem 2rem;
+    min-height: 100dvh;
+    padding: 1rem 1rem 1.75rem;
     justify-content: flex-start;
   }
 
@@ -1679,12 +1681,24 @@
     left: auto;
     right: auto;
     width: 100%;
-    max-width: 430px;
-    margin-bottom: 14px;
+    max-width: 420px;
+    margin: 0 auto 16px;
+    flex-wrap: nowrap;
+  }
+
+  .login-form-side {
+    flex: 1;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px 0 18px;
   }
 
   .login-glass-card {
-    max-width: 430px;
+    width: 100%;
+    max-width: 420px;
+    margin: 0 auto;
     min-height: auto;
     height: auto !important;
     display: flex;
@@ -1718,7 +1732,8 @@
   }
 
   .panel-inner {
-    padding: 22px 18px;
+    max-width: 100%;
+    padding: 24px 20px;
   }
 
   .auth-system-footer {
@@ -2764,8 +2779,9 @@
     left: auto;
     right: auto;
     width: 100%;
-    max-width: 430px;
-    margin: 0 auto 14px;
+    max-width: 420px;
+    margin: 0 auto 16px;
+    flex-wrap: nowrap;
   }
 }
 /* Theme-Aligned Monochrome Secondary Login Button (One-Time Email Code) */
@@ -2819,16 +2835,17 @@
 @media (max-width: 768px) {
   .auth-topbar-controls {
     gap: 8px;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
   }
 
   .auth-corner-pill {
-    height: 31px;
-    padding: 0 10px;
-    font-size: 0.72rem;
+    height: 34px;
+    padding: 0 12px;
+    font-size: 0.76rem;
   }
 
   .auth-corner-pill.icon-only {
-    width: 31px;
+    width: 34px;
+    padding: 0;
   }
 }
