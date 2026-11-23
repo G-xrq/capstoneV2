@@ -488,18 +488,22 @@ async function auditReceiptImage(base64Data, declaredAmountEth = 0, paymentRail 
         const prompt = `Audit this Philippine payment receipt image (${paymentRail} / GCash / Maya / Bank / QR Ph) for authenticity and extract its fields as JSON.
 Expected recipient context: Name=${expectedRecipientName || 'N/A'}, Phone=${expectedRecipientPhone || 'N/A'}, Org=${expectedOrgName || 'N/A'}.
 
-DEVICE FAIRNESS RULE:
-- Real Android/iOS phones vary in system font family, bold weight, display zoom, and JPEG compression. Do NOT reject a receipt *solely* because of phone system font family or mild JPEG compression.
+DEVICE & APP-VERSION FAIRNESS RULES (DO NOT FALSE-REJECT REAL PHONES):
+- Real Android/iOS phones and different GCash/Maya app versions legitimately vary in:
+  * System font family, bold weight, kerning, spacing, display scaling, and dark mode
+  * Recipient phone format: BOTH "+63 9XX XXX XXXX" AND "09XX XXX XXXX" are 100% VALID on real receipts
+  * Recipient name masking: BOTH dots ("•") AND asterisks ("*") are VALID
+  * Normal JPEG/Messenger/gallery compression softening
+- NEVER reject or flag a receipt because of font family, kerning, spacing, or "+63" vs "09" phone formatting.
 
-OBJECTIVE FRAUD & AI-GENERATION CHECKS (independent of phone fonts — check ALL 4 carefully):
-1. AI-GENERATED / SYNTHETIC UI ARTIFACTS:
-   - Inspect vector shapes and icons (which OS fonts NEVER distort): the top checkmark circle, the GForest leaf icon next to "gCO2e", brand logos, and the bottom sawtooth/zig-zag paper edge.
-   - Real GCash/Maya apps render crisp, mathematically identical sawtooth triangles and sharp vector icons. AI image generators produce warped/melted/garbled leaf or checkmark icons, irregular uneven sawtooth teeth, or painterly diffusion texture on flat UI shapes.
-2. NATIVE APP STRUCTURAL / DATA ANOMALIES:
-   - Real GCash Express Send receipts display recipient phone with "+63" (e.g. "+63 9XX XXX XXXX"), not bare local "09XX XXX XXXX", and show timestamps without decorative middle dots ("Nov 16, 2026 7:46 AM", not "Nov 16, 2026 · 7:46 AM").
-   - Watch for AI-invented counting/sequential reference numbers (e.g. "8976 543 109876", "1234 567 890123") or QR-card asterisk masking pasted onto a receipt with synthetic icons.
-3. BLATANT DIGITAL SPLICING OR CONTRADICTIONS:
-   - Mismatched-color pasted rectangles, white-out eraser smudges, visibly crooked pasted digits, or contradictory amounts on the same slip.
+OBJECTIVE FRAUD & AI-GENERATION CHECKS (device-independent — check ALL 4 carefully):
+1. AI-GENERATED / SYNTHETIC VISUAL ARTIFACTS:
+   - Inspect vector icons and geometric shapes (which phone fonts NEVER warp): the top checkmark circle, the GForest leaf icon next to "gCO2e", brand logos, and the bottom sawtooth/zig-zag paper edge.
+   - Real apps draw crisp vector icons and mathematically uniform sawtooth triangles; AI image generators produce warped/melted/garbled icons, irregular uneven sawtooth teeth, or painterly diffusion artifacts on flat UI shapes.
+2. SYNTHETIC / FABRICATED DATA PATTERNS:
+   - Artificial counting/sequential reference numbers (e.g. "8976 543 109876", "1234 567 890123", "9876 543 210987") or contradictory amounts on the same slip (e.g. Amount ₱1.00 vs Total ₱50,000.00).
+3. BLATANT DIGITAL SPLICING / EDITING:
+   - Mismatched-color pasted rectangles over numbers/names, white-out eraser smudges, or visibly crooked/overlapping pasted digits.
 4. NON-RECEIPTS / TUTORIALS / SAMPLES:
    - Selfies, QR code images instead of payment slips, tutorial callouts/arrows/circles, or "SAMPLE"/"DEMO" watermarks.
 
@@ -601,15 +605,15 @@ Return strictly JSON:
             }
 
             if (parsed) {
-              // Guard against font/kerning-only false positives (Android OEMs use custom system fonts),
-              // while NEVER overriding real AI-icon/sawtooth/structural/synthetic or splicing detections
+              // Guard against phone-dependent false positives (font/kerning OR "+63" vs "09" phone format only),
+              // while NEVER overriding real AI-icon/sawtooth/sequential/splicing/non-receipt detections
               const rawRejection = String(parsed.rejectionReason || '');
-              const isTypographyOnlyGuess =
-                /(font|kerning|typeface|typography|spacing)/i.test(rawRejection) &&
-                !/(icon|leaf|checkmark|sawtooth|zig-?zag|scallop|tooth|teeth|synthetic|ai-generated|diffusion|warped|melted|garbled|format|\+63|middle dot|sequential|not a receipt|non-receipt|selfie|qr code|sample|tutorial|watermark|circle|arrow|patch|erased|smudge|contradict|mismatched amount)/i.test(rawRejection);
+              const isPhoneFormatOrFontOnly =
+                /(font|kerning|typeface|typography|spacing|\+63|local '09'|09 format|phone number format)/i.test(rawRejection) &&
+                !/(icon|leaf|checkmark|sawtooth|zig-?zag|scallop|tooth|teeth|diffusion|warped|melted|garbled|sequential|counting pattern|not a receipt|non-receipt|selfie|qr code|sample|tutorial|watermark|circle|arrow|patch|erased|smudge|contradict|mismatched amount)/i.test(rawRejection);
 
               // STRICT NON-RECEIPT OR OBJECTIVE TAMPERING/SAMPLE REJECTION
-              const isTamperedOrFake = !isTypographyOnlyGuess && (
+              const isTamperedOrFake = !isPhoneFormatOrFontOnly && (
                 parsed.isPaymentReceipt === false ||
                 parsed.hasTamperingOrAnnotations === true ||
                 parsed.isAuthenticLook === false ||
