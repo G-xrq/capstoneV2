@@ -1,167 +1,124 @@
-/* ============================================================
-   BBDRTS Verified Organization Dossier Modal
-   Disciplined institutional monochrome + emerald accent system
-   ============================================================ */
+/* ── BBDRTS Institutional NGO Profile Modal — Refined Editorial Dossier ── */
 
-.vercel-ngo-backdrop {
-  position: fixed;
-  inset: 0;
-  width: 100vw;
-  height: 100vh;
-  background: rgba(0, 0, 0, 0.76);
-  -webkit-backdrop-filter: blur(10px);
-  backdrop-filter: blur(10px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000000060 !important;
-  padding: 16px;
-  box-sizing: border-box;
-  animation: vercelFadeIn 0.16s ease-out forwards;
+.ngo-prof-overlay {
+  position: fixed !important;
+  inset: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  background: rgba(0, 0, 0, 0.78) !important;
+  -webkit-backdrop-filter: blur(10px) !important;
+  backdrop-filter: blur(10px) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  z-index: 2147483638 !important;
+  padding: 20px !important;
+  box-sizing: border-box !important;
+  animation: ngoProfFade 0.16s ease-out forwards;
 }
 
-@keyframes vercelFadeIn {
+@keyframes ngoProfFade {
   from { opacity: 0; }
   to { opacity: 1; }
 }
 
-.vercel-ngo-modal {
-  background: #08080a;
-  border: 1px solid #1e1e24;
+.ngo-prof-modal {
+  font-family: var(--font-sans, 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif);
+  width: 920px;
+  max-width: calc(100vw - 28px);
+  height: 86vh;
+  max-height: 820px;
+  background: #09090b;
+  border: 1px solid #242429;
   border-radius: 14px;
-  box-shadow: 0 32px 84px rgba(0, 0, 0, 0.9), 0 0 0 1px rgba(255, 255, 255, 0.04);
-  max-width: 1060px;
-  width: 96vw;
-  height: 88vh;
-  max-height: 840px;
+  color: #f4f4f5;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  color: #f4f4f5;
-  font-family: var(--font-sans, 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif);
-  -webkit-font-smoothing: antialiased;
-  animation: vercelScaleIn 0.18s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  box-shadow: 0 32px 80px rgba(0, 0, 0, 0.85), 0 0 0 1px rgba(255, 255, 255, 0.04);
+  animation: ngoProfIn 0.18s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
-@keyframes vercelScaleIn {
+@keyframes ngoProfIn {
   from { opacity: 0; transform: scale(0.98) translateY(6px); }
   to { opacity: 1; transform: scale(1) translateY(0); }
 }
 
-[data-theme="light"] .vercel-ngo-modal {
+[data-theme="light"] .ngo-prof-modal {
   background: #ffffff;
-  border-color: #e2e8f0;
-  box-shadow: 0 24px 64px rgba(15, 23, 42, 0.16), 0 0 0 1px rgba(15, 23, 42, 0.04);
+  border-color: rgba(15, 23, 42, 0.12);
   color: #0f172a;
+  box-shadow: 0 28px 70px rgba(15, 23, 42, 0.16), 0 0 0 1px rgba(15, 23, 42, 0.04);
 }
 
-.vercel-ngo-modal button,
-.vercel-ngo-modal input {
-  font-family: inherit;
-}
-
-.vercel-ngo-modal .mono {
-  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace);
-  font-variant-numeric: tabular-nums;
-}
-
-/* ── Top Bar ── */
-.vercel-ngo-topbar {
+/* ── 1. Compact Top Breadcrumb Bar ── */
+.ngo-prof-topbar {
+  flex-shrink: 0;
+  height: 48px;
+  padding: 0 18px 0 20px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 10px 16px;
-  border-bottom: 1px solid #1e1e24;
-  background: #08080a;
-  flex-shrink: 0;
+  border-bottom: 1px solid #1c1c21;
+  background: #09090b;
 }
 
-[data-theme="light"] .vercel-ngo-topbar {
+[data-theme="light"] .ngo-prof-topbar {
   background: #ffffff;
   border-bottom-color: #e2e8f0;
 }
 
-.vercel-ngo-breadcrumbs {
+.ngo-prof-crumbs {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 0.82rem;
   min-width: 0;
+  font-size: 0.82rem;
 }
 
-.vercel-sidebar-toggle-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 6px;
-  background: transparent;
-  border: 1px solid #23232a;
-  color: #8b8b96;
-  cursor: pointer;
-  flex-shrink: 0;
-  transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
-}
-
-.vercel-sidebar-toggle-btn:hover {
-  background: #141418;
-  border-color: #32323c;
-  color: #f4f4f5;
-}
-
-[data-theme="light"] .vercel-sidebar-toggle-btn {
-  border-color: #e2e8f0;
-  color: #64748b;
-}
-
-[data-theme="light"] .vercel-sidebar-toggle-btn:hover {
-  background: #f1f5f9;
-  color: #0f172a;
-}
-
-.vercel-ngo-breadcrumb-btn {
+.ngo-prof-crumb-btn {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 4px 8px;
-  border-radius: 6px;
   background: transparent;
   border: 1px solid transparent;
-  color: #8b8b96;
+  border-radius: 6px;
+  padding: 4px 8px 4px 6px;
+  color: #a1a1aa;
   font-size: 0.80rem;
   font-weight: 500;
+  font-family: inherit;
   cursor: pointer;
-  transition: background 0.12s ease, color 0.12s ease;
-  white-space: nowrap;
+  transition: color 0.12s ease, background 0.12s ease, border-color 0.12s ease;
 }
 
-.vercel-ngo-breadcrumb-btn:hover {
-  background: #141418;
-  color: #f4f4f5;
+.ngo-prof-crumb-btn:hover {
+  color: #ffffff;
+  background: #16161a;
+  border-color: #27272d;
 }
 
-[data-theme="light"] .vercel-ngo-breadcrumb-btn {
+[data-theme="light"] .ngo-prof-crumb-btn {
   color: #64748b;
 }
 
-[data-theme="light"] .vercel-ngo-breadcrumb-btn:hover {
-  background: #f1f5f9;
+[data-theme="light"] .ngo-prof-crumb-btn:hover {
   color: #0f172a;
+  background: #f1f5f9;
+  border-color: #e2e8f0;
 }
 
-.vercel-ngo-breadcrumb-parent {
-  color: #8b8b96;
+.ngo-prof-crumb-static {
+  color: #8b8b94;
   font-weight: 500;
-  white-space: nowrap;
 }
 
-.vercel-ngo-breadcrumb-separator {
-  color: #3f3f4a;
+.ngo-prof-crumb-sep {
+  color: #52525b;
 }
 
-.vercel-ngo-breadcrumb-current {
+.ngo-prof-crumb-current {
   color: #f4f4f5;
   font-weight: 600;
   white-space: nowrap;
@@ -169,685 +126,537 @@
   text-overflow: ellipsis;
 }
 
-[data-theme="light"] .vercel-ngo-breadcrumb-current {
+[data-theme="light"] .ngo-prof-crumb-current {
   color: #0f172a;
 }
 
-.vercel-loading-shimmer-text {
-  color: #8b8b96;
-  font-weight: 500;
-}
-
-.vercel-ngo-topbar-actions {
+.ngo-prof-topbar-right {
   display: flex;
   align-items: center;
   gap: 8px;
   flex-shrink: 0;
 }
 
-.vercel-kbd-hint {
+.ngo-prof-esc {
   font-family: var(--font-mono, monospace);
-  font-size: 0.64rem;
-  padding: 2px 6px;
-  border-radius: 4px;
-  background: #111114;
-  border: 1px solid #23232a;
+  font-size: 0.66rem;
+  font-weight: 600;
   color: #71717a;
-  user-select: none;
+  padding: 2px 6px;
+  border-radius: 5px;
+  border: 1px solid #242429;
+  background: #111114;
 }
 
-[data-theme="light"] .vercel-kbd-hint {
+[data-theme="light"] .ngo-prof-esc {
+  color: #64748b;
   background: #f8fafc;
   border-color: #e2e8f0;
-  color: #64748b;
 }
 
-.vercel-ngo-close-btn {
-  width: 28px;
-  height: 28px;
-  border-radius: 6px;
+.ngo-prof-close {
+  width: 30px;
+  height: 30px;
+  border-radius: 7px;
   background: transparent;
   border: 1px solid transparent;
-  color: #8b8b96;
-  display: inline-flex;
+  color: #8b8b94;
+  display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: background 0.12s ease, color 0.12s ease;
+  transition: all 0.12s ease;
 }
 
-.vercel-ngo-close-btn:hover {
-  background: #141418;
-  color: #f4f4f5;
+.ngo-prof-close:hover {
+  background: #18181d;
+  border-color: #2a2a32;
+  color: #ffffff;
 }
 
-[data-theme="light"] .vercel-ngo-close-btn:hover {
+[data-theme="light"] .ngo-prof-close:hover {
   background: #f1f5f9;
+  border-color: #e2e8f0;
   color: #0f172a;
 }
 
-/* ── Split Layout (304px Dossier Rail | Main Workspace) ── */
-.vercel-ngo-split-layout {
-  display: grid;
-  grid-template-columns: 304px minmax(0, 1fr);
+.ngo-prof-close .material-symbols-outlined {
+  font-size: 19px;
+}
+
+/* ── 2. Unified Single-Column Scroll Flow ── */
+.ngo-prof-scroll {
   flex: 1;
   min-height: 0;
-  overflow: hidden;
-}
-
-.vercel-ngo-split-layout.sidebar-collapsed {
-  grid-template-columns: 1fr;
-}
-
-@media (max-width: 840px) {
-  .vercel-ngo-split-layout {
-    grid-template-columns: 1fr;
-    overflow-y: auto;
-  }
-}
-
-/* ════════ LEFT DOSSIER RAIL ════════ */
-.vercel-ngo-sidebar {
-  background: #0c0c0f;
-  border-right: 1px solid #1e1e24;
-  display: flex;
-  flex-direction: column;
   overflow-y: auto;
-  min-height: 0;
+  overflow-x: hidden;
 }
 
-[data-theme="light"] .vercel-ngo-sidebar {
-  background: #f8fafc;
-  border-right-color: #e2e8f0;
+.ngo-prof-scroll::-webkit-scrollbar {
+  width: 6px;
 }
 
-@media (max-width: 840px) {
-  .vercel-ngo-sidebar {
-    border-right: none;
-    border-bottom: 1px solid #1e1e24;
-    overflow: visible;
-  }
-  [data-theme="light"] .vercel-ngo-sidebar {
-    border-bottom-color: #e2e8f0;
-  }
+.ngo-prof-scroll::-webkit-scrollbar-track {
+  background: transparent;
 }
 
-.vercel-ngo-sidebar::-webkit-scrollbar,
-.vercel-ngo-panel-scroll::-webkit-scrollbar {
-  width: 5px;
+.ngo-prof-scroll::-webkit-scrollbar-thumb {
+  background: #27272e;
+  border-radius: 4px;
 }
 
-.vercel-ngo-sidebar::-webkit-scrollbar-thumb,
-.vercel-ngo-panel-scroll::-webkit-scrollbar-thumb {
-  background: #23232a;
-  border-radius: 3px;
-}
-
-[data-theme="light"] .vercel-ngo-sidebar::-webkit-scrollbar-thumb,
-[data-theme="light"] .vercel-ngo-panel-scroll::-webkit-scrollbar-thumb {
+[data-theme="light"] .ngo-prof-scroll::-webkit-scrollbar-thumb {
   background: #cbd5e1;
 }
 
-/* Framed Cover Banner (Clean, never crushed by overlapping avatar) */
-.vercel-sidebar-banner-frame {
+/* ── 3. Full-Width Cover Banner (True Widescreen Aspect, Zero Crowding) ── */
+.ngo-prof-cover {
   position: relative;
   width: 100%;
-  height: 112px;
-  flex-shrink: 0;
+  height: 152px;
+  background-color: #0f1014;
+  background-size: cover;
+  background-position: center;
+  border-bottom: 1px solid #1c1c21;
   overflow: hidden;
-  background: #111116;
-  border-bottom: 1px solid #1e1e24;
 }
 
-[data-theme="light"] .vercel-sidebar-banner-frame {
-  background: #e2e8f0;
+.ngo-prof-cover.is-pattern {
+  height: 86px;
+  background-color: #0d0e12;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px);
+  background-size: 18px 18px;
+}
+
+[data-theme="light"] .ngo-prof-cover.is-pattern {
+  background-color: #f8fafc;
+  background-image: radial-gradient(rgba(15, 23, 42, 0.08) 1px, transparent 1px);
   border-bottom-color: #e2e8f0;
 }
 
-.vercel-sidebar-banner-img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
+[data-theme="light"] .ngo-prof-cover.has-image {
+  border-bottom-color: #e2e8f0;
 }
 
-.vercel-sidebar-banner-fade {
+.ngo-prof-cover-scrim {
   position: absolute;
   inset: 0;
-  background: linear-gradient(180deg, rgba(12, 12, 15, 0) 55%, rgba(12, 12, 15, 0.55) 100%);
-  pointer-events: none;
+  background: linear-gradient(
+    to bottom,
+    rgba(9, 9, 11, 0.08) 0%,
+    rgba(9, 9, 11, 0.18) 55%,
+    rgba(9, 9, 11, 0.72) 100%
+  );
 }
 
-[data-theme="light"] .vercel-sidebar-banner-fade {
-  background: linear-gradient(180deg, rgba(248, 250, 252, 0) 65%, rgba(248, 250, 252, 0.35) 100%);
+[data-theme="light"] .ngo-prof-cover.is-pattern .ngo-prof-cover-scrim {
+  background: linear-gradient(to bottom, rgba(248, 250, 252, 0), rgba(248, 250, 252, 0.85));
 }
 
-.vercel-sidebar-content {
-  padding: 18px 18px 22px;
+/* ── 4. Identity Header Block ── */
+.ngo-prof-identity {
+  padding: 0 28px 20px;
   display: flex;
   flex-direction: column;
-  gap: 0;
+  gap: 14px;
 }
 
-/* Identity Row */
-.vercel-sidebar-identity {
+.ngo-prof-id-main {
   display: flex;
-  align-items: center;
-  gap: 12px;
-  padding-bottom: 16px;
+  align-items: flex-end;
+  gap: 16px;
+  margin-top: -28px;
+  position: relative;
+  z-index: 2;
 }
 
-.vercel-sidebar-avatar {
-  width: 48px;
-  height: 48px;
-  border-radius: 10px;
-  background: #16161b;
-  border: 1px solid #272730;
+.ngo-prof-avatar {
+  position: relative;
+  width: 68px;
+  height: 68px;
+  border-radius: 14px;
+  background: #141418;
+  border: 3px solid #09090b;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.55), 0 0 0 1px #27272e;
+  color: #ffffff;
+  font-size: 1.2rem;
+  font-weight: 700;
   display: flex;
   align-items: center;
   justify-content: center;
-  overflow: hidden;
   flex-shrink: 0;
 }
 
-[data-theme="light"] .vercel-sidebar-avatar {
-  background: #ffffff;
-  border-color: #cbd5e1;
+[data-theme="light"] .ngo-prof-avatar {
+  background: #0f172a;
+  border-color: #ffffff;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.15), 0 0 0 1px #e2e8f0;
 }
 
-.vercel-sidebar-avatar img {
+.ngo-prof-avatar img {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  border-radius: 11px;
+  background: #ffffff;
 }
 
-.vercel-sidebar-initials {
-  font-size: 0.95rem;
-  font-weight: 700;
-  color: #f4f4f5;
-}
-
-[data-theme="light"] .vercel-sidebar-initials {
-  color: #0f172a;
-}
-
-.vercel-sidebar-identity-text {
-  min-width: 0;
-  flex: 1;
+.ngo-prof-avatar-check {
+  position: absolute;
+  right: -5px;
+  bottom: -5px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #10b981;
+  color: #052e16;
+  border: 2.5px solid #09090b;
   display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.vercel-sidebar-name-line {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
-}
-
-.vercel-sidebar-title {
-  margin: 0;
-  font-size: 1.02rem;
-  font-weight: 700;
-  letter-spacing: -0.015em;
-  color: #f4f4f5;
-  line-height: 1.25;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-[data-theme="light"] .vercel-sidebar-title {
-  color: #0f172a;
-}
-
-.vercel-verified-mark {
-  display: inline-flex;
-  align-items: center;
-  flex-shrink: 0;
-}
-
-.vercel-sidebar-accredited-date {
-  font-size: 0.74rem;
-  color: #8b8b96;
-}
-
-[data-theme="light"] .vercel-sidebar-accredited-date {
-  color: #64748b;
-}
-
-/* Hairline Rail Sections */
-.vercel-rail-section {
-  padding: 14px 0;
-  border-top: 1px solid #1c1c22;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-[data-theme="light"] .vercel-rail-section {
-  border-top-color: #e2e8f0;
-}
-
-.vercel-rail-section-label {
-  font-size: 0.72rem;
-  font-weight: 600;
-  color: #8b8b96;
-}
-
-[data-theme="light"] .vercel-rail-section-label {
-  color: #64748b;
-}
-
-/* Key-Value Registration Rows */
-.vercel-rail-kv-list {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.vercel-rail-kv-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  padding: 6px 8px;
-  margin: 0 -8px;
-  width: calc(100% + 16px);
-  border-radius: 6px;
-  background: transparent;
-  border: none;
-  color: inherit;
-  cursor: pointer;
-  text-align: left;
-  transition: background 0.12s ease;
-}
-
-.vercel-rail-kv-row:hover {
-  background: #15151a;
-}
-
-[data-theme="light"] .vercel-rail-kv-row:hover {
-  background: #eef2f6;
-}
-
-.vercel-rail-kv-row .kv-key {
-  font-size: 0.72rem;
-  font-weight: 600;
-  color: #71717a;
-  width: 40px;
-  flex-shrink: 0;
-}
-
-.vercel-rail-kv-row .kv-val {
-  font-size: 0.75rem;
-  color: #e4e4e7;
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-[data-theme="light"] .vercel-rail-kv-row .kv-val {
-  color: #0f172a;
-}
-
-.vercel-rail-kv-row .kv-copy {
-  font-size: 0.68rem;
-  color: #71717a;
-  display: inline-flex;
-  align-items: center;
-  flex-shrink: 0;
-}
-
-.vercel-rail-kv-row:hover .kv-copy {
-  color: #10b981;
-}
-
-/* Contact List */
-.vercel-rail-contact-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.vercel-rail-contact-item {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  text-decoration: none;
-  color: inherit;
-  padding: 4px 6px;
-  margin: 0 -6px;
-  border-radius: 6px;
-  transition: background 0.12s ease;
-}
-
-.vercel-rail-contact-item:not(.is-static):hover {
-  background: #15151a;
-}
-
-[data-theme="light"] .vercel-rail-contact-item:not(.is-static):hover {
-  background: #eef2f6;
-}
-
-.vercel-rail-contact-item .ci-body {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  min-width: 0;
-}
-
-.vercel-rail-contact-item .ci-lbl {
-  font-size: 0.69rem;
-  color: #71717a;
-}
-
-.vercel-rail-contact-item .ci-val {
-  font-size: 0.80rem;
-  color: #e4e4e7;
-  font-weight: 500;
-  word-break: break-word;
-  line-height: 1.35;
-}
-
-[data-theme="light"] .vercel-rail-contact-item .ci-val {
-  color: #0f172a;
-}
-
-.vercel-rail-link-row {
-  display: flex;
-  gap: 8px;
-  margin-top: 4px;
-}
-
-.vercel-rail-ext-link {
-  flex: 1;
-  display: inline-flex;
   align-items: center;
   justify-content: center;
+}
+
+[data-theme="light"] .ngo-prof-avatar-check {
+  border-color: #ffffff;
+  color: #ffffff;
+}
+
+.ngo-prof-avatar-check .material-symbols-outlined {
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.ngo-prof-id-text {
+  flex: 1;
+  min-width: 0;
+  padding-top: 32px;
+}
+
+.ngo-prof-title-line {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.ngo-prof-name {
+  margin: 0;
+  font-size: 1.38rem;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  color: #ffffff;
+  line-height: 1.2;
+}
+
+[data-theme="light"] .ngo-prof-name {
+  color: #0f172a;
+}
+
+.ngo-prof-verified-chip {
+  display: inline-flex;
+  align-items: center;
   gap: 5px;
-  padding: 6px 10px;
-  border-radius: 6px;
-  background: #141418;
-  border: 1px solid #24242c;
-  color: #e4e4e7;
-  font-size: 0.75rem;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.28);
+  color: #10b981;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+[data-theme="light"] .ngo-prof-verified-chip {
+  background: rgba(5, 150, 105, 0.08);
+  border-color: rgba(5, 150, 105, 0.25);
+  color: #059669;
+}
+
+.ngo-prof-verified-chip .material-symbols-outlined {
+  font-size: 14px;
+}
+
+.ngo-prof-subline {
+  margin-top: 5px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-wrap: wrap;
+  font-size: 0.80rem;
+  color: #8b8b94;
+}
+
+[data-theme="light"] .ngo-prof-subline {
+  color: #64748b;
+}
+
+.ngo-prof-subline .sep {
+  opacity: 0.45;
+}
+
+.ngo-prof-subline .loc-val {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 340px;
+}
+
+/* Quick Contact Action Row */
+.ngo-prof-quick-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.ngo-quick-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 11px;
+  border-radius: 7px;
+  background: #111115;
+  border: 1px solid #24242b;
+  color: #d4d4d8;
+  font-size: 0.76rem;
   font-weight: 500;
   text-decoration: none;
-  transition: border-color 0.12s ease, background 0.12s ease;
+  transition: border-color 0.12s ease, background 0.12s ease, color 0.12s ease;
 }
 
-.vercel-rail-ext-link:hover {
-  border-color: #3f3f4a;
-  background: #1a1a20;
+.ngo-quick-chip:hover {
+  background: #19191f;
+  border-color: #3f3f46;
+  color: #ffffff;
 }
 
-[data-theme="light"] .vercel-rail-ext-link {
-  background: #ffffff;
+[data-theme="light"] .ngo-quick-chip {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+  color: #334155;
+}
+
+[data-theme="light"] .ngo-quick-chip:hover {
+  background: #f1f5f9;
   border-color: #cbd5e1;
   color: #0f172a;
 }
 
-[data-theme="light"] .vercel-rail-ext-link:hover {
-  border-color: #94a3b8;
-  background: #f1f5f9;
+.ngo-quick-chip .material-symbols-outlined {
+  font-size: 15px;
+  color: #71717a;
 }
 
-/* Mission & Tags */
-.vercel-sidebar-bio,
-.vercel-expandable-text {
+.ngo-prof-bio {
   margin: 0;
-  font-size: 0.79rem;
-  color: #a1a1aa;
+  font-size: 0.83rem;
   line-height: 1.55;
+  color: #a1a1aa;
+  max-width: 74ch;
 }
 
-[data-theme="light"] .vercel-sidebar-bio,
-[data-theme="light"] .vercel-expandable-text {
+[data-theme="light"] .ngo-prof-bio {
   color: #475569;
 }
 
-.vercel-show-more-btn {
+.ngo-inline-toggle {
   background: none;
   border: none;
+  padding: 0;
   color: #10b981;
-  font-size: 0.76rem;
+  font-size: inherit;
   font-weight: 600;
+  font-family: inherit;
   cursor: pointer;
-  padding: 0 2px;
 }
 
-.vercel-show-more-btn:hover {
+.ngo-inline-toggle:hover {
   text-decoration: underline;
 }
 
-.vercel-sidebar-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 4px;
-}
-
-.vercel-sidebar-tag-chip {
-  font-size: 0.71rem;
-  font-weight: 500;
-  padding: 3px 8px;
-  border-radius: 5px;
-  background: #15151a;
-  color: #d4d4d8;
-  border: 1px solid #23232c;
-}
-
-[data-theme="light"] .vercel-sidebar-tag-chip {
-  background: #ffffff;
-  color: #334155;
-  border-color: #e2e8f0;
-}
-
-.vercel-rail-lead-val {
-  font-size: 0.80rem;
-  font-weight: 500;
-  color: #e4e4e7;
-}
-
-[data-theme="light"] .vercel-rail-lead-val {
-  color: #0f172a;
-}
-
-/* ════════ RIGHT MAIN PANEL ════════ */
-.vercel-ngo-main {
-  background: #08080a;
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  min-width: 0;
-  min-height: 0;
+/* ── 5. Sleek 4-Column Tabular KPI Strip ── */
+.ngo-prof-kpi-strip {
+  margin: 0 28px 20px;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  background: #0d0d11;
+  border: 1px solid #1f1f25;
+  border-radius: 10px;
   overflow: hidden;
 }
 
-[data-theme="light"] .vercel-ngo-main {
-  background: #ffffff;
+[data-theme="light"] .ngo-prof-kpi-strip {
+  background: #f8fafc;
+  border-color: #e2e8f0;
 }
 
-/* Unified 4-Column Hairline Ledger Bar */
-.vercel-ledger-bar {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  border-bottom: 1px solid #1e1e24;
-  background: #08080a;
-  flex-shrink: 0;
-}
-
-[data-theme="light"] .vercel-ledger-bar {
-  background: #ffffff;
-  border-bottom-color: #e2e8f0;
-}
-
-@media (max-width: 620px) {
-  .vercel-ledger-bar {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-.vercel-ledger-cell {
-  padding: 14px 18px;
+.ngo-kpi-cell {
+  padding: 13px 16px;
   display: flex;
   flex-direction: column;
   gap: 3px;
   min-width: 0;
 }
 
-.vercel-ledger-cell:not(:last-child) {
-  border-right: 1px solid #1a1a20;
+.ngo-kpi-cell + .ngo-kpi-cell {
+  border-left: 1px solid #1d1d23;
 }
 
-[data-theme="light"] .vercel-ledger-cell:not(:last-child) {
-  border-right-color: #f1f5f9;
+[data-theme="light"] .ngo-kpi-cell + .ngo-kpi-cell {
+  border-left-color: #e2e8f0;
 }
 
-.vercel-ledger-cell .ledger-lbl {
+.ngo-kpi-cell .kpi-lbl {
   font-size: 0.72rem;
   font-weight: 500;
-  color: #8b8b96;
-  white-space: nowrap;
+  color: #8b8b94;
 }
 
-[data-theme="light"] .vercel-ledger-cell .ledger-lbl {
+[data-theme="light"] .ngo-kpi-cell .kpi-lbl {
   color: #64748b;
 }
 
-.vercel-ledger-cell .ledger-val {
-  font-size: 1.15rem;
+.ngo-kpi-cell .kpi-val {
+  font-size: 1.24rem;
   font-weight: 700;
   letter-spacing: -0.02em;
-  color: #f4f4f5;
+  font-variant-numeric: tabular-nums;
+  color: #ffffff;
+  line-height: 1.25;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-[data-theme="light"] .vercel-ledger-cell .ledger-val {
+[data-theme="light"] .ngo-kpi-cell .kpi-val {
   color: #0f172a;
 }
 
-.vercel-ledger-cell .ledger-val.is-emerald {
+.ngo-kpi-cell .kpi-val.emerald {
   color: #10b981;
 }
 
-.vercel-ledger-cell .ledger-sub {
-  font-size: 0.74rem;
-  font-weight: 500;
-  color: #71717a;
+[data-theme="light"] .ngo-kpi-cell .kpi-val.emerald {
+  color: #059669;
 }
 
-/* Clean Underline Navigation Tabs */
-.vercel-ngo-tabs-bar {
+.ngo-kpi-cell .kpi-sub {
+  font-size: 0.70rem;
+  color: #71717a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── 6. Clean Underline Tab Navigation ── */
+.ngo-prof-tabs {
+  position: sticky;
+  top: 0;
+  z-index: 5;
   display: flex;
   align-items: center;
-  gap: 20px;
-  padding: 0 20px;
-  border-bottom: 1px solid #1e1e24;
+  gap: 6px;
+  padding: 0 28px;
+  background: #09090b;
+  border-bottom: 1px solid #1f1f25;
   overflow-x: auto;
-  scrollbar-width: none;
-  flex-shrink: 0;
-  background: #08080a;
 }
 
-.vercel-ngo-tabs-bar::-webkit-scrollbar {
-  display: none;
-}
-
-[data-theme="light"] .vercel-ngo-tabs-bar {
+[data-theme="light"] .ngo-prof-tabs {
   background: #ffffff;
   border-bottom-color: #e2e8f0;
 }
 
-.vercel-tab-btn {
+.ngo-tab {
   position: relative;
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  padding: 12px 2px;
+  padding: 11px 12px;
   background: transparent;
   border: none;
+  color: #8b8b94;
   font-size: 0.82rem;
   font-weight: 500;
-  color: #8b8b96;
+  font-family: inherit;
   cursor: pointer;
   white-space: nowrap;
-  flex-shrink: 0;
-  transition: color 0.12s ease;
+  transition: color 0.14s ease;
 }
 
-.vercel-tab-btn:hover {
+.ngo-tab:hover {
   color: #e4e4e7;
 }
 
-.vercel-tab-btn.active {
+.ngo-tab.active {
   color: #ffffff;
   font-weight: 600;
 }
 
-.vercel-tab-btn.active::after {
+.ngo-tab.active::after {
   content: '';
   position: absolute;
-  left: 0;
-  right: 0;
+  left: 10px;
+  right: 10px;
   bottom: 0;
   height: 2px;
-  background: #f4f4f5;
+  background: #ffffff;
   border-radius: 2px 2px 0 0;
 }
 
-[data-theme="light"] .vercel-tab-btn {
+[data-theme="light"] .ngo-tab {
   color: #64748b;
 }
 
-[data-theme="light"] .vercel-tab-btn:hover {
+[data-theme="light"] .ngo-tab:hover {
   color: #0f172a;
 }
 
-[data-theme="light"] .vercel-tab-btn.active {
+[data-theme="light"] .ngo-tab.active {
   color: #0f172a;
 }
 
-[data-theme="light"] .vercel-tab-btn.active::after {
+[data-theme="light"] .ngo-tab.active::after {
   background: #0f172a;
 }
 
-.vercel-tab-count {
+.ngo-tab .tab-count {
   font-size: 0.68rem;
   font-weight: 600;
+  font-variant-numeric: tabular-nums;
   padding: 1px 6px;
   border-radius: 999px;
   background: #18181d;
   color: #a1a1aa;
 }
 
-[data-theme="light"] .vercel-tab-count {
+.ngo-tab.active .tab-count {
+  background: #27272e;
+  color: #ffffff;
+}
+
+[data-theme="light"] .ngo-tab .tab-count {
   background: #f1f5f9;
   color: #475569;
 }
 
-/* Scrollable Tab Panel */
-.vercel-ngo-panel-scroll {
-  flex: 1;
-  overflow-y: auto;
-  padding: 18px 20px 24px;
-  min-height: 0;
+[data-theme="light"] .ngo-tab.active .tab-count {
+  background: #e2e8f0;
+  color: #0f172a;
 }
 
-.vercel-tab-pane {
+/* ── 7. Tab Content Area ── */
+.ngo-prof-content {
+  padding: 20px 28px 28px;
+}
+
+.ngo-tab-pane {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 16px;
 }
 
-/* Operations Filter & Search Bar */
-.vercel-ops-toolbar {
+/* Operations Search & Filter Bar */
+.ngo-ops-toolbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -855,890 +664,959 @@
   flex-wrap: wrap;
 }
 
-.vercel-ops-filter-pills {
+.ngo-ops-search {
+  flex: 1;
+  min-width: 220px;
   display: flex;
   align-items: center;
-  gap: 6px;
-  flex-wrap: wrap;
+  gap: 8px;
+  height: 36px;
+  padding: 0 10px;
+  background: #0f0f13;
+  border: 1px solid #23232a;
+  border-radius: 8px;
+  transition: border-color 0.14s ease;
 }
 
-.vercel-ops-filter-pills .ops-pill {
-  background: transparent;
-  border: 1px solid #222229;
-  color: #8b8b96;
-  font-size: 0.74rem;
-  font-weight: 500;
-  padding: 5px 10px;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: all 0.12s ease;
+.ngo-ops-search:focus-within {
+  border-color: #71717a;
 }
 
-.vercel-ops-filter-pills .ops-pill:hover {
-  border-color: #363642;
-  color: #e4e4e7;
-}
-
-.vercel-ops-filter-pills .ops-pill.active {
-  background: #18181f;
-  border-color: #3f3f4c;
-  color: #ffffff;
-  font-weight: 600;
-}
-
-[data-theme="light"] .vercel-ops-filter-pills .ops-pill {
-  border-color: #e2e8f0;
-  color: #64748b;
-}
-
-[data-theme="light"] .vercel-ops-filter-pills .ops-pill.active {
-  background: #0f172a;
-  border-color: #0f172a;
-  color: #ffffff;
-}
-
-.vercel-ops-search {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  background: #0e0e12;
-  border: 1px solid #222229;
-  border-radius: 6px;
-  padding: 0 9px;
-  height: 30px;
-  min-width: 175px;
-}
-
-.vercel-ops-search:focus-within {
-  border-color: #52525b;
-}
-
-[data-theme="light"] .vercel-ops-search {
+[data-theme="light"] .ngo-ops-search {
   background: #f8fafc;
   border-color: #e2e8f0;
 }
 
-.vercel-ops-search input {
+[data-theme="light"] .ngo-ops-search:focus-within {
+  border-color: #0f172a;
+}
+
+.ngo-ops-search .material-symbols-outlined {
+  font-size: 16px;
+  color: #71717a;
+}
+
+.ngo-ops-search input {
   flex: 1;
   min-width: 0;
   background: transparent;
   border: none;
   outline: none;
   color: #f4f4f5;
-  font-size: 0.76rem;
+  font-size: 0.80rem;
+  font-family: inherit;
 }
 
-[data-theme="light"] .vercel-ops-search input {
+[data-theme="light"] .ngo-ops-search input {
   color: #0f172a;
 }
 
-.vercel-ops-search .ops-search-clear {
+.ngo-ops-search input::placeholder {
+  color: #71717a;
+}
+
+.ngo-ops-search .clear-btn {
   background: transparent;
   border: none;
+  padding: 2px;
   color: #71717a;
   cursor: pointer;
-  display: inline-flex;
-  padding: 0;
-}
-
-/* Campaign Cards */
-.vercel-campaigns-list {
   display: flex;
-  flex-direction: column;
-  gap: 10px;
 }
 
-.vercel-campaign-card {
-  padding: 16px 18px;
-  background: #0c0c0f;
-  border: 1px solid #1e1e24;
+.ngo-ops-filters {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px;
+  background: #0f0f13;
+  border: 1px solid #202027;
+  border-radius: 8px;
+}
+
+[data-theme="light"] .ngo-ops-filters {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+}
+
+.ngo-ops-filters .filter-pill {
+  background: transparent;
+  border: none;
+  border-radius: 5px;
+  padding: 5px 10px;
+  font-size: 0.74rem;
+  font-weight: 500;
+  color: #8b8b94;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.12s ease;
+}
+
+.ngo-ops-filters .filter-pill:hover {
+  color: #f4f4f5;
+}
+
+.ngo-ops-filters .filter-pill.active {
+  background: #23232a;
+  color: #ffffff;
+  font-weight: 600;
+}
+
+[data-theme="light"] .ngo-ops-filters .filter-pill {
+  color: #64748b;
+}
+
+[data-theme="light"] .ngo-ops-filters .filter-pill.active {
+  background: #0f172a;
+  color: #ffffff;
+}
+
+/* 2-Column Mission Cards Grid */
+.ngo-ops-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.ngo-mission-card {
+  background: #0e0e12;
+  border: 1px solid #202027;
   border-radius: 10px;
+  padding: 16px;
   display: flex;
   flex-direction: column;
   gap: 10px;
   transition: border-color 0.14s ease, background 0.14s ease;
 }
 
-.vercel-campaign-card:hover {
-  border-color: #2f2f38;
-  background: #0f0f13;
+.ngo-mission-card:hover {
+  border-color: #34343e;
+  background: #111116;
 }
 
-[data-theme="light"] .vercel-campaign-card {
+[data-theme="light"] .ngo-mission-card {
   background: #ffffff;
   border-color: #e2e8f0;
 }
 
-[data-theme="light"] .vercel-campaign-card:hover {
+[data-theme="light"] .ngo-mission-card:hover {
   border-color: #cbd5e1;
-  background: #fafbfc;
+  background: #fafcff;
 }
 
-.vercel-camp-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.vercel-camp-title-block {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-
-.vercel-camp-meta-line {
+.mission-top {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 8px;
-  flex-wrap: wrap;
 }
 
-.vercel-camp-category {
+.mission-cat {
   font-size: 0.72rem;
-  font-weight: 500;
-  color: #8b8b96;
-}
-
-[data-theme="light"] .vercel-camp-category {
-  color: #64748b;
-}
-
-.vercel-camp-proof-tag {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 0.70rem;
   font-weight: 600;
-  color: #10b981;
-}
-
-.vercel-camp-title {
-  margin: 0;
-  font-size: 0.96rem;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-  color: #f4f4f5;
-  line-height: 1.35;
-}
-
-[data-theme="light"] .vercel-camp-title {
-  color: #0f172a;
-}
-
-/* Status Pill */
-.vercel-camp-urgency {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  font-size: 0.70rem;
-  font-weight: 500;
-  padding: 3px 8px;
-  border-radius: 999px;
-  white-space: nowrap;
-  flex-shrink: 0;
-}
-
-.vercel-urgency-dot {
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-}
-
-.vercel-camp-urgency.normal {
-  background: rgba(16, 185, 129, 0.1);
-  color: #10b981;
-}
-.vercel-camp-urgency.normal .vercel-urgency-dot { background: #10b981; }
-
-.vercel-camp-urgency.high {
-  background: rgba(245, 158, 11, 0.12);
-  color: #f59e0b;
-}
-.vercel-camp-urgency.high .vercel-urgency-dot { background: #f59e0b; }
-
-.vercel-camp-urgency.critical {
-  background: rgba(239, 68, 68, 0.12);
-  color: #ef4444;
-}
-.vercel-camp-urgency.critical .vercel-urgency-dot { background: #ef4444; }
-
-.vercel-camp-desc {
-  margin: 0;
-  font-size: 0.80rem;
-  color: #a1a1aa;
-  line-height: 1.5;
-  max-width: 72ch;
-}
-
-[data-theme="light"] .vercel-camp-desc {
-  color: #475569;
-}
-
-/* Crisp Progress Bar */
-.vercel-camp-progress-section {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.vercel-progress-track {
-  width: 100%;
-  height: 4px;
-  border-radius: 999px;
-  background: #1c1c23;
-  overflow: hidden;
-}
-
-[data-theme="light"] .vercel-progress-track {
-  background: #e2e8f0;
-}
-
-.vercel-progress-bar {
-  height: 100%;
-  border-radius: 999px;
-  background: #10b981;
-  transition: width 0.35s ease;
-}
-
-.vercel-progress-labels {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 0.75rem;
-}
-
-.vercel-progress-labels .raised {
-  font-weight: 600;
-  color: #f4f4f5;
-}
-
-[data-theme="light"] .vercel-progress-labels .raised {
-  color: #0f172a;
-}
-
-.vercel-progress-labels .raised .sub {
-  font-weight: 400;
-  color: #8b8b96;
-  font-family: var(--font-sans, inherit);
-}
-
-.vercel-progress-labels .pct-badge {
-  color: #10b981;
-  font-weight: 600;
-}
-
-/* Campaign Card Footer */
-.vercel-camp-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding-top: 10px;
-  border-top: 1px solid #18181e;
-  flex-wrap: wrap;
-}
-
-[data-theme="light"] .vercel-camp-footer {
-  border-top-color: #f1f5f9;
-}
-
-.vercel-camp-loc {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 0.75rem;
-  color: #8b8b96;
-  min-width: 0;
-  flex: 1;
-}
-
-.vercel-camp-loc .loc-text {
+  color: #38bdf8;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.vercel-camp-actions {
+[data-theme="light"] .mission-cat {
+  color: #0284c7;
+}
+
+.mission-status {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 5px;
+  font-size: 0.70rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
   flex-shrink: 0;
 }
 
-/* Buttons */
-.vercel-btn {
+.mission-status .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.mission-status.is-active {
+  background: rgba(16, 185, 129, 0.1);
+  color: #10b981;
+}
+.mission-status.is-active .dot { background: #10b981; }
+
+.mission-status.is-funded,
+.mission-status.is-disbursed {
+  background: rgba(16, 185, 129, 0.14);
+  color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.25);
+}
+.mission-status.is-funded .dot,
+.mission-status.is-disbursed .dot { background: #10b981; }
+
+.mission-status.is-high {
+  background: rgba(245, 158, 11, 0.12);
+  color: #f59e0b;
+}
+.mission-status.is-high .dot { background: #f59e0b; }
+
+.mission-status.is-critical {
+  background: rgba(239, 68, 68, 0.14);
+  color: #f87171;
+}
+.mission-status.is-critical .dot { background: #ef4444; }
+
+.mission-title {
+  margin: 0;
+  font-size: 0.96rem;
+  font-weight: 650;
+  color: #ffffff;
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+[data-theme="light"] .mission-title {
+  color: #0f172a;
+}
+
+.mission-desc {
+  margin: 0;
+  font-size: 0.78rem;
+  color: #8b8b94;
+  line-height: 1.48;
+}
+
+[data-theme="light"] .mission-desc {
+  color: #64748b;
+}
+
+.mission-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: auto;
+  padding-top: 4px;
+}
+
+.progress-track {
+  width: 100%;
+  height: 4px;
+  border-radius: 999px;
+  background: #1e1e25;
+  overflow: hidden;
+}
+
+[data-theme="light"] .progress-track {
+  background: #e2e8f0;
+}
+
+.progress-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: #10b981;
+}
+
+.progress-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 0.74rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.progress-row .raised-val {
+  color: #a1a1aa;
+}
+
+.progress-row .raised-val strong {
+  color: #f4f4f5;
+  font-weight: 650;
+}
+
+[data-theme="light"] .progress-row .raised-val strong {
+  color: #0f172a;
+}
+
+.progress-row .goal-val {
+  color: #71717a;
+}
+
+.mission-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding-top: 10px;
+  border-top: 1px solid #1b1b22;
+}
+
+[data-theme="light"] .mission-footer {
+  border-top-color: #f1f5f9;
+}
+
+.mission-loc {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  font-size: 0.73rem;
+  color: #8b8b94;
+}
+
+.mission-loc .material-symbols-outlined {
+  font-size: 14px;
+  color: #71717a;
+  flex-shrink: 0;
+}
+
+.mission-loc span:last-child {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mission-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+/* ── Shared Buttons ── */
+.ngo-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  height: 32px;
-  padding: 0 13px;
-  border-radius: 7px;
-  font-size: 0.78rem;
+  gap: 5px;
+  height: 30px;
+  padding: 0 11px;
+  border-radius: 6px;
+  font-size: 0.75rem;
   font-weight: 600;
+  font-family: inherit;
   cursor: pointer;
-  transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+  border: 1px solid transparent;
+  transition: all 0.12s ease;
   white-space: nowrap;
 }
 
-.vercel-btn-primary {
-  background: #f4f4f5;
-  color: #09090b;
-  border: 1px solid #f4f4f5;
+.ngo-btn .material-symbols-outlined {
+  font-size: 14px;
 }
 
-.vercel-btn-primary:hover {
+.ngo-btn.primary {
   background: #ffffff;
+  color: #09090b;
   border-color: #ffffff;
 }
 
-[data-theme="light"] .vercel-btn-primary {
+.ngo-btn.primary:hover {
+  background: #e4e4e7;
+  border-color: #e4e4e7;
+}
+
+[data-theme="light"] .ngo-btn.primary {
   background: #0f172a;
   color: #ffffff;
   border-color: #0f172a;
 }
 
-[data-theme="light"] .vercel-btn-primary:hover {
+[data-theme="light"] .ngo-btn.primary:hover {
   background: #1e293b;
 }
 
-.vercel-btn-secondary {
+.ngo-btn.secondary {
   background: #141418;
   color: #e4e4e7;
-  border: 1px solid #272730;
+  border-color: #27272f;
 }
 
-.vercel-btn-secondary:hover {
+.ngo-btn.secondary:hover {
   background: #1c1c22;
-  border-color: #3f3f4c;
+  border-color: #3f3f46;
 }
 
-[data-theme="light"] .vercel-btn-secondary {
-  background: #ffffff;
+[data-theme="light"] .ngo-btn.secondary {
+  background: #f8fafc;
   color: #0f172a;
   border-color: #cbd5e1;
 }
 
-[data-theme="light"] .vercel-btn-secondary:hover {
-  background: #f8fafc;
+[data-theme="light"] .ngo-btn.secondary:hover {
+  background: #f1f5f9;
 }
 
-.vercel-btn-proof {
+.ngo-btn.proof {
   background: rgba(16, 185, 129, 0.1);
   color: #10b981;
-  border: 1px solid rgba(16, 185, 129, 0.28);
+  border-color: rgba(16, 185, 129, 0.28);
 }
 
-.vercel-btn-proof:hover {
-  background: rgba(16, 185, 129, 0.16);
-  border-color: rgba(16, 185, 129, 0.45);
+.ngo-btn.proof:hover {
+  background: rgba(16, 185, 129, 0.18);
+  border-color: rgba(16, 185, 129, 0.5);
 }
 
-/* Generic Section Cards (Governance, Payment Channels, Dispatch) */
-.vercel-card-box {
-  padding: 18px;
-  background: #0c0c0f;
-  border: 1px solid #1e1e24;
+/* ── Governance / Treasury / Contact Panel Cards ── */
+.ngo-panel-card {
+  background: #0e0e12;
+  border: 1px solid #202027;
   border-radius: 10px;
+  padding: 18px 20px;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 16px;
 }
 
-[data-theme="light"] .vercel-card-box {
+[data-theme="light"] .ngo-panel-card {
   background: #ffffff;
   border-color: #e2e8f0;
 }
 
-.vercel-card-box-header {
+.ngo-panel-card .panel-head {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 12px;
+  gap: 14px;
   flex-wrap: wrap;
 }
 
-.vercel-card-box-title {
-  margin: 0;
+.ngo-panel-card .panel-head h4 {
+  margin: 0 0 4px;
   font-size: 0.94rem;
-  font-weight: 600;
-  color: #f4f4f5;
-  letter-spacing: -0.01em;
+  font-weight: 650;
+  color: #ffffff;
 }
 
-[data-theme="light"] .vercel-card-box-title {
+[data-theme="light"] .ngo-panel-card .panel-head h4 {
   color: #0f172a;
 }
 
-.vercel-card-box-desc {
-  margin: 3px 0 0;
+.ngo-panel-card .panel-head p {
+  margin: 0;
   font-size: 0.78rem;
-  color: #8b8b96;
+  color: #8b8b94;
   line-height: 1.45;
   max-width: 66ch;
 }
 
-[data-theme="light"] .vercel-card-box-desc {
+[data-theme="light"] .ngo-panel-card .panel-head p {
   color: #64748b;
 }
 
-.vercel-info-grid {
+.ngo-kv-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  gap: 12px;
 }
 
-@media (max-width: 560px) {
-  .vercel-info-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-.vercel-info-item {
-  padding: 10px 12px;
-  background: #111115;
-  border: 1px solid #1d1d24;
+.ngo-kv-item {
+  padding: 12px 14px;
+  background: #09090c;
+  border: 1px solid #1c1c22;
   border-radius: 8px;
   display: flex;
   flex-direction: column;
-  gap: 3px;
-}
-
-[data-theme="light"] .vercel-info-item {
-  background: #f8fafc;
-  border-color: #e2e8f0;
-}
-
-.vercel-info-item .lbl {
-  font-size: 0.70rem;
-  color: #8b8b96;
-}
-
-.vercel-info-item .val {
-  font-size: 0.82rem;
-  color: #f4f4f5;
-  font-weight: 600;
-  word-break: break-all;
-}
-
-[data-theme="light"] .vercel-info-item .val {
-  color: #0f172a;
-}
-
-.vercel-wallet-copy-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-}
-
-.vercel-inline-copy-btn {
-  background: transparent;
-  border: 1px solid #2a2a34;
-  color: #a1a1aa;
-  font-size: 0.70rem;
-  font-weight: 600;
-  padding: 3px 8px;
-  border-radius: 5px;
-  cursor: pointer;
-  flex-shrink: 0;
-}
-
-.vercel-inline-copy-btn:hover {
-  border-color: #10b981;
-  color: #10b981;
-}
-
-/* Board Grid */
-.vercel-board-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-}
-
-@media (max-width: 560px) {
-  .vercel-board-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-.vercel-board-card {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
-  background: #111115;
-  border: 1px solid #1d1d24;
-  border-radius: 8px;
-}
-
-[data-theme="light"] .vercel-board-card {
-  background: #f8fafc;
-  border-color: #e2e8f0;
-}
-
-.vercel-board-avatar {
-  width: 32px;
-  height: 32px;
-  border-radius: 8px;
-  background: #191920;
-  border: 1px solid #272732;
-  color: #8b8b96;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-[data-theme="light"] .vercel-board-avatar {
-  background: #ffffff;
-  border-color: #e2e8f0;
-}
-
-.vercel-board-text {
-  display: flex;
-  flex-direction: column;
+  gap: 4px;
   min-width: 0;
 }
 
-.vercel-board-text .name {
-  font-size: 0.80rem;
-  font-weight: 600;
-  color: #f4f4f5;
+.ngo-kv-item.span-2 {
+  grid-column: 1 / -1;
 }
 
-[data-theme="light"] .vercel-board-text .name {
-  color: #0f172a;
-}
-
-.vercel-board-text .role {
-  font-size: 0.70rem;
-  color: #8b8b96;
-}
-
-/* Payment Channels Grid */
-.vercel-rails-grid {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
-}
-
-@media (max-width: 720px) {
-  .vercel-rails-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-.vercel-rail-card {
-  padding: 14px;
-  background: #111115;
-  border: 1px solid #1e1e26;
-  border-radius: 8px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-[data-theme="light"] .vercel-rail-card {
+[data-theme="light"] .ngo-kv-item {
   background: #f8fafc;
   border-color: #e2e8f0;
 }
 
-.vercel-rail-top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 6px;
-}
-
-.vercel-rail-name {
-  font-size: 0.84rem;
-  font-weight: 600;
-  color: #f4f4f5;
-}
-
-[data-theme="light"] .vercel-rail-name {
-  color: #0f172a;
-}
-
-.vercel-rail-tag {
-  font-size: 0.66rem;
-  font-weight: 600;
-  padding: 2px 7px;
-  border-radius: 999px;
-  background: #1a1a22;
-  color: #a1a1aa;
-}
-
-.vercel-rail-tag.gcash { color: #38bdf8; background: rgba(56, 189, 248, 0.1); }
-.vercel-rail-tag.maya { color: #10b981; background: rgba(16, 185, 129, 0.1); }
-.vercel-rail-tag.bank { color: #c084fc; background: rgba(192, 132, 252, 0.1); }
-
-.vercel-rail-holder {
-  font-size: 0.76rem;
-  color: #a1a1aa;
-}
-
-.vercel-rail-code-btn {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  width: 100%;
-  padding: 6px 8px;
-  border-radius: 6px;
-  background: #09090c;
-  border: 1px solid #22222b;
-  color: #f4f4f5;
-  cursor: pointer;
-  font-size: 0.76rem;
-  transition: border-color 0.12s ease;
-}
-
-.vercel-rail-code-btn:hover {
-  border-color: #10b981;
-}
-
-.vercel-rail-code-btn code {
-  font-family: var(--font-mono, monospace);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.vercel-rail-code-btn span {
-  font-size: 0.68rem;
-  color: #8b8b96;
-  flex-shrink: 0;
-}
-
-[data-theme="light"] .vercel-rail-code-btn {
-  background: #ffffff;
-  border-color: #cbd5e1;
-  color: #0f172a;
-}
-
-.vercel-rail-caption {
-  font-size: 0.74rem;
+.ngo-kv-item .kv-lbl {
+  font-size: 0.70rem;
+  font-weight: 500;
   color: #71717a;
 }
 
-.vercel-rail-actions {
-  margin-top: auto;
-  padding-top: 4px;
+.ngo-kv-item .kv-val {
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: #f4f4f5;
+  word-break: break-word;
 }
 
-.vercel-btn-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 5px 10px;
-  border-radius: 6px;
-  background: #18181f;
-  border: 1px solid #2a2a35;
-  color: #e4e4e7;
-  font-size: 0.74rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: border-color 0.12s ease, background 0.12s ease;
-}
-
-.vercel-btn-pill:hover {
-  border-color: #10b981;
-  color: #ffffff;
-}
-
-[data-theme="light"] .vercel-btn-pill {
-  background: #ffffff;
-  border-color: #cbd5e1;
+[data-theme="light"] .ngo-kv-item .kv-val {
   color: #0f172a;
 }
 
-/* Dispatch & Contact Grid */
-.vercel-contact-grid {
+.ngo-kv-item .kv-val.mono {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.80rem;
+}
+
+.ngo-kv-item .kv-val.emerald {
+  color: #10b981;
+}
+
+.kv-copy-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.ngo-copy-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 5px;
+  background: #16161c;
+  border: 1px solid #272730;
+  color: #d4d4d8;
+  font-size: 0.70rem;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.ngo-copy-btn:hover {
+  border-color: #3f3f46;
+  color: #ffffff;
+}
+
+[data-theme="light"] .ngo-copy-btn {
+  background: #ffffff;
+  border-color: #cbd5e1;
+  color: #334155;
+}
+
+.ngo-copy-btn .material-symbols-outlined {
+  font-size: 13px;
+}
+
+/* Signatories Grid */
+.ngo-signatories-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
 }
 
-@media (max-width: 560px) {
-  .vercel-contact-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-.vercel-contact-tile {
+.ngo-signatory-item {
   display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  padding: 12px 14px;
-  background: #111115;
-  border: 1px solid #1e1e26;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
   border-radius: 8px;
+  background: #09090c;
+  border: 1px solid #1c1c22;
 }
 
-[data-theme="light"] .vercel-contact-tile {
+[data-theme="light"] .ngo-signatory-item {
   background: #f8fafc;
   border-color: #e2e8f0;
 }
 
-.vercel-contact-icon {
+.ngo-signatory-item .sig-avatar {
   width: 34px;
   height: 34px;
   border-radius: 8px;
   background: #18181f;
-  border: 1px solid #262630;
+  color: #e4e4e7;
+  font-size: 0.74rem;
+  font-weight: 700;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
 }
 
-[data-theme="light"] .vercel-contact-icon {
-  background: #ffffff;
+[data-theme="light"] .ngo-signatory-item .sig-avatar {
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+.ngo-signatory-item strong {
+  display: block;
+  font-size: 0.80rem;
+  color: #f4f4f5;
+}
+
+[data-theme="light"] .ngo-signatory-item strong {
+  color: #0f172a;
+}
+
+.ngo-signatory-item span {
+  font-size: 0.70rem;
+  color: #71717a;
+}
+
+.ngo-quiet-note {
+  margin: 0;
+  font-size: 0.80rem;
+  color: #8b8b94;
+  line-height: 1.5;
+  padding: 12px 14px;
+  background: #09090c;
+  border: 1px solid #1c1c22;
+  border-radius: 8px;
+}
+
+[data-theme="light"] .ngo-quiet-note {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+  color: #64748b;
+}
+
+/* Payment Rails Grid */
+.ngo-rails-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 12px;
+}
+
+.ngo-rail-card {
+  padding: 14px 16px;
+  border-radius: 9px;
+  background: #09090c;
+  border: 1px solid #1e1e25;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+[data-theme="light"] .ngo-rail-card {
+  background: #f8fafc;
   border-color: #e2e8f0;
 }
 
-.vercel-contact-tile .lbl {
+.rail-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.rail-title {
+  font-size: 0.84rem;
+  font-weight: 650;
+  color: #ffffff;
+}
+
+[data-theme="light"] .rail-title {
+  color: #0f172a;
+}
+
+.rail-tag {
+  font-size: 0.66rem;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 5px;
+}
+
+.rail-tag.is-gcash { background: rgba(0, 125, 254, 0.14); color: #38bdf8; }
+.rail-tag.is-maya { background: rgba(16, 185, 129, 0.14); color: #10b981; }
+.rail-tag.is-bank { background: rgba(148, 163, 184, 0.15); color: #cbd5e1; }
+[data-theme="light"] .rail-tag.is-bank { color: #334155; }
+
+.rail-holder {
+  font-size: 0.76rem;
+  color: #a1a1aa;
+}
+
+[data-theme="light"] .rail-holder {
+  color: #475569;
+}
+
+.rail-num-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.rail-num {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+[data-theme="light"] .rail-num {
+  color: #0f172a;
+}
+
+.rail-cap {
+  font-size: 0.70rem;
+  color: #71717a;
+}
+
+.rail-qr-btn {
+  margin-top: 4px;
+  width: 100%;
+}
+
+/* Contact Grid */
+.ngo-contact-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.ngo-contact-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  background: #09090c;
+  border: 1px solid #1c1c22;
+  min-width: 0;
+}
+
+[data-theme="light"] .ngo-contact-item {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+}
+
+.ngo-contact-item .c-ico {
+  font-size: 18px;
+  color: #8b8b94;
+  margin-top: 2px;
+  flex-shrink: 0;
+}
+
+.ngo-contact-item .c-lbl {
   display: block;
   font-size: 0.70rem;
-  color: #8b8b96;
+  color: #71717a;
   margin-bottom: 2px;
 }
 
-.vercel-contact-tile .val,
-.vercel-contact-tile .val-link {
+.ngo-contact-item .c-val {
+  display: block;
   font-size: 0.82rem;
   font-weight: 600;
   color: #f4f4f5;
-  text-decoration: none;
   word-break: break-word;
+  text-decoration: none;
 }
 
-.vercel-contact-tile .val-link:hover {
+[data-theme="light"] .ngo-contact-item .c-val {
+  color: #0f172a;
+}
+
+.ngo-contact-item .c-val.link:hover {
   color: #10b981;
   text-decoration: underline;
 }
 
-[data-theme="light"] .vercel-contact-tile .val,
-[data-theme="light"] .vercel-contact-tile .val-link {
+.ngo-focus-block {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ngo-focus-block .c-lbl {
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: #71717a;
+}
+
+.ngo-focus-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.ngo-focus-chip {
+  font-size: 0.74rem;
+  font-weight: 500;
+  padding: 4px 10px;
+  border-radius: 6px;
+  background: #141419;
+  border: 1px solid #24242c;
+  color: #d4d4d8;
+}
+
+[data-theme="light"] .ngo-focus-chip {
+  background: #f1f5f9;
+  border-color: #e2e8f0;
+  color: #334155;
+}
+
+/* Empty, Error & Skeleton */
+.ngo-empty-state,
+.ngo-prof-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 48px 20px;
+  gap: 10px;
+  color: #8b8b94;
+}
+
+.ngo-empty-state .empty-ico,
+.ngo-prof-error .err-ico {
+  font-size: 38px;
+  opacity: 0.65;
+}
+
+.ngo-empty-state h4,
+.ngo-prof-error h3 {
+  margin: 0;
+  font-size: 0.98rem;
+  color: #ffffff;
+}
+
+[data-theme="light"] .ngo-empty-state h4,
+[data-theme="light"] .ngo-prof-error h3 {
   color: #0f172a;
 }
 
-.vercel-muted-note {
+.ngo-empty-state p,
+.ngo-prof-error p {
   margin: 0;
   font-size: 0.80rem;
-  color: #8b8b96;
-  line-height: 1.5;
+  max-width: 400px;
 }
 
-/* Empty & Error & Skeleton States */
-.vercel-empty-card {
-  padding: 36px 20px;
-  border-radius: 10px;
-  background: #0c0c0f;
-  border: 1px dashed #24242c;
-  text-align: center;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 10px;
-  color: #8b8b96;
-  font-size: 0.82rem;
-}
-
-[data-theme="light"] .vercel-empty-card {
-  background: #f8fafc;
-  border-color: #cbd5e1;
-}
-
-.vercel-ngo-error-body {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 32px;
-}
-
-.vercel-error-card {
-  max-width: 420px;
-  text-align: center;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12px;
-}
-
-.vercel-error-icon-wrap {
-  width: 44px;
-  height: 44px;
-  border-radius: 10px;
-  background: rgba(239, 68, 68, 0.1);
-  border: 1px solid rgba(239, 68, 68, 0.25);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.vercel-error-title {
-  margin: 0;
-  font-size: 1rem;
-  font-weight: 600;
-}
-
-.vercel-error-desc {
-  margin: 0;
-  font-size: 0.82rem;
-  color: #8b8b96;
-  line-height: 1.5;
-}
-
-.vercel-error-actions {
+.ngo-prof-error-actions {
   display: flex;
   gap: 8px;
-  margin-top: 4px;
+  margin-top: 6px;
 }
 
-.vercel-ngo-skeleton-body {
-  display: grid;
-  grid-template-columns: 304px 1fr;
-  flex: 1;
-  min-height: 0;
+.ngo-prof-skel-banner {
+  height: 120px;
+  background: #131317;
 }
 
-.vercel-skeleton-sidebar {
-  padding: 18px;
-  border-right: 1px solid #1e1e24;
+.ngo-prof-skel-body {
+  padding: 20px 28px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 18px;
 }
 
-.vercel-skeleton-main {
-  padding: 18px;
+.ngo-prof-skel-row {
   display: flex;
-  flex-direction: column;
+  align-items: center;
   gap: 14px;
 }
 
-.vercel-skeleton-banner,
-.vercel-skeleton-line,
-.vercel-skeleton-card,
-.vercel-skeleton-content-area {
-  background: #141419;
-  border-radius: 8px;
+.ngo-prof-skel-avatar {
+  width: 64px;
+  height: 64px;
+  border-radius: 14px;
+  background: #1c1c22;
 }
 
-[data-theme="light"] .vercel-skeleton-banner,
-[data-theme="light"] .vercel-skeleton-line,
-[data-theme="light"] .vercel-skeleton-card,
-[data-theme="light"] .vercel-skeleton-content-area {
-  background: #eef2f6;
+.ngo-prof-skel-lines {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
-.vercel-skeleton-banner { height: 100px; }
-.vercel-skeleton-line.title { height: 18px; width: 65%; }
-.vercel-skeleton-line.sub { height: 12px; width: 45%; }
-.vercel-skeleton-content-area { flex: 1; min-height: 220px; }
+.ngo-prof-skel-line {
+  height: 12px;
+  border-radius: 5px;
+  background: #1c1c22;
+}
+
+.ngo-prof-skel-line.w-40 { width: 40%; }
+.ngo-prof-skel-line.w-65 { width: 65%; }
+
+.ngo-prof-skel-kpis {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+
+.ngo-prof-skel-box {
+  height: 68px;
+  border-radius: 10px;
+  background: #15151a;
+}
+
+.ngo-prof-skel-cards {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14px;
+}
+
+.ngo-prof-skel-card {
+  height: 160px;
+  border-radius: 10px;
+  background: #15151a;
+}
+
+[data-theme="light"] .ngo-prof-skel-banner,
+[data-theme="light"] .ngo-prof-skel-avatar,
+[data-theme="light"] .ngo-prof-skel-line,
+[data-theme="light"] .ngo-prof-skel-box,
+[data-theme="light"] .ngo-prof-skel-card {
+  background: #e2e8f0;
+}
+
+/* ── Responsive Breakpoints ── */
+@media (max-width: 760px) {
+  .ngo-prof-overlay {
+    padding: 10px !important;
+  }
+
+  .ngo-prof-modal {
+    height: 92vh;
+    max-height: none;
+  }
+
+  .ngo-prof-cover {
+    height: 112px;
+  }
+
+  .ngo-prof-identity,
+  .ngo-prof-tabs,
+  .ngo-prof-content {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+
+  .ngo-prof-kpi-strip {
+    margin: 0 16px 16px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .ngo-kpi-cell:nth-child(3) {
+    border-left: none;
+    border-top: 1px solid #1d1d23;
+  }
+
+  .ngo-kpi-cell:nth-child(4) {
+    border-top: 1px solid #1d1d23;
+  }
+
+  [data-theme="light"] .ngo-kpi-cell:nth-child(3),
+  [data-theme="light"] .ngo-kpi-cell:nth-child(4) {
+    border-top-color: #e2e8f0;
+  }
+
+  .ngo-ops-grid,
+  .ngo-kv-grid,
+  .ngo-signatories-grid,
+  .ngo-contact-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .ngo-prof-esc {
+    display: none;
+  }
+}
