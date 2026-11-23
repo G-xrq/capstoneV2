@@ -7337,22 +7337,24 @@ export default function CampaignCard(props) {
               <div className="bbdrts-details-header">
                 <div className="bbdrts-details-header-top">
                   <div className="bbdrts-details-badges">
-                    <span className="bbdrts-pill-mono">
-                      #{catInfo.prefix}-00{camp.id}
-                    </span>
-                    <span className="bbdrts-pill-subtle">
-                      <span className={`bbdrts-status-dot ${catInfo.prefix === 'DR' ? 'cat-dot-dr' : 'cat-dot-cd'}`} />
-                      <span>{catInfo.label}</span>
-                    </span>
+                    <span className="bbdrts-pill-mono">#{catInfo.prefix}-00{camp.id}</span>
+                    <span className="bbdrts-header-sep">·</span>
+                    <span className="bbdrts-header-meta-text">{catInfo.label}</span>
                     {audit.urgency && (
                       <span className="bbdrts-pill-subtle urgency-pill">
                         <span className="bbdrts-status-dot urgency-dot" />
-                        <span>{audit.urgency}</span>
+                        <span>
+                          {/HIGH|EMERGENCY|CRITICAL/i.test(audit.urgency)
+                            ? 'Emergency'
+                            : /MEDIUM|URGENT/i.test(audit.urgency)
+                              ? 'Urgent'
+                              : 'Standard'}
+                        </span>
                       </span>
                     )}
                     <span className="bbdrts-pill-subtle active-pill">
                       <span className="bbdrts-status-dot active-dot" />
-                      <span>Active On-Chain</span>
+                      <span>Active</span>
                     </span>
                   </div>
 
@@ -7426,48 +7428,49 @@ export default function CampaignCard(props) {
                   </div>
                 )}
 
-                {/* Bento 4-Tile Metric Grid */}
-                <div className="bbdrts-bento-grid">
-                  <div className="bbdrts-bento-card">
-                    <span className="bbdrts-bento-label">Target Goal</span>
-                    <span className="bbdrts-bento-value">₱{targetPhp}</span>
+                {/* Unified Telemetry & Funding Progress Panel */}
+                <div className="bbdrts-telemetry-panel">
+                  <div className="bbdrts-bento-grid">
+                    <div className="bbdrts-bento-card">
+                      <span className="bbdrts-bento-label">Target goal</span>
+                      <span className="bbdrts-bento-value">₱{targetPhp}</span>
+                    </div>
+
+                    <div className="bbdrts-bento-card">
+                      <span className="bbdrts-bento-label">Settled to date</span>
+                      <span className="bbdrts-bento-value is-accent">
+                        ₱{currentPhp} <span className="bbdrts-bento-sub">({progressPercent}%)</span>
+                      </span>
+                    </div>
+
+                    <div className="bbdrts-bento-card">
+                      <span className="bbdrts-bento-label">Target delivery</span>
+                      <span className="bbdrts-bento-meta">
+                        <span className="material-symbols-outlined" style={{ fontSize: '14px', color: 'var(--text-muted)' }}>calendar_today</span>
+                        <span>{formattedDeliveryDate || audit.targetDate || 'Active'}</span>
+                      </span>
+                    </div>
+
+                    <div className="bbdrts-bento-card">
+                      <span className="bbdrts-bento-label">Community backers</span>
+                      <span className="bbdrts-bento-meta">
+                        <span className="material-symbols-outlined" style={{ fontSize: '15px', color: 'var(--text-muted)' }}>group</span>
+                        <span>{breakdown.totalBackers > 0 ? `${breakdown.totalBackers} ${breakdown.totalBackers === 1 ? 'backer' : 'backers'}` : '0 backers'}</span>
+                      </span>
+                    </div>
                   </div>
 
-                  <div className="bbdrts-bento-card">
-                    <span className="bbdrts-bento-label">Settled to Date</span>
-                    <span className="bbdrts-bento-value is-accent">
-                      ₱{currentPhp} <span className="bbdrts-bento-sub">({progressPercent}%)</span>
-                    </span>
-                  </div>
-
-                  <div className="bbdrts-bento-card">
-                    <span className="bbdrts-bento-label">Target Delivery</span>
-                    <span className="bbdrts-bento-meta">
-                      <span className="material-symbols-outlined" style={{ fontSize: '15px', color: 'var(--text-muted)' }}>calendar_today</span>
-                      <span>{formattedDeliveryDate || audit.targetDate || 'Active'}</span>
-                    </span>
-                  </div>
-
-                  <div className="bbdrts-bento-card">
-                    <span className="bbdrts-bento-label">Community Backers</span>
-                    <span className="bbdrts-bento-meta">
-                      <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#10b981' }}>group</span>
-                      <span>{breakdown.totalBackers > 0 ? `${breakdown.totalBackers} ${breakdown.totalBackers === 1 ? 'Backer' : 'Backers'}` : '0 Backers'}</span>
-                    </span>
-                  </div>
-                </div>
-
-                {/* Refined Progress Bar Strip */}
-                <div className="bbdrts-progress-strip">
-                  <div className="bbdrts-progress-track" title={`Funded: ${progressPercent}% of target`}>
-                    <div className="bbdrts-progress-bar" style={{ width: `${Math.min(100, Math.max(0, parseFloat(progressPercent) || 0))}%` }} />
-                  </div>
-                  <div className="bbdrts-progress-info">
-                    <span>Funding Progress: <strong>{progressPercent}%</strong> of target</span>
-                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                      <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>shield</span>
-                      <span>100% On-Chain Escrow Security</span>
-                    </span>
+                  <div className="bbdrts-progress-strip">
+                    <div className="bbdrts-progress-track" title={`Funded: ${progressPercent}% of target`}>
+                      <div className="bbdrts-progress-bar" style={{ width: `${Math.min(100, Math.max(0, parseFloat(progressPercent) || 0))}%` }} />
+                    </div>
+                    <div className="bbdrts-progress-info">
+                      <span><strong>{progressPercent}%</strong> funded</span>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                        <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>verified_user</span>
+                        <span>Sepolia on-chain escrow</span>
+                      </span>
+                    </div>
                   </div>
                 </div>
 
@@ -7479,8 +7482,8 @@ export default function CampaignCard(props) {
                     <div className="bbdrts-section-card">
                       <div className="bbdrts-section-card-header">
                         <h4 className="bbdrts-section-card-title">
-                          <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#10b981' }}>article</span>
-                          Mission & Humanitarian Scope
+                          <span className="material-symbols-outlined" style={{ fontSize: '16px', color: 'var(--text-muted)' }}>article</span>
+                          <span>Mission &amp; scope</span>
                         </h4>
                       </div>
                       <p className="bbdrts-desc-text">
@@ -7496,9 +7499,11 @@ export default function CampaignCard(props) {
                             rel="noopener noreferrer"
                             className="bbdrts-details-doc-link"
                           >
-                            <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>verified</span>
-                            <span>Official Verification Document / Press Release</span>
-                            <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>open_in_new</span>
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '7px' }}>
+                              <span className="material-symbols-outlined" style={{ fontSize: '15px', color: '#10b981' }}>verified</span>
+                              <span>Official Verification Document</span>
+                            </span>
+                            <span className="material-symbols-outlined" style={{ fontSize: '14px', color: 'var(--text-muted)' }}>north_east</span>
                           </a>
                         </div>
                       )}
@@ -7506,7 +7511,7 @@ export default function CampaignCard(props) {
                       {/* Emergency Response Desk */}
                       {audit.contact && (
                         <div className="bbdrts-details-hotline-chip">
-                          <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#10b981' }}>support_agent</span>
+                          <span className="material-symbols-outlined" style={{ fontSize: '16px', color: 'var(--text-muted)' }}>support_agent</span>
                           <div>
                             <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>Emergency Contact: </span>
                             <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{formatPhoneNumber(audit.contact)}</span>
@@ -7542,10 +7547,10 @@ export default function CampaignCard(props) {
                       <div className="bbdrts-section-card">
                         <div className="bbdrts-section-card-header">
                           <h4 className="bbdrts-section-card-title">
-                            <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#f59e0b' }}>photo_library</span>
-                            Disaster Impact Evidence ({modalDisasterPhotos.length})
+                            <span className="material-symbols-outlined" style={{ fontSize: '16px', color: 'var(--text-muted)' }}>photo_library</span>
+                            <span>Field evidence ({modalDisasterPhotos.length})</span>
                           </h4>
-                          <span className="bbdrts-section-card-badge" style={{ color: '#f59e0b', borderColor: 'rgba(245, 158, 11, 0.3)', background: 'rgba(245, 158, 11, 0.08)' }}>FIELD VERIFIED</span>
+                          <span className="bbdrts-section-card-badge">Field verified</span>
                         </div>
                         <p style={{ margin: '0 0 10px 0', fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: '1.45' }}>
                           Ground-level photographic verification uploaded by {camp.orgName || 'the accredited NGO'} documenting disaster severity.
@@ -7591,10 +7596,10 @@ export default function CampaignCard(props) {
                     <div className="bbdrts-section-card">
                       <div className="bbdrts-section-card-header">
                         <h4 className="bbdrts-section-card-title">
-                          <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#ef4444' }}>location_on</span>
-                          Ground Deployment Audit
+                          <span className="material-symbols-outlined" style={{ fontSize: '16px', color: 'var(--text-muted)' }}>location_on</span>
+                          <span>Ground deployment</span>
                         </h4>
-                        <span className="bbdrts-section-card-badge">GPS VERIFIED</span>
+                        <span className="bbdrts-section-card-badge is-verified">GPS pinned</span>
                       </div>
 
                       {/* Interactive Leaflet Map View with Layer Controls */}
@@ -7701,10 +7706,10 @@ export default function CampaignCard(props) {
                         <div className="bbdrts-section-card">
                           <div className="bbdrts-section-card-header">
                             <h4 className="bbdrts-section-card-title">
-                              <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#10b981' }}>pie_chart</span>
-                              Proof of Fund Allocation
+                              <span className="material-symbols-outlined" style={{ fontSize: '16px', color: 'var(--text-muted)' }}>pie_chart</span>
+                              <span>Fund allocation</span>
                             </h4>
-                            <span className="bbdrts-section-card-badge">TRANSPARENCY AUDIT</span>
+                            <span className="bbdrts-section-card-badge">Breakdown</span>
                           </div>
 
                           <div className="bbdrts-details-allocations">
@@ -7763,91 +7768,81 @@ export default function CampaignCard(props) {
                   className="bbdrts-details-btn-close"
                   onClick={() => setDetailsOpen(false)}
                 >
-                  <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>close</span>
-                  <span>Close Audit</span>
+                  <span>Close</span>
                 </button>
 
-                {(camp.disbursementStatus === 'DISBURSED' || (camp.disbursedAmountPhp || 0) > 0) && (
-                  <button
-                    type="button"
-                    className="btn btn-outline"
-                    onClick={() => {
-                      setDetailsOpen(false);
-                      setProofModalOpen(true);
-                    }}
-                    style={{
-                      borderColor: 'rgba(34, 197, 94, 0.4)',
-                      color: 'var(--accent, #22c55e)',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '6px'
-                    }}
-                  >
-                    <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>verified</span>
-                    <span>View Relief Proof</span>
-                  </button>
-                )}
+                <div className="bbdrts-footer-actions-right">
+                  {(camp.disbursementStatus === 'DISBURSED' || (camp.disbursedAmountPhp || 0) > 0) && (
+                    <button
+                      type="button"
+                      className="bbdrts-details-btn-close"
+                      onClick={() => {
+                        setDetailsOpen(false);
+                        setProofModalOpen(true);
+                      }}
+                    >
+                      <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#10b981' }}>verified</span>
+                      <span>View Relief Proof</span>
+                    </button>
+                  )}
 
-                {isOwner ? (
-                  <>
+                  {isOwner ? (
+                    <>
+                      <button
+                        type="button"
+                        className="bbdrts-details-btn-close"
+                        onClick={() => {
+                          setDetailsOpen(false);
+                          setEditModalOpen(true);
+                        }}
+                      >
+                        <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>edit</span>
+                        <span>Edit Details</span>
+                      </button>
+                      <button
+                        type="button"
+                        className="bbdrts-details-btn-primary"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          if (isDisbursementsMaintenance) {
+                            showWarning(
+                              `Fund disbursement is temporarily paused for scheduled maintenance (${maintState?.title || 'System Maintenance'}). Escrow vault is safely locked.`,
+                              'Maintenance Active'
+                            );
+                            return;
+                          }
+                          setDetailsOpen(false);
+                          setDisburseModalOpen(true);
+                        }}
+                        style={isDisbursementsMaintenance ? { opacity: 0.55, cursor: 'not-allowed' } : undefined}
+                        title={isDisbursementsMaintenance ? 'Disbursement paused for maintenance' : 'Disburse raised funds and upload distribution photos / official receipts'}
+                      >
+                        <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>
+                          {isDisbursementsMaintenance ? 'construction' : 'local_shipping'}
+                        </span>
+                        <span>{isDisbursementsMaintenance ? 'Disbursement Paused' : 'Disburse & Upload Proof'}</span>
+                      </button>
+                    </>
+                  ) : canDonate ? (
                     <button
                       type="button"
                       className="bbdrts-details-btn-primary"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        if (isDisbursementsMaintenance) {
-                          showWarning(
-                            `Fund disbursement is temporarily paused for scheduled maintenance (${maintState?.title || 'System Maintenance'}). Escrow vault is safely locked.`,
-                            'Maintenance Active'
-                          );
-                          return;
-                        }
-                        setDetailsOpen(false);
-                        setDisburseModalOpen(true);
-                      }}
-                      style={{
-                        background: isDisbursementsMaintenance ? '#27272a' : 'var(--accent, #22c55e)',
-                        color: isDisbursementsMaintenance ? '#a1a1aa' : '#0a0a0a',
-                        cursor: isDisbursementsMaintenance ? 'not-allowed' : 'pointer'
-                      }}
-                      title={isDisbursementsMaintenance ? 'Disbursement paused for maintenance' : 'Disburse raised funds and upload distribution photos / official receipts'}
-                    >
-                      <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>
-                        {isDisbursementsMaintenance ? 'construction' : 'local_shipping'}
-                      </span>
-                      <span>{isDisbursementsMaintenance ? 'Disbursement (Maintenance)' : 'Disburse & Upload Relief Proof'}</span>
-                    </button>
-                    <button
-                      type="button"
-                      className="btn btn-outline"
                       onClick={() => {
                         setDetailsOpen(false);
-                        setEditModalOpen(true);
+                        setDonateStep(0);
+                        setCustomMsg('');
+                        setTxHash('');
+                        setIsAnonymous(false);
+                        setLegalConfirm(false);
+                        setModalOpen(true);
                       }}
                     >
-                      <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>edit_note</span>
-                      <span>Edit Details</span>
+                      <span>Donate to Campaign</span>
+                      <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>arrow_forward</span>
                     </button>
-                  </>
-                ) : canDonate ? (
-                  <button
-                    type="button"
-                    className="bbdrts-details-btn-primary"
-                    onClick={() => {
-                      setDetailsOpen(false);
-                      setDonateStep(0);
-                      setCustomMsg('');
-                      setTxHash('');
-                      setIsAnonymous(false);
-                      setLegalConfirm(false);
-                      setModalOpen(true);
-                    }}
-                  >
-                    <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>volunteer_activism</span>
-                    <span>Donate to Campaign</span>
-                  </button>
-                ) : null}
+                  ) : null}
+                </div>
               </div>
 
               {/* Evidence Lightbox Modal (Root Document Body Portal) */}
