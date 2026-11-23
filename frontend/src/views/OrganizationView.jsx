@@ -4,6 +4,7 @@ import { ethers } from 'ethers';
 import Tesseract from 'tesseract.js';
 import { isLocalhost, API_URL } from '../config';
 import { useRealtimeSync } from '../hooks/useRealtimeSync';
+import { blurFacesInImage } from '../utils/facePrivacyBlur';
 import LiveCounter from '../components/LiveCounter';
 import CampaignCard, { shortAddr, formatCampaignTitle, formatEthAmt, progressPct, getOrgDisplayName, getCampaignTags, getCampaignAuditDetails, getCampaignCategoryInfo, getCampaignCoverData } from '../components/CampaignCard';
 import LocationMapPicker from '../components/LocationMapPicker';
@@ -1144,8 +1145,11 @@ export default function OrganizationView({
     }
   };
 
-  // ── Disaster Aftermath & Ground Evidence Photos State ──
+  // ── Disaster Aftermath & Ground Evidence Photos State (+ RA 10173 AI Face-Blur Privacy Shield) ──
   const [disasterImages, setDisasterImages] = useState([]);
+  const [disasterImagesMeta, setDisasterImagesMeta] = useState([]);
+  const [autoBlurCampaignFaces, setAutoBlurCampaignFaces] = useState(true);
+  const [disasterProcessLabel, setDisasterProcessLabel] = useState('Optimizing & Compressing Photos...');
   const [isProcessingDisasterImages, setIsProcessingDisasterImages] = useState(false);
   const [draggedPhotoIdx, setDraggedPhotoIdx] = useState(null);
   const [dragOverPhotoIdx, setDragOverPhotoIdx] = useState(null);
@@ -1156,6 +1160,13 @@ export default function OrganizationView({
   const moveDisasterImage = (fromIdx, toIdx) => {
     if (fromIdx === toIdx || fromIdx < 0 || toIdx < 0) return;
     setDisasterImages(prev => {
+      if (fromIdx >= prev.length || toIdx >= prev.length) return prev;
+      const copy = [...prev];
+      const [moved] = copy.splice(fromIdx, 1);
+      copy.splice(toIdx, 0, moved);
+      return copy;
+    });
+    setDisasterImagesMeta(prev => {
       if (fromIdx >= prev.length || toIdx >= prev.length) return prev;
       const copy = [...prev];
       const [moved] = copy.splice(fromIdx, 1);
@@ -1215,27 +1226,97 @@ export default function OrganizationView({
     }
 
     setIsProcessingDisasterImages(true);
+    setDisasterProcessLabel(autoBlurCampaignFaces ? 'AI Scanning & Blurring Faces (RA 10173)...' : 'Optimizing & Compressing Photos...');
+    let totalFacesBlurred = 0;
+
     try {
-      const processed = [];
+      const processedUrls = [];
+      const processedMeta = [];
       for (const file of filesToProcess) {
         if (!file.type.startsWith('image/')) {
           showWarning(`Skipped "${file.name}": not an image.`, 'Invalid File');
           continue;
         }
         const dataUrl = await processAndCompressImage(file);
-        processed.push(dataUrl);
+        let finalUrl = dataUrl;
+        let meta = { originalUrl: dataUrl, blurredUrl: null, facesBlurred: 0, isBlurred: false };
+
+        if (autoBlurCampaignFaces) {
+          setDisasterProcessLabel(`AI protecting faces in "${file.name}" (RA 10173)...`);
+          const blurRes = await blurFacesInImage(dataUrl);
+          if (blurRes.blurred && blurRes.facesBlurred > 0) {
+            finalUrl = blurRes.url;
+            meta = {
+              originalUrl: dataUrl,
+              blurredUrl: blurRes.blurredUrl,
+              facesBlurred: blurRes.facesBlurred,
+              isBlurred: true
+            };
+            totalFacesBlurred += blurRes.facesBlurred;
+          }
+        }
+
+        processedUrls.push(finalUrl);
+        processedMeta.push(meta);
       }
 
-      if (processed.length > 0) {
-        setDisasterImages(prev => [...prev, ...processed]);
-        showSuccess(`${processed.length} disaster aftermath photo(s) attached successfully!`, 'Photos Attached');
+      if (processedUrls.length > 0) {
+        setDisasterImages(prev => [...prev, ...processedUrls]);
+        setDisasterImagesMeta(prev => [...prev, ...processedMeta]);
+        showSuccess(
+          totalFacesBlurred > 0
+            ? `${processedUrls.length} photo(s) attached · AI blurred ${totalFacesBlurred} face${totalFacesBlurred === 1 ? '' : 's'} (RA 10173)!`
+            : `${processedUrls.length} photo(s) attached successfully!`,
+          totalFacesBlurred > 0 ? 'Photos Attached & Privacy Protected' : 'Photos Attached'
+        );
       }
     } catch (err) {
       console.error('Failed to process disaster images:', err);
       showWarning('Could not process some image files.', 'Processing Error');
     } finally {
       setIsProcessingDisasterImages(false);
+      setDisasterProcessLabel('Optimizing & Compressing Photos...');
       if (disasterFileInputRef.current) disasterFileInputRef.current.value = '';
+    }
+  };
+
+  const toggleDisasterImageBlur = async (targetIdx) => {
+    const currentUrl = disasterImages[targetIdx];
+    const currentMeta = disasterImagesMeta[targetIdx];
+    if (!currentUrl) return;
+
+    if (currentMeta?.blurredUrl) {
+      const nextBlurred = !currentMeta.isBlurred;
+      const nextUrl = nextBlurred ? currentMeta.blurredUrl : currentMeta.originalUrl;
+      setDisasterImages(prev => prev.map((u, i) => (i === targetIdx ? nextUrl : u)));
+      setDisasterImagesMeta(prev => prev.map((m, i) => (i === targetIdx ? { ...m, isBlurred: nextBlurred } : m)));
+      return;
+    }
+
+    setIsProcessingDisasterImages(true);
+    setDisasterProcessLabel('AI scanning photo for faces (RA 10173)...');
+    try {
+      const base = currentMeta?.originalUrl || currentUrl;
+      const res = await blurFacesInImage(base);
+      if (res.blurred && res.facesBlurred > 0) {
+        setDisasterImages(prev => prev.map((u, i) => (i === targetIdx ? res.url : u)));
+        setDisasterImagesMeta(prev => {
+          const copy = [...prev];
+          copy[targetIdx] = {
+            originalUrl: base,
+            blurredUrl: res.blurredUrl,
+            facesBlurred: res.facesBlurred,
+            isBlurred: true
+          };
+          return copy;
+        });
+        showSuccess(`Blurred ${res.facesBlurred} face${res.facesBlurred === 1 ? '' : 's'} for RA 10173 privacy.`, 'Faces Protected');
+      } else {
+        showWarning('No human faces detected in this photo.', 'Privacy Scan Complete');
+      }
+    } finally {
+      setIsProcessingDisasterImages(false);
+      setDisasterProcessLabel('Optimizing & Compressing Photos...');
     }
   };
 
@@ -1243,6 +1324,7 @@ export default function OrganizationView({
     setDraggedPhotoIdx(null);
     setDragOverPhotoIdx(null);
     setDisasterImages(prev => prev.filter((_, idx) => idx !== indexToRemove));
+    setDisasterImagesMeta(prev => prev.filter((_, idx) => idx !== indexToRemove));
   };
 
   // Helper: Extract profile relief channel details from currentUser / preferences
@@ -2427,6 +2509,7 @@ export default function OrganizationView({
       setBeneficiariesImpact('');
       setContactInfo('');
       setDisasterImages([]);
+      setDisasterImagesMeta([]);
       setGcashName('');
       setGcashNumber('');
       setGcashQrUrl('');
@@ -4581,17 +4664,45 @@ export default function OrganizationView({
                                     : 'Field Damage & Disaster Aftermath Photos'}
                                 </span>
                               </label>
-                              <span style={{
-                                fontSize: '0.72rem',
-                                color: disasterImages.length >= 10 ? '#ef4444' : (disasterImages.length > 0 ? 'var(--accent)' : 'var(--text-muted)'),
-                                fontWeight: 700,
-                                background: 'var(--bg-inset)',
-                                padding: '2px 8px',
-                                borderRadius: '6px',
-                                border: '1px solid var(--border)'
-                              }}>
-                                {disasterImages.length} / 10 Photos Attached
-                              </span>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                                <label
+                                  title="RA 10173: Automatically detect and blur survivor faces in uploaded photos"
+                                  style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '6px',
+                                    fontSize: '0.72rem',
+                                    fontWeight: 600,
+                                    color: autoBlurCampaignFaces ? '#10b981' : 'var(--text-muted)',
+                                    background: autoBlurCampaignFaces ? 'rgba(16, 185, 129, 0.1)' : 'var(--bg-inset)',
+                                    padding: '2px 9px',
+                                    borderRadius: '6px',
+                                    border: `1px solid ${autoBlurCampaignFaces ? 'rgba(16, 185, 129, 0.32)' : 'var(--border)'}`,
+                                    cursor: 'pointer',
+                                    userSelect: 'none'
+                                  }}
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={autoBlurCampaignFaces}
+                                    onChange={(e) => setAutoBlurCampaignFaces(e.target.checked)}
+                                    style={{ accentColor: '#10b981', margin: 0, cursor: 'pointer' }}
+                                  />
+                                  <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>blur_on</span>
+                                  <span>AI Face-Blur (RA 10173)</span>
+                                </label>
+                                <span style={{
+                                  fontSize: '0.72rem',
+                                  color: disasterImages.length >= 10 ? '#ef4444' : (disasterImages.length > 0 ? 'var(--accent)' : 'var(--text-muted)'),
+                                  fontWeight: 700,
+                                  background: 'var(--bg-inset)',
+                                  padding: '2px 8px',
+                                  borderRadius: '6px',
+                                  border: '1px solid var(--border)'
+                                }}>
+                                  {disasterImages.length} / 10 Photos Attached
+                                </span>
+                              </div>
                             </div>
 
                             <input
@@ -4616,7 +4727,7 @@ export default function OrganizationView({
                                 {isProcessingDisasterImages ? (
                                   <>
                                     <span className="material-symbols-outlined spin" style={{ fontSize: '26px', color: 'var(--accent)' }}>progress_activity</span>
-                                    <span style={{ fontSize: '0.84rem', color: 'var(--text-primary)', fontWeight: 600 }}>Optimizing & Compressing Photos...</span>
+                                    <span style={{ fontSize: '0.84rem', color: 'var(--text-primary)', fontWeight: 600 }}>{disasterProcessLabel}</span>
                                   </>
                                 ) : (
                                   <>
@@ -4783,6 +4894,42 @@ export default function OrganizationView({
                                             Make Cover
                                           </button>
                                         )}
+
+                                        {/* RA 10173 Face-Blur Badge / Quick Toggle */}
+                                        {(() => {
+                                          const meta = disasterImagesMeta[idx];
+                                          const blurredCount = meta?.isBlurred ? (meta.facesBlurred || 0) : 0;
+                                          return (
+                                            <button
+                                              type="button"
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                toggleDisasterImageBlur(idx);
+                                              }}
+                                              title={blurredCount > 0 ? `${blurredCount} face(s) blurred — click to restore original` : (meta?.blurredUrl ? 'Click to re-apply face blur' : 'Scan & blur faces (RA 10173)')}
+                                              style={{
+                                                position: 'absolute',
+                                                bottom: '4px',
+                                                right: '4px',
+                                                background: blurredCount > 0 ? 'rgba(16, 185, 129, 0.92)' : 'rgba(9, 9, 11, 0.78)',
+                                                color: blurredCount > 0 ? '#000000' : '#e4e4e7',
+                                                border: blurredCount > 0 ? 'none' : '1px solid rgba(255, 255, 255, 0.22)',
+                                                fontSize: '9px',
+                                                fontWeight: 700,
+                                                padding: '2px 5px',
+                                                borderRadius: '4px',
+                                                display: 'inline-flex',
+                                                alignItems: 'center',
+                                                gap: '2px',
+                                                cursor: 'pointer',
+                                                zIndex: 3
+                                              }}
+                                            >
+                                              <span className="material-symbols-outlined" style={{ fontSize: '11px' }}>blur_on</span>
+                                              <span>{blurredCount > 0 ? `${blurredCount} blurred` : (meta?.blurredUrl ? 'Re-blur' : 'Blur')}</span>
+                                            </button>
+                                          );
+                                        })()}
 
                                         {/* Remove photo button */}
                                         <button

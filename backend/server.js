@@ -17,6 +17,7 @@ const xenditService = require('./services/xenditService');
 const { logActivity } = require('./services/activityLogger');
 const analyticsService = require('./services/analyticsService');
 const realtimeBus = require('./services/realtimeBus');
+const facePrivacyDetector = require('./services/facePrivacyDetector');
 
 const app = express();
 
@@ -5240,6 +5241,24 @@ app.post('/api/campaigns/:id/disburse', authenticateToken, async (req, res) => {
   } catch (err) {
     console.error('Failed to record disbursement:', err);
     res.status(500).json({ error: 'Failed to record disbursement: ' + err.message });
+  }
+});
+
+// ── POST /api/privacy/detect-faces (RA 10173 AI Face Detection for NGO Photo Redaction) ──
+app.post('/api/privacy/detect-faces', authenticateToken, async (req, res) => {
+  try {
+    const { imageBase64 } = req.body || {};
+    if (!imageBase64 || typeof imageBase64 !== 'string') {
+      return res.status(400).json({ error: 'imageBase64 is required.' });
+    }
+    if (imageBase64.startsWith('data:application/pdf') || imageBase64.startsWith('data:image/svg+xml')) {
+      return res.json({ success: true, faces: [], count: 0, isDocumentOrReceipt: true, skipped: true });
+    }
+    const result = await facePrivacyDetector.detectFaces(imageBase64);
+    return res.json(result);
+  } catch (err) {
+    console.error('[FacePrivacy] Endpoint error:', err);
+    return res.json({ success: false, faces: [], count: 0, skipped: true, reason: err.message });
   }
 });
 

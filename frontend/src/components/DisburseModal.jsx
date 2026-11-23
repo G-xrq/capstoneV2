@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import * as XLSX from 'xlsx';
 import { API_URL } from '../config';
 import { useToast } from '../context/ToastContext';
+import { blurFacesInImage } from '../utils/facePrivacyBlur';
 import './DisburseModal.css';
 
 const AID_CATEGORIES = [
@@ -119,8 +120,11 @@ export default function DisburseModal({ camp, isOpen, onClose, onDisbursed }) {
   ]);
   const [importedExcelName, setImportedExcelName] = useState('');
 
-  // Multi-Proof Attachments
+  // Multi-Proof Attachments & RA 10173 AI Face-Blur Privacy Shield
   const [proofs, setProofs] = useState([]);
+  const [autoBlurFaces, setAutoBlurFaces] = useState(true);
+  const [blurStatusLabel, setBlurStatusLabel] = useState('');
+  const [previewProofId, setPreviewProofId] = useState(null);
   const [isDraggingOver, setIsDraggingOver] = useState(false);
   const [processingFiles, setProcessingFiles] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -146,6 +150,9 @@ export default function DisburseModal({ camp, isOpen, onClose, onDisbursed }) {
       ]);
       setImportedExcelName('');
       setProofs([]);
+      setAutoBlurFaces(true);
+      setBlurStatusLabel('');
+      setPreviewProofId(null);
       setIsDraggingOver(false);
       setProcessingFiles(false);
       lastCampIdRef.current = campId;
@@ -297,12 +304,16 @@ export default function DisburseModal({ camp, isOpen, onClose, onDisbursed }) {
     e.target.value = '';
   };
 
-  // Proof Upload (supports click & drag-and-drop, auto-compresses large phone photos)
+  // Proof Upload (supports click & drag-and-drop, auto-compresses photos & RA 10173 AI face blur)
   const processProofFiles = async (fileList) => {
     const files = Array.from(fileList || []);
     if (files.length === 0) return;
 
     setProcessingFiles(true);
+    setBlurStatusLabel(autoBlurFaces ? 'AI scanning & blurring faces (RA 10173)...' : 'Optimizing & packaging proof files...');
+    let totalFacesBlurred = 0;
+    let blurredPhotosCount = 0;
+
     try {
       const added = [];
       for (const file of files) {
@@ -331,10 +342,37 @@ export default function DisburseModal({ camp, isOpen, onClose, onDisbursed }) {
           cat = 'LOGISTICS_WAYBILL';
         }
 
+        const isImage = Boolean(url && url.startsWith('data:image/') && !url.startsWith('data:image/svg'));
+        let finalUrl = url;
+        let blurredUrl = null;
+        let facesBlurred = 0;
+        let isBlurred = false;
+        let faceScanned = false;
+
+        if (isImage && autoBlurFaces) {
+          setBlurStatusLabel(`AI scanning "${file.name}" for faces (RA 10173)...`);
+          const blurRes = await blurFacesInImage(url);
+          faceScanned = !blurRes.error;
+          if (blurRes.blurred && blurRes.facesBlurred > 0) {
+            finalUrl = blurRes.url;
+            blurredUrl = blurRes.blurredUrl;
+            facesBlurred = blurRes.facesBlurred;
+            isBlurred = true;
+            totalFacesBlurred += facesBlurred;
+            blurredPhotosCount += 1;
+          }
+        }
+
         added.push({
           id: Date.now() + Math.random(),
           name: file.name,
-          url,
+          url: finalUrl,
+          originalUrl: url,
+          blurredUrl,
+          facesBlurred,
+          isBlurred,
+          faceScanned,
+          scanningFaces: false,
           fileSize,
           caption: file.name.replace(/\.[^/.]+$/, '').replace(/[_-]+/g, ' '),
           category: cat
@@ -343,12 +381,62 @@ export default function DisburseModal({ camp, isOpen, onClose, onDisbursed }) {
 
       if (added.length > 0) {
         setProofs((prev) => [...prev, ...added]);
+        if (totalFacesBlurred > 0) {
+          showSuccess(
+            `RA 10173 Privacy Shield automatically blurred ${totalFacesBlurred} face${totalFacesBlurred === 1 ? '' : 's'} across ${blurredPhotosCount} photo${blurredPhotosCount === 1 ? '' : 's'}.`,
+            'Faces Protected'
+          );
+        }
       }
     } catch (err) {
       console.error('Proof upload processing failed:', err);
       showError('Failed to process one or more proof files. Please try again.', 'Upload Error');
     } finally {
       setProcessingFiles(false);
+      setBlurStatusLabel('');
+    }
+  };
+
+  // Toggle Blurred <-> Original instantly, or run on-demand AI face blur on a single proof photo
+  const handleToggleProofFaceBlur = async (id) => {
+    const target = proofs.find((p) => p.id === id);
+    if (!target || !target.url?.startsWith('data:image/')) return;
+
+    if (target.blurredUrl) {
+      const nextBlurred = !target.isBlurred;
+      setProofs((prev) =>
+        prev.map((p) =>
+          p.id === id
+            ? { ...p, isBlurred: nextBlurred, url: nextBlurred ? p.blurredUrl : (p.originalUrl || p.url) }
+            : p
+        )
+      );
+      return;
+    }
+
+    setProofs((prev) => prev.map((p) => (p.id === id ? { ...p, scanningFaces: true } : p)));
+    const res = await blurFacesInImage(target.originalUrl || target.url);
+    setProofs((prev) =>
+      prev.map((p) => {
+        if (p.id !== id) return p;
+        if (res.blurred && res.facesBlurred > 0) {
+          return {
+            ...p,
+            url: res.url,
+            blurredUrl: res.blurredUrl,
+            facesBlurred: res.facesBlurred,
+            isBlurred: true,
+            faceScanned: true,
+            scanningFaces: false
+          };
+        }
+        return { ...p, faceScanned: !res.error, scanningFaces: false };
+      })
+    );
+    if (res.blurred && res.facesBlurred > 0) {
+      showSuccess(`Blurred ${res.facesBlurred} face${res.facesBlurred === 1 ? '' : 's'} in "${target.name}".`, 'RA 10173 Privacy Shield');
+    } else if (!res.error) {
+      showWarning(`No human faces detected in "${target.name}".`, 'Privacy Scan Complete');
     }
   };
 
@@ -891,14 +979,27 @@ export default function DisburseModal({ camp, isOpen, onClose, onDisbursed }) {
                   </p>
                 </div>
 
-                {/* Data Privacy (RA 10173) Compliance Notice */}
+                {/* Data Privacy (RA 10173) Compliance Notice + AI Auto-Blur Shield Toggle */}
                 <div className="bbdrts-privacy-notice-box">
-                  <div className="privacy-notice-header">
-                    <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#10b981' }}>security</span>
-                    <strong>Data Privacy Act (RA 10173) Protection Notice</strong>
+                  <div className="privacy-notice-top-row">
+                    <div className="privacy-notice-header">
+                      <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#10b981' }}>security</span>
+                      <strong>RA 10173 Survivor Privacy &amp; AI Face-Blur Shield</strong>
+                    </div>
+                    <label className="bbdrts-faceblur-toggle" title="Automatically detect and blur human faces in uploaded photos while keeping receipts untouched">
+                      <input
+                        type="checkbox"
+                        checked={autoBlurFaces}
+                        onChange={(e) => setAutoBlurFaces(e.target.checked)}
+                      />
+                      <span className="toggle-track">
+                        <span className="toggle-thumb" />
+                      </span>
+                      <span className="toggle-label">{autoBlurFaces ? 'AI Face-Blur ON' : 'AI Face-Blur OFF'}</span>
+                    </label>
                   </div>
                   <p>
-                    To protect the safety and dignity of vulnerable disaster survivors, please ensure citizen rosters mask personal details (e.g. <code>J*** D*** C***</code>). Alternatively, you may attach the official <strong>Barangay Certificate of Turnover</strong> signed by your Barangay Captain.
+                    AI automatically detects and blurs beneficiary faces in ground photos before upload while keeping receipts and certificates sharp. For citizen rosters, mask names (e.g. <code>J*** D***</code>) or attach a signed <strong>Barangay Certificate of Turnover</strong>.
                   </p>
                 </div>
 
@@ -928,7 +1029,7 @@ export default function DisburseModal({ camp, isOpen, onClose, onDisbursed }) {
                     <div className="bbdrts-disb-drop-text">
                       <strong>
                         {processingFiles
-                          ? 'Optimizing & Packaging Proof Files...'
+                          ? (blurStatusLabel || 'Optimizing & Packaging Proof Files...')
                           : (isDraggingOver ? 'Drop Relief Proofs Here' : 'Click or Drag to Upload Ground Photos & Receipts')}
                       </strong>
                       <span>Upload JPG, PNG, PDF, or Excel/CSV files (up to 12MB each). Large photos are auto-optimized for fast on-chain &amp; email delivery.</span>
@@ -947,7 +1048,11 @@ export default function DisburseModal({ camp, isOpen, onClose, onDisbursed }) {
                         const isSheet = /\.(xlsx|xls|csv)$/i.test(p.name || '');
                         return (
                           <div key={p.id} className="bbdrts-disb-proof-item">
-                            <div className="bbdrts-disb-proof-thumb">
+                            <div
+                              className={`bbdrts-disb-proof-thumb ${isImg ? 'is-clickable' : ''}`}
+                              onClick={() => isImg && setPreviewProofId(p.id)}
+                              title={isImg ? 'Click to preview photo' : p.name}
+                            >
                               {isImg ? (
                                 <img src={p.url} alt={p.name} />
                               ) : isPdf ? (
@@ -967,7 +1072,41 @@ export default function DisburseModal({ camp, isOpen, onClose, onDisbursed }) {
                                 placeholder="Label this proof (e.g., Rice invoice, Handover photo)"
                                 title="Edit caption shown to donors"
                               />
-                              <span className="proof-meta" title={p.name}>{p.name} · {p.fileSize}</span>
+                              <div className="proof-meta-row">
+                                <span className="proof-meta" title={p.name}>{p.name} · {p.fileSize}</span>
+                                {isImg && p.scanningFaces && (
+                                  <span className="proof-privacy-pill is-scanning">Scanning faces…</span>
+                                )}
+                                {isImg && !p.scanningFaces && p.isBlurred && p.facesBlurred > 0 && (
+                                  <span className="proof-privacy-pill is-protected">
+                                    <span className="material-symbols-outlined">blur_on</span>
+                                    <span>{p.facesBlurred} face{p.facesBlurred === 1 ? '' : 's'} blurred</span>
+                                  </span>
+                                )}
+                                {isImg && !p.scanningFaces && p.blurredUrl && !p.isBlurred && (
+                                  <span className="proof-privacy-pill is-paused">Original shown</span>
+                                )}
+                                {isImg && !p.scanningFaces && (
+                                  <>
+                                    <button
+                                      type="button"
+                                      className="proof-privacy-action"
+                                      onClick={() => handleToggleProofFaceBlur(p.id)}
+                                      title={p.isBlurred ? 'Restore unblurred original' : 'Run AI face blur on this photo'}
+                                    >
+                                      {p.isBlurred ? 'Undo blur' : (p.blurredUrl ? 'Re-blur' : 'Blur faces')}
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="proof-privacy-action"
+                                      onClick={() => setPreviewProofId(p.id)}
+                                      title="Inspect photo full size"
+                                    >
+                                      Preview
+                                    </button>
+                                  </>
+                                )}
+                              </div>
                             </div>
                             <select
                               className="bbdrts-disb-proof-cat-select"
@@ -1159,6 +1298,54 @@ export default function DisburseModal({ camp, isOpen, onClose, onDisbursed }) {
         </form>
 
       </div>
+
+      {(() => {
+        const activeP = previewProofId ? proofs.find((x) => x.id === previewProofId) : null;
+        if (!activeP) return null;
+        return (
+          <div className="bbdrts-disb-preview-overlay" onClick={() => setPreviewProofId(null)}>
+            <div className="bbdrts-disb-preview-card" onClick={(e) => e.stopPropagation()}>
+              <div className="bbdrts-disb-preview-head">
+                <div>
+                  <strong>{activeP.caption || activeP.name}</strong>
+                  <span>
+                    {activeP.isBlurred && activeP.facesBlurred > 0
+                      ? `RA 10173 Protected · ${activeP.facesBlurred} face${activeP.facesBlurred === 1 ? '' : 's'} blurred`
+                      : 'Original photo'}
+                  </span>
+                </div>
+                <div className="bbdrts-disb-preview-actions">
+                  <button
+                    type="button"
+                    className="bbdrts-disb-btn-back"
+                    style={{ height: '30px', padding: '0 10px', fontSize: '0.72rem' }}
+                    onClick={() => handleToggleProofFaceBlur(activeP.id)}
+                    disabled={activeP.scanningFaces}
+                  >
+                    <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>blur_on</span>
+                    <span>
+                      {activeP.scanningFaces
+                        ? 'Scanning…'
+                        : (activeP.isBlurred ? 'Show Original' : (activeP.blurredUrl ? 'Apply Blur' : 'Blur Faces'))}
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    className="bbdrts-disb-close-btn"
+                    onClick={() => setPreviewProofId(null)}
+                    aria-label="Close preview"
+                  >
+                    <span className="material-symbols-outlined">close</span>
+                  </button>
+                </div>
+              </div>
+              <div className="bbdrts-disb-preview-img-wrap">
+                <img src={activeP.url} alt={activeP.caption || activeP.name} />
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>,
     document.body
   );
