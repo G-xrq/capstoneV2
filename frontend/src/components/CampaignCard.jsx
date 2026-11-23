@@ -2575,9 +2575,42 @@ export default function CampaignCard(props) {
 
       let serverExtractedSuccess = false;
 
-      // Call Backend Gemini AI Receipt Vision Endpoint with Recipient Credentials
+      // Deterministic sequential/synthetic reference detector (mirrors backend guard so even offline OCR & manual typing cannot slip fake refs through)
+      const isSuspiciousReferenceClient = (ref) => {
+        if (!ref) return false;
+        const digits = String(ref).replace(/\D/g, '');
+        if (digits.length < 10) return false;
+        if (/(\d)\1{5,}/.test(digits)) return true;
+        if (digits.length >= 12 && new Set(digits.split('')).size <= 3) return true;
+        let maxRun = 1, curAsc = 1, curDesc = 1, runsOf4Plus = 0;
+        for (let i = 1; i < digits.length; i++) {
+          const prev = digits.charCodeAt(i - 1) - 48;
+          const curr = digits.charCodeAt(i) - 48;
+          if ((prev + 1) % 10 === curr) {
+            curAsc++;
+            if (curDesc >= 4) runsOf4Plus++;
+            curDesc = 1;
+          } else if ((prev + 9) % 10 === curr) {
+            curDesc++;
+            if (curAsc >= 4) runsOf4Plus++;
+            curAsc = 1;
+          } else {
+            if (curAsc >= 4) runsOf4Plus++;
+            if (curDesc >= 4) runsOf4Plus++;
+            curAsc = 1;
+            curDesc = 1;
+          }
+          if (curAsc > maxRun) maxRun = curAsc;
+          if (curDesc > maxRun) maxRun = curDesc;
+        }
+        if (curAsc >= 4) runsOf4Plus++;
+        if (curDesc >= 4) runsOf4Plus++;
+        return maxRun >= 5 || runsOf4Plus >= 2;
+      };
+
+      // Call Backend Gemini AI Receipt Vision Endpoint with Recipient Credentials (1 automatic retry on transient 502/503 redeploy)
       const scanAbort = new AbortController();
-      const scanTimer = setTimeout(() => scanAbort.abort(), 14000);
+      const scanTimer = setTimeout(() => scanAbort.abort(), 20000);
       try {
         const expectedRecipientName = gatewayMethod === 'Maya' 
           ? (camp.mayaName || camp.maya_name) 
@@ -2589,20 +2622,31 @@ export default function CampaignCard(props) {
 
         const expectedOrgName = camp.orgName || camp.org_name || camp.title;
 
-        const verifyRes = await fetch(`${API_URL}/api/verify-receipt-ai`, {
+        const payloadBody = JSON.stringify({
+          receiptBase64: b64,
+          amountEth: amount ? (parseFloat(amount) / 170000) : 0,
+          paymentMethod: gatewayMethod || 'GCash',
+          refNumber: refNumber || null,
+          expectedRecipientName,
+          expectedRecipientPhone,
+          expectedOrgName
+        });
+
+        let verifyRes = await fetch(`${API_URL}/api/verify-receipt-ai`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           signal: scanAbort.signal,
-          body: JSON.stringify({
-            receiptBase64: b64,
-            amountEth: amount ? (parseFloat(amount) / 170000) : 0,
-            paymentMethod: gatewayMethod || 'GCash',
-            refNumber: refNumber || null,
-            expectedRecipientName,
-            expectedRecipientPhone,
-            expectedOrgName
-          })
+          body: payloadBody
         });
+        if (!verifyRes.ok && (verifyRes.status === 502 || verifyRes.status === 503 || verifyRes.status === 504)) {
+          await new Promise((r) => setTimeout(r, 900));
+          verifyRes = await fetch(`${API_URL}/api/verify-receipt-ai`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            signal: scanAbort.signal,
+            body: payloadBody
+          });
+        }
         if (verifyRes.ok) {
           const verifyData = await verifyRes.json();
           setAiScanResult(verifyData);
@@ -2660,15 +2704,15 @@ export default function CampaignCard(props) {
         console.warn('AI Receipt Verification error:', aiErr);
       } finally {
         clearTimeout(scanTimer);
-        setAiScanLoading(false);
       }
 
       // Fast-Path: If server AI Vision inspected the receipt, finish immediately (No need for heavy browser OCR)
       if (serverExtractedSuccess) {
+        setAiScanLoading(false);
         return;
       }
 
-      // ── Client-side Fallback Only When Server Offline ───
+      // ── Client-side Fallback Only When Server Offline / Restarting ───
       try {
         const ocrResult = await Tesseract.recognize(file, 'eng');
         const text = ocrResult?.data?.text || '';
@@ -2750,6 +2794,49 @@ export default function CampaignCard(props) {
           } catch (_) {}
         }
 
+        // Anti-Fraud: Block artificial/sequential reference numbers even in offline OCR fallback
+        if (extractedRef && isSuspiciousReferenceClient(extractedRef)) {
+          setAiScanResult({
+            isPaymentReceipt: false,
+            isAiVerified: false,
+            confidenceScore: 0,
+            extractedRef: null,
+            extractedAmountPhp: null,
+            fraudFlags: [`SUSPICIOUS_REFERENCE_SEQUENCE: Reference #${extractedRef} contains an artificial sequential digit pattern typical of synthetic or fabricated receipts.`],
+            summary: 'Artificial sequential reference pattern detected.'
+          });
+          setRefNumber('');
+          setGatewayRefNo('');
+          showWarning?.(`Reference #${extractedRef} follows an artificial sequential pattern and cannot be accepted.`, 'Verification Alert');
+          return;
+        }
+
+        // Anti-Fraud: Check expired/recycled receipt date in offline OCR fallback
+        const ocrDateMatch = text.match(/\b((?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{1,2},?\s+\d{4}(?:[\s·•|]+\d{1,2}:\d{2}\s*(?:AM|PM)?)?)\b/i);
+        if (ocrDateMatch) {
+          const cleanDateStr = ocrDateMatch[1].replace(/[·•|]/g, ' ').replace(/\s+/g, ' ').trim();
+          const parsedOcrDate = new Date(cleanDateStr);
+          if (!isNaN(parsedOcrDate.getTime())) {
+            const diffDays = (Date.now() - parsedOcrDate.getTime()) / (1000 * 60 * 60 * 24);
+            if (diffDays > 30) {
+              setAiScanResult({
+                isPaymentReceipt: false,
+                isAiVerified: false,
+                confidenceScore: 0,
+                extractedRef: null,
+                extractedAmountPhp: null,
+                receiptDate: ocrDateMatch[1].trim(),
+                fraudFlags: [`EXPIRED_RECEIPT: Receipt is dated ${ocrDateMatch[1].trim()} (~${Math.round(diffDays)} days old). Recycled or expired receipts cannot be accepted.`],
+                summary: 'Expired or recycled receipt detected.'
+              });
+              setRefNumber('');
+              setGatewayRefNo('');
+              showWarning?.('This receipt is too old/expired and cannot be accepted.', 'Expired Receipt');
+              return;
+            }
+          }
+        }
+
         // Rail Mismatch Validation on Donor Modal
         const currentSelectedRail = (gatewayMethod || '').trim().toLowerCase();
         const extractedDigits = (extractedRef || '').replace(/\D/g, '');
@@ -2763,31 +2850,44 @@ export default function CampaignCard(props) {
         }
 
         // ── Strict Auto-Fill Execution ──────────────────────────────────────────
-        // Only fill Reference Number if AI is 100% confident and valid
         if (extractedRef) {
           setRefNumber(extractedRef);
           setGatewayRefNo(extractedRef);
         }
-
-        // Only fill Amount if AI detected explicit decimal amount with total/currency keyword
         if (extractedAmt && extractedAmt > 0) {
           setAmount(String(extractedAmt));
         }
 
+        // Record transparent offline OCR state so UI reflects NGO manual audit requirement
+        setAiScanResult({
+          isPaymentReceipt: true,
+          isAiVerified: false,
+          confidenceScore: extractedRef ? 60 : 40,
+          extractedRef: extractedRef || null,
+          extractedAmountPhp: extractedAmt || null,
+          detectedPaymentRail: detectedRail || gatewayMethod,
+          receiptDate: ocrDateMatch ? ocrDateMatch[1].trim() : null,
+          fraudFlags: [],
+          requiresManualAudit: true,
+          summary: 'Scanned via local OCR fallback; queued for NGO verification.'
+        });
+
         // ── Informative User Toast ──────────────────────────────────────────────
         if (extractedRef && extractedAmt) {
-          showSuccess?.(`AI Vision Extracted Ref #${extractedRef} & Amount ₱${extractedAmt.toLocaleString()} PHP!`, 'Auto-Filled Details');
+          showSuccess?.(`OCR Extracted Ref #${extractedRef} & Amount ₱${extractedAmt.toLocaleString()} PHP!`, 'Auto-Filled Details');
         } else if (extractedRef) {
-          showSuccess?.(`AI Vision Extracted Ref #${extractedRef}! Amount not clearly detected, please enter manually.`, 'Reference Auto-Filled');
+          showSuccess?.(`OCR Extracted Ref #${extractedRef}! Please confirm the amount.`, 'Reference Auto-Filled');
         } else if (extractedAmt) {
-          showSuccess?.(`AI Vision Extracted Amount ₱${extractedAmt.toLocaleString()} PHP! Reference number not clearly detected, please enter manually.`, 'Amount Auto-Filled');
+          showSuccess?.(`OCR Extracted Amount ₱${extractedAmt.toLocaleString()} PHP! Please enter reference number.`, 'Amount Auto-Filled');
         } else {
-          showSuccess?.("Receipt image attached! AI could not detect reference number or amount with 100% confidence. Please enter details manually.", "Receipt Attached");
+          showSuccess?.("Receipt image attached! Please enter reference number and amount manually.", "Receipt Attached");
         }
 
       } catch (tessErr) {
         console.warn('Tesseract OCR execution error:', tessErr);
         showSuccess?.("Receipt screenshot attached successfully! Please verify reference number and amount.", "Receipt Attached");
+      } finally {
+        setAiScanLoading(false);
       }
     };
     reader.readAsDataURL(file);
@@ -2808,6 +2908,26 @@ export default function CampaignCard(props) {
       const cleanDigits = finalRef.replace(/\D/g, '');
       if (cleanDigits.length !== 13) {
         return showWarning("GCash reference numbers must be exactly 13 digits (e.g. 0044 579 175068).", "Invalid GCash Reference");
+      }
+    }
+    // Block synthetic/sequential reference patterns even if typed manually or via offline fallback
+    {
+      const d = finalRef.replace(/\D/g, '');
+      if (d.length >= 10) {
+        let maxRun = 1, cA = 1, cD = 1, r4 = 0;
+        for (let i = 1; i < d.length; i++) {
+          const pDig = d.charCodeAt(i - 1) - 48, cDig = d.charCodeAt(i) - 48;
+          if ((pDig + 1) % 10 === cDig) { cA++; if (cD >= 4) r4++; cD = 1; }
+          else if ((pDig + 9) % 10 === cDig) { cD++; if (cA >= 4) r4++; cA = 1; }
+          else { if (cA >= 4) r4++; if (cD >= 4) r4++; cA = 1; cD = 1; }
+          if (cA > maxRun) maxRun = cA;
+          if (cD > maxRun) maxRun = cD;
+        }
+        if (cA >= 4) r4++;
+        if (cD >= 4) r4++;
+        if (/(\d)\1{5,}/.test(d) || (d.length >= 12 && new Set(d.split('')).size <= 3) || maxRun >= 5 || r4 >= 2) {
+          return showWarning(`Reference #${finalRef} follows an artificial sequential pattern and cannot be accepted.`, "Synthetic Reference Blocked");
+        }
       }
     }
     if (!receiptBase64) return showWarning("Please upload your payment confirmation receipt screenshot.", "Missing Receipt");
