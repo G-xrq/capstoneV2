@@ -914,7 +914,7 @@ export default function LandingView({
 
               {/* Monumental Headline */}
               <h1 className="bbdrts-hero-title">
-                Donation &amp; relief distribution <br className="bbdrts-br-desktop" />
+                Relief donations &amp; distribution <br className="bbdrts-br-desktop" />
                 <span className="bbdrts-title-gradient">you can actually trace.</span>
               </h1>
 
