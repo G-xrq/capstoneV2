@@ -485,7 +485,18 @@ async function auditReceiptImage(base64Data, declaredAmountEth = 0, paymentRail 
     const genAI = getGenAI();
     if (genAI) {
       try {
+        const currentPhDate = new Intl.DateTimeFormat('en-US', {
+          timeZone: 'Asia/Manila',
+          month: 'short',
+          day: 'numeric',
+          year: 'numeric',
+          hour: 'numeric',
+          minute: '2-digit',
+          hour12: true
+        }).format(new Date());
+
         const prompt = `Audit this Philippine payment receipt image (${paymentRail} / GCash / Maya / Bank / QR Ph) for authenticity and extract its fields as JSON.
+CURRENT SERVER DATE/TIME (Asia/Manila): ${currentPhDate}.
 Expected recipient context: Name=${expectedRecipientName || 'N/A'}, Phone=${expectedRecipientPhone || 'N/A'}, Org=${expectedOrgName || 'N/A'}.
 
 DEVICE & APP-VERSION FAIRNESS RULES (DO NOT FALSE-REJECT REAL PHONES):
@@ -494,7 +505,7 @@ DEVICE & APP-VERSION FAIRNESS RULES (DO NOT FALSE-REJECT REAL PHONES):
   * Recipient phone format: BOTH "+63 9XX XXX XXXX" AND "09XX XXX XXXX" are 100% VALID on real receipts
   * Recipient name masking: BOTH dots ("•") AND asterisks ("*") are VALID
   * Normal JPEG/Messenger/gallery compression softening
-- NEVER reject or flag a receipt because of font family, kerning, spacing, or "+63" vs "09" phone formatting.
+- NEVER reject or flag a receipt because of font family, kerning, spacing, "+63" vs "09" phone formatting, or whether the date looks "in the future" or "old" (the backend server validates dates deterministically against ${currentPhDate}; you ONLY extract receiptDate verbatim).
 
 OBJECTIVE FRAUD & AI-GENERATION CHECKS (device-independent — check ALL 4 carefully):
 1. AI-GENERATED / SYNTHETIC VISUAL ARTIFACTS:
@@ -609,7 +620,7 @@ Return strictly JSON:
               // while NEVER overriding real AI-icon/sawtooth/sequential/splicing/non-receipt detections
               const rawRejection = String(parsed.rejectionReason || '');
               const isPhoneFormatOrFontOnly =
-                /(font|kerning|typeface|typography|spacing|\+63|local '09'|09 format|phone number format)/i.test(rawRejection) &&
+                /(font|kerning|typeface|typography|spacing|\+63|local '09'|09 format|phone number format|future date|future timestamp)/i.test(rawRejection) &&
                 !/(icon|leaf|checkmark|sawtooth|zig-?zag|scallop|tooth|teeth|diffusion|warped|melted|garbled|sequential|counting pattern|not a receipt|non-receipt|selfie|qr code|sample|tutorial|watermark|circle|arrow|patch|erased|smudge|contradict|mismatched amount)/i.test(rawRejection);
 
               // STRICT NON-RECEIPT OR OBJECTIVE TAMPERING/SAMPLE REJECTION
