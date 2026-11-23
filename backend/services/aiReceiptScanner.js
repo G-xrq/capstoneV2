@@ -9,6 +9,9 @@
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const Tesseract = require('tesseract.js');
 
+// Remember the fastest verified working Gemini model to avoid wasted fallback roundtrips
+let cachedFastVisionModel = null;
+
 // Helper to dynamically get Gemini AI when GEMINI_API_KEY is configured
 function getGenAI() {
   const apiKey = (process.env.GEMINI_API_KEY || process.env.GOOGLE_AI_API_KEY || '').trim();
@@ -434,70 +437,32 @@ async function auditReceiptImage(base64Data, declaredAmountEth = 0, paymentRail 
     const genAI = getGenAI();
     if (genAI) {
       try {
-        const prompt = `You are a strict anti-fraud forensic investigator auditing Philippine payment receipts (${paymentRail}, GCash, PayMaya, Bank Transfer, QR Ph).
-Your primary job is to CATCH FAKE, EDITED, PHOTOSHOPPED, OR AI-GENERATED RECEIPTS. Fraudsters frequently take authentic receipts and alter the recipient name, reference number, date, or amount to steal relief funds or falsify donations.
+        const prompt = `Audit this Philippine payment receipt image (${paymentRail} / GCash / Maya / Bank / QR Ph) and extract its fields as JSON.
+Expected recipient context (for reading accuracy): Name=${expectedRecipientName || 'N/A'}, Phone=${expectedRecipientPhone || 'N/A'}, Org=${expectedOrgName || 'N/A'}.
 
-BENEFICIARY CAMPAIGN EXPECTED RECIPIENT CREDENTIALS (IF APPLICABLE):
-- Expected Account Name: ${expectedRecipientName || 'N/A'}
-- Expected Phone / Mobile: ${expectedRecipientPhone || 'N/A'}
-- Beneficiary Organization: ${expectedOrgName || 'N/A'}
+IMPORTANT DEVICE & FONT FAIRNESS RULES (DO NOT FALSE-REJECT REAL PHONES):
+- Philippine Android phones (Xiaomi/MIUI, Samsung OneUI, Oppo, Vivo, Realme, Huawei, Tecno, Infinix, custom system fonts, bold accessibility text, display zoom, dark mode) and different GCash/Maya app versions legitimately render receipts with DIFFERENT font families, kerning, bold weights, spacing, and divider alignment.
+- Normal JPEG/Messenger/gallery compression can cause mild softening around labels like "Sent via GCash".
+- NEVER reject or flag a receipt solely because of font family, kerning, character spacing, bolding, screen scaling, or mild compression blur.
 
-MANDATORY FORENSIC FRAUD CHECKS (INSPECT EVERY FIELD UNDER A DIGITAL MAGNIFYING GLASS):
-1. TYPOGRAPHY & FONT CONSISTENCY:
-   - Authentic GCash, Maya, and Philippine bank apps render all text in their exact, proprietary, uniform UI typefaces with crisp vector-like edges.
-   - Scrutinize:
-     * The Recipient Name (e.g., "CL***E JU*****E V.")
-     * The Recipient Phone (e.g., "0997 993 9521")
-     * The Amount & Total Amount Sent (e.g., "50,000.00", "₱50,000.00")
-     * The Reference Number (e.g., "Ref No. 9046 840 764280")
-     * The Date and Time (e.g., "Nov 13, 2026 12:12 PM")
-   - If the font family, weight, kerning, or digit geometry of the Amount (e.g., ₱50,000.00), the Peso symbol "₱", Reference Number, or Recipient Name does NOT match the native app UI or looks typed over in a generic font (Arial, Roboto, Montserrat, etc.), you MUST set hasTamperingOrAnnotations = true and confidenceScore = 0!
+ONLY set "isPaymentReceipt": false OR "hasTamperingOrAnnotations": true when there is CLEAR, OBJECTIVE fraud:
+1. NOT A PAYMENT RECEIPT: selfie, meme, blank page, QR code screenshot (instead of completed payment slip), or non-payment screen.
+2. TUTORIAL / SAMPLE / ANNOTATED: visible red circles, arrows, callout boxes, "SAMPLE"/"DEMO" watermarks, or instructional labels.
+3. BLATANT DIGITAL SPLICING: an obvious mismatched-color rectangle pasted over a number/name, erased white-out smudge covering text, visibly crooked pasted digits, or contradictory amounts on the same slip (e.g., Amount ₱1.00 vs Total ₱50,000.00).
 
-2. ERASER PATCHES, BRUSH STROKES, & COMPRESSION HALOS:
-   - Inspect the background canvas around all text fields, specifically:
-     * Under the recipient phone number
-     * Around the label "Sent via GCash"
-     * Around the "Amount" and "Total Amount Sent" values
-     * Around the Reference Number and Date
-   - If there is a hazy white/grey patch, erased box, brush smudge, blurry ghosting, or mismatched pixel compression noise where previous text was wiped out and new text was typed over, you MUST set hasTamperingOrAnnotations = true and confidenceScore = 0!
+EXTRACTION RULES (ALWAYS extract readable receipt fields accurately):
+- "refNumber": 13-digit GCash Ref No (e.g. "9046 840 764280") or Maya/Bank reference ID.
+- "amountPhp": Total amount sent in PHP as a number (e.g. 5000).
+- "detectedPaymentRail": "GCash", "Maya", or "Bank".
+- "recipientName": Recipient name shown at top of receipt.
+- "recipientPhone": Recipient mobile/account number shown on receipt.
+- "receiptDate": Date and time shown on slip (e.g. "Nov 23, 2026 10:45 AM").
+- "isAuthenticLook": true for normal payment screenshots (including custom phone fonts/compression); false ONLY for obvious fakes/splices/samples.
+- "confidenceScore": 85-98 for readable genuine receipts, 0 ONLY for non-receipts or blatant tampering/samples.
+- "rejectionReason": null if valid, otherwise brief concrete objective reason.
 
-3. SYNTHETIC OR AI-GENERATED RECEIPTS:
-   - If this receipt was fabricated by another AI image generator, online receipt maker, or template tool (tells: slight blurring on static logos/labels like "Sent via GCash", misaligned horizontal divider lines, unnatural spacing, or floating numbers), you MUST set hasTamperingOrAnnotations = true and confidenceScore = 0!
-
-4. TUTORIAL / SAMPLE / EDUCATIONAL IMAGES:
-   - If the image contains red circles, arrows, callout boxes, tutorial labels like "GCash Reference Number", or sample watermarks, you MUST set hasTamperingOrAnnotations = true and confidenceScore = 0!
-
-5. STRICT REJECTION ACTIONS:
-   - If ANY tampering, digital editing, font inconsistency, or eraser patch is detected:
-     * "hasTamperingOrAnnotations": true
-     * "isPaymentReceipt": false
-     * "confidenceScore": 0
-     * "rejectionReason": State clearly what was altered (e.g., "Font mismatch and typographical splicing detected on amount ₱50,000.00; smudged eraser halo detected around 'Sent via GCash'").
-
-EXTRACTION RULES (ONLY FOR 100% UNALTERED, GENUINE SLIPS):
-- "refNumber": 13-digit sequence for GCash (e.g., "9046 840 764280" or "9046840764280"). If tampered, MUST be null.
-- "amountPhp": Total amount sent in PHP as a number (e.g., 50000.00). If tampered, MUST be null.
-- "detectedPaymentRail": "GCash", "Maya", or "Bank". If tampered, MUST be null.
-- "recipientName": Exact recipient name displayed at top. If tampered, MUST be null.
-- "recipientPhone": Recipient phone number or account number.
-- "receiptDate": Date and time on slip (e.g., "Nov 13, 2026 12:12 PM").
-- "confidenceScore": 0 for tampered/edited/fake/samples, 95 only for crisp, genuine, unaltered slips.
-- "rejectionReason": Detailed reason if rejected, null if authentic.
-
-Return strictly JSON format:
-{
-  "isPaymentReceipt": boolean,
-  "hasTamperingOrAnnotations": boolean,
-  "refNumber": string | null,
-  "amountPhp": number | null,
-  "detectedPaymentRail": string | null,
-  "recipientName": string | null,
-  "recipientPhone": string | null,
-  "receiptDate": string | null,
-  "isAuthenticLook": boolean,
-  "confidenceScore": number,
-  "rejectionReason": string | null
-}`;
+Return strictly JSON:
+{"isPaymentReceipt":boolean,"hasTamperingOrAnnotations":boolean,"refNumber":string|null,"amountPhp":number|null,"detectedPaymentRail":string|null,"recipientName":string|null,"recipientPhone":string|null,"receiptDate":string|null,"isAuthenticLook":boolean,"confidenceScore":number,"rejectionReason":string|null}`;
 
         const imagePart = {
           inlineData: {
@@ -506,32 +471,45 @@ Return strictly JSON format:
           }
         };
 
-        const activeModels = [
-          'gemini-3.8-flash',
-          'gemini-3.5-flash-lite',
+        // Ordered fastest verified models first — eliminates wasted 404 roundtrips
+        const baseModels = [
           'gemini-flash-lite-latest',
           'gemini-3-flash-preview',
+          'gemini-2.5-flash-lite',
           'gemini-2.5-flash',
           'gemini-2.0-flash'
         ];
+        const activeModels = cachedFastVisionModel
+          ? [cachedFastVisionModel, ...baseModels.filter((m) => m !== cachedFastVisionModel)]
+          : baseModels;
+
         let response = null;
-        let successfulModel = 'gemini-3.5-flash-lite';
+        let successfulModel = activeModels[0];
 
         for (const m of activeModels) {
           try {
-            const model = genAI.getGenerativeModel({ model: m });
-            // 25.0s timeout per Gemini attempt to accommodate network variation for high-res images
-            const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('TIMEOUT')), 25000));
+            const model = genAI.getGenerativeModel({
+              model: m,
+              generationConfig: {
+                responseMimeType: 'application/json',
+                temperature: 0.1,
+                maxOutputTokens: 320
+              }
+            });
+            // Fast 10s cap per attempt so donors never stall
+            const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('TIMEOUT')), 10000));
             response = await Promise.race([
               model.generateContent([prompt, imagePart]),
               timeoutPromise
             ]);
             if (response && response.response) {
               successfulModel = m;
+              cachedFastVisionModel = m;
               break;
             }
           } catch (modelErr) {
             console.warn(`Gemini model ${m} attempt failed:`, modelErr.message);
+            if (cachedFastVisionModel === m) cachedFastVisionModel = null;
           }
         }
 
@@ -571,14 +549,22 @@ Return strictly JSON format:
             }
 
             if (parsed) {
-              // STRICT NON-RECEIPT OR TAMPERED/SAMPLE IMAGE REJECTION
-              const isTamperedOrFake = parsed.isPaymentReceipt === false ||
+              // Guard against font/kerning-only false positives (Android OEMs use custom system fonts)
+              const rawRejection = String(parsed.rejectionReason || '');
+              const isTypographyOnlyGuess =
+                /(font|kerning|typeface|typography|spacing|rendering)/i.test(rawRejection) &&
+                !/(not a receipt|non-receipt|selfie|qr code|sample|tutorial|watermark|circle|arrow|patch|erased|smudge|contradict|mismatched amount)/i.test(rawRejection);
+
+              // STRICT NON-RECEIPT OR OBJECTIVE TAMPERING/SAMPLE REJECTION
+              const isTamperedOrFake = !isTypographyOnlyGuess && (
+                parsed.isPaymentReceipt === false ||
                 parsed.hasTamperingOrAnnotations === true ||
                 parsed.isAuthenticLook === false ||
-                (typeof parsed.confidenceScore === 'number' && parsed.confidenceScore === 0);
+                (typeof parsed.confidenceScore === 'number' && parsed.confidenceScore === 0)
+              );
 
               if (isTamperedOrFake) {
-                const rejectionMsg = parsed.rejectionReason || 'Visual forensics detected typographical alteration, font mismatch, or synthetic receipt tampering.';
+                const rejectionMsg = rawRejection || 'Uploaded image does not appear to be a valid, unaltered payment receipt.';
                 result.isPaymentReceipt = false;
                 result.isAiVerified = false;
                 result.confidenceScore = 0;

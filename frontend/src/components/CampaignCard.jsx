@@ -2526,15 +2526,58 @@ export default function CampaignCard(props) {
     setRailMismatchWarning(null);
     setAiScanResult(null);
 
+    // Fast client-side downscale/compression for crisp, sub-2s Vision AI upload (~80-130KB instead of 4-8MB)
+    const optimizeReceiptForUpload = (rawDataUrl) => new Promise((resolve) => {
+      try {
+        if (!rawDataUrl || typeof rawDataUrl !== 'string' || rawDataUrl.startsWith('data:image/svg+xml')) {
+          return resolve(rawDataUrl);
+        }
+        const img = new Image();
+        img.onload = () => {
+          try {
+            const maxDim = 1080;
+            let w = img.naturalWidth || img.width;
+            let h = img.naturalHeight || img.height;
+            if (!w || !h) return resolve(rawDataUrl);
+            if (w > maxDim || h > maxDim) {
+              const scale = maxDim / Math.max(w, h);
+              w = Math.round(w * scale);
+              h = Math.round(h * scale);
+            }
+            const c = document.createElement('canvas');
+            c.width = w;
+            c.height = h;
+            const ctx = c.getContext('2d');
+            ctx.fillStyle = '#FFFFFF';
+            ctx.fillRect(0, 0, w, h);
+            ctx.drawImage(img, 0, 0, w, h);
+            const compressed = c.toDataURL('image/jpeg', 0.82);
+            resolve(compressed.length < rawDataUrl.length ? compressed : rawDataUrl);
+          } catch (_) {
+            resolve(rawDataUrl);
+          }
+        };
+        img.onerror = () => resolve(rawDataUrl);
+        img.src = rawDataUrl;
+      } catch (_) {
+        resolve(rawDataUrl);
+      }
+    });
+
     const reader = new FileReader();
     reader.onload = async () => {
-      const b64 = reader.result;
-      setReceiptBase64(b64);
+      const rawB64 = reader.result;
+      setReceiptBase64(rawB64);
       setAiScanLoading(true);
+
+      const b64 = await optimizeReceiptForUpload(rawB64);
+      setReceiptBase64(b64);
 
       let serverExtractedSuccess = false;
 
       // Call Backend Gemini AI Receipt Vision Endpoint with Recipient Credentials
+      const scanAbort = new AbortController();
+      const scanTimer = setTimeout(() => scanAbort.abort(), 14000);
       try {
         const expectedRecipientName = gatewayMethod === 'Maya' 
           ? (camp.mayaName || camp.maya_name) 
@@ -2549,6 +2592,7 @@ export default function CampaignCard(props) {
         const verifyRes = await fetch(`${API_URL}/api/verify-receipt-ai`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
+          signal: scanAbort.signal,
           body: JSON.stringify({
             receiptBase64: b64,
             amountEth: amount ? (parseFloat(amount) / 170000) : 0,
@@ -2615,6 +2659,7 @@ export default function CampaignCard(props) {
       } catch (aiErr) {
         console.warn('AI Receipt Verification error:', aiErr);
       } finally {
+        clearTimeout(scanTimer);
         setAiScanLoading(false);
       }
 
