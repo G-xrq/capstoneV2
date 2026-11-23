@@ -5431,24 +5431,53 @@
 
   .ec-search-box {
     flex: 1 1 100%;
+    min-width: 0;
+  }
+
+  .ec-search-kbd {
+    display: none;
   }
 
   .ec-filters-group {
     width: 100%;
     justify-content: flex-start;
+    gap: 6px;
+  }
+
+  .ec-filter-btn {
+    height: 34px;
+    padding: 0 9px;
+    font-size: 0.76rem;
+    gap: 5px;
+  }
+
+  .ec-view-seg {
+    height: 34px;
+    margin-left: auto;
+  }
+
+  .ec-sync-icon-btn {
+    width: 34px;
+    height: 34px;
   }
 
   .ec-toolbar-divider {
     display: none;
   }
 
-  .ec-view-seg {
-    margin-left: auto;
+  .ec-popover,
+  .ec-tags-popover {
+    max-width: calc(100vw - 44px);
   }
 
   .ec-popover--right {
     right: auto;
     left: 0;
+  }
+
+  .ec-toolbar-subbar {
+    flex-wrap: wrap;
+    gap: 6px 12px;
   }
 }
 
@@ -6658,30 +6687,37 @@
 }
 
 /* Responsive List Card Stack */
-@media (max-width: 900px) {
+@media (max-width: 1024px) {
   .campaigns-list .campaign-card-body {
     flex-direction: column;
-    gap: 12px;
+    flex-wrap: nowrap;
+    gap: 14px;
+    padding: 14px;
   }
 
   .campaigns-list .campaign-media {
     width: 100%;
     min-width: 0;
-    max-width: none;
-    height: 184px;
-    min-height: 184px;
-    max-height: 184px;
+    max-width: 100%;
+    height: 186px;
+    min-height: 186px;
+    max-height: 186px;
+    align-self: auto;
   }
 
   .campaigns-list .campaign-info {
     width: 100%;
-    flex: 1 0 auto;
+    flex: 0 0 auto;
+    min-width: 0 !important;
+    max-width: 100% !important;
   }
 
   .campaigns-list .campaign-actions {
+    flex: 0 0 auto;
     width: 100%;
     min-width: 0;
-    max-width: none;
+    max-width: 100%;
+    margin-left: 0;
     padding-left: 0;
     padding-top: 12px;
     border-left: none;
@@ -6690,6 +6726,16 @@
 
   [data-theme="light"] .campaigns-list .campaign-actions {
     border-top-color: #e4e4e7;
+  }
+}
+
+@media (max-width: 640px) {
+  .campaign-card .multi-rail-dropdown-popup {
+    min-width: 0;
+    width: min(296px, calc(100vw - 44px));
+    max-width: calc(100vw - 44px);
+    right: 0;
+    left: auto;
   }
 }
 

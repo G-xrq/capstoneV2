@@ -6530,27 +6530,44 @@ input:-webkit-autofill:active {
    Responsive
    ============================================================ */
 @media (max-width: 1024px) {
-  .campaign-card-body {
-    flex-wrap: wrap;
+  .campaigns-list .campaign-card-body {
+    flex-direction: column;
+    flex-wrap: nowrap;
+    gap: 14px;
+    padding: 14px;
   }
 
-  .campaign-media {
+  .campaigns-list .campaign-media {
     width: 100%;
     min-width: 0;
     max-width: 100%;
-    height: 180px;
-    min-height: 180px;
-    max-height: 180px;
+    height: 186px;
+    min-height: 186px;
+    max-height: 186px;
     align-self: auto;
   }
 
-  .campaign-actions,
+  .campaigns-list .campaign-info {
+    flex: 0 0 auto;
+    width: 100%;
+    min-width: 0 !important;
+    max-width: 100% !important;
+  }
+
   .campaigns-list .campaign-actions {
-    flex: 1 1 100%;
+    flex: 0 0 auto;
     width: 100%;
     min-width: 0;
     max-width: 100%;
     margin-left: 0;
+    padding-left: 0;
+    padding-top: 12px;
+    border-left: none;
+    border-top: 1px solid #1f1f1f;
+  }
+
+  [data-theme="light"] .campaigns-list .campaign-actions {
+    border-top-color: #e4e4e7;
   }
 
   .donate-box-card,
@@ -7587,7 +7604,7 @@ input:-webkit-autofill:active {
 
   .campaign-actions,
   .campaigns-list .campaign-actions {
-    flex: 1 1 100%;
+    flex: 0 0 auto;
     width: 100%;
     min-width: 0;
     max-width: 100%;

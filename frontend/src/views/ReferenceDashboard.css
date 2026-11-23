@@ -27,6 +27,7 @@ body[data-sidebar-collapsed="true"] {
   z-index: 2;
   background-color: var(--bg-page);
   align-items: stretch;
+  overflow-x: clip;
 }
 
 .ref-dashboard-grid {
@@ -370,7 +371,7 @@ body[data-sidebar-collapsed="true"] {
   }
 
   .ref-main-content {
-    padding: 16px 14px 60px;
+    padding: 16px 14px 96px;
   }
 }
 
