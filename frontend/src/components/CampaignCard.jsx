@@ -7333,199 +7333,52 @@ export default function CampaignCard(props) {
               className="bbdrts-details-modal"
               onClick={(e) => e.stopPropagation()}
             >
-              {/* ── 1. Clean Modal Header (Dedicated top section outside photo) ── */}
-              <div className="bbdrts-details-header">
-                <div className="bbdrts-details-header-top">
-                  <div className="bbdrts-details-badges">
-                    <span className="bbdrts-pill-mono">#{catInfo.prefix}-00{camp.id}</span>
-                    <span className="bbdrts-header-sep">·</span>
-                    <span className="bbdrts-header-meta-text">{catInfo.label}</span>
-                    {audit.urgency && (
-                      <span className="bbdrts-pill-subtle urgency-pill">
-                        <span className="bbdrts-status-dot urgency-dot" />
-                        <span>
-                          {/HIGH|EMERGENCY|CRITICAL/i.test(audit.urgency)
-                            ? 'Emergency'
-                            : /MEDIUM|URGENT/i.test(audit.urgency)
-                              ? 'Urgent'
-                              : 'Standard'}
-                        </span>
+              {/* ── Slim Top Utility Bar ── */}
+              <div className="cdm-topbar">
+                <div className="cdm-topbar-meta">
+                  <span className="cdm-id">#{catInfo.prefix}-00{camp.id}</span>
+                  <span className="cdm-sep">·</span>
+                  <span className="cdm-cat">{catInfo.label}</span>
+                  {audit.urgency && (
+                    <span className={`cdm-status-chip ${/HIGH|EMERGENCY|CRITICAL|MEDIUM|URGENT/i.test(audit.urgency) ? 'is-urgent' : ''}`}>
+                      <span className="cdm-dot" />
+                      <span>
+                        {/HIGH|EMERGENCY|CRITICAL/i.test(audit.urgency)
+                          ? 'Emergency'
+                          : /MEDIUM|URGENT/i.test(audit.urgency)
+                            ? 'Urgent'
+                            : 'Standard'}
                       </span>
-                    )}
-                    <span className="bbdrts-pill-subtle active-pill">
-                      <span className="bbdrts-status-dot active-dot" />
-                      <span>Active</span>
                     </span>
-                  </div>
-
-                  {/* Minimalist Close Button */}
-                  <button
-                    type="button"
-                    className="bbdrts-modal-close-btn"
-                    onClick={() => setDetailsOpen(false)}
-                    title="Close Campaign Details"
-                    aria-label="Close Campaign Details"
-                  >
-                    <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>close</span>
-                  </button>
-                </div>
-
-                {/* Campaign Title */}
-                <h2 className="bbdrts-details-title">
-                  {displayTitle}
-                </h2>
-
-                {/* Organization & Verification Metadata Bar */}
-                <div className="bbdrts-details-org-bar">
-                  <span>Managed by</span>
-                  <button
-                    type="button"
-                    className="bbdrts-org-badge"
-                    onClick={() => {
-                      setDetailsOpen(false);
-                      if (onOpenNgoProfile) onOpenNgoProfile(camp.orgId || 3);
-                    }}
-                    title="View verified NGO profile & missions"
-                  >
-                    <span className="material-symbols-outlined" style={{ fontSize: '14px', color: '#10b981' }}>domain</span>
-                    <span>{orgDisplayName}</span>
-                    <span className="material-symbols-outlined" style={{ fontSize: '13px', color: '#10b981' }}>verified</span>
-                    <span className="material-symbols-outlined" style={{ fontSize: '13px', opacity: 0.6 }}>chevron_right</span>
-                  </button>
-                  <span className="bbdrts-meta-divider">•</span>
-                  <span className="bbdrts-verified-indicator">
-                    <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>verified_user</span>
-                    <span>Smart Contract Verified</span>
-                  </span>
-                  {camp.contractAddress && (
-                    <>
-                      <span className="bbdrts-meta-divider">•</span>
-                      <span className="bbdrts-pill-mono" style={{ fontSize: '0.7rem' }}>Sepolia EVM</span>
-                    </>
                   )}
+                  <span className="cdm-status-chip is-active">
+                    <span className="cdm-dot" />
+                    <span>Active</span>
+                  </span>
                 </div>
+
+                <button
+                  type="button"
+                  className="cdm-close-btn"
+                  onClick={() => setDetailsOpen(false)}
+                  title="Close"
+                  aria-label="Close Campaign Details"
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>close</span>
+                </button>
               </div>
 
-              {/* ── 2. Modal Body Content ── */}
-              <div className="bbdrts-details-body">
-                {/* Minimalist Collapsible Tag Row */}
-                {campaignTags && campaignTags.length > 0 && (
-                  <div className="bbdrts-tags-row">
-                    {(showAllDetailsTags ? campaignTags : campaignTags.slice(0, 5)).map((tag, idx) => (
-                      <span key={idx} className="bbdrts-tag-pill">
-                        #{tag.replace(/^#/, '')}
-                      </span>
-                    ))}
-                    {campaignTags.length > 5 && (
-                      <button
-                        type="button"
-                        className="bbdrts-tag-more-btn"
-                        onClick={() => setShowAllDetailsTags(!showAllDetailsTags)}
-                      >
-                        {showAllDetailsTags ? 'Show less' : `+${campaignTags.length - 5} more`}
-                      </button>
-                    )}
-                  </div>
-                )}
-
-                {/* Unified Telemetry & Funding Progress Panel */}
-                <div className="bbdrts-telemetry-panel">
-                  <div className="bbdrts-bento-grid">
-                    <div className="bbdrts-bento-card">
-                      <span className="bbdrts-bento-label">Target goal</span>
-                      <span className="bbdrts-bento-value">₱{targetPhp}</span>
-                    </div>
-
-                    <div className="bbdrts-bento-card">
-                      <span className="bbdrts-bento-label">Settled to date</span>
-                      <span className="bbdrts-bento-value is-accent">
-                        ₱{currentPhp} <span className="bbdrts-bento-sub">({progressPercent}%)</span>
-                      </span>
-                    </div>
-
-                    <div className="bbdrts-bento-card">
-                      <span className="bbdrts-bento-label">Target delivery</span>
-                      <span className="bbdrts-bento-meta">
-                        <span className="material-symbols-outlined" style={{ fontSize: '14px', color: 'var(--text-muted)' }}>calendar_today</span>
-                        <span>{formattedDeliveryDate || audit.targetDate || 'Active'}</span>
-                      </span>
-                    </div>
-
-                    <div className="bbdrts-bento-card">
-                      <span className="bbdrts-bento-label">Community backers</span>
-                      <span className="bbdrts-bento-meta">
-                        <span className="material-symbols-outlined" style={{ fontSize: '15px', color: 'var(--text-muted)' }}>group</span>
-                        <span>{breakdown.totalBackers > 0 ? `${breakdown.totalBackers} ${breakdown.totalBackers === 1 ? 'backer' : 'backers'}` : '0 backers'}</span>
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="bbdrts-progress-strip">
-                    <div className="bbdrts-progress-track" title={`Funded: ${progressPercent}% of target`}>
-                      <div className="bbdrts-progress-bar" style={{ width: `${Math.min(100, Math.max(0, parseFloat(progressPercent) || 0))}%` }} />
-                    </div>
-                    <div className="bbdrts-progress-info">
-                      <span><strong>{progressPercent}%</strong> funded</span>
-                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                        <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>verified_user</span>
-                        <span>Sepolia on-chain escrow</span>
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* 2-Column Responsive Layout (Balanced 50/50 Grid) */}
-                <div className="bbdrts-details-grid">
-                  {/* Left Column: Mission Overview & Visual Evidence */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                    {/* Mission Purpose */}
-                    <div className="bbdrts-section-card">
-                      <div className="bbdrts-section-card-header">
-                        <h4 className="bbdrts-section-card-title">
-                          <span className="material-symbols-outlined" style={{ fontSize: '16px', color: 'var(--text-muted)' }}>article</span>
-                          <span>Mission &amp; scope</span>
-                        </h4>
-                      </div>
-                      <p className="bbdrts-desc-text">
-                        {audit.description}
-                      </p>
-
-                      {/* Official Verification Document / Press Release */}
-                      {audit.documentUrl && (
-                        <div style={{ marginTop: '4px' }}>
-                          <a
-                            href={audit.documentUrl.startsWith('http') ? audit.documentUrl : `https://${audit.documentUrl}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="bbdrts-details-doc-link"
-                          >
-                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '7px' }}>
-                              <span className="material-symbols-outlined" style={{ fontSize: '15px', color: '#10b981' }}>verified</span>
-                              <span>Official Verification Document</span>
-                            </span>
-                            <span className="material-symbols-outlined" style={{ fontSize: '14px', color: 'var(--text-muted)' }}>north_east</span>
-                          </a>
-                        </div>
-                      )}
-
-                      {/* Emergency Response Desk */}
-                      {audit.contact && (
-                        <div className="bbdrts-details-hotline-chip">
-                          <span className="material-symbols-outlined" style={{ fontSize: '16px', color: 'var(--text-muted)' }}>support_agent</span>
-                          <div>
-                            <span style={{ color: 'var(--text-muted)', fontWeight: 600 }}>Emergency Contact: </span>
-                            <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{formatPhoneNumber(audit.contact)}</span>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Dedicated Cover & Narrative Media Showcase (Positioned below the bio / mission) */}
-                    <div className="bbdrts-details-media" style={{ borderRadius: '14px', overflow: 'hidden' }}>
+              {/* ── 2-Pane Editorial + Sticky Funding/Map Split ── */}
+              <div className="cdm-split-scroll">
+                <div className="cdm-split">
+                  {/* LEFT: Open Editorial Narrative, Cover Photo, Evidence & Allocations */}
+                  <div className="cdm-main">
+                    {/* Cover Photo Showcase */}
+                    <div className="cdm-cover">
                       <img
                         src={coverData.imageUrl}
                         alt={camp.title}
-                        className="bbdrts-details-media-img"
+                        className="cdm-cover-img"
                         onError={(e) => {
                           e.target.onerror = null;
                           e.target.src = 'https://images.unsplash.com/photo-1532629345422-7515f3d16bb6?auto=format&fit=crop&w=600&q=80';
@@ -7533,28 +7386,89 @@ export default function CampaignCard(props) {
                       />
                       <button
                         type="button"
-                        className="bbdrts-media-expand-pill"
+                        className="cdm-cover-expand"
                         onClick={() => setActiveEvidenceImg(coverData.imageUrl)}
-                        title="Click to view full photo"
+                        title="Expand photo"
                       >
                         <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>fullscreen</span>
-                        <span>View Cover Photo</span>
+                        <span>Expand</span>
                       </button>
                     </div>
 
-                    {/* Official Disaster Impact & Damage Evidence */}
-                    {modalDisasterPhotos.length > 0 && (
-                      <div className="bbdrts-section-card">
-                        <div className="bbdrts-section-card-header">
-                          <h4 className="bbdrts-section-card-title">
-                            <span className="material-symbols-outlined" style={{ fontSize: '16px', color: 'var(--text-muted)' }}>photo_library</span>
-                            <span>Field evidence ({modalDisasterPhotos.length})</span>
-                          </h4>
-                          <span className="bbdrts-section-card-badge">Field verified</span>
+                    {/* Title, Organization & Tags */}
+                    <div className="cdm-headline-block">
+                      <h2 className="cdm-title">{displayTitle}</h2>
+
+                      <div className="cdm-org-row">
+                        <span>Organized by</span>
+                        <button
+                          type="button"
+                          className="cdm-org-btn"
+                          onClick={() => {
+                            setDetailsOpen(false);
+                            if (onOpenNgoProfile) onOpenNgoProfile(camp.orgId || 3);
+                          }}
+                          title="View verified organization profile"
+                        >
+                          <span>{orgDisplayName}</span>
+                          <span className="material-symbols-outlined" style={{ fontSize: '14px', color: '#10b981' }}>verified</span>
+                          <span className="material-symbols-outlined" style={{ fontSize: '14px', opacity: 0.55 }}>chevron_right</span>
+                        </button>
+                        <span className="cdm-sep">·</span>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                          <span className="material-symbols-outlined" style={{ fontSize: '14px', color: '#10b981' }}>verified_user</span>
+                          <span>Sepolia verified</span>
+                        </span>
+                      </div>
+
+                      {campaignTags && campaignTags.length > 0 && (
+                        <div className="cdm-tags">
+                          {(showAllDetailsTags ? campaignTags : campaignTags.slice(0, 6)).map((tag, idx) => (
+                            <span key={idx} className="cdm-tag">#{tag.replace(/^#/, '')}</span>
+                          ))}
+                          {campaignTags.length > 6 && (
+                            <button
+                              type="button"
+                              className="cdm-tag-more"
+                              onClick={() => setShowAllDetailsTags(!showAllDetailsTags)}
+                            >
+                              {showAllDetailsTags ? 'Show less' : `+${campaignTags.length - 6} more`}
+                            </button>
+                          )}
                         </div>
-                        <p style={{ margin: '0 0 10px 0', fontSize: '0.8rem', color: 'var(--text-muted)', lineHeight: '1.45' }}>
-                          Ground-level photographic verification uploaded by {camp.orgName || 'the accredited NGO'} documenting disaster severity.
-                        </p>
+                      )}
+                    </div>
+
+                    {/* About / Humanitarian Scope */}
+                    <div className="cdm-section">
+                      <div className="cdm-section-head">
+                        <h3 className="cdm-section-title">About this campaign</h3>
+                      </div>
+                      <p className="cdm-prose">{audit.description}</p>
+
+                      {audit.documentUrl && (
+                        <a
+                          href={audit.documentUrl.startsWith('http') ? audit.documentUrl : `https://${audit.documentUrl}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="cdm-doc-link"
+                        >
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+                            <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#10b981' }}>verified</span>
+                            <span>Official Verification Document / Press Release</span>
+                          </span>
+                          <span className="material-symbols-outlined" style={{ fontSize: '15px', color: 'var(--text-muted)' }}>north_east</span>
+                        </a>
+                      )}
+                    </div>
+
+                    {/* Field Evidence Photos */}
+                    {modalDisasterPhotos.length > 0 && (
+                      <div className="cdm-section">
+                        <div className="cdm-section-head">
+                          <h3 className="cdm-section-title">Field evidence</h3>
+                          <span className="cdm-section-meta">{modalDisasterPhotos.length} photo{modalDisasterPhotos.length === 1 ? '' : 's'}</span>
+                        </div>
                         <div className="bbdrts-details-evidence-grid">
                           {(() => {
                             const maxGrid = 6;
@@ -7569,7 +7483,7 @@ export default function CampaignCard(props) {
                                   key={pIdx}
                                   className={`bbdrts-evidence-thumb-container ${isOverflow ? 'is-overflow' : ''}`}
                                   onClick={() => setActiveEvidenceImg(imgUrl)}
-                                  title={isOverflow ? `+${overflowCount} more photo${overflowCount > 1 ? 's' : ''}` : `Click to view field photo ${pIdx + 1}`}
+                                  title={isOverflow ? `+${overflowCount} more` : `View photo ${pIdx + 1}`}
                                   style={{ position: 'relative' }}
                                 >
                                   <img src={imgUrl} alt={`Field evidence ${pIdx + 1}`} className="bbdrts-evidence-thumb" />
@@ -7588,260 +7502,227 @@ export default function CampaignCard(props) {
                         </div>
                       </div>
                     )}
-                  </div>
 
-                  {/* Right Column: Ground Deployment Audit & Proof of Fund Allocation */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                    {/* Ground Deployment Audit */}
-                    <div className="bbdrts-section-card">
-                      <div className="bbdrts-section-card-header">
-                        <h4 className="bbdrts-section-card-title">
-                          <span className="material-symbols-outlined" style={{ fontSize: '16px', color: 'var(--text-muted)' }}>location_on</span>
-                          <span>Ground deployment</span>
-                        </h4>
-                        <span className="bbdrts-section-card-badge is-verified">GPS pinned</span>
-                      </div>
-
-                      {/* Interactive Leaflet Map View with Layer Controls */}
-                      <div className="bbdrts-details-map-frame">
-                        <LocationMapPicker
-                          address={audit.region}
-                          gps={audit.gps}
-                          readOnly={true}
-                          allowLayerSwitch={true}
-                          height="230px"
-                          hideTip={true}
-                          theme={activeTheme}
-                        />
-                      </div>
-
-                      {/* Map Quick Action Buttons (Google Maps + Copy GPS + Etherscan) */}
-                      <div className="bbdrts-details-map-actions">
-                        <a
-                          href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(audit.gps || audit.region)}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="bbdrts-details-map-btn"
-                          title="Open location in Google Maps"
-                        >
-                          <span className="material-symbols-outlined" style={{ fontSize: '15px', color: '#ea4335' }}>open_in_new</span>
-                          <span>Google Maps</span>
-                        </a>
-
-                        {audit.gps && (
-                          <button
-                            type="button"
-                            className="bbdrts-details-map-btn"
-                            onClick={() => {
-                              if (navigator.clipboard) {
-                                navigator.clipboard.writeText(audit.gps);
-                                showSuccess(`Coordinates copied to clipboard: ${audit.gps}`, 'GPS Copied');
-                              }
-                            }}
-                            title="Copy GPS coordinates"
-                          >
-                            <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>content_copy</span>
-                            <span>Copy GPS</span>
-                          </button>
-                        )}
-
-                        {camp.contractAddress && (
-                          <a
-                            href={`https://sepolia.etherscan.io/address/${camp.contractAddress}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="bbdrts-details-map-btn"
-                            title="View Escrow on Sepolia Etherscan"
-                          >
-                            <span className="material-symbols-outlined" style={{ fontSize: '15px', color: '#10b981' }}>receipt_long</span>
-                            <span>Etherscan</span>
-                          </a>
-                        )}
-                      </div>
-
-                      {/* Logistics Key-Value Rows */}
-                      <div className="bbdrts-details-logistics">
-                        <div className="bbdrts-details-logistics-item">
-                          <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#ef4444', marginTop: '2px', flexShrink: 0 }}>pin_drop</span>
-                          <div className="bbdrts-details-logistics-text">
-                            {audit.region}
-                          </div>
-                        </div>
-
-                        {audit.gps && (
-                          <div className="bbdrts-details-logistics-item">
-                            <span className="material-symbols-outlined" style={{ fontSize: '16px', color: 'var(--text-muted)', flexShrink: 0 }}>radar</span>
-                            <div>
-                              <span style={{ color: '#10b981', fontWeight: 700, fontFamily: 'var(--font-mono, monospace)', fontSize: '0.8rem' }}>
-                                {audit.gps}
-                              </span>
-                            </div>
-                          </div>
-                        )}
-
-                        {audit.beneficiaries && (
-                          <div className="bbdrts-details-logistics-item">
-                            <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#10b981', marginTop: '2px', flexShrink: 0 }}>groups</span>
-                            <div style={{ color: 'var(--text-secondary)', lineHeight: 1.35 }}>
-                              <strong style={{ color: '#10b981' }}>{audit.beneficiaries}</strong>
-                            </div>
-                          </div>
-                        )}
-
-                        {audit.contact && (
-                          <div className="bbdrts-details-logistics-item">
-                            <span className="material-symbols-outlined" style={{ fontSize: '16px', color: 'var(--text-muted)', flexShrink: 0 }}>call</span>
-                            <div style={{ color: 'var(--text-muted)', fontSize: '0.78rem' }}>
-                              Response Desk: <strong style={{ color: 'var(--text-primary)' }}>{formatPhoneNumber(audit.contact)}</strong>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Proof of Fund Allocation */}
+                    {/* Fund Allocation Breakdown */}
                     {audit.allocations && Array.isArray(audit.allocations) && audit.allocations.length > 0 && (() => {
                       const totalAllocTarget = camp.targetAmountPhp || camp.target_amount_php || (parseFloat(camp.targetAmount || 0) * 170000);
                       return (
-                        <div className="bbdrts-section-card">
-                          <div className="bbdrts-section-card-header">
-                            <h4 className="bbdrts-section-card-title">
-                              <span className="material-symbols-outlined" style={{ fontSize: '16px', color: 'var(--text-muted)' }}>pie_chart</span>
-                              <span>Fund allocation</span>
-                            </h4>
-                            <span className="bbdrts-section-card-badge">Breakdown</span>
+                        <div className="cdm-section">
+                          <div className="cdm-section-head">
+                            <h3 className="cdm-section-title">Fund allocation</h3>
+                            <span className="cdm-section-meta">Planned disbursement</span>
                           </div>
-
-                          <div className="bbdrts-details-allocations">
+                          <div className="cdm-alloc-list">
                             {audit.allocations.map((item, idx) => {
                               const cleanLabel = (item.label || '').replace(/[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]/gu, '').trim();
                               const itemPhp = (totalAllocTarget * (item.pct / 100)).toLocaleString('en-US', { maximumFractionDigits: 0 });
                               return (
                                 <div key={idx}>
-                                  <div className="bbdrts-details-alloc-row">
-                                    <span className="bbdrts-details-alloc-label">{cleanLabel}</span>
-                                    <span className="bbdrts-details-alloc-val">
+                                  <div className="cdm-alloc-row">
+                                    <span className="cdm-alloc-label">{cleanLabel}</span>
+                                    <span className="cdm-alloc-val">
                                       <strong>₱{itemPhp}</strong> ({item.pct}%)
                                     </span>
                                   </div>
-                                  <div className="bbdrts-details-alloc-track">
-                                    <div className="bbdrts-details-alloc-fill" style={{ width: `${item.pct}%` }} />
+                                  <div className="cdm-alloc-track">
+                                    <div className="cdm-alloc-fill" style={{ width: `${item.pct}%` }} />
                                   </div>
                                 </div>
                               );
                             })}
                           </div>
-
-                          {/* Operational Policy Disclosures */}
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '6px' }}>
-                            <div className="bbdrts-details-policy-box">
-                              <div className="bbdrts-details-policy-title">
-                                <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>savings</span>
-                                <span>Surplus Reserve Policy</span>
-                              </div>
-                              <p className="bbdrts-details-policy-desc">
-                                Contributions exceeding 100% roll over into the <strong>Calamity Response Reserve Fund</strong> for emergency relief and unbudgeted operations.
-                              </p>
-                            </div>
-
-                            <div className="bbdrts-details-policy-box">
-                              <div className="bbdrts-details-policy-title" style={{ color: '#0ea5e9' }}>
-                                <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>priority_high</span>
-                                <span>Partial Funding Priority Rule</span>
-                              </div>
-                              <p className="bbdrts-details-policy-desc">
-                                If the timeline concludes before reaching full target, accumulated funds are immediately disbursed to <strong>immediate survival necessities (food rations, drinking water & medical aid)</strong> first.
-                              </p>
-                            </div>
+                          <div className="cdm-policy-note">
+                            <div><strong>Surplus reserve:</strong> Funds above 100% roll into the Calamity Response Reserve Fund for emergency needs.</div>
+                            <div><strong>Partial funding rule:</strong> If a drive closes early, funds prioritize immediate food, water, and medical essentials first.</div>
                           </div>
                         </div>
                       );
                     })()}
                   </div>
-                </div>
-              </div>
 
-              {/* ── 3. Modal Actions Sticky Footer ── */}
-              <div className="bbdrts-details-footer">
-                <button
-                  type="button"
-                  className="bbdrts-details-btn-close"
-                  onClick={() => setDetailsOpen(false)}
-                >
-                  <span>Close</span>
-                </button>
+                  {/* RIGHT: Sticky Funding Summary, Primary CTA & Interactive Ground Map */}
+                  <aside className="cdm-rail">
+                    {/* Funding Hero + CTA */}
+                    <div className="cdm-funding-block">
+                      <div className="cdm-raised-row">
+                        <span className="cdm-raised-amount">₱{currentPhp}</span>
+                        <span className="cdm-raised-pct">{progressPercent}% funded</span>
+                      </div>
+                      <div className="cdm-goal-line">
+                        raised of <strong>₱{targetPhp}</strong> goal
+                      </div>
+                      <div className="cdm-progress-track" title={`Funded: ${progressPercent}% of target`}>
+                        <div className="cdm-progress-fill" style={{ width: `${Math.min(100, Math.max(0, parseFloat(progressPercent) || 0))}%` }} />
+                      </div>
 
-                <div className="bbdrts-footer-actions-right">
-                  {(camp.disbursementStatus === 'DISBURSED' || (camp.disbursedAmountPhp || 0) > 0) && (
-                    <button
-                      type="button"
-                      className="bbdrts-details-btn-close"
-                      onClick={() => {
-                        setDetailsOpen(false);
-                        setProofModalOpen(true);
-                      }}
-                    >
-                      <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#10b981' }}>verified</span>
-                      <span>View Relief Proof</span>
-                    </button>
-                  )}
+                      <div className="cdm-facts-grid">
+                        <div className="cdm-fact">
+                          <span className="cdm-fact-label">Community backers</span>
+                          <span className="cdm-fact-val">
+                            {breakdown.totalBackers > 0 ? `${breakdown.totalBackers} ${breakdown.totalBackers === 1 ? 'backer' : 'backers'}` : '0 backers'}
+                          </span>
+                        </div>
+                        <div className="cdm-fact">
+                          <span className="cdm-fact-label">Target delivery</span>
+                          <span className="cdm-fact-val">{formattedDeliveryDate || audit.targetDate || 'Active'}</span>
+                        </div>
+                      </div>
+                    </div>
 
-                  {isOwner ? (
-                    <>
-                      <button
-                        type="button"
-                        className="bbdrts-details-btn-close"
-                        onClick={() => {
-                          setDetailsOpen(false);
-                          setEditModalOpen(true);
-                        }}
-                      >
-                        <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>edit</span>
-                        <span>Edit Details</span>
-                      </button>
-                      <button
-                        type="button"
-                        className="bbdrts-details-btn-primary"
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          if (isDisbursementsMaintenance) {
-                            showWarning(
-                              `Fund disbursement is temporarily paused for scheduled maintenance (${maintState?.title || 'System Maintenance'}). Escrow vault is safely locked.`,
-                              'Maintenance Active'
-                            );
-                            return;
-                          }
-                          setDetailsOpen(false);
-                          setDisburseModalOpen(true);
-                        }}
-                        style={isDisbursementsMaintenance ? { opacity: 0.55, cursor: 'not-allowed' } : undefined}
-                        title={isDisbursementsMaintenance ? 'Disbursement paused for maintenance' : 'Disburse raised funds and upload distribution photos / official receipts'}
-                      >
-                        <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>
-                          {isDisbursementsMaintenance ? 'construction' : 'local_shipping'}
-                        </span>
-                        <span>{isDisbursementsMaintenance ? 'Disbursement Paused' : 'Disburse & Upload Proof'}</span>
-                      </button>
-                    </>
-                  ) : canDonate ? (
-                    <button
-                      type="button"
-                      className="bbdrts-details-btn-primary"
-                      onClick={() => {
-                        setDetailsOpen(false);
-                        setDonateStep(0);
-                        setCustomMsg('');
-                        setTxHash('');
-                        setIsAnonymous(false);
-                        setLegalConfirm(false);
-                        setModalOpen(true);
-                      }}
-                    >
-                      <span>Donate to Campaign</span>
-                      <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>arrow_forward</span>
-                    </button>
-                  ) : null}
+                    {/* Primary & Role Actions */}
+                    <div className="cdm-actions">
+                      {isOwner ? (
+                        <>
+                          <button
+                            type="button"
+                            className="cdm-btn-primary"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              if (isDisbursementsMaintenance) {
+                                showWarning(
+                                  `Fund disbursement is temporarily paused for scheduled maintenance (${maintState?.title || 'System Maintenance'}). Escrow vault is safely locked.`,
+                                  'Maintenance Active'
+                                );
+                                return;
+                              }
+                              setDetailsOpen(false);
+                              setDisburseModalOpen(true);
+                            }}
+                            style={isDisbursementsMaintenance ? { opacity: 0.55, cursor: 'not-allowed' } : undefined}
+                          >
+                            <span className="material-symbols-outlined" style={{ fontSize: '17px' }}>
+                              {isDisbursementsMaintenance ? 'construction' : 'local_shipping'}
+                            </span>
+                            <span>{isDisbursementsMaintenance ? 'Disbursement Paused' : 'Disburse & Upload Proof'}</span>
+                          </button>
+                          <button
+                            type="button"
+                            className="cdm-btn-secondary"
+                            onClick={() => {
+                              setDetailsOpen(false);
+                              setEditModalOpen(true);
+                            }}
+                          >
+                            <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>edit</span>
+                            <span>Edit Campaign Details</span>
+                          </button>
+                        </>
+                      ) : canDonate ? (
+                        <button
+                          type="button"
+                          className="cdm-btn-primary"
+                          onClick={() => {
+                            setDetailsOpen(false);
+                            setDonateStep(0);
+                            setCustomMsg('');
+                            setTxHash('');
+                            setIsAnonymous(false);
+                            setLegalConfirm(false);
+                            setModalOpen(true);
+                          }}
+                        >
+                          <span>Donate to Campaign</span>
+                          <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>arrow_forward</span>
+                        </button>
+                      ) : null}
+
+                      {(camp.disbursementStatus === 'DISBURSED' || (camp.disbursedAmountPhp || 0) > 0) && (
+                        <button
+                          type="button"
+                          className="cdm-btn-secondary"
+                          onClick={() => {
+                            setDetailsOpen(false);
+                            setProofModalOpen(true);
+                          }}
+                        >
+                          <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#10b981' }}>verified</span>
+                          <span>View Relief Proof</span>
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Ground Deployment Map */}
+                    <div className="cdm-rail-section">
+                      <div className="cdm-section-head">
+                        <h3 className="cdm-section-title">Ground location</h3>
+                        <span className="cdm-section-meta">GPS verified</span>
+                      </div>
+
+                      <div className="cdm-map-wrap">
+                        <LocationMapPicker
+                          address={audit.region}
+                          gps={audit.gps}
+                          readOnly={true}
+                          allowLayerSwitch={true}
+                          height="196px"
+                          hideTip={true}
+                          theme={activeTheme}
+                        />
+                      </div>
+
+                      <div className="cdm-address-text">{audit.region}</div>
+                      {audit.gps && <div className="cdm-gps-line">{audit.gps}</div>}
+
+                      <div className="cdm-map-links">
+                        <a
+                          href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(audit.gps || audit.region)}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="cdm-chip-btn"
+                        >
+                          <span>Google Maps</span>
+                          <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>north_east</span>
+                        </a>
+                        {audit.gps && (
+                          <button
+                            type="button"
+                            className="cdm-chip-btn"
+                            onClick={() => {
+                              if (navigator.clipboard) {
+                                navigator.clipboard.writeText(audit.gps);
+                                showSuccess(`Coordinates copied: ${audit.gps}`, 'GPS Copied');
+                              }
+                            }}
+                          >
+                            <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>content_copy</span>
+                            <span>Copy GPS</span>
+                          </button>
+                        )}
+                        {camp.contractAddress && (
+                          <a
+                            href={`https://sepolia.etherscan.io/address/${camp.contractAddress}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="cdm-chip-btn"
+                          >
+                            <span>Etherscan</span>
+                            <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>north_east</span>
+                          </a>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Beneficiaries & Response Desk */}
+                    {(audit.beneficiaries || audit.contact) && (
+                      <div className="cdm-rail-section">
+                        <div className="cdm-detail-rows">
+                          {audit.beneficiaries && (
+                            <div className="cdm-detail-row">
+                              <span className="cdm-detail-key">Target impact</span>
+                              <span className="cdm-detail-val">{audit.beneficiaries}</span>
+                            </div>
+                          )}
+                          {audit.contact && (
+                            <div className="cdm-detail-row">
+                              <span className="cdm-detail-key">Response desk</span>
+                              <span className="cdm-detail-val">{formatPhoneNumber(audit.contact)}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </aside>
                 </div>
               </div>
 
