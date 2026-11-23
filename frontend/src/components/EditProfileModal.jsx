@@ -775,12 +775,14 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
     }
     setIsProcessingQr(true);
     try {
-      const { croppedUrl } = await autoCropQrScreenshot(file);
-      setDraftQrImage(croppedUrl);
+      const cropResult = await autoCropQrScreenshot(file);
+      setDraftQrImage(cropResult.croppedUrl);
       try {
-        const { detectedName, detectedNumber } = await extractQrVoucherText(croppedUrl);
+        const { detectedName, detectedNumber, isMaskedNumber } = await extractQrVoucherText(cropResult);
         if (detectedName) setDraftQrAcctName(detectedName);
-        if (detectedNumber) setDraftQrAcctNum(channel === 'Bank' ? detectedNumber : formatPhMobileDisplay(detectedNumber));
+        if (detectedNumber && (!isMaskedNumber || !draftQrAcctNum)) {
+          setDraftQrAcctNum(channel === 'Bank' ? detectedNumber : (isMaskedNumber ? detectedNumber : formatPhMobileDisplay(detectedNumber)));
+        }
       } catch (_) {}
     } catch (_) {
       const reader = new FileReader();
@@ -922,27 +924,28 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
     showSuccess(`Analyzing ${channelName} image & auto-cropping voucher...`, 'Processing QR');
 
     try {
-      const { croppedUrl, wasCropped } = await autoCropQrScreenshot(file);
+      const cropResult = await autoCropQrScreenshot(file);
+      const { croppedUrl, wasCropped } = cropResult;
       setter(croppedUrl);
 
-      // Run OCR recipient detection on cropped QR voucher card
+      // Run EMVCo + OCR recipient detection on pre-crop text strip
       try {
-        const { detectedName, detectedNumber } = await extractQrVoucherText(croppedUrl);
+        const { detectedName, detectedNumber, isMaskedNumber } = await extractQrVoucherText(cropResult);
         if (channelName === 'GCash') {
-          if (detectedName && !gcashName) setGcashName(detectedName);
-          if (detectedNumber && !gcashNumber) setGcashNumber(formatPhoneNumber(detectedNumber));
+          if (detectedName) setGcashName(detectedName);
+          if (detectedNumber && (!isMaskedNumber || !gcashNumber)) setGcashNumber(isMaskedNumber ? detectedNumber : formatPhoneNumber(detectedNumber));
         } else if (channelName === 'Maya') {
-          if (detectedName && !mayaName) setMayaName(detectedName);
-          if (detectedNumber && !mayaNumber) setMayaNumber(formatPhoneNumber(detectedNumber));
+          if (detectedName) setMayaName(detectedName);
+          if (detectedNumber && (!isMaskedNumber || !mayaNumber)) setMayaNumber(isMaskedNumber ? detectedNumber : formatPhoneNumber(detectedNumber));
         } else if (channelName === 'Bank') {
-          if (detectedName && !bankAccountName) setBankAccountName(detectedName);
-          if (detectedNumber && !bankAccountNumber) setBankAccountNumber(formatPhoneNumber(detectedNumber));
+          if (detectedName) setBankAccountName(detectedName);
+          if (detectedNumber && (!isMaskedNumber || !bankAccountNumber)) setBankAccountNumber(isMaskedNumber ? detectedNumber : formatPhoneNumber(detectedNumber));
         }
 
-        if (wasCropped && (detectedName || detectedNumber)) {
-          showSuccess(`Clean ${channelName} voucher cropped and account details auto-extracted via OCR!`, 'Smart QR Auto-Cropped');
+        if (detectedName) {
+          showSuccess(`Pure ${channelName} QR extracted · Recipient detected: ${detectedName}`, 'QR & Recipient Ready');
         } else if (wasCropped) {
-          showSuccess(`Clean ${channelName} QR voucher extracted (mobile screenshot background cropped)!`, 'Smart QR Auto-Cropped');
+          showSuccess(`Pure ${channelName} QR code extracted cleanly!`, 'QR Extracted');
         } else {
           showSuccess(`${channelName} QR Code attached successfully!`, 'QR Uploaded');
         }

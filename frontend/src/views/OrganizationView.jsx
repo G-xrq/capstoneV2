@@ -1046,24 +1046,29 @@ export default function OrganizationView({
     }
 
     try {
-      showSuccess('Analyzing QR screenshot & cropping card...', 'Processing QR');
-      const { croppedUrl, wasCropped } = await autoCropQrScreenshot(file);
+      showSuccess('Extracting pure GCash QR code & recipient details...', 'Processing QR');
+      const cropResult = await autoCropQrScreenshot(file);
+      const { croppedUrl, wasCropped } = cropResult;
       setGcashQrUrl(croppedUrl);
 
-      if (wasCropped) {
-        showSuccess('Clean GCash QR card extracted without outer blue background!', 'QR Cropped Cleanly');
-        // Extract Name and Number from the cropped QR card
-        try {
-          const { detectedName, detectedNumber } = await extractQrVoucherText(croppedUrl);
-          if (detectedName && !gcashName) {
-            setGcashName(detectedName);
-          }
-          if (detectedNumber && !gcashNumber) {
-            setGcashNumber(formatPhoneNumber(detectedNumber));
-          }
-        } catch (_) { }
-      } else {
-        showSuccess('GCash QR Code uploaded successfully!', 'QR Code Attached');
+      // Always extract Recipient Name & Number from the pre-crop text strip / EMVCo Tag 59
+      try {
+        const { detectedName, detectedNumber, isMaskedNumber } = await extractQrVoucherText(cropResult);
+        if (detectedName) {
+          setGcashName(detectedName);
+        }
+        if (detectedNumber && (!isMaskedNumber || !gcashNumber)) {
+          setGcashNumber(isMaskedNumber ? detectedNumber : formatPhoneNumber(detectedNumber));
+        }
+        if (detectedName) {
+          showSuccess(`Pure GCash QR extracted · Recipient detected: ${detectedName}`, 'QR & Recipient Ready');
+        } else if (wasCropped) {
+          showSuccess('Clean GCash QR code extracted cleanly!', 'QR Extracted');
+        } else {
+          showSuccess('GCash QR Code uploaded successfully!', 'QR Code Attached');
+        }
+      } catch (_) {
+        showSuccess(wasCropped ? 'Clean GCash QR code extracted cleanly!' : 'GCash QR Code uploaded successfully!', 'QR Code Attached');
       }
     } catch (err) {
       console.warn('QR upload error:', err);
@@ -1082,17 +1087,25 @@ export default function OrganizationView({
     }
 
     try {
-      const { croppedUrl, wasCropped } = await autoCropQrScreenshot(file);
+      showSuccess('Extracting pure Maya QR code & recipient details...', 'Processing QR');
+      const cropResult = await autoCropQrScreenshot(file);
+      const { croppedUrl, wasCropped } = cropResult;
       setMayaQrUrl(croppedUrl);
-      if (wasCropped) {
-        showSuccess('Clean Maya QR card extracted without outer screenshot background!', 'QR Cropped Cleanly');
-        try {
-          const { detectedName, detectedNumber } = await extractQrVoucherText(croppedUrl);
-          if (detectedName && !mayaName) setMayaName(detectedName);
-          if (detectedNumber && !mayaNumber) setMayaNumber(formatPhoneNumber(detectedNumber));
-        } catch (_) { }
-      } else {
-        showSuccess('Maya QR Code uploaded successfully!', 'QR Code Attached');
+      try {
+        const { detectedName, detectedNumber, isMaskedNumber } = await extractQrVoucherText(cropResult);
+        if (detectedName) setMayaName(detectedName);
+        if (detectedNumber && (!isMaskedNumber || !mayaNumber)) {
+          setMayaNumber(isMaskedNumber ? detectedNumber : formatPhoneNumber(detectedNumber));
+        }
+        if (detectedName) {
+          showSuccess(`Pure Maya QR extracted · Recipient detected: ${detectedName}`, 'QR & Recipient Ready');
+        } else if (wasCropped) {
+          showSuccess('Clean Maya QR code extracted cleanly!', 'QR Extracted');
+        } else {
+          showSuccess('Maya QR Code uploaded successfully!', 'QR Code Attached');
+        }
+      } catch (_) {
+        showSuccess(wasCropped ? 'Clean Maya QR code extracted cleanly!' : 'Maya QR Code uploaded successfully!', 'QR Code Attached');
       }
     } catch (err) {
       console.warn('Maya QR upload error:', err);
@@ -1102,19 +1115,33 @@ export default function OrganizationView({
     }
   };
 
-  const handleBankQrUpload = (e) => {
+  const handleBankQrUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
     if (!file.type.startsWith('image/')) {
       showWarning('Please upload a valid image file (PNG, JPG, WebP).', 'Invalid File');
       return;
     }
-    const reader = new FileReader();
-    reader.onload = (uploadEvent) => {
-      setBankQrUrl(uploadEvent.target.result);
-      showSuccess('Bank Transfer QR Code uploaded successfully!', 'QR Code Attached');
-    };
-    reader.readAsDataURL(file);
+    try {
+      const cropResult = await autoCropQrScreenshot(file);
+      setBankQrUrl(cropResult.croppedUrl);
+      try {
+        const { detectedName } = await extractQrVoucherText(cropResult);
+        if (detectedName) {
+          setBankAccountName(detectedName);
+          showSuccess(`Pure Bank QR extracted · Account holder detected: ${detectedName}`, 'QR & Recipient Ready');
+          return;
+        }
+      } catch (_) {}
+      showSuccess(cropResult.wasCropped ? 'Clean Bank QR code extracted!' : 'Bank Transfer QR Code uploaded successfully!', 'QR Code Attached');
+    } catch (_) {
+      const reader = new FileReader();
+      reader.onload = (uploadEvent) => {
+        setBankQrUrl(uploadEvent.target.result);
+        showSuccess('Bank Transfer QR Code uploaded successfully!', 'QR Code Attached');
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   // ── Disaster Aftermath & Ground Evidence Photos State ──

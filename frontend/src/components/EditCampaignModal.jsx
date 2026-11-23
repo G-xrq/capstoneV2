@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { API_URL } from '../config';
 import { useToast } from '../context/ToastContext';
 import { formatPhoneNumber, cleanPhoneNumber } from '../utils/formatters';
-import { autoCropQrScreenshot } from '../utils/qrCropper';
+import { autoCropQrScreenshot, extractQrVoucherText } from '../utils/qrCropper';
 import { getRegions, getRegionForProvince } from '../data/philippineGeoData';
 import LocationMapPicker from './LocationMapPicker';
 import BarangayCombobox from './BarangayCombobox';
@@ -411,12 +411,31 @@ export default function EditCampaignModal({ camp, isOpen, onClose, onSaved }) {
 
     setUploadingQrRail(rail);
     try {
-      const croppedUrl = await autoCropQrScreenshot(file);
-      if (rail === 'GCash') setGcashQrUrl(croppedUrl);
-      else if (rail === 'Maya') setMayaQrUrl(croppedUrl);
-      else if (rail === 'Bank') setBankQrUrl(croppedUrl);
+      const cropResult = await autoCropQrScreenshot(file);
+      const cleanQr = cropResult?.croppedUrl || cropResult;
+      if (rail === 'GCash') setGcashQrUrl(cleanQr);
+      else if (rail === 'Maya') setMayaQrUrl(cleanQr);
+      else if (rail === 'Bank') setBankQrUrl(cleanQr);
 
-      showSuccess(`Successfully cropped and attached ${rail} QR code!`, 'QR Code Ready');
+      try {
+        const { detectedName, detectedNumber, isMaskedNumber } = await extractQrVoucherText(cropResult);
+        if (rail === 'GCash') {
+          if (detectedName) setGcashName(detectedName);
+          if (detectedNumber && (!isMaskedNumber || !gcashNumber)) setGcashNumber(detectedNumber);
+        } else if (rail === 'Maya') {
+          if (detectedName) setMayaName(detectedName);
+          if (detectedNumber && (!isMaskedNumber || !mayaNumber)) setMayaNumber(detectedNumber);
+        } else if (rail === 'Bank') {
+          if (detectedName) setBankAccountName(detectedName);
+        }
+        if (detectedName) {
+          showSuccess(`Pure ${rail} QR extracted · Recipient detected: ${detectedName}`, 'QR & Recipient Ready');
+        } else {
+          showSuccess(`Successfully extracted pure ${rail} QR code!`, 'QR Code Ready');
+        }
+      } catch (_) {
+        showSuccess(`Successfully extracted pure ${rail} QR code!`, 'QR Code Ready');
+      }
     } catch (_) {
       const reader = new FileReader();
       reader.onload = (ev) => {

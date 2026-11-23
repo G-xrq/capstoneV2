@@ -942,22 +942,25 @@ export default function SettingsPanel({
     showSuccess('Analyzing screenshot & auto-cropping QR matrix...', 'Processing Image');
 
     try {
-      const { croppedUrl, wasCropped } = await autoCropQrScreenshot(file);
+      const cropResult = await autoCropQrScreenshot(file);
+      const { croppedUrl, wasCropped } = cropResult;
       setNewQrImage(croppedUrl);
 
       setIsOcrExtracting(true);
-      setCropFeedback('Running OCR recipient text recognition...');
+      setCropFeedback('Extracting recipient details from QR...');
       try {
-        const { detectedName, detectedNumber } = await extractQrVoucherText(croppedUrl);
+        const { detectedName, detectedNumber, isMaskedNumber } = await extractQrVoucherText(cropResult);
         if (detectedName) setNewQrAccountName(detectedName);
-        if (detectedNumber) setNewQrAccountNumber(formatPhoneNumber(detectedNumber));
+        if (detectedNumber && (!isMaskedNumber || !newQrAccountNumber)) {
+          setNewQrAccountNumber(isMaskedNumber ? detectedNumber : formatPhoneNumber(detectedNumber));
+        }
 
-        if (wasCropped && (detectedName || detectedNumber)) {
-          setCropFeedback('Clean QR voucher card cropped (outer background removed) & recipient credentials detected!');
-          showSuccess('Clean QR card cropped and account info detected via OCR!', 'Smart QR Processed');
+        if (detectedName) {
+          setCropFeedback(`Pure QR code extracted & recipient detected: ${detectedName}`);
+          showSuccess(`Pure QR extracted · Recipient detected: ${detectedName}`, 'Smart QR Processed');
         } else if (wasCropped) {
-          setCropFeedback('Clean QR voucher card cropped (outer background removed).');
-          showSuccess('Clean QR voucher card cropped!', 'Smart QR Cropped');
+          setCropFeedback('Pure QR code extracted cleanly.');
+          showSuccess('Pure QR code extracted cleanly!', 'Smart QR Cropped');
         } else {
           setCropFeedback('QR code image attached.');
         }

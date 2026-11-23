@@ -2566,7 +2566,7 @@
 
 .dt7-left {
   padding: 18px 20px;
-  justify-content: space-between;
+  justify-content: flex-start;
   background: #060606;
   border-right: 1px solid #1f1f1f;
   display: flex;
@@ -2594,7 +2594,7 @@
 
 .dt7-right {
   padding: 18px 22px;
-  justify-content: space-between;
+  justify-content: flex-start;
   background: #0a0a0a;
   display: flex;
   flex-direction: column;
@@ -2722,6 +2722,132 @@
 
 .dt7-details-table {
   width: 100%;
+  margin-top: auto;
+}
+
+.dt7-qr-frame {
+  padding: 8px;
+}
+
+.dt7-qr-paper {
+  background: #ffffff;
+  border: 1px solid #e4e4e7;
+  border-radius: 12px;
+  padding: 10px 11px 11px;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.36);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: 204px;
+  box-sizing: border-box;
+}
+
+[data-theme="light"] .dt7-qr-paper {
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.08);
+}
+
+.dt7-qr-paper-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  width: 100%;
+  padding-bottom: 7px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.dt7-qr-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+}
+
+.dt7-qr-brand-badge {
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
+  background: #007dfe;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 900;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.dt7-qr-brand-badge.is-maya {
+  background: #09090b;
+  color: #00d68f;
+  font-size: 10px;
+}
+
+.dt7-qr-brand-name {
+  font-size: 0.67rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: #09090b;
+  white-space: nowrap;
+}
+
+.dt7-qr-verified-chip {
+  font-size: 0.56rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #15803d;
+  background: rgba(16, 185, 129, 0.12);
+  padding: 2px 6px;
+  border-radius: 999px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.dt7-qr-matrix-box {
+  width: 178px;
+  height: 178px;
+  border-radius: 6px;
+  overflow: hidden;
+  background: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dt7-qr-matrix-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+.dt7-recipient-val {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 5px;
+  min-width: 0;
+  max-width: 195px;
+}
+
+.dt7-recipient-name {
+  font-weight: 600;
+  color: #ffffff;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+[data-theme="light"] .dt7-recipient-name {
+  color: #09090b;
+}
+
+.dt7-recipient-check {
+  font-size: 14px !important;
+  color: #10b981;
+  flex-shrink: 0;
 }
 
 .dt7-strong-num {
@@ -2835,20 +2961,215 @@
   color: #71717a;
 }
 
-/* Attached Receipt Preview Row */
+/* Attached Receipt Preview Row + Live AI Scanner Animation */
 .dt7-receipt-card {
+  position: relative;
+  overflow: hidden;
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 11px 12px;
+  gap: 13px;
+  padding: 12px 13px;
   border-radius: 10px;
   background: #060606;
   border: 1px solid #262626;
+  transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
 }
 
 [data-theme="light"] .dt7-receipt-card {
   background: #fafafa;
   border-color: #e4e4e7;
+}
+
+.dt7-receipt-card.is-scanning {
+  border-color: rgba(16, 185, 129, 0.45);
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.06) 0%, rgba(56, 189, 248, 0.04) 55%, #060606 100%);
+  box-shadow: 0 0 0 1px rgba(16, 185, 129, 0.14), 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+[data-theme="light"] .dt7-receipt-card.is-scanning {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.07) 0%, rgba(56, 189, 248, 0.05) 60%, #ffffff 100%);
+  box-shadow: 0 4px 16px rgba(16, 185, 129, 0.08);
+}
+
+.dt7-receipt-card.is-verified {
+  border-color: rgba(16, 185, 129, 0.35);
+}
+
+.dt7-receipt-card.is-err {
+  border-color: rgba(239, 68, 68, 0.42);
+}
+
+/* Sweeping top beam on active scan */
+.dt7-scan-beam {
+  position: absolute;
+  top: 0;
+  left: -45%;
+  width: 45%;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #10b981, #38bdf8, transparent);
+  animation: dt7BeamSweep 1.35s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  pointer-events: none;
+  z-index: 4;
+}
+
+@keyframes dt7BeamSweep {
+  0% { left: -45%; }
+  100% { left: 100%; }
+}
+
+/* Thumbnail live laser scanline + viewfinder brackets */
+.dt7-receipt-thumb.is-scanning {
+  border-color: rgba(16, 185, 129, 0.55);
+  box-shadow: 0 0 14px rgba(16, 185, 129, 0.2);
+}
+
+.dt7-thumb-scanner {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.18);
+  pointer-events: none;
+  z-index: 3;
+}
+
+.dt7-thumb-laser {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 2px;
+  background: #10b981;
+  box-shadow: 0 0 8px #10b981, 0 0 16px rgba(56, 189, 248, 0.8), 0 -10px 14px rgba(16, 185, 129, 0.35);
+  animation: dt7ThumbLaser 1.6s ease-in-out infinite alternate;
+}
+
+@keyframes dt7ThumbLaser {
+  0% { top: 4px; opacity: 0.9; }
+  50% { opacity: 1; }
+  100% { top: calc(100% - 6px); opacity: 0.9; }
+}
+
+.dt7-thumb-bracket {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border-color: #10b981;
+  border-style: solid;
+}
+.dt7-thumb-bracket.tl { top: 3px; left: 3px; border-width: 1.5px 0 0 1.5px; }
+.dt7-thumb-bracket.tr { top: 3px; right: 3px; border-width: 1.5px 1.5px 0 0; }
+.dt7-thumb-bracket.bl { bottom: 3px; left: 3px; border-width: 0 0 1.5px 1.5px; }
+.dt7-thumb-bracket.br { bottom: 3px; right: 3px; border-width: 0 1.5px 1.5px 0; }
+
+/* Animated radar pulse indicator */
+.dt7-scan-radar {
+  position: relative;
+  width: 14px;
+  height: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.dt7-scan-radar-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 1.5px solid #10b981;
+  animation: dt7RadarPing 1.3s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+.dt7-scan-radar-core {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 6px #10b981;
+}
+
+@keyframes dt7RadarPing {
+  0% { transform: scale(0.65); opacity: 0.95; }
+  80%, 100% { transform: scale(1.55); opacity: 0; }
+}
+
+.dt7-scan-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #10b981;
+  box-shadow: 0 0 6px #10b981;
+  animation: dt7DotBlink 0.9s ease-in-out infinite alternate;
+}
+
+@keyframes dt7DotBlink {
+  0% { opacity: 0.35; transform: scale(0.8); }
+  100% { opacity: 1; transform: scale(1.15); }
+}
+
+.dt7-ai-tag.is-scanning {
+  border-color: rgba(16, 185, 129, 0.45);
+  color: #10b981;
+  background: rgba(16, 185, 129, 0.08);
+}
+
+.dt7-ai-tag.is-verified {
+  border-color: rgba(16, 185, 129, 0.35);
+  color: #10b981;
+  background: rgba(16, 185, 129, 0.08);
+}
+
+/* Forensic scan stage chips inside receipt card */
+.dt7-scan-pills {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 3px;
+}
+
+.dt7-scan-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  height: 19px;
+  padding: 0 7px;
+  border-radius: 999px;
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  background: rgba(16, 185, 129, 0.08);
+  border: 1px solid rgba(16, 185, 129, 0.24);
+  color: #6ee7b7;
+}
+
+[data-theme="light"] .dt7-scan-pill {
+  color: #047857;
+  background: rgba(16, 185, 129, 0.1);
+  border-color: rgba(16, 185, 129, 0.28);
+}
+
+.dt7-scan-pill .material-symbols-outlined {
+  font-size: 11px;
+}
+
+.dt7-scan-pill.is-s1 { animation: dt7ChipWave 1.5s ease-in-out 0s infinite; }
+.dt7-scan-pill.is-s2 { animation: dt7ChipWave 1.5s ease-in-out 0.3s infinite; }
+.dt7-scan-pill.is-s3 { animation: dt7ChipWave 1.5s ease-in-out 0.6s infinite; }
+
+@keyframes dt7ChipWave {
+  0%, 100% { opacity: 0.42; border-color: rgba(16, 185, 129, 0.16); }
+  50% { opacity: 1; border-color: rgba(16, 185, 129, 0.65); }
+}
+
+.dt7-input-wrap.is-scanning {
+  border-color: rgba(16, 185, 129, 0.45);
+  box-shadow: 0 0 0 1px rgba(16, 185, 129, 0.14);
+  animation: dt7InputPulse 1.4s ease-in-out infinite;
+}
+
+@keyframes dt7InputPulse {
+  0%, 100% { border-color: rgba(16, 185, 129, 0.25); }
+  50% { border-color: rgba(16, 185, 129, 0.65); }
 }
 
 .dt7-receipt-thumb {
@@ -3184,7 +3505,7 @@
   border-color: #27272a;
 }
 
-/* Balanced Recipient + Fee Summary Strip in Step 7 Right Column */
+/* Balanced Audit + Fee Summary Strip in Step 7 Right Column */
 .dt7-summary-line {
   display: flex;
   align-items: center;
@@ -3195,6 +3516,7 @@
   background: #060606;
   border: 1px solid #1f1f23;
   font-size: 0.74rem;
+  margin-top: auto;
 }
 
 [data-theme="light"] .dt7-summary-line {

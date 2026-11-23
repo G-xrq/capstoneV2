@@ -688,8 +688,8 @@ function CleanQrVoucherDisplay({ qrUrl, gatewayMethod }) {
   useEffect(() => {
     let active = true;
     if (qrUrl) {
-      autoCropQrScreenshot(qrUrl).then(res => {
-        if (active && res.wasCropped && res.croppedUrl) {
+      autoCropQrScreenshot(qrUrl).then((res) => {
+        if (active && res?.wasCropped && res?.croppedUrl) {
           setDisplayUrl(res.croppedUrl);
         } else if (active) {
           setDisplayUrl(qrUrl);
@@ -702,102 +702,28 @@ function CleanQrVoucherDisplay({ qrUrl, gatewayMethod }) {
   }, [qrUrl]);
 
   return (
-    <div
-      className="qr-ph-box"
-      style={{
-        width: '100%',
-        maxWidth: '248px',
-        margin: '0 auto',
-        textAlign: 'center',
-        padding: '12px',
-        borderRadius: '14px',
-        background: '#FFFFFF',
-        boxShadow: '0 10px 26px rgba(0,0,0,0.32)',
-        border: '1px solid #e2e8f0'
-      }}
-    >
-      {/* Single-Line Brand Header (Never Wraps) */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: '8px',
-          width: '100%',
-          paddingBottom: '8px',
-          marginBottom: '8px',
-          borderBottom: '1px solid #f1f5f9'
-        }}
-      >
-        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', minWidth: 0 }}>
-          <div
-            style={{
-              width: '22px',
-              height: '22px',
-              borderRadius: '6px',
-              background: isMaya ? '#000000' : '#007DFE',
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              flexShrink: 0
-            }}
-          >
-            {isMaya ? (
-              <span style={{ color: '#00d68f', fontWeight: 900, fontSize: '11px' }}>m</span>
-            ) : (
-              <span style={{ color: '#ffffff', fontWeight: 900, fontSize: '13px' }}>G</span>
-            )}
+    <div className="qr8-frame-wrap dt7-qr-frame">
+      <span className="qr8-corner tl" aria-hidden="true" />
+      <span className="qr8-corner tr" aria-hidden="true" />
+      <span className="qr8-corner bl" aria-hidden="true" />
+      <span className="qr8-corner br" aria-hidden="true" />
+      <div className="dt7-qr-paper">
+        <div className="dt7-qr-paper-head">
+          <div className="dt7-qr-brand">
+            <span className={`dt7-qr-brand-badge${isMaya ? ' is-maya' : ''}`}>
+              {isMaya ? 'm' : 'G'}
+            </span>
+            <span className="dt7-qr-brand-name">{(gatewayMethod || 'GCash').toUpperCase()} QR</span>
           </div>
-          <span
-            style={{
-              fontSize: '11px',
-              fontWeight: 800,
-              color: '#0f172a',
-              letterSpacing: '0.03em',
-              whiteSpace: 'nowrap'
-            }}
-          >
-            {gatewayMethod.toUpperCase()} QR
-          </span>
+          <span className="dt7-qr-verified-chip">Verified</span>
         </div>
-        <span
-          style={{
-            fontSize: '9px',
-            fontWeight: 700,
-            color: '#15803d',
-            background: 'rgba(34, 197, 94, 0.12)',
-            padding: '2px 7px',
-            borderRadius: '999px',
-            textTransform: 'uppercase',
-            letterSpacing: '0.04em',
-            whiteSpace: 'nowrap',
-            flexShrink: 0
-          }}
-        >
-          Verified
-        </span>
-      </div>
-
-      {/* Compact QR Image */}
-      <div
-        style={{
-          position: 'relative',
-          width: '100%',
-          maxHeight: '228px',
-          margin: '0 auto',
-          borderRadius: '8px',
-          overflow: 'hidden',
-          background: '#FFFFFF',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center'
-        }}
-      >
-        <img
-          src={displayUrl}
-          alt={`${gatewayMethod} Official QR`}
-          style={{ width: '100%', maxHeight: '224px', objectFit: 'contain', display: 'block' }}
-        />
+        <div className="dt7-qr-matrix-box">
+          <img
+            src={displayUrl}
+            alt={`${gatewayMethod} Official QR`}
+            className="dt7-qr-matrix-img"
+          />
+        </div>
       </div>
     </div>
   );
@@ -6734,8 +6660,18 @@ export default function CampaignCard(props) {
                           )}
                         </div>
 
-                        {/* Compact 2-Row Receiving & Alphanumeric Note Strip (Fits Above Fold) */}
+                        {/* Structured 3-Row Transfer Details Container: Recipient · Number · Note Code */}
                         <div className="qr8-meta-table dt7-details-table">
+                          <div className="qr8-meta-row">
+                            <span className="qr8-meta-k">Recipient</span>
+                            <span className="qr8-meta-v dt7-recipient-val" title={acctName || getOrgDisplayName(camp.orgAddress, camp.orgName, camp.id)}>
+                              <span className="dt7-recipient-name">
+                                {acctName || getOrgDisplayName(camp.orgAddress, camp.orgName, camp.id)}
+                              </span>
+                              <span className="material-symbols-outlined dt7-recipient-check" aria-hidden="true">verified</span>
+                            </span>
+                          </div>
+
                           <div className="qr8-meta-row">
                             <span className="qr8-meta-k">{railLabel} No.</span>
                             <span className="qr8-meta-v qr8-meta-v--actions">
@@ -6792,41 +6728,84 @@ export default function CampaignCard(props) {
                             <span className="dt7-step-num">2</span>
                             <span className="dt7-step-title">Upload Receipt &amp; Verify</span>
                           </div>
-                          <span className="dt7-ai-tag">
-                            <span className="material-symbols-outlined">auto_awesome</span>
-                            <span>AI Auto-Fill</span>
+                          <span className={`dt7-ai-tag${aiScanLoading ? ' is-scanning' : (activeAiResult?.isAiVerified && !hasHardFraud ? ' is-verified' : '')}`}>
+                            {aiScanLoading ? (
+                              <>
+                                <span className="dt7-scan-dot" aria-hidden="true" />
+                                <span>Scanning…</span>
+                              </>
+                            ) : activeAiResult?.isAiVerified && !hasHardFraud ? (
+                              <>
+                                <span className="material-symbols-outlined">verified</span>
+                                <span>AI Verified · {activeAiResult.confidenceScore}%</span>
+                              </>
+                            ) : (
+                              <>
+                                <span className="material-symbols-outlined">auto_awesome</span>
+                                <span>AI Auto-Fill</span>
+                              </>
+                            )}
                           </span>
                         </div>
 
                         {/* Upload Dropzone FIRST so AI auto-fills Amount & Ref immediately */}
                         <div>
                           {receiptBase64 ? (
-                            <div className="dt7-receipt-card">
+                            <div
+                              className={`dt7-receipt-card${
+                                aiScanLoading
+                                  ? ' is-scanning'
+                                  : hasHardFraud || (activeAiResult && (activeAiResult.isPaymentReceipt === false || activeAiResult.confidenceScore === 0))
+                                    ? ' is-err'
+                                    : activeAiResult?.isAiVerified
+                                      ? ' is-verified'
+                                      : ''
+                              }`}
+                            >
+                              {aiScanLoading && <div className="dt7-scan-beam" aria-hidden="true" />}
+
                               <div
-                                className="dt7-receipt-thumb"
+                                className={`dt7-receipt-thumb${aiScanLoading ? ' is-scanning' : ''}`}
                                 onClick={() => setPreviewReceiptModal(true)}
                                 title="Click to enlarge receipt"
                               >
                                 <img src={receiptBase64} alt="Payment receipt" />
-                                <span className="dt7-receipt-zoom">
-                                  <span className="material-symbols-outlined">zoom_in</span>
-                                </span>
+                                {aiScanLoading ? (
+                                  <div className="dt7-thumb-scanner" aria-hidden="true">
+                                    <span className="dt7-thumb-laser" />
+                                    <span className="dt7-thumb-bracket tl" />
+                                    <span className="dt7-thumb-bracket tr" />
+                                    <span className="dt7-thumb-bracket bl" />
+                                    <span className="dt7-thumb-bracket br" />
+                                  </div>
+                                ) : (
+                                  <span className="dt7-receipt-zoom">
+                                    <span className="material-symbols-outlined">zoom_in</span>
+                                  </span>
+                                )}
                               </div>
 
                               <div className="dt7-receipt-info">
                                 <div className="dt7-receipt-status-row">
-                                  <span
-                                    className="material-symbols-outlined dt7-receipt-ico"
-                                    style={{
-                                      color: (activeAiResult && (activeAiResult.isPaymentReceipt === false || activeAiResult.confidenceScore === 0))
-                                        ? '#ef4444'
-                                        : (activeAiResult?.isAiVerified
-                                            ? '#10b981'
-                                            : (aiScanLoading ? '#38bdf8' : '#a1a1aa'))
-                                    }}
-                                  >
-                                    {aiScanLoading ? 'hourglass_top' : (activeAiResult && (activeAiResult.isPaymentReceipt === false || activeAiResult.confidenceScore === 0) ? 'error' : (activeAiResult?.isAiVerified ? 'check_circle' : 'receipt_long'))}
-                                  </span>
+                                  {aiScanLoading ? (
+                                    <span className="dt7-scan-radar" aria-hidden="true">
+                                      <span className="dt7-scan-radar-ring" />
+                                      <span className="dt7-scan-radar-core" />
+                                    </span>
+                                  ) : (
+                                    <span
+                                      className="material-symbols-outlined dt7-receipt-ico"
+                                      style={{
+                                        color: (activeAiResult && (activeAiResult.isPaymentReceipt === false || activeAiResult.confidenceScore === 0)) || hasHardFraud
+                                          ? '#ef4444'
+                                          : (activeAiResult?.isAiVerified ? '#10b981' : '#a1a1aa')
+                                      }}
+                                    >
+                                      {(activeAiResult && (activeAiResult.isPaymentReceipt === false || activeAiResult.confidenceScore === 0)) || hasHardFraud
+                                        ? 'error'
+                                        : (activeAiResult?.isAiVerified ? 'check_circle' : 'receipt_long')}
+                                    </span>
+                                  )}
                                   <span className="dt7-receipt-title">
                                     {aiScanLoading
                                       ? 'Scanning receipt with AI…'
@@ -6848,11 +6827,31 @@ export default function CampaignCard(props) {
 
                                 <div className="dt7-receipt-sub">
                                   {aiScanLoading
-                                    ? 'Extracting reference number & amount…'
+                                    ? 'Reading amount, reference no. & recipient…'
                                     : activeAiResult?.receiptDate
                                       ? `Transferred ${activeAiResult.receiptDate}`
                                       : `${railLabel} payment screenshot attached`}
                                 </div>
+
+                                {aiScanLoading ? (
+                                  <div className="dt7-scan-pills" aria-label="AI inspection stages">
+                                    <span className="dt7-scan-pill is-s1">OCR</span>
+                                    <span className="dt7-scan-pill is-s2">Recipient</span>
+                                    <span className="dt7-scan-pill is-s3">Anti-Fraud</span>
+                                  </div>
+                                ) : activeAiResult?.isAiVerified && !hasHardFraud ? (
+                                  <div className="dt7-scan-pills">
+                                    <span className="dt7-scan-pill is-done">
+                                      <span className="material-symbols-outlined">check</span>Amount
+                                    </span>
+                                    <span className="dt7-scan-pill is-done">
+                                      <span className="material-symbols-outlined">check</span>Recipient
+                                    </span>
+                                    <span className="dt7-scan-pill is-done">
+                                      <span className="material-symbols-outlined">check</span>Unique Ref
+                                    </span>
+                                  </div>
+                                ) : null}
 
                                 <div className="dt7-receipt-actions">
                                   <button type="button" className="dt7-mini-btn" onClick={() => setPreviewReceiptModal(true)}>
@@ -6921,7 +6920,7 @@ export default function CampaignCard(props) {
                         <div className="dt7-fields-row">
                           <div className="dt7-field dt7-field--amt">
                             <label className="dt7-field-lbl" htmlFor="dt7-amt-input">Amount (PHP)</label>
-                            <div className="dt7-input-wrap">
+                            <div className={`dt7-input-wrap${aiScanLoading ? ' is-scanning' : ''}`}>
                               <span className="dt7-input-prefix">₱</span>
                               <input
                                 id="dt7-amt-input"
@@ -6941,7 +6940,7 @@ export default function CampaignCard(props) {
 
                           <div className="dt7-field dt7-field--ref">
                             <label className="dt7-field-lbl" htmlFor="dt7-ref-input">{railLabel} Reference No.</label>
-                            <div className="dt7-input-wrap">
+                            <div className={`dt7-input-wrap${aiScanLoading ? ' is-scanning' : ''}`}>
                               <input
                                 id="dt7-ref-input"
                                 type="text"
@@ -6972,13 +6971,11 @@ export default function CampaignCard(props) {
                           </span>
                         </label>
 
-                        {/* Compact Recipient & Zero-Fee Summary Line */}
+                        {/* Compact Audit & Zero-Fee Summary Line (Recipient lives cleanly in Left Transfer Box) */}
                         <div className="dt7-summary-line">
                           <span className="dt7-summary-item">
-                            <span className="dt7-summary-k">Recipient</span>
-                            <strong className="dt7-summary-v" title={acctName || camp.orgName || 'Verified NGO'}>
-                              {acctName || getOrgDisplayName(camp.orgAddress, camp.orgName, camp.id)}
-                            </strong>
+                            <span className="dt7-summary-k">Audit ledger</span>
+                            <strong className="dt7-summary-v">Sepolia · Gasless</strong>
                           </span>
                           <span className="dt7-summary-sep" aria-hidden="true" />
                           <span className="dt7-summary-item">
