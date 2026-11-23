@@ -40,15 +40,63 @@ function normalizeOcrDigits(rawStr = '') {
 }
 
 /**
- * Detect artificial test sequences in reference numbers (e.g. 9765432109876, 1234567890123).
+ * Detect artificial / AI-invented sequences in reference numbers
+ * (e.g. 8976 543 109876, 9765432109876, 1234567890123, 0000000000000).
  */
 function isSuspiciousReferencePattern(ref) {
   if (!ref) return false;
   const digits = String(ref).replace(/\D/g, '');
-  if (digits.length !== 13) return false;
-  if (/^(\d)\1{10,}$/.test(digits)) return true;
-  if (/0123456|1234567|2345678|3456789|9876543|8765432|7654321|6543210|5432109/.test(digits)) return true;
+  if (digits.length < 10) return false;
+
+  // 1. Repeated same digit (>= 6 in a row) or very low entropy (< 4 unique digits in 13-digit ref)
+  if (/(\d)\1{5,}/.test(digits)) return true;
+  if (digits.length >= 12 && new Set(digits.split('')).size <= 3) return true;
+
+  // 2. Count consecutive ascending or descending runs (mod-10 wrap-around catches 109876 / 890123)
+  let maxRun = 1;
+  let curAsc = 1;
+  let curDesc = 1;
+  let runsOf4Plus = 0;
+
+  for (let i = 1; i < digits.length; i++) {
+    const prev = digits.charCodeAt(i - 1) - 48;
+    const curr = digits.charCodeAt(i) - 48;
+    if ((prev + 1) % 10 === curr) {
+      curAsc++;
+      if (curDesc >= 4) runsOf4Plus++;
+      curDesc = 1;
+    } else if ((prev + 9) % 10 === curr) {
+      curDesc++;
+      if (curAsc >= 4) runsOf4Plus++;
+      curAsc = 1;
+    } else {
+      if (curAsc >= 4) runsOf4Plus++;
+      if (curDesc >= 4) runsOf4Plus++;
+      curAsc = 1;
+      curDesc = 1;
+    }
+    if (curAsc > maxRun) maxRun = curAsc;
+    if (curDesc > maxRun) maxRun = curDesc;
+  }
+  if (curAsc >= 4) runsOf4Plus++;
+  if (curDesc >= 4) runsOf4Plus++;
+
+  // Any run of >= 5 consecutive digits (e.g. 76543, 109876, 12345) OR 2+ runs of >= 4 digits
+  if (maxRun >= 5 || runsOf4Plus >= 2) return true;
   return false;
+}
+
+/**
+ * Clean decorative separators (middle dots, bullets, pipes) before parsing receipt dates.
+ */
+function parseReceiptDateSafe(rawDateStr) {
+  if (!rawDateStr) return null;
+  const cleaned = String(rawDateStr)
+    .replace(/[·•|—–]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  const d = new Date(cleaned);
+  return isNaN(d.getTime()) ? null : d;
 }
 
 /**
@@ -437,29 +485,28 @@ async function auditReceiptImage(base64Data, declaredAmountEth = 0, paymentRail 
     const genAI = getGenAI();
     if (genAI) {
       try {
-        const prompt = `Audit this Philippine payment receipt image (${paymentRail} / GCash / Maya / Bank / QR Ph) and extract its fields as JSON.
-Expected recipient context (for reading accuracy): Name=${expectedRecipientName || 'N/A'}, Phone=${expectedRecipientPhone || 'N/A'}, Org=${expectedOrgName || 'N/A'}.
+        const prompt = `Audit this Philippine payment receipt image (${paymentRail} / GCash / Maya / Bank / QR Ph) for authenticity and extract its fields as JSON.
+Expected recipient context: Name=${expectedRecipientName || 'N/A'}, Phone=${expectedRecipientPhone || 'N/A'}, Org=${expectedOrgName || 'N/A'}.
 
-IMPORTANT DEVICE & FONT FAIRNESS RULES (DO NOT FALSE-REJECT REAL PHONES):
-- Philippine Android phones (Xiaomi/MIUI, Samsung OneUI, Oppo, Vivo, Realme, Huawei, Tecno, Infinix, custom system fonts, bold accessibility text, display zoom, dark mode) and different GCash/Maya app versions legitimately render receipts with DIFFERENT font families, kerning, bold weights, spacing, and divider alignment.
-- Normal JPEG/Messenger/gallery compression can cause mild softening around labels like "Sent via GCash".
-- NEVER reject or flag a receipt solely because of font family, kerning, character spacing, bolding, screen scaling, or mild compression blur.
+DEVICE FAIRNESS RULE:
+- Real Android/iOS phones vary in system font family, bold weight, display zoom, and JPEG compression. Do NOT reject a receipt *solely* because of phone system font family or mild JPEG compression.
 
-ONLY set "isPaymentReceipt": false OR "hasTamperingOrAnnotations": true when there is CLEAR, OBJECTIVE fraud:
-1. NOT A PAYMENT RECEIPT: selfie, meme, blank page, QR code screenshot (instead of completed payment slip), or non-payment screen.
-2. TUTORIAL / SAMPLE / ANNOTATED: visible red circles, arrows, callout boxes, "SAMPLE"/"DEMO" watermarks, or instructional labels.
-3. BLATANT DIGITAL SPLICING: an obvious mismatched-color rectangle pasted over a number/name, erased white-out smudge covering text, visibly crooked pasted digits, or contradictory amounts on the same slip (e.g., Amount ₱1.00 vs Total ₱50,000.00).
+OBJECTIVE FRAUD & AI-GENERATION CHECKS (independent of phone fonts — check ALL 4 carefully):
+1. AI-GENERATED / SYNTHETIC UI ARTIFACTS:
+   - Inspect vector shapes and icons (which OS fonts NEVER distort): the top checkmark circle, the GForest leaf icon next to "gCO2e", brand logos, and the bottom sawtooth/zig-zag paper edge.
+   - Real GCash/Maya apps render crisp, mathematically identical sawtooth triangles and sharp vector icons. AI image generators produce warped/melted/garbled leaf or checkmark icons, irregular uneven sawtooth teeth, or painterly diffusion texture on flat UI shapes.
+2. NATIVE APP STRUCTURAL / DATA ANOMALIES:
+   - Real GCash Express Send receipts display recipient phone with "+63" (e.g. "+63 9XX XXX XXXX"), not bare local "09XX XXX XXXX", and show timestamps without decorative middle dots ("Nov 16, 2026 7:46 AM", not "Nov 16, 2026 · 7:46 AM").
+   - Watch for AI-invented counting/sequential reference numbers (e.g. "8976 543 109876", "1234 567 890123") or QR-card asterisk masking pasted onto a receipt with synthetic icons.
+3. BLATANT DIGITAL SPLICING OR CONTRADICTIONS:
+   - Mismatched-color pasted rectangles, white-out eraser smudges, visibly crooked pasted digits, or contradictory amounts on the same slip.
+4. NON-RECEIPTS / TUTORIALS / SAMPLES:
+   - Selfies, QR code images instead of payment slips, tutorial callouts/arrows/circles, or "SAMPLE"/"DEMO" watermarks.
 
-EXTRACTION RULES (ALWAYS extract readable receipt fields accurately):
-- "refNumber": 13-digit GCash Ref No (e.g. "9046 840 764280") or Maya/Bank reference ID.
-- "amountPhp": Total amount sent in PHP as a number (e.g. 5000).
-- "detectedPaymentRail": "GCash", "Maya", or "Bank".
-- "recipientName": Recipient name shown at top of receipt.
-- "recipientPhone": Recipient mobile/account number shown on receipt.
-- "receiptDate": Date and time shown on slip (e.g. "Nov 23, 2026 10:45 AM").
-- "isAuthenticLook": true for normal payment screenshots (including custom phone fonts/compression); false ONLY for obvious fakes/splices/samples.
-- "confidenceScore": 85-98 for readable genuine receipts, 0 ONLY for non-receipts or blatant tampering/samples.
-- "rejectionReason": null if valid, otherwise brief concrete objective reason.
+SCORING RULES:
+- If clearly AI-generated (warped icons/uneven sawtooth/synthetic UI), blatantly tampered, tutorial/sample, or not a receipt: set "isPaymentReceipt": false, "hasTamperingOrAnnotations": true, "isAuthenticLook": false, "confidenceScore": 0, and give a concrete non-font "rejectionReason" citing the exact visual/structural anomalies.
+- If a genuine unaltered receipt: set "isPaymentReceipt": true, "hasTamperingOrAnnotations": false, "isAuthenticLook": true, "confidenceScore": 90-98, "rejectionReason": null.
+- ALWAYS extract readable refNumber, amountPhp, detectedPaymentRail, recipientName, recipientPhone, receiptDate even if suspicious.
 
 Return strictly JSON:
 {"isPaymentReceipt":boolean,"hasTamperingOrAnnotations":boolean,"refNumber":string|null,"amountPhp":number|null,"detectedPaymentRail":string|null,"recipientName":string|null,"recipientPhone":string|null,"receiptDate":string|null,"isAuthenticLook":boolean,"confidenceScore":number,"rejectionReason":string|null}`;
@@ -471,7 +518,7 @@ Return strictly JSON:
           }
         };
 
-        // Ordered fastest verified models first — eliminates wasted 404 roundtrips
+        // Use fastest non-truncating Vision model first (~1.8-2.5s), with strong fallback
         const baseModels = [
           'gemini-flash-lite-latest',
           'gemini-3-flash-preview',
@@ -488,12 +535,13 @@ Return strictly JSON:
 
         for (const m of activeModels) {
           try {
+            const isThinkingModel = m.includes('gemini-3') || m.includes('2.5');
             const model = genAI.getGenerativeModel({
               model: m,
               generationConfig: {
                 responseMimeType: 'application/json',
                 temperature: 0.1,
-                maxOutputTokens: 320
+                maxOutputTokens: isThinkingModel ? 2048 : 512
               }
             });
             // Fast 10s cap per attempt so donors never stall
@@ -502,10 +550,14 @@ Return strictly JSON:
               model.generateContent([prompt, imagePart]),
               timeoutPromise
             ]);
-            if (response && response.response) {
+            const rawText = response?.response?.text?.() || '';
+            if (rawText && rawText.includes('{') && rawText.includes('}')) {
               successfulModel = m;
               cachedFastVisionModel = m;
               break;
+            } else {
+              response = null;
+              console.warn(`Gemini model ${m} returned incomplete JSON, trying fallback...`);
             }
           } catch (modelErr) {
             console.warn(`Gemini model ${m} attempt failed:`, modelErr.message);
@@ -549,11 +601,12 @@ Return strictly JSON:
             }
 
             if (parsed) {
-              // Guard against font/kerning-only false positives (Android OEMs use custom system fonts)
+              // Guard against font/kerning-only false positives (Android OEMs use custom system fonts),
+              // while NEVER overriding real AI-icon/sawtooth/structural/synthetic or splicing detections
               const rawRejection = String(parsed.rejectionReason || '');
               const isTypographyOnlyGuess =
-                /(font|kerning|typeface|typography|spacing|rendering)/i.test(rawRejection) &&
-                !/(not a receipt|non-receipt|selfie|qr code|sample|tutorial|watermark|circle|arrow|patch|erased|smudge|contradict|mismatched amount)/i.test(rawRejection);
+                /(font|kerning|typeface|typography|spacing)/i.test(rawRejection) &&
+                !/(icon|leaf|checkmark|sawtooth|zig-?zag|scallop|tooth|teeth|synthetic|ai-generated|diffusion|warped|melted|garbled|format|\+63|middle dot|sequential|not a receipt|non-receipt|selfie|qr code|sample|tutorial|watermark|circle|arrow|patch|erased|smudge|contradict|mismatched amount)/i.test(rawRejection);
 
               // STRICT NON-RECEIPT OR OBJECTIVE TAMPERING/SAMPLE REJECTION
               const isTamperedOrFake = !isTypographyOnlyGuess && (
@@ -600,11 +653,24 @@ Return strictly JSON:
               result.recipientName = parsed.recipientName || null;
               result.recipientPhone = parsed.recipientPhone || null;
 
+              // Artificial / AI-Invented Sequential Reference Check (e.g. 8976 543 109876, 1234 567 890123)
+              if (result.extractedRef && isSuspiciousReferencePattern(result.extractedRef)) {
+                result.isPaymentReceipt = false;
+                result.isAiVerified = false;
+                result.confidenceScore = 0;
+                result.fraudFlags = [`SUSPICIOUS_REFERENCE_SEQUENCE: Reference #${result.extractedRef} contains an artificial sequential digit pattern typical of synthetic or fabricated receipts.`];
+                result.extractedRef = null;
+                result.extractedAmountPhp = null;
+                result.auditedBy = `AI_${successfulModel.toUpperCase().replace(/[^A-Z0-9]/g, '_')}`;
+                result.summary = `⚠️ Fraud Alert: Artificial sequential reference pattern detected.`;
+                return result;
+              }
+
               // Stale / Expired Receipt Check (Prevents recycling old receipts)
               let hasDateMismatch = false;
               if (parsed.receiptDate) {
-                const parsedDate = new Date(parsed.receiptDate);
-                if (!isNaN(parsedDate.getTime())) {
+                const parsedDate = parseReceiptDateSafe(parsed.receiptDate);
+                if (parsedDate) {
                   const now = new Date();
                   const diffDays = (now.getTime() - parsedDate.getTime()) / (1000 * 60 * 60 * 24);
                   // Hard reject if receipt is older than 30 days or from a past calendar year (anti-recycling)
@@ -784,8 +850,8 @@ Return strictly JSON:
       const dateMatch = ocrText.match(/\b((?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{1,2},?\s+\d{4}(?:\s+\d{1,2}:\d{2}\s*(?:AM|PM)?)?)\b/i);
       if (dateMatch) {
         result.receiptDate = dateMatch[1].trim();
-        const parsedDate = new Date(result.receiptDate);
-        if (!isNaN(parsedDate.getTime())) {
+        const parsedDate = parseReceiptDateSafe(result.receiptDate);
+        if (parsedDate) {
           const now = new Date();
           const diffDays = (now.getTime() - parsedDate.getTime()) / (1000 * 60 * 60 * 24);
           if (diffDays > 30 || (now.getFullYear() - parsedDate.getFullYear() >= 1)) {
