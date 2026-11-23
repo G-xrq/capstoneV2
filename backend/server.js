@@ -9386,21 +9386,39 @@ app.get('/api/public/organizations', async (req, res) => {
         o.Wallet_Address as walletAddress,
         o.Mobile_Number as mobileNumber,
         o.Sec_Registration_No as secRegistrationNo,
-        o.Sec_Certificate_Url as secCertificateUrl,
-        o.Board_Members_Json as boardMembers,
         o.Dswd_Accreditation_No as dswdAccreditationNo,
         o.Verified_At as verifiedAt,
-        o.Audit_Notes as auditNotes,
-        COUNT(DISTINCT c.Campaign_ID) as campaignCount,
-        COALESCE(SUM(dt.Amount), 0) as totalRaisedEth
+        o.Location as location,
+        o.Bio as bio,
+        o.Avatar_Url as avatar_url,
+        o.Website as website,
+        CASE WHEN o.Sec_Certificate_Url IS NOT NULL AND o.Sec_Certificate_Url != '' THEN 1 ELSE 0 END as hasSecCertificate,
+        COALESCE(cs.campaignCount, 0) as campaignCount,
+        COALESCE(cs.activeCampaignCount, 0) as activeCampaignCount,
+        COALESCE(cs.totalDisbursedPhp, 0) as totalDisbursedPhp,
+        COALESCE(ds.totalRaisedEth, 0) as totalRaisedEth,
+        ROUND(COALESCE(ds.totalRaisedEth, 0) * 170000) as totalRaisedPhp
       FROM ORGANIZATION o
-      LEFT JOIN CAMPAIGN c ON o.Org_ID = c.Org_ID
-      LEFT JOIN DONATION_TRANSACTION dt ON c.Campaign_ID = dt.Campaign_ID AND ${PHP_RAIL_SQL('dt')}
+      LEFT JOIN (
+        SELECT
+          Org_ID,
+          COUNT(*) as campaignCount,
+          SUM(CASE WHEN COALESCE(Is_Active, 1) = 1 THEN 1 ELSE 0 END) as activeCampaignCount,
+          SUM(COALESCE(Disbursed_Amount_Php, 0)) as totalDisbursedPhp
+        FROM CAMPAIGN
+        GROUP BY Org_ID
+      ) cs ON o.Org_ID = cs.Org_ID
+      LEFT JOIN (
+        SELECT
+          c.Org_ID,
+          SUM(dt.Amount) as totalRaisedEth
+        FROM DONATION_TRANSACTION dt
+        JOIN CAMPAIGN c ON dt.Campaign_ID = c.Campaign_ID
+        WHERE ${PHP_RAIL_SQL('dt')}
+        GROUP BY c.Org_ID
+      ) ds ON o.Org_ID = ds.Org_ID
       WHERE o.Verification_Status = 'Approved'
-      GROUP BY o.Org_ID, o.Org_Name, o.Username, o.Verification_Status, o.Wallet_Address,
-               o.Mobile_Number, o.Sec_Registration_No, o.Sec_Certificate_Url,
-               o.Board_Members_Json, o.Dswd_Accreditation_No, o.Verified_At, o.Audit_Notes
-      ORDER BY totalRaisedEth DESC, o.Org_ID ASC
+      ORDER BY COALESCE(ds.totalRaisedEth, 0) DESC, COALESCE(cs.campaignCount, 0) DESC, o.Org_ID ASC
     `);
 
     res.json(rows || []);

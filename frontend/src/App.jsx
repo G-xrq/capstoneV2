@@ -11,6 +11,7 @@ import SettingsPanel from './components/SettingsPanel';
 import Header from './components/Header';
 import Footer from './components/Footer';
 import NgoProfileModal from './components/NgoProfileModal';
+import AccreditedNgosModal from './components/AccreditedNgosModal';
 import DisbursementProofModal from './components/DisbursementProofModal';
 import ErrorBoundary from './components/ErrorBoundary';
 import ReliefAiChat from './components/ReliefAiChat';
@@ -86,6 +87,8 @@ export default function App() {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [presenceEventHint, setPresenceEventHint] = useState(null);
+  const [showAccreditedNgosModal, setShowAccreditedNgosModal] = useState(false);
+
   const [deepLinkProofCamp, setDeepLinkProofCamp] = useState(() => {
     if (typeof window === 'undefined') return null;
     const params = new URLSearchParams(window.location.search);
@@ -1187,6 +1190,7 @@ export default function App() {
               setShowAuth(true);
             }}
             onOpenNgoProfile={(id) => setSelectedNgoForProfile(id || 3)}
+            onOpenNgoDirectory={() => setShowAccreditedNgosModal(true)}
             theme={theme}
           />
         )}
@@ -1368,7 +1372,20 @@ export default function App() {
         </div>
       )}
 
-            {/* ── Verified Institutional NGO Social Profile Modal ── */}
+            {/* ── Accredited Humanitarian NGOs Directory Modal ── */}
+      {showAccreditedNgosModal && (
+        <AccreditedNgosModal
+          isOpen={showAccreditedNgosModal}
+          onClose={() => setShowAccreditedNgosModal(false)}
+          onSelectNgo={(id) => {
+            setShowAccreditedNgosModal(false);
+            if (id) setSelectedNgoForProfile(id);
+          }}
+          theme={theme}
+        />
+      )}
+
+      {/* ── Verified Institutional NGO Social Profile Modal ── */}
       {selectedNgoForProfile && (
         <NgoProfileModal
           orgId={selectedNgoForProfile}

@@ -750,7 +750,7 @@ export default function Header({
                           onClick={(e) => {
                             e.preventDefault();
                             setIsProfileOpen(false);
-                            if (onOpenNgoProfile) onOpenNgoProfile(3);
+                            if (onOpenNgoProfile) onOpenNgoProfile(dbUser?.id || 3);
                           }}
                         >
                           <span className="material-symbols-outlined bbdrts-dropdown-item-icon">corporate_fare</span>

@@ -328,6 +328,7 @@ export default function LandingView({
   hasMetaMask,
   contract,
   onOpenNgoProfile,
+  onOpenNgoDirectory,
   theme
 }) {
   const [activeFlowStep, setActiveFlowStep] = useState('record');
@@ -965,8 +966,8 @@ export default function LandingView({
                 <div className="bbdrts-hero-stat-sep" />
                 <div
                   className="bbdrts-hero-stat-item clickable"
-                  onClick={() => onOpenNgoProfile && onOpenNgoProfile(3)}
-                  title="Click to view verified NGO profile"
+                  onClick={() => (onOpenNgoDirectory ? onOpenNgoDirectory() : (onOpenNgoProfile && onOpenNgoProfile(3)))}
+                  title="Click to browse all verified & accredited NGOs"
                 >
                   <div className={`bbdrts-hero-stat-val ${animatedOrgs.isBumping ? 'is-live-bump' : ''}`}>
                     <span>{animatedOrgs.value} Verified</span>
@@ -2032,9 +2033,9 @@ export default function LandingView({
                 <button
                   type="button"
                   className="bbdrts-persona-btn-secondary"
-                  onClick={() => onOpenNgoProfile && onOpenNgoProfile(3)}
+                  onClick={() => (onOpenNgoDirectory ? onOpenNgoDirectory() : (onOpenNgoProfile && onOpenNgoProfile(3)))}
                 >
-                  <span>View NGO Standards ↗</span>
+                  <span>Browse Verified NGOs ↗</span>
                 </button>
               </div>
             </div>
