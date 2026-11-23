@@ -9,9 +9,17 @@
   border: 1px solid #27272a !important;
   border-radius: 12px !important;
   box-shadow: 0 24px 48px -12px rgba(0, 0, 0, 0.9), 0 0 0 1px rgba(255, 255, 255, 0.05) !important;
-  overflow: hidden;
+  overflow-x: hidden;
+  box-sizing: border-box;
   font-family: var(--font-sans);
   color: #ededed;
+}
+
+.vc-checkout-root {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .vc-donate-shell--qr {
@@ -147,13 +155,17 @@
 /* ── Split 2-Column Checkout Body ── */
 .vc-donate-grid {
   display: grid;
-  grid-template-columns: 1.15fr 0.85fr;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
   align-items: stretch;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 @media (max-width: 680px) {
   .vc-donate-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
@@ -162,8 +174,16 @@
   display: flex;
   flex-direction: column;
   gap: 20px;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
   border-right: 1px solid #1f1f23;
   background: #000000;
+}
+
+.vc-donate-main > * {
+  min-width: 0;
+  max-width: 100%;
 }
 
 [data-theme="light"] .vc-donate-main {
@@ -172,12 +192,25 @@
 }
 
 @media (max-width: 680px) {
+  .vc-donate-header {
+    padding: 14px 16px;
+    gap: 10px;
+  }
+
   .vc-donate-main {
+    padding: 16px;
+    gap: 16px;
     border-right: none;
     border-bottom: 1px solid #1f1f23;
   }
+
   [data-theme="light"] .vc-donate-main {
     border-bottom-color: #ececee;
+  }
+
+  .vc-donate-summary {
+    padding: 16px;
+    gap: 14px;
   }
 }
 
@@ -186,8 +219,10 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
   gap: 8px;
   margin-bottom: 8px;
+  min-width: 0;
 }
 
 .vc-field-label {
@@ -315,7 +350,9 @@
 /* Connected Segmented Preset Strip */
 .vc-preset-bar {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  width: 100%;
+  box-sizing: border-box;
   margin-top: 8px;
   border: 1px solid #27272a;
   border-radius: 7px;
@@ -590,6 +627,9 @@
   flex-direction: column;
   justify-content: space-between;
   gap: 18px;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 [data-theme="light"] .vc-donate-summary {
@@ -610,6 +650,7 @@
   padding: 9px 0;
   border-bottom: 1px solid #18181b;
   font-size: 0.78rem;
+  min-width: 0;
 }
 
 .vc-summary-row:last-child {
@@ -622,13 +663,14 @@
 
 .vc-summary-k {
   color: #71717a;
+  flex-shrink: 0;
 }
 
 .vc-summary-v {
   color: #ededed;
   font-weight: 500;
   text-align: right;
-  max-width: 170px;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1477,13 +1519,16 @@
 /* Split 2-Col QR Checkout */
 .qr8-split {
   display: grid;
-  grid-template-columns: 1fr 1.04fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.04fr);
   align-items: stretch;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
 }
 
 @media (max-width: 680px) {
   .qr8-split {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
@@ -2506,13 +2551,16 @@
 
 .dt7-grid {
   display: grid;
-  grid-template-columns: 0.92fr 1.08fr;
+  grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.08fr);
   align-items: stretch;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
 }
 
 @media (max-width: 720px) {
   .dt7-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
@@ -2524,6 +2572,9 @@
   display: flex;
   flex-direction: column;
   gap: 14px;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 [data-theme="light"] .dt7-left {
@@ -2548,6 +2599,9 @@
   display: flex;
   flex-direction: column;
   gap: 14px;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 [data-theme="light"] .dt7-right {
@@ -2913,13 +2967,14 @@
 /* Compact Side-by-Side Amount + Reference Fields */
 .dt7-fields-row {
   display: grid;
-  grid-template-columns: 0.85fr 1.15fr;
+  grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
   gap: 10px;
+  min-width: 0;
 }
 
 @media (max-width: 480px) {
   .dt7-fields-row {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
@@ -3181,4 +3236,79 @@
 
 [data-theme="light"] .dt7-summary-sep {
   background: #e4e4e7;
+}
+
+/* ── Mobile Hardening Across All Checkout Steps (<= 520px) ── */
+@media (max-width: 520px) {
+  .vc-mode-tabs {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    box-sizing: border-box;
+  }
+
+  .vc-mode-tab {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    height: 28px;
+    padding: 0 6px;
+    font-size: 0.72rem;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .vc-preset-btn {
+    font-size: 0.7rem;
+    padding: 0 2px;
+    min-width: 0;
+  }
+
+  .vc-channel-row {
+    padding: 10px 12px;
+    gap: 10px;
+    box-sizing: border-box;
+  }
+
+  .vc-channel-desc {
+    line-height: 1.35;
+  }
+
+  .vc-anon-row {
+    padding: 10px 12px;
+    gap: 10px;
+    box-sizing: border-box;
+  }
+
+  .qr8-stage,
+  .qr8-panel,
+  .dt7-left,
+  .dt7-right {
+    padding: 14px 16px;
+    min-width: 0;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  .qr8-status-pill {
+    display: none;
+  }
+
+  .qr8-footer,
+  .dt7-footer {
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 12px 14px;
+  }
+
+  .dt7-summary-line {
+    flex-wrap: wrap;
+    gap: 6px 10px;
+  }
+
+  .dt7-summary-sep {
+    display: none;
+  }
 }

@@ -4670,7 +4670,7 @@ export default function CampaignCard(props) {
         }} className="fade-in">
 
           {/* Sibling container wrapper so outside button floats truly outside the card */}
-          <div style={{ position: 'relative', display: 'flex', alignItems: 'flex-start' }}>
+          <div style={{ position: 'relative', display: 'flex', alignItems: 'flex-start', maxWidth: '94vw', minWidth: 0 }}>
 
             <div
               ref={modalCardRef}
@@ -4680,7 +4680,9 @@ export default function CampaignCard(props) {
                 width: isPaymentProcessing ? '464px' : (donateStep === 6 ? '880px' : (donateStep === 7 ? '788px' : ((donateStep === 0 || (donateStep === 8 && !instantReceipt && !instantSettlingOnChain)) ? '748px' : '464px'))),
                 maxWidth: '94vw',
                 maxHeight: '92dvh',
+                overflowX: 'hidden',
                 overflowY: 'auto',
+                boxSizing: 'border-box',
                 padding: (isPaymentProcessing || (!isPaymentProcessing && (donateStep === 0 || donateStep === 4 || donateStep === 7 || donateStep === 8))) ? '0px' : '24px',
                 background: isPaymentProcessing ? undefined : 'var(--surface)',
                 border: isPaymentProcessing ? undefined : '1px solid var(--border)',
