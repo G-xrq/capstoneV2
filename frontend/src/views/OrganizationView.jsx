@@ -5,6 +5,7 @@ import Tesseract from 'tesseract.js';
 import { isLocalhost, API_URL } from '../config';
 import { useRealtimeSync } from '../hooks/useRealtimeSync';
 import { blurFacesInImage, preloadFaceDetector } from '../utils/facePrivacyBlur';
+import FaceBlurEditorModal from '../components/FaceBlurEditorModal';
 import LiveCounter from '../components/LiveCounter';
 import CampaignCard, { shortAddr, formatCampaignTitle, formatEthAmt, progressPct, getOrgDisplayName, getCampaignTags, getCampaignAuditDetails, getCampaignCategoryInfo, getCampaignCoverData } from '../components/CampaignCard';
 import LocationMapPicker from '../components/LocationMapPicker';
@@ -1148,6 +1149,7 @@ export default function OrganizationView({
   // ── Disaster Aftermath & Ground Evidence Photos State (+ RA 10173 AI Face-Blur Privacy Shield) ──
   const [disasterImages, setDisasterImages] = useState([]);
   const [disasterImagesMeta, setDisasterImagesMeta] = useState([]);
+  const [editingCampaignPhotoIdx, setEditingCampaignPhotoIdx] = useState(null);
   const [autoBlurCampaignFaces, setAutoBlurCampaignFaces] = useState(true);
   useEffect(() => {
     preloadFaceDetector().catch(() => {});
@@ -1242,7 +1244,7 @@ export default function OrganizationView({
         }
         const dataUrl = await processAndCompressImage(file);
         let finalUrl = dataUrl;
-        let meta = { originalUrl: dataUrl, blurredUrl: null, facesBlurred: 0, isBlurred: false };
+        let meta = { originalUrl: dataUrl, blurredUrl: null, boxes: [], facesBlurred: 0, isBlurred: false };
 
         if (autoBlurCampaignFaces) {
           setDisasterProcessLabel(`AI protecting faces in "${file.name}" (RA 10173)...`);
@@ -1252,6 +1254,7 @@ export default function OrganizationView({
             meta = {
               originalUrl: dataUrl,
               blurredUrl: blurRes.blurredUrl,
+              boxes: Array.isArray(blurRes.boxes) ? blurRes.boxes : [],
               facesBlurred: blurRes.facesBlurred,
               isBlurred: true
             };
@@ -1308,6 +1311,7 @@ export default function OrganizationView({
           copy[targetIdx] = {
             originalUrl: base,
             blurredUrl: res.blurredUrl,
+            boxes: Array.isArray(res.boxes) ? res.boxes : [],
             facesBlurred: res.facesBlurred,
             isBlurred: true
           };
@@ -4847,7 +4851,15 @@ export default function OrganizationView({
                                         title="Click and drag to reorder photos"
                                       >
                                         {/* Top Clean Media Viewport */}
-                                        <div className="deploy-photo-media">
+                                        <div
+                                          className="deploy-photo-media"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setEditingCampaignPhotoIdx(idx);
+                                          }}
+                                          title="Click to inspect & touch-up face blur (RA 10173)"
+                                          style={{ cursor: 'pointer' }}
+                                        >
                                           <img
                                             src={imgSrc}
                                             alt={`Disaster aftermath evidence ${idx + 1}`}
@@ -4863,6 +4875,20 @@ export default function OrganizationView({
                                             <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>drag_indicator</span>
                                             <span>#{idx + 1}</span>
                                           </div>
+
+                                          {/* Touch-Up Privacy Blur button */}
+                                          <button
+                                            type="button"
+                                            className="deploy-photo-touchup-btn"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              setEditingCampaignPhotoIdx(idx);
+                                            }}
+                                            title="Open full preview & tap faces to add/remove blur"
+                                          >
+                                            <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>tune</span>
+                                            <span>Touch-Up</span>
+                                          </button>
 
                                           {/* Remove photo button */}
                                           <button
@@ -4933,6 +4959,40 @@ export default function OrganizationView({
                         </div>
                       </div>
                     </div>
+                  )}
+
+                  {editingCampaignPhotoIdx !== null && disasterImages[editingCampaignPhotoIdx] && (
+                    <FaceBlurEditorModal
+                      isOpen={true}
+                      title={`Campaign Photo #${editingCampaignPhotoIdx + 1}`}
+                      originalUrl={disasterImagesMeta[editingCampaignPhotoIdx]?.originalUrl || disasterImages[editingCampaignPhotoIdx]}
+                      initialUrl={disasterImages[editingCampaignPhotoIdx]}
+                      initialBoxes={disasterImagesMeta[editingCampaignPhotoIdx]?.boxes || []}
+                      initialBlurred={Boolean(disasterImagesMeta[editingCampaignPhotoIdx]?.isBlurred)}
+                      onClose={() => setEditingCampaignPhotoIdx(null)}
+                      onSave={(updated) => {
+                        const targetIdx = editingCampaignPhotoIdx;
+                        setDisasterImages((prev) => prev.map((u, i) => (i === targetIdx ? updated.url : u)));
+                        setDisasterImagesMeta((prev) => {
+                          const next = [...prev];
+                          const prevOriginal = prev[targetIdx]?.originalUrl || disasterImages[targetIdx];
+                          next[targetIdx] = {
+                            originalUrl: prevOriginal,
+                            blurredUrl: updated.blurredUrl,
+                            boxes: updated.boxes,
+                            facesBlurred: updated.facesBlurred,
+                            isBlurred: updated.isBlurred
+                          };
+                          return next;
+                        });
+                        showSuccess(
+                          updated.facesBlurred > 0
+                            ? `Saved ${updated.facesBlurred} blurred face${updated.facesBlurred === 1 ? '' : 's'} on Photo #${targetIdx + 1}.`
+                            : `Saved unblurred Photo #${targetIdx + 1}.`,
+                          'Privacy Touch-Up Saved'
+                        );
+                      }}
+                    />
                   )}
 
                   {/* ── Step 3: Humanitarian Operation Tags ── */}

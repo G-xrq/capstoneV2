@@ -1,65 +1,71 @@
 /**
- * BBDRTS — RA 10173 On-Device AI Face-Blur Privacy Shield
+ * BBDRTS — RA 10173 On-Device High-Recall AI Face-Blur Privacy Shield
  *
- * Primary Engine: On-device MediaPipe BlazeFace WASM (@mediapipe/tasks-vision) with
- * multi-scale tiled scanning (Full Frame + 2x2 overlapping tiles + 3x2 crowd tiles)
- * so both foreground AND small background faces in crowded evacuation photos are
- * detected in ~150-350ms directly in the browser — zero network latency, zero 503
- * outages, and unblurred faces never leave the NGO's device.
+ * Primary Engine: Dual on-device MediaPipe BlazeFace WASM models
+ *   1. blaze_face_full_range.tflite (192x192 dense crowd / wide-room model)
+ *   2. blaze_face_short_range.tflite (128x128 close-up booster)
+ * combined with multi-scale overlapping tiles, shadow/brightness-boosted crowd scan,
+ * horizontal flip (side-profile recovery), and +/-18° tilt passes (reclining heads),
+ * merged via Non-Maximum Suppression + radial-feathered Gaussian blur.
  *
  * Secondary Fallback: Backend Gemini Vision endpoint (POST /api/privacy/detect-faces)
- * only if WebAssembly fails to initialize on an unsupported browser.
+ * only if WebAssembly fails to initialize.
  */
 
 import { FilesetResolver, FaceDetector } from '@mediapipe/tasks-vision';
 import { API_URL } from '../config';
 
 const MEDIAPIPE_WASM_URL = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@1.2.3/wasm';
-const LOCAL_MODEL_URL = '/mediapipe/blaze_face_short_range.tflite';
-const CDN_MODEL_URL =
+
+const FULL_RANGE_LOCAL_URL = '/mediapipe/blaze_face_full_range.tflite';
+const FULL_RANGE_CDN_URL =
+  'https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_full_range/float16/1/blaze_face_full_range.tflite';
+
+const SHORT_RANGE_LOCAL_URL = '/mediapipe/blaze_face_short_range.tflite';
+const SHORT_RANGE_CDN_URL =
   'https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite';
 
-let detectorPromise = null;
+let detectorsPromise = null;
 
-async function createDetectorWithDelegate(vision, modelUrl, delegate) {
-  return FaceDetector.createFromOptions(vision, {
-    baseOptions: {
-      modelAssetPath: modelUrl,
-      delegate
-    },
-    runningMode: 'IMAGE',
-    minDetectionConfidence: 0.32,
-    minSuppressionThreshold: 0.3
-  });
+async function createDetector(vision, urls, minConfidence) {
+  for (const modelUrl of urls) {
+    try {
+      return await FaceDetector.createFromOptions(vision, {
+        baseOptions: { modelAssetPath: modelUrl, delegate: 'CPU' },
+        runningMode: 'IMAGE',
+        minDetectionConfidence: minConfidence,
+        minSuppressionThreshold: 0.28
+      });
+    } catch (err) {
+      console.warn(`[FacePrivacy] Model load failed (${modelUrl}):`, err.message);
+    }
+  }
+  return null;
 }
 
 /**
- * Lazily initialize & cache the on-device MediaPipe FaceDetector singleton.
- * Safe to call ahead of time to pre-warm WASM before the NGO picks photos.
+ * Lazily initialize & cache both on-device MediaPipe BlazeFace models (Full-Range + Short-Range).
  */
 export function preloadFaceDetector() {
   if (typeof window === 'undefined') return Promise.resolve(null);
-  if (detectorPromise) return detectorPromise;
+  if (detectorsPromise) return detectorsPromise;
 
-  detectorPromise = (async () => {
+  detectorsPromise = (async () => {
     const vision = await FilesetResolver.forVisionTasks(MEDIAPIPE_WASM_URL);
-    const modelUrls = [LOCAL_MODEL_URL, CDN_MODEL_URL];
+    // Initialize sequentially — MediaPipe WASM can deadlock if two FaceDetectors instantiate concurrently.
+    const fullRange = await createDetector(vision, [FULL_RANGE_LOCAL_URL, FULL_RANGE_CDN_URL], 0.22);
+    const shortRange = await createDetector(vision, [SHORT_RANGE_LOCAL_URL, SHORT_RANGE_CDN_URL], 0.30);
 
-    for (const modelUrl of modelUrls) {
-      try {
-        // CPU delegate in IMAGE mode is rock-solid across Windows/Mac/iOS/Android GPUs
-        return await createDetectorWithDelegate(vision, modelUrl, 'CPU');
-      } catch (err) {
-        console.warn(`[FacePrivacy] MediaPipe init failed for ${modelUrl}:`, err.message);
-      }
+    if (!fullRange && !shortRange) {
+      throw new Error('Could not initialize on-device MediaPipe face detectors');
     }
-    throw new Error('Could not load on-device MediaPipe face model');
+    return { fullRange, shortRange };
   })().catch((err) => {
-    detectorPromise = null;
+    detectorsPromise = null;
     throw err;
   });
 
-  return detectorPromise;
+  return detectorsPromise;
 }
 
 function loadImage(src) {
@@ -98,99 +104,207 @@ function boxContainment(inner, outer) {
   return (iw * ih) / areaInner;
 }
 
-/**
- * Non-Maximum Suppression across multi-scale tile detections.
- */
-function mergeDetectionsNMS(candidates, iouThreshold = 0.34) {
-  const sorted = [...candidates].sort((a, b) => (b.score || 0) - (a.score || 0));
-  const kept = [];
-
-  for (const cand of sorted) {
-    const isDuplicate = kept.some(
-      (k) =>
-        boxIoU(cand, k) > iouThreshold ||
-        boxContainment(cand, k) > 0.72 ||
-        boxContainment(k, cand) > 0.72
-    );
-    if (!isDuplicate) {
-      kept.push(cand);
-    }
+function boxesMatch(a, b, iouThreshold = 0.22) {
+  if (
+    boxIoU(a, b) > iouThreshold ||
+    boxContainment(a, b) > 0.58 ||
+    boxContainment(b, a) > 0.58
+  ) {
+    return true;
   }
-
-  return kept;
+  // Also catch slightly shifted duplicate detections from tilted/flipped passes
+  const acx = (a.xmin + a.xmax) / 2;
+  const acy = (a.ymin + a.ymax) / 2;
+  const bcx = (b.xmin + b.xmax) / 2;
+  const bcy = (b.ymin + b.ymax) / 2;
+  const aw = a.xmax - a.xmin;
+  const ah = a.ymax - a.ymin;
+  const bw = b.xmax - b.xmin;
+  const bh = b.ymax - b.ymin;
+  const dist = Math.hypot(acx - bcx, acy - bcy);
+  const minDim = Math.min(Math.max(aw, ah), Math.max(bw, bh));
+  const maxDim = Math.max(Math.max(aw, ah), Math.max(bw, bh));
+  return dist < minDim * 0.55 && maxDim / Math.max(1, minDim) < 2.2;
 }
 
 /**
- * Detect faces on a full image + overlapping zoom tiles so small/distant crowd faces
- * (such as evacuation centers) are caught reliably alongside close-up faces.
+ * Consensus-weighted Non-Maximum Suppression:
+ * Clusters overlapping multi-pass candidates and counts how many distinct
+ * passes agreed on each face. Real faces either score high (>= 0.42) or are
+ * confirmed across >= 2 independent passes (normal/flipped/boosted/tiled),
+ * which dramatically cuts bag/clothing false positives while boosting recall
+ * on dim background faces.
+ */
+function mergeDetectionsConsensusNMS(candidates, { iouThreshold = 0.24, soloMinScore = 0.40, consensusMinScore = 0.23 } = {}) {
+  const sorted = [...candidates].sort((a, b) => (b.score || 0) - (a.score || 0));
+  const clusters = [];
+
+  for (const cand of sorted) {
+    let matched = null;
+    for (const cl of clusters) {
+      if (boxesMatch(cand, cl.best, iouThreshold)) {
+        matched = cl;
+        break;
+      }
+    }
+    if (matched) {
+      matched.passes.add(cand.passId);
+      matched.count += 1;
+      matched.maxScore = Math.max(matched.maxScore, cand.score);
+      // Prefer tighter box if both have strong confidence (prevents tilted/boosted bloat)
+      const bestArea = (matched.best.xmax - matched.best.xmin) * (matched.best.ymax - matched.best.ymin);
+      const candArea = (cand.xmax - cand.xmin) * (cand.ymax - cand.ymin);
+      if (cand.score >= matched.best.score * 0.85 && candArea < bestArea * 0.72) {
+        matched.best = { ...cand, score: matched.maxScore };
+      }
+    } else {
+      clusters.push({
+        best: cand,
+        passes: new Set([cand.passId]),
+        count: 1,
+        maxScore: cand.score
+      });
+    }
+  }
+
+  return clusters
+    .filter((cl) => cl.maxScore >= soloMinScore || (cl.passes.size >= 2 && cl.maxScore >= consensusMinScore))
+    .map((cl) => ({
+      ymin: cl.best.ymin,
+      xmin: cl.best.xmin,
+      ymax: cl.best.ymax,
+      xmax: cl.best.xmax,
+      score: cl.maxScore,
+      hits: cl.passes.size
+    }));
+}
+
+function pushBox(rawCandidates, gx1, gy1, gx2, gy2, W, H, score, passId = 'p') {
+  const bw = gx2 - gx1;
+  const bh = gy2 - gy1;
+  if (bw < 8 || bh < 8) return;
+
+  // Aspect-ratio sanity filter (rejects long horizontal bags/banners/boxes while allowing angled faces)
+  const ratio = bw / bh;
+  if (ratio > 1.85 || ratio < 0.48) return;
+
+  const xmin = Math.max(0, Math.min(1000, Math.round((gx1 / W) * 1000)));
+  const ymin = Math.max(0, Math.min(1000, Math.round((gy1 / H) * 1000)));
+  const xmax = Math.max(0, Math.min(1000, Math.round((gx2 / W) * 1000)));
+  const ymax = Math.max(0, Math.min(1000, Math.round((gy2 / H) * 1000)));
+
+  const nw = xmax - xmin;
+  const nh = ymax - ymin;
+  if (nw < 8 || nh < 8 || (nw > 920 && nh > 920)) return;
+
+  rawCandidates.push({ ymin, xmin, ymax, xmax, score, passId });
+}
+
+/**
+ * Multi-pass high-recall on-device crowd face detection.
  */
 async function detectFacesOnDevice(img) {
-  const detector = await preloadFaceDetector();
-  if (!detector) throw new Error('FaceDetector unavailable');
+  const loaded = await preloadFaceDetector();
+  if (!loaded || (!loaded.fullRange && !loaded.shortRange)) {
+    throw new Error('FaceDetector unavailable');
+  }
+
+  const primary = loaded.fullRange || loaded.shortRange;
+  const secondary = loaded.fullRange && loaded.shortRange ? loaded.shortRange : null;
 
   const W = img.naturalWidth || img.width;
   const H = img.naturalHeight || img.height;
   const rawCandidates = [];
 
-  const pushResult = (result, offsetX, offsetY, tileW, tileH, minScore) => {
-    const detections = result?.detections || [];
-    for (const det of detections) {
+  // Reusable work canvas
+  const work = document.createElement('canvas');
+  const wCtx = work.getContext('2d');
+
+  // Helper: detect on a full-image resized canvas (optionally flipped or brightness-boosted)
+  const runFullPass = (detector, passId, { maxDim = 1024, flipX = false, filter = 'none', minScore = 0.22 } = {}) => {
+    if (!detector) return;
+    const scale = Math.min(1, maxDim / Math.max(W, H));
+    const cw = Math.max(1, Math.round(W * scale));
+    const ch = Math.max(1, Math.round(H * scale));
+    work.width = cw;
+    work.height = ch;
+    wCtx.save();
+    wCtx.clearRect(0, 0, cw, ch);
+    if (filter !== 'none' && 'filter' in wCtx) wCtx.filter = filter;
+    if (flipX) {
+      wCtx.translate(cw, 0);
+      wCtx.scale(-1, 1);
+    }
+    wCtx.drawImage(img, 0, 0, cw, ch);
+    wCtx.restore();
+
+    const res = detector.detect(work);
+    const inv = 1 / scale;
+    for (const det of res?.detections || []) {
       const score = det.categories?.[0]?.score ?? 0.5;
       if (score < minScore) continue;
       const bb = det.boundingBox;
-      if (!bb || bb.width < 6 || bb.height < 6) continue;
-
-      const gx1 = offsetX + bb.originX;
-      const gy1 = offsetY + bb.originY;
-      const gx2 = gx1 + bb.width;
-      const gy2 = gy1 + bb.height;
-
-      const xmin = Math.max(0, Math.min(1000, Math.round((gx1 / W) * 1000)));
-      const ymin = Math.max(0, Math.min(1000, Math.round((gy1 / H) * 1000)));
-      const xmax = Math.max(0, Math.min(1000, Math.round((gx2 / W) * 1000)));
-      const ymax = Math.max(0, Math.min(1000, Math.round((gy2 / H) * 1000)));
-
-      const nw = xmax - xmin;
-      const nh = ymax - ymin;
-      if (nw < 8 || nh < 8 || (nw > 920 && nh > 920)) continue;
-
-      rawCandidates.push({ ymin, xmin, ymax, xmax, score });
+      if (!bb) continue;
+      const x1 = flipX ? (cw - (bb.originX + bb.width)) * inv : bb.originX * inv;
+      const x2 = flipX ? (cw - bb.originX) * inv : (bb.originX + bb.width) * inv;
+      pushBox(rawCandidates, x1, bb.originY * inv, x2, (bb.originY + bb.height) * inv, W, H, score, passId);
     }
   };
 
-  // Pass 1: Full-frame scan (catches large & medium foreground faces)
-  const fullCanvas = document.createElement('canvas');
-  const fullScale = Math.min(1, 1024 / Math.max(W, H));
-  fullCanvas.width = Math.max(1, Math.round(W * fullScale));
-  fullCanvas.height = Math.max(1, Math.round(H * fullScale));
-  const fullCtx = fullCanvas.getContext('2d');
-  fullCtx.drawImage(img, 0, 0, fullCanvas.width, fullCanvas.height);
+  // Helper: detect on tilted full-image canvas (catches reclining / tilted heads like bottom-right people)
+  const runTiltedPass = (detector, passId, angleDeg, minScore = 0.36) => {
+    if (!detector) return;
+    const scale = Math.min(1, 840 / Math.max(W, H));
+    const cw = Math.max(1, Math.round(W * scale));
+    const ch = Math.max(1, Math.round(H * scale));
+    const rad = (angleDeg * Math.PI) / 180;
+    const cos = Math.cos(-rad);
+    const sin = Math.sin(-rad);
 
-  const fullRes = detector.detect(fullCanvas);
-  const scaleInv = 1 / fullScale;
-  for (const det of fullRes?.detections || []) {
-    const score = det.categories?.[0]?.score ?? 0.5;
-    if (score < 0.34) continue;
-    const bb = det.boundingBox;
-    if (!bb || bb.width < 6 || bb.height < 6) continue;
-    const xmin = Math.max(0, Math.min(1000, Math.round(((bb.originX * scaleInv) / W) * 1000)));
-    const ymin = Math.max(0, Math.min(1000, Math.round(((bb.originY * scaleInv) / H) * 1000)));
-    const xmax = Math.max(0, Math.min(1000, Math.round((((bb.originX + bb.width) * scaleInv) / W) * 1000)));
-    const ymax = Math.max(0, Math.min(1000, Math.round((((bb.originY + bb.height) * scaleInv) / H) * 1000)));
-    if (xmax - xmin >= 8 && ymax - ymin >= 8) {
-      rawCandidates.push({ ymin, xmin, ymax, xmax, score });
+    work.width = cw;
+    work.height = ch;
+    wCtx.save();
+    wCtx.clearRect(0, 0, cw, ch);
+    wCtx.translate(cw / 2, ch / 2);
+    wCtx.rotate(rad);
+    wCtx.drawImage(img, -cw / 2, -ch / 2, cw, ch);
+    wCtx.restore();
+
+    const res = detector.detect(work);
+    const inv = 1 / scale;
+    for (const det of res?.detections || []) {
+      const score = det.categories?.[0]?.score ?? 0.5;
+      if (score < minScore) continue;
+      const bb = det.boundingBox;
+      if (!bb) continue;
+      // Rotate center back to unrotated image coordinates
+      const rcx = bb.originX + bb.width / 2 - cw / 2;
+      const rcy = bb.originY + bb.height / 2 - ch / 2;
+      const origCx = (rcx * cos - rcy * sin + cw / 2) * inv;
+      const origCy = (rcx * sin + rcy * cos + ch / 2) * inv;
+      const halfW = (bb.width * inv) / 2;
+      const halfH = (bb.height * inv) / 2;
+      pushBox(
+        rawCandidates,
+        origCx - halfW,
+        origCy - halfH,
+        origCx + halfW,
+        origCy + halfH,
+        W,
+        H,
+        score * 0.94,
+        passId
+      );
     }
-  }
+  };
 
-  // Helper to run tiled crop passes on a reusable tile canvas (super fast!)
-  const tileCanvas = document.createElement('canvas');
-  const tileCtx = tileCanvas.getContext('2d');
-
-  const runTileGrid = (cols, rows, overlapRatio, minScore) => {
+  // Helper: detect on overlapping tile grid (optionally brightness-boosted for dark gyms/shelters)
+  const runTileGrid = (detector, passId, cols, rows, { overlap = 0.22, minScore = 0.23, filter = 'none', flipX = false } = {}) => {
+    if (!detector) return;
     const stepX = W / cols;
     const stepY = H / rows;
-    const padX = stepX * overlapRatio;
-    const padY = stepY * overlapRatio;
+    const padX = stepX * overlap;
+    const padY = stepY * overlap;
 
     for (let r = 0; r < rows; r++) {
       for (let c = 0; c < cols; c++) {
@@ -202,28 +316,102 @@ async function detectFacesOnDevice(img) {
         const th = ey - sy;
         if (tw < 48 || th < 48) continue;
 
-        tileCanvas.width = tw;
-        tileCanvas.height = th;
-        tileCtx.clearRect(0, 0, tw, th);
-        tileCtx.drawImage(img, sx, sy, tw, th, 0, 0, tw, th);
+        // Resize tile up/down to ~440px for fast consistent WASM inference
+        const tScale = Math.min(1.6, 440 / Math.max(tw, th));
+        const cw = Math.max(1, Math.round(tw * tScale));
+        const ch = Math.max(1, Math.round(th * tScale));
 
-        const res = detector.detect(tileCanvas);
-        pushResult(res, sx, sy, tw, th, minScore);
+        work.width = cw;
+        work.height = ch;
+        wCtx.save();
+        wCtx.clearRect(0, 0, cw, ch);
+        if (filter !== 'none' && 'filter' in wCtx) wCtx.filter = filter;
+        if (flipX) {
+          wCtx.translate(cw, 0);
+          wCtx.scale(-1, 1);
+        }
+        wCtx.drawImage(img, sx, sy, tw, th, 0, 0, cw, ch);
+        wCtx.restore();
+
+        const res = detector.detect(work);
+        const inv = 1 / tScale;
+        for (const det of res?.detections || []) {
+          const score = det.categories?.[0]?.score ?? 0.5;
+          if (score < minScore) continue;
+          const bb = det.boundingBox;
+          if (!bb) continue;
+          const lx1 = flipX ? (cw - (bb.originX + bb.width)) * inv : bb.originX * inv;
+          const lx2 = flipX ? (cw - bb.originX) * inv : (bb.originX + bb.width) * inv;
+          pushBox(
+            rawCandidates,
+            sx + lx1,
+            sy + bb.originY * inv,
+            sx + lx2,
+            sy + (bb.originY + bb.height) * inv,
+            W,
+            H,
+            score,
+            passId
+          );
+        }
       }
     }
   };
 
-  // Pass 2: 2x2 overlapping tiles (catches mid-ground people & seated families)
+  // Pass 1: Full-Range full frame (normal + horizontal flip + shadow-lifted)
+  runFullPass(primary, 'full_norm', { maxDim: 1024, minScore: 0.22 });
+  runFullPass(primary, 'full_flip', { maxDim: 1024, flipX: true, minScore: 0.22 });
+  runFullPass(primary, 'full_bright', { maxDim: 1024, filter: 'brightness(1.42) contrast(1.14)', minScore: 0.22 });
+  if (secondary) {
+    runFullPass(secondary, 'short_full', { maxDim: 840, minScore: 0.36 });
+  }
+
+  // Pass 2: Tilted passes (+/-22 deg) for reclining/leaning faces
+  runTiltedPass(primary, 'tilt_p22', 22, 0.36);
+  runTiltedPass(primary, 'tilt_m22', -22, 0.36);
+
+  // Pass 3: 2x2 overlapping tiles (normal + flipped shadow-boosted + short-range close-up booster)
   if (W >= 320 && H >= 240) {
-    runTileGrid(2, 2, 0.18, 0.36);
+    runTileGrid(primary, 't2x2_norm', 2, 2, { overlap: 0.24, minScore: 0.22 });
+    runTileGrid(primary, 't2x2_flip_bright', 2, 2, {
+      overlap: 0.24,
+      minScore: 0.22,
+      flipX: true,
+      filter: 'brightness(1.38) contrast(1.12)'
+    });
+    if (secondary) {
+      runTileGrid(secondary, 't2x2_short', 2, 2, { overlap: 0.20, minScore: 0.42 });
+    }
   }
 
-  // Pass 3: 3x2 overlapping crowd tiles (catches small distant faces in wide evacuation centers)
-  if (W >= 600 && H >= 400) {
-    runTileGrid(3, 2, 0.16, 0.42);
+  // Pass 4: 3x2 + 4x3 crowd tiles with strong shadow lift (catches small & dark background faces)
+  if (W >= 560 && H >= 360) {
+    runTileGrid(primary, 't3x2_bright', 3, 2, {
+      overlap: 0.22,
+      minScore: 0.22,
+      filter: 'brightness(1.50) contrast(1.14)'
+    });
+    runTileGrid(primary, 't3x2_flip', 3, 2, { overlap: 0.22, minScore: 0.22, flipX: true });
+  }
+  if (W >= 780 && H >= 480) {
+    runTileGrid(primary, 't4x3_bright', 4, 3, {
+      overlap: 0.20,
+      minScore: 0.23,
+      filter: 'brightness(1.65) contrast(1.18)'
+    });
+    runTileGrid(primary, 't4x3_flip_bright', 4, 3, {
+      overlap: 0.20,
+      minScore: 0.23,
+      flipX: true,
+      filter: 'brightness(1.65) contrast(1.18)'
+    });
   }
 
-  return mergeDetectionsNMS(rawCandidates, 0.34).slice(0, 60);
+  return mergeDetectionsConsensusNMS(rawCandidates, {
+    iouThreshold: 0.24,
+    soloMinScore: 0.42,
+    consensusMinScore: 0.23
+  }).slice(0, 80);
 }
 
 /**
@@ -269,8 +457,8 @@ async function detectFacesViaBackend(img, dataUrl, apiUrl, token) {
 }
 
 /**
- * Apply irreversible elliptical privacy blur over normalized 0..1000 face boxes
- * on the full-resolution image. Works across Chrome, Edge, Firefox, and iOS Safari.
+ * Apply silky, radial-alpha-feathered irreversible Gaussian privacy blur over
+ * normalized 0..1000 face boxes on the full-resolution image (zero hard edges).
  */
 export async function applyFaceBlurBoxes(dataUrl, faces = [], options = {}) {
   if (!dataUrl || !Array.isArray(faces) || faces.length === 0) {
@@ -288,7 +476,6 @@ export async function applyFaceBlurBoxes(dataUrl, faces = [], options = {}) {
   const ctx = canvas.getContext('2d');
   ctx.drawImage(img, 0, 0, W, H);
 
-  // Reusable offscreen canvases for zero-seam radial-feathered Gaussian blur
   const patchCanvas = document.createElement('canvas');
   const patchCtx = patchCanvas.getContext('2d');
   const blurCanvas = document.createElement('canvas');
@@ -303,11 +490,8 @@ export async function applyFaceBlurBoxes(dataUrl, faces = [], options = {}) {
     const rawH = ((box.ymax - box.ymin) / 1000) * H;
     if (rawW < 4 || rawH < 4) continue;
 
-    // Center of detected face
     const cx = rawX + rawW / 2;
     const cy = rawY + rawH / 2;
-
-    // Generous feathered ellipse radii so blur dissolves naturally with zero hard edge
     const rx = rawW * (0.5 + padX);
     const ry = rawH * (0.5 + padY);
 
@@ -319,7 +503,6 @@ export async function applyFaceBlurBoxes(dataUrl, faces = [], options = {}) {
     const ph = y2 - y;
     if (pw < 6 || ph < 6) continue;
 
-    // Sample extra bleed margin around patch so Gaussian blur never pulls dark/transparent edges
     const blurRadius = Math.max(8, Math.min(34, Math.round(Math.max(rawW, rawH) * 0.2)));
     const bleed = Math.min(blurRadius * 2, 48);
     const sx = Math.max(0, x - bleed);
@@ -329,7 +512,6 @@ export async function applyFaceBlurBoxes(dataUrl, faces = [], options = {}) {
     const sw = sx2 - sx;
     const sh = sy2 - sy;
 
-    // Stage 1: Gentle irreversible downscale (preserves natural skin/hair tone gradient while destroying identity)
     const downW = Math.max(8, Math.min(20, Math.round(sw / Math.max(8, rawW * 0.14))));
     const downH = Math.max(8, Math.min(20, Math.round(sh / Math.max(8, rawH * 0.14))));
     tinyCanvas.width = downW;
@@ -339,7 +521,6 @@ export async function applyFaceBlurBoxes(dataUrl, faces = [], options = {}) {
     tinyCtx.clearRect(0, 0, downW, downH);
     tinyCtx.drawImage(img, sx, sy, sw, sh, 0, 0, downW, downH);
 
-    // Stage 2: Smooth Gaussian pass over the bleed-padded patch
     blurCanvas.width = sw;
     blurCanvas.height = sh;
     blurCtx.clearRect(0, 0, sw, sh);
@@ -357,7 +538,6 @@ export async function applyFaceBlurBoxes(dataUrl, faces = [], options = {}) {
       blurCtx.drawImage(tinyCanvas, 0, 0, downW, downH, 0, 0, sw, sh);
     }
 
-    // Stage 3: Crop exact patch & mask with silky radial elliptical alpha gradient (ZERO hard edge!)
     patchCanvas.width = pw;
     patchCanvas.height = ph;
     patchCtx.globalCompositeOperation = 'source-over';
@@ -382,7 +562,6 @@ export async function applyFaceBlurBoxes(dataUrl, faces = [], options = {}) {
     patchCtx.fill();
     patchCtx.restore();
 
-    // Blend seamlessly onto main photo
     ctx.drawImage(patchCanvas, x, y);
   }
 
@@ -390,8 +569,8 @@ export async function applyFaceBlurBoxes(dataUrl, faces = [], options = {}) {
 }
 
 /**
- * Full pipeline: detect faces on-device via MediaPipe BlazeFace (~200ms) with
- * automatic backend Gemini Vision fallback, then apply irreversible elliptical blur.
+ * Full pipeline: detect faces on-device via Dual MediaPipe BlazeFace (Full-Range + Short-Range)
+ * with automatic Gemini backend fallback, then apply smooth radial-feathered Gaussian blur.
  */
 export async function blurFacesInImage(dataUrl, options = {}) {
   const { apiUrl = API_URL, token = null } = options;
@@ -430,7 +609,7 @@ export async function blurFacesInImage(dataUrl, options = {}) {
   }
 
   let faces = [];
-  let engine = 'mediapipe-local';
+  let engine = 'mediapipe-dual-local';
   let detectError = null;
 
   try {

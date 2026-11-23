@@ -4,6 +4,7 @@ import * as XLSX from 'xlsx';
 import { API_URL } from '../config';
 import { useToast } from '../context/ToastContext';
 import { blurFacesInImage, preloadFaceDetector } from '../utils/facePrivacyBlur';
+import FaceBlurEditorModal from './FaceBlurEditorModal';
 import './DisburseModal.css';
 
 const AID_CATEGORIES = [
@@ -347,6 +348,7 @@ export default function DisburseModal({ camp, isOpen, onClose, onDisbursed }) {
         let finalUrl = url;
         let blurredUrl = null;
         let facesBlurred = 0;
+        let faceBoxes = [];
         let isBlurred = false;
         let faceScanned = false;
 
@@ -358,6 +360,7 @@ export default function DisburseModal({ camp, isOpen, onClose, onDisbursed }) {
             finalUrl = blurRes.url;
             blurredUrl = blurRes.blurredUrl;
             facesBlurred = blurRes.facesBlurred;
+            faceBoxes = Array.isArray(blurRes.boxes) ? blurRes.boxes : [];
             isBlurred = true;
             totalFacesBlurred += facesBlurred;
             blurredPhotosCount += 1;
@@ -370,6 +373,7 @@ export default function DisburseModal({ camp, isOpen, onClose, onDisbursed }) {
           url: finalUrl,
           originalUrl: url,
           blurredUrl,
+          boxes: faceBoxes,
           facesBlurred,
           isBlurred,
           faceScanned,
@@ -425,6 +429,7 @@ export default function DisburseModal({ camp, isOpen, onClose, onDisbursed }) {
             ...p,
             url: res.url,
             blurredUrl: res.blurredUrl,
+            boxes: Array.isArray(res.boxes) ? res.boxes : [],
             facesBlurred: res.facesBlurred,
             isBlurred: true,
             faceScanned: true,
@@ -1103,9 +1108,9 @@ export default function DisburseModal({ camp, isOpen, onClose, onDisbursed }) {
                                       type="button"
                                       className="proof-privacy-action"
                                       onClick={() => setPreviewProofId(p.id)}
-                                      title="Inspect photo full size"
+                                      title="Inspect photo & tap any face to add or remove blur"
                                     >
-                                      Preview
+                                      Touch-Up Blur
                                     </button>
                                   </>
                                 )}
@@ -1306,47 +1311,38 @@ export default function DisburseModal({ camp, isOpen, onClose, onDisbursed }) {
         const activeP = previewProofId ? proofs.find((x) => x.id === previewProofId) : null;
         if (!activeP) return null;
         return (
-          <div className="bbdrts-disb-preview-overlay" onClick={() => setPreviewProofId(null)}>
-            <div className="bbdrts-disb-preview-card" onClick={(e) => e.stopPropagation()}>
-              <div className="bbdrts-disb-preview-head">
-                <div>
-                  <strong>{activeP.caption || activeP.name}</strong>
-                  <span>
-                    {activeP.isBlurred && activeP.facesBlurred > 0
-                      ? `RA 10173 Protected · ${activeP.facesBlurred} face${activeP.facesBlurred === 1 ? '' : 's'} blurred`
-                      : 'Original photo'}
-                  </span>
-                </div>
-                <div className="bbdrts-disb-preview-actions">
-                  <button
-                    type="button"
-                    className="bbdrts-disb-btn-back"
-                    style={{ height: '30px', padding: '0 10px', fontSize: '0.72rem' }}
-                    onClick={() => handleToggleProofFaceBlur(activeP.id)}
-                    disabled={activeP.scanningFaces}
-                  >
-                    <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>blur_on</span>
-                    <span>
-                      {activeP.scanningFaces
-                        ? 'Scanning…'
-                        : (activeP.isBlurred ? 'Show Original' : (activeP.blurredUrl ? 'Apply Blur' : 'Blur Faces'))}
-                    </span>
-                  </button>
-                  <button
-                    type="button"
-                    className="bbdrts-disb-close-btn"
-                    onClick={() => setPreviewProofId(null)}
-                    aria-label="Close preview"
-                  >
-                    <span className="material-symbols-outlined">close</span>
-                  </button>
-                </div>
-              </div>
-              <div className="bbdrts-disb-preview-img-wrap">
-                <img src={activeP.url} alt={activeP.caption || activeP.name} />
-              </div>
-            </div>
-          </div>
+          <FaceBlurEditorModal
+            isOpen={true}
+            title={activeP.caption || activeP.name || 'Disbursement Proof Photo'}
+            originalUrl={activeP.originalUrl || activeP.url}
+            initialUrl={activeP.url}
+            initialBoxes={activeP.boxes || []}
+            initialBlurred={Boolean(activeP.isBlurred)}
+            onClose={() => setPreviewProofId(null)}
+            onSave={(updated) => {
+              setProofs((prev) =>
+                prev.map((item) =>
+                  item.id === activeP.id
+                    ? {
+                        ...item,
+                        url: updated.url,
+                        blurredUrl: updated.blurredUrl,
+                        boxes: updated.boxes,
+                        facesBlurred: updated.facesBlurred,
+                        isBlurred: updated.isBlurred,
+                        faceScanned: true
+                      }
+                    : item
+                )
+              );
+              showSuccess(
+                updated.facesBlurred > 0
+                  ? `Saved ${updated.facesBlurred} blurred face${updated.facesBlurred === 1 ? '' : 's'} for "${activeP.name}".`
+                  : `Saved original photo for "${activeP.name}".`,
+                'Privacy Touch-Up Saved'
+              );
+            }}
+          />
         );
       })()}
     </div>,
