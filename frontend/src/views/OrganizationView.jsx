@@ -4,7 +4,7 @@ import { ethers } from 'ethers';
 import Tesseract from 'tesseract.js';
 import { isLocalhost, API_URL } from '../config';
 import { useRealtimeSync } from '../hooks/useRealtimeSync';
-import { blurFacesInImage } from '../utils/facePrivacyBlur';
+import { blurFacesInImage, preloadFaceDetector } from '../utils/facePrivacyBlur';
 import LiveCounter from '../components/LiveCounter';
 import CampaignCard, { shortAddr, formatCampaignTitle, formatEthAmt, progressPct, getOrgDisplayName, getCampaignTags, getCampaignAuditDetails, getCampaignCategoryInfo, getCampaignCoverData } from '../components/CampaignCard';
 import LocationMapPicker from '../components/LocationMapPicker';
@@ -1149,6 +1149,9 @@ export default function OrganizationView({
   const [disasterImages, setDisasterImages] = useState([]);
   const [disasterImagesMeta, setDisasterImagesMeta] = useState([]);
   const [autoBlurCampaignFaces, setAutoBlurCampaignFaces] = useState(true);
+  useEffect(() => {
+    preloadFaceDetector().catch(() => {});
+  }, []);
   const [disasterProcessLabel, setDisasterProcessLabel] = useState('Optimizing & Compressing Photos...');
   const [isProcessingDisasterImages, setIsProcessingDisasterImages] = useState(false);
   const [draggedPhotoIdx, setDraggedPhotoIdx] = useState(null);
@@ -1311,6 +1314,8 @@ export default function OrganizationView({
           return copy;
         });
         showSuccess(`Blurred ${res.facesBlurred} face${res.facesBlurred === 1 ? '' : 's'} for RA 10173 privacy.`, 'Faces Protected');
+      } else if (res.error) {
+        showWarning(`Face detection could not run (${res.error}). Please retry.`, 'Privacy Scanner Unavailable');
       } else {
         showWarning('No human faces detected in this photo.', 'Privacy Scan Complete');
       }

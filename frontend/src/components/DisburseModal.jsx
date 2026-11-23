@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import * as XLSX from 'xlsx';
 import { API_URL } from '../config';
 import { useToast } from '../context/ToastContext';
-import { blurFacesInImage } from '../utils/facePrivacyBlur';
+import { blurFacesInImage, preloadFaceDetector } from '../utils/facePrivacyBlur';
 import './DisburseModal.css';
 
 const AID_CATEGORIES = [
@@ -156,6 +156,7 @@ export default function DisburseModal({ camp, isOpen, onClose, onDisbursed }) {
       setIsDraggingOver(false);
       setProcessingFiles(false);
       lastCampIdRef.current = campId;
+      preloadFaceDetector().catch(() => {});
     }
     wasOpenRef.current = Boolean(isOpen);
   }, [isOpen, campId, camp, availablePhp]);
@@ -435,7 +436,9 @@ export default function DisburseModal({ camp, isOpen, onClose, onDisbursed }) {
     );
     if (res.blurred && res.facesBlurred > 0) {
       showSuccess(`Blurred ${res.facesBlurred} face${res.facesBlurred === 1 ? '' : 's'} in "${target.name}".`, 'RA 10173 Privacy Shield');
-    } else if (!res.error) {
+    } else if (res.error) {
+      showWarning(`Face detection could not run (${res.error}). Please retry.`, 'Privacy Scanner Unavailable');
+    } else {
       showWarning(`No human faces detected in "${target.name}".`, 'Privacy Scan Complete');
     }
   };
