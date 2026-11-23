@@ -1390,6 +1390,10 @@ export default function App() {
         <NgoProfileModal
           orgId={selectedNgoForProfile}
           onClose={() => setSelectedNgoForProfile(null)}
+          onOpenDirectory={() => {
+            setSelectedNgoForProfile(null);
+            setShowAccreditedNgosModal(true);
+          }}
           theme={theme}
         />
       )}

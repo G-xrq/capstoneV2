@@ -1,24 +1,23 @@
 /* ============================================================
-   BBDRTS Verified Non-Profit Institutional Profile Modal
-   Typography & HCI Architecture identical to SettingsPanel
-   Font: var(--font-sans, 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif)
+   BBDRTS Verified Organization Dossier Modal
+   Disciplined institutional monochrome + emerald accent system
    ============================================================ */
 
-/* ── Backdrop Overlay ── */
 .vercel-ngo-backdrop {
   position: fixed;
   inset: 0;
   width: 100vw;
   height: 100vh;
-  background: rgba(0, 0, 0, 0.78);
-  -webkit-backdrop-filter: blur(12px);
-  backdrop-filter: blur(12px);
+  background: rgba(0, 0, 0, 0.76);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000000060 !important;
   padding: 16px;
-  animation: vercelFadeIn 0.18s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  box-sizing: border-box;
+  animation: vercelFadeIn 0.16s ease-out forwards;
 }
 
 @keyframes vercelFadeIn {
@@ -26,78 +25,61 @@
   to { opacity: 1; }
 }
 
-/* ── Main Modal Dialog Container ── */
 .vercel-ngo-modal {
-  background: #000000;
-  border: 1px solid #262626;
-  border-radius: 12px;
-  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.95), 0 0 0 1px rgba(255, 255, 255, 0.06);
-  max-width: 1040px;
-  width: 95vw;
+  background: #08080a;
+  border: 1px solid #1e1e24;
+  border-radius: 14px;
+  box-shadow: 0 32px 84px rgba(0, 0, 0, 0.9), 0 0 0 1px rgba(255, 255, 255, 0.04);
+  max-width: 1060px;
+  width: 96vw;
   height: 88vh;
-  max-height: 850px;
+  max-height: 840px;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  color: #ededed;
+  color: #f4f4f5;
   font-family: var(--font-sans, 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif);
   -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  text-rendering: optimizeLegibility;
-  animation: vercelScaleIn 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: vercelScaleIn 0.18s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
-.vercel-ngo-modal button,
-.vercel-ngo-modal input,
-.vercel-ngo-modal select,
-.vercel-ngo-modal textarea,
-.vercel-ngo-modal span:not(.material-symbols-outlined),
-.vercel-ngo-modal p,
-.vercel-ngo-modal h1,
-.vercel-ngo-modal h2,
-.vercel-ngo-modal h3,
-.vercel-ngo-modal h4 {
-  font-family: inherit;
-}
-
-.vercel-ngo-modal .material-symbols-outlined {
-  font-family: 'Material Symbols Outlined' !important;
-  -webkit-font-feature-settings: 'liga' !important;
-  font-feature-settings: 'liga' !important;
+@keyframes vercelScaleIn {
+  from { opacity: 0; transform: scale(0.98) translateY(6px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
 }
 
 [data-theme="light"] .vercel-ngo-modal {
   background: #ffffff;
-  border-color: #eaeaea;
-  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.14), 0 0 0 1px rgba(0, 0, 0, 0.05);
-  color: #171717;
+  border-color: #e2e8f0;
+  box-shadow: 0 24px 64px rgba(15, 23, 42, 0.16), 0 0 0 1px rgba(15, 23, 42, 0.04);
+  color: #0f172a;
 }
 
-@keyframes vercelScaleIn {
-  from {
-    opacity: 0;
-    transform: scale(0.97) translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1) translateY(0);
-  }
+.vercel-ngo-modal button,
+.vercel-ngo-modal input {
+  font-family: inherit;
 }
 
-/* ── Top Header Bar ── */
+.vercel-ngo-modal .mono {
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Top Bar ── */
 .vercel-ngo-topbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 11px 18px;
-  border-bottom: 1px solid #222222;
-  background: #000000;
+  gap: 12px;
+  padding: 10px 16px;
+  border-bottom: 1px solid #1e1e24;
+  background: #08080a;
   flex-shrink: 0;
 }
 
 [data-theme="light"] .vercel-ngo-topbar {
-  background: #fafafa;
-  border-bottom-color: #eaeaea;
+  background: #ffffff;
+  border-bottom-color: #e2e8f0;
 }
 
 .vercel-ngo-breadcrumbs {
@@ -105,11 +87,9 @@
   align-items: center;
   gap: 8px;
   font-size: 0.82rem;
-  font-family: inherit;
-  flex-wrap: wrap;
+  min-width: 0;
 }
 
-/* Sidebar Toggle Icon in Modal Topbar */
 .vercel-sidebar-toggle-btn {
   display: inline-flex;
   align-items: center;
@@ -117,98 +97,109 @@
   width: 28px;
   height: 28px;
   border-radius: 6px;
-  background: #111111;
-  border: 1px solid #262626;
-  color: #888888;
+  background: transparent;
+  border: 1px solid #23232a;
+  color: #8b8b96;
   cursor: pointer;
-  transition: all 0.14s ease;
-  margin-right: 4px;
+  flex-shrink: 0;
+  transition: background 0.12s ease, color 0.12s ease, border-color 0.12s ease;
 }
 
 .vercel-sidebar-toggle-btn:hover {
-  background: #1c1c1c;
-  border-color: #383838;
-  color: #ededed;
+  background: #141418;
+  border-color: #32323c;
+  color: #f4f4f5;
 }
 
 [data-theme="light"] .vercel-sidebar-toggle-btn {
-  background: #f5f5f5;
-  border-color: #d4d4d4;
-  color: #555555;
+  border-color: #e2e8f0;
+  color: #64748b;
 }
 
 [data-theme="light"] .vercel-sidebar-toggle-btn:hover {
-  background: #e5e5e5;
-  color: #171717;
+  background: #f1f5f9;
+  color: #0f172a;
 }
 
-.vercel-ngo-breadcrumb-parent {
-  color: #888888;
-  font-weight: 500;
-}
-
-.vercel-ngo-breadcrumb-separator {
-  color: #444444;
-}
-
-.vercel-ngo-breadcrumb-current {
-  color: #ededed;
-  font-weight: 600;
-}
-
-[data-theme="light"] .vercel-ngo-breadcrumb-current {
-  color: #171717;
-}
-
-/* Subtle Shimmer for Loading Breadcrumb Title */
-.vercel-loading-shimmer-text {
-  color: #888888;
-  font-weight: 500;
-  animation: vercelShimmer 1.5s ease-in-out infinite;
-}
-
-@keyframes vercelShimmer {
-  0% { opacity: 0.5; }
-  50% { opacity: 0.9; }
-  100% { opacity: 0.5; }
-}
-
-.vercel-ngo-verified-pill {
+.vercel-ngo-breadcrumb-btn {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  margin-left: 6px;
-  padding: 2px 8px;
-  border-radius: 999px;
-  background: rgba(16, 185, 129, 0.12);
-  border: 1px solid rgba(16, 185, 129, 0.28);
-  color: #10b981;
-  font-size: 0.72rem;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: transparent;
+  border: 1px solid transparent;
+  color: #8b8b96;
+  font-size: 0.80rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+  white-space: nowrap;
+}
+
+.vercel-ngo-breadcrumb-btn:hover {
+  background: #141418;
+  color: #f4f4f5;
+}
+
+[data-theme="light"] .vercel-ngo-breadcrumb-btn {
+  color: #64748b;
+}
+
+[data-theme="light"] .vercel-ngo-breadcrumb-btn:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.vercel-ngo-breadcrumb-parent {
+  color: #8b8b96;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.vercel-ngo-breadcrumb-separator {
+  color: #3f3f4a;
+}
+
+.vercel-ngo-breadcrumb-current {
+  color: #f4f4f5;
   font-weight: 600;
-  letter-spacing: 0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+[data-theme="light"] .vercel-ngo-breadcrumb-current {
+  color: #0f172a;
+}
+
+.vercel-loading-shimmer-text {
+  color: #8b8b96;
+  font-weight: 500;
 }
 
 .vercel-ngo-topbar-actions {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-shrink: 0;
 }
 
 .vercel-kbd-hint {
-  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace);
-  font-size: 0.65rem;
+  font-family: var(--font-mono, monospace);
+  font-size: 0.64rem;
   padding: 2px 6px;
   border-radius: 4px;
-  background: #111111;
-  border: 1px solid #262626;
-  color: #666666;
+  background: #111114;
+  border: 1px solid #23232a;
+  color: #71717a;
   user-select: none;
 }
 
 [data-theme="light"] .vercel-kbd-hint {
-  background: #f0f0f0;
-  border-color: #d4d4d4;
-  color: #737373;
+  background: #f8fafc;
+  border-color: #e2e8f0;
+  color: #64748b;
 }
 
 .vercel-ngo-close-btn {
@@ -217,51 +208,48 @@
   border-radius: 6px;
   background: transparent;
   border: 1px solid transparent;
-  color: #888888;
-  display: flex;
+  color: #8b8b96;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: all 0.14s ease;
+  transition: background 0.12s ease, color 0.12s ease;
 }
 
 .vercel-ngo-close-btn:hover {
-  background: #171717;
-  border-color: #262626;
-  color: #ededed;
+  background: #141418;
+  color: #f4f4f5;
 }
 
 [data-theme="light"] .vercel-ngo-close-btn:hover {
-  background: #eaeaea;
-  border-color: #d4d4d4;
-  color: #171717;
+  background: #f1f5f9;
+  color: #0f172a;
 }
 
-/* ════════ 2-COLUMN SPLIT LAYOUT (SIDEBAR 35% | BODY 65%) ════════ */
+/* ── Split Layout (304px Dossier Rail | Main Workspace) ── */
 .vercel-ngo-split-layout {
   display: grid;
-  grid-template-columns: 35% 65%;
+  grid-template-columns: 304px minmax(0, 1fr);
   flex: 1;
   min-height: 0;
   overflow: hidden;
-  transition: grid-template-columns 0.22s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .vercel-ngo-split-layout.sidebar-collapsed {
   grid-template-columns: 1fr;
 }
 
-@media (max-width: 860px) {
+@media (max-width: 840px) {
   .vercel-ngo-split-layout {
     grid-template-columns: 1fr;
     overflow-y: auto;
   }
 }
 
-/* ════════ LEFT COLUMN: SIDEBAR (35%) ════════ */
+/* ════════ LEFT DOSSIER RAIL ════════ */
 .vercel-ngo-sidebar {
-  background: #050505;
-  border-right: 1px solid #222222;
+  background: #0c0c0f;
+  border-right: 1px solid #1e1e24;
   display: flex;
   flex-direction: column;
   overflow-y: auto;
@@ -269,83 +257,102 @@
 }
 
 [data-theme="light"] .vercel-ngo-sidebar {
-  background: #fafafa;
-  border-right-color: #eaeaea;
+  background: #f8fafc;
+  border-right-color: #e2e8f0;
 }
 
-@media (max-width: 860px) {
+@media (max-width: 840px) {
   .vercel-ngo-sidebar {
     border-right: none;
-    border-bottom: 1px solid #222222;
+    border-bottom: 1px solid #1e1e24;
     overflow: visible;
+  }
+  [data-theme="light"] .vercel-ngo-sidebar {
+    border-bottom-color: #e2e8f0;
   }
 }
 
-.vercel-ngo-sidebar::-webkit-scrollbar {
+.vercel-ngo-sidebar::-webkit-scrollbar,
+.vercel-ngo-panel-scroll::-webkit-scrollbar {
   width: 5px;
 }
-.vercel-ngo-sidebar::-webkit-scrollbar-thumb {
-  background: #222222;
+
+.vercel-ngo-sidebar::-webkit-scrollbar-thumb,
+.vercel-ngo-panel-scroll::-webkit-scrollbar-thumb {
+  background: #23232a;
   border-radius: 3px;
 }
 
-/* Sidebar Cover Banner */
-.vercel-sidebar-banner {
-  height: 115px;
-  width: 100%;
+[data-theme="light"] .vercel-ngo-sidebar::-webkit-scrollbar-thumb,
+[data-theme="light"] .vercel-ngo-panel-scroll::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+}
+
+/* Framed Cover Banner (Clean, never crushed by overlapping avatar) */
+.vercel-sidebar-banner-frame {
   position: relative;
-  background: linear-gradient(135deg, #091a13 0%, #111e18 50%, #06110d 100%);
-  background-size: cover;
-  background-position: center;
+  width: 100%;
+  height: 112px;
   flex-shrink: 0;
-  border-bottom: 1px solid #1c1c1c;
+  overflow: hidden;
+  background: #111116;
+  border-bottom: 1px solid #1e1e24;
 }
 
-[data-theme="light"] .vercel-sidebar-banner {
-  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+[data-theme="light"] .vercel-sidebar-banner-frame {
+  background: #e2e8f0;
+  border-bottom-color: #e2e8f0;
 }
 
-.vercel-sidebar-banner-overlay {
+.vercel-sidebar-banner-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.vercel-sidebar-banner-fade {
   position: absolute;
   inset: 0;
-  background: linear-gradient(180deg, rgba(0, 0, 0, 0.1) 0%, rgba(0, 0, 0, 0.75) 100%);
+  background: linear-gradient(180deg, rgba(12, 12, 15, 0) 55%, rgba(12, 12, 15, 0.55) 100%);
+  pointer-events: none;
 }
 
-/* Sidebar Inner Content */
+[data-theme="light"] .vercel-sidebar-banner-fade {
+  background: linear-gradient(180deg, rgba(248, 250, 252, 0) 65%, rgba(248, 250, 252, 0.35) 100%);
+}
+
 .vercel-sidebar-content {
-  padding: 0 16px 20px 16px;
+  padding: 18px 18px 22px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 0;
 }
 
-/* Avatar */
-.vercel-sidebar-avatar-wrap {
-  position: relative;
-  margin-top: -32px;
-  width: 62px;
-  height: 62px;
-  z-index: 2;
-  flex-shrink: 0;
+/* Identity Row */
+.vercel-sidebar-identity {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-bottom: 16px;
 }
 
 .vercel-sidebar-avatar {
-  width: 62px;
-  height: 62px;
-  border-radius: 50%;
-  background: #111111;
-  border: 3px solid #050505;
+  width: 48px;
+  height: 48px;
+  border-radius: 10px;
+  background: #16161b;
+  border: 1px solid #272730;
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.6);
+  flex-shrink: 0;
 }
 
 [data-theme="light"] .vercel-sidebar-avatar {
   background: #ffffff;
-  border-color: #fafafa;
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+  border-color: #cbd5e1;
 }
 
 .vercel-sidebar-avatar img {
@@ -355,381 +362,304 @@
 }
 
 .vercel-sidebar-initials {
-  font-size: 1.25rem;
+  font-size: 0.95rem;
   font-weight: 700;
-  color: #ededed;
-  letter-spacing: -0.01em;
+  color: #f4f4f5;
 }
 
 [data-theme="light"] .vercel-sidebar-initials {
-  color: #171717;
+  color: #0f172a;
 }
 
-.vercel-sidebar-avatar-badge {
-  position: absolute;
-  bottom: 0;
-  right: 0;
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  background: #10b981;
-  color: #ffffff;
-  border: 2px solid #050505;
+.vercel-sidebar-identity-text {
+  min-width: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.vercel-sidebar-name-line {
   display: flex;
   align-items: center;
-  justify-content: center;
+  gap: 6px;
+  min-width: 0;
 }
 
-[data-theme="light"] .vercel-sidebar-avatar-badge {
-  border-color: #fafafa;
+.vercel-sidebar-title {
+  margin: 0;
+  font-size: 1.02rem;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  color: #f4f4f5;
+  line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-/* Sidebar Metadata (Identical to Profile & Settings Hero Pass) */
-.vercel-sidebar-meta {
+[data-theme="light"] .vercel-sidebar-title {
+  color: #0f172a;
+}
+
+.vercel-verified-mark {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.vercel-sidebar-accredited-date {
+  font-size: 0.74rem;
+  color: #8b8b96;
+}
+
+[data-theme="light"] .vercel-sidebar-accredited-date {
+  color: #64748b;
+}
+
+/* Hairline Rail Sections */
+.vercel-rail-section {
+  padding: 14px 0;
+  border-top: 1px solid #1c1c22;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+[data-theme="light"] .vercel-rail-section {
+  border-top-color: #e2e8f0;
+}
+
+.vercel-rail-section-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #8b8b96;
+}
+
+[data-theme="light"] .vercel-rail-section-label {
+  color: #64748b;
+}
+
+/* Key-Value Registration Rows */
+.vercel-rail-kv-list {
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
 
-.vercel-sidebar-title {
-  margin: 0;
-  font-size: 1.18rem;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-  color: #ededed;
-  line-height: 1.3;
-}
-
-[data-theme="light"] .vercel-sidebar-title {
-  color: #171717;
-}
-
-.vercel-sidebar-verified-tag {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 2px 8px;
-  border-radius: 999px;
-  font-size: 0.72rem;
-  font-weight: 600;
-  background: rgba(16, 185, 129, 0.12);
-  border: 1px solid rgba(16, 185, 129, 0.28);
-  color: #10b981;
-  width: fit-content;
-}
-
-.vercel-sidebar-accredited-date {
-  font-size: 0.72rem;
-  color: #888888;
-}
-
-.vercel-sidebar-loc-row {
+.vercel-rail-kv-row {
   display: flex;
   align-items: center;
-  gap: 6px;
-  font-size: 0.78rem;
-  color: #888888;
-}
-
-.vercel-sidebar-badges {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-wrap: wrap;
-}
-
-.vercel-meta-item.mono {
-  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace);
-  font-size: 0.72rem;
-  background: #0f0f0f;
-  padding: 2px 7px;
-  border-radius: 4px;
-  border: 1px solid #222222;
-  color: #a1a1a1;
-}
-
-[data-theme="light"] .vercel-meta-item.mono {
-  background: #ffffff;
-  border-color: #eaeaea;
-  color: #444444;
-}
-
-/* Sidebar Generic Cards */
-.vercel-sidebar-card {
-  padding: 10px 12px;
-  background: #0c0c0c;
-  border: 1px solid #1f1f1f;
-  border-radius: 8px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-[data-theme="light"] .vercel-sidebar-card {
-  background: #ffffff;
-  border-color: #eaeaea;
-}
-
-.vercel-sidebar-card-header-line {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.vercel-sidebar-card-label {
-  font-size: 0.65rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: #737373;
-}
-
-/* Location and Landmark Group */
-.vercel-sidebar-loc-group {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.vercel-sidebar-landmark-row,
-.vercel-sidebar-officer-row {
-  display: flex;
-  align-items: flex-start;
   gap: 8px;
-  font-size: 0.74rem;
-  color: #a1a1a1;
-  line-height: 1.35;
-  padding: 6px 9px;
+  width: 100%;
+  padding: 6px 8px;
+  margin: 0 -8px;
+  width: calc(100% + 16px);
   border-radius: 6px;
-  background: #0d0d0d;
-  border: 1px solid #1c1c1c;
+  background: transparent;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.12s ease;
 }
 
-[data-theme="light"] .vercel-sidebar-landmark-row,
-[data-theme="light"] .vercel-sidebar-officer-row {
-  background: #f8fafc;
-  border-color: #e2e8f0;
-  color: #334155;
+.vercel-rail-kv-row:hover {
+  background: #15151a;
 }
 
-.vercel-sidebar-landmark-row .lbl,
-.vercel-sidebar-officer-row .lbl {
-  font-size: 0.64rem;
-  text-transform: uppercase;
-  color: #737373;
+[data-theme="light"] .vercel-rail-kv-row:hover {
+  background: #eef2f6;
+}
+
+.vercel-rail-kv-row .kv-key {
+  font-size: 0.72rem;
   font-weight: 600;
-  display: block;
-  margin-bottom: 2px;
+  color: #71717a;
+  width: 40px;
+  flex-shrink: 0;
 }
 
-.vercel-sidebar-landmark-row .val,
-.vercel-sidebar-officer-row .val {
-  color: #ededed;
-  font-weight: 500;
+.vercel-rail-kv-row .kv-val {
+  font-size: 0.75rem;
+  color: #e4e4e7;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-[data-theme="light"] .vercel-sidebar-landmark-row .val,
-[data-theme="light"] .vercel-sidebar-officer-row .val {
+[data-theme="light"] .vercel-rail-kv-row .kv-val {
   color: #0f172a;
 }
 
-/* Disaster Response Focus Areas Tag Chips */
-.vercel-sidebar-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 5px;
-  margin-top: 2px;
-}
-
-.vercel-sidebar-tag-chip {
-  font-size: 0.7rem;
-  font-weight: 500;
-  padding: 2px 7px;
-  border-radius: 4px;
-  background: rgba(16, 185, 129, 0.08);
-  color: #34d399;
-  border: 1px solid rgba(16, 185, 129, 0.2);
-  letter-spacing: -0.1px;
-}
-
-[data-theme="light"] .vercel-sidebar-tag-chip {
-  background: #ecfdf5;
-  color: #059669;
-  border-color: #a7f3d0;
-}
-
-.vercel-sidebar-social-btn {
-  display: flex;
+.vercel-rail-kv-row .kv-copy {
+  font-size: 0.68rem;
+  color: #71717a;
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 6px 10px;
-  border-radius: 6px;
-  background: #141414;
-  border: 1px solid #262626;
-  color: #c084fc;
-  font-size: 0.74rem;
-  font-weight: 600;
-  text-decoration: none;
-  transition: all 0.14s ease;
-  font-family: inherit;
-  margin-top: 4px;
+  flex-shrink: 0;
 }
 
-.vercel-sidebar-social-btn:hover {
-  background: #1e1e1e;
-  border-color: #c084fc;
-  color: #e9d5ff;
+.vercel-rail-kv-row:hover .kv-copy {
+  color: #10b981;
 }
 
-[data-theme="light"] .vercel-sidebar-social-btn {
-  background: #faf5ff;
-  border-color: #e9d5ff;
-  color: #9333ea;
-}
-
-/* Institutional Trust & Compliance Pills */
-.vercel-sidebar-trust-strip {
+/* Contact List */
+.vercel-rail-contact-list {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 8px;
+}
+
+.vercel-rail-contact-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  text-decoration: none;
+  color: inherit;
+  padding: 4px 6px;
+  margin: 0 -6px;
+  border-radius: 6px;
+  transition: background 0.12s ease;
+}
+
+.vercel-rail-contact-item:not(.is-static):hover {
+  background: #15151a;
+}
+
+[data-theme="light"] .vercel-rail-contact-item:not(.is-static):hover {
+  background: #eef2f6;
+}
+
+.vercel-rail-contact-item .ci-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.vercel-rail-contact-item .ci-lbl {
+  font-size: 0.69rem;
+  color: #71717a;
+}
+
+.vercel-rail-contact-item .ci-val {
+  font-size: 0.80rem;
+  color: #e4e4e7;
+  font-weight: 500;
+  word-break: break-word;
+  line-height: 1.35;
+}
+
+[data-theme="light"] .vercel-rail-contact-item .ci-val {
+  color: #0f172a;
+}
+
+.vercel-rail-link-row {
+  display: flex;
+  gap: 8px;
   margin-top: 4px;
 }
 
-.vercel-sidebar-trust-pill {
-  display: flex;
+.vercel-rail-ext-link {
+  flex: 1;
+  display: inline-flex;
   align-items: center;
-  gap: 6px;
-  font-size: 0.7rem;
-  color: #71717a;
-  padding: 5px 8px;
-  border-radius: 5px;
-  background: rgba(255, 255, 255, 0.02);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  justify-content: center;
+  gap: 5px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  background: #141418;
+  border: 1px solid #24242c;
+  color: #e4e4e7;
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-decoration: none;
+  transition: border-color 0.12s ease, background 0.12s ease;
 }
 
-[data-theme="light"] .vercel-sidebar-trust-pill {
-  background: #f8fafc;
-  border-color: #f1f5f9;
-  color: #64748b;
+.vercel-rail-ext-link:hover {
+  border-color: #3f3f4a;
+  background: #1a1a20;
 }
 
-.vercel-sidebar-bio {
-  margin: 0;
-  font-size: 0.78rem;
-  color: #a1a1a1;
-  line-height: 1.5;
+[data-theme="light"] .vercel-rail-ext-link {
+  background: #ffffff;
+  border-color: #cbd5e1;
+  color: #0f172a;
 }
 
-[data-theme="light"] .vercel-sidebar-bio {
-  color: #555555;
+[data-theme="light"] .vercel-rail-ext-link:hover {
+  border-color: #94a3b8;
+  background: #f1f5f9;
 }
 
-/* Expandable "Show more" / "Show less" Controls */
-.vercel-expandable-wrap {
-  display: block;
-}
-
+/* Mission & Tags */
+.vercel-sidebar-bio,
 .vercel-expandable-text {
-  font-size: 0.78rem;
-  color: #a1a1a1;
-  line-height: 1.5;
+  margin: 0;
+  font-size: 0.79rem;
+  color: #a1a1aa;
+  line-height: 1.55;
 }
 
+[data-theme="light"] .vercel-sidebar-bio,
 [data-theme="light"] .vercel-expandable-text {
-  color: #555555;
+  color: #475569;
 }
 
 .vercel-show-more-btn {
   background: none;
   border: none;
-  color: #38bdf8;
-  font-size: 0.74rem;
+  color: #10b981;
+  font-size: 0.76rem;
   font-weight: 600;
   cursor: pointer;
-  padding: 0 4px;
-  display: inline-block;
-  transition: color 0.12s ease;
-  font-family: inherit;
+  padding: 0 2px;
 }
 
 .vercel-show-more-btn:hover {
-  color: #7dd3fc;
   text-decoration: underline;
 }
 
-[data-theme="light"] .vercel-show-more-btn {
-  color: #0284c7;
-}
-
-/* Sidebar Contact Card */
-.vercel-sidebar-contact-card {
-  padding: 10px 12px;
-  background: #0c0c0c;
-  border: 1px solid #1f1f1f;
-  border-radius: 8px;
+.vercel-sidebar-tags {
   display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-[data-theme="light"] .vercel-sidebar-contact-card {
-  background: #ffffff;
-  border-color: #eaeaea;
-}
-
-.vercel-sidebar-contact-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.vercel-sidebar-contact-row .lbl {
-  display: block;
-  font-size: 0.65rem;
-  color: #737373;
-}
-
-.vercel-sidebar-contact-row .val {
-  font-size: 0.78rem;
-  color: #ededed;
-}
-
-[data-theme="light"] .vercel-sidebar-contact-row .val {
-  color: #171717;
-}
-
-.vercel-sidebar-portal-btn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  flex-wrap: wrap;
   gap: 6px;
-  padding: 6px 10px;
-  border-radius: 6px;
-  background: #141414;
-  border: 1px solid #262626;
-  color: #38bdf8;
-  font-size: 0.74rem;
-  font-weight: 600;
-  text-decoration: none;
-  transition: all 0.14s ease;
-  font-family: inherit;
+  margin-top: 4px;
 }
 
-.vercel-sidebar-portal-btn:hover {
-  background: #1c1c1c;
-  border-color: #38bdf8;
+.vercel-sidebar-tag-chip {
+  font-size: 0.71rem;
+  font-weight: 500;
+  padding: 3px 8px;
+  border-radius: 5px;
+  background: #15151a;
+  color: #d4d4d8;
+  border: 1px solid #23232c;
 }
 
-[data-theme="light"] .vercel-sidebar-portal-btn {
-  background: #f0f9ff;
-  border-color: #bae6fd;
-  color: #0284c7;
+[data-theme="light"] .vercel-sidebar-tag-chip {
+  background: #ffffff;
+  color: #334155;
+  border-color: #e2e8f0;
 }
 
-/* ════════ RIGHT COLUMN: MAIN BODY (65% or 100%) ════════ */
+.vercel-rail-lead-val {
+  font-size: 0.80rem;
+  font-weight: 500;
+  color: #e4e4e7;
+}
+
+[data-theme="light"] .vercel-rail-lead-val {
+  color: #0f172a;
+}
+
+/* ════════ RIGHT MAIN PANEL ════════ */
 .vercel-ngo-main {
-  background: #000000;
+  background: #08080a;
   display: flex;
   flex-direction: column;
   flex: 1;
@@ -742,86 +672,88 @@
   background: #ffffff;
 }
 
-/* ── Impact Metrics Strip: 3 Clean, Human-Relevant Impact Tiles (Image 2 Fix) ── */
-.vercel-ngo-metrics-strip {
+/* Unified 4-Column Hairline Ledger Bar */
+.vercel-ledger-bar {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
-  padding: 12px 18px;
-  border-bottom: 1px solid #222222;
-  background: #000000;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  border-bottom: 1px solid #1e1e24;
+  background: #08080a;
   flex-shrink: 0;
 }
 
-[data-theme="light"] .vercel-ngo-metrics-strip {
+[data-theme="light"] .vercel-ledger-bar {
   background: #ffffff;
-  border-bottom-color: #eaeaea;
+  border-bottom-color: #e2e8f0;
 }
 
-@media (max-width: 600px) {
-  .vercel-ngo-metrics-strip {
-    grid-template-columns: 1fr;
+@media (max-width: 620px) {
+  .vercel-ledger-bar {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
-.vercel-metric-tile {
+.vercel-ledger-cell {
+  padding: 14px 18px;
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  padding: 10px 12px;
-  background: #0a0a0a;
-  border: 1px solid #1f1f1f;
-  border-radius: 8px;
-  transition: border-color 0.15s ease;
+  gap: 3px;
+  min-width: 0;
 }
 
-.vercel-metric-tile:hover {
-  border-color: #333333;
+.vercel-ledger-cell:not(:last-child) {
+  border-right: 1px solid #1a1a20;
 }
 
-[data-theme="light"] .vercel-metric-tile {
-  background: #fafafa;
-  border-color: #eaeaea;
+[data-theme="light"] .vercel-ledger-cell:not(:last-child) {
+  border-right-color: #f1f5f9;
 }
 
-.vercel-metric-label {
-  font-size: 0.66rem;
-  font-weight: 600;
-  color: #888888;
-  letter-spacing: 0.02em;
+.vercel-ledger-cell .ledger-lbl {
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: #8b8b96;
+  white-space: nowrap;
 }
 
-.vercel-metric-value {
-  font-size: 1.12rem;
+[data-theme="light"] .vercel-ledger-cell .ledger-lbl {
+  color: #64748b;
+}
+
+.vercel-ledger-cell .ledger-val {
+  font-size: 1.15rem;
   font-weight: 700;
-  letter-spacing: -0.01em;
-  color: #ededed;
+  letter-spacing: -0.02em;
+  color: #f4f4f5;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-[data-theme="light"] .vercel-metric-value {
-  color: #171717;
+[data-theme="light"] .vercel-ledger-cell .ledger-val {
+  color: #0f172a;
 }
 
-.vercel-metric-sub {
-  font-size: 0.68rem;
-  color: #666666;
+.vercel-ledger-cell .ledger-val.is-emerald {
+  color: #10b981;
 }
 
-[data-theme="light"] .vercel-metric-sub {
-  color: #888888;
+.vercel-ledger-cell .ledger-sub {
+  font-size: 0.74rem;
+  font-weight: 500;
+  color: #71717a;
 }
 
-/* ── Segmented Navigation Tabs: Never Cuts Off (Image 3 Fix) ── */
+/* Clean Underline Navigation Tabs */
 .vercel-ngo-tabs-bar {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 8px 18px 8px 18px;
-  border-bottom: 1px solid #222222;
+  gap: 20px;
+  padding: 0 20px;
+  border-bottom: 1px solid #1e1e24;
   overflow-x: auto;
   scrollbar-width: none;
   flex-shrink: 0;
-  background: #000000;
+  background: #08080a;
 }
 
 .vercel-ngo-tabs-bar::-webkit-scrollbar {
@@ -830,222 +762,282 @@
 
 [data-theme="light"] .vercel-ngo-tabs-bar {
   background: #ffffff;
-  border-bottom-color: #eaeaea;
+  border-bottom-color: #e2e8f0;
 }
 
 .vercel-tab-btn {
+  position: relative;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 6px 11px;
-  border-radius: 6px;
+  gap: 7px;
+  padding: 12px 2px;
   background: transparent;
-  border: 1px solid transparent;
-  box-sizing: border-box;
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: #888888;
+  border: none;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: #8b8b96;
   cursor: pointer;
   white-space: nowrap;
   flex-shrink: 0;
-  min-width: max-content;
-  position: relative;
-  font-family: inherit;
-  transition: background 120ms ease, color 120ms ease, border-color 120ms ease, box-shadow 120ms ease;
+  transition: color 0.12s ease;
 }
 
 .vercel-tab-btn:hover {
-  color: #ffffff;
-  background: #1a1a1a;
+  color: #e4e4e7;
 }
 
 .vercel-tab-btn.active {
   color: #ffffff;
-  background: #242424;
-  border-color: rgba(255, 255, 255, 0.12);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  font-weight: 600;
+}
+
+.vercel-tab-btn.active::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  background: #f4f4f5;
+  border-radius: 2px 2px 0 0;
 }
 
 [data-theme="light"] .vercel-tab-btn {
-  color: #666666;
+  color: #64748b;
 }
 
 [data-theme="light"] .vercel-tab-btn:hover {
-  color: #000000;
-  background: #f5f5f5;
+  color: #0f172a;
 }
 
 [data-theme="light"] .vercel-tab-btn.active {
-  color: #000000;
-  background: rgba(0, 0, 0, 0.07);
-  border-color: rgba(0, 0, 0, 0.12);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  color: #0f172a;
+}
+
+[data-theme="light"] .vercel-tab-btn.active::after {
+  background: #0f172a;
 }
 
 .vercel-tab-count {
-  font-size: 0.65rem;
+  font-size: 0.68rem;
   font-weight: 600;
   padding: 1px 6px;
   border-radius: 999px;
-  background: #171717;
-  color: #a1a1a1;
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: #18181d;
+  color: #a1a1aa;
 }
 
 [data-theme="light"] .vercel-tab-count {
-  background: #eaeaea;
-  color: #555555;
-  border-color: rgba(0, 0, 0, 0.06);
+  background: #f1f5f9;
+  color: #475569;
 }
 
-/* Scrollable Tab Panels Body */
+/* Scrollable Tab Panel */
 .vercel-ngo-panel-scroll {
   flex: 1;
   overflow-y: auto;
-  padding: 18px;
+  padding: 18px 20px 24px;
   min-height: 0;
-}
-
-.vercel-ngo-panel-scroll::-webkit-scrollbar {
-  width: 5px;
-}
-.vercel-ngo-panel-scroll::-webkit-scrollbar-thumb {
-  background: #222222;
-  border-radius: 3px;
 }
 
 .vercel-tab-pane {
   display: flex;
   flex-direction: column;
   gap: 14px;
-  animation: vercelTabFade 0.16s ease forwards;
 }
 
-@keyframes vercelTabFade {
-  from { opacity: 0; transform: translateY(3px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-.vercel-pane-header {
+/* Operations Filter & Search Bar */
+.vercel-ops-toolbar {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 10px;
+  flex-wrap: wrap;
 }
 
-.vercel-pane-title {
-  margin: 0;
-  font-size: 0.98rem;
-  font-weight: 700;
-  letter-spacing: -0.01em;
-  color: #ededed;
-}
-
-[data-theme="light"] .vercel-pane-title {
-  color: #171717;
-}
-
-.vercel-pane-desc {
-  margin: 2px 0 0 0;
-  font-size: 0.78rem;
-  color: #888888;
-}
-
-/* Empty Card */
-.vercel-empty-card {
-  padding: 32px 18px;
-  border-radius: 8px;
-  background: #0a0a0a;
-  border: 1px dashed #262626;
-  text-align: center;
+.vercel-ops-filter-pills {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 8px;
-  color: #888888;
-  font-size: 0.8rem;
+  gap: 6px;
+  flex-wrap: wrap;
 }
 
-[data-theme="light"] .vercel-empty-card {
-  background: #fafafa;
-  border-color: #eaeaea;
-  color: #666666;
+.vercel-ops-filter-pills .ops-pill {
+  background: transparent;
+  border: 1px solid #222229;
+  color: #8b8b96;
+  font-size: 0.74rem;
+  font-weight: 500;
+  padding: 5px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.12s ease;
 }
 
-/* ── Modernized Campaign Card (Image 1 Fix) ── */
+.vercel-ops-filter-pills .ops-pill:hover {
+  border-color: #363642;
+  color: #e4e4e7;
+}
+
+.vercel-ops-filter-pills .ops-pill.active {
+  background: #18181f;
+  border-color: #3f3f4c;
+  color: #ffffff;
+  font-weight: 600;
+}
+
+[data-theme="light"] .vercel-ops-filter-pills .ops-pill {
+  border-color: #e2e8f0;
+  color: #64748b;
+}
+
+[data-theme="light"] .vercel-ops-filter-pills .ops-pill.active {
+  background: #0f172a;
+  border-color: #0f172a;
+  color: #ffffff;
+}
+
+.vercel-ops-search {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #0e0e12;
+  border: 1px solid #222229;
+  border-radius: 6px;
+  padding: 0 9px;
+  height: 30px;
+  min-width: 175px;
+}
+
+.vercel-ops-search:focus-within {
+  border-color: #52525b;
+}
+
+[data-theme="light"] .vercel-ops-search {
+  background: #f8fafc;
+  border-color: #e2e8f0;
+}
+
+.vercel-ops-search input {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #f4f4f5;
+  font-size: 0.76rem;
+}
+
+[data-theme="light"] .vercel-ops-search input {
+  color: #0f172a;
+}
+
+.vercel-ops-search .ops-search-clear {
+  background: transparent;
+  border: none;
+  color: #71717a;
+  cursor: pointer;
+  display: inline-flex;
+  padding: 0;
+}
+
+/* Campaign Cards */
 .vercel-campaigns-list {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
 }
 
 .vercel-campaign-card {
-  padding: 16px;
-  background: #0a0a0a;
-  border: 1px solid #1f1f1f;
+  padding: 16px 18px;
+  background: #0c0c0f;
+  border: 1px solid #1e1e24;
   border-radius: 10px;
   display: flex;
   flex-direction: column;
   gap: 10px;
-  transition: all 0.15s ease;
+  transition: border-color 0.14s ease, background 0.14s ease;
 }
 
 .vercel-campaign-card:hover {
-  border-color: #333333;
-  background: #0d0d0d;
+  border-color: #2f2f38;
+  background: #0f0f13;
 }
 
 [data-theme="light"] .vercel-campaign-card {
   background: #ffffff;
-  border-color: #eaeaea;
+  border-color: #e2e8f0;
 }
 
 [data-theme="light"] .vercel-campaign-card:hover {
-  border-color: #d4d4d4;
-  background: #fafafa;
+  border-color: #cbd5e1;
+  background: #fafbfc;
 }
 
 .vercel-camp-header {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 10px;
+  gap: 12px;
 }
 
-/* Category Badge (Clean, Human-Readable, e.g. Disaster Relief instead of DR) */
-.vercel-camp-badge {
-  font-size: 0.68rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: #38bdf8;
-  display: inline-block;
-  margin-bottom: 2px;
+.vercel-camp-title-block {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.vercel-camp-meta-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.vercel-camp-category {
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: #8b8b96;
+}
+
+[data-theme="light"] .vercel-camp-category {
+  color: #64748b;
+}
+
+.vercel-camp-proof-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.70rem;
+  font-weight: 600;
+  color: #10b981;
 }
 
 .vercel-camp-title {
   margin: 0;
-  font-size: 0.98rem;
-  font-weight: 700;
+  font-size: 0.96rem;
+  font-weight: 600;
   letter-spacing: -0.01em;
-  color: #ededed;
+  color: #f4f4f5;
   line-height: 1.35;
 }
 
 [data-theme="light"] .vercel-camp-title {
-  color: #171717;
+  color: #0f172a;
 }
 
-/* Urgency Pill */
+/* Status Pill */
 .vercel-camp-urgency {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  font-size: 0.68rem;
-  font-weight: 600;
+  font-size: 0.70rem;
+  font-weight: 500;
   padding: 3px 8px;
   border-radius: 999px;
   white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .vercel-urgency-dot {
@@ -1054,130 +1046,112 @@
   border-radius: 50%;
 }
 
+.vercel-camp-urgency.normal {
+  background: rgba(16, 185, 129, 0.1);
+  color: #10b981;
+}
+.vercel-camp-urgency.normal .vercel-urgency-dot { background: #10b981; }
+
 .vercel-camp-urgency.high {
   background: rgba(245, 158, 11, 0.12);
-  border: 1px solid rgba(245, 158, 11, 0.3);
   color: #f59e0b;
 }
-.vercel-camp-urgency.high .vercel-urgency-dot {
-  background: #f59e0b;
-}
+.vercel-camp-urgency.high .vercel-urgency-dot { background: #f59e0b; }
 
 .vercel-camp-urgency.critical {
   background: rgba(239, 68, 68, 0.12);
-  border: 1px solid rgba(239, 68, 68, 0.3);
   color: #ef4444;
 }
-.vercel-camp-urgency.critical .vercel-urgency-dot {
-  background: #ef4444;
-}
-
-.vercel-camp-urgency.normal {
-  background: rgba(16, 185, 129, 0.12);
-  border: 1px solid rgba(16, 185, 129, 0.3);
-  color: #10b981;
-}
-.vercel-camp-urgency.normal .vercel-urgency-dot {
-  background: #10b981;
-}
+.vercel-camp-urgency.critical .vercel-urgency-dot { background: #ef4444; }
 
 .vercel-camp-desc {
   margin: 0;
-  font-size: 0.8rem;
-  color: #a1a1a1;
+  font-size: 0.80rem;
+  color: #a1a1aa;
   line-height: 1.5;
+  max-width: 72ch;
 }
 
 [data-theme="light"] .vercel-camp-desc {
-  color: #555555;
+  color: #475569;
 }
 
-/* ── Modernized Progress Track & Bar (Image 1 Fix) ── */
+/* Crisp Progress Bar */
 .vercel-camp-progress-section {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  margin: 4px 0;
 }
 
 .vercel-progress-track {
   width: 100%;
-  height: 6px;
+  height: 4px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.08);
+  background: #1c1c23;
   overflow: hidden;
-  position: relative;
 }
 
 [data-theme="light"] .vercel-progress-track {
-  background: #e5e5e5;
+  background: #e2e8f0;
 }
 
 .vercel-progress-bar {
   height: 100%;
   border-radius: 999px;
-  background: linear-gradient(90deg, #10b981 0%, #34d399 100%);
-  transition: width 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-  box-shadow: 0 0 8px rgba(16, 185, 129, 0.35);
-}
-
-[data-theme="light"] .vercel-progress-bar {
-  background: linear-gradient(90deg, #059669 0%, #10b981 100%);
+  background: #10b981;
+  transition: width 0.35s ease;
 }
 
 .vercel-progress-labels {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  font-size: 0.74rem;
+  font-size: 0.75rem;
 }
 
 .vercel-progress-labels .raised {
-  font-weight: 700;
-  color: #ededed;
+  font-weight: 600;
+  color: #f4f4f5;
 }
 
 [data-theme="light"] .vercel-progress-labels .raised {
-  color: #171717;
+  color: #0f172a;
 }
 
 .vercel-progress-labels .raised .sub {
   font-weight: 400;
-  color: #888888;
-}
-
-.vercel-progress-labels .goal {
-  color: #888888;
+  color: #8b8b96;
+  font-family: var(--font-sans, inherit);
 }
 
 .vercel-progress-labels .pct-badge {
   color: #10b981;
-  font-weight: 700;
-  margin-left: 2px;
+  font-weight: 600;
 }
 
+/* Campaign Card Footer */
 .vercel-camp-footer {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding-top: 8px;
-  border-top: 1px solid #1a1a1a;
   gap: 12px;
+  padding-top: 10px;
+  border-top: 1px solid #18181e;
   flex-wrap: wrap;
 }
 
 [data-theme="light"] .vercel-camp-footer {
-  border-top-color: #f0f0f0;
+  border-top-color: #f1f5f9;
 }
 
 .vercel-camp-loc {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: 0.74rem;
-  color: #888888;
-  max-width: 60%;
-  overflow: hidden;
+  font-size: 0.75rem;
+  color: #8b8b96;
+  min-width: 0;
+  flex: 1;
 }
 
 .vercel-camp-loc .loc-text {
@@ -1186,20 +1160,96 @@
   text-overflow: ellipsis;
 }
 
-/* ── Generic Vercel Card Box (Governance, Channels, Dispatch) ── */
+.vercel-camp-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+/* Buttons */
+.vercel-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 13px;
+  border-radius: 7px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+  white-space: nowrap;
+}
+
+.vercel-btn-primary {
+  background: #f4f4f5;
+  color: #09090b;
+  border: 1px solid #f4f4f5;
+}
+
+.vercel-btn-primary:hover {
+  background: #ffffff;
+  border-color: #ffffff;
+}
+
+[data-theme="light"] .vercel-btn-primary {
+  background: #0f172a;
+  color: #ffffff;
+  border-color: #0f172a;
+}
+
+[data-theme="light"] .vercel-btn-primary:hover {
+  background: #1e293b;
+}
+
+.vercel-btn-secondary {
+  background: #141418;
+  color: #e4e4e7;
+  border: 1px solid #272730;
+}
+
+.vercel-btn-secondary:hover {
+  background: #1c1c22;
+  border-color: #3f3f4c;
+}
+
+[data-theme="light"] .vercel-btn-secondary {
+  background: #ffffff;
+  color: #0f172a;
+  border-color: #cbd5e1;
+}
+
+[data-theme="light"] .vercel-btn-secondary:hover {
+  background: #f8fafc;
+}
+
+.vercel-btn-proof {
+  background: rgba(16, 185, 129, 0.1);
+  color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.28);
+}
+
+.vercel-btn-proof:hover {
+  background: rgba(16, 185, 129, 0.16);
+  border-color: rgba(16, 185, 129, 0.45);
+}
+
+/* Generic Section Cards (Governance, Payment Channels, Dispatch) */
 .vercel-card-box {
-  padding: 16px;
-  background: #0a0a0a;
-  border: 1px solid #1f1f1f;
-  border-radius: 8px;
+  padding: 18px;
+  background: #0c0c0f;
+  border: 1px solid #1e1e24;
+  border-radius: 10px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
 }
 
 [data-theme="light"] .vercel-card-box {
   background: #ffffff;
-  border-color: #eaeaea;
+  border-color: #e2e8f0;
 }
 
 .vercel-card-box-header {
@@ -1213,78 +1263,102 @@
 .vercel-card-box-title {
   margin: 0;
   font-size: 0.94rem;
-  font-weight: 700;
-  color: #ededed;
+  font-weight: 600;
+  color: #f4f4f5;
   letter-spacing: -0.01em;
 }
 
 [data-theme="light"] .vercel-card-box-title {
-  color: #171717;
+  color: #0f172a;
 }
 
 .vercel-card-box-desc {
-  margin: 2px 0 0 0;
-  font-size: 0.76rem;
-  color: #888888;
+  margin: 3px 0 0;
+  font-size: 0.78rem;
+  color: #8b8b96;
   line-height: 1.45;
+  max-width: 66ch;
+}
+
+[data-theme="light"] .vercel-card-box-desc {
+  color: #64748b;
 }
 
 .vercel-info-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 8px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
 }
 
-@media (max-width: 540px) {
+@media (max-width: 560px) {
   .vercel-info-grid {
     grid-template-columns: 1fr;
   }
 }
 
 .vercel-info-item {
-  padding: 8px 10px;
-  background: #111111;
-  border: 1px solid #1a1a1a;
-  border-radius: 6px;
+  padding: 10px 12px;
+  background: #111115;
+  border: 1px solid #1d1d24;
+  border-radius: 8px;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 3px;
 }
 
 [data-theme="light"] .vercel-info-item {
-  background: #fafafa;
-  border-color: #eaeaea;
+  background: #f8fafc;
+  border-color: #e2e8f0;
 }
 
 .vercel-info-item .lbl {
-  font-size: 0.65rem;
-  color: #888888;
-  font-weight: 500;
+  font-size: 0.70rem;
+  color: #8b8b96;
 }
 
 .vercel-info-item .val {
-  font-size: 0.8rem;
-  color: #ededed;
+  font-size: 0.82rem;
+  color: #f4f4f5;
   font-weight: 600;
+  word-break: break-all;
 }
 
 [data-theme="light"] .vercel-info-item .val {
-  color: #171717;
+  color: #0f172a;
 }
 
-.vercel-info-item .val.mono {
-  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace);
-  font-size: 0.76rem;
+.vercel-wallet-copy-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
 }
 
-/* ── Board of Trustees Grid ── */
+.vercel-inline-copy-btn {
+  background: transparent;
+  border: 1px solid #2a2a34;
+  color: #a1a1aa;
+  font-size: 0.70rem;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 5px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.vercel-inline-copy-btn:hover {
+  border-color: #10b981;
+  color: #10b981;
+}
+
+/* Board Grid */
 .vercel-board-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 8px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
 }
 
-@media (max-width: 540px) {
+@media (max-width: 560px) {
   .vercel-board-grid {
     grid-template-columns: 1fr;
   }
@@ -1293,184 +1367,203 @@
 .vercel-board-card {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 10px;
-  background: #111111;
-  border: 1px solid #1a1a1a;
-  border-radius: 6px;
+  gap: 10px;
+  padding: 10px 12px;
+  background: #111115;
+  border: 1px solid #1d1d24;
+  border-radius: 8px;
 }
 
 [data-theme="light"] .vercel-board-card {
-  background: #fafafa;
-  border-color: #eaeaea;
+  background: #f8fafc;
+  border-color: #e2e8f0;
 }
 
 .vercel-board-avatar {
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
-  background: #1c1c1c;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: #191920;
+  border: 1px solid #272732;
+  color: #8b8b96;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #888888;
   flex-shrink: 0;
 }
 
 [data-theme="light"] .vercel-board-avatar {
-  background: #eaeaea;
-  color: #555555;
+  background: #ffffff;
+  border-color: #e2e8f0;
 }
 
 .vercel-board-text {
   display: flex;
   flex-direction: column;
+  min-width: 0;
 }
 
 .vercel-board-text .name {
-  font-size: 0.8rem;
+  font-size: 0.80rem;
   font-weight: 600;
-  color: #ededed;
+  color: #f4f4f5;
 }
 
 [data-theme="light"] .vercel-board-text .name {
-  color: #171717;
+  color: #0f172a;
 }
 
 .vercel-board-text .role {
-  font-size: 0.66rem;
-  color: #888888;
+  font-size: 0.70rem;
+  color: #8b8b96;
 }
 
-/* ── Payment Channels Grid ── */
+/* Payment Channels Grid */
 .vercel-rails-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 8px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
 }
 
-@media (max-width: 580px) {
+@media (max-width: 720px) {
   .vercel-rails-grid {
     grid-template-columns: 1fr;
   }
 }
 
 .vercel-rail-card {
-  padding: 10px 12px;
-  background: #111111;
-  border: 1px solid #1a1a1a;
-  border-radius: 6px;
+  padding: 14px;
+  background: #111115;
+  border: 1px solid #1e1e26;
+  border-radius: 8px;
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 8px;
 }
 
 [data-theme="light"] .vercel-rail-card {
-  background: #fafafa;
-  border-color: #eaeaea;
+  background: #f8fafc;
+  border-color: #e2e8f0;
 }
 
 .vercel-rail-top {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 6px;
 }
 
 .vercel-rail-name {
-  font-size: 0.82rem;
-  font-weight: 700;
-  color: #ededed;
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: #f4f4f5;
 }
 
 [data-theme="light"] .vercel-rail-name {
-  color: #171717;
+  color: #0f172a;
 }
 
 .vercel-rail-tag {
-  font-size: 0.62rem;
+  font-size: 0.66rem;
   font-weight: 600;
-  padding: 1px 5px;
-  border-radius: 4px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: #1a1a22;
+  color: #a1a1aa;
 }
 
-.vercel-rail-tag.eth {
-  background: rgba(56, 189, 248, 0.1);
-  color: #38bdf8;
-  border: 1px solid rgba(56, 189, 248, 0.25);
-}
-
-.vercel-rail-tag.gcash {
-  background: rgba(0, 125, 254, 0.1);
-  color: #007dfe;
-  border: 1px solid rgba(0, 125, 254, 0.25);
-}
-
-.vercel-rail-tag.maya {
-  background: rgba(0, 214, 143, 0.1);
-  color: #00d68f;
-  border: 1px solid rgba(0, 214, 143, 0.25);
-}
-
-.vercel-rail-tag.bank {
-  background: rgba(245, 158, 11, 0.1);
-  color: #f59e0b;
-  border: 1px solid rgba(245, 158, 11, 0.25);
-}
+.vercel-rail-tag.gcash { color: #38bdf8; background: rgba(56, 189, 248, 0.1); }
+.vercel-rail-tag.maya { color: #10b981; background: rgba(16, 185, 129, 0.1); }
+.vercel-rail-tag.bank { color: #c084fc; background: rgba(192, 132, 252, 0.1); }
 
 .vercel-rail-holder {
-  font-size: 0.72rem;
-  color: #888888;
+  font-size: 0.76rem;
+  color: #a1a1aa;
 }
 
-.vercel-rail-holder strong {
-  color: #ededed;
+.vercel-rail-code-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: #09090c;
+  border: 1px solid #22222b;
+  color: #f4f4f5;
+  cursor: pointer;
+  font-size: 0.76rem;
+  transition: border-color 0.12s ease;
 }
 
-[data-theme="light"] .vercel-rail-holder strong {
-  color: #171717;
+.vercel-rail-code-btn:hover {
+  border-color: #10b981;
 }
 
-.vercel-rail-code {
-  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace);
-  font-size: 0.74rem;
-  padding: 4px 6px;
-  border-radius: 4px;
-  background: #090909;
-  border: 1px solid #181818;
-  color: #ededed;
-  word-break: break-all;
+.vercel-rail-code-btn code {
+  font-family: var(--font-mono, monospace);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-[data-theme="light"] .vercel-rail-code {
+.vercel-rail-code-btn span {
+  font-size: 0.68rem;
+  color: #8b8b96;
+  flex-shrink: 0;
+}
+
+[data-theme="light"] .vercel-rail-code-btn {
   background: #ffffff;
-  border-color: #e5e5e5;
-  color: #171717;
+  border-color: #cbd5e1;
+  color: #0f172a;
 }
 
 .vercel-rail-caption {
-  font-size: 0.64rem;
-  color: #666666;
-}
-
-[data-theme="light"] .vercel-rail-caption {
-  color: #888888;
+  font-size: 0.74rem;
+  color: #71717a;
 }
 
 .vercel-rail-actions {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-top: 2px;
+  margin-top: auto;
+  padding-top: 4px;
 }
 
-/* ── Contact & Dispatch Grid ── */
+.vercel-btn-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  border-radius: 6px;
+  background: #18181f;
+  border: 1px solid #2a2a35;
+  color: #e4e4e7;
+  font-size: 0.74rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color 0.12s ease, background 0.12s ease;
+}
+
+.vercel-btn-pill:hover {
+  border-color: #10b981;
+  color: #ffffff;
+}
+
+[data-theme="light"] .vercel-btn-pill {
+  background: #ffffff;
+  border-color: #cbd5e1;
+  color: #0f172a;
+}
+
+/* Dispatch & Contact Grid */
 .vercel-contact-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 8px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
 }
 
-@media (max-width: 580px) {
+@media (max-width: 560px) {
   .vercel-contact-grid {
     grid-template-columns: 1fr;
   }
@@ -1479,312 +1572,98 @@
 .vercel-contact-tile {
   display: flex;
   align-items: flex-start;
-  gap: 10px;
-  padding: 10px 12px;
-  background: #111111;
-  border: 1px solid #1a1a1a;
-  border-radius: 6px;
+  gap: 12px;
+  padding: 12px 14px;
+  background: #111115;
+  border: 1px solid #1e1e26;
+  border-radius: 8px;
 }
 
 [data-theme="light"] .vercel-contact-tile {
-  background: #fafafa;
-  border-color: #eaeaea;
+  background: #f8fafc;
+  border-color: #e2e8f0;
 }
 
 .vercel-contact-icon {
-  width: 30px;
-  height: 30px;
-  border-radius: 6px;
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  background: #18181f;
+  border: 1px solid #262630;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  background: #171717;
-  border: 1px solid #222222;
 }
 
 [data-theme="light"] .vercel-contact-icon {
   background: #ffffff;
-  border-color: #eaeaea;
+  border-color: #e2e8f0;
 }
 
 .vercel-contact-tile .lbl {
   display: block;
-  font-size: 0.65rem;
-  color: #888888;
-  font-weight: 500;
+  font-size: 0.70rem;
+  color: #8b8b96;
   margin-bottom: 2px;
 }
 
-.vercel-contact-tile .val {
-  font-size: 0.8rem;
-  font-weight: 600;
-  color: #ededed;
-}
-
-[data-theme="light"] .vercel-contact-tile .val {
-  color: #171717;
-}
-
+.vercel-contact-tile .val,
 .vercel-contact-tile .val-link {
-  font-size: 0.8rem;
+  font-size: 0.82rem;
   font-weight: 600;
-  color: #0070f3;
+  color: #f4f4f5;
   text-decoration: none;
+  word-break: break-word;
 }
 
 .vercel-contact-tile .val-link:hover {
+  color: #10b981;
   text-decoration: underline;
 }
 
-/* ── Vercel Buttons ── */
-.vercel-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 5px;
-  padding: 7px 12px;
-  border-radius: 6px;
-  font-size: 0.78rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.14s ease;
-  white-space: nowrap;
-  font-family: inherit;
+[data-theme="light"] .vercel-contact-tile .val,
+[data-theme="light"] .vercel-contact-tile .val-link {
+  color: #0f172a;
 }
 
-.vercel-btn-primary {
-  background: #ffffff;
-  color: #000000;
-  border: 1px solid #ffffff;
+.vercel-muted-note {
+  margin: 0;
+  font-size: 0.80rem;
+  color: #8b8b96;
+  line-height: 1.5;
 }
 
-.vercel-btn-primary:hover {
-  background: #e5e5e5;
-  border-color: #e5e5e5;
-}
-
-[data-theme="light"] .vercel-btn-primary {
-  background: #171717;
-  color: #ffffff;
-  border-color: #171717;
-}
-
-[data-theme="light"] .vercel-btn-primary:hover {
-  background: #333333;
-  border-color: #333333;
-}
-
-.vercel-btn-secondary {
-  background: #111111;
-  color: #ededed;
-  border: 1px solid #262626;
-}
-
-.vercel-btn-secondary:hover {
-  background: #1a1a1a;
-  border-color: #383838;
-}
-
-[data-theme="light"] .vercel-btn-secondary {
-  background: #ffffff;
-  color: #171717;
-  border-color: #d4d4d4;
-}
-
-[data-theme="light"] .vercel-btn-secondary:hover {
-  background: #f5f5f5;
-  border-color: #a3a3a3;
-}
-
-.vercel-btn-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 4px 8px;
-  border-radius: 5px;
-  background: #141414;
-  border: 1px solid #262626;
-  color: #ededed;
-  font-size: 0.7rem;
-  font-weight: 500;
-  cursor: pointer;
-  text-decoration: none;
-  transition: all 0.14s ease;
-  font-family: inherit;
-}
-
-.vercel-btn-pill:hover {
-  background: #1f1f1f;
-  border-color: #383838;
-  color: #ffffff;
-}
-
-[data-theme="light"] .vercel-btn-pill {
-  background: #ffffff;
-  border-color: #d4d4d4;
-  color: #171717;
-}
-
-[data-theme="light"] .vercel-btn-pill:hover {
-  background: #f5f5f5;
-  border-color: #a3a3a3;
-}
-
-/* ── Skeleton Loading State (2 Columns) ── */
-.vercel-ngo-skeleton-body {
-  display: grid;
-  grid-template-columns: 35% 65%;
-  flex: 1;
-  min-height: 0;
-  background: #000000;
-}
-
-@media (max-width: 860px) {
-  .vercel-ngo-skeleton-body {
-    grid-template-columns: 1fr;
-  }
-}
-
-.vercel-skeleton-sidebar {
-  padding: 16px;
+/* Empty & Error & Skeleton States */
+.vercel-empty-card {
+  padding: 36px 20px;
+  border-radius: 10px;
+  background: #0c0c0f;
+  border: 1px dashed #24242c;
+  text-align: center;
   display: flex;
   flex-direction: column;
+  align-items: center;
   gap: 10px;
-  border-right: 1px solid #222222;
-  background: #000000;
+  color: #8b8b96;
+  font-size: 0.82rem;
 }
 
-.vercel-skeleton-banner {
-  height: 90px;
-  border-radius: 6px;
-  background: #141414;
-  animation: vercelPulse 1.4s ease-in-out infinite;
+[data-theme="light"] .vercel-empty-card {
+  background: #f8fafc;
+  border-color: #cbd5e1;
 }
 
-.vercel-skeleton-avatar {
-  width: 54px;
-  height: 54px;
-  border-radius: 50%;
-  background: #171717;
-  animation: vercelPulse 1.4s ease-in-out infinite;
-}
-
-.vercel-skeleton-line {
-  height: 10px;
-  border-radius: 4px;
-  background: #171717;
-  animation: vercelPulse 1.4s ease-in-out infinite;
-}
-
-.vercel-skeleton-line.title {
-  width: 60%;
-  height: 16px;
-}
-
-.vercel-skeleton-line.sub {
-  width: 80%;
-}
-
-.vercel-skeleton-line.badges {
-  width: 40%;
-}
-
-.vercel-skeleton-main {
-  padding: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  background: #000000;
-  height: 100%;
-}
-
-.vercel-skeleton-stats-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
-}
-
-.vercel-skeleton-card {
-  height: 58px;
-  border-radius: 6px;
-  background: #141414;
-  animation: vercelPulse 1.4s ease-in-out infinite;
-}
-
-.vercel-skeleton-content-area {
-  height: 380px;
-  border-radius: 6px;
-  background: #111111;
-  animation: vercelPulse 1.4s ease-in-out infinite;
-}
-
-@keyframes vercelSkeletonSweep {
-  0% {
-    background-position: 200% 0;
-  }
-  100% {
-    background-position: -200% 0;
-  }
-}
-
-.vercel-skeleton-banner,
-.vercel-skeleton-avatar,
-.vercel-skeleton-line,
-.vercel-skeleton-card,
-.vercel-skeleton-content-area {
-  background: linear-gradient(
-    90deg,
-    #171717 0%,
-    #262626 50%,
-    #171717 100%
-  );
-  background-size: 200% 100%;
-  animation: vercelSkeletonSweep 1.5s ease-in-out infinite;
-}
-
-[data-theme="light"] .vercel-ngo-skeleton-body,
-[data-theme="light"] .vercel-skeleton-sidebar,
-[data-theme="light"] .vercel-skeleton-main {
-  background: #ffffff;
-}
-
-[data-theme="light"] .vercel-skeleton-sidebar {
-  border-right-color: #eaeaea;
-}
-
-[data-theme="light"] .vercel-skeleton-banner,
-[data-theme="light"] .vercel-skeleton-avatar,
-[data-theme="light"] .vercel-skeleton-line,
-[data-theme="light"] .vercel-skeleton-card,
-[data-theme="light"] .vercel-skeleton-content-area {
-  background-color: #f0f0f0 !important;
-  background-image: linear-gradient(
-    90deg,
-    #f0f0f0 0%,
-    #e4e4e7 50%,
-    #f0f0f0 100%
-  ) !important;
-  background-size: 200% 100%;
-  animation: vercelSkeletonSweep 1.5s ease-in-out infinite;
-}
-
-/* ── Error State Card ── */
 .vercel-ngo-error-body {
-  padding: 60px 24px;
+  flex: 1;
   display: flex;
   align-items: center;
   justify-content: center;
-  flex: 1;
+  padding: 32px;
 }
 
 .vercel-error-card {
-  max-width: 440px;
-  width: 100%;
-  background: #0d0d0d;
-  border: 1px solid #262626;
-  border-radius: 10px;
-  padding: 24px;
+  max-width: 420px;
   text-align: center;
   display: flex;
   flex-direction: column;
@@ -1792,15 +1671,10 @@
   gap: 12px;
 }
 
-[data-theme="light"] .vercel-error-card {
-  background: #ffffff;
-  border-color: #eaeaea;
-}
-
 .vercel-error-icon-wrap {
   width: 44px;
   height: 44px;
-  border-radius: 50%;
+  border-radius: 10px;
   background: rgba(239, 68, 68, 0.1);
   border: 1px solid rgba(239, 68, 68, 0.25);
   display: flex;
@@ -1810,25 +1684,61 @@
 
 .vercel-error-title {
   margin: 0;
-  font-size: 1.05rem;
-  font-weight: 700;
-  color: #ededed;
-}
-
-[data-theme="light"] .vercel-error-title {
-  color: #171717;
+  font-size: 1rem;
+  font-weight: 600;
 }
 
 .vercel-error-desc {
   margin: 0;
-  font-size: 0.8rem;
-  color: #888888;
+  font-size: 0.82rem;
+  color: #8b8b96;
   line-height: 1.5;
 }
 
 .vercel-error-actions {
   display: flex;
-  align-items: center;
   gap: 8px;
-  margin-top: 6px;
+  margin-top: 4px;
 }
+
+.vercel-ngo-skeleton-body {
+  display: grid;
+  grid-template-columns: 304px 1fr;
+  flex: 1;
+  min-height: 0;
+}
+
+.vercel-skeleton-sidebar {
+  padding: 18px;
+  border-right: 1px solid #1e1e24;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.vercel-skeleton-main {
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.vercel-skeleton-banner,
+.vercel-skeleton-line,
+.vercel-skeleton-card,
+.vercel-skeleton-content-area {
+  background: #141419;
+  border-radius: 8px;
+}
+
+[data-theme="light"] .vercel-skeleton-banner,
+[data-theme="light"] .vercel-skeleton-line,
+[data-theme="light"] .vercel-skeleton-card,
+[data-theme="light"] .vercel-skeleton-content-area {
+  background: #eef2f6;
+}
+
+.vercel-skeleton-banner { height: 100px; }
+.vercel-skeleton-line.title { height: 18px; width: 65%; }
+.vercel-skeleton-line.sub { height: 12px; width: 45%; }
+.vercel-skeleton-content-area { flex: 1; min-height: 220px; }

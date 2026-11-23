@@ -9585,6 +9585,10 @@ app.get('/api/public/organizations/:id', async (req, res) => {
         c.Created_At as createdAt,
         c.Document_Url as documentUrl,
         c.Smart_Contract_Address as contractAddress,
+        COALESCE(c.Is_Active, 1) as isActive,
+        COALESCE(c.Disbursed_Amount_Php, 0) as disbursedAmountPhp,
+        COALESCE(c.Disbursement_Status, 'FUNDRAISING') as disbursementStatus,
+        c.Last_Disbursement_At as lastDisbursementAt,
         COALESCE(c.Gcash_Name, o.Gcash_Name) as gcashName,
         COALESCE(c.Gcash_Number, o.Gcash_Number) as gcashNumber,
         COALESCE(c.Gcash_Qr_Url, o.Gcash_Qr_Url) as gcashQrUrl,
@@ -9595,11 +9599,12 @@ app.get('/api/public/organizations/:id', async (req, res) => {
         COALESCE(c.Bank_Account_Name, o.Bank_Account_Name) as bankAccountName,
         COALESCE(c.Bank_Account_Number, o.Bank_Account_Number) as bankAccountNumber,
         COALESCE(c.Bank_Qr_Url, o.Bank_Qr_Url) as bankQrUrl,
-        COALESCE(dt.totalDonationAmount, 0) as currentAmount
+        COALESCE(dt.totalDonationAmount, 0) as currentAmount,
+        COALESCE(dt.donorsCount, 0) as donorsCount
       FROM CAMPAIGN c
       JOIN ORGANIZATION o ON c.Org_ID = o.Org_ID
       LEFT JOIN (
-        SELECT Campaign_ID, SUM(Amount) as totalDonationAmount
+        SELECT Campaign_ID, SUM(Amount) as totalDonationAmount, COUNT(*) as donorsCount
         FROM DONATION_TRANSACTION dt_sub
         WHERE ${PHP_RAIL_SQL('dt_sub')}
         GROUP BY Campaign_ID
@@ -9624,6 +9629,8 @@ app.get('/api/public/organizations/:id', async (req, res) => {
 
     // Calculate aggregate totals
     const totalRaised = campaignRows.reduce((sum, c) => sum + Number(c.currentAmount || 0), 0);
+    const totalDisbursedPhp = campaignRows.reduce((sum, c) => sum + Number(c.disbursedAmountPhp || 0), 0);
+    const totalDonors = campaignRows.reduce((sum, c) => sum + Number(c.donorsCount || 0), 0);
 
     const resultPayload = {
       ...org,
@@ -9640,7 +9647,9 @@ app.get('/api/public/organizations/:id', async (req, res) => {
       stats: {
         totalCampaigns: campaignRows.length,
         totalRaisedEth: totalRaised.toFixed(4),
-        totalRaisedPhp: Math.round(totalRaised * 170000).toLocaleString('en-PH', { maximumFractionDigits: 0 })
+        totalRaisedPhp: Math.round(totalRaised * 170000).toLocaleString('en-PH', { maximumFractionDigits: 0 }),
+        totalDisbursedPhp: Math.round(totalDisbursedPhp),
+        totalDonors
       }
     };
 
