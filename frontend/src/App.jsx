@@ -14,7 +14,7 @@ import NgoProfileModal from './components/NgoProfileModal';
 import AccreditedNgosModal from './components/AccreditedNgosModal';
 import DisbursementProofModal from './components/DisbursementProofModal';
 import ErrorBoundary from './components/ErrorBoundary';
-import ReliefAiChat from './components/ReliefAiChat';
+// import ReliefAiChat from './components/ReliefAiChat';
 import GlobalBroadcastBanner from './components/GlobalBroadcastBanner';
 import MaintenanceGuardModal from './components/MaintenanceGuardModal';
 import PersonalizationOnboarding from './components/PersonalizationOnboarding';
@@ -1398,7 +1398,7 @@ export default function App() {
         />
       )}
 
-      {/* ── "ReliefAI" Humanitarian Relief Copilot Floating Assistant (Module C) with Live Dashboard Intelligence ── */}
+      {/* ── "ReliefAI" Humanitarian Relief Copilot Floating Assistant (Module C) — Temporarily commented out ──
       <ReliefAiChat
         currentUser={dbUser}
         userRole={dbUser?.role || 'donor'}
@@ -1419,6 +1419,8 @@ export default function App() {
         }
         activeTabMeta={activeTabInfo?.meta}
       />
+
+      */}
 
       {/* ── Post-Signup BBDRTS Workspace Setup & Personalization ── */}
       {showOnboardingModal && (
