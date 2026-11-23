@@ -6854,19 +6854,25 @@ export default function CampaignCard(props) {
                                   <span className="dt7-receipt-title">
                                     {aiScanLoading
                                       ? 'Scanning receipt with AI…'
-                                      : (activeAiResult && (activeAiResult.isPaymentReceipt === false || activeAiResult.confidenceScore === 0)
-                                          ? (activeAiResult.fraudFlags?.some(f => f.includes('EXPIRED'))
-                                              ? 'Expired Receipt Slip'
-                                              : (activeAiResult.fraudFlags?.some(f => f.includes('TAMPERED') || f.includes('INVALID_RECEIPT'))
-                                                  ? 'Tampered / Invalid Slip'
-                                                  : (activeAiResult.fraudFlags?.some(f => f.includes('RECIPIENT'))
-                                                      ? 'Wrong Recipient Account'
-                                                      : 'Invalid Receipt Image')))
-                                          : (activeAiResult?.isAiVerified
-                                              ? `AI Verified (${activeAiResult.confidenceScore}%)`
-                                              : (activeAiResult?.fraudFlags?.some(f => f.includes('HIGH_VALUE'))
-                                                  ? 'High-Value Audit Required'
-                                                  : 'Receipt Attached')))}
+                                      : (duplicateRefWarning || activeAiResult?.fraudFlags?.some(f => f.includes('DUPLICATE'))
+                                          ? 'Duplicate Receipt Detected'
+                                          : (railMismatchWarning || activeAiResult?.fraudFlags?.some(f => f.includes('RAIL_MISMATCH'))
+                                              ? 'Payment Channel Mismatch'
+                                              : (activeAiResult && (activeAiResult.isPaymentReceipt === false || activeAiResult.confidenceScore === 0)
+                                                  ? (activeAiResult.fraudFlags?.some(f => f.includes('EXPIRED'))
+                                                      ? 'Expired Receipt Slip'
+                                                      : (activeAiResult.fraudFlags?.some(f => f.includes('SUSPICIOUS_REFERENCE_SEQUENCE'))
+                                                          ? 'Synthetic Reference Detected'
+                                                          : (activeAiResult.fraudFlags?.some(f => f.includes('RECIPIENT'))
+                                                              ? 'Wrong Recipient Account'
+                                                              : (activeAiResult.fraudFlags?.some(f => f.includes('TAMPERED') || f.includes('INVALID_RECEIPT'))
+                                                                  ? 'Tampered / Invalid Slip'
+                                                                  : 'Invalid Receipt Image'))))
+                                                  : (activeAiResult?.isAiVerified
+                                                      ? `AI Verified (${activeAiResult.confidenceScore}%)`
+                                                      : (activeAiResult?.fraudFlags?.some(f => f.includes('HIGH_VALUE'))
+                                                          ? 'High-Value Audit Required'
+                                                          : 'Receipt Attached')))))}
                                   </span>
                                 </div>
 
@@ -6928,33 +6934,57 @@ export default function CampaignCard(props) {
                             </label>
                           )}
 
-                          {/* Compact AI Alert Box (Only shown if flagged / review needed) */}
-                          {activeAiResult && !aiScanLoading && (() => {
-                            const isInvalidDoc = activeAiResult.isPaymentReceipt === false || activeAiResult.confidenceScore === 0;
-                            const isVerifiedClean = !hasHardFraud && !isInvalidDoc && (Boolean(activeAiResult.isAiVerified) || activeAiResult.confidenceScore >= 60);
-                            if (isVerifiedClean && (!activeAiResult.fraudFlags || activeAiResult.fraudFlags.every(f => !f.includes('REJECTION') && !f.includes('MISMATCH') && !f.includes('EXPIRED') && !f.includes('TAMPERED') && !f.includes('SUSPICIOUS')))) {
-                              return null;
+                          {/* Single Unified Verification Alert Box (AI Flags + Duplicate + Rail Mismatch combined cleanly) */}
+                          {!aiScanLoading && (() => {
+                            const isInvalidDoc = Boolean(activeAiResult && (activeAiResult.isPaymentReceipt === false || activeAiResult.confidenceScore === 0));
+                            const isVerifiedClean = Boolean(activeAiResult) && !hasHardFraud && !isInvalidDoc && (Boolean(activeAiResult.isAiVerified) || activeAiResult.confidenceScore >= 60);
+                            const rawAiFlags = Array.isArray(activeAiResult?.fraudFlags) ? activeAiResult.fraudFlags.filter(Boolean) : [];
+
+                            // Deduplicate so Duplicate / Rail Mismatch are never repeated twice
+                            const unifiedIssues = [];
+                            for (const flag of rawAiFlags) {
+                              if (duplicateRefWarning && flag.includes('DUPLICATE')) continue;
+                              if (railMismatchWarning && flag.includes('RAIL_MISMATCH')) continue;
+                              unifiedIssues.push(flag);
                             }
+                            if (railMismatchWarning) unifiedIssues.push(railMismatchWarning);
+                            if (duplicateRefWarning) unifiedIssues.push(duplicateRefWarning);
+
+                            const needsBanner = unifiedIssues.length > 0 || (Boolean(activeAiResult) && !isVerifiedClean);
+                            if (!needsBanner) return null;
+
                             const isPendingManual = !isVerifiedClean && !hasHardFraud && isInvalidDoc && isValidManualRef;
+                            const isOnlyDup = Boolean(duplicateRefWarning) && unifiedIssues.length === 1;
+                            const isOnlyRail = Boolean(railMismatchWarning) && unifiedIssues.length === 1;
+                            const alertTitle = isPendingManual
+                              ? 'Queued for Manual NGO Review'
+                              : isOnlyDup
+                                ? 'Duplicate Receipt'
+                                : isOnlyRail
+                                  ? 'Payment Channel Mismatch'
+                                  : 'Receipt Verification Alert';
+                            const alertIcon = isPendingManual
+                              ? 'pending_actions'
+                              : isOnlyRail
+                                ? 'published_with_changes'
+                                : 'warning';
+
                             return (
                               <div className={`dt7-ai-alert${isPendingManual ? ' is-warn' : ' is-err'}`}>
                                 <div className="dt7-ai-alert-head">
-                                  <span className="material-symbols-outlined">
-                                    {isPendingManual ? 'pending_actions' : 'warning'}
-                                  </span>
-                                  <span>
-                                    {isPendingManual ? 'Queued for Manual NGO Review' : 'Receipt Verification Alert'}
-                                  </span>
+                                  <span className="material-symbols-outlined">{alertIcon}</span>
+                                  <span>{alertTitle}</span>
                                 </div>
-                                {activeAiResult.fraudFlags && activeAiResult.fraudFlags.length > 0 && (
+                                {unifiedIssues.length === 1 ? (
+                                  <div className="dt7-ai-note">{unifiedIssues[0]}</div>
+                                ) : unifiedIssues.length > 1 ? (
                                   <ul className="dt7-ai-flags">
-                                    {activeAiResult.fraudFlags.map((flag, fIdx) => (
-                                      <li key={fIdx}>{flag}</li>
+                                    {unifiedIssues.map((msg, idx) => (
+                                      <li key={idx}>{msg}</li>
                                     ))}
                                   </ul>
-                                )}
-                                {hasHardFraud && (
-                                  <div className="dt7-ai-note">Please upload an authentic, recent payment screenshot to proceed.</div>
+                                ) : (
+                                  <div className="dt7-ai-note">Please upload a clear, authentic payment screenshot to proceed.</div>
                                 )}
                               </div>
                             );
@@ -7029,25 +7059,7 @@ export default function CampaignCard(props) {
                           </span>
                         </div>
 
-                        {/* Mismatch / Duplicate Banners */}
-                        {railMismatchWarning && (
-                          <div className="dt7-ai-alert is-err">
-                            <div className="dt7-ai-alert-head">
-                              <span className="material-symbols-outlined">published_with_changes</span>
-                              <span>Rail Mismatch</span>
-                            </div>
-                            <div className="dt7-ai-note">{railMismatchWarning}</div>
-                          </div>
-                        )}
-                        {duplicateRefWarning && (
-                          <div className="dt7-ai-alert is-err">
-                            <div className="dt7-ai-alert-head">
-                              <span className="material-symbols-outlined">warning</span>
-                              <span>Duplicate Receipt</span>
-                            </div>
-                            <div className="dt7-ai-note">{duplicateRefWarning}</div>
-                          </div>
-                        )}
+
                       </div>
                     </div>
 
