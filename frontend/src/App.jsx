@@ -11,6 +11,7 @@ import SettingsPanel from './components/SettingsPanel';
 import Header from './components/Header';
 import Footer from './components/Footer';
 import NgoProfileModal from './components/NgoProfileModal';
+import DisbursementProofModal from './components/DisbursementProofModal';
 import ErrorBoundary from './components/ErrorBoundary';
 import ReliefAiChat from './components/ReliefAiChat';
 import GlobalBroadcastBanner from './components/GlobalBroadcastBanner';
@@ -85,6 +86,31 @@ export default function App() {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [presenceEventHint, setPresenceEventHint] = useState(null);
+  const [deepLinkProofCamp, setDeepLinkProofCamp] = useState(() => {
+    if (typeof window === 'undefined') return null;
+    const params = new URLSearchParams(window.location.search);
+    const campParam = params.get('campaign');
+    const proofParam = params.get('proof');
+    if (campParam && proofParam && proofParam !== '0' && proofParam !== 'false') {
+      const numericId = Number(campParam);
+      if (numericId > 0) {
+        return { id: numericId, Campaign_ID: numericId };
+      }
+    }
+    return null;
+  });
+
+  useEffect(() => {
+    if (!deepLinkProofCamp || typeof window === 'undefined') return;
+    try {
+      const url = new URL(window.location.href);
+      if (url.searchParams.has('proof')) {
+        url.searchParams.delete('proof');
+        window.history.replaceState({}, '', url.pathname + url.search + url.hash);
+      }
+    } catch (_) {}
+  }, [deepLinkProofCamp]);
+
   const [showOnboardingModal, setShowOnboardingModal] = useState(() => {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
@@ -1420,6 +1446,16 @@ export default function App() {
           initialTheme={dbUser ? themeMode : publicTheme}
           initialMode={dbUser ? interfaceMode : 'standard'}
           campaigns={campaigns}
+        />
+      )}
+
+      {/* ── Email Deep-Link Verified Relief Proof Modal (?campaign=ID&proof=1) ── */}
+      {deepLinkProofCamp && (
+        <DisbursementProofModal
+          camp={deepLinkProofCamp}
+          isOpen={Boolean(deepLinkProofCamp)}
+          onClose={() => setDeepLinkProofCamp(null)}
+          theme={theme}
         />
       )}
 

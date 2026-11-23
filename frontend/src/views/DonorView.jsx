@@ -2599,7 +2599,7 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
                             const ethAmt = parseFloat(d.amount || 0);
                             const phpAmt = Math.round(ethAmt * 170000);
                             const isShortage = d.auditStatus === 'SHORTAGE';
-                            const isDisbursed = matchCamp.disbursementStatus === 'DISBURSED' || (matchCamp.disbursedAmountPhp || 0) > 0;
+                            const isDisbursed = matchCamp.disbursementStatus === 'DISBURSED' || matchCamp.disbursementStatus === 'PARTIALLY_DISBURSED' || (matchCamp.disbursedAmountPhp || 0) > 0;
                             const dateLabel = d.createdAt
                               ? new Date(d.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
                               : 'Recent';

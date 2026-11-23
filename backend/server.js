@@ -149,9 +149,10 @@ async function sendMailSafe(mailOptions, timeoutMs = 8000) {
         ...(mailOptions.attachments && mailOptions.attachments.length > 0 ? { attachments: mailOptions.attachments } : {})
       });
 
+      const smtpTimeoutMs = Math.max(5000, Number(timeoutMs) || 8000);
       const info = await Promise.race([
         sendPromise,
-        new Promise((_, reject) => setTimeout(() => reject(new Error('SMTP timeout')), 5000))
+        new Promise((_, reject) => setTimeout(() => reject(new Error('SMTP timeout')), smtpTimeoutMs))
       ]);
 
       console.log(`✅ [SYSTEM SMTP] Email delivered from ${SYSTEM_EMAIL_ADDRESS} to ${mailOptions.to} | ID: ${info.messageId}`);
@@ -4800,6 +4801,8 @@ app.post('/api/campaigns/:id/disburse', authenticateToken, async (req, res) => {
       amountPhp = 0,
       amountEth = 0,
       beneficiariesReached = 0,
+      aidCategory = 'FOOD_WATER',
+      allocationMode = 'QUICK',
       impactSummary = '',
       proofUrl = '',
       proofs = [],
@@ -4809,50 +4812,130 @@ app.post('/api/campaigns/:id/disburse', authenticateToken, async (req, res) => {
       txHash = null
     } = req.body || {};
 
-    const numericAmountPhp = parseFloat(amountPhp) || 0;
-    const numericAmountEth = parseFloat(amountEth) || (numericAmountPhp / 170000);
+    let numericAmountPhp = parseFloat(amountPhp) || 0;
+    if (numericAmountPhp <= 0 && parseFloat(amountEth) > 0) {
+      numericAmountPhp = Math.round(parseFloat(amountEth) * 170000);
+    }
 
-    if (numericAmountPhp <= 0 && numericAmountEth <= 0) {
+    if (numericAmountPhp <= 0) {
       return res.status(400).json({ error: 'Please enter a valid disbursement amount greater than 0.' });
     }
 
-    // Escrow balance validation: Ensure disbursement does not exceed available funds
+    // Escrow balance validation (aligned with GET /api/campaigns + ₱1 floating-point rounding tolerance)
     const currentEth = parseFloat(camp.currentAmountEth || 0);
     const currentPhp = Math.round(currentEth * 170000);
     const alreadyDisbursedPhp = parseFloat(camp.Disbursed_Amount_Php || 0);
     const availablePhp = Math.max(0, currentPhp - alreadyDisbursedPhp);
 
-    if (numericAmountPhp > availablePhp) {
+    if (availablePhp <= 0) {
+      return res.status(400).json({
+        error: 'No undisbursed escrow funds are currently available for this campaign.'
+      });
+    }
+    if (numericAmountPhp > availablePhp + 1) {
       return res.status(400).json({
         error: `Disbursement amount (₱${numericAmountPhp.toLocaleString()}) exceeds the available escrow balance of ₱${availablePhp.toLocaleString()}.`
       });
     }
+    if (numericAmountPhp > availablePhp) {
+      numericAmountPhp = availablePhp;
+    }
+    const numericAmountEth = Number((numericAmountPhp / 170000).toFixed(8));
 
     if (!impactSummary || !impactSummary.trim()) {
       return res.status(400).json({ error: 'Please provide an impact summary describing how the funds reached the beneficiaries.' });
     }
 
-    const crypto = require('crypto');
-    // Generate an authentic 66-character SHA-256 cryptographic audit ledger hash if not provided
-    const cleanReference = txHash && String(txHash).trim().startsWith('0x') && String(txHash).trim().length === 66
-      ? String(txHash).trim()
-      : `0x${crypto.createHash('sha256').update(`BBDRTS-DISB-${campaignId}-${camp.Org_ID}-${numericAmountPhp}-${Date.now()}-${Math.random()}`).digest('hex')}`;
+    const normalizedProofs = (Array.isArray(proofs) ? proofs : [])
+      .filter((p) => p && p.url)
+      .map((p, idx) => ({
+        id: p.id || (idx + 1),
+        name: String(p.name || `Proof_${idx + 1}`).slice(0, 180),
+        url: String(p.url),
+        caption: String(p.caption || p.name || `Distribution Proof #${idx + 1}`).slice(0, 220),
+        category: String(p.category || 'OFFICIAL_RECEIPT'),
+        fileSize: String(p.fileSize || '')
+      }));
 
-    // Package comprehensive multi-proof and expense liquidation data
-    let proofDataToStore = proofUrl || '';
-    if ((Array.isArray(proofs) && proofs.length > 0) || (Array.isArray(expenseBreakdown) && expenseBreakdown.length > 0) || location || (txHash && !txHash.startsWith('0x'))) {
-      proofDataToStore = JSON.stringify({
-        primaryUrl: proofUrl || (Array.isArray(proofs) && proofs[0]?.url) || '',
-        proofs: Array.isArray(proofs) ? proofs : [],
-        expenseBreakdown: Array.isArray(expenseBreakdown) ? expenseBreakdown : [],
-        location: (location || '').trim(),
-        lguPartner: (lguPartner || '').trim(),
-        voucherRef: txHash && !txHash.startsWith('0x') ? String(txHash).trim() : null
+    if (normalizedProofs.length === 0 && proofUrl) {
+      normalizedProofs.push({
+        id: 1,
+        name: 'Primary Proof',
+        url: String(proofUrl),
+        caption: 'Ground Distribution Proof',
+        category: 'OFFICIAL_RECEIPT',
+        fileSize: ''
       });
     }
 
+    if (normalizedProofs.length === 0) {
+      return res.status(400).json({ error: 'Please attach at least one verifiable proof (delivery photo, merchant receipt, or turnover certificate).' });
+    }
+
+    const normalizedExpenses = (Array.isArray(expenseBreakdown) ? expenseBreakdown : [])
+      .filter((e) => e && (String(e.description || '').trim() || parseFloat(e.costPhp) > 0))
+      .map((e) => ({
+        description: String(e.description || 'Relief Supplies').trim().slice(0, 200),
+        quantity: String(e.quantity || '').trim().slice(0, 80),
+        costPhp: parseFloat(e.costPhp) || 0
+      }));
+
+    // Compute canonical SHA-256 digest of all uploaded evidence & liquidation details
+    const proofDigest = crypto
+      .createHash('sha256')
+      .update(JSON.stringify({
+        campaignId: Number(campaignId),
+        orgId: Number(camp.Org_ID),
+        amountPhp: numericAmountPhp,
+        beneficiariesReached: parseInt(beneficiariesReached, 10) || 0,
+        aidCategory,
+        location: (location || '').trim(),
+        lguPartner: (lguPartner || '').trim(),
+        impactSummary: impactSummary.trim(),
+        expenses: normalizedExpenses,
+        proofHashes: normalizedProofs.map((p) => crypto.createHash('sha256').update(p.url).digest('hex'))
+      }))
+      .digest('hex');
+
+    // 1B. Gasless On-Chain Notarization via Sepolia Relayer (falls back cleanly to Keccak-256 seal)
+    let relayRes = null;
+    if (txHash && String(txHash).trim().startsWith('0x') && String(txHash).trim().length === 66) {
+      relayRes = {
+        txHash: String(txHash).trim(),
+        onChain: true,
+        blockNumber: null,
+        explorerUrl: `https://sepolia.etherscan.io/tx/${String(txHash).trim()}`
+      };
+    } else {
+      relayRes = await blockchainRelayer.relayDisbursement({
+        campaignId,
+        orgId: camp.Org_ID,
+        amountPhp: numericAmountPhp,
+        beneficiariesReached: parseInt(beneficiariesReached, 10) || 0,
+        proofDigest,
+        impactSummary: impactSummary.trim()
+      });
+    }
+    const cleanReference = relayRes.txHash;
+
+    // Package comprehensive multi-proof, liquidation & blockchain metadata
+    const proofDataToStore = JSON.stringify({
+      primaryUrl: normalizedProofs[0]?.url || proofUrl || '',
+      proofs: normalizedProofs,
+      expenseBreakdown: normalizedExpenses,
+      aidCategory: String(aidCategory || 'FOOD_WATER'),
+      allocationMode: String(allocationMode || 'QUICK'),
+      location: (location || '').trim(),
+      lguPartner: (lguPartner || '').trim(),
+      proofDigest,
+      onChain: Boolean(relayRes.onChain),
+      blockNumber: relayRes.blockNumber || null,
+      explorerUrl: relayRes.explorerUrl || '',
+      voucherRef: txHash && !String(txHash).startsWith('0x') ? String(txHash).trim() : null
+    });
+
     // 2. Insert into CAMPAIGN_DISBURSEMENT table
-    await db.query(`
+    const [disbIns] = await db.query(`
       INSERT INTO CAMPAIGN_DISBURSEMENT 
         (Campaign_ID, Org_ID, Amount_Php, Amount_Eth, Beneficiaries_Reached, Impact_Summary, Proof_Url, Tx_Hash, Disbursed_At)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
@@ -4861,15 +4944,16 @@ app.post('/api/campaigns/:id/disburse', authenticateToken, async (req, res) => {
       camp.Org_ID,
       numericAmountPhp,
       numericAmountEth,
-      parseInt(beneficiariesReached) || 0,
+      parseInt(beneficiariesReached, 10) || 0,
       impactSummary.trim(),
       proofDataToStore,
       cleanReference
     ]);
+    const disbursementId = disbIns?.insertId || disbIns?.[0]?.insertId || null;
 
     // 3. Update CAMPAIGN table with new disbursement status & cumulative disbursed amount
     const newTotalDisbursedPhp = alreadyDisbursedPhp + numericAmountPhp;
-    const isFullyDisbursed = newTotalDisbursedPhp >= currentPhp && currentPhp > 0;
+    const isFullyDisbursed = newTotalDisbursedPhp >= (currentPhp - 1) && currentPhp > 0;
     const disbursementStatus = isFullyDisbursed ? 'DISBURSED' : 'PARTIALLY_DISBURSED';
 
     await db.query(`
@@ -4884,61 +4968,232 @@ app.post('/api/campaigns/:id/disburse', authenticateToken, async (req, res) => {
 
     invalidateCampaignsCache();
 
-    // 4. FIND ALL CONTRIBUTING DONORS FOR THIS CAMPAIGN
-    const [cryptoDonors] = await db.query(`
-      SELECT DISTINCT d.Username as email
+    // 4. FIND ALL CONTRIBUTING DONORS ACROSS ALL RAILS (DONATION_TRANSACTION + MANUAL_DONATION + PAYMENT_INTENT)
+    // Includes anonymous donors privately so they still receive proof of how their donation was used.
+    const donorMap = new Map(); // email -> { email, name, totalPhp }
+    const addDonorRecord = (email, name, phpVal = 0) => {
+      const cleanEmail = String(email || '').trim().toLowerCase();
+      if (!cleanEmail || !cleanEmail.includes('@')) return;
+      const existing = donorMap.get(cleanEmail) || { email: cleanEmail, name: '', totalPhp: 0 };
+      if (!existing.name && name && String(name).trim()) {
+        existing.name = String(name).trim();
+      }
+      if (Number(phpVal) > 0) {
+        existing.totalPhp = Math.max(existing.totalPhp, Math.round(Number(phpVal)));
+      }
+      donorMap.set(cleanEmail, existing);
+    };
+
+    const [txDonors] = await db.query(`
+      SELECT
+        d.Username as email,
+        MAX(COALESCE(NULLIF(d.Display_Name, ''), NULLIF(d.Name, ''), NULLIF(d.Legal_Name, ''), '')) as donorName,
+        SUM(dt.Amount) * 170000 as totalPhp
       FROM DONATION_TRANSACTION dt
       JOIN DONOR d ON dt.Donor_ID = d.Donor_ID
-      WHERE dt.Campaign_ID = ? AND d.Username IS NOT NULL
-    `, [campaignId]).catch(() => [[]]);
+      WHERE dt.Campaign_ID = ? AND d.Username IS NOT NULL AND d.Username != ''
+      GROUP BY d.Donor_ID, d.Username
+    `, [campaignId]).catch((e) => { console.warn('[Disburse] txDonors query warning:', e.message); return [[]]; });
+    (txDonors || []).forEach((r) => addDonorRecord(r.email, r.donorName, r.totalPhp));
 
-    const [fiatDonors] = await db.query(`
-      SELECT DISTINCT Donor_Email as email
-      FROM MANUAL_DONATION
-      WHERE Campaign_ID = ? AND Donor_Email IS NOT NULL AND Donor_Email != '' AND Status = 'Approved'
-    `, [campaignId]).catch(() => [[]]);
+    const [manualDonors] = await db.query(`
+      SELECT
+        d.Username as email,
+        MAX(COALESCE(NULLIF(d.Display_Name, ''), NULLIF(d.Name, ''), NULLIF(d.Legal_Name, ''), '')) as donorName,
+        SUM(COALESCE(md.Confirmed_Amount, md.Amount)) * 170000 as totalPhp
+      FROM MANUAL_DONATION md
+      JOIN DONOR d ON md.Donor_ID = d.Donor_ID
+      WHERE md.Campaign_ID = ? AND md.Status = 'Approved' AND d.Username IS NOT NULL AND d.Username != ''
+      GROUP BY d.Donor_ID, d.Username
+    `, [campaignId]).catch((e) => { console.warn('[Disburse] manualDonors query warning:', e.message); return [[]]; });
+    (manualDonors || []).forEach((r) => addDonorRecord(r.email, r.donorName, r.totalPhp));
 
-    // Distinct list of email addresses
-    const donorEmailSet = new Set();
-    (cryptoDonors || []).forEach(r => { if (r.email) donorEmailSet.add(r.email.trim().toLowerCase()); });
-    (fiatDonors || []).forEach(r => { if (r.email) donorEmailSet.add(r.email.trim().toLowerCase()); });
+    const [intentDonors] = await db.query(`
+      SELECT
+        COALESCE(NULLIF(pi.Donor_Email, ''), d.Username) as email,
+        MAX(COALESCE(NULLIF(d.Display_Name, ''), NULLIF(d.Name, ''), NULLIF(pi.Donor_Name, ''), '')) as donorName,
+        SUM(pi.Amount_Php) as totalPhp
+      FROM PAYMENT_INTENT pi
+      LEFT JOIN DONOR d ON pi.Donor_ID = d.Donor_ID
+      WHERE pi.Campaign_ID = ? AND pi.Status = 'COMPLETED'
+        AND COALESCE(NULLIF(pi.Donor_Email, ''), d.Username) IS NOT NULL
+        AND COALESCE(NULLIF(pi.Donor_Email, ''), d.Username) != ''
+      GROUP BY COALESCE(NULLIF(pi.Donor_Email, ''), d.Username)
+    `, [campaignId]).catch((e) => { console.warn('[Disburse] intentDonors query warning:', e.message); return [[]]; });
+    (intentDonors || []).forEach((r) => addDonorRecord(r.email, r.donorName, r.totalPhp));
 
-    // Fallback: If no specific donor emails found, notify active donors
-    if (donorEmailSet.size === 0) {
-      const [allDonors] = await db.query(`SELECT Username as email FROM DONOR LIMIT 10`).catch(() => [[]]);
-      (allDonors || []).forEach(r => { if (r.email) donorEmailSet.add(r.email.trim().toLowerCase()); });
-    }
+    const donorList = Array.from(donorMap.values());
+    const donorEmails = donorList.map((d) => d.email);
 
-    const donorEmails = Array.from(donorEmailSet);
-
-    // 5. DISPATCH REAL-TIME IN-APP NOTIFICATIONS TO ALL DONORS
+    // 5. DISPATCH REAL-TIME IN-APP NOTIFICATIONS TO ALL CONTRIBUTING DONORS (+ NGO & ADMIN AUDIT)
     const cleanCampTitle = camp.Campaign_Title || `Relief Campaign #${campaignId}`;
     const cleanOrgName = camp.Org_Name || 'The Relief Organization';
     const notifTitle = `Relief Disbursed: ${cleanCampTitle}`;
     const formattedPhp = numericAmountPhp.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    const notifMessage = `${cleanOrgName} has disbursed ₱${formattedPhp} directly to beneficiaries (${impactSummary.trim()}). Verified proof of distribution is now recorded on-chain.`;
+    const siteSuffix = location && location.trim() ? ` at ${location.trim()}` : '';
+    const proofCountNote = `${normalizedProofs.length} verified proof${normalizedProofs.length === 1 ? '' : 's'} attached`;
+    const notifMessage = `${cleanOrgName} disbursed ₱${formattedPhp} directly to ${parseInt(beneficiariesReached, 10) > 0 ? `${Number(beneficiariesReached).toLocaleString()} beneficiaries` : 'affected communities'}${siteSuffix} (${impactSummary.trim()}). ${proofCountNote} and ${relayRes.onChain ? 'anchored live on Sepolia' : 'sealed with SHA-256 audit proof'}.`;
 
-    // Insert into NOTIFICATIONS content table
     const [notifResult] = await db.query(`
       INSERT INTO NOTIFICATIONS (Type, Title, Message, Reference_ID, Reference_Type, Link, Created_At)
       VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-    `, ['DISBURSEMENT', notifTitle, notifMessage, cleanReference, 'CAMPAIGN', `/campaigns?campaign=${campaignId}`]);
+    `, ['DISBURSEMENT', notifTitle, notifMessage, cleanReference, 'CAMPAIGN', `/campaigns?campaign=${campaignId}&proof=1`]);
 
-    const notifId = notifResult.insertId || notifResult[0]?.insertId;
+    const notifId = notifResult?.insertId || notifResult?.[0]?.insertId;
 
-    if (notifId && donorEmails.length > 0) {
+    if (notifId) {
+      // Deliver in-app notification to every contributing donor
       for (const email of donorEmails) {
         await db.query(`
           INSERT INTO USER_NOTIFICATIONS (User_Email, Role, Notification_ID, Is_Read, Created_At)
           VALUES (?, ?, ?, 0, CURRENT_TIMESTAMP)
         `, [email, 'donor', notifId]).catch(() => {});
       }
+
+      // Confirmation record in the operating NGO's own Notification Center
+      if (camp.Org_Email) {
+        await db.query(`
+          INSERT INTO USER_NOTIFICATIONS (User_Email, Role, Notification_ID, Is_Read, Created_At)
+          VALUES (?, ?, ?, 0, CURRENT_TIMESTAMP)
+        `, [String(camp.Org_Email).trim().toLowerCase(), 'organization', notifId]).catch(() => {});
+      }
+
+      // Audit notice to platform admins
+      try {
+        const [admins] = await db.query(`SELECT Username as email FROM ADMINISTRATOR WHERE Username IS NOT NULL`);
+        for (const adm of (admins || [])) {
+          if (adm.email) {
+            await db.query(`
+              INSERT INTO USER_NOTIFICATIONS (User_Email, Role, Notification_ID, Is_Read, Created_At)
+              VALUES (?, ?, ?, 0, CURRENT_TIMESTAMP)
+            `, [String(adm.email).trim().toLowerCase(), 'admin', notifId]).catch(() => {});
+          }
+        }
+      } catch (_) {}
+    }
+
+    // Broadcast real-time update so connected Donor/NGO/Admin browsers update bell & cards immediately
+    try {
+      realtimeBus.publish(['disbursements', 'campaigns', 'notifications', 'audit', 'analytics'], {
+        campaignId: Number(campaignId),
+        disbursementId,
+        disbursedPhp: numericAmountPhp,
+        disbursementStatus
+      });
+    } catch (_) {}
+
+    // 6. DISPATCH VERIFIED RELIEF PROOF EMAILS TO ALL CONTRIBUTING DONORS
+    const AID_CATEGORY_LABELS = {
+      FOOD_WATER: 'Emergency Food Packs & Potable Water',
+      MEDICAL: 'Medical Supplies & First Aid Kits',
+      SHELTER: 'Weatherproof Tarpaulins & Shelter Kits',
+      LOGISTICS: 'Logistics, Evacuation & Fuel Transport',
+      HYGIENE_CASH: 'Hygiene Packs & Direct Community Aid'
+    };
+    const PROOF_CATEGORY_LABELS = {
+      OFFICIAL_RECEIPT: 'Official Merchant Receipt / Invoice',
+      GROUND_PHOTO: 'Ground Aid Handover Photo',
+      LGU_CERTIFICATE: 'Barangay Certificate of Turnover',
+      BENEFICIARY_ROSTER: 'Masked Recipient Masterlist (RA 10173)',
+      LOGISTICS_WAYBILL: 'Transport Manifest / Waybill'
+    };
+
+    const appOrigin = (req.headers.origin && /^https?:\/\//i.test(req.headers.origin))
+      ? req.headers.origin.replace(/\/$/, '')
+      : (process.env.FRONTEND_URL || process.env.APP_URL || 'https://bbdrts-frontend.vercel.app').replace(/\/$/, '');
+    const proto = String(req.headers['x-forwarded-proto'] || req.protocol || 'https').split(',')[0].trim();
+    const apiOrigin = `${proto}://${req.get('host') || `localhost:${PORT}`}`;
+    const viewProofUrl = `${appOrigin}/?campaign=${campaignId}&proof=1`;
+
+    const proofLinks = normalizedProofs.map((pr, idx) => ({
+      name: pr.name,
+      caption: pr.caption,
+      categoryLabel: PROOF_CATEGORY_LABELS[pr.category] || 'Verified Proof',
+      viewUrl: disbursementId ? `${apiOrigin}/api/disbursements/${disbursementId}/proof/${idx}` : viewProofUrl
+    }));
+
+    // Optional inline preview of the first ground photo / receipt image (if under 450KB) for rich Gmail display
+    let inlineAttachments = [];
+    const primaryImgProof = normalizedProofs.find((pr) => pr.url && pr.url.startsWith('data:image/'));
+    if (primaryImgProof) {
+      const m = primaryImgProof.url.match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/);
+      if (m && m[2] && m[2].length < 480000) {
+        const ext = m[1].split('/')[1]?.replace('jpeg', 'jpg') || 'jpg';
+        inlineAttachments = [{
+          filename: `relief-proof.${ext}`,
+          content: m[2],
+          encoding: 'base64',
+          contentType: m[1],
+          cid: 'bbdrts_primary_proof'
+        }];
+      }
+    }
+
+    const disbursedAtLabel = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'Asia/Manila',
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
+    }).format(new Date()) + ' PHT';
+
+    let emailedDonorsCount = 0;
+    if (donorList.length > 0) {
+      const sendBatch = async (donor) => {
+        const html = emailTemplates.renderDisbursementProofEmail({
+          donorName: donor.name || 'Valued Supporter',
+          campaignTitle: cleanCampTitle,
+          orgName: cleanOrgName,
+          amountPhp: numericAmountPhp,
+          donorContributionPhp: donor.totalPhp || 0,
+          beneficiariesReached: parseInt(beneficiariesReached, 10) || 0,
+          aidCategoryLabel: AID_CATEGORY_LABELS[aidCategory] || 'Emergency Humanitarian Aid',
+          location: (location || '').trim(),
+          lguPartner: (lguPartner || '').trim(),
+          impactSummary: impactSummary.trim(),
+          expenseBreakdown: normalizedExpenses,
+          proofLinks,
+          hasInlinePhoto: inlineAttachments.length > 0,
+          txHash: cleanReference,
+          onChain: Boolean(relayRes.onChain),
+          explorerUrl: relayRes.explorerUrl || '',
+          proofDigest,
+          viewProofUrl,
+          disbursedAtLabel
+        });
+
+        const textFallback = [
+          `Relief Disbursed: ${cleanCampTitle}`,
+          `${cleanOrgName} released ₱${formattedPhp} PHP directly to ${parseInt(beneficiariesReached, 10) || 'affected'} beneficiaries.`,
+          location ? `Site: ${location.trim()}` : '',
+          lguPartner ? `LGU Partner: ${lguPartner.trim()}` : '',
+          `Summary: ${impactSummary.trim()}`,
+          `Proof Hash: ${cleanReference}`,
+          `Inspect Verified Proofs: ${viewProofUrl}`
+        ].filter(Boolean).join('\n');
+
+        const ok = await sendMailSafe({
+          to: donor.email,
+          subject: `Relief Proof Published: ₱${formattedPhp} Disbursed · ${cleanCampTitle}`,
+          text: textFallback,
+          html,
+          attachments: inlineAttachments
+        }, 10000);
+        if (ok) emailedDonorsCount++;
+      };
+
+      // Dispatch in parallel chunks of 5 so up to dozens of donors get emails quickly without blocking
+      for (let i = 0; i < donorList.length; i += 5) {
+        await Promise.allSettled(donorList.slice(i, i + 5).map(sendBatch));
+      }
     }
 
     // Server-side audit logging
     logActivity({
       req,
-      activity: `${cleanOrgName} (NGO) disbursed ₱${formattedPhp} directly to beneficiaries for "${cleanCampTitle}"`,
+      activity: `${cleanOrgName} (NGO) disbursed ₱${formattedPhp} directly to beneficiaries for "${cleanCampTitle}" (${donorEmails.length} donor${donorEmails.length === 1 ? '' : 's'} notified, ${emailedDonorsCount} emailed)`,
       userName: cleanOrgName,
       userEmail: user.email,
       role: 'NGO',
@@ -4946,27 +5201,106 @@ app.post('/api/campaigns/:id/disburse', authenticateToken, async (req, res) => {
       category: 'CAMPAIGN',
       status: 'SUCCESS',
       details: {
+        disbursementId,
         disbursedPhp: numericAmountPhp,
-        beneficiariesReached,
-        impactSummary,
+        beneficiariesReached: parseInt(beneficiariesReached, 10) || 0,
+        aidCategory,
+        impactSummary: impactSummary.trim(),
         referenceId: cleanReference,
-        txHash,
-        proofsCount: Array.isArray(proofs) ? proofs.length : (proofUrl ? 1 : 0),
-        expenseCount: Array.isArray(expenseBreakdown) ? expenseBreakdown.length : 0,
-        location: location || ''
+        onChain: Boolean(relayRes.onChain),
+        blockNumber: relayRes.blockNumber || null,
+        proofDigest,
+        proofsCount: normalizedProofs.length,
+        expenseCount: normalizedExpenses.length,
+        notifiedDonorsCount: donorEmails.length,
+        emailedDonorsCount,
+        location: (location || '').trim(),
+        lguPartner: (lguPartner || '').trim()
       }
     }).catch(() => {});
 
     res.json({
       success: true,
-      message: `Relief disbursement recorded! ${donorEmails.length} contributing donor${donorEmails.length === 1 ? '' : 's'} notified.`,
+      disbursementId,
+      disbursedPhp: numericAmountPhp,
+      disbursementStatus,
+      txHash: cleanReference,
+      referenceId: cleanReference,
+      onChain: Boolean(relayRes.onChain),
+      blockNumber: relayRes.blockNumber || null,
+      explorerUrl: relayRes.explorerUrl || '',
+      proofDigest,
       notifiedDonorsCount: donorEmails.length,
-      referenceId: cleanReference
+      emailedDonorsCount,
+      message: donorEmails.length > 0
+        ? `Relief disbursement recorded! ${donorEmails.length} contributing donor${donorEmails.length === 1 ? '' : 's'} notified (${emailedDonorsCount} email${emailedDonorsCount === 1 ? '' : 's'} sent).`
+        : 'Relief disbursement recorded and notarized! Verified proofs are now live on the campaign.'
     });
 
   } catch (err) {
     console.error('Failed to record disbursement:', err);
     res.status(500).json({ error: 'Failed to record disbursement: ' + err.message });
+  }
+});
+
+// ── GET /api/disbursements/:disbId/proof/:index (Serve Uploaded Disbursement Proof Image / PDF / Excel) ──
+app.get('/api/disbursements/:disbId/proof/:index', async (req, res) => {
+  try {
+    const disbId = Number(req.params.disbId);
+    const idx = Number(req.params.index);
+    if (!disbId || isNaN(idx) || idx < 0) {
+      return res.status(400).send('Invalid proof reference.');
+    }
+
+    const [rows] = await db.query(
+      'SELECT Proof_Url FROM CAMPAIGN_DISBURSEMENT WHERE Disbursement_ID = ? LIMIT 1',
+      [disbId]
+    );
+    if (!rows || rows.length === 0 || !rows[0].Proof_Url) {
+      return res.status(404).send('Disbursement proof not found.');
+    }
+
+    const rawProof = rows[0].Proof_Url;
+    let targetProof = null;
+    try {
+      const parsed = typeof rawProof === 'string' ? JSON.parse(rawProof) : rawProof;
+      const list = Array.isArray(parsed)
+        ? parsed
+        : (Array.isArray(parsed?.proofs) ? parsed.proofs : (parsed?.primaryUrl ? [{ url: parsed.primaryUrl, name: 'proof' }] : []));
+      targetProof = list[idx] || null;
+    } catch (_) {
+      if (idx === 0) targetProof = { url: rawProof, name: 'proof' };
+    }
+
+    if (!targetProof || !targetProof.url) {
+      return res.status(404).send('Proof attachment not found.');
+    }
+
+    const urlStr = String(targetProof.url);
+    if (/^https?:\/\//i.test(urlStr)) {
+      return res.redirect(urlStr);
+    }
+
+    const dataMatch = urlStr.match(/^data:([^;]+);base64,(.+)$/);
+    if (!dataMatch) {
+      return res.status(400).send('Unsupported proof format.');
+    }
+
+    const mime = dataMatch[1];
+    const buf = Buffer.from(dataMatch[2], 'base64');
+    const safeName = String(targetProof.name || `proof_${disbId}_${idx}`).replace(/[^a-zA-Z0-9._-]/g, '_');
+
+    const unsafeInline = /svg|html|xml|javascript/i.test(mime);
+    const forceDownload = req.query.download === '1' || req.query.download === 'true' || unsafeInline;
+    res.setHeader('Content-Type', unsafeInline ? 'application/octet-stream' : mime);
+    res.setHeader('Content-Disposition', `${forceDownload ? 'attachment' : 'inline'}; filename="${safeName}"`);
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Content-Security-Policy', "default-src 'none'; sandbox");
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+    return res.send(buf);
+  } catch (err) {
+    console.error('Failed to serve disbursement proof:', err);
+    return res.status(500).send('Failed to load proof document.');
   }
 });
 
@@ -8472,12 +8806,22 @@ app.get('/api/admin/disbursements', authenticateToken, async (req, res) => {
         c.Urgency as urgency,
         c.Location_Region as location,
         c.Is_Active as isActive,
+        COALESCE(c.Disbursed_Amount_Php, 0) as disbursedAmountPhp,
+        COALESCE(c.Disbursement_Status, 'FUNDRAISING') as disbursementStatus,
+        c.Last_Disbursement_At as lastDisbursementAt,
+        COALESCE(cd.disbursementCount, 0) as disbursementCount,
+        COALESCE(cd.totalBeneficiaries, 0) as beneficiariesReached,
         o.Org_Name as orgName,
         o.Username as orgEmail,
         o.Wallet_Address as orgWallet
       FROM CAMPAIGN c
       LEFT JOIN ORGANIZATION o ON c.Org_ID = o.Org_ID
-      ORDER BY c.Campaign_ID DESC
+      LEFT JOIN (
+        SELECT Campaign_ID, COUNT(*) as disbursementCount, SUM(COALESCE(Beneficiaries_Reached, 0)) as totalBeneficiaries
+        FROM CAMPAIGN_DISBURSEMENT
+        GROUP BY Campaign_ID
+      ) cd ON c.Campaign_ID = cd.Campaign_ID
+      ORDER BY COALESCE(cd.disbursementCount, 0) DESC, c.Campaign_ID DESC
     `);
     res.json(rows || []);
   } catch (err) {
@@ -8703,8 +9047,8 @@ app.get('/api/notifications', async (req, res) => {
           querySql += " AND (UPPER(n.Type) = 'DONATION' OR UPPER(n.Type) = 'WITHDRAWAL')";
         } else if (fUpper === 'BROADCAST' || fUpper === 'EMERGENCY') {
           querySql += " AND (UPPER(n.Type) = 'BROADCAST' OR UPPER(n.Type) = 'EMERGENCY')";
-        } else if (fUpper === 'MILESTONE' || fUpper === 'RELIEF_PROOF') {
-          querySql += " AND (UPPER(n.Type) = 'MILESTONE' OR UPPER(n.Type) = 'RELIEF_PROOF')";
+        } else if (fUpper === 'MILESTONE' || fUpper === 'RELIEF_PROOF' || fUpper === 'DISBURSEMENT') {
+          querySql += " AND (UPPER(n.Type) = 'MILESTONE' OR UPPER(n.Type) = 'RELIEF_PROOF' OR UPPER(n.Type) = 'DISBURSEMENT')";
         } else {
           querySql += ' AND UPPER(n.Type) = UPPER(?)';
           queryParams.push(filter);
@@ -8740,8 +9084,8 @@ app.get('/api/notifications', async (req, res) => {
           countSql += " AND (UPPER(n.Type) = 'DONATION' OR UPPER(n.Type) = 'WITHDRAWAL')";
         } else if (fUpper === 'BROADCAST' || fUpper === 'EMERGENCY') {
           countSql += " AND (UPPER(n.Type) = 'BROADCAST' OR UPPER(n.Type) = 'EMERGENCY')";
-        } else if (fUpper === 'MILESTONE' || fUpper === 'RELIEF_PROOF') {
-          countSql += " AND (UPPER(n.Type) = 'MILESTONE' OR UPPER(n.Type) = 'RELIEF_PROOF')";
+        } else if (fUpper === 'MILESTONE' || fUpper === 'RELIEF_PROOF' || fUpper === 'DISBURSEMENT') {
+          countSql += " AND (UPPER(n.Type) = 'MILESTONE' OR UPPER(n.Type) = 'RELIEF_PROOF' OR UPPER(n.Type) = 'DISBURSEMENT')";
         } else {
           countSql += ' AND UPPER(n.Type) = UPPER(?)';
           countParams.push(filter);

@@ -945,6 +945,12 @@
   background: #09090b;
 }
 
+.bbdrts-disb-dropzone.is-dragging {
+  border-color: #10b981;
+  background: rgba(16, 185, 129, 0.08);
+  box-shadow: 0 0 0 1px rgba(16, 185, 129, 0.35);
+}
+
 .bbdrts-disb-drop-icon {
   width: 40px;
   height: 40px;
@@ -1049,9 +1055,37 @@
   text-overflow: ellipsis;
 }
 
+.bbdrts-disb-proof-caption-input {
+  width: 100%;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  color: #ededed;
+  font-size: 0.76rem;
+  font-weight: 500;
+  padding: 2px 5px;
+  margin-left: -5px;
+  outline: none;
+  font-family: inherit;
+  transition: border-color 0.12s ease, background 0.12s ease;
+}
+
+.bbdrts-disb-proof-caption-input:hover {
+  border-color: #27272a;
+  background: #121215;
+}
+
+.bbdrts-disb-proof-caption-input:focus {
+  border-color: #10b981;
+  background: #000000;
+}
+
 .bbdrts-disb-proof-info .proof-meta {
   font-size: 0.66rem;
   color: #71717a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .bbdrts-disb-proof-cat-select {

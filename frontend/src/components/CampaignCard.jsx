@@ -3401,7 +3401,7 @@ export default function CampaignCard(props) {
               </span>
             )}
 
-            {(camp.disbursementStatus === 'DISBURSED' || (camp.disbursedAmountPhp || 0) > 0) && (
+            {(camp.disbursementStatus === 'DISBURSED' || camp.disbursementStatus === 'PARTIALLY_DISBURSED' || (camp.disbursedAmountPhp || 0) > 0) && (
               <button
                 type="button"
                 className="badge badge-disbursed-geist"
@@ -3409,7 +3409,7 @@ export default function CampaignCard(props) {
                 title="Click to inspect verified ground distribution receipts"
               >
                 <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>task_alt</span>
-                <span>Aid Disbursed</span>
+                <span>{camp.disbursementStatus === 'PARTIALLY_DISBURSED' ? 'Aid Partially Disbursed' : 'Aid Disbursed'}</span>
               </button>
             )}
 
@@ -3785,7 +3785,7 @@ export default function CampaignCard(props) {
                 <span>{isDisbursementsMaintenance ? 'Disbursement (Maintenance)' : 'Disburse & Upload Relief Proof'}</span>
               </button>
 
-              {(camp.disbursementStatus === 'DISBURSED' || (camp.disbursedAmountPhp || 0) > 0) && (
+              {(camp.disbursementStatus === 'DISBURSED' || camp.disbursementStatus === 'PARTIALLY_DISBURSED' || (camp.disbursedAmountPhp || 0) > 0) && (
                 <button
                   type="button"
                   className="btn btn-outline btn-sm btn-full"
@@ -3867,6 +3867,22 @@ export default function CampaignCard(props) {
               </div>
 
               <div className="campaign-observer-btns-stack">
+                {(camp.disbursementStatus === 'DISBURSED' || camp.disbursementStatus === 'PARTIALLY_DISBURSED' || (camp.disbursedAmountPhp || 0) > 0) && (
+                  <button
+                    type="button"
+                    className="btn btn-outline btn-sm btn-full"
+                    onClick={() => setProofModalOpen(true)}
+                    style={{
+                      borderColor: 'rgba(16, 185, 129, 0.42)',
+                      color: 'var(--accent-green, #10b981)',
+                      fontWeight: 600
+                    }}
+                  >
+                    <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>verified</span>
+                    <span>View Relief Proof (₱{(camp.disbursedAmountPhp || 0).toLocaleString()})</span>
+                  </button>
+                )}
+
                 <button
                   type="button"
                   className="btn btn-outline btn-sm btn-full"
@@ -3979,6 +3995,28 @@ export default function CampaignCard(props) {
                   </button>
                 )}
               </div>
+
+              {(camp.disbursementStatus === 'DISBURSED' || camp.disbursementStatus === 'PARTIALLY_DISBURSED' || (camp.disbursedAmountPhp || 0) > 0) && (
+                <button
+                  type="button"
+                  className="btn btn-outline btn-sm btn-full"
+                  onClick={() => setProofModalOpen(true)}
+                  title="Inspect verified ground delivery photos, receipts & Sepolia proof"
+                  style={{
+                    borderColor: 'rgba(16, 185, 129, 0.42)',
+                    color: 'var(--accent-green, #10b981)',
+                    fontWeight: 600,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px',
+                    marginTop: '6px'
+                  }}
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>verified</span>
+                  <span>View Relief Proof (₱{(camp.disbursedAmountPhp || 0).toLocaleString()})</span>
+                </button>
+              )}
             </>
           )}
 
@@ -7829,7 +7867,7 @@ export default function CampaignCard(props) {
                         </button>
                       ) : null}
 
-                      {(camp.disbursementStatus === 'DISBURSED' || (camp.disbursedAmountPhp || 0) > 0) && (
+                      {(camp.disbursementStatus === 'DISBURSED' || camp.disbursementStatus === 'PARTIALLY_DISBURSED' || (camp.disbursedAmountPhp || 0) > 0) && (
                         <button
                           type="button"
                           className="cdm-btn-secondary"
@@ -7839,7 +7877,7 @@ export default function CampaignCard(props) {
                           }}
                         >
                           <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#10b981' }}>verified</span>
-                          <span>View Relief Proof</span>
+                          <span>View Relief Proof (₱{(camp.disbursedAmountPhp || 0).toLocaleString()})</span>
                         </button>
                       )}
                     </div>

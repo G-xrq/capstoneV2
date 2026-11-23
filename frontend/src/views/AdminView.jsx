@@ -10,6 +10,7 @@ import { CONTRACT_ADDRESS } from '../contractConfig';
 import SettingsPanel from '../components/SettingsPanel';
 import DisasterRadarHeatmap from '../components/DisasterRadarHeatmap';
 import SecCertificateModal from '../components/SecCertificateModal';
+import DisbursementProofModal from '../components/DisbursementProofModal';
 import SidebarToggleIcon from '../components/SidebarToggleIcon';
 import AdminBroadcastPanel from '../components/AdminBroadcastPanel';
 import AdminMaintenancePanel from '../components/AdminMaintenancePanel';
@@ -997,6 +998,7 @@ export default function AdminView({
   const [disbursementsList, setDisbursementsList] = useState([]);
   const [disbursementsLoading, setDisbursementsLoading] = useState(false);
   const [disbursementSearch, setDisbursementSearch] = useState('');
+  const [adminProofCamp, setAdminProofCamp] = useState(null);
 
   const loadDisbursements = async (arg) => {
     const silent = Boolean(arg && typeof arg === 'object' && arg.silent === true);
@@ -3711,10 +3713,10 @@ export default function AdminView({
                       <thead>
                         <tr>
                           <th>Relief Campaign &amp; Operating NGO</th>
-                          <th>Target Budget</th>
-                          <th>Humanitarian Impact</th>
+                          <th>Disbursed / Target</th>
+                          <th>Verified Impact</th>
                           <th>Budget Allocation Breakdown</th>
-                          <th style={{ textAlign: 'right' }}>Procurement Manifest</th>
+                          <th style={{ textAlign: 'right' }}>Verified Relief Proofs</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -3722,6 +3724,11 @@ export default function AdminView({
                           const title = disb.title || disb.Campaign_Title || 'Relief Operation';
                           const org = disb.orgName || disb.Org_Name || 'Accredited Partner';
                           const targetPhp = disb.targetPhp || disb.Target_Amount_Php || disb.Target_Php || (disb.targetEth ? disb.targetEth * 170000 : 0);
+                          const disbursedPhp = Number(disb.disbursedAmountPhp || disb.Disbursed_Amount_Php || 0);
+                          const disbStatus = String(disb.disbursementStatus || disb.Disbursement_Status || 'FUNDRAISING').toUpperCase();
+                          const disbCount = Number(disb.disbursementCount || 0);
+                          const liveBeneficiaries = Number(disb.beneficiariesReached || 0);
+                          const hasDisbursements = disbCount > 0 || disbursedPhp > 0 || disbStatus === 'DISBURSED' || disbStatus === 'PARTIALLY_DISBURSED';
                           const impact = disb.beneficiariesImpact || disb.Beneficiaries_Impact;
                           const allocsRaw = disb.allocationsJson || disb.Allocations_Json;
                           const docUrl = disb.documentUrl || disb.Document_Url;
@@ -3744,16 +3751,29 @@ export default function AdminView({
                               </td>
 
                               <td className="cell-mono">
-                                <div className="cell-amount-php">
-                                  ₱{Number(targetPhp || 0).toLocaleString()}
+                                <div className="cell-amount-php" style={{ color: hasDisbursements ? '#10b981' : 'var(--text-primary)' }}>
+                                  ₱{disbursedPhp.toLocaleString()}
                                 </div>
-                                <div className="cell-sub-caption">
-                                  Target Liquidity
+                                <div className="cell-sub-caption" style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                                  <span>of ₱{Number(targetPhp || 0).toLocaleString()} target</span>
+                                  {hasDisbursements && (
+                                    <span style={{ color: '#10b981', fontWeight: 600 }}>
+                                      · {disbCount || 1} batch{(disbCount || 1) === 1 ? '' : 'es'}
+                                    </span>
+                                  )}
                                 </div>
                               </td>
 
                               <td>
-                                {impact ? (
+                                {liveBeneficiaries > 0 ? (
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '0.78rem', color: '#10b981', fontWeight: 600 }}>
+                                      <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>verified</span>
+                                      <span>{liveBeneficiaries.toLocaleString()} Reached</span>
+                                    </div>
+                                    {impact && <span className="cell-sub-caption">{impact}</span>}
+                                  </div>
+                                ) : impact ? (
                                   <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
                                     <span className="material-symbols-outlined" style={{ fontSize: '15px', color: '#38bdf8' }}>groups</span>
                                     <span>{impact}</span>
@@ -3792,20 +3812,33 @@ export default function AdminView({
                               </td>
 
                               <td style={{ textAlign: 'right' }}>
-                                {docUrl ? (
-                                  <a
-                                    href={docUrl}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="admin-header-btn secondary"
-                                    style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', textDecoration: 'none', padding: '3px 8px', fontSize: '0.70rem' }}
-                                  >
-                                    <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>description</span>
-                                    <span>Delivery Manifest ↗</span>
-                                  </a>
-                                ) : (
-                                  <span className="badge-status muted">Pending Upload</span>
-                                )}
+                                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                                  {hasDisbursements ? (
+                                    <button
+                                      type="button"
+                                      className="admin-header-btn primary"
+                                      onClick={() => setAdminProofCamp({ id, Campaign_ID: id, title, orgName: org })}
+                                      style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '4px 10px', fontSize: '0.72rem' }}
+                                    >
+                                      <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>verified</span>
+                                      <span>Inspect Proofs ({disbCount || 1})</span>
+                                    </button>
+                                  ) : (
+                                    <span className="badge-status muted">Awaiting Release</span>
+                                  )}
+                                  {docUrl && (
+                                    <a
+                                      href={docUrl}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="admin-header-btn secondary"
+                                      style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', textDecoration: 'none', padding: '4px 8px', fontSize: '0.70rem' }}
+                                    >
+                                      <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>description</span>
+                                      <span>Manifest ↗</span>
+                                    </a>
+                                  )}
+                                </div>
                               </td>
                             </tr>
                           );
@@ -5190,6 +5223,16 @@ export default function AdminView({
             </div>
           </div>
         </div>
+      )}
+
+      {/* Verified Relief Proof Audit Modal */}
+      {adminProofCamp && (
+        <DisbursementProofModal
+          camp={adminProofCamp}
+          isOpen={Boolean(adminProofCamp)}
+          onClose={() => setAdminProofCamp(null)}
+          theme={theme}
+        />
       )}
 
       {/* Interactive Guided Onboarding Spotlight Tour */}

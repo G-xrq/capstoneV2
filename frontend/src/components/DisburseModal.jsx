@@ -1,4 +1,4 @@
-import { useState, useId, useEffect } from 'react';
+import { useState, useId, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import * as XLSX from 'xlsx';
 import { API_URL } from '../config';
@@ -27,6 +27,65 @@ const WIZARD_STEPS = [
   { num: 3, title: 'Proof & Receipts', icon: 'receipt_long' },
   { num: 4, title: 'Review & Notarize', icon: 'verified' }
 ];
+
+function formatFileBytes(bytes) {
+  if (!bytes || bytes <= 0) return '0 KB';
+  if (bytes >= 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+  return (bytes / 1024).toFixed(1) + ' KB';
+}
+
+function readFileAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (ev) => resolve(ev.target.result);
+    reader.onerror = () => reject(new Error('Failed to read file'));
+    reader.readAsDataURL(file);
+  });
+}
+
+async function prepareProofDataUrl(file) {
+  const rawUrl = await readFileAsDataUrl(file);
+  const isCompressibleImage =
+    file.type &&
+    file.type.startsWith('image/') &&
+    !file.type.includes('svg') &&
+    !file.type.includes('gif') &&
+    file.size > 280 * 1024;
+
+  if (!isCompressibleImage) {
+    return { url: rawUrl, fileSize: formatFileBytes(file.size) };
+  }
+
+  try {
+    const img = await new Promise((resolve, reject) => {
+      const el = new Image();
+      el.onload = () => resolve(el);
+      el.onerror = reject;
+      el.src = rawUrl;
+    });
+    const maxDim = 1440;
+    let { width, height } = img;
+    if (width > maxDim || height > maxDim) {
+      const ratio = Math.min(maxDim / width, maxDim / height);
+      width = Math.max(1, Math.round(width * ratio));
+      height = Math.max(1, Math.round(height * ratio));
+    }
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, width, height);
+    ctx.drawImage(img, 0, 0, width, height);
+    const compressedUrl = canvas.toDataURL('image/jpeg', 0.82);
+    const compressedBytes = Math.round((compressedUrl.length * 3) / 4);
+    if (compressedUrl.length < rawUrl.length) {
+      return { url: compressedUrl, fileSize: formatFileBytes(compressedBytes) + ' (optimized)' };
+    }
+  } catch (_) {}
+
+  return { url: rawUrl, fileSize: formatFileBytes(file.size) };
+}
 
 export default function DisburseModal({ camp, isOpen, onClose, onDisbursed }) {
   const { showSuccess, showError, showWarning } = useToast();
@@ -62,20 +121,37 @@ export default function DisburseModal({ camp, isOpen, onClose, onDisbursed }) {
 
   // Multi-Proof Attachments
   const [proofs, setProofs] = useState([]);
+  const [isDraggingOver, setIsDraggingOver] = useState(false);
+  const [processingFiles, setProcessingFiles] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  // Synchronize amount and reset to step 1 when modal opens or active campaign / escrow balance changes
+  const wasOpenRef = useRef(false);
+  const lastCampIdRef = useRef(null);
+
+  // Cleanly reset all wizard fields only when modal opens or switches to a different campaign
+  // (never wipes NGO progress mid-form if a live SSE donation updates availablePhp)
   useEffect(() => {
-    if (isOpen && camp) {
+    const justOpened = isOpen && (!wasOpenRef.current || lastCampIdRef.current !== campId);
+    if (justOpened && camp) {
       setCurrentStep(1);
-      if (availablePhp > 0) {
-        setAmountPhp(String(availablePhp));
-      } else {
-        setAmountPhp('');
-      }
+      setAllocationMode('QUICK');
+      setAmountPhp(availablePhp > 0 ? String(availablePhp) : '');
       setBeneficiariesReached(availablePhp >= 5000 ? '100' : (availablePhp > 0 ? '5' : '1'));
+      setAidCategory('FOOD_WATER');
+      setLguPartner('');
+      setLocation(camp.locationRegion || camp.location || '');
+      setImpactSummary('');
+      setExpenses([
+        { id: Date.now(), description: 'Emergency Food Packs (Rice, Canned Goods, Water)', quantity: '100 packs', costPhp: '' }
+      ]);
+      setImportedExcelName('');
+      setProofs([]);
+      setIsDraggingOver(false);
+      setProcessingFiles(false);
+      lastCampIdRef.current = campId;
     }
-  }, [isOpen, campId, availablePhp]);
+    wasOpenRef.current = Boolean(isOpen);
+  }, [isOpen, campId, camp, availablePhp]);
 
   if (!isOpen || !camp) return null;
 
@@ -95,17 +171,18 @@ export default function DisburseModal({ camp, isOpen, onClose, onDisbursed }) {
   };
   const approxEth = formatEthPreview(effectiveAmountPhp);
   const remainingInEscrow = Math.max(0, availablePhp - effectiveAmountPhp);
-  const isOverdrawn = availablePhp > 0 && effectiveAmountPhp > availablePhp;
+  const isOverdrawn = availablePhp <= 0 ? effectiveAmountPhp > 0 : effectiveAmountPhp > availablePhp + 0.01;
 
   // Step Validation Rules
-  const isStep1Valid = effectiveAmountPhp > 0 && !isOverdrawn;
+  const isStep1Valid = availablePhp > 0 && effectiveAmountPhp > 0 && !isOverdrawn;
   const isStep2Valid = (parseInt(beneficiariesReached) || 0) > 0 && lguPartner.trim().length > 0 && location.trim().length > 0 && impactSummary.trim().length > 0;
-  const isStep3Valid = proofs.length > 0;
+  const isStep3Valid = proofs.length > 0 && !processingFiles;
 
   // Quick Percentage Allocation Handler
   const handleQuickPercent = (pct) => {
-    const val = Math.round(availablePhp * pct);
-    setAmountPhp(String(val > 0 ? val : '1000'));
+    if (availablePhp <= 0) return;
+    const val = pct >= 1 ? availablePhp : Math.max(1, Math.round(availablePhp * pct));
+    setAmountPhp(String(Math.min(availablePhp, val)));
   };
 
   // Add / Edit / Remove Expense Items
@@ -220,46 +297,73 @@ export default function DisburseModal({ camp, isOpen, onClose, onDisbursed }) {
     e.target.value = '';
   };
 
-  // Proof Upload
-  const handlePhotoUpload = (e) => {
-    const files = Array.from(e.target.files || []);
+  // Proof Upload (supports click & drag-and-drop, auto-compresses large phone photos)
+  const processProofFiles = async (fileList) => {
+    const files = Array.from(fileList || []);
     if (files.length === 0) return;
 
-    files.forEach((file) => {
-      if (file.size > 12 * 1024 * 1024) {
-        showWarning(`"${file.name}" exceeds 12MB limit. Please compress.`, 'File Too Large');
-        return;
-      }
-
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const base64 = event.target.result;
-        let cat = 'GROUND_PHOTO';
+    setProcessingFiles(true);
+    try {
+      const added = [];
+      for (const file of files) {
+        if (file.size > 12 * 1024 * 1024) {
+          showWarning(`"${file.name}" exceeds 12MB limit. Please compress or split the document.`, 'File Too Large');
+          continue;
+        }
         const nameLower = file.name.toLowerCase();
-        if (nameLower.includes('receipt') || nameLower.includes('invoice') || nameLower.includes('bill') || file.type.includes('pdf')) {
+        const isAllowed =
+          (file.type && (file.type.startsWith('image/') || file.type === 'application/pdf' || file.type.includes('sheet') || file.type.includes('excel') || file.type.includes('csv'))) ||
+          /\.(png|jpe?g|webp|pdf|xlsx|xls|csv)$/i.test(nameLower);
+        if (!isAllowed) {
+          showWarning(`"${file.name}" is not a supported proof format. Use JPG, PNG, PDF, or Excel/CSV.`, 'Unsupported File');
+          continue;
+        }
+
+        const { url, fileSize } = await prepareProofDataUrl(file);
+        let cat = 'GROUND_PHOTO';
+        if (nameLower.includes('receipt') || nameLower.includes('invoice') || nameLower.includes('bill') || file.type.includes('pdf') || /\.(xlsx|xls|csv)$/i.test(nameLower)) {
           cat = 'OFFICIAL_RECEIPT';
         } else if (nameLower.includes('roster') || nameLower.includes('list') || nameLower.includes('masterlist')) {
           cat = 'BENEFICIARY_ROSTER';
-        } else if (nameLower.includes('cert') || nameLower.includes('barangay')) {
+        } else if (nameLower.includes('cert') || nameLower.includes('barangay') || nameLower.includes('turnover')) {
           cat = 'LGU_CERTIFICATE';
+        } else if (nameLower.includes('waybill') || nameLower.includes('manifest') || nameLower.includes('delivery')) {
+          cat = 'LOGISTICS_WAYBILL';
         }
 
-        setProofs((prev) => [
-          ...prev,
-          {
-            id: Date.now() + Math.random(),
-            name: file.name,
-            url: base64,
-            fileSize: (file.size / 1024).toFixed(1) + ' KB',
-            caption: file.name.replace(/\.[^/.]+$/, ''),
-            category: cat
-          }
-        ]);
-      };
-      reader.readAsDataURL(file);
-    });
+        added.push({
+          id: Date.now() + Math.random(),
+          name: file.name,
+          url,
+          fileSize,
+          caption: file.name.replace(/\.[^/.]+$/, '').replace(/[_-]+/g, ' '),
+          category: cat
+        });
+      }
 
+      if (added.length > 0) {
+        setProofs((prev) => [...prev, ...added]);
+      }
+    } catch (err) {
+      console.error('Proof upload processing failed:', err);
+      showError('Failed to process one or more proof files. Please try again.', 'Upload Error');
+    } finally {
+      setProcessingFiles(false);
+    }
+  };
+
+  const handlePhotoUpload = (e) => {
+    processProofFiles(e.target.files);
     e.target.value = '';
+  };
+
+  const handleDropProofs = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingOver(false);
+    if (e.dataTransfer?.files?.length) {
+      processProofFiles(e.dataTransfer.files);
+    }
   };
 
   const handleRemovePhoto = (id) => {
@@ -268,6 +372,10 @@ export default function DisburseModal({ camp, isOpen, onClose, onDisbursed }) {
 
   const handleUpdateProofCategory = (id, newCat) => {
     setProofs((prev) => prev.map((p) => (p.id === id ? { ...p, category: newCat } : p)));
+  };
+
+  const handleUpdateProofCaption = (id, newCaption) => {
+    setProofs((prev) => prev.map((p) => (p.id === id ? { ...p, caption: newCaption } : p)));
   };
 
   // Step Advancement Handler
@@ -303,7 +411,12 @@ export default function DisburseModal({ camp, isOpen, onClose, onDisbursed }) {
       return;
     }
 
-    if (availablePhp > 0 && effectiveAmountPhp > availablePhp) {
+    if (availablePhp <= 0) {
+      showWarning('No undisbursed escrow funds are available for this campaign yet.', 'Escrow Empty');
+      return;
+    }
+
+    if (effectiveAmountPhp > availablePhp + 0.01) {
       showWarning(`Disbursement (₱${effectiveAmountPhp.toLocaleString()}) cannot exceed available escrow balance (₱${availablePhp.toLocaleString()}).`, 'Exceeds Escrow');
       return;
     }
@@ -361,9 +474,15 @@ export default function DisburseModal({ camp, isOpen, onClose, onDisbursed }) {
         throw new Error(data.error || 'Failed to record disbursement.');
       }
 
+      const notified = Number(data.notifiedDonorsCount || 0);
+      const emailed = Number(data.emailedDonorsCount || 0);
+      const chainNote = data.onChain ? 'Anchored live on Sepolia.' : 'Sealed with SHA-256 audit proof.';
+      const donorNote = notified > 0
+        ? `${notified} donor${notified === 1 ? '' : 's'} notified (${emailed} email${emailed === 1 ? '' : 's'} sent).`
+        : 'Verified relief proofs are now live on the campaign.';
       showSuccess(
-        `Disbursed ₱${effectiveAmountPhp.toLocaleString()}! Notarized gaslessly with cryptographic audit proof.`,
-        'Funds Released'
+        `Disbursed ₱${effectiveAmountPhp.toLocaleString()}! ${chainNote} ${donorNote}`,
+        'Relief Funds Disbursed'
       );
 
       if (onDisbursed) onDisbursed(data);
@@ -471,6 +590,17 @@ export default function DisburseModal({ camp, isOpen, onClose, onDisbursed }) {
                     Choose how much of the available escrow (<strong>₱{availablePhp.toLocaleString()}</strong>) was spent on emergency aid.
                   </p>
                 </div>
+
+                {availablePhp <= 0 && (
+                  <div className="bbdrts-proofs-empty-notice" style={{ marginTop: 0 }}>
+                    <span className="material-symbols-outlined" style={{ color: '#eab308' }}>info</span>
+                    <span>
+                      {alreadyDisbursedPhp > 0
+                        ? `All ₱${currentPhp.toLocaleString()} raised for this campaign has already been disbursed. New verified donations will automatically unlock additional escrow balance here.`
+                        : 'No verified donations have settled into escrow for this campaign yet. Once donations are verified, you can release funds and upload relief proofs here.'}
+                    </span>
+                  </div>
+                )}
 
                 {/* Mode Selector Tabs */}
                 <div className="bbdrts-disb-mode-selector">
@@ -777,18 +907,31 @@ export default function DisburseModal({ camp, isOpen, onClose, onDisbursed }) {
                     type="file"
                     id={fileInputId}
                     multiple
-                    accept="image/*,application/pdf"
+                    accept="image/*,application/pdf,.xlsx,.xls,.csv"
                     onChange={handlePhotoUpload}
                     style={{ display: 'none' }}
                   />
 
-                  <label htmlFor={fileInputId} className="bbdrts-disb-dropzone">
+                  <label
+                    htmlFor={fileInputId}
+                    className={`bbdrts-disb-dropzone ${isDraggingOver ? 'is-dragging' : ''}`}
+                    onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setIsDraggingOver(true); }}
+                    onDragEnter={(e) => { e.preventDefault(); e.stopPropagation(); setIsDraggingOver(true); }}
+                    onDragLeave={(e) => { e.preventDefault(); e.stopPropagation(); setIsDraggingOver(false); }}
+                    onDrop={handleDropProofs}
+                  >
                     <div className="bbdrts-disb-drop-icon">
-                      <span className="material-symbols-outlined">add_photo_alternate</span>
+                      <span className="material-symbols-outlined">
+                        {processingFiles ? 'hourglass_top' : (isDraggingOver ? 'file_download' : 'add_photo_alternate')}
+                      </span>
                     </div>
                     <div className="bbdrts-disb-drop-text">
-                      <strong>Click or Drag to Upload Ground Photos &amp; Receipts</strong>
-                      <span>Upload JPG, PNG, or PDF files (up to 12MB each). Handover photos, merchant invoices, and signed masterlists.</span>
+                      <strong>
+                        {processingFiles
+                          ? 'Optimizing & Packaging Proof Files...'
+                          : (isDraggingOver ? 'Drop Relief Proofs Here' : 'Click or Drag to Upload Ground Photos & Receipts')}
+                      </strong>
+                      <span>Upload JPG, PNG, PDF, or Excel/CSV files (up to 12MB each). Large photos are auto-optimized for fast on-chain &amp; email delivery.</span>
                     </div>
                   </label>
 
@@ -796,40 +939,56 @@ export default function DisburseModal({ camp, isOpen, onClose, onDisbursed }) {
                     <div className="bbdrts-disb-proofs-list">
                       <div className="proofs-list-header">
                         <span>Attached Files ({proofs.length})</span>
-                        <span className="hint">Set category for each file</span>
+                        <span className="hint">Label &amp; categorize each proof for donors</span>
                       </div>
-                      {proofs.map((p) => (
-                        <div key={p.id} className="bbdrts-disb-proof-item">
-                          <div className="bbdrts-disb-proof-thumb">
-                            {p.url && p.url.startsWith('data:image') ? (
-                              <img src={p.url} alt={p.name} />
-                            ) : (
-                              <span className="material-symbols-outlined">description</span>
-                            )}
+                      {proofs.map((p) => {
+                        const isImg = Boolean(p.url && p.url.startsWith('data:image'));
+                        const isPdf = Boolean((p.url && p.url.startsWith('data:application/pdf')) || /\.pdf$/i.test(p.name || ''));
+                        const isSheet = /\.(xlsx|xls|csv)$/i.test(p.name || '');
+                        return (
+                          <div key={p.id} className="bbdrts-disb-proof-item">
+                            <div className="bbdrts-disb-proof-thumb">
+                              {isImg ? (
+                                <img src={p.url} alt={p.name} />
+                              ) : isPdf ? (
+                                <span className="material-symbols-outlined" style={{ color: '#f87171' }}>picture_as_pdf</span>
+                              ) : isSheet ? (
+                                <span className="material-symbols-outlined" style={{ color: '#10b981' }}>table_view</span>
+                              ) : (
+                                <span className="material-symbols-outlined">description</span>
+                              )}
+                            </div>
+                            <div className="bbdrts-disb-proof-info">
+                              <input
+                                type="text"
+                                className="bbdrts-disb-proof-caption-input"
+                                value={p.caption || ''}
+                                onChange={(e) => handleUpdateProofCaption(p.id, e.target.value)}
+                                placeholder="Label this proof (e.g., Rice invoice, Handover photo)"
+                                title="Edit caption shown to donors"
+                              />
+                              <span className="proof-meta" title={p.name}>{p.name} · {p.fileSize}</span>
+                            </div>
+                            <select
+                              className="bbdrts-disb-proof-cat-select"
+                              value={p.category}
+                              onChange={(e) => handleUpdateProofCategory(p.id, e.target.value)}
+                            >
+                              {PROOF_CATEGORIES.map(c => (
+                                <option key={c.value} value={c.value}>{c.label}</option>
+                              ))}
+                            </select>
+                            <button
+                              type="button"
+                              className="bbdrts-disb-proof-del"
+                              onClick={() => handleRemovePhoto(p.id)}
+                              title="Remove file"
+                            >
+                              <span className="material-symbols-outlined">close</span>
+                            </button>
                           </div>
-                          <div className="bbdrts-disb-proof-info">
-                            <span className="proof-name" title={p.name}>{p.name}</span>
-                            <span className="proof-meta">{p.fileSize}</span>
-                          </div>
-                          <select
-                            className="bbdrts-disb-proof-cat-select"
-                            value={p.category}
-                            onChange={(e) => handleUpdateProofCategory(p.id, e.target.value)}
-                          >
-                            {PROOF_CATEGORIES.map(c => (
-                              <option key={c.value} value={c.value}>{c.label}</option>
-                            ))}
-                          </select>
-                          <button
-                            type="button"
-                            className="bbdrts-disb-proof-del"
-                            onClick={() => handleRemovePhoto(p.id)}
-                            title="Remove file"
-                          >
-                            <span className="material-symbols-outlined">close</span>
-                          </button>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   ) : (
                     <div className="bbdrts-proofs-empty-notice">
@@ -926,9 +1085,9 @@ export default function DisburseModal({ camp, isOpen, onClose, onDisbursed }) {
                 <div className="bbdrts-blockchain-notice-box">
                   <span className="material-symbols-outlined" style={{ color: '#10b981', fontSize: '20px' }}>verified_user</span>
                   <div className="notice-body">
-                    <strong>Cryptographic Audit &amp; Escrow Release</strong>
+                    <strong>Sepolia Notarization, Donor Notifications &amp; Proof Emails</strong>
                     <p>
-                      Confirming this milestone will compute a SHA-256 hash of your proofs and submit an audited on-chain record to the Ethereum EVM. All campaign backers will be notified in real-time.
+                      Confirming this milestone computes a canonical SHA-256 evidence digest, notarizes the release gaslessly on Ethereum Sepolia, posts instant alerts to every donor&apos;s Notification Center, and sends Verified Relief Proof emails with downloadable receipts and photos.
                     </p>
                   </div>
                 </div>

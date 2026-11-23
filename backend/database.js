@@ -870,6 +870,7 @@ async function initializeDatabase() {
         FOREIGN KEY (Campaign_ID) REFERENCES CAMPAIGN(Campaign_ID) ON DELETE CASCADE
       )
     `);
+    try { await mysqlPool.query(`ALTER TABLE CAMPAIGN_DISBURSEMENT MODIFY COLUMN Proof_Url LONGTEXT`); } catch (_) {}
 
     await mysqlPool.query(`
       CREATE TABLE IF NOT EXISTS DONATION_TRANSACTION (

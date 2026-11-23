@@ -115,7 +115,7 @@ const getHeroStepDetails = (step, camp, raisedPhp, targetPhp, pct) => {
       return {
         title: 'Relief Progress',
         stage: 'Step 4',
-        status: camp?.disbursementStatus === 'COMPLETED' ? 'Completed' : 'Live',
+        status: (camp?.disbursementStatus === 'DISBURSED' || camp?.disbursementStatus === 'COMPLETED') ? 'Disbursed' : (camp?.disbursementStatus === 'PARTIALLY_DISBURSED' ? 'Partially Disbursed' : 'Live'),
         field1Label: 'Location',
         field1Value: shortLoc,
         field2Label: 'Raised so far',

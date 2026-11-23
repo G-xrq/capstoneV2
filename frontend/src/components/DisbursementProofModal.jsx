@@ -14,37 +14,95 @@ const CATEGORY_MAP = {
   LOGISTICS_WAYBILL: { label: 'Transport Manifest / Waybill', icon: 'local_shipping' }
 };
 
+const AID_CATEGORY_MAP = {
+  FOOD_WATER: { label: 'Food & Potable Water', icon: 'rice_bowl' },
+  MEDICAL: { label: 'Medical & First Aid', icon: 'medical_services' },
+  SHELTER: { label: 'Shelter & Tarpaulins', icon: 'roofing' },
+  LOGISTICS: { label: 'Logistics & Transport', icon: 'local_shipping' },
+  HYGIENE_CASH: { label: 'Hygiene & Community Aid', icon: 'volunteer_activism' }
+};
+
 function parseProofData(raw) {
-  if (!raw) return { proofs: [], expenseBreakdown: [], location: '', lguPartner: '' };
-  if (typeof raw === 'object') return raw;
+  const empty = {
+    proofs: [],
+    expenseBreakdown: [],
+    location: '',
+    lguPartner: '',
+    aidCategory: '',
+    allocationMode: '',
+    proofDigest: '',
+    onChain: undefined,
+    blockNumber: null,
+    explorerUrl: ''
+  };
+  if (!raw) return empty;
+  if (typeof raw === 'object') {
+    return { ...empty, ...raw };
+  }
   try {
     const parsed = JSON.parse(raw);
     if (Array.isArray(parsed)) {
-      return { proofs: parsed, expenseBreakdown: [], location: '', lguPartner: '' };
+      return { ...empty, proofs: parsed };
     }
     return {
+      ...empty,
       proofs: parsed.proofs || (parsed.primaryUrl ? [{ id: 1, url: parsed.primaryUrl, caption: 'Ground Distribution Proof', category: 'OFFICIAL_RECEIPT' }] : []),
       expenseBreakdown: parsed.expenseBreakdown || [],
       location: parsed.location || '',
-      lguPartner: parsed.lguPartner || ''
+      lguPartner: parsed.lguPartner || '',
+      aidCategory: parsed.aidCategory || '',
+      allocationMode: parsed.allocationMode || '',
+      proofDigest: parsed.proofDigest || '',
+      onChain: typeof parsed.onChain === 'boolean' ? parsed.onChain : undefined,
+      blockNumber: parsed.blockNumber || null,
+      explorerUrl: parsed.explorerUrl || ''
     };
   } catch (_) {
     return {
-      proofs: [{ id: 1, url: raw, caption: 'Ground Distribution Proof', category: 'OFFICIAL_RECEIPT' }],
-      expenseBreakdown: [],
-      location: '',
-      lguPartner: ''
+      ...empty,
+      proofs: [{ id: 1, url: raw, caption: 'Ground Distribution Proof', category: 'OFFICIAL_RECEIPT' }]
     };
   }
+}
+
+function classifyProofFile(proof) {
+  const url = String(proof?.url || '');
+  const name = String(proof?.name || proof?.caption || '').toLowerCase();
+  if (url.startsWith('data:image/') || /\.(png|jpe?g|webp|gif|bmp)$/i.test(name)) {
+    return 'image';
+  }
+  if (url.startsWith('data:application/pdf') || /\.pdf$/i.test(name)) {
+    return 'pdf';
+  }
+  if (
+    url.includes('spreadsheet') ||
+    url.includes('excel') ||
+    url.startsWith('data:text/csv') ||
+    /\.(xlsx|xls|csv)$/i.test(name)
+  ) {
+    return 'spreadsheet';
+  }
+  if (/^https?:\/\//i.test(url) && /\.(png|jpe?g|webp|gif)(\?|$)/i.test(url)) {
+    return 'image';
+  }
+  return 'document';
 }
 
 export default function DisbursementProofModal({ camp, isOpen, onClose, theme }) {
   const [disbursements, setDisbursements] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [activeImageZoom, setActiveImageZoom] = useState(null);
+  const [activePreview, setActivePreview] = useState(null);
   const [campaignDetails, setCampaignDetails] = useState(null);
+  const [copiedKey, setCopiedKey] = useState(null);
 
   const campId = camp?.id || camp?.Campaign_ID || camp?.campaignId;
+
+  const handleCopyValue = (key, text) => {
+    if (!text) return;
+    navigator.clipboard?.writeText(String(text)).catch(() => {});
+    setCopiedKey(key);
+    setTimeout(() => setCopiedKey((prev) => (prev === key ? null : prev)), 1800);
+  };
 
   useEffect(() => {
     if (!isOpen || !campId) return;
@@ -53,8 +111,11 @@ export default function DisbursementProofModal({ camp, isOpen, onClose, theme })
     const fetchDisbursementsAndDetails = async () => {
       setLoading(true);
       try {
+        const needsCampDetails =
+          (!camp?.title && !camp?.Campaign_Title) ||
+          (!camp?.orgName && !camp?.Org_Name);
         const fetchPromises = [fetch(`${API_URL}/api/campaigns/${campId}/disbursements`)];
-        if (!camp?.title && !camp?.Campaign_Title) {
+        if (needsCampDetails) {
           fetchPromises.push(fetch(`${API_URL}/api/campaigns/${campId}`));
         }
 
@@ -100,11 +161,22 @@ export default function DisbursementProofModal({ camp, isOpen, onClose, theme })
 
   if (!isOpen || !camp) return null;
 
-  const displayTitle = camp.title || camp.Campaign_Title || campaignDetails?.title || campaignDetails?.Campaign_Title || 'Relief Operation';
-  const displayOrg = camp.orgName || camp.Org_Name || campaignDetails?.orgName || campaignDetails?.Org_Name || 'Accredited Relief Org';
+  const displayTitle =
+    campaignDetails?.title ||
+    campaignDetails?.Campaign_Title ||
+    camp.title ||
+    camp.Campaign_Title ||
+    'Relief Operation';
+  const displayOrg =
+    camp.orgName ||
+    camp.Org_Name ||
+    campaignDetails?.orgName ||
+    campaignDetails?.Org_Name ||
+    disbursements[0]?.orgName ||
+    'Accredited Relief Org';
 
   const totalDisbursedPhp = disbursements.reduce((sum, d) => sum + parseFloat(d.amountPhp || 0), 0);
-  const totalBeneficiaries = disbursements.reduce((sum, d) => sum + (parseInt(d.beneficiariesReached) || 0), 0);
+  const totalBeneficiaries = disbursements.reduce((sum, d) => sum + (parseInt(d.beneficiariesReached, 10) || 0), 0);
 
   const currentTheme = theme || (typeof document !== 'undefined' ? document.documentElement.getAttribute('data-theme') : 'dark') || 'dark';
 
@@ -121,7 +193,7 @@ export default function DisbursementProofModal({ camp, isOpen, onClose, theme })
               <div className="bbdrts-proof-tag">Audited Relief Delivery &amp; Donor Proofs</div>
               <h2 className="bbdrts-proof-title">{displayTitle}</h2>
               <p className="bbdrts-proof-subtitle">
-                Official merchant receipts, ground handover photos, signed recipient rosters, and on-chain verification.
+                Official merchant receipts, ground handover photos, turnover certificates, spreadsheets, and Sepolia on-chain audit proofs.
               </p>
             </div>
           </div>
@@ -146,7 +218,7 @@ export default function DisbursementProofModal({ camp, isOpen, onClose, theme })
           </div>
           <div className="bbdrts-proof-stat">
             <span className="stat-label">Operating NGO</span>
-            <strong className="stat-val highlight">{displayOrg}</strong>
+            <strong className="stat-val highlight" title={displayOrg}>{displayOrg}</strong>
           </div>
         </div>
 
@@ -171,16 +243,39 @@ export default function DisbursementProofModal({ camp, isOpen, onClose, theme })
                 const proofData = parseProofData(d.proofUrl);
                 const proofsList = proofData.proofs || [];
                 const expensesList = proofData.expenseBreakdown || [];
+                const aidCat = proofData.aidCategory ? AID_CATEGORY_MAP[proofData.aidCategory] : null;
+                const isLiveOnChain = proofData.onChain === true || Boolean(proofData.explorerUrl);
+                const explorerHref =
+                  proofData.explorerUrl ||
+                  (d.txHash && String(d.txHash).startsWith('0x') && proofData.onChain !== false
+                    ? `${SEPOLIA_EXPLORER}${d.txHash}`
+                    : '');
 
                 return (
                   <div key={d.id || idx} className="bbdrts-proof-card">
                     <div className="proof-card-header">
-                      <div className="batch-pill">
-                        <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>task_alt</span>
-                        <span>Disbursement #{disbursements.length - idx}</span>
+                      <div className="proof-card-header-left">
+                        <div className="batch-pill">
+                          <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>task_alt</span>
+                          <span>Disbursement #{disbursements.length - idx}</span>
+                        </div>
+                        {aidCat && (
+                          <span className="proof-aid-cat-pill">
+                            <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>{aidCat.icon}</span>
+                            <span>{aidCat.label}</span>
+                          </span>
+                        )}
                       </div>
                       <span className="timestamp">
-                        {d.disbursedAt ? new Date(d.disbursedAt).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Verified Delivery'}
+                        {d.disbursedAt
+                          ? new Date(d.disbursedAt).toLocaleString('en-US', {
+                              month: 'short',
+                              day: 'numeric',
+                              year: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })
+                          : 'Verified Delivery'}
                       </span>
                     </div>
 
@@ -250,7 +345,7 @@ export default function DisbursementProofModal({ camp, isOpen, onClose, theme })
                       </div>
                     )}
 
-                    {/* Multiple Verifiable Proofs Gallery */}
+                    {/* Multiple Verifiable Proofs Gallery (Images + PDFs + Excel/CSV Spreadsheets) */}
                     {proofsList.length > 0 && (
                       <div className="proof-attachment-box">
                         <div className="narrative-label">
@@ -261,25 +356,86 @@ export default function DisbursementProofModal({ camp, isOpen, onClose, theme })
                         <div className="proof-gallery-grid">
                           {proofsList.map((proof, pIdx) => {
                             const cat = CATEGORY_MAP[proof.category] || CATEGORY_MAP.OFFICIAL_RECEIPT;
+                            const fileKind = classifyProofFile(proof);
+                            const hostedUrl = d.id ? `${API_URL}/api/disbursements/${d.id}/proof/${pIdx}` : null;
+                            const downloadHref = hostedUrl ? `${hostedUrl}?download=1` : proof.url;
+                            const safeDownloadName = proof.name || `relief-proof-${d.id || idx}-${pIdx + 1}`;
+
+                            const handleCardClick = () => {
+                              if (fileKind === 'spreadsheet' || fileKind === 'document') {
+                                window.open(downloadHref, '_blank', 'noopener,noreferrer');
+                                return;
+                              }
+                              setActivePreview({
+                                kind: fileKind,
+                                url: proof.url,
+                                hostedUrl: hostedUrl || proof.url,
+                                downloadHref,
+                                fileName: safeDownloadName,
+                                title: proof.caption || proof.name || 'Verifiable Document',
+                                category: cat.label
+                              });
+                            };
+
                             return (
                               <div
                                 key={proof.id || pIdx}
                                 className="proof-gallery-card"
-                                onClick={() => setActiveImageZoom({ url: proof.url, title: proof.caption || proof.name, category: cat.label })}
+                                onClick={handleCardClick}
                               >
-                                <div className="proof-gallery-img-wrap">
-                                  <img src={proof.url} alt={proof.caption || 'Proof'} />
-                                  <div className="proof-gallery-overlay">
-                                    <span className="material-symbols-outlined">zoom_in</span>
-                                    <span>Expand Proof</span>
+                                {fileKind === 'image' ? (
+                                  <div className="proof-gallery-img-wrap">
+                                    <img src={proof.url} alt={proof.caption || 'Proof'} loading="lazy" />
+                                    <div className="proof-gallery-overlay">
+                                      <span className="material-symbols-outlined">zoom_in</span>
+                                      <span>Expand Photo</span>
+                                    </div>
                                   </div>
-                                </div>
+                                ) : (
+                                  <div className={`proof-gallery-doc-wrap is-${fileKind}`}>
+                                    <span className="material-symbols-outlined doc-icon">
+                                      {fileKind === 'pdf'
+                                        ? 'picture_as_pdf'
+                                        : fileKind === 'spreadsheet'
+                                          ? 'table_view'
+                                          : 'description'}
+                                    </span>
+                                    <span className="doc-kind-pill">
+                                      {fileKind === 'pdf'
+                                        ? 'PDF DOCUMENT'
+                                        : fileKind === 'spreadsheet'
+                                          ? 'EXCEL / CSV'
+                                          : 'DOCUMENT'}
+                                    </span>
+                                    {proof.fileSize && <span className="doc-size">{proof.fileSize}</span>}
+                                    <div className="proof-gallery-overlay">
+                                      <span className="material-symbols-outlined">
+                                        {fileKind === 'pdf' ? 'visibility' : 'download'}
+                                      </span>
+                                      <span>{fileKind === 'pdf' ? 'Preview PDF' : 'Download File'}</span>
+                                    </div>
+                                  </div>
+                                )}
+
                                 <div className="proof-gallery-caption-row">
-                                  <span className="proof-gallery-badge">
-                                    <span className="material-symbols-outlined" style={{ fontSize: '11px' }}>{cat.icon}</span>
-                                    <span>{cat.label}</span>
-                                  </span>
-                                  <span className="proof-gallery-title" title={proof.caption}>
+                                  <div className="proof-gallery-badge-bar">
+                                    <span className="proof-gallery-badge">
+                                      <span className="material-symbols-outlined" style={{ fontSize: '11px' }}>{cat.icon}</span>
+                                      <span>{cat.label}</span>
+                                    </span>
+                                    <a
+                                      href={downloadHref}
+                                      download={safeDownloadName}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="proof-gallery-dl-btn"
+                                      title={`Download ${safeDownloadName}`}
+                                      onClick={(e) => e.stopPropagation()}
+                                    >
+                                      <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>download</span>
+                                    </a>
+                                  </div>
+                                  <span className="proof-gallery-title" title={proof.caption || proof.name}>
                                     {proof.caption || proof.name || 'Verifiable Document'}
                                   </span>
                                 </div>
@@ -290,25 +446,72 @@ export default function DisbursementProofModal({ camp, isOpen, onClose, theme })
                       </div>
                     )}
 
-                    {/* On-Chain Sepolia Hash */}
-                    {d.txHash && (
+                    {/* On-Chain Sepolia Hash & SHA-256 Evidence Digest */}
+                    {(d.txHash || proofData.proofDigest) && (
                       <div className="proof-tx-box">
-                        <span className="tx-label">Cryptographic Audit Ledger Proof:</span>
-                        <div className="tx-row">
-                          <code className="tx-code">{d.txHash}</code>
-                          {d.txHash.startsWith('0x') && (
-                            <a
-                              href={`${SEPOLIA_EXPLORER}${d.txHash}`}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="btn btn-outline btn-xs"
-                              title="Verify on Sepolia Etherscan"
-                            >
-                              <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>open_in_new</span>
-                              <span>Etherscan</span>
-                            </a>
-                          )}
+                        <div className="proof-tx-header">
+                          <span className="tx-label">Cryptographic Audit Ledger Proof:</span>
+                          {isLiveOnChain ? (
+                            <span className="proof-chain-badge is-live">
+                              <span className="chain-dot" />
+                              <span>
+                                Sepolia Confirmed{proofData.blockNumber ? ` · Block #${Number(proofData.blockNumber).toLocaleString()}` : ''}
+                              </span>
+                            </span>
+                          ) : proofData.onChain === false ? (
+                            <span className="proof-chain-badge is-seal">
+                              <span>SHA-256 Audit Seal</span>
+                            </span>
+                          ) : null}
                         </div>
+
+                        {d.txHash && (
+                          <div className="tx-row">
+                            <code className="tx-code">{d.txHash}</code>
+                            <button
+                              type="button"
+                              className="btn btn-outline btn-xs"
+                              onClick={() => handleCopyValue(`tx_${d.id || idx}`, d.txHash)}
+                              title="Copy transaction / seal hash"
+                            >
+                              <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>
+                                {copiedKey === `tx_${d.id || idx}` ? 'check' : 'content_copy'}
+                              </span>
+                              <span>{copiedKey === `tx_${d.id || idx}` ? 'Copied' : 'Copy'}</span>
+                            </button>
+                            {explorerHref && (
+                              <a
+                                href={explorerHref}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="btn btn-outline btn-xs"
+                                title="Verify on Sepolia Etherscan"
+                              >
+                                <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>open_in_new</span>
+                                <span>Etherscan</span>
+                              </a>
+                            )}
+                          </div>
+                        )}
+
+                        {proofData.proofDigest && (
+                          <div className="proof-digest-row">
+                            <span className="digest-lbl">Evidence SHA-256:</span>
+                            <code className="digest-code" title={proofData.proofDigest}>
+                              {proofData.proofDigest}
+                            </code>
+                            <button
+                              type="button"
+                              className="digest-copy-btn"
+                              onClick={() => handleCopyValue(`dig_${d.id || idx}`, proofData.proofDigest)}
+                              title="Copy canonical SHA-256 digest"
+                            >
+                              <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>
+                                {copiedKey === `dig_${d.id || idx}` ? 'check' : 'content_copy'}
+                              </span>
+                            </button>
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -329,21 +532,52 @@ export default function DisbursementProofModal({ camp, isOpen, onClose, theme })
           </button>
         </div>
 
-        {/* Image Zoom Modal */}
-        {activeImageZoom && (
-          <div className="bbdrts-proof-zoom-overlay" onClick={() => setActiveImageZoom(null)}>
+        {/* Image / PDF Lightbox Viewer */}
+        {activePreview && (
+          <div className="bbdrts-proof-zoom-overlay" onClick={() => setActivePreview(null)}>
             <div className="zoom-card" onClick={(e) => e.stopPropagation()}>
               <div className="zoom-header">
-                <div>
-                  <span className="zoom-badge">{activeImageZoom.category}</span>
-                  <div className="zoom-title">{activeImageZoom.title}</div>
+                <div style={{ minWidth: 0, paddingRight: '16px' }}>
+                  <span className="zoom-badge">{activePreview.category}</span>
+                  <div className="zoom-title">{activePreview.title}</div>
                 </div>
-                <button type="button" className="zoom-close-btn" onClick={() => setActiveImageZoom(null)}>
-                  <span className="material-symbols-outlined">close</span>
-                </button>
+                <div className="zoom-actions">
+                  {activePreview.hostedUrl && (
+                    <a
+                      href={activePreview.hostedUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="btn btn-outline btn-xs"
+                    >
+                      <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>open_in_new</span>
+                      <span>Open Tab</span>
+                    </a>
+                  )}
+                  <a
+                    href={activePreview.downloadHref}
+                    download={activePreview.fileName}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="btn btn-outline btn-xs"
+                  >
+                    <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>download</span>
+                    <span>Download</span>
+                  </a>
+                  <button type="button" className="zoom-close-inline-btn" onClick={() => setActivePreview(null)} aria-label="Close preview">
+                    <span className="material-symbols-outlined">close</span>
+                  </button>
+                </div>
               </div>
               <div className="zoom-img-container">
-                <img src={activeImageZoom.url} alt={activeImageZoom.title} />
+                {activePreview.kind === 'pdf' ? (
+                  <iframe
+                    src={activePreview.hostedUrl || activePreview.url}
+                    title={activePreview.title}
+                    className="zoom-pdf-frame"
+                  />
+                ) : (
+                  <img src={activePreview.url} alt={activePreview.title} />
+                )}
               </div>
             </div>
           </div>

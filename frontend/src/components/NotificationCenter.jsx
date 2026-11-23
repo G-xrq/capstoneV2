@@ -121,6 +121,18 @@ export default function NotificationCenter({ dbUser, theme, onSelectNotification
     const upper = String(targetFilter).toUpperCase();
     return allItems.filter(n => {
       const t = String(n.type || n.category || '').toUpperCase();
+      if (upper === 'MILESTONE' || upper === 'RELIEF_PROOF' || upper === 'DISBURSEMENT') {
+        return t === 'MILESTONE' || t === 'RELIEF_PROOF' || t === 'DISBURSEMENT';
+      }
+      if (upper === 'DONATION' || upper === 'LEDGER') {
+        return t === 'DONATION' || t === 'WITHDRAWAL';
+      }
+      if (upper === 'VERIFICATION' || upper === 'KYC') {
+        return t === 'VERIFICATION' || t === 'KYC';
+      }
+      if (upper === 'BROADCAST' || upper === 'EMERGENCY') {
+        return t === 'BROADCAST' || t === 'EMERGENCY';
+      }
       return t === upper || t.includes(upper);
     });
   };
@@ -160,9 +172,6 @@ export default function NotificationCenter({ dbUser, theme, onSelectNotification
       setSelectedNotif(null);
       setIsOpen(false);
       setProofModalCamp(camp);
-      window.dispatchEvent(new CustomEvent('bbdrts_open_proof_modal', {
-        detail: { campaign: camp, campaignId: camp.id || camp.Campaign_ID, notif }
-      }));
     } else {
       setSelectedNotif(null);
       setIsOpen(false);
@@ -190,6 +199,7 @@ export default function NotificationCenter({ dbUser, theme, onSelectNotification
         { id: 'all', label: 'All' },
         { id: 'unread', label: 'Unread', count: unreadCount },
         { id: 'DONATION', label: 'Donations' },
+        { id: 'DISBURSEMENT', label: 'Disbursements' },
         { id: 'CAMPAIGN', label: 'Campaigns' },
         { id: 'VERIFICATION', label: 'SEC Accreditation' },
         { id: 'SECURITY', label: 'Security' }
@@ -200,6 +210,7 @@ export default function NotificationCenter({ dbUser, theme, onSelectNotification
       { id: 'all', label: 'All' },
       { id: 'unread', label: 'Unread', count: unreadCount },
       { id: 'DONATION', label: 'Ledger' },
+      { id: 'DISBURSEMENT', label: 'Disbursements' },
       { id: 'CAMPAIGN', label: 'Campaigns' },
       { id: 'VERIFICATION', label: 'KYC Approvals' },
       { id: 'BROADCAST', label: 'Broadcasts' },

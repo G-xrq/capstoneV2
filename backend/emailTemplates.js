@@ -705,6 +705,199 @@ function renderAccountDeletionCancelledEmail({ email, userName = 'Authorized Use
   });
 }
 
+/**
+ * Relief Disbursement & Verified Field Proof Notification Email for Donors
+ */
+function renderDisbursementProofEmail({
+  donorName = 'Valued Supporter',
+  campaignTitle = 'Relief Operation',
+  orgName = 'Accredited Relief Organization',
+  amountPhp = 0,
+  donorContributionPhp = 0,
+  beneficiariesReached = 0,
+  aidCategoryLabel = 'Emergency Humanitarian Aid',
+  location = '',
+  lguPartner = '',
+  impactSummary = '',
+  expenseBreakdown = [],
+  proofLinks = [],
+  hasInlinePhoto = false,
+  txHash = '',
+  onChain = false,
+  explorerUrl = '',
+  proofDigest = '',
+  viewProofUrl = '',
+  disbursedAtLabel = ''
+}) {
+  const esc = (s) => String(s || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+
+  const formattedPhp = Number(amountPhp || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const shortHash = txHash && txHash.length > 26 ? `${txHash.slice(0, 14)}…${txHash.slice(-10)}` : (txHash || 'Verified');
+
+  const donorImpactCallout = Number(donorContributionPhp) > 0
+    ? `Your <strong style="color: #10b981;">₱${Math.round(Number(donorContributionPhp)).toLocaleString('en-US')}</strong> contribution helped make this ground relief delivery possible.`
+    : `Thank you for supporting <strong style="color: #ffffff;">${esc(campaignTitle)}</strong>. Your generosity is reaching communities on the ground.`;
+
+  const expenseRowsHtml = Array.isArray(expenseBreakdown) && expenseBreakdown.length > 0
+    ? `
+      <div style="margin-top: 18px;">
+        <div style="font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: #71717a; margin-bottom: 8px;">
+          Itemized Procurement &amp; Liquidation (${expenseBreakdown.length} items)
+        </div>
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border: 1px solid #27272a; border-radius: 8px; overflow: hidden; border-collapse: separate;">
+          <tr style="background: #111114;">
+            <td style="padding: 8px 12px; font-size: 11px; font-weight: 600; color: #a1a1aa; border-bottom: 1px solid #27272a;">Item / Relief Good</td>
+            <td style="padding: 8px 10px; font-size: 11px; font-weight: 600; color: #a1a1aa; border-bottom: 1px solid #27272a;">Qty</td>
+            <td align="right" style="padding: 8px 12px; font-size: 11px; font-weight: 600; color: #a1a1aa; border-bottom: 1px solid #27272a;">Cost</td>
+          </tr>
+          ${expenseBreakdown.slice(0, 8).map((item) => `
+            <tr>
+              <td style="padding: 8px 12px; font-size: 12px; color: #e4e4e7; border-bottom: 1px solid #18181b;">${esc(item.description || 'Relief Supplies')}</td>
+              <td style="padding: 8px 10px; font-size: 12px; color: #a1a1aa; border-bottom: 1px solid #18181b;">${esc(item.quantity || '—')}</td>
+              <td align="right" style="padding: 8px 12px; font-size: 12px; font-weight: 600; color: #ffffff; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; border-bottom: 1px solid #18181b;">₱${Number(item.costPhp || 0).toLocaleString('en-US')}</td>
+            </tr>
+          `).join('')}
+        </table>
+      </div>
+    `
+    : '';
+
+  const inlinePhotoHtml = hasInlinePhoto
+    ? `
+      <div style="margin-top: 18px; border: 1px solid #27272a; border-radius: 8px; overflow: hidden; background: #000000;">
+        <img src="cid:bbdrts_primary_proof" alt="Verified Field Proof of Relief" style="display: block; width: 100%; max-height: 260px; object-fit: cover;" />
+        <div style="padding: 8px 12px; font-size: 11px; color: #a1a1aa; border-top: 1px solid #18181b;">
+          Verified field evidence uploaded by ${esc(orgName)}
+        </div>
+      </div>
+    `
+    : '';
+
+  const proofListHtml = Array.isArray(proofLinks) && proofLinks.length > 0
+    ? `
+      <div style="margin-top: 18px;">
+        <div style="font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: #71717a; margin-bottom: 8px;">
+          Attached Evidentiary Proofs (${proofLinks.length})
+        </div>
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background: #111114; border: 1px solid #27272a; border-radius: 8px;">
+          ${proofLinks.map((p, idx) => `
+            <tr>
+              <td style="padding: 9px 12px; font-size: 12px; color: #e4e4e7; ${idx < proofLinks.length - 1 ? 'border-bottom: 1px solid #18181b;' : ''}">
+                <div style="font-weight: 600; color: #ffffff;">${esc(p.caption || p.name || `Proof Document #${idx + 1}`)}</div>
+                <div style="font-size: 11px; color: #71717a; margin-top: 2px;">${esc(p.categoryLabel || 'Verified Proof')}</div>
+              </td>
+              <td align="right" style="padding: 9px 12px; white-space: nowrap; ${idx < proofLinks.length - 1 ? 'border-bottom: 1px solid #18181b;' : ''}">
+                ${p.viewUrl ? `<a href="${esc(p.viewUrl)}" target="_blank" style="display: inline-block; padding: 4px 10px; border-radius: 5px; background: #18181b; border: 1px solid #3f3f46; color: #ededed; font-size: 11px; font-weight: 600; text-decoration: none;">Inspect ↗</a>` : '<span style="font-size: 11px; color: #10b981;">Verified</span>'}
+              </td>
+            </tr>
+          `).join('')}
+        </table>
+      </div>
+    `
+    : '';
+
+  const bodyHtml = `
+    <p style="margin: 0 0 16px 0; font-size: 13px; line-height: 1.6; color: #d4d4d8;">
+      Hello <strong style="color: #ffffff;">${esc(donorName)}</strong>,<br/>
+      ${donorImpactCallout}
+    </p>
+
+    <!-- Primary Release Metric Box -->
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background: #060608; border: 1px solid #27272a; border-radius: 8px; margin-bottom: 16px;">
+      <tr>
+        <td style="padding: 16px 18px; border-bottom: 1px solid #18181b;">
+          <div style="font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: #71717a; margin-bottom: 4px;">
+            Funds Released Directly to Beneficiaries
+          </div>
+          <div style="font-size: 26px; font-weight: 700; color: #10b981; letter-spacing: -0.02em; font-family: ui-monospace, SFMono-Regular, Menlo, monospace;">
+            ₱${formattedPhp} <span style="font-size: 12px; font-weight: 500; color: #71717a;">PHP</span>
+          </div>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding: 12px 18px;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="font-size: 12px; line-height: 1.7;">
+            <tr>
+              <td style="color: #71717a; padding: 2px 0; width: 42%;">Operating NGO</td>
+              <td align="right" style="color: #ffffff; font-weight: 600; padding: 2px 0;">${esc(orgName)}</td>
+            </tr>
+            <tr>
+              <td style="color: #71717a; padding: 2px 0;">Beneficiaries Reached</td>
+              <td align="right" style="color: #ffffff; font-weight: 600; padding: 2px 0;">${Number(beneficiariesReached || 0) > 0 ? `${Number(beneficiariesReached).toLocaleString('en-US')} Families / Recipients` : 'Community Distribution'}</td>
+            </tr>
+            <tr>
+              <td style="color: #71717a; padding: 2px 0;">Aid Category</td>
+              <td align="right" style="color: #e4e4e7; padding: 2px 0;">${esc(aidCategoryLabel)}</td>
+            </tr>
+            ${location ? `
+            <tr>
+              <td style="color: #71717a; padding: 2px 0;">Distribution Site</td>
+              <td align="right" style="color: #e4e4e7; padding: 2px 0;">${esc(location)}</td>
+            </tr>` : ''}
+            ${lguPartner ? `
+            <tr>
+              <td style="color: #71717a; padding: 2px 0;">Coordinating LGU</td>
+              <td align="right" style="color: #e4e4e7; padding: 2px 0;">${esc(lguPartner)}</td>
+            </tr>` : ''}
+            ${disbursedAtLabel ? `
+            <tr>
+              <td style="color: #71717a; padding: 2px 0;">Recorded At</td>
+              <td align="right" style="color: #a1a1aa; padding: 2px 0;">${esc(disbursedAtLabel)}</td>
+            </tr>` : ''}
+          </table>
+        </td>
+      </tr>
+    </table>
+
+    <!-- Impact Narrative -->
+    <div style="background: #111114; border-left: 3px solid #10b981; border-radius: 0 6px 6px 0; padding: 12px 14px; margin-bottom: 16px;">
+      <div style="font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: #10b981; margin-bottom: 4px;">
+        Field Distribution Summary
+      </div>
+      <div style="font-size: 13px; line-height: 1.55; color: #e4e4e7;">
+        “${esc(impactSummary)}”
+      </div>
+    </div>
+
+    ${inlinePhotoHtml}
+    ${expenseRowsHtml}
+    ${proofListHtml}
+
+    <!-- Blockchain Audit Box -->
+    <div style="margin-top: 18px; padding: 12px 14px; background: #060608; border: 1px solid #27272a; border-radius: 8px;">
+      <div style="font-size: 11px; font-weight: 600; color: #10b981; margin-bottom: 4px;">
+        ${onChain ? 'Anchored Live on Ethereum Sepolia' : 'Cryptographic SHA-256 Proof Seal'}
+      </div>
+      <div style="font-size: 11px; color: #a1a1aa; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; word-break: break-all;">
+        Tx / Seal: ${esc(shortHash)}
+      </div>
+      ${proofDigest ? `<div style="font-size: 10px; color: #71717a; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; margin-top: 3px; word-break: break-all;">Evidence SHA-256: ${esc(proofDigest.slice(0, 24))}…</div>` : ''}
+      ${explorerUrl ? `<div style="margin-top: 8px;"><a href="${esc(explorerUrl)}" target="_blank" style="font-size: 11px; font-weight: 600; color: #38bdf8; text-decoration: none;">Verify on Sepolia Etherscan ↗</a></div>` : ''}
+    </div>
+
+    <!-- Primary CTA -->
+    ${viewProofUrl ? `
+    <div style="text-align: center; margin: 24px 0 8px;">
+      <a href="${esc(viewProofUrl)}" target="_blank" style="display: inline-block; background: #ffffff; color: #000000; padding: 11px 22px; border-radius: 6px; font-size: 13px; font-weight: 600; text-decoration: none;">
+        View Verified Relief Proofs &amp; Photos →
+      </a>
+    </div>` : ''}
+  `;
+
+  return renderBaseLayout({
+    preheader: `${orgName} disbursed ₱${formattedPhp} for "${campaignTitle}" with verified field proofs.`,
+    badge: 'RELIEF DISBURSED',
+    title: `Relief Proof Published: ${esc(campaignTitle)}`,
+    subtitle: `${esc(orgName)} released ₱${formattedPhp} directly to beneficiaries and uploaded verifiable proof of delivery.`,
+    bodyHtml,
+    alertType: 'default'
+  });
+}
+
 module.exports = {
   renderBaseLayout,
   renderRegistrationOtpEmail,
@@ -720,5 +913,6 @@ module.exports = {
   renderEmailChangeRevertedEmail,
   renderTwoFactorStatusChangedEmail,
   renderAccountDeletionScheduledEmail,
-  renderAccountDeletionCancelledEmail
+  renderAccountDeletionCancelledEmail,
+  renderDisbursementProofEmail
 };
