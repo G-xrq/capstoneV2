@@ -1,66 +1,43 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
+import { API_URL } from '../config';
 import SecCertificateModal from './SecCertificateModal';
 import DisbursementProofModal from './DisbursementProofModal';
 import { formatPhoneNumber } from '../utils/formatters';
 import { useRealtimeSync } from '../hooks/useRealtimeSync';
-import { API_URL } from '../config';
 import './NgoProfileModal.css';
 
-// Clean human-readable category formatter (eliminates raw acronyms like "CD RELIEF")
-const formatCategory = (cat) => {
-  if (!cat) return 'Humanitarian Relief';
-  const raw = String(cat).trim();
-  const upper = raw.toUpperCase();
-  const map = {
-    CD: 'Community & Charity Drive',
-    'CD RELIEF': 'Community & Charity Drive',
-    CHARITY: 'Charity & Community Aid',
-    DR: 'Disaster Relief',
-    ER: 'Emergency Response',
-    CR: 'Community Rehabilitation',
-    MED: 'Medical Assistance',
-    MEDICAL: 'Medical Assistance',
-    FOOD: 'Emergency Food & Water',
-    SHELTER: 'Shelter & Evacuation',
-    WATER: 'Clean Water & Sanitation',
-    'FIRE AID': 'Fire Relief & Recovery',
-    FIRE: 'Fire Relief & Recovery',
-    TYPHOON: 'Typhoon Relief',
-    FLOOD: 'Flood Response',
-    EARTHQUAKE: 'Earthquake Response',
-    VOLCANO: 'Volcanic Eruption Relief',
-    ANIMAL: 'Animal Welfare & Rescue',
-    EDUCATION: 'Education & Youth Support',
-    ELDERLY: 'Senior Citizen Care',
-    HEALTH: 'Healthcare & Medical Aid'
-  };
-  if (map[upper]) return map[upper];
-  // Title-case any normal multi-word category
-  return raw
-    .replace(/[_-]+/g, ' ')
-    .replace(/\b\w/g, (ch) => ch.toUpperCase());
+const SEPOLIA_ADDR_EXPLORER = 'https://sepolia.etherscan.io/address/';
+
+const CATEGORY_LABELS = {
+  DR: 'Disaster Relief',
+  CD: 'Charity Drive',
+  ER: 'Emergency Response',
+  CR: 'Community Recovery',
+  MED: 'Medical Aid',
+  FOOD: 'Food & Water Aid',
+  SHELTER: 'Shelter & Evacuation',
+  WATER: 'Clean Water & Sanitation',
+  'FIRE AID': 'Fire Recovery',
+  TYPHOON: 'Typhoon Relief'
 };
 
-// Format urgency & funding status cleanly
-const resolveMissionStatus = (camp, pct) => {
-  const disbursedPhp = Number(camp.disbursedAmountPhp || 0);
-  const status = String(camp.disbursementStatus || '').toUpperCase();
-  if (status === 'DISBURSED' || status === 'PARTIALLY_DISBURSED' || disbursedPhp > 0) {
-    return { label: status === 'DISBURSED' ? 'Aid Disbursed' : 'Partially Disbursed', tone: 'disbursed' };
-  }
-  if (pct >= 100) {
-    return { label: 'Goal Reached', tone: 'funded' };
-  }
-  const urg = String(camp.urgency || '').toUpperCase();
-  if (urg.includes('CRITICAL') || urg.includes('URGENT')) {
-    return { label: 'Critical Need', tone: 'critical' };
-  }
-  if (urg.includes('HIGH') || urg.includes('EMERGENCY')) {
-    return { label: 'High Priority', tone: 'high' };
+function formatCategory(cat) {
+  if (!cat) return 'Disaster Relief';
+  const clean = String(cat).trim();
+  const upper = clean.toUpperCase();
+  return CATEGORY_LABELS[upper] || clean;
+}
+
+function formatUrgency(urg) {
+  if (!urg) return { label: 'Active Mission', tone: 'active' };
+  const upper = String(urg).toUpperCase();
+  if (upper.includes('CRITICAL')) return { label: 'Critical Need', tone: 'critical' };
+  if (upper.includes('HIGH') || upper.includes('URGENT') || upper.includes('EMERGENCY')) {
+    return { label: 'High Priority', tone: 'urgent' };
   }
   return { label: 'Active Mission', tone: 'active' };
-};
+}
 
 function formatCompactPhp(val) {
   const n = Number(val) || 0;
@@ -69,13 +46,13 @@ function formatCompactPhp(val) {
 }
 
 function getInitials(name) {
-  const parts = String(name || 'NG').trim().split(/\s+/).filter(Boolean);
+  const parts = String(name || 'NGO').trim().split(/\s+/).filter(Boolean);
   if (parts.length === 0) return 'NG';
   if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
-function ExpandableText({ text, maxLen = 140, className = '' }) {
+function ExpandableText({ text, maxLen = 190, className = '' }) {
   const [expanded, setExpanded] = useState(false);
   if (!text) return null;
   const clean = String(text).trim();
@@ -84,10 +61,10 @@ function ExpandableText({ text, maxLen = 140, className = '' }) {
   }
   return (
     <p className={className}>
-      {expanded ? clean : `${clean.slice(0, maxLen).trim()}… `}
+      {expanded ? clean : `${clean.slice(0, maxLen).trim()}…`}{' '}
       <button
         type="button"
-        className="ngo-inline-toggle"
+        className="ngp-inline-toggle"
         onClick={(e) => {
           e.stopPropagation();
           setExpanded((prev) => !prev);
@@ -99,7 +76,7 @@ function ExpandableText({ text, maxLen = 140, className = '' }) {
   );
 }
 
-// Module-level RAM cache for instant profile switching with stale-while-revalidate
+// Module-level RAM cache for instant reopening with stale-while-revalidate
 const orgProfileCache = new Map();
 
 export default function NgoProfileModal({ orgId, orgData, onClose, onSelectCampaign, onOpenDirectory, theme }) {
@@ -116,17 +93,17 @@ export default function NgoProfileModal({ orgId, orgData, onClose, onSelectCampa
     return Boolean(orgId);
   });
   const [error, setError] = useState('');
-  const [activeTab, setActiveTab] = useState('campaigns'); // 'campaigns' | 'governance' | 'treasury' | 'contact'
-  const [campSearch, setCampSearch] = useState('');
+  const [activeTab, setActiveTab] = useState('operations'); // 'operations' | 'governance' | 'channels'
   const [campFilter, setCampFilter] = useState('all'); // 'all' | 'active' | 'funded' | 'disbursed'
+  const [campSearch, setCampSearch] = useState('');
   const [previewCertUrl, setPreviewCertUrl] = useState(null);
   const [previewTitle, setPreviewTitle] = useState('Official Verification Document');
-  const [proofModalCamp, setProofModalCamp] = useState(null);
+  const [proofCamp, setProofCamp] = useState(null);
   const [copiedKey, setCopiedKey] = useState(null);
 
-  const handleCopy = (key, value) => {
-    if (!value) return;
-    navigator.clipboard?.writeText(String(value)).catch(() => {});
+  const handleCopy = (key, text) => {
+    if (!text) return;
+    navigator.clipboard?.writeText(String(text)).catch(() => {});
     setCopiedKey(key);
     setTimeout(() => setCopiedKey((prev) => (prev === key ? null : prev)), 1800);
   };
@@ -144,7 +121,7 @@ export default function NgoProfileModal({ orgId, orgData, onClose, onSelectCampa
       setError('');
     }
 
-    fetch(`${API_URL}/api/public/organizations/${encodeURIComponent(idToFetch)}`)
+    fetch(`${API_URL}/api/public/organizations/${encodeURIComponent(idToFetch)}?_t=${Date.now()}`, { cache: 'no-store' })
       .then((res) => {
         if (!res.ok) throw new Error('Organization registry record not found.');
         return res.json();
@@ -155,7 +132,6 @@ export default function NgoProfileModal({ orgId, orgData, onClose, onSelectCampa
           if (data.id) orgProfileCache.set(String(data.id), data);
           if (data.name) orgProfileCache.set(data.name.toLowerCase(), data);
           setProfile(data);
-          setError('');
         }
         setLoading(false);
       })
@@ -169,48 +145,48 @@ export default function NgoProfileModal({ orgId, orgData, onClose, onSelectCampa
   }, []);
 
   useEffect(() => {
-    setActiveTab('campaigns');
-    setCampSearch('');
+    setActiveTab('operations');
     setCampFilter('all');
+    setCampSearch('');
     if (orgData) {
       setProfile(orgData);
       setLoading(false);
+      setError('');
     } else if (orgId) {
       fetchProfile(orgId);
     }
   }, [orgId, orgData, fetchProfile]);
 
   useRealtimeSync(
-    ['organizations', 'campaigns', 'donations', 'disbursements', 'profile'],
-    () => { if (orgId) fetchProfile(orgId); },
-    { enabled: Boolean(orgId), debounceMs: 300 }
+    ['organizations', 'campaigns', 'donations', 'disbursements'],
+    () => {
+      if (orgId && !orgData) fetchProfile(orgId);
+    },
+    { enabled: Boolean(orgId && !orgData), debounceMs: 300 }
   );
 
-  // Escape key handling (nested modals close first)
+  // ESC closes sub-modals first, then main modal
   useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (e.key === 'Escape') {
-        if (proofModalCamp) {
-          setProofModalCamp(null);
-          return;
-        }
-        if (previewCertUrl) {
-          setPreviewCertUrl(null);
-          return;
-        }
-        if (typeof onClose === 'function') onClose();
+    const onKeyDown = (e) => {
+      if (e.key !== 'Escape') return;
+      if (previewCertUrl) {
+        setPreviewCertUrl(null);
+      } else if (proofCamp) {
+        setProofCamp(null);
+      } else {
+        onClose?.();
       }
     };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onClose, previewCertUrl, proofModalCamp]);
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [onClose, previewCertUrl, proofCamp]);
 
   const orgName = useMemo(() => {
     if (profile?.name) return profile.name;
     if (profile?.Org_Name) return profile.Org_Name;
     if (orgData?.name) return orgData.name;
     if (typeof orgId === 'string' && isNaN(orgId)) return orgId;
-    if (loading) return 'Loading…';
+    if (loading) return 'Loading Organization…';
     return 'Organization Profile';
   }, [profile, orgData, orgId, loading]);
 
@@ -219,17 +195,15 @@ export default function NgoProfileModal({ orgId, orgData, onClose, onSelectCampa
   const dswdNo = profile?.dswdAccreditationNo || profile?.Dswd_Accreditation_No || '';
   const certUrl = profile?.secCertificateUrl || profile?.Sec_Certificate_Url || null;
   const walletAddr = profile?.walletAddress || profile?.Wallet_Address || '';
-  const phone = profile?.mobileNumber || profile?.phone || '';
   const location = profile?.location || '';
   const bio = profile?.bio || profile?.missionStatement || profile?.preferences?.missionStatement || '';
   const website = profile?.website || profile?.preferences?.website || '';
+  const socialLink = profile?.socialLink || profile?.preferences?.socialLink || '';
   const bannerUrl = profile?.banner_url || profile?.bannerUrl || profile?.banner || '';
   const avatarUrl = profile?.avatar_url || profile?.avatarUrl || profile?.avatar || '';
+  const rawHotline = profile?.emergency_hotline || profile?.preferences?.emergencyHotline || profile?.mobileNumber || profile?.phone || '';
+  const hotline = rawHotline ? formatPhoneNumber(rawHotline) : '';
   const hqLandmark = profile?.hqLandmark || profile?.preferences?.hqLandmark || '';
-  const socialLink = profile?.socialLink || profile?.preferences?.socialLink || '';
-  const emergencyHotline = profile?.emergency_hotline || profile?.preferences?.emergencyHotline || phone || '';
-  const secondaryPhone = phone && phone !== emergencyHotline ? phone : '';
-  const leadOfficer = profile?.leadOfficer || profile?.preferences?.leadOfficer || '';
 
   const focusAreas = useMemo(() => {
     const raw = profile?.focusAreas || profile?.preferences?.focusAreas || '';
@@ -237,6 +211,88 @@ export default function NgoProfileModal({ orgId, orgData, onClose, onSelectCampa
     if (Array.isArray(raw)) return raw.filter(Boolean);
     return String(raw).split(/[,•|]/).map((s) => s.trim()).filter(Boolean);
   }, [profile]);
+
+  const verifiedDateStr = profile?.verifiedAt || profile?.verified_date
+    ? new Date(profile.verifiedAt || profile.verified_date).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+    : null;
+
+  const boardMembers = useMemo(() => {
+    const raw = profile?.boardMembers || profile?.Board_Members_Json;
+    if (!raw) return [];
+    if (Array.isArray(raw)) {
+      if (raw.length === 1 && typeof raw[0] === 'string' && raw[0].includes('|')) {
+        return raw[0].split('|').map((s) => s.trim()).filter(Boolean);
+      }
+      return raw.map((m) => (typeof m === 'object' ? `${m.name || ''}${m.role ? ` — ${m.role}` : ''}` : String(m))).filter(Boolean);
+    }
+    if (typeof raw === 'string') {
+      try {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+          return parsed.map((m) => (typeof m === 'object' ? `${m.name || ''}${m.role ? ` — ${m.role}` : ''}` : String(m))).filter(Boolean);
+        }
+      } catch (_) {}
+      if (raw.includes('|')) return raw.split('|').map((s) => s.trim()).filter(Boolean);
+      if (raw.includes(',')) return raw.split(',').map((s) => s.trim()).filter(Boolean);
+      return raw.trim() ? [raw.trim()] : [];
+    }
+    return [];
+  }, [profile]);
+
+  const campaigns = useMemo(() => (Array.isArray(profile?.campaigns) ? profile.campaigns : []), [profile]);
+
+  const totalRaisedPhp = useMemo(
+    () =>
+      campaigns.reduce((sum, c) => {
+        const php = Number(c.currentAmountPhp || 0) || Math.round((Number(c.currentAmount || 0)) * 170000);
+        return sum + php;
+      }, 0),
+    [campaigns]
+  );
+
+  const totalDisbursedPhp = useMemo(
+    () => campaigns.reduce((sum, c) => sum + (Number(c.disbursedAmountPhp || 0)), 0),
+    [campaigns]
+  );
+
+  const activeCampaignCount = useMemo(
+    () => campaigns.filter((c) => c.isActive !== 0 && c.isActive !== false).length,
+    [campaigns]
+  );
+
+  const totalBeneficiariesCount = useMemo(
+    () =>
+      campaigns.reduce((sum, c) => {
+        const raw = String(c.beneficiariesImpact || c.beneficiaries_impact || c.beneficiaries || '').replace(/,/g, '');
+        const m = raw.match(/\d+/);
+        return sum + (m ? parseInt(m[0], 10) : 0);
+      }, 0),
+    [campaigns]
+  );
+
+  const filteredCampaigns = useMemo(() => {
+    const q = campSearch.trim().toLowerCase();
+    return campaigns.filter((c) => {
+      const raised = Number(c.currentAmountPhp || 0) || Math.round((Number(c.currentAmount || 0)) * 170000);
+      const goal = Number(c.targetAmountPhp || 0) || Math.round((Number(c.targetAmount || 0)) * 170000);
+      const pct = goal > 0 ? Math.round((raised / goal) * 100) : 0;
+      const isDisbursed =
+        Number(c.disbursedAmountPhp || 0) > 0 ||
+        c.disbursementStatus === 'DISBURSED' ||
+        c.disbursementStatus === 'PARTIALLY_DISBURSED';
+
+      if (campFilter === 'active' && (c.isActive === 0 || c.isActive === false)) return false;
+      if (campFilter === 'funded' && pct < 100) return false;
+      if (campFilter === 'disbursed' && !isDisbursed) return false;
+
+      if (!q) return true;
+      return [c.title, c.description, c.locationRegion, formatCategory(c.category)]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase()
+        .includes(q);
+    });
+  }, [campaigns, campFilter, campSearch]);
 
   const gcashName = profile?.gcash_name || profile?.gcashName || '';
   const gcashNo = formatPhoneNumber(profile?.gcash_number || profile?.gcashNumber || '');
@@ -250,158 +306,55 @@ export default function NgoProfileModal({ orgId, orgData, onClose, onSelectCampa
   const bankDetails = profile?.bank_details || profile?.bankDetails || '';
   const bankQrUrl = profile?.bank_qr_url || profile?.bankQrUrl || '';
 
-  const verifiedDateStr = profile?.verifiedAt || profile?.verified_date
-    ? new Date(profile.verifiedAt || profile.verified_date).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
-    : null;
-
-  // Honest board list — never fabricates another NGO's trustees
-  const boardList = useMemo(() => {
-    const raw = profile?.boardMembers;
-    if (!raw) return [];
-    if (Array.isArray(raw)) {
-      if (raw.length === 1 && typeof raw[0] === 'string' && raw[0].includes('|')) {
-        return raw[0].split('|').map((s) => s.trim()).filter(Boolean);
-      }
-      return raw
-        .map((m) => (typeof m === 'object' && m ? `${m.name || ''}${m.role ? ` (${m.role})` : ''}`.trim() : String(m).trim()))
-        .filter(Boolean);
-    }
-    if (typeof raw === 'string') {
-      try {
-        const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed)) {
-          return parsed
-            .map((m) => (typeof m === 'object' && m ? `${m.name || ''}${m.role ? ` (${m.role})` : ''}`.trim() : String(m).trim()))
-            .filter(Boolean);
-        }
-      } catch (_) {
-        return raw.split('|').map((s) => s.trim()).filter(Boolean);
-      }
-    }
-    return [];
-  }, [profile]);
-
-  const campaigns = useMemo(() => (Array.isArray(profile?.campaigns) ? profile.campaigns : []), [profile]);
-
-  // Real financial & humanitarian metrics from the NGO's campaigns
-  const totalRaisedPhp = useMemo(() => {
-    const fromCamps = campaigns.reduce((acc, c) => {
-      const val = Number(c.currentAmountPhp || Math.round((Number(c.currentAmount) || 0) * 170000));
-      return acc + val;
-    }, 0);
-    if (fromCamps > 0) return Math.round(fromCamps);
-    const statRaw = String(profile?.stats?.totalRaisedPhp || '0').replace(/[^\d.]/g, '');
-    return Math.round(Number(statRaw) || 0);
-  }, [campaigns, profile]);
-
-  const totalDisbursedPhp = useMemo(() => {
-    const fromCamps = campaigns.reduce((acc, c) => acc + (Number(c.disbursedAmountPhp) || 0), 0);
-    if (fromCamps > 0) return Math.round(fromCamps);
-    return Math.round(Number(profile?.stats?.totalDisbursedPhp) || 0);
-  }, [campaigns, profile]);
-
-  const activeCampaignCount = useMemo(
-    () => campaigns.filter((c) => c.isActive !== 0 && c.isActive !== false).length,
-    [campaigns]
-  );
-
-  const disbursedCampaignCount = useMemo(
-    () =>
-      campaigns.filter(
-        (c) =>
-          Number(c.disbursedAmountPhp || 0) > 0 ||
-          c.disbursementStatus === 'DISBURSED' ||
-          c.disbursementStatus === 'PARTIALLY_DISBURSED'
-      ).length,
-    [campaigns]
-  );
-
-  const totalBeneficiariesCount = useMemo(
-    () =>
-      campaigns.reduce((acc, c) => {
-        const raw = String(c.beneficiariesImpact || c.beneficiaries_impact || c.beneficiaries || '');
-        const match = raw.replace(/,/g, '').match(/\d+/);
-        return acc + (match ? parseInt(match[0], 10) : 0);
-      }, 0),
-    [campaigns]
-  );
-
-  const totalDonorsCount = useMemo(() => {
-    const fromCamps = campaigns.reduce((acc, c) => acc + (Number(c.donorsCount || c.totalBackers || 0)), 0);
-    return Math.max(fromCamps, Number(profile?.stats?.totalDonors || 0));
-  }, [campaigns, profile]);
-
-  const filteredCampaigns = useMemo(() => {
-    const q = campSearch.trim().toLowerCase();
-    return campaigns.filter((c) => {
-      const targetPhp = Number(c.targetAmountPhp || Math.round((Number(c.targetAmount) || 0) * 170000)) || 1;
-      const raisedPhp = Number(c.currentAmountPhp || Math.round((Number(c.currentAmount) || 0) * 170000));
-      const pct = Math.round((raisedPhp / targetPhp) * 100);
-      const isDisbursed =
-        Number(c.disbursedAmountPhp || 0) > 0 ||
-        c.disbursementStatus === 'DISBURSED' ||
-        c.disbursementStatus === 'PARTIALLY_DISBURSED';
-
-      if (campFilter === 'active' && (c.isActive === 0 || c.isActive === false || pct >= 100)) return false;
-      if (campFilter === 'funded' && pct < 100) return false;
-      if (campFilter === 'disbursed' && !isDisbursed) return false;
-
-      if (!q) return true;
-      const hay = [c.title, c.description, c.locationRegion, formatCategory(c.category)]
-        .filter(Boolean)
-        .join(' ')
-        .toLowerCase();
-      return hay.includes(q);
-    });
-  }, [campaigns, campSearch, campFilter]);
-
-  // Payment rails configured on this organization
   const configuredRails = useMemo(() => {
     const list = [];
     if (gcashNo || gcashName || gcashQrUrl) {
       list.push({
         id: 'gcash',
-        tag: 'GCash',
+        badge: 'GCash',
         tone: 'gcash',
-        title: 'GCash Relief Account',
-        holder: gcashName,
+        title: 'GCash Direct Relief Account',
+        holder: gcashName || orgName,
         number: gcashNo,
-        qrUrl: gcashQrUrl,
-        caption: 'Direct Philippine e-wallet transfer'
+        qrUrl: gcashQrUrl
       });
     }
     if (mayaNo || mayaName || mayaQrUrl) {
       list.push({
         id: 'maya',
-        tag: 'Maya',
+        badge: 'Maya',
         tone: 'maya',
-        title: 'Maya Relief Account',
-        holder: mayaName,
+        title: 'Maya Institutional Account',
+        holder: mayaName || orgName,
         number: mayaNo,
-        qrUrl: mayaQrUrl,
-        caption: 'Direct Maya institutional account'
+        qrUrl: mayaQrUrl
       });
     }
     if (bankAccountNumber || bankName || bankDetails || bankQrUrl) {
       list.push({
         id: 'bank',
-        tag: 'InstaPay / Bank',
+        badge: 'Bank / InstaPay',
         tone: 'bank',
-        title: bankName || 'Bank Transfer Account',
-        holder: bankAccountName,
+        title: bankName || 'Official Bank Transfer',
+        holder: bankAccountName || orgName,
         number: bankAccountNumber || bankDetails,
-        qrUrl: bankQrUrl,
-        caption: 'Direct Philippine bank transfer'
+        qrUrl: bankQrUrl
       });
     }
     return list;
-  }, [gcashNo, gcashName, gcashQrUrl, mayaNo, mayaName, mayaQrUrl, bankName, bankAccountName, bankAccountNumber, bankDetails, bankQrUrl]);
+  }, [gcashNo, gcashName, gcashQrUrl, mayaNo, mayaName, mayaQrUrl, bankName, bankAccountName, bankAccountNumber, bankDetails, bankQrUrl, orgName]);
 
   const hasBanner = Boolean(
     bannerUrl && (bannerUrl.startsWith('data:') || bannerUrl.startsWith('http') || bannerUrl.startsWith('/'))
   );
 
+  const primaryActiveCampaign = useMemo(
+    () => campaigns.find((c) => c.isActive !== 0 && c.isActive !== false) || campaigns[0] || null,
+    [campaigns]
+  );
+
   const handleNavigateToCampaign = (camp) => {
+    if (!camp) return;
     onClose?.();
     if (typeof onSelectCampaign === 'function') {
       onSelectCampaign(camp);
@@ -419,6 +372,7 @@ export default function NgoProfileModal({ orgId, orgData, onClose, onSelectCampa
   };
 
   const handleOpenDocPreview = (url, title) => {
+    if (!url) return;
     setPreviewTitle(title || 'Official Document Preview');
     setPreviewCertUrl(url);
   };
@@ -427,34 +381,50 @@ export default function NgoProfileModal({ orgId, orgData, onClose, onSelectCampa
     theme ||
     (typeof document !== 'undefined' ? document.documentElement.getAttribute('data-theme') || 'dark' : 'dark');
 
-  const modalNode = (
-    <div className="ngo-prof-overlay" onClick={onClose} data-theme={effectiveTheme}>
-      <div className="ngo-prof-modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label={orgName}>
-        {/* ── 1. Compact Top Breadcrumb Bar ── */}
-        <header className="ngo-prof-topbar">
-          <div className="ngo-prof-crumbs">
+  const disbursedSharePct =
+    totalRaisedPhp > 0 ? Math.min(100, Math.round((totalDisbursedPhp / totalRaisedPhp) * 100)) : 0;
+
+  return createPortal(
+    <div className="ngp-backdrop" onClick={onClose} data-theme={effectiveTheme}>
+      <div
+        className="ngp-modal"
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-label={orgName}
+      >
+        {/* ── 1. Slim Top Utility Bar (Exact Geist V4 Parity with CampaignDetailsModal) ── */}
+        <header className="ngp-topbar">
+          <div className="ngp-topbar-left">
             {onOpenDirectory ? (
               <button
                 type="button"
-                className="ngo-prof-crumb-btn"
+                className="ngp-crumb-btn"
                 onClick={onOpenDirectory}
                 title="Back to all accredited NGOs"
               >
-                <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>arrow_back</span>
+                <span className="material-symbols-outlined">arrow_back</span>
                 <span>Organizations</span>
               </button>
             ) : (
-              <span className="ngo-prof-crumb-static">Organizations</span>
+              <span className="ngp-crumb-static">Organizations</span>
             )}
-            <span className="ngo-prof-crumb-sep">/</span>
-            <span className="ngo-prof-crumb-current">{orgName}</span>
+            <span className="ngp-sep">/</span>
+            <span className="ngp-crumb-current">{orgName}</span>
+
+            {!loading && profile && (
+              <span className="ngp-status-chip is-verified">
+                <span className="ngp-dot" />
+                <span>{dswdNo ? 'SEC & DSWD Accredited' : 'SEC Accredited'}</span>
+              </span>
+            )}
           </div>
 
-          <div className="ngo-prof-topbar-right">
-            <span className="ngo-prof-esc">ESC</span>
+          <div className="ngp-topbar-right">
+            <span className="ngp-esc">ESC</span>
             <button
               type="button"
-              className="ngo-prof-close"
+              className="ngp-close-btn"
               onClick={onClose}
               aria-label="Close organization profile"
             >
@@ -463,645 +433,663 @@ export default function NgoProfileModal({ orgId, orgData, onClose, onSelectCampa
           </div>
         </header>
 
-        {/* ── 2. Scrollable Body (Hero + KPI Bar + Tabs + Content) ── */}
+        {/* ── 2. Body: Loading / Error / Editorial 2-Pane Split ── */}
         {loading && !profile ? (
-          <div className="ngo-prof-scroll">
-            <div className="ngo-prof-skel-banner" />
-            <div className="ngo-prof-skel-body">
-              <div className="ngo-prof-skel-row">
-                <div className="ngo-prof-skel-avatar" />
-                <div className="ngo-prof-skel-lines">
-                  <div className="ngo-prof-skel-line w-40" />
-                  <div className="ngo-prof-skel-line w-65" />
+          <div className="ngp-split-scroll">
+            <div className="ngp-split">
+              <div className="ngp-main">
+                <div className="ngp-skel-banner" />
+                <div className="ngp-skel-id-row">
+                  <div className="ngp-skel-avatar" />
+                  <div className="ngp-skel-lines">
+                    <div className="ngp-skel-line w-45" />
+                    <div className="ngp-skel-line w-70" />
+                  </div>
                 </div>
+                <div className="ngp-skel-kpi-row">
+                  <div className="ngp-skel-line w-80" />
+                  <div className="ngp-skel-line w-80" />
+                  <div className="ngp-skel-line w-80" />
+                  <div className="ngp-skel-line w-80" />
+                </div>
+                <div className="ngp-skel-block" />
+                <div className="ngp-skel-block" />
               </div>
-              <div className="ngo-prof-skel-kpis">
-                <div className="ngo-prof-skel-box" />
-                <div className="ngo-prof-skel-box" />
-                <div className="ngo-prof-skel-box" />
-                <div className="ngo-prof-skel-box" />
-              </div>
-              <div className="ngo-prof-skel-cards">
-                <div className="ngo-prof-skel-card" />
-                <div className="ngo-prof-skel-card" />
-              </div>
+              <aside className="ngp-rail">
+                <div className="ngp-skel-block" />
+                <div className="ngp-skel-block" />
+              </aside>
             </div>
           </div>
         ) : error && !profile ? (
-          <div className="ngo-prof-error">
+          <div className="ngp-error-state">
             <span className="material-symbols-outlined err-ico">error_outline</span>
-            <h3>Organization Profile Unavailable</h3>
+            <h3>Organization Record Unavailable</h3>
             <p>{error}</p>
-            <div className="ngo-prof-error-actions">
+            <div className="ngp-error-actions">
               {onOpenDirectory && (
-                <button type="button" className="ngo-btn primary" onClick={onOpenDirectory}>
+                <button type="button" className="ngp-btn-primary" onClick={onOpenDirectory}>
                   Browse Accredited NGOs
                 </button>
               )}
-              <button type="button" className="ngo-btn secondary" onClick={onClose}>
+              <button type="button" className="ngp-btn-secondary" onClick={onClose}>
                 Close
               </button>
             </div>
           </div>
         ) : (
-          <div className="ngo-prof-scroll">
-            {/* Full-Width Natural Aspect Cover Banner (Never squished into a narrow sidebar) */}
-            <div
-              className={`ngo-prof-cover ${hasBanner ? 'has-image' : 'is-pattern'}`}
-              style={hasBanner ? { backgroundImage: `url(${bannerUrl})` } : undefined}
-            >
-              <div className="ngo-prof-cover-scrim" />
-            </div>
+          <div className="ngp-split-scroll">
+            <div className="ngp-split">
 
-            {/* Identity Header Block */}
-            <section className="ngo-prof-identity">
-              <div className="ngo-prof-id-main">
-                <div className="ngo-prof-avatar">
-                  {avatarUrl && (avatarUrl.startsWith('data:') || avatarUrl.startsWith('http') || avatarUrl.startsWith('/')) ? (
-                    <img src={avatarUrl} alt={orgName} />
-                  ) : (
-                    <span>{getInitials(orgName)}</span>
-                  )}
-                  <span className="ngo-prof-avatar-check" title="Verified Non-Profit">
-                    <span className="material-symbols-outlined">check</span>
-                  </span>
-                </div>
+              {/* ════════ LEFT EDITORIAL PANE (Open Canvas — Zero Box Clutter) ════════ */}
+              <div className="ngp-main">
 
-                <div className="ngo-prof-id-text">
-                  <div className="ngo-prof-title-line">
-                    <h2 className="ngo-prof-name">{orgName}</h2>
-                    <span className="ngo-prof-verified-chip">
-                      <span className="material-symbols-outlined">verified</span>
-                      <span>{dswdNo ? 'SEC & DSWD Verified' : 'SEC Verified'}</span>
-                    </span>
+                {/* Wide Banner Hero (only rendered when org has a real cover banner) */}
+                {hasBanner && (
+                  <div className="ngp-banner-wrap">
+                    <img src={bannerUrl} alt={`${orgName} banner`} className="ngp-banner-img" />
                   </div>
-
-                  <div className="ngo-prof-subline">
-                    <span>Chartered Non-Profit</span>
-                    {verifiedDateStr && (
-                      <>
-                        <span className="sep">·</span>
-                        <span>Accredited {verifiedDateStr}</span>
-                      </>
-                    )}
-                    {location && (
-                      <>
-                        <span className="sep">·</span>
-                        <span className="loc-val" title={location}>{location}</span>
-                      </>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Clean Quick Contact Actions */}
-              <div className="ngo-prof-quick-actions">
-                {emergencyHotline && (
-                  <a
-                    href={`tel:${emergencyHotline.replace(/[^\d+]/g, '')}`}
-                    className="ngo-quick-chip"
-                    title={`Call ${emergencyHotline}`}
-                  >
-                    <span className="material-symbols-outlined">call</span>
-                    <span>{emergencyHotline}</span>
-                  </a>
                 )}
-                {orgEmail && (
-                  <a href={`mailto:${orgEmail}`} className="ngo-quick-chip" title={orgEmail}>
-                    <span className="material-symbols-outlined">mail</span>
-                    <span>Email</span>
-                  </a>
-                )}
-                {website && (
-                  <a
-                    href={website.startsWith('http') ? website : `https://${website}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="ngo-quick-chip"
-                    title={website}
-                  >
-                    <span className="material-symbols-outlined">language</span>
-                    <span>Website</span>
-                  </a>
-                )}
-              </div>
 
-              {bio && <ExpandableText text={bio} maxLen={190} className="ngo-prof-bio" />}
-            </section>
+                {/* Identity Block */}
+                <section className="ngp-identity">
+                  <div className="ngp-id-row">
+                    <div className="ngp-avatar">
+                      {avatarUrl ? (
+                        <img src={avatarUrl} alt={orgName} />
+                      ) : (
+                        <span>{getInitials(orgName)}</span>
+                      )}
+                      <span className="ngp-avatar-check" title="Verified Non-Profit">
+                        <span className="material-symbols-outlined">check</span>
+                      </span>
+                    </div>
 
-            {/* Sleek 4-Column Tabular KPI Bar */}
-            <section className="ngo-prof-kpi-strip" aria-label="Organization impact summary">
-              <div className="ngo-kpi-cell">
-                <span className="kpi-lbl">Total raised</span>
-                <strong className="kpi-val emerald">{formatCompactPhp(totalRaisedPhp)}</strong>
-                <span className="kpi-sub">
-                  {totalDonorsCount > 0
-                    ? `${totalDonorsCount.toLocaleString()} verified donation${totalDonorsCount === 1 ? '' : 's'}`
-                    : 'Sepolia-audited ledger'}
-                </span>
-              </div>
-
-              <div className="ngo-kpi-cell">
-                <span className="kpi-lbl">Aid disbursed</span>
-                <strong className="kpi-val">{formatCompactPhp(totalDisbursedPhp)}</strong>
-                <span className="kpi-sub">
-                  {disbursedCampaignCount > 0
-                    ? `${disbursedCampaignCount} mission${disbursedCampaignCount === 1 ? '' : 's'} with proofs`
-                    : 'Held in verified escrow'}
-                </span>
-              </div>
-
-              <div className="ngo-kpi-cell">
-                <span className="kpi-lbl">Relief missions</span>
-                <strong className="kpi-val">{campaigns.length}</strong>
-                <span className="kpi-sub">{activeCampaignCount} currently active</span>
-              </div>
-
-              <div className="ngo-kpi-cell">
-                <span className="kpi-lbl">Community reach</span>
-                <strong className="kpi-val">
-                  {totalBeneficiariesCount > 0 ? `${totalBeneficiariesCount.toLocaleString()}+` : 'Active'}
-                </strong>
-                <span className="kpi-sub">
-                  {totalBeneficiariesCount > 0 ? 'Documented recipients' : 'Field aid distribution'}
-                </span>
-              </div>
-            </section>
-
-            {/* Clean Underline Tab Navigation */}
-            <nav className="ngo-prof-tabs" aria-label="Organization profile sections">
-              <button
-                type="button"
-                className={`ngo-tab ${activeTab === 'campaigns' ? 'active' : ''}`}
-                onClick={() => setActiveTab('campaigns')}
-              >
-                <span>Operations</span>
-                <span className="tab-count">{campaigns.length}</span>
-              </button>
-              <button
-                type="button"
-                className={`ngo-tab ${activeTab === 'governance' ? 'active' : ''}`}
-                onClick={() => setActiveTab('governance')}
-              >
-                <span>Governance &amp; SEC</span>
-              </button>
-              <button
-                type="button"
-                className={`ngo-tab ${activeTab === 'treasury' ? 'active' : ''}`}
-                onClick={() => setActiveTab('treasury')}
-              >
-                <span>Payment Channels</span>
-                {configuredRails.length > 0 && <span className="tab-count">{configuredRails.length}</span>}
-              </button>
-              <button
-                type="button"
-                className={`ngo-tab ${activeTab === 'contact' ? 'active' : ''}`}
-                onClick={() => setActiveTab('contact')}
-              >
-                <span>Contact &amp; Dispatch</span>
-              </button>
-            </nav>
-
-            {/* Tab Panel Body */}
-            <div className="ngo-prof-content">
-              {/* TAB 1: RELIEF OPERATIONS */}
-              {activeTab === 'campaigns' && (
-                <div className="ngo-tab-pane">
-                  {campaigns.length > 2 && (
-                    <div className="ngo-ops-toolbar">
-                      <div className="ngo-ops-search">
-                        <span className="material-symbols-outlined">search</span>
-                        <input
-                          type="text"
-                          placeholder={`Filter ${campaigns.length} missions by title or location…`}
-                          value={campSearch}
-                          onChange={(e) => setCampSearch(e.target.value)}
-                        />
-                        {campSearch && (
-                          <button type="button" className="clear-btn" onClick={() => setCampSearch('')} aria-label="Clear search">
-                            <span className="material-symbols-outlined">close</span>
-                          </button>
+                    <div className="ngp-id-meta">
+                      <h2 className="ngp-title">{orgName}</h2>
+                      <div className="ngp-subline">
+                        <span>Chartered Non-Profit</span>
+                        {verifiedDateStr && (
+                          <>
+                            <span className="ngp-dot-sep">·</span>
+                            <span>Accredited {verifiedDateStr}</span>
+                          </>
+                        )}
+                        {location && (
+                          <>
+                            <span className="ngp-dot-sep">·</span>
+                            <span className="ngp-loc-inline" title={location}>{location}</span>
+                          </>
                         )}
                       </div>
-
-                      <div className="ngo-ops-filters">
-                        {[
-                          { id: 'all', label: 'All' },
-                          { id: 'active', label: 'Active' },
-                          { id: 'funded', label: 'Funded' },
-                          { id: 'disbursed', label: 'Disbursed' }
-                        ].map((f) => (
-                          <button
-                            key={f.id}
-                            type="button"
-                            className={`filter-pill ${campFilter === f.id ? 'active' : ''}`}
-                            onClick={() => setCampFilter(f.id)}
-                          >
-                            {f.label}
-                          </button>
-                        ))}
-                      </div>
                     </div>
-                  )}
+                  </div>
 
-                  {filteredCampaigns.length === 0 ? (
-                    <div className="ngo-empty-state">
-                      <span className="material-symbols-outlined empty-ico">inventory_2</span>
-                      <h4>{campaigns.length === 0 ? 'No Campaigns Published Yet' : 'No Matching Missions'}</h4>
-                      <p>
-                        {campaigns.length === 0
-                          ? `${orgName} has not launched any public relief operations yet.`
-                          : 'Try clearing your search keyword or switching the mission filter.'}
-                      </p>
-                      {(campSearch || campFilter !== 'all') && (
-                        <button
-                          type="button"
-                          className="ngo-btn secondary"
-                          onClick={() => { setCampSearch(''); setCampFilter('all'); }}
-                        >
-                          Reset Filters
-                        </button>
-                      )}
-                    </div>
+                  {bio ? (
+                    <ExpandableText text={bio} maxLen={200} className="ngp-bio" />
                   ) : (
-                    <div className="ngo-ops-grid">
-                      {filteredCampaigns.map((c) => {
-                        const targetPhp = Number(c.targetAmountPhp || Math.round((Number(c.targetAmount) || 0) * 170000)) || 1;
-                        const raisedPhp = Number(c.currentAmountPhp || Math.round((Number(c.currentAmount) || 0) * 170000));
-                        const rawPct = Math.round((raisedPhp / targetPhp) * 100);
-                        const barPct = Math.min(Math.max(rawPct, raisedPhp > 0 ? 2 : 0), 100);
-                        const disbursedPhp = Number(c.disbursedAmountPhp || 0);
-                        const hasProofs =
-                          disbursedPhp > 0 ||
-                          c.disbursementStatus === 'DISBURSED' ||
-                          c.disbursementStatus === 'PARTIALLY_DISBURSED';
-                        const missionStatus = resolveMissionStatus(c, rawPct);
+                    <p className="ngp-bio is-muted">
+                      SEC-verified Philippine humanitarian organization cleared to run transparent disaster response and community relief operations on BBDRTS.
+                    </p>
+                  )}
 
-                        return (
-                          <article key={c.id} className="ngo-mission-card">
-                            <div className="mission-top">
-                              <span className="mission-cat">{formatCategory(c.category)}</span>
-                              <span className={`mission-status is-${missionStatus.tone}`}>
-                                <span className="dot" />
-                                {missionStatus.label}
-                              </span>
-                            </div>
-
-                            <h4 className="mission-title" title={c.title}>{c.title}</h4>
-
-                            {c.description && (
-                              <ExpandableText text={c.description} maxLen={95} className="mission-desc" />
-                            )}
-
-                            <div className="mission-progress">
-                              <div className="progress-track">
-                                <div className="progress-fill" style={{ width: `${barPct}%` }} />
-                              </div>
-                              <div className="progress-row">
-                                <span className="raised-val">
-                                  <strong>₱{raisedPhp.toLocaleString('en-US')}</strong> raised
-                                </span>
-                                <span className="goal-val">
-                                  of ₱{targetPhp.toLocaleString('en-US')} ({rawPct}%)
-                                </span>
-                              </div>
-                            </div>
-
-                            <div className="mission-footer">
-                              <span className="mission-loc" title={c.locationRegion || 'Philippines'}>
-                                <span className="material-symbols-outlined">location_on</span>
-                                <span>{c.locationRegion || 'Philippines'}</span>
-                              </span>
-
-                              <div className="mission-actions">
-                                {hasProofs && (
-                                  <button
-                                    type="button"
-                                    className="ngo-btn proof"
-                                    onClick={() => setProofModalCamp({ ...c, orgName })}
-                                    title="Inspect verified ground delivery proofs & receipts"
-                                  >
-                                    <span className="material-symbols-outlined">verified</span>
-                                    <span>Proofs</span>
-                                  </button>
-                                )}
-                                <button
-                                  type="button"
-                                  className="ngo-btn primary"
-                                  onClick={() => handleNavigateToCampaign(c)}
-                                >
-                                  <span>Donate</span>
-                                  <span className="material-symbols-outlined">arrow_forward</span>
-                                </button>
-                              </div>
-                            </div>
-                          </article>
-                        );
-                      })}
+                  {focusAreas.length > 0 && (
+                    <div className="ngp-tags">
+                      {focusAreas.slice(0, 6).map((area, i) => (
+                        <span key={i} className="ngp-tag">{area}</span>
+                      ))}
                     </div>
                   )}
-                </div>
-              )}
+                </section>
 
-              {/* TAB 2: GOVERNANCE & SEC */}
-              {activeTab === 'governance' && (
-                <div className="ngo-tab-pane">
-                  <div className="ngo-panel-card">
-                    <div className="panel-head">
-                      <div>
-                        <h4>Institutional Registration &amp; Accreditation</h4>
-                        <p>
-                          Verified under the Revised Corporation Code of the Philippines (Republic Act 11232) and audited by the BBDRTS Compliance Desk.
-                        </p>
-                      </div>
-                      {certUrl && (
-                        <button
-                          type="button"
-                          className="ngo-btn secondary"
-                          onClick={() => handleOpenDocPreview(certUrl, `${orgName} — SEC Certificate`)}
-                        >
-                          <span className="material-symbols-outlined">visibility</span>
-                          <span>View SEC Certificate</span>
-                        </button>
-                      )}
-                    </div>
+                {/* Hairline 4-Column Ledger Strip (Zero Box Clutter) */}
+                <section className="ngp-kpi-ledger" aria-label="Organization impact metrics">
+                  <div className="ngp-kpi-item">
+                    <span className="ngp-kpi-lbl">Total raised</span>
+                    <strong className="ngp-kpi-val is-emerald">{formatCompactPhp(totalRaisedPhp)}</strong>
+                    <span className="ngp-kpi-sub">100% escrow audited</span>
+                  </div>
+                  <div className="ngp-kpi-item">
+                    <span className="ngp-kpi-lbl">Aid disbursed</span>
+                    <strong className="ngp-kpi-val">{formatCompactPhp(totalDisbursedPhp)}</strong>
+                    <span className="ngp-kpi-sub">
+                      {totalDisbursedPhp > 0 ? `${disbursedSharePct}% released to field` : 'In escrow reserve'}
+                    </span>
+                  </div>
+                  <div className="ngp-kpi-item">
+                    <span className="ngp-kpi-lbl">Operations</span>
+                    <strong className="ngp-kpi-val">{campaigns.length}</strong>
+                    <span className="ngp-kpi-sub">{activeCampaignCount} active</span>
+                  </div>
+                  <div className="ngp-kpi-item">
+                    <span className="ngp-kpi-lbl">Community reach</span>
+                    <strong className="ngp-kpi-val">
+                      {totalBeneficiariesCount > 0 ? `${totalBeneficiariesCount.toLocaleString()}+` : 'Verified'}
+                    </strong>
+                    <span className="ngp-kpi-sub">documented reach</span>
+                  </div>
+                </section>
 
-                    <div className="ngo-kv-grid">
-                      <div className="ngo-kv-item">
-                        <span className="kv-lbl">SEC Registration No.</span>
-                        <span className="kv-val mono">{secRegNo || 'On file with BBDRTS'}</span>
-                      </div>
-                      <div className="ngo-kv-item">
-                        <span className="kv-lbl">DSWD Accreditation</span>
-                        <span className="kv-val mono">{dswdNo || 'Verified Humanitarian Partner'}</span>
-                      </div>
-                      <div className="ngo-kv-item">
-                        <span className="kv-lbl">Verification Status</span>
-                        <span className="kv-val emerald">
-                          Approved{verifiedDateStr ? ` · ${verifiedDateStr}` : ''}
-                        </span>
-                      </div>
-                      <div className="ngo-kv-item">
-                        <span className="kv-lbl">Legal Classification</span>
-                        <span className="kv-val">Non-Stock, Non-Profit Organization</span>
-                      </div>
-                      {walletAddr && (
-                        <div className="ngo-kv-item span-2">
-                          <span className="kv-lbl">Public Audit Identity (Sepolia)</span>
-                          <div className="kv-copy-row">
-                            <code className="kv-val mono">{walletAddr}</code>
+                {/* Clean Underline Tab Navigation */}
+                <nav className="ngp-tabs" role="tablist" aria-label="Organization sections">
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={activeTab === 'operations'}
+                    className={`ngp-tab ${activeTab === 'operations' ? 'is-active' : ''}`}
+                    onClick={() => setActiveTab('operations')}
+                  >
+                    <span>Operations</span>
+                    <span className="ngp-tab-count">{campaigns.length}</span>
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={activeTab === 'governance'}
+                    className={`ngp-tab ${activeTab === 'governance' ? 'is-active' : ''}`}
+                    onClick={() => setActiveTab('governance')}
+                  >
+                    <span>Governance &amp; SEC</span>
+                  </button>
+                  <button
+                    type="button"
+                    role="tab"
+                    aria-selected={activeTab === 'channels'}
+                    className={`ngp-tab ${activeTab === 'channels' ? 'is-active' : ''}`}
+                    onClick={() => setActiveTab('channels')}
+                  >
+                    <span>Payment Channels</span>
+                    {configuredRails.length > 0 && (
+                      <span className="ngp-tab-count">{configuredRails.length}</span>
+                    )}
+                  </button>
+                </nav>
+
+                {/* ── TAB 1: OPERATIONS ── */}
+                {activeTab === 'operations' && (
+                  <section className="ngp-tab-panel">
+                    {campaigns.length > 2 && (
+                      <div className="ngp-ops-toolbar">
+                        <div className="ngp-filter-pills">
+                          {[
+                            { id: 'all', label: 'All' },
+                            { id: 'active', label: 'Active' },
+                            { id: 'funded', label: 'Funded' },
+                            { id: 'disbursed', label: 'Disbursed' }
+                          ].map((f) => (
+                            <button
+                              key={f.id}
+                              type="button"
+                              className={`ngp-filter-pill ${campFilter === f.id ? 'is-active' : ''}`}
+                              onClick={() => setCampFilter(f.id)}
+                            >
+                              {f.label}
+                            </button>
+                          ))}
+                        </div>
+
+                        <div className="ngp-ops-search">
+                          <span className="material-symbols-outlined">search</span>
+                          <input
+                            type="text"
+                            placeholder="Filter missions…"
+                            value={campSearch}
+                            onChange={(e) => setCampSearch(e.target.value)}
+                          />
+                          {campSearch && (
                             <button
                               type="button"
-                              className="ngo-copy-btn"
-                              onClick={() => handleCopy('wallet', walletAddr)}
+                              className="ngp-ops-search-clear"
+                              onClick={() => setCampSearch('')}
+                              aria-label="Clear filter"
                             >
-                              <span className="material-symbols-outlined">
-                                {copiedKey === 'wallet' ? 'check' : 'content_copy'}
-                              </span>
-                              <span>{copiedKey === 'wallet' ? 'Copied' : 'Copy'}</span>
+                              <span className="material-symbols-outlined">close</span>
                             </button>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {filteredCampaigns.length === 0 ? (
+                      <div className="ngp-empty-inline">
+                        <span className="material-symbols-outlined">inbox</span>
+                        <div>
+                          <strong>
+                            {campaigns.length === 0 ? 'No relief operations yet' : 'No matching operations'}
+                          </strong>
+                          <p>
+                            {campaigns.length === 0
+                              ? `${orgName} is accredited and cleared to publish verified campaigns on BBDRTS.`
+                              : 'Try another filter or clear your search term.'}
+                          </p>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="ngp-ops-list">
+                        {filteredCampaigns.map((camp) => {
+                          const raised =
+                            Number(camp.currentAmountPhp || 0) ||
+                            Math.round((Number(camp.currentAmount || 0)) * 170000);
+                          const goal =
+                            Number(camp.targetAmountPhp || 0) ||
+                            Math.round((Number(camp.targetAmount || 0)) * 170000);
+                          const pct = goal > 0 ? Math.min(100, Math.round((raised / goal) * 100)) : 0;
+                          const urg = formatUrgency(camp.urgency);
+                          const disbursedPhp = Number(camp.disbursedAmountPhp || 0);
+                          const isDisbursed =
+                            disbursedPhp > 0 ||
+                            camp.disbursementStatus === 'DISBURSED' ||
+                            camp.disbursementStatus === 'PARTIALLY_DISBURSED';
+
+                          return (
+                            <article key={camp.id} className="ngp-op-row">
+                              <div className="ngp-op-top">
+                                <div className="ngp-op-head-left">
+                                  <span className="ngp-op-cat">{formatCategory(camp.category)}</span>
+                                  <h4 className="ngp-op-title">{camp.title}</h4>
+                                </div>
+                                <span className={`ngp-status-chip is-${urg.tone}`}>
+                                  <span className="ngp-dot" />
+                                  <span>{urg.label}</span>
+                                </span>
+                              </div>
+
+                              {camp.description && (
+                                <p className="ngp-op-desc">{camp.description}</p>
+                              )}
+
+                              <div className="ngp-op-progress">
+                                <div className="ngp-progress-track">
+                                  <div className="ngp-progress-fill" style={{ width: `${Math.max(raised > 0 ? 3 : 0, pct)}%` }} />
+                                </div>
+                                <div className="ngp-progress-meta">
+                                  <span>
+                                    <strong>₱{raised.toLocaleString('en-US')}</strong> raised
+                                  </span>
+                                  <span className="ngp-progress-goal">
+                                    Goal: ₱{goal.toLocaleString('en-US')} ({pct}%)
+                                  </span>
+                                </div>
+                              </div>
+
+                              <div className="ngp-op-footer">
+                                <span className="ngp-op-loc" title={camp.locationRegion || 'Philippines'}>
+                                  <span className="material-symbols-outlined">location_on</span>
+                                  <span>{camp.locationRegion || 'Philippine Relief Zone'}</span>
+                                </span>
+
+                                <div className="ngp-op-actions">
+                                  {isDisbursed && (
+                                    <button
+                                      type="button"
+                                      className="ngp-op-proof-btn"
+                                      onClick={() =>
+                                        setProofCamp({
+                                          ...camp,
+                                          orgName
+                                        })
+                                      }
+                                    >
+                                      <span className="material-symbols-outlined">verified</span>
+                                      <span>Proof (₱{disbursedPhp.toLocaleString()})</span>
+                                    </button>
+                                  )}
+                                  <button
+                                    type="button"
+                                    className="ngp-op-donate-btn"
+                                    onClick={() => handleNavigateToCampaign(camp)}
+                                  >
+                                    <span>Donate</span>
+                                    <span aria-hidden="true">→</span>
+                                  </button>
+                                </div>
+                              </div>
+                            </article>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </section>
+                )}
+
+                {/* ── TAB 2: GOVERNANCE & SEC ── */}
+                {activeTab === 'governance' && (
+                  <section className="ngp-tab-panel">
+                    <div className="ngp-kv-section">
+                      <h3 className="ngp-section-label">Regulatory Credentials</h3>
+                      <dl className="ngp-kv-list">
+                        <div className="ngp-kv-row">
+                          <dt>SEC Registration No.</dt>
+                          <dd className="mono">{secRegNo || 'Verified Non-Stock Entity'}</dd>
+                        </div>
+                        <div className="ngp-kv-row">
+                          <dt>DSWD Accreditation</dt>
+                          <dd className="mono">{dswdNo || 'Under BBDRTS Institutional Oversight'}</dd>
+                        </div>
+                        <div className="ngp-kv-row">
+                          <dt>Accreditation Status</dt>
+                          <dd className="is-emerald">
+                            Approved{verifiedDateStr ? ` · ${verifiedDateStr}` : ''}
+                          </dd>
+                        </div>
+                        {walletAddr && (
+                          <div className="ngp-kv-row">
+                            <dt>Audit Wallet</dt>
+                            <dd className="ngp-wallet-dd">
+                              <code className="mono">{walletAddr.slice(0, 10)}…{walletAddr.slice(-8)}</code>
+                              <button
+                                type="button"
+                                className="ngp-icon-action"
+                                onClick={() => handleCopy('wallet', walletAddr)}
+                                title="Copy wallet address"
+                              >
+                                <span className="material-symbols-outlined">
+                                  {copiedKey === 'wallet' ? 'check' : 'content_copy'}
+                                </span>
+                              </button>
+                              <a
+                                href={`${SEPOLIA_ADDR_EXPLORER}${walletAddr}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="ngp-icon-action"
+                                title="Inspect on Sepolia Etherscan"
+                              >
+                                <span className="material-symbols-outlined">open_in_new</span>
+                              </a>
+                            </dd>
                           </div>
+                        )}
+                      </dl>
+
+                      {certUrl && (
+                        <div style={{ marginTop: '14px' }}>
+                          <button
+                            type="button"
+                            className="ngp-btn-secondary"
+                            onClick={() => handleOpenDocPreview(certUrl, `${orgName} — SEC Registration Certificate`)}
+                          >
+                            <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>description</span>
+                            <span>Inspect Official SEC Certificate</span>
+                          </button>
                         </div>
                       )}
                     </div>
-                  </div>
 
-                  <div className="ngo-panel-card">
-                    <div className="panel-head">
-                      <div>
-                        <h4>Accountable Signatories &amp; Governance</h4>
-                        <p>Authorized officers overseeing field disbursement and liquidation reporting.</p>
-                      </div>
-                    </div>
-
-                    {boardList.length > 0 || leadOfficer ? (
-                      <div className="ngo-signatories-grid">
-                        {leadOfficer && !boardList.some((b) => b.includes(leadOfficer)) && (
-                          <div className="ngo-signatory-item">
-                            <div className="sig-avatar">{getInitials(leadOfficer)}</div>
-                            <div>
-                              <strong>{leadOfficer}</strong>
-                              <span>Executive Lead</span>
-                            </div>
-                          </div>
-                        )}
-                        {boardList.map((member, idx) => (
-                          <div key={idx} className="ngo-signatory-item">
-                            <div className="sig-avatar">{getInitials(member)}</div>
-                            <div>
-                              <strong>{member}</strong>
-                              <span>Authorized Signatory</span>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      <p className="ngo-quiet-note">
-                        Verified executive signatory records are on file with the BBDRTS SEC &amp; KYC Compliance Desk.
-                      </p>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* TAB 3: PAYMENT CHANNELS */}
-              {activeTab === 'treasury' && (
-                <div className="ngo-tab-pane">
-                  <div className="ngo-panel-card">
-                    <div className="panel-head">
-                      <div>
-                        <h4>Verified Direct Payout Channels</h4>
-                        <p>
-                          Donations settle directly to {orgName} with 0% BBDRTS commission and automatic gasless Sepolia audit receipts.
+                    <div className="ngp-kv-section">
+                      <h3 className="ngp-section-label">Governing Board &amp; Officers</h3>
+                      {boardMembers.length > 0 ? (
+                        <ul className="ngp-board-list">
+                          {boardMembers.map((member, idx) => (
+                            <li key={idx} className="ngp-board-item">
+                              <span className="ngp-board-idx">{String(idx + 1).padStart(2, '0')}</span>
+                              <span>{member}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="ngp-empty-muted">
+                          Authorized signatory verified on file with the BBDRTS Compliance Desk under Republic Act 11232.
                         </p>
-                      </div>
+                      )}
                     </div>
+                  </section>
+                )}
 
+                {/* ── TAB 3: PAYMENT CHANNELS ── */}
+                {activeTab === 'channels' && (
+                  <section className="ngp-tab-panel">
                     {configuredRails.length === 0 ? (
-                      <p className="ngo-quiet-note">
-                        Payment channels for {orgName} are configured per relief campaign. Select any mission under Operations to view its active GCash, Maya, Card, or Bank options.
-                      </p>
+                      <div className="ngp-empty-inline">
+                        <span className="material-symbols-outlined">account_balance</span>
+                        <div>
+                          <strong>Standard Escrow Routing Active</strong>
+                          <p>
+                            Donations to {orgName} settle through BBDRTS verified Philippine payment channels with 0% platform commission.
+                          </p>
+                        </div>
+                      </div>
                     ) : (
-                      <div className="ngo-rails-grid">
+                      <div className="ngp-rails-list">
                         {configuredRails.map((rail) => (
-                          <div key={rail.id} className="ngo-rail-card">
-                            <div className="rail-head">
-                              <span className="rail-title">{rail.title}</span>
-                              <span className={`rail-tag is-${rail.tone}`}>{rail.tag}</span>
-                            </div>
-                            {rail.holder && <div className="rail-holder">{rail.holder}</div>}
-                            {rail.number && (
-                              <div className="rail-num-row">
-                                <code className="rail-num">{rail.number}</code>
-                                <button
-                                  type="button"
-                                  className="ngo-copy-btn"
-                                  onClick={() => handleCopy(rail.id, rail.number)}
-                                >
-                                  <span className="material-symbols-outlined">
-                                    {copiedKey === rail.id ? 'check' : 'content_copy'}
+                          <div key={rail.id} className="ngp-rail-row">
+                            <div className="ngp-rail-info">
+                              <span className={`ngp-rail-badge is-${rail.tone}`}>{rail.badge}</span>
+                              <div className="ngp-rail-title">{rail.title}</div>
+                              <div className="ngp-rail-meta">
+                                {rail.holder && <span>Account: <strong>{rail.holder}</strong></span>}
+                                {rail.number && (
+                                  <span className="ngp-rail-num">
+                                    <code>{rail.number}</code>
+                                    <button
+                                      type="button"
+                                      className="ngp-icon-action"
+                                      onClick={() => handleCopy(rail.id, rail.number)}
+                                      title="Copy account number"
+                                    >
+                                      <span className="material-symbols-outlined">
+                                        {copiedKey === rail.id ? 'check' : 'content_copy'}
+                                      </span>
+                                    </button>
                                   </span>
-                                  <span>{copiedKey === rail.id ? 'Copied' : 'Copy'}</span>
-                                </button>
+                                )}
                               </div>
-                            )}
-                            <span className="rail-cap">{rail.caption}</span>
+                            </div>
+
                             {rail.qrUrl && (
                               <button
                                 type="button"
-                                className="ngo-btn secondary rail-qr-btn"
-                                onClick={() => handleOpenDocPreview(rail.qrUrl, `${orgName} — ${rail.title} QR`)}
+                                className="ngp-rail-qr-btn"
+                                onClick={() => handleOpenDocPreview(rail.qrUrl, `${orgName} — ${rail.badge} Verified QR`)}
+                                title="Expand verified QR code"
                               >
-                                <span className="material-symbols-outlined">qr_code_2</span>
-                                <span>View Verified QR</span>
+                                <img src={rail.qrUrl} alt={`${rail.badge} QR`} />
+                                <span>Expand QR</span>
                               </button>
                             )}
                           </div>
                         ))}
                       </div>
                     )}
-                  </div>
+                  </section>
+                )}
+              </div>
+
+              {/* ════════ RIGHT STICKY RAIL (Exact Parity with CampaignDetailsModal) ════════ */}
+              <aside className="ngp-rail">
+
+                {/* Primary Actions */}
+                <div className="ngp-rail-actions">
+                  {primaryActiveCampaign ? (
+                    <button
+                      type="button"
+                      className="ngp-btn-primary"
+                      onClick={() => handleNavigateToCampaign(primaryActiveCampaign)}
+                    >
+                      <span>Donate to Active Mission</span>
+                      <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>arrow_forward</span>
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      className="ngp-btn-primary"
+                      onClick={() => setActiveTab('governance')}
+                    >
+                      <span>Inspect Credentials</span>
+                    </button>
+                  )}
+
+                  {onOpenDirectory && (
+                    <button
+                      type="button"
+                      className="ngp-btn-secondary"
+                      onClick={onOpenDirectory}
+                    >
+                      <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>corporate_fare</span>
+                      <span>All Accredited NGOs</span>
+                    </button>
+                  )}
                 </div>
-              )}
 
-              {/* TAB 4: CONTACT & DISPATCH */}
-              {activeTab === 'contact' && (
-                <div className="ngo-tab-pane">
-                  <div className="ngo-panel-card">
-                    <div className="panel-head">
-                      <div>
-                        <h4>Operations Dispatch &amp; Institutional Contact</h4>
-                        <p>Direct channels for donor inquiries, LGU coordination, and field relief verification.</p>
+                {/* Accreditation Summary */}
+                <div className="ngp-rail-section">
+                  <h3 className="ngp-section-label">Verification &amp; Trust</h3>
+                  <dl className="ngp-rail-kv">
+                    <div className="ngp-rail-kv-row">
+                      <dt>SEC Reg.</dt>
+                      <dd className="mono">{secRegNo || 'Verified'}</dd>
+                    </div>
+                    {dswdNo && (
+                      <div className="ngp-rail-kv-row">
+                        <dt>DSWD Acc.</dt>
+                        <dd className="mono">{dswdNo}</dd>
                       </div>
+                    )}
+                    <div className="ngp-rail-kv-row">
+                      <dt>Platform Fee</dt>
+                      <dd className="is-emerald">0% Commission</dd>
                     </div>
-
-                    <div className="ngo-contact-grid">
-                      {emergencyHotline && (
-                        <div className="ngo-contact-item">
-                          <span className="material-symbols-outlined c-ico">call</span>
-                          <div>
-                            <span className="c-lbl">Operations Hotline</span>
-                            <a href={`tel:${emergencyHotline.replace(/[^\d+]/g, '')}`} className="c-val link">
-                              {emergencyHotline}
-                            </a>
-                          </div>
-                        </div>
-                      )}
-
-                      {secondaryPhone && (
-                        <div className="ngo-contact-item">
-                          <span className="material-symbols-outlined c-ico">phone_iphone</span>
-                          <div>
-                            <span className="c-lbl">Secondary Mobile</span>
-                            <span className="c-val">{secondaryPhone}</span>
-                          </div>
-                        </div>
-                      )}
-
-                      {orgEmail && (
-                        <div className="ngo-contact-item">
-                          <span className="material-symbols-outlined c-ico">mail</span>
-                          <div>
-                            <span className="c-lbl">Official Email</span>
-                            <a href={`mailto:${orgEmail}`} className="c-val link">{orgEmail}</a>
-                          </div>
-                        </div>
-                      )}
-
-                      {location && (
-                        <div className="ngo-contact-item">
-                          <span className="material-symbols-outlined c-ico">location_on</span>
-                          <div>
-                            <span className="c-lbl">Operations Base</span>
-                            <span className="c-val">{location}</span>
-                          </div>
-                        </div>
-                      )}
-
-                      {hqLandmark && (
-                        <div className="ngo-contact-item">
-                          <span className="material-symbols-outlined c-ico">apartment</span>
-                          <div>
-                            <span className="c-lbl">Headquarters Landmark</span>
-                            <span className="c-val">{hqLandmark}</span>
-                          </div>
-                        </div>
-                      )}
-
-                      {website && (
-                        <div className="ngo-contact-item">
-                          <span className="material-symbols-outlined c-ico">language</span>
-                          <div>
-                            <span className="c-lbl">Official Website</span>
-                            <a
-                              href={website.startsWith('http') ? website : `https://${website}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="c-val link"
-                            >
-                              {website} ↗
-                            </a>
-                          </div>
-                        </div>
-                      )}
-
-                      {socialLink && (
-                        <div className="ngo-contact-item">
-                          <span className="material-symbols-outlined c-ico">share</span>
-                          <div>
-                            <span className="c-lbl">Social Channel</span>
-                            <a
-                              href={socialLink.startsWith('http') ? socialLink : `https://${socialLink}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="c-val link"
-                            >
-                              {socialLink} ↗
-                            </a>
-                          </div>
-                        </div>
-                      )}
+                    <div className="ngp-rail-kv-row">
+                      <dt>Audit Trail</dt>
+                      <dd>Sepolia EVM · Gasless</dd>
                     </div>
+                  </dl>
 
-                    {focusAreas.length > 0 && (
-                      <div className="ngo-focus-block">
-                        <span className="c-lbl">Relief Capabilities</span>
-                        <div className="ngo-focus-chips">
-                          {focusAreas.map((area, idx) => (
-                            <span key={idx} className="ngo-focus-chip">{area}</span>
-                          ))}
+                  {certUrl && (
+                    <button
+                      type="button"
+                      className="ngp-rail-link-btn"
+                      onClick={() => handleOpenDocPreview(certUrl, `${orgName} — SEC Certificate`)}
+                    >
+                      <span className="material-symbols-outlined">verified_user</span>
+                      <span>View SEC Certificate</span>
+                    </button>
+                  )}
+                </div>
+
+                {/* Direct Dispatch & Contact */}
+                <div className="ngp-rail-section">
+                  <h3 className="ngp-section-label">Dispatch &amp; Contact</h3>
+                  <div className="ngp-contact-list">
+                    {hotline && (
+                      <div className="ngp-contact-row">
+                        <span className="material-symbols-outlined ngp-contact-ico">call</span>
+                        <div className="ngp-contact-text">
+                          <span className="lbl">24/7 Operations Hotline</span>
+                          <a href={`tel:${rawHotline}`} className="val mono">{hotline}</a>
+                        </div>
+                        <button
+                          type="button"
+                          className="ngp-icon-action"
+                          onClick={() => handleCopy('hotline', rawHotline)}
+                          title="Copy hotline"
+                        >
+                          <span className="material-symbols-outlined">
+                            {copiedKey === 'hotline' ? 'check' : 'content_copy'}
+                          </span>
+                        </button>
+                      </div>
+                    )}
+
+                    {orgEmail && (
+                      <div className="ngp-contact-row">
+                        <span className="material-symbols-outlined ngp-contact-ico">mail</span>
+                        <div className="ngp-contact-text">
+                          <span className="lbl">Official Email</span>
+                          <a href={`mailto:${orgEmail}`} className="val">{orgEmail}</a>
+                        </div>
+                        <button
+                          type="button"
+                          className="ngp-icon-action"
+                          onClick={() => handleCopy('email', orgEmail)}
+                          title="Copy email"
+                        >
+                          <span className="material-symbols-outlined">
+                            {copiedKey === 'email' ? 'check' : 'content_copy'}
+                          </span>
+                        </button>
+                      </div>
+                    )}
+
+                    {(location || hqLandmark) && (
+                      <div className="ngp-contact-row">
+                        <span className="material-symbols-outlined ngp-contact-ico">location_on</span>
+                        <div className="ngp-contact-text">
+                          <span className="lbl">Headquarters</span>
+                          <span className="val">{location || hqLandmark}</span>
+                        </div>
+                      </div>
+                    )}
+
+                    {website && (
+                      <div className="ngp-contact-row">
+                        <span className="material-symbols-outlined ngp-contact-ico">language</span>
+                        <div className="ngp-contact-text">
+                          <span className="lbl">Official Portal</span>
+                          <a
+                            href={/^https?:\/\//i.test(website) ? website : `https://${website}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="val is-link"
+                          >
+                            {website.replace(/^https?:\/\//i, '')} ↗
+                          </a>
+                        </div>
+                      </div>
+                    )}
+
+                    {socialLink && (
+                      <div className="ngp-contact-row">
+                        <span className="material-symbols-outlined ngp-contact-ico">public</span>
+                        <div className="ngp-contact-text">
+                          <span className="lbl">Community Page</span>
+                          <a
+                            href={/^https?:\/\//i.test(socialLink) ? socialLink : `https://${socialLink}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="val is-link"
+                          >
+                            Official Social Updates ↗
+                          </a>
                         </div>
                       </div>
                     )}
                   </div>
                 </div>
-              )}
+
+                {/* Compliance Footnote */}
+                <div className="ngp-rail-footnote">
+                  <span className="material-symbols-outlined">shield</span>
+                  <span>
+                    Verified under Republic Act 11232 (SEC). Every PHP donation and field disbursement is cryptographically notarized.
+                  </span>
+                </div>
+              </aside>
             </div>
           </div>
         )}
+
+        {/* Sub-modals: SEC / QR Document Lightbox & Verified Disbursement Proof Viewer */}
+        {previewCertUrl && (
+          <SecCertificateModal
+            isOpen={Boolean(previewCertUrl)}
+            onClose={() => setPreviewCertUrl(null)}
+            documentUrl={previewCertUrl}
+            title={previewTitle}
+            orgName={orgName}
+            secRegNo={secRegNo}
+          />
+        )}
+
+        {proofCamp && (
+          <DisbursementProofModal
+            camp={proofCamp}
+            isOpen={Boolean(proofCamp)}
+            onClose={() => setProofCamp(null)}
+            theme={effectiveTheme}
+          />
+        )}
       </div>
-
-      {/* SEC Document & QR Lightbox */}
-      <SecCertificateModal
-        isOpen={!!previewCertUrl}
-        onClose={() => setPreviewCertUrl(null)}
-        url={previewCertUrl}
-        orgName={orgName}
-        regNo={secRegNo}
-        title={previewTitle}
-      />
-
-      {/* Verified Field Disbursement Proofs Modal */}
-      {proofModalCamp && (
-        <DisbursementProofModal
-          camp={proofModalCamp}
-          isOpen={Boolean(proofModalCamp)}
-          onClose={() => setProofModalCamp(null)}
-          theme={effectiveTheme}
-        />
-      )}
-    </div>
+    </div>,
+    document.body
   );
-
-  return typeof document !== 'undefined' ? createPortal(modalNode, document.body) : null;
 }
