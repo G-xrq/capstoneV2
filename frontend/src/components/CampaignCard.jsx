@@ -2570,6 +2570,7 @@ export default function CampaignCard(props) {
       setReceiptBase64(rawB64);
       setAiScanLoading(true);
 
+      try {
       const b64 = await optimizeReceiptForUpload(rawB64);
       setReceiptBase64(b64);
 
@@ -2666,6 +2667,7 @@ export default function CampaignCard(props) {
             );
 
           if (isHardRejection) {
+            setAiScanLoading(false);
             setRefNumber('');
             setGatewayRefNo('');
             showWarning?.(verifyData.summary || 'Receipt flagged by AI audit. Please verify payment details.', 'Verification Alert');
@@ -2886,6 +2888,7 @@ export default function CampaignCard(props) {
       } catch (tessErr) {
         console.warn('Tesseract OCR execution error:', tessErr);
         showSuccess?.("Receipt screenshot attached successfully! Please verify reference number and amount.", "Receipt Attached");
+      }
       } finally {
         setAiScanLoading(false);
       }
@@ -6744,27 +6747,32 @@ export default function CampaignCard(props) {
                 const isValidManualRef = gatewayMethod === 'GCash' ? cleanDigits.length === 13 : hasEnteredRef && (refNumber || gatewayRefNo || '').trim().length >= 8;
                 const isManualAuditPending = !hasHardFraud && isReceiptInvalid && isValidManualRef;
                 const isBlocked = hasHardFraud || (isReceiptInvalid && !isValidManualRef);
-                const isSubmitDisabled = gatewayLoading || !amount || parseFloat(amount) <= 0 || !hasEnteredRef || !receiptBase64 || isBlocked;
+                const isExplicitInvalidSlip = Boolean(activeAiResult?.fraudFlags?.some(f => f.includes('INVALID_RECEIPT')));
+                const isSubmitDisabled = aiScanLoading || gatewayLoading || !amount || parseFloat(amount) <= 0 || !hasEnteredRef || !receiptBase64 || isBlocked || isExplicitInvalidSlip;
 
-                const submitLabel = duplicateRefWarning
-                  ? 'Duplicate Receipt Blocked'
-                  : railMismatchWarning
-                    ? 'Rail Mismatch Blocked'
-                    : isExpiredReceipt
-                      ? 'Expired Receipt Blocked'
-                      : isTamperedReceipt
-                        ? 'Tampered Image Blocked'
-                        : isRecipientMismatch
-                          ? 'Recipient Mismatch Blocked'
-                          : isSuspiciousRef
-                            ? 'Artificial Ref Blocked'
-                            : isReceiptInvalid && !isValidManualRef
-                              ? (gatewayMethod === 'GCash' ? 'Enter 13-Digit Ref Number' : 'Enter Valid Reference')
-                              : amount && parseFloat(amount) > 0
-                                ? (isManualAuditPending
-                                    ? `Submit for NGO Review · ₱${Math.round(Number(amount)).toLocaleString('en-US')}`
-                                    : `Verify & Submit · ₱${Math.round(Number(amount)).toLocaleString('en-US')}`)
-                                : 'Verify & Submit';
+                const submitLabel = aiScanLoading
+                  ? 'Scanning Receipt…'
+                  : duplicateRefWarning
+                    ? 'Duplicate Receipt Blocked'
+                    : railMismatchWarning
+                      ? 'Rail Mismatch Blocked'
+                      : isExpiredReceipt
+                        ? 'Expired Receipt Blocked'
+                        : isTamperedReceipt
+                          ? 'Tampered Image Blocked'
+                          : isRecipientMismatch
+                            ? 'Recipient Mismatch Blocked'
+                            : isSuspiciousRef
+                              ? 'Artificial Ref Blocked'
+                              : isExplicitInvalidSlip
+                                ? 'Invalid Receipt Blocked'
+                                : isReceiptInvalid && !isValidManualRef
+                                  ? (gatewayMethod === 'GCash' ? 'Enter 13-Digit Ref Number' : 'Enter Valid Reference')
+                                  : amount && parseFloat(amount) > 0
+                                    ? (isManualAuditPending
+                                        ? `Submit for NGO Review · ₱${Math.round(Number(amount)).toLocaleString('en-US')}`
+                                        : `Verify & Submit · ₱${Math.round(Number(amount)).toLocaleString('en-US')}`)
+                                    : 'Verify & Submit';
 
                 return (
                   <div className="dt7-shell fade-in">
