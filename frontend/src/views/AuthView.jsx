@@ -1233,7 +1233,7 @@ export default function AuthView({ onLoginSuccess, onBack, theme, onToggleTheme,
                   }}
                 >
                   <span className="material-symbols-outlined role-type-icon">domain</span>
-                  <span className="role-type-label">NGO / Relief Org</span>
+                  <span className="role-type-label">NGO</span>
                 </button>
               </div>
 
@@ -1375,7 +1375,7 @@ export default function AuthView({ onLoginSuccess, onBack, theme, onToggleTheme,
               <div className="login-header-modern">
                 <h2>Create Account</h2>
                 <p className="login-header-subtitle">
-                  {role === 'organization' ? 'Register your Non-Governmental Organization (NGO)' : 'Sign up as a Donor (Individual, Group, or Entity)'}
+                  {role === 'organization' ? 'Register your Non-Governmental Organization (NGO)' : 'Sign up as a Donor'}
                 </p>
               </div>
 
@@ -1406,7 +1406,7 @@ export default function AuthView({ onLoginSuccess, onBack, theme, onToggleTheme,
                   }}
                 >
                   <span className="material-symbols-outlined role-type-icon">domain</span>
-                  <span className="role-type-label">NGO / Relief Org</span>
+                  <span className="role-type-label">NGO</span>
                 </button>
               </div>
 
@@ -1417,7 +1417,7 @@ export default function AuthView({ onLoginSuccess, onBack, theme, onToggleTheme,
                   {role === 'donor' ? (
                     <div className="input-row-2col">
                       <div className="input-group-modern">
-                        <label>FIRST NAME (LEGAL)</label>
+                        <label>FIRST NAME</label>
                         <div className="input-container">
                           <span className="material-symbols-outlined input-icon">person</span>
                           <input
@@ -1430,7 +1430,7 @@ export default function AuthView({ onLoginSuccess, onBack, theme, onToggleTheme,
                         </div>
                       </div>
                       <div className="input-group-modern">
-                        <label>LAST NAME (LEGAL)</label>
+                        <label>LAST NAME</label>
                         <div className="input-container">
                           <span className="material-symbols-outlined input-icon">badge</span>
                           <input
@@ -1445,7 +1445,7 @@ export default function AuthView({ onLoginSuccess, onBack, theme, onToggleTheme,
                     </div>
                   ) : (
                     <div className="input-group-modern">
-                      <label>OFFICIAL NGO / ORGANIZATION NAME</label>
+                      <label>OFFICIAL NGO NAME</label>
                       <div className="input-container">
                         <span className="material-symbols-outlined input-icon">domain</span>
                         <input
