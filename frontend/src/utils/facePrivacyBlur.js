@@ -277,7 +277,7 @@ export async function applyFaceBlurBoxes(dataUrl, faces = [], options = {}) {
     return dataUrl;
   }
 
-  const { padX = 0.16, padY = 0.22, quality = 0.85 } = options;
+  const { padX = 0.34, padY = 0.42, quality = 0.86 } = options;
   const img = await loadImage(dataUrl);
   const W = img.naturalWidth || img.width;
   const H = img.naturalHeight || img.height;
@@ -288,6 +288,14 @@ export async function applyFaceBlurBoxes(dataUrl, faces = [], options = {}) {
   const ctx = canvas.getContext('2d');
   ctx.drawImage(img, 0, 0, W, H);
 
+  // Reusable offscreen canvases for zero-seam radial-feathered Gaussian blur
+  const patchCanvas = document.createElement('canvas');
+  const patchCtx = patchCanvas.getContext('2d');
+  const blurCanvas = document.createElement('canvas');
+  const blurCtx = blurCanvas.getContext('2d');
+  const tinyCanvas = document.createElement('canvas');
+  const tinyCtx = tinyCanvas.getContext('2d');
+
   for (const box of faces) {
     const rawX = (box.xmin / 1000) * W;
     const rawY = (box.ymin / 1000) * H;
@@ -295,51 +303,87 @@ export async function applyFaceBlurBoxes(dataUrl, faces = [], options = {}) {
     const rawH = ((box.ymax - box.ymin) / 1000) * H;
     if (rawW < 4 || rawH < 4) continue;
 
-    const exW = rawW * (1 + padX * 2);
-    const exH = rawH * (1 + padY * 2);
-    const x = Math.max(0, Math.round(rawX - rawW * padX));
-    const y = Math.max(0, Math.round(rawY - rawH * padY));
-    const w = Math.min(W - x, Math.round(exW));
-    const h = Math.min(H - y, Math.round(exH));
-    if (w < 4 || h < 4) continue;
+    // Center of detected face
+    const cx = rawX + rawW / 2;
+    const cy = rawY + rawH / 2;
 
-    // Stage 1: Irreversible downscale-upscale privacy destruction (100% Safari/mobile safe)
-    const mosaicW = Math.max(4, Math.min(8, Math.round(w / 14)));
-    const mosaicH = Math.max(4, Math.min(8, Math.round(h / 14)));
+    // Generous feathered ellipse radii so blur dissolves naturally with zero hard edge
+    const rx = rawW * (0.5 + padX);
+    const ry = rawH * (0.5 + padY);
 
-    const tiny = document.createElement('canvas');
-    tiny.width = mosaicW;
-    tiny.height = mosaicH;
-    const tinyCtx = tiny.getContext('2d');
+    const x = Math.max(0, Math.floor(cx - rx));
+    const y = Math.max(0, Math.floor(cy - ry));
+    const x2 = Math.min(W, Math.ceil(cx + rx));
+    const y2 = Math.min(H, Math.ceil(cy + ry));
+    const pw = x2 - x;
+    const ph = y2 - y;
+    if (pw < 6 || ph < 6) continue;
+
+    // Sample extra bleed margin around patch so Gaussian blur never pulls dark/transparent edges
+    const blurRadius = Math.max(8, Math.min(34, Math.round(Math.max(rawW, rawH) * 0.2)));
+    const bleed = Math.min(blurRadius * 2, 48);
+    const sx = Math.max(0, x - bleed);
+    const sy = Math.max(0, y - bleed);
+    const sx2 = Math.min(W, x2 + bleed);
+    const sy2 = Math.min(H, y2 + bleed);
+    const sw = sx2 - sx;
+    const sh = sy2 - sy;
+
+    // Stage 1: Gentle irreversible downscale (preserves natural skin/hair tone gradient while destroying identity)
+    const downW = Math.max(8, Math.min(20, Math.round(sw / Math.max(8, rawW * 0.14))));
+    const downH = Math.max(8, Math.min(20, Math.round(sh / Math.max(8, rawH * 0.14))));
+    tinyCanvas.width = downW;
+    tinyCanvas.height = downH;
     tinyCtx.imageSmoothingEnabled = true;
-    tinyCtx.drawImage(img, x, y, w, h, 0, 0, mosaicW, mosaicH);
+    tinyCtx.imageSmoothingQuality = 'high';
+    tinyCtx.clearRect(0, 0, downW, downH);
+    tinyCtx.drawImage(img, sx, sy, sw, sh, 0, 0, downW, downH);
 
-    // Stage 2: Smooth elliptical blur blend
-    const roi = document.createElement('canvas');
-    roi.width = w;
-    roi.height = h;
-    const roiCtx = roi.getContext('2d');
-    roiCtx.imageSmoothingEnabled = true;
-    roiCtx.drawImage(tiny, 0, 0, mosaicW, mosaicH, 0, 0, w, h);
-
-    const blurRadius = Math.max(6, Math.min(26, Math.round(Math.max(w, h) * 0.16)));
-
-    ctx.save();
-    ctx.beginPath();
-    ctx.ellipse(x + w / 2, y + h / 2, w * 0.54, h * 0.54, 0, 0, Math.PI * 2);
-    ctx.clip();
-
-    ctx.drawImage(roi, x, y, w, h);
-
-    if ('filter' in ctx) {
+    // Stage 2: Smooth Gaussian pass over the bleed-padded patch
+    blurCanvas.width = sw;
+    blurCanvas.height = sh;
+    blurCtx.clearRect(0, 0, sw, sh);
+    blurCtx.imageSmoothingEnabled = true;
+    blurCtx.imageSmoothingQuality = 'high';
+    if ('filter' in blurCtx) {
       try {
-        ctx.filter = `blur(${blurRadius}px)`;
-        ctx.drawImage(roi, x - blurRadius, y - blurRadius, w + blurRadius * 2, h + blurRadius * 2);
-        ctx.filter = 'none';
-      } catch (_) {}
+        blurCtx.filter = `blur(${blurRadius}px)`;
+        blurCtx.drawImage(tinyCanvas, 0, 0, downW, downH, 0, 0, sw, sh);
+        blurCtx.filter = 'none';
+      } catch (_) {
+        blurCtx.drawImage(tinyCanvas, 0, 0, downW, downH, 0, 0, sw, sh);
+      }
+    } else {
+      blurCtx.drawImage(tinyCanvas, 0, 0, downW, downH, 0, 0, sw, sh);
     }
 
-    ctx.restore();
+    // Stage 3: Crop exact patch & mask with silky radial elliptical alpha gradient (ZERO hard edge!)
+    patchCanvas.width = pw;
+    patchCanvas.height = ph;
+    patchCtx.globalCompositeOperation = 'source-over';
+    patchCtx.clearRect(0, 0, pw, ph);
+    patchCtx.drawImage(blurCanvas, x - sx, y - sy, pw, ph, 0, 0, pw, ph);
+
+    const localCx = cx - x;
+    const localCy = cy - y;
+    patchCtx.save();
+    patchCtx.globalCompositeOperation = 'destination-in';
+    patchCtx.translate(localCx, localCy);
+    patchCtx.scale(rx, ry);
+    const grad = patchCtx.createRadialGradient(0, 0, 0, 0, 0, 1);
+    grad.addColorStop(0.0, 'rgba(0, 0, 0, 1)');
+    grad.addColorStop(0.46, 'rgba(0, 0, 0, 1)');
+    grad.addColorStop(0.70, 'rgba(0, 0, 0, 0.72)');
+    grad.addColorStop(0.88, 'rgba(0, 0, 0, 0.20)');
+    grad.addColorStop(1.0, 'rgba(0, 0, 0, 0)');
+    patchCtx.fillStyle = grad;
+    patchCtx.beginPath();
+    patchCtx.arc(0, 0, 1, 0, Math.PI * 2);
+    patchCtx.fill();
+    patchCtx.restore();
+
+    // Blend seamlessly onto main photo
+    ctx.drawImage(patchCanvas, x, y);
   }
 
   return canvas.toDataURL('image/jpeg', quality);

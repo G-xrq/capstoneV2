@@ -4785,8 +4785,8 @@ export default function OrganizationView({
 
                                 <div style={{
                                   display: 'grid',
-                                  gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))',
-                                  gap: '12px',
+                                  gridTemplateColumns: 'repeat(auto-fill, minmax(185px, 1fr))',
+                                  gap: '14px',
                                   marginTop: '10px'
                                 }}>
                                   {disasterImages.map((imgSrc, idx) => {
@@ -4846,126 +4846,83 @@ export default function OrganizationView({
                                         }}
                                         title="Click and drag to reorder photos"
                                       >
-                                        <img
-                                          src={imgSrc}
-                                          alt={`Disaster aftermath evidence ${idx + 1}`}
-                                          style={{ width: '100%', height: '100%', objectFit: 'cover', pointerEvents: 'none', userSelect: 'none' }}
-                                          draggable={false}
-                                        />
+                                        {/* Top Clean Media Viewport */}
+                                        <div className="deploy-photo-media">
+                                          <img
+                                            src={imgSrc}
+                                            alt={`Disaster aftermath evidence ${idx + 1}`}
+                                            style={{ width: '100%', height: '100%', objectFit: 'cover', pointerEvents: 'none', userSelect: 'none', display: 'block' }}
+                                            draggable={false}
+                                          />
 
-                                        {/* Drag Handle Indicator with Order Number */}
-                                        <div
-                                          className="deploy-photo-drag-handle"
-                                          title="Drag to reorder position"
-                                        >
-                                          <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>drag_indicator</span>
-                                          <span>#{idx + 1}</span>
-                                        </div>
+                                          {/* Drag Handle Indicator with Order Number */}
+                                          <div
+                                            className="deploy-photo-drag-handle"
+                                            title="Drag to reorder position"
+                                          >
+                                            <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>drag_indicator</span>
+                                            <span>#{idx + 1}</span>
+                                          </div>
 
-                                        {/* Cover Photo Badge or Quick "Set Cover" Button */}
-                                        {isCover ? (
-                                          <span style={{
-                                            position: 'absolute',
-                                            bottom: '4px',
-                                            left: '4px',
-                                            background: 'var(--accent)',
-                                            color: '#000000',
-                                            fontSize: '9px',
-                                            fontWeight: 800,
-                                            padding: '2px 6px',
-                                            borderRadius: '4px',
-                                            letterSpacing: '0.3px',
-                                            textTransform: 'uppercase',
-                                            display: 'inline-flex',
-                                            alignItems: 'center',
-                                            gap: '3px',
-                                            boxShadow: '0 2px 4px rgba(0,0,0,0.4)',
-                                            zIndex: 2
-                                          }}>
-                                            <span className="material-symbols-outlined" style={{ fontSize: '11px' }}>star</span>
-                                            Cover Photo
-                                          </span>
-                                        ) : (
+                                          {/* Remove photo button */}
                                           <button
                                             type="button"
-                                            className="deploy-photo-cover-btn"
+                                            className="deploy-photo-remove-btn"
                                             onClick={(e) => {
                                               e.stopPropagation();
-                                              moveDisasterImage(idx, 0);
+                                              removeDisasterImage(idx);
                                             }}
-                                            title="Quickly make this photo the Cover Photo (Slot 1)"
+                                            title="Remove photo"
+                                            aria-label="Remove photo"
                                           >
-                                            <span className="material-symbols-outlined" style={{ fontSize: '11px' }}>star_border</span>
-                                            Make Cover
+                                            <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>close</span>
                                           </button>
-                                        )}
+                                        </div>
 
-                                        {/* RA 10173 Face-Blur Badge / Quick Toggle */}
-                                        {(() => {
-                                          const meta = disasterImagesMeta[idx];
-                                          const blurredCount = meta?.isBlurred ? (meta.facesBlurred || 0) : 0;
-                                          return (
+                                        {/* Clean Bottom Utility Bar (Zero Badge Overlap) */}
+                                        <div className="deploy-photo-footer">
+                                          {isCover ? (
+                                            <span className="deploy-photo-cover-tag">
+                                              <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>star</span>
+                                              <span>Cover</span>
+                                            </span>
+                                          ) : (
                                             <button
                                               type="button"
+                                              className="deploy-photo-set-cover-btn"
                                               onClick={(e) => {
                                                 e.stopPropagation();
-                                                toggleDisasterImageBlur(idx);
+                                                moveDisasterImage(idx, 0);
                                               }}
-                                              title={blurredCount > 0 ? `${blurredCount} face(s) blurred — click to restore original` : (meta?.blurredUrl ? 'Click to re-apply face blur' : 'Scan & blur faces (RA 10173)')}
-                                              style={{
-                                                position: 'absolute',
-                                                bottom: '4px',
-                                                right: '4px',
-                                                background: blurredCount > 0 ? 'rgba(16, 185, 129, 0.92)' : 'rgba(9, 9, 11, 0.78)',
-                                                color: blurredCount > 0 ? '#000000' : '#e4e4e7',
-                                                border: blurredCount > 0 ? 'none' : '1px solid rgba(255, 255, 255, 0.22)',
-                                                fontSize: '9px',
-                                                fontWeight: 700,
-                                                padding: '2px 5px',
-                                                borderRadius: '4px',
-                                                display: 'inline-flex',
-                                                alignItems: 'center',
-                                                gap: '2px',
-                                                cursor: 'pointer',
-                                                zIndex: 3
-                                              }}
+                                              title="Make this the Cover Photo (Slot #1)"
                                             >
-                                              <span className="material-symbols-outlined" style={{ fontSize: '11px' }}>blur_on</span>
-                                              <span>{blurredCount > 0 ? `${blurredCount} blurred` : (meta?.blurredUrl ? 'Re-blur' : 'Blur')}</span>
+                                              <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>star_border</span>
+                                              <span>Set Cover</span>
                                             </button>
-                                          );
-                                        })()}
+                                          )}
 
-                                        {/* Remove photo button */}
-                                        <button
-                                          type="button"
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            removeDisasterImage(idx);
-                                          }}
-                                          style={{
-                                            position: 'absolute',
-                                            top: '4px',
-                                            right: '4px',
-                                            width: '22px',
-                                            height: '22px',
-                                            borderRadius: '50%',
-                                            background: 'rgba(0, 0, 0, 0.75)',
-                                            border: '1px solid rgba(255, 255, 255, 0.3)',
-                                            color: '#ffffff',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'center',
-                                            cursor: 'pointer',
-                                            transition: 'background 0.15s ease',
-                                            zIndex: 3
-                                          }}
-                                          onMouseEnter={(e) => e.currentTarget.style.background = '#ef4444'}
-                                          onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(0, 0, 0, 0.75)'}
-                                          title="Remove photo"
-                                        >
-                                          <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>close</span>
-                                        </button>
+                                          {(() => {
+                                            const meta = disasterImagesMeta[idx];
+                                            const blurredCount = meta?.isBlurred ? (meta.facesBlurred || 0) : 0;
+                                            const isPaused = Boolean(meta?.blurredUrl && !meta.isBlurred);
+                                            return (
+                                              <button
+                                                type="button"
+                                                className={`deploy-photo-privacy-btn ${blurredCount > 0 ? 'is-blurred' : (isPaused ? 'is-paused' : '')}`}
+                                                onClick={(e) => {
+                                                  e.stopPropagation();
+                                                  toggleDisasterImageBlur(idx);
+                                                }}
+                                                title={blurredCount > 0 ? `${blurredCount} face(s) blurred — click to show original` : (isPaused ? 'Click to re-apply face blur' : 'Scan & blur faces (RA 10173)')}
+                                              >
+                                                <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>blur_on</span>
+                                                <span>
+                                                  {blurredCount > 0 ? `${blurredCount} blurred` : (isPaused ? 'Re-blur' : 'Blur')}
+                                                </span>
+                                              </button>
+                                            );
+                                          })()}
+                                        </div>
                                       </div>
                                     );
                                   })}

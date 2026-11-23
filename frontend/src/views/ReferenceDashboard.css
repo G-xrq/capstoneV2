@@ -1932,10 +1932,12 @@ textarea.deploy-field-input {
   border-radius: 10px;
   overflow: hidden;
   border: 1px solid var(--border);
-  height: 110px;
-  background: #000000;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-  transition: transform 0.15s ease, border-color 0.15s ease;
+  height: auto;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-card, #0a0a0c);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.12);
+  transition: transform 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
 }
 
 .deploy-photo-card:hover {
@@ -1943,7 +1945,130 @@ textarea.deploy-field-input {
 }
 
 .deploy-photo-card.cover {
-  border: 2px solid var(--accent);
+  border: 1.5px solid #10b981;
+  box-shadow: 0 0 0 1px rgba(16, 185, 129, 0.2);
+}
+
+.deploy-photo-media {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  background: #09090b;
+  overflow: hidden;
+}
+
+.deploy-photo-remove-btn {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  background: rgba(9, 9, 11, 0.72);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.14s ease, border-color 0.14s ease;
+  z-index: 3;
+}
+
+.deploy-photo-remove-btn:hover {
+  background: #ef4444;
+  border-color: #ef4444;
+}
+
+.deploy-photo-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 7px 9px;
+  background: var(--bg-card, #0a0a0c);
+  border-top: 1px solid var(--border);
+}
+
+.deploy-photo-cover-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+.deploy-photo-cover-tag .material-symbols-outlined {
+  color: #f59e0b;
+}
+
+.deploy-photo-set-cover-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: transparent;
+  border: none;
+  padding: 2px 4px;
+  margin: -2px -4px;
+  border-radius: 5px;
+  color: var(--text-muted);
+  font-size: 0.68rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  font-family: inherit;
+  transition: color 0.12s ease, background 0.12s ease;
+}
+
+.deploy-photo-set-cover-btn:hover {
+  color: var(--text-primary);
+  background: var(--bg-inset);
+}
+
+.deploy-photo-privacy-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  font-size: 0.66rem;
+  font-weight: 600;
+  background: var(--bg-inset);
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  white-space: nowrap;
+  font-family: inherit;
+  transition: all 0.12s ease;
+}
+
+.deploy-photo-privacy-btn:hover {
+  border-color: #10b981;
+  color: #10b981;
+}
+
+.deploy-photo-privacy-btn.is-blurred {
+  background: rgba(16, 185, 129, 0.14);
+  color: #059669;
+  border-color: rgba(16, 185, 129, 0.34);
+}
+
+[data-theme="dark"] .deploy-photo-privacy-btn.is-blurred {
+  color: #34d399;
+}
+
+.deploy-photo-privacy-btn.is-paused {
+  background: rgba(245, 158, 11, 0.12);
+  color: #d97706;
+  border-color: rgba(245, 158, 11, 0.3);
+}
+
+[data-theme="dark"] .deploy-photo-privacy-btn.is-paused {
+  color: #fbbf24;
 }
 
 .deploy-photo-card.dragging {
