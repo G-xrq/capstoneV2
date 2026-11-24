@@ -6104,22 +6104,22 @@ export default function OrganizationView({
             <div style={{
               display: 'grid',
               gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-              background: '#0a0a0a',
-              border: '1px solid #222222',
+              background: 'var(--bg-card)',
+              border: '1px solid var(--border)',
               borderRadius: '10px',
               overflow: 'hidden',
               marginBottom: '20px'
             }}>
               {/* Stat 1: Total Funds Received */}
-              <div style={{ padding: '16px 20px', borderRight: '1px solid #222222', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <div style={{ padding: '16px 20px', borderRight: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: '0.68rem', fontWeight: 600, color: '#888888', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                  <span style={{ fontSize: '0.68rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                     Total Funds Received
                   </span>
                   <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#10b981' }}>payments</span>
                 </div>
-                <div style={{ fontSize: '1.45rem', fontWeight: 800, color: '#ededed', fontFamily: 'var(--font-mono, monospace)', letterSpacing: '-0.02em' }}>
-                  <LiveCounter value={Math.round(totalRaisedByMe * 170000)} prefix="₱" duration={1050} /> <span style={{ fontSize: '0.80rem', color: '#888888' }}>PHP</span>
+                <div style={{ fontSize: '1.45rem', fontWeight: 800, color: 'var(--text-primary)', fontFamily: 'var(--font-mono, monospace)', letterSpacing: '-0.02em' }}>
+                  <LiveCounter value={Math.round(totalRaisedByMe * 170000)} prefix="₱" duration={1050} /> <span style={{ fontSize: '0.80rem', color: 'var(--text-muted)' }}>PHP</span>
                 </div>
                 <div style={{ fontSize: '0.74rem', color: '#10b981', fontWeight: 500 }}>
                   Gasless Sepolia Audited Total
@@ -6127,15 +6127,15 @@ export default function OrganizationView({
               </div>
 
               {/* Stat 2: Verified Transactions */}
-              <div style={{ padding: '16px 20px', borderRight: '1px solid #222222', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <div style={{ padding: '16px 20px', borderRight: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: '0.68rem', fontWeight: 600, color: '#888888', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                  <span style={{ fontSize: '0.68rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                     Verified Transactions
                   </span>
                   <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#38bdf8' }}>receipt_long</span>
                 </div>
-                <div style={{ fontSize: '1.45rem', fontWeight: 800, color: '#ededed', fontFamily: 'var(--font-mono, monospace)', letterSpacing: '-0.02em' }}>
-                  <LiveCounter value={ledgerTelemetry.totalCount} duration={850} /> <span style={{ fontSize: '0.80rem', color: '#888888' }}>Recorded</span>
+                <div style={{ fontSize: '1.45rem', fontWeight: 800, color: 'var(--text-primary)', fontFamily: 'var(--font-mono, monospace)', letterSpacing: '-0.02em' }}>
+                  <LiveCounter value={ledgerTelemetry.totalCount} duration={850} /> <span style={{ fontSize: '0.80rem', color: 'var(--text-muted)' }}>Recorded</span>
                 </div>
                 <div style={{ fontSize: '0.74rem', color: '#38bdf8', fontWeight: 500 }}>
                   100% Sepolia EVM Audited
@@ -6143,17 +6143,17 @@ export default function OrganizationView({
               </div>
 
               {/* Stat 3: Payment Rails Breakdown */}
-              <div style={{ padding: '16px 20px', borderRight: '1px solid #222222', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <div style={{ padding: '16px 20px', borderRight: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: '4px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: '0.68rem', fontWeight: 600, color: '#888888', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                  <span style={{ fontSize: '0.68rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                     Payment Rails
                   </span>
                   <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#a78bfa' }}>account_balance_wallet</span>
                 </div>
-                <div style={{ fontSize: '1.45rem', fontWeight: 800, color: '#ededed', fontFamily: 'var(--font-mono, monospace)', letterSpacing: '-0.02em' }}>
-                  <LiveCounter value={ledgerTelemetry.railCounts.gcash + ledgerTelemetry.railCounts.maya + ledgerTelemetry.railCounts.bank} duration={850} /> <span style={{ fontSize: '0.80rem', color: '#888888' }}>PHP Donations</span>
+                <div style={{ fontSize: '1.45rem', fontWeight: 800, color: 'var(--text-primary)', fontFamily: 'var(--font-mono, monospace)', letterSpacing: '-0.02em' }}>
+                  <LiveCounter value={ledgerTelemetry.railCounts.gcash + ledgerTelemetry.railCounts.maya + ledgerTelemetry.railCounts.bank} duration={850} /> <span style={{ fontSize: '0.80rem', color: 'var(--text-muted)' }}>PHP Donations</span>
                 </div>
-                <div style={{ fontSize: '0.74rem', color: '#888888' }}>
+                <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>
                   GCash ({ledgerTelemetry.railCounts.gcash}) · Maya ({ledgerTelemetry.railCounts.maya}) · Bank/Card ({ledgerTelemetry.railCounts.bank})
                 </div>
               </div>
@@ -6168,15 +6168,15 @@ export default function OrganizationView({
                     background: pendingCount > 0 ? 'rgba(245, 158, 11, 0.04)' : 'transparent'
                   }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontSize: '0.68rem', fontWeight: 600, color: pendingCount > 0 ? '#f59e0b' : '#888888', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                      <span style={{ fontSize: '0.68rem', fontWeight: 600, color: pendingCount > 0 ? '#f59e0b' : 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                         Offline Verifications
                       </span>
                       <span className="material-symbols-outlined" style={{ fontSize: '18px', color: pendingCount > 0 ? '#f59e0b' : '#10b981' }}>
                         {pendingCount > 0 ? 'hourglass_top' : 'task_alt'}
                       </span>
                     </div>
-                    <div style={{ fontSize: '1.45rem', fontWeight: 800, color: pendingCount > 0 ? '#f59e0b' : '#ededed', fontFamily: 'var(--font-mono, monospace)' }}>
-                      {pendingCount} <span style={{ fontSize: '0.80rem', color: '#888888' }}>Pending</span>
+                    <div style={{ fontSize: '1.45rem', fontWeight: 800, color: pendingCount > 0 ? '#f59e0b' : 'var(--text-primary)', fontFamily: 'var(--font-mono, monospace)' }}>
+                      {pendingCount} <span style={{ fontSize: '0.80rem', color: 'var(--text-muted)' }}>Pending</span>
                     </div>
                     <div style={{ fontSize: '0.74rem', color: pendingCount > 0 ? '#f59e0b' : '#10b981', fontWeight: 500 }}>
                       {pendingCount > 0 ? 'Action required in review table' : 'All payment slips verified'}
@@ -6283,7 +6283,7 @@ export default function OrganizationView({
                       fontSize: '0.85rem'
                     }}>
                       <thead>
-                        <tr style={{ color: '#94a3b8', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.6px', fontWeight: 700 }}>
+                        <tr style={{ color: 'var(--text-muted)', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.6px', fontWeight: 700 }}>
                           <th style={{ padding: '8px 16px', textAlign: 'left', width: '20%' }}>Donor Identity</th>
                           <th style={{ padding: '8px 16px', textAlign: 'left', width: '24%' }}>Relief Campaign</th>
                           <th style={{ padding: '8px 16px', textAlign: 'left', width: '14%' }}>Payment Rail</th>
@@ -6602,7 +6602,7 @@ export default function OrganizationView({
               display: 'flex',
               alignItems: 'center',
               gap: '24px',
-              borderBottom: '1px solid #222222',
+              borderBottom: '1px solid var(--border)',
               marginBottom: '16px',
               overflowX: 'auto',
               scrollbarWidth: 'none'
@@ -6622,8 +6622,8 @@ export default function OrganizationView({
                     style={{
                       background: 'transparent',
                       border: 'none',
-                      borderBottom: isActive ? '2px solid #ededed' : '2px solid transparent',
-                      color: isActive ? '#ededed' : '#888888',
+                      borderBottom: isActive ? '2px solid var(--text-primary)' : '2px solid transparent',
+                      color: isActive ? 'var(--text-primary)' : 'var(--text-muted)',
                       padding: '10px 2px',
                       marginBottom: '-1px',
                       fontSize: '0.82rem',
@@ -6638,8 +6638,8 @@ export default function OrganizationView({
                   >
                     <span>{rail.label}</span>
                     <span style={{
-                      background: isActive ? '#262626' : '#181818',
-                      color: isActive ? '#ededed' : '#777777',
+                      background: isActive ? 'var(--bg-hover)' : 'var(--bg-inset)',
+                      color: isActive ? 'var(--text-primary)' : 'var(--text-muted)',
                       padding: '1px 7px',
                       borderRadius: '10px',
                       fontSize: '0.70rem',
@@ -6668,7 +6668,7 @@ export default function OrganizationView({
                   left: '10px',
                   top: '50%',
                   transform: 'translateY(-50%)',
-                  color: '#666666',
+                  color: 'var(--text-muted)',
                   fontSize: '16px',
                   pointerEvents: 'none'
                 }}>
@@ -6682,9 +6682,9 @@ export default function OrganizationView({
                   style={{
                     width: '100%',
                     height: '36px',
-                    background: '#0a0a0a',
-                    color: '#ededed',
-                    border: '1px solid #222222',
+                    background: 'var(--bg-input)',
+                    color: 'var(--text-primary)',
+                    border: '1px solid var(--border)',
                     borderRadius: '8px',
                     padding: '0 30px 0 32px',
                     fontSize: '0.82rem',
@@ -6703,7 +6703,7 @@ export default function OrganizationView({
                       transform: 'translateY(-50%)',
                       background: 'none',
                       border: 'none',
-                      color: '#888888',
+                      color: 'var(--text-muted)',
                       cursor: 'pointer',
                       padding: 0
                     }}
@@ -6721,9 +6721,9 @@ export default function OrganizationView({
                   onChange={(e) => { setLedgerFilter(e.target.value); setCurrentPageLedger(1); }}
                   style={{
                     height: '36px',
-                    background: '#0a0a0a',
-                    color: '#ededed',
-                    border: '1px solid #222222',
+                    background: 'var(--bg-input)',
+                    color: 'var(--text-primary)',
+                    border: '1px solid var(--border)',
                     borderRadius: '8px',
                     padding: '0 10px',
                     fontSize: '0.78rem',
@@ -6742,9 +6742,9 @@ export default function OrganizationView({
                   onChange={(e) => { setLedgerCampaignFilter(e.target.value); setCurrentPageLedger(1); }}
                   style={{
                     height: '36px',
-                    background: '#0a0a0a',
-                    color: '#ededed',
-                    border: '1px solid #222222',
+                    background: 'var(--bg-input)',
+                    color: 'var(--text-primary)',
+                    border: '1px solid var(--border)',
                     borderRadius: '8px',
                     padding: '0 10px',
                     fontSize: '0.78rem',
@@ -6765,9 +6765,9 @@ export default function OrganizationView({
                   onChange={(e) => setLedgerSort(e.target.value)}
                   style={{
                     height: '36px',
-                    background: '#0a0a0a',
-                    color: '#ededed',
-                    border: '1px solid #222222',
+                    background: 'var(--bg-input)',
+                    color: 'var(--text-primary)',
+                    border: '1px solid var(--border)',
                     borderRadius: '8px',
                     padding: '0 10px',
                     fontSize: '0.78rem',
@@ -6811,8 +6811,8 @@ export default function OrganizationView({
                 <div style={{
                   display: 'inline-flex',
                   alignItems: 'center',
-                  background: '#0a0a0a',
-                  border: '1px solid #222222',
+                  background: 'var(--bg-card)',
+                  border: '1px solid var(--border)',
                   borderRadius: '8px',
                   padding: '2px',
                   height: '36px',
@@ -6822,8 +6822,8 @@ export default function OrganizationView({
                     type="button"
                     onClick={() => setLedgerViewMode('cards')}
                     style={{
-                      background: ledgerViewMode === 'cards' ? '#222222' : 'transparent',
-                      color: ledgerViewMode === 'cards' ? '#ededed' : '#888888',
+                      background: ledgerViewMode === 'cards' ? 'var(--bg-hover)' : 'transparent',
+                      color: ledgerViewMode === 'cards' ? 'var(--text-primary)' : 'var(--text-muted)',
                       border: 'none',
                       borderRadius: '6px',
                       padding: '0 10px',
@@ -6843,8 +6843,8 @@ export default function OrganizationView({
                     type="button"
                     onClick={() => setLedgerViewMode('table')}
                     style={{
-                      background: ledgerViewMode === 'table' ? '#222222' : 'transparent',
-                      color: ledgerViewMode === 'table' ? '#ededed' : '#888888',
+                      background: ledgerViewMode === 'table' ? 'var(--bg-hover)' : 'transparent',
+                      color: ledgerViewMode === 'table' ? 'var(--text-primary)' : 'var(--text-muted)',
                       border: 'none',
                       borderRadius: '6px',
                       padding: '0 10px',
@@ -6927,21 +6927,21 @@ export default function OrganizationView({
                         alignItems: 'center',
                         gap: '16px',
                         padding: '14px 18px',
-                        background: isShortage ? 'linear-gradient(135deg, rgba(239, 68, 68, 0.05) 0%, #0a0a0a 100%)' : '#0a0a0a',
-                        border: isShortage ? '1px solid rgba(239, 68, 68, 0.45)' : (isOverCredit ? '1px solid rgba(245, 158, 11, 0.4)' : '1px solid #222222'),
+                        background: isShortage ? 'linear-gradient(135deg, rgba(239, 68, 68, 0.06) 0%, var(--bg-card) 100%)' : 'var(--bg-card)',
+                        border: isShortage ? '1px solid rgba(239, 68, 68, 0.45)' : (isOverCredit ? '1px solid rgba(245, 158, 11, 0.4)' : '1px solid var(--border)'),
                         borderRadius: '10px',
                         transition: 'border-color 0.15s ease, background-color 0.15s ease'
                       }}
-                      onMouseEnter={(e) => { e.currentTarget.style.borderColor = isShortage ? '#ef4444' : '#333333'; e.currentTarget.style.background = isShortage ? 'rgba(239, 68, 68, 0.08)' : '#0e0e0e'; }}
-                      onMouseLeave={(e) => { e.currentTarget.style.borderColor = isShortage ? 'rgba(239, 68, 68, 0.45)' : (isOverCredit ? 'rgba(245, 158, 11, 0.4)' : '#222222'); e.currentTarget.style.background = isShortage ? 'linear-gradient(135deg, rgba(239, 68, 68, 0.05) 0%, #0a0a0a 100%)' : '#0a0a0a'; }}
+                      onMouseEnter={(e) => { e.currentTarget.style.borderColor = isShortage ? '#ef4444' : 'var(--border-strong)'; e.currentTarget.style.background = isShortage ? 'rgba(239, 68, 68, 0.08)' : 'var(--bg-card-hover)'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.borderColor = isShortage ? 'rgba(239, 68, 68, 0.45)' : (isOverCredit ? 'rgba(245, 158, 11, 0.4)' : 'var(--border)'); e.currentTarget.style.background = isShortage ? 'linear-gradient(135deg, rgba(239, 68, 68, 0.06) 0%, var(--bg-card) 100%)' : 'var(--bg-card)'; }}
                     >
                       {/* Col 1: Payment Rail Avatar */}
                       <div style={{
                         width: '44px',
                         height: '44px',
                         borderRadius: '10px',
-                        background: isShortage ? 'rgba(239, 68, 68, 0.12)' : '#141414',
-                        border: isShortage ? '1px solid rgba(239, 68, 68, 0.3)' : '1px solid #262626',
+                        background: isShortage ? 'rgba(239, 68, 68, 0.12)' : 'var(--bg-inset)',
+                        border: isShortage ? '1px solid rgba(239, 68, 68, 0.3)' : '1px solid var(--border-strong)',
                         display: 'flex',
                         flexDirection: 'column',
                         alignItems: 'center',
@@ -7023,7 +7023,7 @@ export default function OrganizationView({
                           )}
 
                           {d.isAnonymous ? (
-                            <span style={{ background: '#1c1c1c', color: '#888888', fontSize: '0.66rem', padding: '1px 6px', borderRadius: '4px' }}>
+                            <span style={{ background: 'var(--bg-inset)', color: 'var(--text-muted)', fontSize: '0.66rem', padding: '1px 6px', borderRadius: '4px' }}>
                               Anonymous
                             </span>
                           ) : (
@@ -7037,29 +7037,29 @@ export default function OrganizationView({
                             fontWeight: 600,
                             padding: '1px 6px',
                             borderRadius: '4px',
-                            background: '#181818',
-                            color: '#888888',
-                            border: '1px solid #262626'
+                            background: 'var(--bg-inset)',
+                            color: 'var(--text-muted)',
+                            border: '1px solid var(--border-strong)'
                           }}>
                             {method}
                           </span>
                         </div>
 
-                        <h4 style={{ margin: '0 0 4px 0', fontSize: '0.94rem', color: '#ededed', fontWeight: 600, lineHeight: 1.3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        <h4 style={{ margin: '0 0 4px 0', fontSize: '0.94rem', color: 'var(--text-primary)', fontWeight: 600, lineHeight: 1.3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                           {campTitle}
                         </h4>
 
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.75rem', color: '#888888', flexWrap: 'wrap' }}>
-                          <span>Donor: <strong style={{ color: '#cccccc' }}>{donorDisplay}</strong></span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.75rem', color: 'var(--text-muted)', flexWrap: 'wrap' }}>
+                          <span>Donor: <strong style={{ color: 'var(--text-secondary)' }}>{donorDisplay}</strong></span>
                           {d.donorWallet && (
-                            <span>Wallet: <code style={{ fontSize: '0.70rem', background: '#181818', padding: '1px 5px', borderRadius: '4px', color: '#aaaaaa' }}>{shortAddr(d.donorWallet)}</code></span>
+                            <span>Wallet: <code style={{ fontSize: '0.70rem', background: 'var(--bg-inset)', padding: '1px 5px', borderRadius: '4px', color: 'var(--text-secondary)' }}>{shortAddr(d.donorWallet)}</code></span>
                           )}
-                          <span style={{ color: '#444444' }}>•</span>
+                          <span style={{ color: 'var(--border-strong)' }}>•</span>
                           <span>{d.createdAt ? new Date(d.createdAt).toLocaleString() : 'Audited On-Chain'}</span>
                           {d.txHash && (
                             <>
-                              <span style={{ color: '#444444' }}>•</span>
-                              <span style={{ fontFamily: 'monospace', color: '#777777', fontSize: '0.70rem' }}>
+                              <span style={{ color: 'var(--border-strong)' }}>•</span>
+                              <span style={{ fontFamily: 'monospace', color: 'var(--text-muted)', fontSize: '0.70rem' }}>
                                 Tx: {d.txHash.slice(0, 10)}...{d.txHash.slice(-6)}
                               </span>
                             </>
@@ -7078,7 +7078,7 @@ export default function OrganizationView({
                         }}>
                           +₱{phpVal.toLocaleString('en-US')}
                         </div>
-                        <div style={{ fontSize: '0.74rem', color: '#888888', fontWeight: 500, marginTop: '2px' }}>
+                        <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', fontWeight: 500, marginTop: '2px' }}>
                           Sepolia Audited
                         </div>
                         {hasVariance && (
@@ -7100,9 +7100,9 @@ export default function OrganizationView({
                           type="button"
                           onClick={() => setSelectedVoucherTx(d)}
                           style={{
-                            background: '#141414',
-                            border: '1px solid #262626',
-                            color: '#ededed',
+                            background: 'var(--bg-inset)',
+                            border: '1px solid var(--border-strong)',
+                            color: 'var(--text-primary)',
                             borderRadius: '6px',
                             padding: '6px 10px',
                             fontSize: '0.72rem',
@@ -7127,8 +7127,8 @@ export default function OrganizationView({
                           }}
                           style={{
                             background: 'transparent',
-                            border: '1px solid #222222',
-                            color: '#888888',
+                            border: '1px solid var(--border)',
+                            color: 'var(--text-muted)',
                             borderRadius: '6px',
                             padding: '6px 8px',
                             fontSize: '0.72rem',
@@ -7150,8 +7150,8 @@ export default function OrganizationView({
                             rel="noreferrer"
                             style={{
                               background: 'transparent',
-                              border: '1px solid #222222',
-                              color: '#888888',
+                              border: '1px solid var(--border)',
+                              color: 'var(--text-muted)',
                               borderRadius: '6px',
                               padding: '6px 8px',
                               fontSize: '0.72rem',
@@ -7174,24 +7174,24 @@ export default function OrganizationView({
             ) : (
               /* ── AUDIT TABLE VIEW: Vercel Dark Theme ── */
               <div style={{
-                background: '#0a0a0a',
+                background: 'var(--bg-card)',
                 borderRadius: '10px',
-                border: '1px solid #222222',
+                border: '1px solid var(--border)',
                 overflow: 'hidden'
               }}>
                 <div style={{ overflowX: 'auto' }}>
                   <table style={{ width: '100%', minWidth: '920px', fontSize: '0.82rem', borderCollapse: 'collapse' }}>
                     <thead>
-                      <tr style={{ background: '#111111', borderBottom: '1px solid #222222' }}>
-                        <th style={{ padding: '10px 14px', color: '#888888', fontSize: '0.70rem', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'left' }}>Tx Hash</th>
-                        <th style={{ padding: '10px 14px', color: '#888888', fontSize: '0.70rem', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'left' }}>Timestamp</th>
-                        <th style={{ padding: '10px 14px', color: '#888888', fontSize: '0.70rem', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'left' }}>Campaign</th>
-                        <th style={{ padding: '10px 14px', color: '#888888', fontSize: '0.70rem', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'left' }}>Donor</th>
-                        <th style={{ padding: '10px 14px', color: '#888888', fontSize: '0.70rem', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'left' }}>Rail</th>
-                        <th style={{ padding: '10px 14px', color: '#888888', fontSize: '0.70rem', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'left' }}>Amount Credited</th>
-                        <th style={{ padding: '10px 14px', color: '#888888', fontSize: '0.70rem', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'left' }}>Audit Status</th>
-                        <th style={{ padding: '10px 14px', color: '#888888', fontSize: '0.70rem', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'left' }}>On-Chain Equivalent</th>
-                        <th style={{ padding: '10px 14px', color: '#888888', fontSize: '0.70rem', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'right' }}>Action</th>
+                      <tr style={{ background: 'var(--bg-subcard)', borderBottom: '1px solid var(--border)' }}>
+                        <th style={{ padding: '10px 14px', color: 'var(--text-muted)', fontSize: '0.70rem', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'left' }}>Tx Hash</th>
+                        <th style={{ padding: '10px 14px', color: 'var(--text-muted)', fontSize: '0.70rem', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'left' }}>Timestamp</th>
+                        <th style={{ padding: '10px 14px', color: 'var(--text-muted)', fontSize: '0.70rem', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'left' }}>Campaign</th>
+                        <th style={{ padding: '10px 14px', color: 'var(--text-muted)', fontSize: '0.70rem', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'left' }}>Donor</th>
+                        <th style={{ padding: '10px 14px', color: 'var(--text-muted)', fontSize: '0.70rem', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'left' }}>Rail</th>
+                        <th style={{ padding: '10px 14px', color: 'var(--text-muted)', fontSize: '0.70rem', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'left' }}>Amount Credited</th>
+                        <th style={{ padding: '10px 14px', color: 'var(--text-muted)', fontSize: '0.70rem', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'left' }}>Audit Status</th>
+                        <th style={{ padding: '10px 14px', color: 'var(--text-muted)', fontSize: '0.70rem', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'left' }}>On-Chain Equivalent</th>
+                        <th style={{ padding: '10px 14px', color: 'var(--text-muted)', fontSize: '0.70rem', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'right' }}>Action</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -7209,8 +7209,8 @@ export default function OrganizationView({
                         const hasVariance = isShortage || isOverCredit;
 
                         return (
-                          <tr key={idx} style={{ borderBottom: '1px solid #1a1a1a', background: isShortage ? 'rgba(239, 68, 68, 0.03)' : 'transparent', transition: 'background-color 0.15s ease' }}
-                            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = isShortage ? 'rgba(239, 68, 68, 0.08)' : '#111111'; }}
+                          <tr key={idx} style={{ borderBottom: '1px solid var(--border-subtle, var(--border))', background: isShortage ? 'rgba(239, 68, 68, 0.03)' : 'transparent', transition: 'background-color 0.15s ease' }}
+                            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = isShortage ? 'rgba(239, 68, 68, 0.08)' : 'var(--bg-hover)'; }}
                             onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = isShortage ? 'rgba(239, 68, 68, 0.03)' : 'transparent'; }}
                           >
                             <td style={{ padding: '12px 14px', fontFamily: 'monospace', fontSize: '0.75rem' }}>
@@ -7224,26 +7224,26 @@ export default function OrganizationView({
                                     navigator.clipboard.writeText(d.txHash);
                                     showSuccess('Transaction hash copied!', 'Copied');
                                   }}
-                                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#666666', padding: 0 }}
+                                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 0 }}
                                   title="Copy Hash"
                                 >
                                   <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>content_copy</span>
                                 </button>
                               </div>
                             </td>
-                            <td style={{ padding: '12px 14px', color: '#888888', fontSize: '0.76rem' }}>
+                            <td style={{ padding: '12px 14px', color: 'var(--text-muted)', fontSize: '0.76rem' }}>
                               {d.createdAt ? new Date(d.createdAt).toLocaleString() : 'Audited'}
                             </td>
-                            <td style={{ padding: '12px 14px', fontWeight: 500, color: '#ededed', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            <td style={{ padding: '12px 14px', fontWeight: 500, color: 'var(--text-primary)', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                               {campTitle}
                             </td>
                             <td style={{ padding: '12px 14px' }}>
-                              <span style={{ color: d.isAnonymous ? '#777777' : '#ededed', fontWeight: d.isAnonymous ? 400 : 600 }}>
+                              <span style={{ color: d.isAnonymous ? 'var(--text-muted)' : 'var(--text-primary)', fontWeight: d.isAnonymous ? 400 : 600 }}>
                                 {donor}
                               </span>
                             </td>
                             <td style={{ padding: '12px 14px' }}>
-                              <span style={{ padding: '2px 7px', borderRadius: '4px', background: '#181818', border: '1px solid #262626', fontSize: '0.70rem', color: '#cccccc', fontWeight: 600 }}>
+                              <span style={{ padding: '2px 7px', borderRadius: '4px', background: 'var(--bg-inset)', border: '1px solid var(--border-strong)', fontSize: '0.70rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
                                 {d.paymentMethod || 'Bank / Card'}
                               </span>
                             </td>
@@ -7308,7 +7308,7 @@ export default function OrganizationView({
                                 </span>
                               )}
                             </td>
-                            <td style={{ padding: '12px 14px', color: '#888888', fontSize: '0.75rem' }}>
+                            <td style={{ padding: '12px 14px', color: 'var(--text-muted)', fontSize: '0.75rem' }}>
                               Sepolia Audited
                             </td>
                             <td style={{ padding: '12px 14px', textAlign: 'right' }}>
@@ -7317,9 +7317,9 @@ export default function OrganizationView({
                                   type="button"
                                   onClick={() => setSelectedVoucherTx(d)}
                                   style={{
-                                    background: '#141414',
-                                    border: '1px solid #262626',
-                                    color: '#ededed',
+                                    background: 'var(--bg-inset)',
+                                    border: '1px solid var(--border-strong)',
+                                    color: 'var(--text-primary)',
                                     borderRadius: '4px',
                                     padding: '4px 8px',
                                     fontSize: '0.70rem',
@@ -7335,7 +7335,7 @@ export default function OrganizationView({
                                     target="_blank"
                                     rel="noreferrer"
                                     style={{
-                                      color: '#888888',
+                                      color: 'var(--text-muted)',
                                       fontSize: '0.70rem',
                                       textDecoration: 'none',
                                       display: 'inline-flex',
