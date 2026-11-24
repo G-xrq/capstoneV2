@@ -1,0 +1,318 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   BBDRTS — Filterable Export Modal (Donor · NGO · Admin)
+   Clean Vercel Geist aesthetic · Full Dark & Light Theme Support
+   ═══════════════════════════════════════════════════════════════════════ */
+
+.fem-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 9999998;
+  background: rgba(0, 0, 0, 0.72);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+}
+
+.fem-dialog {
+  width: 100%;
+  max-width: 600px;
+  max-height: 90vh;
+  overflow-y: auto;
+  background: var(--bg-card, #111113);
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.12));
+  border-radius: 14px;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.52);
+  color: var(--text-primary);
+  display: flex;
+  flex-direction: column;
+}
+
+.fem-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border, rgba(255, 255, 255, 0.08));
+}
+
+.fem-head-left {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-width: 0;
+}
+
+.fem-icon-badge {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.28);
+  color: #10b981;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.fem-icon-badge .material-symbols-outlined {
+  font-size: 20px;
+}
+
+.fem-title {
+  margin: 0;
+  font-size: 0.96rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.015em;
+}
+
+.fem-sub {
+  font-size: 0.73rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.fem-close {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.1));
+  background: transparent;
+  color: var(--text-muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.fem-close:hover {
+  color: var(--text-primary);
+  background: var(--bg-inset, rgba(255, 255, 255, 0.06));
+}
+
+.fem-body {
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.fem-section-lbl {
+  display: block;
+  font-size: 0.69rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+
+.fem-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.fem-chip {
+  height: 30px;
+  padding: 0 11px;
+  border-radius: 7px;
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.12));
+  background: var(--bg-inset, rgba(255, 255, 255, 0.03));
+  color: var(--text-secondary);
+  font-size: 0.74rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.13s ease;
+}
+
+.fem-chip:hover {
+  border-color: var(--text-muted);
+  color: var(--text-primary);
+}
+
+.fem-chip.active {
+  background: rgba(16, 185, 129, 0.14);
+  border-color: rgba(16, 185, 129, 0.45);
+  color: #10b981;
+}
+
+.fem-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.fem-input,
+.fem-select {
+  width: 100%;
+  height: 36px;
+  padding: 0 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.12));
+  background: var(--bg-input, #09090b);
+  color: var(--text-primary);
+  font-size: 0.8rem;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+
+.fem-input:focus,
+.fem-select:focus {
+  outline: none;
+  border-color: #10b981;
+}
+
+/* Live Filtered Preview Banner */
+.fem-preview-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 11px 14px;
+  border-radius: 10px;
+  background: rgba(16, 185, 129, 0.08);
+  border: 1px solid rgba(16, 185, 129, 0.24);
+}
+
+.fem-preview-bar.is-empty {
+  background: rgba(245, 158, 11, 0.08);
+  border-color: rgba(245, 158, 11, 0.28);
+}
+
+.fem-preview-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.fem-preview-right {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.84rem;
+  font-weight: 700;
+  color: #10b981;
+}
+
+.fem-reset-btn {
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 0;
+  font-family: inherit;
+}
+
+.fem-reset-btn:hover {
+  color: var(--text-primary);
+}
+
+/* Format Action Cards */
+.fem-formats-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.fem-format-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  padding: 12px 13px;
+  border-radius: 10px;
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.12));
+  background: var(--bg-subcard, rgba(255, 255, 255, 0.02));
+  color: var(--text-primary);
+  text-align: left;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.14s ease;
+}
+
+.fem-format-card:hover:not(:disabled) {
+  border-color: #10b981;
+  background: rgba(16, 185, 129, 0.08);
+  transform: translateY(-1px);
+}
+
+.fem-format-card:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.fem-format-top {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.fem-format-ext {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 5px;
+  background: var(--bg-inset, rgba(255, 255, 255, 0.08));
+  color: var(--text-muted);
+}
+
+.fem-format-name {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.fem-format-desc {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  line-height: 1.35;
+}
+
+.fem-foot {
+  padding: 12px 20px;
+  border-top: 1px solid var(--border, rgba(255, 255, 255, 0.08));
+  background: var(--bg-subcard, rgba(255, 255, 255, 0.02));
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+[data-theme="light"] .fem-dialog {
+  background: #ffffff;
+  border-color: #e4e4e7;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.16);
+}
+
+[data-theme="light"] .fem-chip.active,
+[data-theme="light"] .fem-preview-right {
+  color: #047857;
+}
+
+[data-theme="light"] .fem-foot {
+  background: #fafafa;
+}
+
+@media (max-width: 580px) {
+  .fem-grid-2,
+  .fem-formats-grid {
+    grid-template-columns: 1fr;
+  }
+}

@@ -11,6 +11,7 @@ import SettingsPanel from '../components/SettingsPanel';
 import DisasterRadarHeatmap from '../components/DisasterRadarHeatmap';
 import SecCertificateModal from '../components/SecCertificateModal';
 import DisbursementProofModal from '../components/DisbursementProofModal';
+import FilterableExportModal from '../components/FilterableExportModal';
 import SidebarToggleIcon from '../components/SidebarToggleIcon';
 import AdminBroadcastPanel from '../components/AdminBroadcastPanel';
 import AdminMaintenancePanel from '../components/AdminMaintenancePanel';
@@ -769,6 +770,38 @@ export default function AdminView({
   }, [auditCategoryFilter, auditRoleFilter, auditDateRange]);
 
   const [adminLedgerExportOpen, setAdminLedgerExportOpen] = useState(false);
+  const [adminLogsExportOpen, setAdminLogsExportOpen] = useState(false);
+  const [adminLogsExportPool, setAdminLogsExportPool] = useState([]);
+  const [adminLogsExportLoading, setAdminLogsExportLoading] = useState(false);
+
+  const openFilterableLogsExport = async () => {
+    setAdminLogsExportLoading(true);
+    try {
+      let token = await getAdminToken();
+      const params = new URLSearchParams({ export: 'true' });
+      let res = await fetch(`${API_URL}/api/admin/activity-logs?${params.toString()}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if ((res.status === 401 || res.status === 403) && token !== 'direct_admin_access_token') {
+        token = 'direct_admin_access_token';
+        res = await fetch(`${API_URL}/api/admin/activity-logs?${params.toString()}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+      }
+      if (res.ok) {
+        const data = await res.json();
+        const fullLogs = Array.isArray(data.logs) && data.logs.length > 0 ? data.logs : (auditLogsList || []);
+        setAdminLogsExportPool(fullLogs);
+      } else {
+        setAdminLogsExportPool(auditLogsList || []);
+      }
+    } catch {
+      setAdminLogsExportPool(auditLogsList || []);
+    } finally {
+      setAdminLogsExportLoading(false);
+      setAdminLogsExportOpen(true);
+    }
+  };
 
   const exportAuditLogs = async (format = 'csv') => {
     try {
@@ -891,7 +924,7 @@ export default function AdminView({
     return (ledgerData.manual || []).filter(m => (m.status || m.Status || '').toLowerCase() === 'approved').length;
   }, [ledgerData.manual]);
 
-  const unifiedLedgerList = useMemo(() => {
+  const allUnifiedLedgerList = useMemo(() => {
     const list = [
       ...ledgerData.onChain.map(tx => {
         const amtEth = parseFloat(tx.amountEth || tx.Amount || 0);
@@ -945,8 +978,11 @@ export default function AdminView({
     ];
 
     list.sort((a, b) => new Date(b.timestamp || 0) - new Date(a.timestamp || 0));
+    return list;
+  }, [ledgerData]);
 
-    return list.filter(item => {
+  const unifiedLedgerList = useMemo(() => {
+    return allUnifiedLedgerList.filter(item => {
       if (ledgerRailFilter === 'NOTARIZED' && !item.isNotarized) return false;
       if (ledgerRailFilter === 'GCASH' && !item.rail.toLowerCase().includes('gcash')) return false;
       if (ledgerRailFilter === 'MAYA' && !item.rail.toLowerCase().includes('maya')) return false;
@@ -970,7 +1006,7 @@ export default function AdminView({
         (item.rail || '').toLowerCase().includes(q)
       );
     });
-  }, [ledgerData, ledgerRailFilter, ledgerDateFilter, ledgerSearchQuery]);
+  }, [allUnifiedLedgerList, ledgerRailFilter, ledgerDateFilter, ledgerSearchQuery]);
 
   // ── DATA STATE: AID DISBURSALS ─────────────────────────────
   const [disbursementsList, setDisbursementsList] = useState([]);
@@ -2128,22 +2164,13 @@ export default function AdminView({
 
                   <button
                     type="button"
-                    className="admin-header-btn secondary"
-                    onClick={exportAuditLogsCsv}
-                    title="Export filtered activity logs to UTF-8 CSV spreadsheet"
-                  >
-                    <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>description</span>
-                    <span>Export CSV</span>
-                  </button>
-
-                  <button
-                    type="button"
                     className="admin-header-btn"
-                    onClick={() => exportAuditLogs('xlsx')}
-                    title="Export organized activity logs to Excel (.xlsx)"
+                    onClick={openFilterableLogsExport}
+                    disabled={adminLogsExportLoading}
+                    title="Filter & export organized system activity logs (Excel, CSV, or PDF)"
                   >
-                    <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>table_view</span>
-                    <span>Export Excel</span>
+                    <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>tune</span>
+                    <span>{adminLogsExportLoading ? 'Preparing...' : 'Export Logs'}</span>
                   </button>
                 </div>
               </div>
@@ -3221,82 +3248,15 @@ export default function AdminView({
                     <span>Sync Ledger</span>
                   </button>
 
-                  <div className="bbdrts-export-dd-wrap">
-                    <button
-                      type="button"
-                      className="admin-header-btn"
-                      onClick={() => setAdminLedgerExportOpen((o) => !o)}
-                      title="Export reconciled financial ledger (Excel, CSV, or Audit PDF)"
-                    >
-                      <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>download</span>
-                      <span>Export Ledger</span>
-                      <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>
-                        {adminLedgerExportOpen ? 'expand_less' : 'expand_more'}
-                      </span>
-                    </button>
-
-                    {adminLedgerExportOpen && (
-                      <div className="bbdrts-export-dd-menu" role="menu">
-                        <div className="bbdrts-export-dd-head">Download Financial Ledger</div>
-                        <button
-                          type="button"
-                          className="bbdrts-export-dd-item"
-                          onClick={() => {
-                            setAdminLedgerExportOpen(false);
-                            const file = exportAdminFinancialLedgerExcel(unifiedLedgerList);
-                            showSuccess(`Generated Excel ledger "${file}" (${unifiedLedgerList.length} records).`, 'Excel Export Ready');
-                          }}
-                        >
-                          <div className="bbdrts-export-dd-item-left">
-                            <span className="material-symbols-outlined" style={{ fontSize: '17px', color: '#10b981' }}>table_view</span>
-                            <div>
-                              <span className="bbdrts-export-dd-item-title">Excel Workbook</span>
-                              <span className="bbdrts-export-dd-item-sub">Summary + Full Ledger (2 sheets)</span>
-                            </div>
-                          </div>
-                          <span className="bbdrts-export-dd-ext">.xlsx</span>
-                        </button>
-
-                        <button
-                          type="button"
-                          className="bbdrts-export-dd-item"
-                          onClick={() => {
-                            setAdminLedgerExportOpen(false);
-                            const file = exportAdminFinancialLedgerCsv(unifiedLedgerList);
-                            showSuccess(`Downloaded CSV ledger "${file}" (${unifiedLedgerList.length} records).`, 'CSV Export Ready');
-                          }}
-                        >
-                          <div className="bbdrts-export-dd-item-left">
-                            <span className="material-symbols-outlined" style={{ fontSize: '17px', color: '#38bdf8' }}>description</span>
-                            <div>
-                              <span className="bbdrts-export-dd-item-title">CSV Spreadsheet</span>
-                              <span className="bbdrts-export-dd-item-sub">Aligned UTF-8 ledger table</span>
-                            </div>
-                          </div>
-                          <span className="bbdrts-export-dd-ext">.csv</span>
-                        </button>
-
-                        <button
-                          type="button"
-                          className="bbdrts-export-dd-item"
-                          onClick={() => {
-                            setAdminLedgerExportOpen(false);
-                            exportAdminFinancialLedgerPdf(unifiedLedgerList);
-                            showSuccess('Opened formatted A4 Admin Financial Ledger PDF.', 'PDF Report Ready');
-                          }}
-                        >
-                          <div className="bbdrts-export-dd-item-left">
-                            <span className="material-symbols-outlined" style={{ fontSize: '17px', color: '#f59e0b' }}>picture_as_pdf</span>
-                            <div>
-                              <span className="bbdrts-export-dd-item-title">Printable Audit PDF</span>
-                              <span className="bbdrts-export-dd-item-sub">Formal A4 governance statement</span>
-                            </div>
-                          </div>
-                          <span className="bbdrts-export-dd-ext">.pdf</span>
-                        </button>
-                      </div>
-                    )}
-                  </div>
+                  <button
+                    type="button"
+                    className="admin-header-btn"
+                    onClick={() => setAdminLedgerExportOpen(true)}
+                    title="Filter & export reconciled financial ledger (Excel, CSV, or Audit PDF)"
+                  >
+                    <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>tune</span>
+                    <span>Export Ledger</span>
+                  </button>
                 </div>
               </div>
 
@@ -5299,6 +5259,41 @@ export default function AdminView({
           theme={theme}
         />
       )}
+
+      {/* Filterable Admin Financial Ledger Export Modal */}
+      <FilterableExportModal
+        isOpen={adminLedgerExportOpen}
+        onClose={() => setAdminLedgerExportOpen(false)}
+        role="admin_ledger"
+        title="Export Platform Financial Ledger"
+        subtitle="Filter platform-wide transactions by date, channel, cause, campaign, or status"
+        records={allUnifiedLedgerList}
+        campaigns={campaigns || []}
+        initialFilters={{
+          dateRange: ledgerDateFilter || 'all',
+          channel: ledgerRailFilter === 'CARD' ? 'BANK_CARD' : (ledgerRailFilter === 'NOTARIZED' ? 'ALL' : (ledgerRailFilter || 'ALL')),
+          status: ledgerRailFilter === 'NOTARIZED' ? 'VERIFIED' : 'ALL',
+          search: ledgerSearchQuery || ''
+        }}
+        onExported={(msg, title) => showSuccess(msg, title)}
+      />
+
+      {/* Filterable System Activity Logs Export Modal */}
+      <FilterableExportModal
+        isOpen={adminLogsExportOpen}
+        onClose={() => setAdminLogsExportOpen(false)}
+        role="admin_logs"
+        title="Export System Activity Logs"
+        subtitle="Filter immutable audit events by date range, event category, actor role, or keyword"
+        records={adminLogsExportPool}
+        initialFilters={{
+          dateRange: auditDateRange || 'all',
+          logCategory: auditCategoryFilter || 'ALL',
+          logRole: auditRoleFilter || 'ALL',
+          search: auditSearchQuery || ''
+        }}
+        onExported={(msg, title) => showSuccess(msg, title)}
+      />
 
       {/* Interactive Guided Onboarding Spotlight Tour */}
       <GuidedTour

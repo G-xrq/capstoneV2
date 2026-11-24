@@ -252,10 +252,10 @@ export default function BarangayCombobox({
             left: 0,
             right: 0,
             zIndex: 60,
-            background: isEdit ? '#111113' : 'var(--bg-elevated, #111113)',
-            border: `1px solid ${isEdit ? 'rgba(255,255,255,0.12)' : 'var(--border, rgba(255,255,255,0.12))'}`,
+            background: 'var(--bg-card)',
+            border: '1px solid var(--border-strong, var(--border))',
             borderRadius: '10px',
-            boxShadow: '0 12px 32px rgba(0, 0, 0, 0.35)',
+            boxShadow: 'var(--shadow-dropdown, 0 12px 32px rgba(0, 0, 0, 0.22))',
             overflow: 'hidden'
           }}
         >
@@ -264,8 +264,9 @@ export default function BarangayCombobox({
               padding: '6px 10px',
               fontSize: '0.68rem',
               fontWeight: 600,
-              color: isEdit ? '#a1a1aa' : 'var(--text-muted)',
-              borderBottom: `1px solid ${isEdit ? 'rgba(255,255,255,0.08)' : 'var(--border, rgba(255,255,255,0.08))'}`,
+              color: 'var(--text-muted)',
+              background: 'var(--bg-subcard, var(--bg-inset))',
+              borderBottom: '1px solid var(--border)',
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'center',
@@ -273,7 +274,7 @@ export default function BarangayCombobox({
             }}
           >
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-              <span className="material-symbols-outlined" style={{ fontSize: '13px', color: '#22c55e' }}>verified</span>
+              <span className="material-symbols-outlined" style={{ fontSize: '13px', color: '#10b981' }}>verified</span>
               <span>{source || 'PSA PSGC'} Official List</span>
             </span>
             <span>{filtered.length} / {options.length}</span>
@@ -281,7 +282,7 @@ export default function BarangayCombobox({
 
           <div style={{ maxHeight: '210px', overflowY: 'auto', padding: '4px' }}>
             {filtered.length === 0 ? (
-              <div style={{ padding: '10px', fontSize: '0.76rem', color: isEdit ? '#71717a' : 'var(--text-muted)', textAlign: 'center' }}>
+              <div style={{ padding: '10px', fontSize: '0.76rem', color: 'var(--text-muted)', textAlign: 'center' }}>
                 No matching barangay in {city}. You can still keep your typed entry.
               </div>
             ) : (
@@ -304,15 +305,13 @@ export default function BarangayCombobox({
                       borderRadius: '6px',
                       border: 'none',
                       background: isSelected
-                        ? 'rgba(34, 197, 94, 0.14)'
+                        ? 'rgba(16, 185, 129, 0.14)'
                         : isActive
-                          ? (isEdit ? 'rgba(255,255,255,0.07)' : 'var(--bg-hover, rgba(128,128,128,0.12))')
+                          ? 'var(--bg-hover)'
                           : 'transparent',
                       color: isSelected
-                        ? '#22c55e'
-                        : isEdit
-                          ? '#ededed'
-                          : 'var(--text-primary)',
+                        ? '#10b981'
+                        : 'var(--text-primary)',
                       fontSize: '0.8rem',
                       fontWeight: isSelected ? 600 : 500,
                       cursor: 'pointer',

@@ -51,6 +51,7 @@ html:not(.bbdrts-icons-ready) .material-symbols-outlined {
 /* --- Default & Light Theme: Clean White, Crisp Neutral Borders, Minimalist SaaS Polish --- */
 :root,
 [data-theme="light"] {
+  color-scheme: light;
   --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, system-ui, sans-serif;
   --font-mono: ui-monospace, 'SF Mono', 'Geist Mono', Menlo, Consolas, monospace;
 
@@ -115,6 +116,7 @@ html:not(.bbdrts-icons-ready) .material-symbols-outlined {
 
 /* --- Dark Theme: Deep Charcoal / Near-Black Comfortable Contrast --- */
 [data-theme="dark"] {
+  color-scheme: dark;
   /* Vercel Dark Surfaces */
   --bg-base:        #000000; /* Deep Obsidian Base */
   --bg-surface:     #0a0a0a; /* Sticky Header & Nav */
@@ -412,6 +414,17 @@ button:disabled {
 .input:focus {
   border-color: var(--border-focus);
   box-shadow: 0 0 0 1px var(--border-focus);
+}
+
+.input:-webkit-autofill,
+.input:-webkit-autofill:hover,
+.input:-webkit-autofill:focus,
+.input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px var(--bg-input) inset !important;
+  box-shadow: 0 0 0 1000px var(--bg-input) inset !important;
+  -webkit-text-fill-color: var(--text-primary) !important;
+  caret-color: var(--text-primary) !important;
+  transition: background-color 5000s ease-in-out 0s;
 }
 
 .input:disabled {

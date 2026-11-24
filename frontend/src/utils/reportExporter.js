@@ -64,8 +64,16 @@ function writeCsvRows(rows, filename) {
 
 export function resolveDonationPhp(d) {
   if (!d) return 0;
+  const isShortage = d.auditStatus === 'SHORTAGE' || Number(d.variancePhp || 0) < -20;
   const direct = Number(d.phpAmount ?? d.amountPhp ?? d.Amount_Php ?? d.Confirmed_Amount ?? 0);
   if (Number.isFinite(direct) && direct > 0) return Math.round(direct);
+  const declared = Number(d.declaredPhp || 0);
+  const credited = Number(d.creditedPhp || 0);
+  if (!isShortage && declared > 0 && credited > 0 && Math.abs(declared - credited) <= 20) {
+    return Math.round(declared);
+  }
+  if (credited > 0) return Math.round(credited);
+  if (declared > 0) return Math.round(declared);
   const rawAmt = parseFloat(d.amount ?? d.Amount ?? d.amountEth ?? 0);
   if (!Number.isFinite(rawAmt) || rawAmt <= 0) return 0;
   return rawAmt >= 20 ? Math.round(rawAmt) : Math.round(rawAmt * 170000);
@@ -905,7 +913,7 @@ function normalizeDonorRows(donations = [], campaigns = []) {
   });
 }
 
-export function exportDonorReportExcel({ donorName = 'Verified Donor', donorEmail = '', donations = [], campaigns = [] }) {
+export function exportDonorReportExcel({ donorName = 'Verified Donor', donorEmail = '', donations = [], campaigns = [], filterSummary = 'All Records' }) {
   const rows = normalizeDonorRows(donations, campaigns);
   const totalPhp = rows.reduce((s, r) => s + r.php, 0);
   const uniqueCampaigns = new Set(rows.map((r) => String(r.campaignId))).size;
@@ -927,6 +935,7 @@ export function exportDonorReportExcel({ donorName = 'Verified Donor', donorEmai
     [],
     ['SUMMARY METRIC', 'VALUE', 'DETAILS'],
     ['Donor Name', donorName, donorEmail || 'Verified BBDRTS Donor Account'],
+    ['Filters Applied', filterSummary || 'All Records', 'Exact scope included in this workbook'],
     ['Total Verified Contributions', fmtPhp(totalPhp), `${rows.length} donation receipt${rows.length === 1 ? '' : 's'} notarized on Ethereum Sepolia`],
     ['Campaigns Supported', `${uniqueCampaigns} Campaign${uniqueCampaigns === 1 ? '' : 's'}`, 'Across SEC-accredited Philippine NGOs'],
     ['Average Donation', fmtPhp(rows.length > 0 ? totalPhp / rows.length : 0), 'Mean contribution per verified receipt'],
@@ -947,7 +956,7 @@ export function exportDonorReportExcel({ donorName = 'Verified Donor', donorEmai
     { s: { r: 1, c: 0 }, e: { r: 1, c: 2 } }
   ];
   autoSizeSheet(wsSum, summaryRows, 4);
-  applyPhpAndPctFormats(wsSum, [2], [], 10);
+  applyPhpAndPctFormats(wsSum, [2], [], 11);
   XLSX.utils.book_append_sheet(wb, wsSum, 'Donor Summary');
 
   // Sheet 2: Itemized Donation Receipts
@@ -1022,7 +1031,7 @@ export function exportDonorReportCsv({ donations = [], campaigns = [] }) {
   return writeCsvRows(csvRows, `BBDRTS_Donor_Receipts_${new Date().toISOString().slice(0, 10)}.csv`);
 }
 
-export function exportDonorPrintableReport({ donorName = 'Verified Donor', donorEmail = '', donations = [], campaigns = [] }) {
+export function exportDonorPrintableReport({ donorName = 'Verified Donor', donorEmail = '', donations = [], campaigns = [], filterSummary = 'All Records' }) {
   const rows = normalizeDonorRows(donations, campaigns);
   const totalPhp = rows.reduce((s, r) => s + r.php, 0);
   const uniqueCampaigns = new Set(rows.map((r) => String(r.campaignId))).size;
@@ -1068,7 +1077,7 @@ export function exportDonorPrintableReport({ donorName = 'Verified Donor', donor
       <div>
         <div class="brand">BBDRTS · Official Donor Contribution Statement</div>
         <h1>Verified Philanthropy &amp; Relief Audit Report</h1>
-        <div class="sub">Donor: <strong>${escHtml(donorName)}</strong>${donorEmail ? ` · ${escHtml(donorEmail)}` : ''}</div>
+        <div class="sub">Donor: <strong>${escHtml(donorName)}</strong>${donorEmail ? ` · ${escHtml(donorEmail)}` : ''} · Scope: <strong>${escHtml(filterSummary || 'All Records')}</strong></div>
       </div>
       <div class="meta-right">
         <div><strong>Generated:</strong> ${escHtml(formatPhtNow())}</div>
@@ -1168,7 +1177,7 @@ export function exportNgoLedgerCsv({ orgName = 'NGO', donations = [], campaigns 
   return writeCsvRows(csvRows, `BBDRTS_${safeOrg}_Ledger_${new Date().toISOString().slice(0, 10)}.csv`);
 }
 
-export function exportNgoLedgerExcel({ orgName = 'NGO', donations = [], campaigns = [] }) {
+export function exportNgoLedgerExcel({ orgName = 'NGO', donations = [], campaigns = [], filterSummary = 'All Records' }) {
   const rows = normalizeNgoLedgerRows(donations, campaigns);
   const totalPhp = rows.reduce((s, r) => s + r.php, 0);
   const uniqueDonors = new Set(rows.map((r) => r.donorName)).size;
@@ -1186,6 +1195,7 @@ export function exportNgoLedgerExcel({ orgName = 'NGO', donations = [], campaign
     [],
     ['METRIC', 'VALUE', 'NOTES'],
     ['Organization', orgName, 'Verified BBDRTS Relief Partner'],
+    ['Filters Applied', filterSummary || 'All Records', 'Exact scope included in this audit workbook'],
     ['Total Donations (Filtered)', fmtPhp(totalPhp), `${rows.length} verified ledger records`],
     ['Unique Donors', `${uniqueDonors} Supporters`, 'Includes anonymous supporters where applicable'],
     ['Average Contribution', fmtPhp(rows.length > 0 ? totalPhp / rows.length : 0), 'Mean per transaction'],
@@ -1199,7 +1209,7 @@ export function exportNgoLedgerExcel({ orgName = 'NGO', donations = [], campaign
   const wsSum = XLSX.utils.aoa_to_sheet(sumRows);
   wsSum['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 2 } }, { s: { r: 1, c: 0 }, e: { r: 1, c: 2 } }];
   autoSizeSheet(wsSum, sumRows, 4);
-  applyPhpAndPctFormats(wsSum, [2], [], 10);
+  applyPhpAndPctFormats(wsSum, [2], [], 11);
   XLSX.utils.book_append_sheet(wb, wsSum, 'Ledger Summary');
 
   const ledRows = [
@@ -1222,13 +1232,43 @@ export function exportNgoLedgerExcel({ orgName = 'NGO', donations = [], campaign
   applyPhpAndPctFormats(wsLed, [7], [], 4);
   XLSX.utils.book_append_sheet(wb, wsLed, 'Donation Ledger');
 
+  // Sheet 3: Campaign Breakdown
+  const ngoCampMap = {};
+  rows.forEach((r) => {
+    const k = String(r.campaignId);
+    if (!ngoCampMap[k]) ngoCampMap[k] = { title: r.campaignTitle, category: r.category, count: 0, php: 0 };
+    ngoCampMap[k].count += 1;
+    ngoCampMap[k].php += r.php;
+  });
+  const ngoCampEntries = Object.values(ngoCampMap).sort((a, b) => b.php - a.php);
+  const ngoCampRows = [
+    ['CAMPAIGN CONTRIBUTION BREAKDOWN'],
+    [`Grouped totals across ${ngoCampEntries.length} campaign(s)`],
+    [],
+    ['Campaign Title', 'Category', 'Verified Donations', 'Total Raised (PHP)', 'Share (%)']
+  ];
+  if (ngoCampEntries.length > 0) {
+    ngoCampEntries.forEach((c) => {
+      const pct = totalPhp > 0 ? Number(((c.php / totalPhp) * 100).toFixed(1)) : 0;
+      ngoCampRows.push([c.title, c.category, c.count, c.php, pct]);
+    });
+  } else {
+    ngoCampRows.push(['No campaign donations matched the active filter', '', 0, 0, 0]);
+  }
+  ngoCampRows.push(['TOTAL', `${ngoCampEntries.length} Campaigns`, rows.length, totalPhp, totalPhp > 0 ? 100 : 0]);
+  const wsNgoCamp = XLSX.utils.aoa_to_sheet(ngoCampRows);
+  wsNgoCamp['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 4 } }, { s: { r: 1, c: 0 }, e: { r: 1, c: 4 } }];
+  autoSizeSheet(wsNgoCamp, ngoCampRows, 3);
+  applyPhpAndPctFormats(wsNgoCamp, [3], [4], 4);
+  XLSX.utils.book_append_sheet(wb, wsNgoCamp, 'Campaign Breakdown');
+
   const safeOrg = String(orgName || 'NGO').replace(/[^a-zA-Z0-9]+/g, '_');
   const filename = `BBDRTS_${safeOrg}_Ledger_${new Date().toISOString().slice(0, 10)}.xlsx`;
   XLSX.writeFile(wb, filename);
   return filename;
 }
 
-export function exportNgoAuditPdf({ orgName = 'NGO', donations = [], campaigns = [] }) {
+export function exportNgoAuditPdf({ orgName = 'NGO', donations = [], campaigns = [], filterSummary = 'All Records' }) {
   const rows = normalizeNgoLedgerRows(donations, campaigns);
   const totalPhp = rows.reduce((s, r) => s + r.php, 0);
   const uniqueDonors = new Set(rows.map((r) => r.donorName)).size;
@@ -1275,7 +1315,7 @@ export function exportNgoAuditPdf({ orgName = 'NGO', donations = [], campaigns =
       <div>
         <div class="brand">BBDRTS · NGO Financial Transparency Audit</div>
         <h1>${escHtml(orgName)} — Donation Ledger Report</h1>
-        <div class="sub">Complete multi-rail receipt reconciliation (GCash, Maya, Bank &amp; Card)</div>
+        <div class="sub">Scope: <strong>${escHtml(filterSummary || 'All Records')}</strong> · Multi-rail receipt reconciliation</div>
       </div>
       <div class="meta-right">
         <div><strong>Generated:</strong> ${escHtml(formatPhtNow())}</div>
@@ -1364,7 +1404,7 @@ export function exportAdminFinancialLedgerCsv(items = []) {
   return writeCsvRows(csvRows, `BBDRTS_Admin_Financial_Ledger_${new Date().toISOString().slice(0, 10)}.csv`);
 }
 
-export function exportAdminFinancialLedgerExcel(items = []) {
+export function exportAdminFinancialLedgerExcel(items = [], filterSummary = 'All Records') {
   const rows = normalizeAdminLedgerRows(items);
   const totalPhp = rows.reduce((s, r) => s + r.php, 0);
   const railMap = {};
@@ -1380,6 +1420,7 @@ export function exportAdminFinancialLedgerExcel(items = []) {
     [`Generated ${formatPhtNow()} · Administrative Audit Export`],
     [],
     ['METRIC', 'VALUE', 'NOTES'],
+    ['Filters Applied', filterSummary || 'All Records', 'Exact scope included in this audit workbook'],
     ['Total Filtered Volume', fmtPhp(totalPhp), `${rows.length} transactions included`],
     ['Average Transaction', fmtPhp(rows.length > 0 ? totalPhp / rows.length : 0), 'Mean verified donation value'],
     [],
@@ -1391,7 +1432,7 @@ export function exportAdminFinancialLedgerExcel(items = []) {
   const wsSum = XLSX.utils.aoa_to_sheet(sumRows);
   wsSum['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 2 } }, { s: { r: 1, c: 0 }, e: { r: 1, c: 2 } }];
   autoSizeSheet(wsSum, sumRows, 4);
-  applyPhpAndPctFormats(wsSum, [2], [], 8);
+  applyPhpAndPctFormats(wsSum, [2], [], 9);
   XLSX.utils.book_append_sheet(wb, wsSum, 'Ledger Summary');
 
   const ledRows = [
@@ -1414,12 +1455,42 @@ export function exportAdminFinancialLedgerExcel(items = []) {
   applyPhpAndPctFormats(wsLed, [6], [], 4);
   XLSX.utils.book_append_sheet(wb, wsLed, 'Financial Ledger');
 
+  // Sheet 3: Campaign Breakdown
+  const admCampMap = {};
+  rows.forEach((r) => {
+    const k = r.campaignTitle || 'Relief Appeal';
+    if (!admCampMap[k]) admCampMap[k] = { title: k, count: 0, php: 0 };
+    admCampMap[k].count += 1;
+    admCampMap[k].php += r.php;
+  });
+  const admCampEntries = Object.values(admCampMap).sort((a, b) => b.php - a.php);
+  const admCampRows = [
+    ['CAMPAIGN VOLUME BREAKDOWN'],
+    [`Grouped across ${admCampEntries.length} campaign(s)`],
+    [],
+    ['Campaign Title', 'Transactions', 'Total Volume (PHP)', 'Share (%)']
+  ];
+  if (admCampEntries.length > 0) {
+    admCampEntries.forEach((c) => {
+      const pct = totalPhp > 0 ? Number(((c.php / totalPhp) * 100).toFixed(1)) : 0;
+      admCampRows.push([c.title, c.count, c.php, pct]);
+    });
+  } else {
+    admCampRows.push(['No transactions matched active filters', 0, 0, 0]);
+  }
+  admCampRows.push(['TOTAL', rows.length, totalPhp, totalPhp > 0 ? 100 : 0]);
+  const wsAdmCamp = XLSX.utils.aoa_to_sheet(admCampRows);
+  wsAdmCamp['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 3 } }, { s: { r: 1, c: 0 }, e: { r: 1, c: 3 } }];
+  autoSizeSheet(wsAdmCamp, admCampRows, 3);
+  applyPhpAndPctFormats(wsAdmCamp, [2], [3], 4);
+  XLSX.utils.book_append_sheet(wb, wsAdmCamp, 'Campaign Breakdown');
+
   const filename = `BBDRTS_Admin_Financial_Ledger_${new Date().toISOString().slice(0, 10)}.xlsx`;
   XLSX.writeFile(wb, filename);
   return filename;
 }
 
-export function exportAdminFinancialLedgerPdf(items = []) {
+export function exportAdminFinancialLedgerPdf(items = [], filterSummary = 'All Records') {
   const rows = normalizeAdminLedgerRows(items);
   const totalPhp = rows.reduce((s, r) => s + r.php, 0);
   const verifiedCount = rows.filter((r) => /verified|approved/i.test(r.status)).length;
@@ -1465,7 +1536,7 @@ export function exportAdminFinancialLedgerPdf(items = []) {
       <div>
         <div class="brand">BBDRTS · Platform Financial Governance Audit</div>
         <h1>Global Multi-Rail Financial Ledger Report</h1>
-        <div class="sub">Reconciled GCash, Maya, Bank Transfer &amp; Card donations notarized on Ethereum Sepolia</div>
+        <div class="sub">Scope: <strong>${escHtml(filterSummary || 'All Records')}</strong> · Gasless Sepolia Reconciled Ledger</div>
       </div>
       <div class="meta-right">
         <div><strong>Generated:</strong> ${escHtml(formatPhtNow())}</div>
@@ -1544,11 +1615,39 @@ export function exportAdminActivityLogsCsv(logs = []) {
   return writeCsvRows(csvRows, `BBDRTS_System_Activity_Logs_${new Date().toISOString().slice(0, 10)}.csv`);
 }
 
-export function exportAdminActivityLogsExcel(logs = []) {
+export function exportAdminActivityLogsExcel(logs = [], filterSummary = 'All Activity Logs') {
   const wb = XLSX.utils.book_new();
+  // Sheet 1: Audit Summary
+  const catCounts = {};
+  const roleCounts = {};
+  (logs || []).forEach((l) => {
+    const c = l.category || 'SYSTEM';
+    const r = l.role || 'SYSTEM';
+    catCounts[c] = (catCounts[c] || 0) + 1;
+    roleCounts[r] = (roleCounts[r] || 0) + 1;
+  });
+  const sumRows = [
+    ['BBDRTS — SYSTEM ACTIVITY AUDIT SUMMARY'],
+    [`Generated ${formatPhtNow()} · Scope: ${filterSummary || 'All Activity Logs'}`],
+    [],
+    ['METRIC', 'VALUE', 'NOTES'],
+    ['Filters Applied', filterSummary || 'All Activity Logs', 'Exact filter scope exported'],
+    ['Total Audit Records', logs.length, 'Tamper-evident system trail'],
+    [],
+    ['ACTIVITY CATEGORY', 'EVENTS', 'SHARE (%)']
+  ];
+  Object.entries(catCounts).sort((a, b) => b[1] - a[1]).forEach(([cat, cnt]) => {
+    sumRows.push([cat, cnt, logs.length > 0 ? Number(((cnt / logs.length) * 100).toFixed(1)) : 0]);
+  });
+  const wsSum = XLSX.utils.aoa_to_sheet(sumRows);
+  wsSum['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 2 } }, { s: { r: 1, c: 0 }, e: { r: 1, c: 2 } }];
+  autoSizeSheet(wsSum, sumRows, 4);
+  applyPhpAndPctFormats(wsSum, [], [2], 8);
+  XLSX.utils.book_append_sheet(wb, wsSum, 'Audit Summary');
+
   const rows = [
     ['BBDRTS — SYSTEM ACTIVITY & SECURITY AUDIT LOGS'],
-    [`Exported ${logs.length} immutable audit records · Generated ${formatPhtNow()}`],
+    [`Exported ${logs.length} immutable audit records · Scope: ${filterSummary || 'All Activity Logs'}`],
     [],
     ['Log ID', 'Timestamp (PHT)', 'Category', 'Activity Description', 'Actor Name', 'Actor Email', 'Role', 'Target Entity', 'Status', 'Source IP', 'Details Summary']
   ];
@@ -1578,6 +1677,77 @@ export function exportAdminActivityLogsExcel(logs = []) {
   const filename = `BBDRTS_System_Activity_Logs_${new Date().toISOString().slice(0, 10)}.xlsx`;
   XLSX.writeFile(wb, filename);
   return filename;
+}
+
+export function exportAdminActivityLogsPdf(logs = [], filterSummary = 'All Activity Logs') {
+  const catCounts = {};
+  (logs || []).forEach((l) => {
+    const c = l.category || 'SYSTEM';
+    catCounts[c] = (catCounts[c] || 0) + 1;
+  });
+  const barsHtml = Object.entries(catCounts).length > 0
+    ? Object.entries(catCounts).sort((a, b) => b[1] - a[1]).map(([cat, cnt]) => {
+        const pct = logs.length > 0 ? Math.round((cnt / logs.length) * 100) : 0;
+        return `
+          <div class="bar-row">
+            <div class="bar-label">${escHtml(cat)}</div>
+            <div class="bar-track"><div class="bar-fill" style="width:${Math.max(pct, 3)}%"></div></div>
+            <div class="bar-val">${cnt} (${pct}%)</div>
+          </div>`;
+      }).join('')
+    : `<div class="empty-note">No activity logs matched the active filters.</div>`;
+
+  const tableBody = logs.length > 0
+    ? logs.slice(0, 150).map((l) => `
+        <tr>
+          <td>#${escHtml(l.id ?? '')}</td>
+          <td>${escHtml(formatPhtNow(l.createdAt || l.timestamp))}</td>
+          <td><span class="pill active">${escHtml(l.category || 'SYSTEM')}</span></td>
+          <td><strong>${escHtml(l.activity || l.action || '—')}</strong></td>
+          <td>${escHtml(l.userName || l.actor || 'System')}<br/><span style="color:#6b7280;font-size:9.5px;">${escHtml(l.role || '')}</span></td>
+          <td>${escHtml(l.target || l.ref || '—')}</td>
+          <td>${escHtml(formatReadableDetails(l.details))}</td>
+        </tr>`).join('')
+    : `<tr><td colspan="7" style="text-align:center;color:#6b7280;padding:18px;">No activity logs matched the active filters.</td></tr>`;
+
+  const bodyHtml = `
+    <div class="masthead">
+      <div>
+        <div class="brand">BBDRTS · System Security &amp; Governance Audit Trail</div>
+        <h1>System Activity Logs Report</h1>
+        <div class="sub">Scope: <strong>${escHtml(filterSummary || 'All Activity Logs')}</strong></div>
+      </div>
+      <div class="meta-right">
+        <div><strong>Generated:</strong> ${escHtml(formatPhtNow())}</div>
+        <div><strong>Records Exported:</strong> ${logs.length}</div>
+      </div>
+    </div>
+
+    <h2>Event Category Distribution</h2>
+    ${barsHtml}
+
+    <h2>Audit Trail Entries (${Math.min(logs.length, 150)} of ${logs.length})</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Timestamp (PHT)</th>
+          <th>Category</th>
+          <th>Activity Description</th>
+          <th>Actor / Role</th>
+          <th>Target</th>
+          <th>Details</th>
+        </tr>
+      </thead>
+      <tbody>${tableBody}</tbody>
+    </table>
+
+    <div class="footer-seal">
+      <span>BBDRTS Centralized Immutable Activity Audit Trail</span>
+      <span>Printed ${escHtml(formatPhtNow())}</span>
+    </div>`;
+
+  return openPrintableHtml('BBDRTS System Activity Logs Report', bodyHtml);
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════

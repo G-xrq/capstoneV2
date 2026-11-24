@@ -5179,6 +5179,37 @@ export default function CampaignCard(props) {
                             )}
                           </div>
 
+                          {xenditEnabled && (
+                            <div className={`vc-fee-notice ${isInstant ? 'is-instant' : 'is-direct'}`} role="note">
+                              <span className="material-symbols-outlined vc-fee-notice-ico">
+                                {isInstant ? 'info' : 'verified'}
+                              </span>
+                              <div className="vc-fee-notice-copy">
+                                {isInstant ? (
+                                  <>
+                                    <strong>Instant QR Ph · Gateway Fee Notice:</strong> BBDRTS charges <strong>0%</strong>,
+                                    while Xendit deducts its standard QR Ph processing fee (~1.5%, min ₱15) for automated
+                                    instant verification. Want <strong>₱0 gateway fee</strong>?{' '}
+                                    <button
+                                      type="button"
+                                      className="vc-fee-switch-link"
+                                      onClick={() => setCheckoutMode('manual')}
+                                    >
+                                      Switch to Direct QR &amp; Slip
+                                    </button>
+                                    .
+                                  </>
+                                ) : (
+                                  <>
+                                    <strong>Direct QR &amp; Slip · ₱0 Fees:</strong> 100% goes straight to the NGO&apos;s
+                                    official receiving account with zero BBDRTS or gateway fees. Simply upload your transfer
+                                    receipt after paying.
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                          )}
+
                           <div className="vc-channel-list" role="radiogroup" aria-label="Payment channel">
                             {channels.map((ch) => {
                               const isSel = selectedChannel === ch.id;
@@ -5251,12 +5282,12 @@ export default function CampaignCard(props) {
                               <span className="vc-summary-k">BBDRTS fee</span>
                               <span className="vc-summary-v free">₱0.00</span>
                             </div>
-                            {isInstant && (
-                              <div className="vc-summary-row">
-                                <span className="vc-summary-k">Gateway fee</span>
-                                <span className="vc-summary-v">Xendit standard</span>
-                              </div>
-                            )}
+                            <div className="vc-summary-row">
+                              <span className="vc-summary-k">Gateway fee</span>
+                              <span className={`vc-summary-v ${isInstant ? 'fee-warn' : 'free'}`}>
+                                {isInstant ? 'Xendit (~1.5% · min ₱15)' : '₱0.00 (Direct)'}
+                              </span>
+                            </div>
                             <div className="vc-summary-row">
                               <span className="vc-summary-k">Audit ledger</span>
                               <span className="vc-summary-v">Sepolia · Gasless</span>

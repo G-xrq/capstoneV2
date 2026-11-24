@@ -18,6 +18,7 @@ import GuidedTour from '../components/GuidedTour';
 import SidebarToggleIcon from '../components/SidebarToggleIcon';
 import AnalyticsReportsPanel from '../components/AnalyticsReportsPanel';
 import DeclareDirectDepositModal from '../components/DeclareDirectDepositModal';
+import FilterableExportModal from '../components/FilterableExportModal';
 import { useToast } from '../context/ToastContext';
 import { getRegions, getRegionForProvince } from '../data/philippineGeoData';
 import { CONTRACT_ADDRESS } from '../contractConfig';
@@ -319,6 +320,9 @@ export default function OrganizationView({
   ];
 
   const CHARITY_TAGS = [
+    'Charity Outreach',
+    'Education & Youth',
+    'Feeding Program',
     'Children Support',
     'Elderly Care',
     'Community Rebuilding',
@@ -343,7 +347,10 @@ export default function OrganizationView({
     'Blood Donation',
     'First Aid Kits',
     'Livelihood Assistance',
-    'Evacuation Support'
+    'Evacuation Support',
+    'Charity Outreach',
+    'Education & Youth',
+    'Feeding Program'
   ];
 
   // Multilingual keyword dictionary mapping disaster & relief scenarios to ALL necessary operation tags (English, Tagalog, Bisaya/Cebuano)
@@ -555,6 +562,76 @@ export default function OrganizationView({
         'agaran', 'madalian', 'saklolo', 'sakuna', 'krisis', 'sagip',
         'dinali-an', 'tabang', 'luwas', 'kuyaw', 'alarma', 'dali'
       ]
+    },
+    // 20. General Charity & Outreach / Kawanggawa / Gift Giving / Indigent Support
+    // Necessary tags: Charity Outreach, Community Rebuilding, Livelihood Assistance
+    {
+      name: 'Charitable Outreach',
+      tags: ['Charity Outreach', 'Community Rebuilding', 'Livelihood Assistance'],
+      keywords: [
+        'charity', 'charitable', 'outreach', 'philanthrop', 'donation drive', 'gift giving', 'gift-giving',
+        'pamaskong handog', 'share a blessing', 'adopt a family', 'adopt-a-family', 'indigent', 'poverty',
+        'underprivileged', 'less fortunate', 'marginalized', 'street family', 'street families', 'homeless',
+        'pwd', 'persons with disability', 'indigenous', 'ip community', 'lumad', 'aeta', 'welfare', 'fundraiser', 'fundraising', 'benefit',
+        'kawanggawa', 'tulong sa kapwa', 'ayuda sa komunidad', 'handog', 'malasakit', 'pagmamalasakit', 'pagbabahagi',
+        'kabus', 'tabang sa kabus', 'kaloy-an', 'pasko', 'christmas drive'
+      ]
+    },
+    // 21. Education, Scholarships & Back-to-School Supplies
+    // Necessary tags: Education & Youth, Children Support, Charity Outreach
+    {
+      name: 'Education & Scholarship',
+      tags: ['Education & Youth', 'Children Support', 'Charity Outreach'],
+      keywords: [
+        'scholarship', 'scholar', 'education', 'educational', 'school', 'school supplies', 'back to school', 'back-to-school',
+        'balik eskwela', 'balik-eskwela', 'tuition', 'student', 'students', 'notebook', 'backpack', 'textbook',
+        'books', 'library', 'classroom', 'literacy', 'daycare', 'day care', 'kindergarten', 'learning',
+        'iskolar', 'edukasyon', 'eskwela', 'eskwelahan', 'gamit pang-eskwela', 'gamit pampaaralan',
+        'mag-aaral', 'estudyante', 'pag-aaral', 'tunghaan', 'eskuwelahan', 'kabataan', 'youth'
+      ]
+    },
+    // 22. Feeding Program, Community Pantry & Nutrition Drive
+    // Necessary tags: Feeding Program, Emergency Food, Children Support, Charity Outreach
+    {
+      name: 'Feeding Program & Pantry',
+      tags: ['Feeding Program', 'Emergency Food', 'Children Support', 'Charity Outreach'],
+      keywords: [
+        'feeding', 'feeding program', 'community pantry', 'pantry', 'soup kitchen', 'malnutrition', 'malnourished',
+        'undernourished', 'nutrition', 'lugaw', 'sopas', 'hot meal', 'hot meals', 'packed meal', 'food drive',
+        'food bank', 'grocery pack', 'pakain', 'pagpapakain', 'pangkain', 'sustansya', 'nutrisyon', 'pakaon'
+      ]
+    },
+    // 23. Orphanage, Foster Care & Child Welfare
+    // Necessary tags: Children Support, Charity Outreach, Education & Youth
+    {
+      name: 'Orphanage & Child Welfare',
+      tags: ['Children Support', 'Charity Outreach', 'Education & Youth'],
+      keywords: [
+        'orphan', 'orphanage', 'orphans', 'foster', 'bahay ampunan', 'ampunan', 'street children',
+        'batang lansangan', 'child welfare', 'children home', 'batan-on'
+      ]
+    },
+    // 24. Medical / Dental / Optical Mission & Patient Aid
+    // Necessary tags: Medical Aid, Charity Outreach, First Aid Kits
+    {
+      name: 'Medical & Dental Mission',
+      tags: ['Medical Aid', 'Charity Outreach', 'First Aid Kits'],
+      keywords: [
+        'medical mission', 'dental mission', 'dental', 'optical mission', 'eyeglasses', 'wheelchair',
+        'prosthetic', 'dialysis', 'cancer', 'chemotherapy', 'surgery', 'cleft lip', 'cataract',
+        'free clinic', 'health mission', 'mental health', 'libreng gamutan', 'libreng checkup',
+        'misyong medikal', 'ngipin', 'libreng tambal'
+      ]
+    },
+    // 25. Clothing, Slippers & Care Package Drives
+    // Necessary tags: Charity Outreach, Community Rebuilding
+    {
+      name: 'Clothing & Care Drive',
+      tags: ['Charity Outreach', 'Community Rebuilding'],
+      keywords: [
+        'clothing drive', 'clothes', 'blanket', 'slippers', 'tsinelas', 'shoes', 'uniform',
+        'damit', 'kasuotan', 'sanina', 'sinina', 'care package', 'essential pack'
+      ]
     }
   ];
 
@@ -573,7 +650,8 @@ export default function OrganizationView({
           }
         } else {
           const escaped = kw.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
-          const regex = new RegExp(`(^|[^a-zA-Z0-9])${escaped}`, 'i');
+          const suffix = kw.length <= 4 ? '($|[^a-zA-Z0-9])' : '';
+          const regex = new RegExp(`(^|[^a-zA-Z0-9])${escaped}${suffix}`, 'i');
           if (regex.test(normalized)) {
             matched = true;
             break;
@@ -610,24 +688,31 @@ export default function OrganizationView({
       if (kw.includes(' ')) {
         if (lower.includes(kw)) return 'DR';
       } else {
-        const regex = new RegExp(`(^|[^a-zA-Z0-9])${kw.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}`, 'i');
+        const suffix = kw.length <= 4 ? '($|[^a-zA-Z0-9])' : '';
+        const regex = new RegExp(`(^|[^a-zA-Z0-9])${kw.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}${suffix}`, 'i');
         if (regex.test(lower)) return 'DR';
       }
     }
 
     // Check for Charitable Aid keywords
     const charitableKeywords = [
-      'charity', 'charitable', 'outreach', 'feeding', 'feeding program', 'scholarship', 'education', 'school supplies',
-      'orphan', 'orphanage', 'elderly home', 'community pantry', 'community development',
-      'medical mission', 'dental mission', 'blood donation', 'blood drive', 'livelihood', 'poverty',
-      'kawanggawa', 'kabuhayan', 'ayuda sa komunidad', 'tulong sa kapwa', 'panginabuhian'
+      'charity', 'charitable', 'outreach', 'philanthrop', 'donation drive', 'gift giving', 'gift-giving',
+      'pamaskong handog', 'adopt a family', 'adopt-a-family', 'indigent', 'underprivileged', 'less fortunate',
+      'feeding', 'feeding program', 'soup kitchen', 'food drive', 'food bank', 'malnutrition', 'nutrition', 'pakain', 'pakaon',
+      'scholarship', 'scholar', 'education', 'educational', 'school', 'school supplies', 'back to school', 'balik eskwela', 'iskolar', 'edukasyon', 'eskwela', 'estudyante',
+      'orphan', 'orphanage', 'ampunan', 'bahay ampunan', 'street children', 'youth', 'kabataan',
+      'elderly home', 'senior citizen', 'community pantry', 'pantry', 'community development',
+      'medical mission', 'dental mission', 'optical mission', 'wheelchair', 'dialysis', 'cancer', 'free clinic', 'health mission',
+      'blood donation', 'blood drive', 'livelihood', 'poverty', 'pwd', 'indigenous', 'lumad', 'clothing drive', 'care package',
+      'kawanggawa', 'kabuhayan', 'ayuda sa komunidad', 'tulong sa kapwa', 'panginabuhian', 'handog', 'malasakit', 'kabus'
     ];
 
     for (const kw of charitableKeywords) {
       if (kw.includes(' ')) {
         if (lower.includes(kw)) return 'CD';
       } else {
-        const regex = new RegExp(`(^|[^a-zA-Z0-9])${kw.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}`, 'i');
+        const suffix = kw.length <= 4 ? '($|[^a-zA-Z0-9])' : '';
+        const regex = new RegExp(`(^|[^a-zA-Z0-9])${kw.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}${suffix}`, 'i');
         if (regex.test(lower)) return 'CD';
       }
     }
@@ -2535,9 +2620,7 @@ export default function OrganizationView({
       fetchCampaigns();
       fetchOrgDonations();
       showSuccess(
-        shouldBypassMetaMask
-          ? 'Campaign successfully deployed in Localhost Mode!'
-          : 'Campaign successfully deployed on the blockchain!',
+        'Campaign successfully deployed and notarized on the blockchain!',
         'Campaign Active'
       );
     } catch (err) {
@@ -5999,70 +6082,21 @@ export default function OrganizationView({
                 <button
                   type="button"
                   className="dbo-cmd-btn"
-                  onClick={handleExportLedgerPdf}
-                  title="Open formatted A4 NGO Financial Audit PDF Report"
-                >
-                  <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>print</span>
-                  <span>Audit Report</span>
-                </button>
-                <button
-                  type="button"
-                  className="dbo-cmd-btn"
                   onClick={() => setShowDeclareDepositModal(true)}
                   title="Declare a GCash, Maya, or Bank transfer received without a donor receipt upload"
                 >
                   <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>add_card</span>
                   <span>Log Deposit</span>
                 </button>
-                <div className="bbdrts-export-dd-wrap">
-                  <button
-                    type="button"
-                    className="dbo-cmd-btn dbo-cmd-btn--primary"
-                    onClick={() => setNgoLedgerExportOpen((o) => !o)}
-                    title="Export organized NGO ledger (Excel, CSV, or Audit PDF)"
-                  >
-                    <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>file_download</span>
-                    <span>Export Ledger</span>
-                    <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>
-                      {ngoLedgerExportOpen ? 'expand_less' : 'expand_more'}
-                    </span>
-                  </button>
-                  {ngoLedgerExportOpen && (
-                    <div className="bbdrts-export-dd-menu" role="menu">
-                      <div className="bbdrts-export-dd-head">Download NGO Ledger</div>
-                      <button type="button" className="bbdrts-export-dd-item" onClick={handleExportLedgerExcel}>
-                        <div className="bbdrts-export-dd-item-left">
-                          <span className="material-symbols-outlined" style={{ fontSize: '17px', color: '#10b981' }}>table_view</span>
-                          <div>
-                            <span className="bbdrts-export-dd-item-title">Excel Workbook</span>
-                            <span className="bbdrts-export-dd-item-sub">Summary + Full Ledger (2 sheets)</span>
-                          </div>
-                        </div>
-                        <span className="bbdrts-export-dd-ext">.xlsx</span>
-                      </button>
-                      <button type="button" className="bbdrts-export-dd-item" onClick={handleExportLedgerCsv}>
-                        <div className="bbdrts-export-dd-item-left">
-                          <span className="material-symbols-outlined" style={{ fontSize: '17px', color: '#38bdf8' }}>description</span>
-                          <div>
-                            <span className="bbdrts-export-dd-item-title">CSV Spreadsheet</span>
-                            <span className="bbdrts-export-dd-item-sub">UTF-8 Excel-ready ledger table</span>
-                          </div>
-                        </div>
-                        <span className="bbdrts-export-dd-ext">.csv</span>
-                      </button>
-                      <button type="button" className="bbdrts-export-dd-item" onClick={handleExportLedgerPdf}>
-                        <div className="bbdrts-export-dd-item-left">
-                          <span className="material-symbols-outlined" style={{ fontSize: '17px', color: '#f59e0b' }}>picture_as_pdf</span>
-                          <div>
-                            <span className="bbdrts-export-dd-item-title">Printable Audit PDF</span>
-                            <span className="bbdrts-export-dd-item-sub">Formal A4 financial statement</span>
-                          </div>
-                        </div>
-                        <span className="bbdrts-export-dd-ext">.pdf</span>
-                      </button>
-                    </div>
-                  )}
-                </div>
+                <button
+                  type="button"
+                  className="dbo-cmd-btn dbo-cmd-btn--primary"
+                  onClick={() => setNgoLedgerExportOpen(true)}
+                  title="Filter & export organized NGO ledger (Excel, CSV, or Audit PDF)"
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>tune</span>
+                  <span>Export Report</span>
+                </button>
               </div>
             </div>
 
@@ -9138,6 +9172,25 @@ export default function OrganizationView({
         }}
         showSuccess={showSuccess}
         showError={showError}
+      />
+
+      {/* ── Filterable NGO Financial Ledger Export Modal ── */}
+      <FilterableExportModal
+        isOpen={ngoLedgerExportOpen}
+        onClose={() => setNgoLedgerExportOpen(false)}
+        role="ngo"
+        title="Export NGO Donation Ledger"
+        subtitle="Filter by date range, payment channel, cause, campaign, or keyword before exporting"
+        records={orgDonations || []}
+        campaigns={myCampaigns || campaigns || []}
+        meta={{ orgName: orgDisplayName || currentUser?.name || 'Verified NGO' }}
+        initialFilters={{
+          category: ledgerFilter || 'ALL',
+          channel: ledgerRailFilter === 'BANK' ? 'BANK_CARD' : (ledgerRailFilter || 'ALL'),
+          campaignId: ledgerCampaignFilter || 'ALL',
+          search: searchQueryLedger || ''
+        }}
+        onExported={(msg, title) => showSuccess(msg, title)}
       />
 
       {/* ── Proof of Payment Screenshot & AI Security Audit Preview Modal ── */}
