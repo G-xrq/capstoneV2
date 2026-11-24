@@ -2732,9 +2732,9 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
                                         type="button"
                                         className={`rcp-btn-primary ${isShortage ? 'is-alert' : ''}`}
                                         onClick={() => setSelectedVoucherTx(d)}
-                                        title="Open Blockchain Verification Certificate"
+                                        title="Open Official Donation Receipt"
                                       >
-                                        <span>{isShortage ? 'Audit' : 'Certificate'}</span>
+                                        <span>{isShortage ? 'Audit' : 'Receipt'}</span>
                                         <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>arrow_forward</span>
                                       </button>
                                     </div>
@@ -3386,7 +3386,7 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
         roleName="Donor"
         theme={theme}
       />
-      {/* ── Official Human-Readable Blockchain Verification Certificate Modal ── */}
+      {/* ── Official Donation Receipt Modal (Clean Geist Digital Receipt) ── */}
       {selectedVoucherTx && createPortal((() => {
         const d = selectedVoucherTx;
         const matchCamp = campaigns.find(c => String(c.id) === String(d.campaignId)) || { id: d.campaignId, title: d.campaignTitle || `Relief Campaign #${d.campaignId}` };
@@ -3398,379 +3398,229 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
         const creditedPhp = Number(d.creditedPhp || Math.round(amtEth * 170000));
         const variancePhp = Number(d.variancePhp !== undefined ? d.variancePhp : (creditedPhp - declaredPhp));
         const isShortage = d.auditStatus === 'SHORTAGE' || variancePhp < -20;
+        const donorDisplay = d.isAnonymous ? 'Anonymous Donor' : (userDisplayName || currentUser?.name || 'Verified Donor');
+        const issuedDateStr = d.createdAt
+          ? new Date(d.createdAt).toLocaleString('en-PH', {
+              timeZone: 'Asia/Manila',
+              month: 'short',
+              day: 'numeric',
+              year: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit',
+              hour12: true
+            }) + ' PHT'
+          : 'Verified On-Chain';
+        const isValidTxHash = Boolean(d.txHash && String(d.txHash).startsWith('0x'));
 
         return (
           <div
-            className="bbdrts-edit-profile-backdrop"
+            className="rcp-modal-backdrop"
             onClick={() => setSelectedVoucherTx(null)}
-            style={{
-              position: 'fixed',
-              top: 0,
-              left: 0,
-              width: '100vw',
-              height: '100vh',
-              background: 'rgba(0, 0, 0, 0.82)',
-              backdropFilter: 'blur(10px)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              zIndex: 9999999,
-              padding: '20px'
-            }}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Official Donation Receipt"
           >
             <div
-              className="fade-in"
+              className={`rcp-modal-card fade-in ${isShortage ? 'is-shortage' : ''}`}
               onClick={(e) => e.stopPropagation()}
-              style={{
-                width: '100%',
-                maxWidth: '680px',
-                maxHeight: '90vh',
-                overflowY: 'auto',
-                background: 'var(--bg-card)',
-                border: isShortage ? '1px solid rgba(239, 68, 68, 0.4)' : '1px solid var(--border)',
-                borderRadius: '20px',
-                boxShadow: isShortage ? '0 24px 60px rgba(239, 68, 68, 0.25)' : 'var(--shadow-dropdown, 0 24px 60px rgba(0, 0, 0, 0.5))'
-              }}
             >
-              {/* Certificate Header */}
-              <div style={{
-                padding: '20px 24px',
-                background: 'var(--bg-subcard)',
-                borderBottom: '1px solid var(--border)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between'
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-                  <div style={{
-                    width: '44px',
-                    height: '44px',
-                    borderRadius: '12px',
-                    background: isShortage ? 'rgba(239, 68, 68, 0.15)' : 'rgba(34, 197, 94, 0.15)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: isShortage ? '#ef4444' : '#22c55e',
-                    border: `1px solid ${isShortage ? 'rgba(239, 68, 68, 0.3)' : 'rgba(34, 197, 94, 0.3)'}`
-                  }}>
-                    <span className="material-symbols-outlined" style={{ fontSize: '26px' }}>
-                      {isShortage ? 'gavel' : 'verified_user'}
+              {/* Top Header */}
+              <div className="rcp-modal-head">
+                <div className="rcp-modal-head-left">
+                  <div className={`rcp-modal-icon ${isShortage ? 'is-alert' : ''}`}>
+                    <span className="material-symbols-outlined">
+                      {isShortage ? 'report_problem' : 'receipt_long'}
                     </span>
                   </div>
                   <div>
-                    <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-                      Blockchain Verification Certificate
-                    </h3>
-                    <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                      Ethereum Sepolia Notarized Proof · BBDRTS Forensic Audit
-                    </div>
+                    <h3 className="rcp-modal-title">Official Donation Receipt</h3>
+                    <div className="rcp-modal-sub">BBDRTS · Ethereum Sepolia Verified</div>
                   </div>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => setSelectedVoucherTx(null)}
-                  className="btn btn-ghost btn-sm"
-                  style={{ color: 'var(--text-muted)', padding: '4px 8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                >
-                  <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>close</span>
-                </button>
+                <div className="rcp-modal-head-right">
+                  <span className="rcp-modal-ref">#{d.id || 'SEPOLIA'}</span>
+                  <button
+                    type="button"
+                    className="rcp-modal-close"
+                    onClick={() => setSelectedVoucherTx(null)}
+                    aria-label="Close receipt"
+                  >
+                    <span className="material-symbols-outlined">close</span>
+                  </button>
+                </div>
               </div>
 
-              {/* Status Ribbon */}
-              <div style={{
-                padding: '12px 24px',
-                background: isShortage
-                  ? 'linear-gradient(90deg, rgba(239, 68, 68, 0.18), rgba(239, 68, 68, 0.05))'
-                  : 'linear-gradient(90deg, rgba(34, 197, 94, 0.18), rgba(34, 197, 94, 0.05))',
-                borderBottom: `1px solid ${isShortage ? 'rgba(239, 68, 68, 0.3)' : 'rgba(34, 197, 94, 0.2)'}`,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                flexWrap: 'wrap',
-                gap: '8px'
-              }}>
-                <span style={{
-                  color: isShortage ? '#ef4444' : '#22c55e',
-                  fontWeight: 800,
-                  fontSize: '0.85rem',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '6px'
-                }}>
-                  <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>
-                    {isShortage ? 'warning' : 'check_circle'}
-                  </span>
-                  {isShortage ? 'AUDIT DISCREPANCY DETECTED' : '100% CLEAN AUDIT VERIFIED'}
-                </span>
-                <span style={{ fontSize: '0.74rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
-                  Ledger Ref #{d.id || 'SEPOLIA'}
-                </span>
+              {/* Amount Hero Centerpiece */}
+              <div className="rcp-modal-hero">
+                <div className={`rcp-modal-status-pill ${isShortage ? 'is-alert' : 'is-ok'}`}>
+                  <span className="rcp-modal-status-dot" />
+                  <span>{isShortage ? 'Discrepancy Flagged On-Chain' : 'Verified & Notarized'}</span>
+                </div>
+                <div className={`rcp-modal-amount ${isShortage ? 'is-alert' : ''}`}>
+                  ₱{creditedPhp.toLocaleString('en-US')}
+                  <span className="rcp-modal-currency">PHP</span>
+                </div>
+                <div className="rcp-modal-meta-line">
+                  <span>{d.paymentMethod || 'GCash'}</span>
+                  <span>·</span>
+                  <span>{issuedDateStr}</span>
+                </div>
               </div>
 
-              {/* Certificate Body */}
-              <div style={{ padding: '22px 24px', display: 'flex', flexDirection: 'column', gap: '18px' }}>
+              <div className="rcp-modal-divider" />
 
-                {/* Plain-English Audit Verdict (Built for non-tech-savvy donors!) */}
-                {isShortage ? (
-                  <div style={{
-                    padding: '14px 16px',
-                    borderRadius: '12px',
-                    background: 'rgba(239, 68, 68, 0.1)',
-                    border: '1px solid rgba(239, 68, 68, 0.3)',
-                    color: 'var(--text-primary)'
-                  }}>
-                    <div style={{ fontWeight: 800, color: '#ef4444', fontSize: '0.92rem', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>report_problem</span>
-                      Shortage Alert: ₱{Math.abs(variancePhp).toLocaleString()} Missing from Relief Goal
+              {/* Body */}
+              <div className="rcp-modal-body">
+                {isShortage && (
+                  <div className="rcp-modal-alert-box">
+                    <span className="material-symbols-outlined" style={{ fontSize: '18px', flexShrink: 0 }}>gavel</span>
+                    <div>
+                      <strong>Shortage of ₱{Math.abs(variancePhp).toLocaleString('en-US')} recorded on-chain</strong>
+                      <p>
+                        Your slip confirms <strong>₱{declaredPhp.toLocaleString('en-US')}</strong> sent, while <strong>₱{creditedPhp.toLocaleString('en-US')}</strong> was credited. This variance is permanently sealed on Sepolia.
+                      </p>
                     </div>
-                    <p style={{ margin: 0, fontSize: '0.82rem', lineHeight: '1.45', color: 'var(--text-secondary)' }}>
-                      Your official payment receipt confirms you sent <strong>₱{declaredPhp.toLocaleString()}</strong>, but the NGO confirmed receiving only <strong>₱{creditedPhp.toLocaleString()}</strong>.
-                      Because this transaction was permanently sealed onto the Ethereum blockchain, <strong>the NGO cannot alter or erase this evidence</strong>.
-                    </p>
-                  </div>
-                ) : (
-                  <div style={{
-                    padding: '14px 16px',
-                    borderRadius: '12px',
-                    background: 'rgba(34, 197, 94, 0.08)',
-                    border: '1px solid rgba(34, 197, 94, 0.25)',
-                    color: 'var(--text-primary)'
-                  }}>
-                    <div style={{ fontWeight: 800, color: '#22c55e', fontSize: '0.92rem', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>verified</span>
-                      All Funds Accounted For
-                    </div>
-                    <p style={{ margin: 0, fontSize: '0.82rem', lineHeight: '1.45', color: 'var(--text-secondary)' }}>
-                      Your payment of <strong>₱{creditedPhp.toLocaleString()}</strong> has been 100% verified and recorded onto the relief smart contract with zero deductions.
-                    </p>
                   </div>
                 )}
 
-                {/* Plain-English Comparison Table */}
-                <div style={{
-                  background: 'var(--bg-subcard)',
-                  border: '1px solid var(--border)',
-                  borderRadius: '14px',
-                  overflow: 'hidden'
-                }}>
-                  <div style={{
-                    padding: '10px 16px',
-                    background: 'var(--bg-inset)',
-                    borderBottom: '1px solid var(--border)',
-                    fontSize: '0.72rem',
-                    fontWeight: 700,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.5px',
-                    color: 'var(--text-muted)'
-                  }}>
-                    Transaction Audit Reconciliation Breakdown
+                {/* Clean Receipt Line Items */}
+                <div className="rcp-modal-rows">
+                  <div className="rcp-modal-row">
+                    <span className="rcp-modal-row-lbl">Campaign</span>
+                    <span className="rcp-modal-row-val">{campTitle}</span>
                   </div>
-
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', padding: '16px', gap: '14px' }}>
-                    <div style={{ padding: '12px', borderRadius: '10px', background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
-                      <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600, marginBottom: '2px' }}>
-                        1. You Sent (Payment Slip)
-                      </div>
-                      <div style={{ fontSize: '1.25rem', fontWeight: 850, color: 'var(--text-primary)' }}>
-                        ₱{declaredPhp.toLocaleString('en-US')}
-                      </div>
-                      <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '4px' }}>
-                        Via {d.paymentMethod || 'GCash'} (Ref: {d.referenceNumber || 'Verified'})
-                      </div>
-                    </div>
-
-                    <div style={{ padding: '12px', borderRadius: '10px', background: 'var(--bg-card)', border: '1px solid var(--border)' }}>
-                      <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 600, marginBottom: '2px' }}>
-                        2. NGO Credited to Campaign
-                      </div>
-                      <div style={{ fontSize: '1.25rem', fontWeight: 850, color: isShortage ? '#ef4444' : '#22c55e' }}>
-                        ₱{creditedPhp.toLocaleString('en-US')}
-                      </div>
-                      <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '4px' }}>
-                        Gaslessly sealed on Sepolia ledger
-                      </div>
-                    </div>
-
-                    <div style={{ padding: '12px', borderRadius: '10px', background: isShortage ? 'rgba(239, 68, 68, 0.12)' : 'rgba(34, 197, 94, 0.12)', border: isShortage ? '1px solid rgba(239, 68, 68, 0.3)' : '1px solid rgba(34, 197, 94, 0.3)' }}>
-                      <div style={{ fontSize: '0.72rem', color: isShortage ? '#ef4444' : '#22c55e', fontWeight: 700, marginBottom: '2px' }}>
-                        3. Forensic Variance
-                      </div>
-                      <div style={{ fontSize: '1.25rem', fontWeight: 850, color: isShortage ? '#ef4444' : '#22c55e' }}>
-                        {variancePhp < 0 ? `-₱${Math.abs(variancePhp).toLocaleString()}` : variancePhp > 0 ? `+₱${variancePhp.toLocaleString()}` : '₱0.00 Match'}
-                      </div>
-                      <div style={{ fontSize: '0.72rem', color: isShortage ? '#ef4444' : '#22c55e', marginTop: '4px', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                        <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>{isShortage ? 'warning' : 'check'}</span>
-                        <span>{isShortage ? 'Alteration Sealed On-Chain' : 'Perfect Balance Confirmed'}</span>
-                      </div>
-                    </div>
+                  <div className="rcp-modal-row">
+                    <span className="rcp-modal-row-lbl">Managing NGO</span>
+                    <span className="rcp-modal-row-val">{orgName}</span>
+                  </div>
+                  <div className="rcp-modal-row">
+                    <span className="rcp-modal-row-lbl">Donor</span>
+                    <span className="rcp-modal-row-val">{donorDisplay}</span>
+                  </div>
+                  <div className="rcp-modal-row">
+                    <span className="rcp-modal-row-lbl">Payment Channel</span>
+                    <span className="rcp-modal-row-val">
+                      {d.paymentMethod || 'GCash'}{d.referenceNumber ? ` · Ref ${d.referenceNumber}` : ''}
+                    </span>
+                  </div>
+                  <div className="rcp-modal-row">
+                    <span className="rcp-modal-row-lbl">Amount Sent</span>
+                    <span className="rcp-modal-row-val rcp-mono">₱{declaredPhp.toLocaleString('en-US')}</span>
+                  </div>
+                  <div className="rcp-modal-row">
+                    <span className="rcp-modal-row-lbl">Amount Credited</span>
+                    <span className={`rcp-modal-row-val rcp-mono ${isShortage ? 'is-alert' : 'is-ok'}`}>
+                      ₱{creditedPhp.toLocaleString('en-US')}
+                      {!isShortage && ' · Exact Match'}
+                    </span>
+                  </div>
+                  <div className="rcp-modal-row">
+                    <span className="rcp-modal-row-lbl">Platform Commission</span>
+                    <span className="rcp-modal-row-val rcp-mono is-ok">₱0.00 (0%)</span>
                   </div>
                 </div>
 
-                {/* Campaign & Beneficiary Info */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
-                  <div>
-                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 700, marginBottom: '2px' }}>
-                      Relief Campaign
-                    </div>
-                    <div style={{ fontSize: '0.92rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                      {campTitle}
-                    </div>
-                  </div>
-
-                  <div>
-                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 700, marginBottom: '2px' }}>
-                      Managing NGO
-                    </div>
-                    <div style={{ fontSize: '0.92rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                      {orgName}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Uploaded Receipt Evidence Box (If available) */}
+                {/* Optional Uploaded Slip Preview */}
                 {d.receiptBase64 && (
-                  <div style={{
-                    padding: '14px',
-                    borderRadius: '12px',
-                    background: 'var(--bg-subcard)',
-                    border: '1px solid var(--border)'
-                  }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-                      <span style={{ fontSize: '0.76rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <span className="material-symbols-outlined" style={{ fontSize: '16px', color: 'var(--accent)' }}>image</span>
-                        Your Official Payment Slip Proof
+                  <div className="rcp-modal-slip">
+                    <div className="rcp-modal-slip-head">
+                      <span>
+                        <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>image</span>
+                        <span>Uploaded Payment Slip</span>
                       </span>
                       <button
                         type="button"
-                        className="btn btn-ghost btn-xs"
-                        style={{ color: 'var(--accent)', fontWeight: 700 }}
+                        className="rcp-modal-link-btn"
                         onClick={() => setShowReceiptZoom(!showReceiptZoom)}
                       >
-                        {showReceiptZoom ? 'Hide Receipt' : 'Preview Payment Slip'}
+                        {showReceiptZoom ? 'Hide Slip' : 'View Slip'}
                       </button>
                     </div>
-
                     {showReceiptZoom && (
-                      <div style={{ textAlign: 'center', marginTop: '10px' }}>
-                        <img
-                          src={d.receiptBase64}
-                          alt="Official Payment Receipt"
-                          style={{
-                            maxWidth: '100%',
-                            maxHeight: '340px',
-                            borderRadius: '8px',
-                            border: '1px solid var(--border)',
-                            objectFit: 'contain'
-                          }}
-                        />
+                      <div className="rcp-modal-slip-img-wrap">
+                        <img src={d.receiptBase64} alt="Official Payment Slip" />
                       </div>
                     )}
                   </div>
                 )}
 
-                {/* Immutable Blockchain Proof Metadata */}
-                <div>
-                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 700, marginBottom: '4px' }}>
-                    Immutable Ethereum Sepolia Blockchain Hash
+                {/* Blockchain Proof Hash */}
+                {d.txHash && (
+                  <div className="rcp-modal-hash-block">
+                    <div className="rcp-modal-hash-lbl">Ethereum Sepolia Proof Hash</div>
+                    <div className="rcp-modal-hash-box">
+                      <span>{d.txHash}</span>
+                      <button
+                        type="button"
+                        className="rcp-modal-copy-btn"
+                        onClick={() => {
+                          navigator.clipboard.writeText(d.txHash);
+                          showSuccess('Transaction hash copied!', 'Copied');
+                        }}
+                        title="Copy transaction hash"
+                      >
+                        <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>content_copy</span>
+                      </button>
+                    </div>
                   </div>
-                  <div style={{
-                    background: 'var(--bg-subcard)',
-                    border: '1px solid var(--border)',
-                    borderRadius: '8px',
-                    padding: '8px 12px',
-                    fontFamily: 'var(--font-mono)',
-                    fontSize: '0.78rem',
-                    color: 'var(--text-primary)',
-                    wordBreak: 'break-all',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    gap: '8px'
-                  }}>
-                    <span>{d.txHash}</span>
-                    <button
-                      type="button"
-                      className="btn btn-xs btn-ghost"
-                      onClick={() => {
-                        navigator.clipboard.writeText(d.txHash);
-                        showSuccess('Transaction hash copied!', 'Copied');
-                      }}
-                      title="Copy Hash"
-                    >
-                      <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>content_copy</span>
-                    </button>
-                  </div>
-                </div>
-
+                )}
               </div>
 
-              {/* Certificate Footer Actions */}
-              <div style={{
-                padding: '16px 24px',
-                background: 'var(--bg-subcard)',
-                borderTop: '1px solid var(--border)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                flexWrap: 'wrap',
-                gap: '10px'
-              }}>
-                <div>
+              {/* Footer Actions */}
+              <div className="rcp-modal-foot">
+                <div className="rcp-modal-foot-left">
                   {isShortage && (
                     <button
                       type="button"
                       className="btn btn-danger btn-sm"
-                      style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontWeight: 700 }}
-                      onClick={() => showSuccess(`Dispute successfully logged with platform oversight committee against ${orgName}. Investigation ticket #AUDIT-${Date.now().toString().slice(-6)} created.`, 'Dispute Filed')}
+                      style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}
+                      onClick={() => showSuccess(`Dispute logged against ${orgName}. Ticket #AUDIT-${Date.now().toString().slice(-6)} created.`, 'Dispute Filed')}
                     >
-                      <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>gavel</span>
-                      <span>File Dispute Against NGO</span>
+                      <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>gavel</span>
+                      <span>File Dispute</span>
                     </button>
                   )}
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div className="rcp-modal-foot-right">
                   <button
                     type="button"
-                    className="btn btn-outline btn-sm"
+                    className="rcp-modal-btn"
                     onClick={() => printDonationVoucher({
                       ...d,
                       phpAmount: creditedPhp,
                       campaignTitle: campTitle,
                       orgName,
-                      donorName: d.isAnonymous ? 'Anonymous Supporter' : (userDisplayName || currentUser?.name || 'Verified Donor'),
+                      donorName: donorDisplay,
                       isShortage
                     })}
-                    style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
                   >
-                    <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>print</span>
-                    <span>Print / Save PDF</span>
+                    <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>print</span>
+                    <span>Print / PDF</span>
                   </button>
 
-                  {d.txHash && (
+                  {isValidTxHash && (
                     <a
                       href={`https://sepolia.etherscan.io/tx/${d.txHash}`}
                       target="_blank"
                       rel="noreferrer"
-                      className="btn btn-outline btn-sm"
-                      style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', textDecoration: 'none' }}
-                      title="For technical auditors: View raw opcode transaction on Sepolia Etherscan"
+                      className="rcp-modal-btn"
                     >
-                      <span>Raw Etherscan ↗</span>
+                      <span>Etherscan</span>
+                      <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>open_in_new</span>
                     </a>
                   )}
 
                   <button
                     type="button"
-                    className="btn btn-primary btn-sm"
+                    className="rcp-modal-btn is-primary"
                     onClick={() => setSelectedVoucherTx(null)}
                   >
-                    Close
+                    Done
                   </button>
                 </div>
               </div>
-
             </div>
           </div>
         );
