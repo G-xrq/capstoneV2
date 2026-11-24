@@ -294,63 +294,165 @@ function phonesMatch(extractedPhone, expectedPhone) {
 }
 
 /**
+ * Normalize OCR-extracted GCash/Maya masked names:
+ *  - Converts bullet dots (•, ●, ·) to '*'
+ *  - Converts lowercase OCR bullet misreads trapped inside ALL-CAPS tokens (e.g. "REeA GReoE FAeeH" -> "RE*A GR**E FA**H")
+ *  - Strips stray leading single-letter UI avatar/badge icon noise (e.g. "D RE*A GR**E FA**H S" -> "RE*A GR**E FA**H S")
+ */
+function normalizeMaskedRecipientName(rawName) {
+  if (!rawName || typeof rawName !== 'string') return '';
+  let s = rawName
+    .replace(/[•●·]/g, '*')
+    .replace(/[|_~`]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  // Replace lowercase dot-artifacts (e, o, c, a, 0) sandwiched between UPPERCASE letters (e.g. REeA -> RE*A, GReoE -> GR**E)
+  s = s
+    .split(/\s+/)
+    .map((tok) => tok.replace(/(?<=[A-Z])[eoca0]+(?=[A-Z])/g, (m) => '*'.repeat(m.length)))
+    .join(' ');
+
+  // Strip stray leading single-letter icon artifact (e.g. "D " from GCash avatar circle) before 2+ uppercase/masked tokens
+  const parts = s.split(/\s+/).filter(Boolean);
+  if (
+    parts.length >= 3 &&
+    /^[A-Za-z0-9]$/.test(parts[0]) &&
+    parts.slice(1, 3).every((p) => p.replace(/[^A-Z*]/gi, '').length >= 2)
+  ) {
+    parts.shift();
+  }
+
+  return parts.join(' ').trim();
+}
+
+/**
+ * Check if two individual name tokens match (supporting wildcard masks like RE*A vs REYA / RE*A / REeA).
+ */
+function nameTokensCompatible(rawA, rawB) {
+  const a = (rawA || '').toUpperCase().replace(/[^A-Z*]/g, '');
+  const b = (rawB || '').toUpperCase().replace(/[^A-Z*]/g, '');
+  if (!a || !b) return false;
+  if (a === b) return true;
+
+  const toRegex = (pat) => {
+    const escaped = pat.replace(/\*+/g, '.*');
+    return new RegExp(`^${escaped}$`);
+  };
+  if (a.includes('*') && toRegex(a).test(b.replace(/\*/g, 'X'))) return true;
+  if (b.includes('*') && toRegex(b).test(a.replace(/\*/g, 'X'))) return true;
+  if (a.includes('*') && toRegex(a).test(b)) return true;
+  if (b.includes('*') && toRegex(b).test(a)) return true;
+
+  // Both masked (e.g. GR**E vs GR*E where OCR saw 1 dot instead of 2): compare visible prefix + suffix
+  if (a.includes('*') && b.includes('*')) {
+    const aParts = a.split(/\*+/).filter(Boolean);
+    const bParts = b.split(/\*+/).filter(Boolean);
+    if (aParts.length > 0 && bParts.length > 0) {
+      const aPre = aParts[0];
+      const bPre = bParts[0];
+      const preLen = Math.min(aPre.length, bPre.length);
+      if (preLen >= 1 && aPre.slice(0, preLen) === bPre.slice(0, preLen)) {
+        const aSuf = aParts[aParts.length - 1];
+        const bSuf = bParts[bParts.length - 1];
+        const sufLen = Math.min(aSuf.length, bSuf.length);
+        if (sufLen === 0 || aSuf.slice(-sufLen) === bSuf.slice(-sufLen)) {
+          return true;
+        }
+      }
+    }
+  }
+
+  // Single initial matching full/masked word starting with same letter (e.g. "S" vs "SANTOS" or "S***S")
+  const aLet = a.replace(/\*/g, '');
+  const bLet = b.replace(/\*/g, '');
+  if ((aLet.length === 1 && bLet.startsWith(aLet)) || (bLet.length === 1 && aLet.startsWith(bLet))) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
  * Robust check if extracted recipient name matches or is compatible with expected receiving account name.
- * Handles masked names (e.g. "SA••H A.", "GE•E M.", "CL***E JU*****E V.", "CR•••••••O J• C.", "ReliefLink PH").
+ * Handles masked names (e.g. "RE*A GR**E FA**H S.", "D REeA GReoE FAeeH S", "SA••H A.", "CL***E JU*****E V.", "ReliefLink PH").
  */
 function namesMatch(extractedName, expectedName, expectedOrg) {
   if (!extractedName) return true; // Inconclusive
   if (!expectedName && !expectedOrg) return true;
 
-  const clean = (s) => (s || '').toUpperCase().trim();
-  const ext = clean(extractedName);
-  const exp = clean(expectedName);
-  const org = clean(expectedOrg);
+  const extNorm = normalizeMaskedRecipientName(extractedName).toUpperCase();
+  const expNorm = normalizeMaskedRecipientName(expectedName || '').toUpperCase();
+  const orgNorm = normalizeMaskedRecipientName(expectedOrg || '').toUpperCase();
 
-  // Exact or direct substring match
-  if (exp && (ext === exp || ext.includes(exp) || exp.includes(ext))) return true;
-  if (org && (ext === org || ext.includes(org) || org.includes(ext))) return true;
+  // Exact or direct substring match after normalization
+  if (expNorm && (extNorm === expNorm || extNorm.includes(expNorm) || expNorm.includes(extNorm))) return true;
+  if (orgNorm && (extNorm === orgNorm || extNorm.includes(orgNorm) || orgNorm.includes(extNorm))) return true;
 
-  // Extract letter tokens ignoring masks (*, •, ., -, bullet points)
-  const parseToken = (tok) => {
-    const lettersOnly = tok.replace(/[^A-Z]/g, '');
-    if (!lettersOnly) return { start: '', end: '', initial: '', raw: tok };
-    return {
-      start: lettersOnly.slice(0, 2),
-      end: lettersOnly.slice(-1),
-      initial: lettersOnly[0],
-      raw: tok
-    };
+  const tokenize = (s) =>
+    s
+      .split(/[\s,]+/)
+      .map((t) => t.replace(/[^A-Z*]/g, ''))
+      .filter((t) => t.replace(/\*/g, '').length > 0);
+
+  const checkPair = (extToks, targetToks) => {
+    if (extToks.length === 0 || targetToks.length === 0) return true;
+
+    // Try with and without a stray leading single-letter OCR icon token on extracted side
+    const extVariants = [extToks];
+    if (extToks.length >= 2 && extToks[0].replace(/\*/g, '').length === 1) {
+      extVariants.push(extToks.slice(1));
+    }
+
+    for (const candidateExt of extVariants) {
+      // Compare core multi-letter tokens (length >= 2)
+      const extCore = candidateExt.filter((t) => t.replace(/\*/g, '').length >= 2);
+      const targetCore = targetToks.filter((t) => t.replace(/\*/g, '').length >= 2);
+
+      // Trailing single-letter surname initials (if explicitly present on BOTH sides, they must agree!)
+      const extLast = candidateExt[candidateExt.length - 1];
+      const targetLast = targetToks[targetToks.length - 1];
+      const extHasTrailingInit = extLast.replace(/\*/g, '').length === 1;
+      const targetHasTrailingInit = targetLast.replace(/\*/g, '').length === 1;
+      if (extHasTrailingInit && targetHasTrailingInit) {
+        if (extLast.replace(/\*/g, '')[0] !== targetLast.replace(/\*/g, '')[0]) {
+          continue; // Explicit last initial conflict (e.g. "S." vs "M." or "A." vs "V.")
+        }
+      }
+
+      if (extCore.length > 0 && targetCore.length > 0) {
+        // First core token must match
+        if (!nameTokensCompatible(extCore[0], targetCore[0])) continue;
+
+        // Check how many core tokens of the shorter side match in order
+        const minCore = Math.min(extCore.length, targetCore.length);
+        let matchedCore = 0;
+        for (let i = 0; i < minCore; i++) {
+          if (nameTokensCompatible(extCore[i], targetCore[i])) {
+            matchedCore++;
+          }
+        }
+
+        // All core tokens match (handles missing wrapped trailing initial like "RE*A GR**E FA**H" vs "RE*A GR**E FA**H S.")
+        if (matchedCore === minCore) {
+          return true;
+        }
+      } else {
+        // Fallback for very short names
+        if (nameTokensCompatible(candidateExt[0], targetToks[0]) && nameTokensCompatible(extLast, targetLast)) {
+          return true;
+        }
+      }
+    }
+
+    return false;
   };
 
-  const extTokens = ext.split(/[\s,]+/).filter(Boolean).map(parseToken).filter(t => t.initial);
-  const expTokens = (exp || org).split(/[\s,]+/).filter(Boolean).map(parseToken).filter(t => t.initial);
+  const extTokens = tokenize(extNorm);
+  if (expNorm && checkPair(extTokens, tokenize(expNorm))) return true;
+  if (orgNorm && checkPair(extTokens, tokenize(orgNorm))) return true;
 
-  if (extTokens.length === 0 || expTokens.length === 0) return true;
-
-  // 1. Compare First Word/Name Initial (e.g. 'S' from 'SA••H' vs 'C' from 'CL***E' or 'G' from 'GE•E')
-  const extFirst = extTokens[0];
-  const expFirst = expTokens[0];
-  if (extFirst.initial && expFirst.initial) {
-    if (extFirst.initial !== expFirst.initial) {
-      return false; // First initial mismatch (e.g. 'S' vs 'C' or 'G' vs 'C')
-    }
-  }
-  if (extFirst.start.length >= 2 && expFirst.start.length >= 2) {
-    if (extFirst.start !== expFirst.start) {
-      return false; // First 2 letters mismatch (e.g. 'SA' vs 'CL')
-    }
-  }
-
-  // 2. Compare Last Word/Initial (e.g. 'A' vs 'V' or 'M' vs 'V')
-  const extLast = extTokens[extTokens.length - 1];
-  const expLast = expTokens[expTokens.length - 1];
-  if (extLast.initial && expLast.initial) {
-    if (extLast.initial !== expLast.initial) {
-      return false; // Last initial mismatch (e.g. 'A' vs 'V')
-    }
-  }
-
-  return true;
+  return false;
 }
 
 /**
@@ -828,9 +930,9 @@ Return strictly JSON:
 
       // 1. Recipient Name & Phone Extraction & Cross-Check from OCR Text
       let extractedNameTess = null;
-      const nameLineMatch = ocrText.match(/\b([A-Z][A-Za-z0-9\s\.\-\•\*]{1,30}\s+[A-Z]\.?)\b/);
+      const nameLineMatch = ocrText.match(/\b([A-Z][A-Za-z0-9\s\.\-\•\*]{1,36}\s+[A-Z]\.?)\b/);
       if (nameLineMatch) {
-        extractedNameTess = nameLineMatch[1].trim();
+        extractedNameTess = normalizeMaskedRecipientName(nameLineMatch[1].trim());
       }
 
       let extractedPhoneTess = null;

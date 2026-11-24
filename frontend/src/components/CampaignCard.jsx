@@ -1458,12 +1458,40 @@ export default function CampaignCard(props) {
     const extPhone = (aiScanResult.recipientPhone || '').trim();
 
     if (extName || extPhone) {
-      // Check recipient name
+      // Check recipient name (masked-name & OCR bullet-artifact aware)
       if (extName && expectedName) {
-        const cleanStr = s => (s || '').toUpperCase().replace(/[^A-Z]/g, '');
-        const extLetters = cleanStr(extName);
-        const expLetters = cleanStr(expectedName);
-        if (extLetters.length > 0 && expLetters.length > 0 && extLetters[0] !== expLetters[0]) {
+        const normMask = (s) => {
+          const parts = (s || '')
+            .replace(/[•●·]/g, '*')
+            .replace(/[|_~`]/g, ' ')
+            .trim()
+            .split(/\s+/)
+            .filter(Boolean)
+            .map((tok) => tok.replace(/(?<=[A-Z])[eoca0]+(?=[A-Z])/g, (m) => '*'.repeat(m.length)));
+          if (parts.length >= 3 && /^[A-Za-z0-9]$/.test(parts[0]) && parts.slice(1, 3).every((p) => p.replace(/[^A-Z*]/gi, '').length >= 2)) {
+            parts.shift();
+          }
+          return parts.join(' ').toUpperCase();
+        };
+        const tokCompat = (aRaw, bRaw) => {
+          const a = (aRaw || '').replace(/[^A-Z*]/g, '');
+          const b = (bRaw || '').replace(/[^A-Z*]/g, '');
+          if (!a || !b) return false;
+          if (a === b) return true;
+          if (a.includes('*') && new RegExp(`^${a.replace(/\*+/g, '.*')}$`).test(b)) return true;
+          if (b.includes('*') && new RegExp(`^${b.replace(/\*+/g, '.*')}$`).test(a)) return true;
+          const al = a.replace(/\*/g, '');
+          const bl = b.replace(/\*/g, '');
+          return al.length > 0 && bl.length > 0 && al[0] === bl[0] && (al.length === 1 || bl.length === 1 || al.slice(-1) === bl.slice(-1));
+        };
+        const extToks = normMask(extName).split(/[\s,]+/).filter((t) => t.replace(/[^A-Z]/g, '').length > 0);
+        const expToks = normMask(expectedName).split(/[\s,]+/).filter((t) => t.replace(/[^A-Z]/g, '').length > 0);
+        const extCore = extToks.filter((t) => t.replace(/[^A-Z]/g, '').length >= 2);
+        const expCore = expToks.filter((t) => t.replace(/[^A-Z]/g, '').length >= 2);
+        const firstCoreOk = extCore.length > 0 && expCore.length > 0
+          ? tokCompat(extCore[0], expCore[0])
+          : (extToks.length > 0 && expToks.length > 0 ? tokCompat(extToks[0], expToks[0]) : true);
+        if (!firstCoreOk) {
           if (!flags.some(f => f.includes('RECIPIENT_NAME_MISMATCH') || f.includes('RECIPIENT_MISMATCH'))) {
             flags.push(`RECIPIENT_NAME_MISMATCH: Funds were transferred to "${extName}", but this campaign's official receiving account name is "${expectedName}".`);
           }

@@ -423,39 +423,74 @@ export async function extractQrVoucherText(imageOrResult) {
       const res = await Tesseract.recognize(imageUrl, 'eng');
       text = res?.data?.text || '';
 
-      // Detect mobile number (unmasked 09XX XXX XXXX or masked 09XX XXX ****)
+      // Detect mobile number (unmasked 09XX/+63 9XX or masked 09XX/+63 9XX *** ****)
       const phoneMatch =
-        text.match(/\b(09\d{2}[\s.-]?\d{3}[\s.-]?[\d*•]{4})\b/) ||
-        text.match(/(?:Mobile\s*No\.?|Number)[\s:.]*([0-9*•\s.-]{9,16})/i);
+        text.match(/(?:Mobile\s*No\.?|Number)[\s:.]*(\+?[0-9*•●·\s.-]{9,20})/i) ||
+        text.match(/\b((?:\+?63\s*9|09)\d{2}[\s.-]?\d{3}[\s.-]?[\d*•●·]{4})\b/);
       if (phoneMatch) {
-        detectedNumber = phoneMatch[1].replace(/[•]/g, '*').trim();
+        detectedNumber = phoneMatch[1].replace(/[•●·]/g, '*').replace(/\s+/g, ' ').trim();
       }
 
-      // If EMVCo Tag 59 didn't already give us the recipient name, parse from OCR lines
+      // If EMVCo Tag 59 didn't already give us the recipient name, parse from OCR lines (including wrapped 2nd line initials like "S.")
       if (!detectedName) {
         const NOISE_RE = /(transfer|fees|apply|gcash|maya|paymaya|instapay|qr\s*ph|mobile\s*no|user\s*id|verified|scan|download|share|save|powered\s*by|bsp|pesonet|account\s*no)/i;
+        const normalizeMaskDots = (s) =>
+          s
+            .replace(/[•●·]/g, '*')
+            .replace(/(?<=[A-Z])[eoca0]+(?=[A-Z])/g, (m) => '*'.repeat(m.length));
+
         const lines = text
           .split('\n')
           .map((l) => l.replace(/[|_~`]/g, '').replace(/\s+/g, ' ').trim())
-          .filter((l) => l.length >= 3 && l.length <= 48);
+          .filter((l) => l.length >= 1 && l.length <= 48);
 
-        // Pass 1: Prefer GCash/Maya masked or uppercase recipient name line (e.g. "CL***E JU*****E V." or "JUAN DELA CRUZ")
-        for (const line of lines) {
-          if (NOISE_RE.test(line)) continue;
-          if (/^\+?[\d\s*•.-]{6,}$/.test(line)) continue; // pure phone/ID digits
-          if (/^[A-Za-z][A-Za-z\s.*'-]{2,42}$/.test(line) && (/[A-Z]{2,}/.test(line) || /\*/.test(line))) {
-            detectedName = line;
+        const isNoiseOrDigits = (line) =>
+          !line || NOISE_RE.test(line) || /^\+?[\d\s*•●·.-]{5,}$/.test(line);
+
+        const isContinuationLine = (line) => {
+          if (isNoiseOrDigits(line)) return false;
+          const norm = normalizeMaskDots(line);
+          // Wrapped single-letter surname initial (e.g. "S.", "S", "V.", "JR.") or wrapped uppercase/masked surname
+          if (/^[A-Z]\.?$/.test(norm)) return true;
+          if (/^(?:JR|SR|II|III|IV)\.?$/i.test(norm)) return true;
+          if (/^[A-Za-z][A-Za-z\s.*'-]{1,28}$/.test(norm) && (/[A-Z]{2,}/.test(norm) || /\*/.test(norm))) {
+            return true;
+          }
+          return false;
+        };
+
+        // Pass 1: Prefer GCash/Maya masked or uppercase recipient name line (e.g. "RE*A GR**E FA**H" + wrapped "S.")
+        for (let i = 0; i < lines.length; i++) {
+          const line = lines[i];
+          if (line.length < 3 || isNoiseOrDigits(line)) continue;
+          const norm = normalizeMaskDots(line);
+          if (/^[A-Za-z][A-Za-z\s.*'-]{2,42}$/.test(norm) && (/[A-Z]{2,}/.test(norm) || /\*/.test(norm))) {
+            let full = norm;
+            // Merge up to 2 immediately following wrapped name / initial lines (e.g., "S.")
+            for (let k = 1; k <= 2 && i + k < lines.length; k++) {
+              const nextLine = lines[i + k];
+              if (isContinuationLine(nextLine)) {
+                full = `${full} ${normalizeMaskDots(nextLine)}`.trim();
+              } else {
+                break;
+              }
+            }
+            detectedName = full;
             break;
           }
         }
 
         // Pass 2: Any clean name-like line (Title Case / mixed case)
         if (!detectedName) {
-          for (const line of lines) {
-            if (NOISE_RE.test(line)) continue;
-            if (/^\+?[\d\s*•.-]{6,}$/.test(line)) continue;
+          for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+            if (line.length < 4 || isNoiseOrDigits(line)) continue;
             if (/^[A-Za-z][A-Za-z\s.'-]{3,42}$/.test(line) && line.includes(' ')) {
-              detectedName = line;
+              let full = line;
+              if (i + 1 < lines.length && isContinuationLine(lines[i + 1])) {
+                full = `${full} ${normalizeMaskDots(lines[i + 1])}`.trim();
+              }
+              detectedName = full;
               break;
             }
           }
