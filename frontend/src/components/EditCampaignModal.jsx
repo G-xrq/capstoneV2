@@ -24,7 +24,10 @@ const PRESET_CAMPAIGN_TAGS = [
   'Blood Donation',
   'First Aid Kits',
   'Livelihood Assistance',
-  'Evacuation Support'
+  'Evacuation Support',
+  'Charity Outreach',
+  'Education & Youth',
+  'Feeding Program'
 ];
 
 const WIZARD_STEPS = [
@@ -640,7 +643,7 @@ export default function EditCampaignModal({ camp, isOpen, onClose, onSaved }) {
                       onClick={() => setDeliveryDatePickerOpen(prev => !prev)}
                     >
                       <span className="prefix material-symbols-outlined" style={{ color: targetDate ? '#10b981' : '#71717a' }}>calendar_month</span>
-                      <span style={{ flex: 1, fontSize: '0.82rem', color: targetDate ? '#ededed' : '#71717a', fontWeight: targetDate ? 600 : 400 }}>
+                      <span style={{ flex: 1, fontSize: '0.82rem', color: targetDate ? 'var(--text-primary)' : 'var(--text-muted)', fontWeight: targetDate ? 600 : 400 }}>
                         {targetDate ? formatSelectedDeliveryDate(targetDate) : 'Select Delivery Date...'}
                       </span>
                       {targetDate && (
@@ -783,7 +786,7 @@ export default function EditCampaignModal({ camp, isOpen, onClose, onSaved }) {
                             flexShrink: 0
                           }}
                         />
-                        <span style={{ fontSize: '0.82rem', fontWeight: 600, color: urgency ? '#ededed' : '#71717a' }}>
+                        <span style={{ fontSize: '0.82rem', fontWeight: 600, color: urgency ? 'var(--text-primary)' : 'var(--text-muted)' }}>
                           {urgency === 'HIGH (EMERGENCY AID)' && 'Critical Emergency (≤ 5 Days)'}
                           {urgency === 'MEDIUM (URGENT REHABILITATION)' && 'Urgent Relief (6–14 Days)'}
                           {urgency === 'STABLE (CHARITABLE AID)' && 'Standard Operations (> 14 Days)'}
@@ -1090,7 +1093,7 @@ export default function EditCampaignModal({ camp, isOpen, onClose, onSaved }) {
                           <span className="material-symbols-outlined" style={{ fontSize: '13px', color: '#22c55e' }}>location_on</span>
                           <span>Confirmed Target Area:</span>
                         </div>
-                        <div style={{ fontSize: '0.78rem', fontWeight: 600, color: locationRegion ? '#ededed' : '#71717a', marginTop: '2px', wordBreak: 'break-word' }}>
+                        <div style={{ fontSize: '0.78rem', fontWeight: 600, color: locationRegion ? 'var(--text-primary)' : 'var(--text-muted)', marginTop: '2px', wordBreak: 'break-word' }}>
                           {locationRegion || 'Fill inputs above or select a point on the map →'}
                         </div>
                       </div>
@@ -1175,7 +1178,7 @@ export default function EditCampaignModal({ camp, isOpen, onClose, onSaved }) {
                         defaultLayer="terrain"
                         searchTrigger={mapSearchTrigger}
                         height="440px"
-                        theme="dark"
+                        theme={typeof document !== 'undefined' ? (document.documentElement.getAttribute('data-theme') || 'dark') : 'dark'}
                       />
                     </div>
                   </div>
@@ -1360,7 +1363,7 @@ export default function EditCampaignModal({ camp, isOpen, onClose, onSaved }) {
                           <img src={gcashQrUrl} alt="GCash QR" />
                         </div>
                       ) : (
-                        <div className="bbdrts-qr-thumb" style={{ background: '#141414', border: '1px dashed #333' }}>
+                        <div className="bbdrts-qr-thumb is-empty">
                           <span className="material-symbols-outlined" style={{ fontSize: '24px', color: '#71717a' }}>qr_code_2</span>
                         </div>
                       )}
@@ -1436,7 +1439,7 @@ export default function EditCampaignModal({ camp, isOpen, onClose, onSaved }) {
                           <img src={mayaQrUrl} alt="Maya QR" />
                         </div>
                       ) : (
-                        <div className="bbdrts-qr-thumb" style={{ background: '#141414', border: '1px dashed #333' }}>
+                        <div className="bbdrts-qr-thumb is-empty">
                           <span className="material-symbols-outlined" style={{ fontSize: '24px', color: '#71717a' }}>qr_code_2</span>
                         </div>
                       )}
@@ -1524,7 +1527,7 @@ export default function EditCampaignModal({ camp, isOpen, onClose, onSaved }) {
                           <img src={bankQrUrl} alt="Bank QR" />
                         </div>
                       ) : (
-                        <div className="bbdrts-qr-thumb" style={{ background: '#141414', border: '1px dashed #333' }}>
+                        <div className="bbdrts-qr-thumb is-empty">
                           <span className="material-symbols-outlined" style={{ fontSize: '24px', color: '#71717a' }}>qr_code_2</span>
                         </div>
                       )}
@@ -1659,26 +1662,15 @@ export default function EditCampaignModal({ camp, isOpen, onClose, onSaved }) {
           }}
           onClick={() => setShowSelectQrModal(null)}
         >
-          <div
-            style={{
-              background: '#0d0d0d',
-              border: '1px solid #282828',
-              borderRadius: '12px',
-              padding: '18px 20px',
-              width: '420px',
-              maxWidth: '100%',
-              boxShadow: '0 24px 50px rgba(0,0,0,0.9)'
-            }}
-            onClick={e => e.stopPropagation()}
-          >
+          <div className="bbdrts-qr-lib-modal" onClick={e => e.stopPropagation()}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
-              <strong style={{ fontSize: '0.88rem', color: '#ededed' }}>
+              <strong style={{ fontSize: '0.88rem', color: 'var(--text-primary)' }}>
                 Select Saved {showSelectQrModal} QR Code
               </strong>
               <button
                 type="button"
+                className="bbdrts-edit-close-btn"
                 onClick={() => setShowSelectQrModal(null)}
-                style={{ background: 'transparent', border: 'none', color: '#71717a', cursor: 'pointer' }}
               >
                 <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>close</span>
               </button>
@@ -1686,7 +1678,7 @@ export default function EditCampaignModal({ camp, isOpen, onClose, onSaved }) {
 
             <div style={{ maxHeight: '280px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '8px' }}>
               {savedQrList.filter(q => q.payment_method === showSelectQrModal).length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '24px 10px', color: '#71717a', fontSize: '0.78rem' }}>
+                <div style={{ textAlign: 'center', padding: '24px 10px', color: 'var(--text-muted)', fontSize: '0.78rem' }}>
                   No saved {showSelectQrModal} QR codes found in your library.
                 </div>
               ) : (
@@ -1695,25 +1687,13 @@ export default function EditCampaignModal({ camp, isOpen, onClose, onSaved }) {
                   .map(qr => (
                     <div
                       key={qr.id}
+                      className="bbdrts-qr-lib-item"
                       onClick={() => handleSelectSavedQr(qr)}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '12px',
-                        padding: '8px 12px',
-                        background: '#141414',
-                        border: '1px solid #222222',
-                        borderRadius: '6px',
-                        cursor: 'pointer',
-                        transition: 'border-color 0.12s'
-                      }}
-                      onMouseEnter={e => e.currentTarget.style.borderColor = '#444'}
-                      onMouseLeave={e => e.currentTarget.style.borderColor = '#222'}
                     >
-                      <img src={qr.qr_image_url} alt={qr.custom_name} style={{ width: '40px', height: '40px', objectFit: 'contain', background: '#fff', borderRadius: '4px' }} />
+                      <img src={qr.qr_image_url} alt={qr.custom_name} style={{ width: '40px', height: '40px', objectFit: 'contain', background: '#fff', borderRadius: '4px', border: '1px solid var(--border)' }} />
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: '0.80rem', fontWeight: 600, color: '#ededed' }}>{qr.custom_name}</div>
-                        <div style={{ fontSize: '0.70rem', color: '#71717a' }}>{qr.account_name} ({qr.account_number})</div>
+                        <div style={{ fontSize: '0.80rem', fontWeight: 600, color: 'var(--text-primary)' }}>{qr.custom_name}</div>
+                        <div style={{ fontSize: '0.70rem', color: 'var(--text-muted)' }}>{qr.account_name} ({qr.account_number})</div>
                       </div>
                       <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#10b981' }}>arrow_forward</span>
                     </div>
