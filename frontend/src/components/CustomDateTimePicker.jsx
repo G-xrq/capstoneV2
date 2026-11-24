@@ -312,8 +312,12 @@ export default function CustomDateTimePicker({
                   onClick={() => {
                     const now = new Date();
                     setCalViewDate(now);
+                    const y = now.getFullYear();
+                    const m = String(now.getMonth() + 1).padStart(2, '0');
+                    const d = String(now.getDate()).padStart(2, '0');
+                    handleSelectDay(`${y}-${m}-${d}`);
                   }}
-                  title="Jump to current month"
+                  title="Select today's date"
                 >
                   Today
                 </button>
@@ -401,10 +405,7 @@ export default function CustomDateTimePicker({
                     value={selectedMinute}
                     onChange={(e) => handleMinuteChange(e.target.value)}
                   >
-                    {[0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55].includes(selectedMinute) ? null : (
-                      <option value={selectedMinute}>{String(selectedMinute).padStart(2, '0')}</option>
-                    )}
-                    {[0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55].map(m => (
+                    {Array.from({ length: 60 }, (_, m) => m).map(m => (
                       <option key={m} value={m}>
                         {String(m).padStart(2, '0')}
                       </option>
@@ -442,6 +443,7 @@ export default function CustomDateTimePicker({
                 </div>
 
                 <div className="dt-presets-grid">
+                  <button type="button" className="dt-preset-pill" onClick={() => handleApplyPreset(5)}>+5m</button>
                   <button type="button" className="dt-preset-pill" onClick={() => handleApplyPreset(15)}>+15m</button>
                   <button type="button" className="dt-preset-pill" onClick={() => handleApplyPreset(30)}>+30m</button>
                   <button type="button" className="dt-preset-pill" onClick={() => handleApplyPreset(60)}>+1 Hour</button>
