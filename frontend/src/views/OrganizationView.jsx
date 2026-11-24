@@ -1739,7 +1739,7 @@ export default function OrganizationView({
 
   const handleOpenVerification = (donation) => {
     setVerifyingDonation(donation);
-    const phpVal = Math.round(parseFloat(donation.Amount || 0) * 170000);
+    const phpVal = Number(donation.Amount_PHP || donation.amountPhp) > 0 ? Math.round(Number(donation.Amount_PHP || donation.amountPhp)) : Math.round(parseFloat(donation.Amount || 0) * 170000);
     setConfirmedAmountPhp(String(phpVal));
     setConfirmedRefNo(donation.Reference_Number || donation.ai_result?.extractedRef || '');
     setCheckAccountVerified(false);
@@ -9208,8 +9208,8 @@ export default function OrganizationView({
             left: 0,
             width: '100vw',
             height: '100vh',
-            background: 'rgba(5, 7, 12, 0.85)',
-            backdropFilter: 'blur(10px)',
+            background: 'rgba(10, 12, 18, 0.68)',
+            backdropFilter: 'blur(8px)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -9224,11 +9224,11 @@ export default function OrganizationView({
               width: '880px',
               maxWidth: '96vw',
               maxHeight: '92vh',
-              background: '#0a0a0a',
-              border: '1px solid #222222',
+              background: 'var(--bg-card)',
+              border: '1px solid var(--border-strong, var(--border))',
               borderRadius: '14px',
-              boxShadow: '0 25px 65px rgba(0, 0, 0, 0.9)',
-              color: '#ededed',
+              boxShadow: 'var(--shadow-dropdown, 0 25px 65px rgba(0, 0, 0, 0.35))',
+              color: 'var(--text-primary)',
               display: 'flex',
               flexDirection: 'column',
               overflow: 'hidden'
@@ -9237,45 +9237,45 @@ export default function OrganizationView({
             {/* Modal Header */}
             <div style={{
               padding: '16px 22px',
-              borderBottom: '1px solid #222222',
+              borderBottom: '1px solid var(--border)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
-              background: '#0a0a0a'
+              background: 'var(--bg-card)'
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                 <div style={{
                   width: '38px',
                   height: '38px',
                   borderRadius: '10px',
-                  background: '#141414',
-                  border: '1px solid #262626',
+                  background: 'var(--bg-inset)',
+                  border: '1px solid var(--border)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  color: '#ededed',
+                  color: 'var(--text-primary)',
                   flexShrink: 0
                 }}>
                   <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>fact_check</span>
                 </div>
                 <div>
-                  <div style={{ fontWeight: 700, fontSize: '1.05rem', letterSpacing: '-0.01em', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <div style={{ fontWeight: 700, fontSize: '1.05rem', letterSpacing: '-0.01em', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-primary)' }}>
                     <span>Confirm Received Donation</span>
                     <span style={{
                       fontSize: '0.66rem',
                       fontWeight: 600,
                       padding: '2px 8px',
                       borderRadius: '6px',
-                      background: '#181818',
-                      color: '#ededed',
-                      border: '1px solid #282828',
+                      background: 'var(--bg-inset)',
+                      color: 'var(--text-primary)',
+                      border: '1px solid var(--border-strong, var(--border))',
                       textTransform: 'uppercase',
                       fontFamily: 'monospace'
                     }}>
                       {verifyingDonation.Payment_Method || 'E-Wallet'}
                     </span>
                   </div>
-                  <div style={{ fontSize: '0.76rem', color: '#888888', marginTop: '2px' }}>
+                  <div style={{ fontSize: '0.76rem', color: 'var(--text-muted)', marginTop: '2px' }}>
                     Cross-reference incoming funds with your actual account statement before on-chain recording
                   </div>
                 </div>
@@ -9285,7 +9285,7 @@ export default function OrganizationView({
                   type="button"
                   onClick={() => setVerifyingDonation(null)}
                   className="btn btn-ghost btn-sm"
-                  style={{ padding: '6px', color: '#888888', background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                  style={{ padding: '6px', color: 'var(--text-muted)', background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
                   title="Close"
                 >
                   <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>close</span>
@@ -9295,7 +9295,7 @@ export default function OrganizationView({
 
             {/* Modal Body: Switch between Loading State and Form */}
             {verifyingSubmitting ? (
-              /* ── Task 2: Dedicated Blockchain Recording Screen ── */
+              /* ── Dedicated Blockchain Recording Screen ── */
               <div style={{
                 padding: '48px 24px',
                 display: 'flex',
@@ -9304,7 +9304,7 @@ export default function OrganizationView({
                 justifyContent: 'center',
                 textAlign: 'center',
                 minHeight: '440px',
-                background: '#0a0a0a'
+                background: 'var(--bg-card)'
               }}>
                 {/* Animated Pulsing Ring & Node Icon */}
                 <div style={{
@@ -9328,12 +9328,12 @@ export default function OrganizationView({
                     width: '64px',
                     height: '64px',
                     borderRadius: '50%',
-                    background: '#111111',
-                    border: '1px solid #222222',
+                    background: 'var(--bg-subcard)',
+                    border: '1px solid var(--border)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    boxShadow: '0 0 35px rgba(16, 185, 129, 0.25)'
+                    boxShadow: '0 0 35px rgba(16, 185, 129, 0.22)'
                   }}>
                     <span className="material-symbols-outlined" style={{ fontSize: '30px', color: '#10b981' }}>
                       account_balance
@@ -9341,10 +9341,10 @@ export default function OrganizationView({
                   </div>
                 </div>
 
-                <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#ededed', margin: '0 0 8px 0', letterSpacing: '-0.02em' }}>
+                <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 8px 0', letterSpacing: '-0.02em' }}>
                   Recording to Blockchain Ledger
                 </h3>
-                <p style={{ fontSize: '0.82rem', color: '#888888', maxWidth: '420px', margin: '0 0 24px 0', lineHeight: 1.5 }}>
+                <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', maxWidth: '420px', margin: '0 0 24px 0', lineHeight: 1.5 }}>
                   Minting immutable cryptographic donation record onto Sepolia EVM and crediting funds to campaign balance.
                 </p>
 
@@ -9352,8 +9352,8 @@ export default function OrganizationView({
                 <div style={{
                   width: '100%',
                   maxWidth: '460px',
-                  background: '#0e0e0e',
-                  border: '1px solid #222222',
+                  background: 'var(--bg-subcard)',
+                  border: '1px solid var(--border)',
                   borderRadius: '10px',
                   padding: '14px 18px',
                   marginBottom: '20px',
@@ -9363,20 +9363,20 @@ export default function OrganizationView({
                   gap: '8px'
                 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: '0.72rem', color: '#888888', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Confirmed Value</span>
+                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Confirmed Value</span>
                     <span style={{ fontSize: '1.05rem', fontWeight: 700, color: '#10b981', fontFamily: 'var(--font-mono, monospace)' }}>
                       ₱{parseFloat(confirmedAmountPhp || 0).toLocaleString()} PHP
                     </span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: '0.72rem', color: '#888888', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Reference / Trace</span>
-                    <span style={{ fontSize: '0.78rem', color: '#ededed', fontFamily: 'var(--font-mono, monospace)', fontWeight: 600 }}>
+                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Reference / Trace</span>
+                    <span style={{ fontSize: '0.78rem', color: 'var(--text-primary)', fontFamily: 'var(--font-mono, monospace)', fontWeight: 600 }}>
                       #{confirmedRefNo || verifyingDonation.Reference_Number || 'Manual Attestation'}
                     </span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: '0.72rem', color: '#888888', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Beneficiary Campaign</span>
-                    <span style={{ fontSize: '0.78rem', color: '#ededed', fontWeight: 500, maxWidth: '240px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Beneficiary Campaign</span>
+                    <span style={{ fontSize: '0.78rem', color: 'var(--text-primary)', fontWeight: 500, maxWidth: '240px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {verifyingDonation.Campaign_Title}
                     </span>
                   </div>
@@ -9388,35 +9388,35 @@ export default function OrganizationView({
                     <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>check_circle</span>
                     <span>NGO financial officer attestation verified</span>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.76rem', color: '#ededed' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.76rem', color: 'var(--text-primary)' }}>
                     <div className="spinner" style={{ width: '14px', height: '14px', borderWidth: '2px', borderColor: '#38bdf8', borderTopColor: 'transparent' }} />
                     <span>Broadcasting state transition to Ethereum Sepolia EVM...</span>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.76rem', color: '#666666' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.76rem', color: 'var(--text-muted)' }}>
                     <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>radio_button_unchecked</span>
-                    <span>Awaiting block confirmation & issuing immutable digital receipt</span>
+                    <span>Awaiting block confirmation &amp; issuing immutable digital receipt</span>
                   </div>
                 </div>
               </div>
             ) : (
-              /* ── Task 1: Improved Modal Body ── */
+              /* ── Theme-Aware Modal Body ── */
               <div style={{
                 padding: '22px 24px',
                 overflowY: 'auto',
                 display: 'grid',
                 gridTemplateColumns: 'minmax(280px, 350px) 1fr',
                 gap: '24px',
-                background: '#0a0a0a'
+                background: 'var(--bg-card)'
               }}>
                 {/* Left Column: Uploaded Receipt Preview */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  <div style={{ fontSize: '0.72rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#888888' }}>
-                    Donor's Uploaded Transfer Receipt
+                  <div style={{ fontSize: '0.72rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)' }}>
+                    Donor&apos;s Uploaded Transfer Receipt
                   </div>
 
                   <div style={{
-                    background: '#000000',
-                    border: '1px solid #222222',
+                    background: 'var(--bg-subcard)',
+                    border: '1px solid var(--border)',
                     borderRadius: '10px',
                     overflow: 'hidden',
                     display: 'flex',
@@ -9451,17 +9451,18 @@ export default function OrganizationView({
                             type="button"
                             onClick={() => setProofPreviewModalImg(verifyingDonation.Receipt_Base64)}
                             style={{
-                              background: '#141414',
-                              border: '1px solid #2a2a2a',
-                              color: '#ededed',
+                              background: 'var(--bg-card)',
+                              border: '1px solid var(--border-strong, var(--border))',
+                              color: 'var(--text-primary)',
                               borderRadius: '6px',
                               padding: '4px 10px',
                               fontSize: '0.72rem',
-                              fontWeight: 500,
+                              fontWeight: 600,
                               cursor: 'pointer',
                               display: 'inline-flex',
                               alignItems: 'center',
-                              gap: '4px'
+                              gap: '4px',
+                              boxShadow: 'var(--shadow-sm)'
                             }}
                           >
                             <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>zoom_in</span>
@@ -9471,18 +9472,19 @@ export default function OrganizationView({
                             href={formatImageSrc(verifyingDonation.Receipt_Base64)}
                             download={`receipt_${verifyingDonation.Manual_ID}.png`}
                             style={{
-                              background: '#141414',
-                              border: '1px solid #2a2a2a',
-                              color: '#ededed',
+                              background: 'var(--bg-card)',
+                              border: '1px solid var(--border-strong, var(--border))',
+                              color: 'var(--text-primary)',
                               borderRadius: '6px',
                               padding: '4px 10px',
                               fontSize: '0.72rem',
-                              fontWeight: 500,
+                              fontWeight: 600,
                               cursor: 'pointer',
                               display: 'inline-flex',
                               alignItems: 'center',
                               gap: '4px',
-                              textDecoration: 'none'
+                              textDecoration: 'none',
+                              boxShadow: 'var(--shadow-sm)'
                             }}
                           >
                             <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>download</span>
@@ -9491,7 +9493,7 @@ export default function OrganizationView({
                         </div>
                       </>
                     ) : (
-                      <div style={{ padding: '30px', textAlign: 'center', color: '#666666' }}>
+                      <div style={{ padding: '30px', textAlign: 'center', color: 'var(--text-muted)' }}>
                         <span className="material-symbols-outlined" style={{ fontSize: '36px', opacity: 0.5, marginBottom: '8px', display: 'block' }}>receipt_long</span>
                         <span style={{ fontSize: '0.78rem' }}>No slip image was attached by donor</span>
                       </div>
@@ -9500,8 +9502,8 @@ export default function OrganizationView({
 
                   {/* Donor claim metadata card */}
                   <div style={{
-                    background: '#0e0e0e',
-                    border: '1px solid #1f1f1f',
+                    background: 'var(--bg-subcard)',
+                    border: '1px solid var(--border)',
                     borderRadius: '10px',
                     padding: '12px 14px',
                     fontSize: '0.78rem',
@@ -9510,22 +9512,25 @@ export default function OrganizationView({
                     gap: '8px'
                   }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ color: '#888888', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Donor</span>
-                      <span style={{ fontWeight: 600, color: '#ededed', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                      <span style={{ color: 'var(--text-muted)', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Donor</span>
+                      <span style={{ fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '5px' }}>
                         <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10b981', display: 'inline-block' }} />
                         {verifyingDonation.Donor_Name || 'Anonymous Supporter'}
                       </span>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ color: '#888888', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Relief Campaign</span>
-                      <span style={{ fontWeight: 500, color: '#ededed', textAlign: 'right', maxWidth: '180px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={verifyingDonation.Campaign_Title}>
+                      <span style={{ color: 'var(--text-muted)', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Relief Campaign</span>
+                      <span style={{ fontWeight: 500, color: 'var(--text-primary)', textAlign: 'right', maxWidth: '180px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={verifyingDonation.Campaign_Title}>
                         {verifyingDonation.Campaign_Title}
                       </span>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ color: '#888888', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Claimed Amount</span>
+                      <span style={{ color: 'var(--text-muted)', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Claimed Amount</span>
                       <span style={{ fontWeight: 700, color: '#10b981', fontFamily: 'var(--font-mono, monospace)' }}>
-                        ₱{Math.round(parseFloat(verifyingDonation.Amount || 0) * 170000).toLocaleString()} PHP
+                        ₱{(Number(verifyingDonation.Amount_PHP || verifyingDonation.amountPhp) > 0
+                          ? Math.round(Number(verifyingDonation.Amount_PHP || verifyingDonation.amountPhp))
+                          : Math.round(parseFloat(verifyingDonation.Amount || 0) * 170000)
+                        ).toLocaleString()} PHP
                       </span>
                     </div>
                   </div>
@@ -9536,34 +9541,39 @@ export default function OrganizationView({
 
                   {/* Audit Callout Banner */}
                   <div style={{
-                    background: 'rgba(245, 158, 11, 0.04)',
-                    border: '1px solid rgba(245, 158, 11, 0.22)',
+                    background: 'rgba(245, 158, 11, 0.08)',
+                    border: '1px solid rgba(245, 158, 11, 0.30)',
                     borderRadius: '10px',
                     padding: '12px 14px',
                     display: 'flex',
                     gap: '10px',
                     alignItems: 'flex-start'
                   }}>
-                    <span className="material-symbols-outlined" style={{ color: '#f59e0b', fontSize: '18px', marginTop: '1px', flexShrink: 0 }}>security</span>
-                    <div style={{ fontSize: '0.76rem', lineHeight: '1.45', color: '#cbd5e1' }}>
-                      <strong style={{ color: '#f59e0b' }}>Account Check Required:</strong> Confirm that the funds have physically settled in your official <strong>{verifyingDonation.Payment_Method}</strong> account or merchant statement before minting to the blockchain ledger.
+                    <span className="material-symbols-outlined" style={{ color: '#d97706', fontSize: '18px', marginTop: '1px', flexShrink: 0 }}>security</span>
+                    <div style={{ fontSize: '0.76rem', lineHeight: '1.45', color: 'var(--text-secondary)' }}>
+                      <strong style={{ color: '#d97706' }}>Account Check Required:</strong> Confirm that the funds have physically settled in your official <strong style={{ color: 'var(--text-primary)' }}>{verifyingDonation.Payment_Method}</strong> account or merchant statement before minting to the blockchain ledger.
                     </div>
                   </div>
 
                   {/* Confirmed Received Amount Input */}
                   {(() => {
-                    const claimedAmountPhp = Math.round(parseFloat(verifyingDonation.Amount || 0) * 170000);
+                    const claimedAmountPhp = Number(verifyingDonation.Amount_PHP || verifyingDonation.amountPhp) > 0
+                      ? Math.round(Number(verifyingDonation.Amount_PHP || verifyingDonation.amountPhp))
+                      : Math.round(parseFloat(verifyingDonation.Amount || 0) * 170000);
+                    const hasEntered = String(confirmedAmountPhp ?? '').trim() !== '';
                     const enteredAmountNum = parseFloat(confirmedAmountPhp) || 0;
-                    const variancePhp = claimedAmountPhp - enteredAmountNum;
-                    const isLargeVariance = claimedAmountPhp > 0 && variancePhp > 30 && (variancePhp / claimedAmountPhp > 0.05);
+                    const diffPhp = enteredAmountNum - claimedAmountPhp; // negative = shortage, positive = over-credit
+                    const hasVariance = claimedAmountPhp > 0 && (!hasEntered || Math.abs(diffPhp) >= 0.01);
+                    const isShortage = diffPhp < 0;
+                    const absDiff = Math.abs(Math.round(diffPhp * 100) / 100);
 
                     return (
                       <div>
-                        <label style={{ display: 'block', fontSize: '0.74rem', fontWeight: 600, marginBottom: '6px', color: '#888888', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                        <label style={{ display: 'block', fontSize: '0.74rem', fontWeight: 600, marginBottom: '6px', color: hasVariance ? '#ef4444' : 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                           Actual Amount Received by NGO (PHP) <span style={{ color: '#ef4444' }}>*</span>
                         </label>
                         <div style={{ position: 'relative' }}>
-                          <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', fontWeight: 700, color: '#888888', fontSize: '0.95rem' }}>₱</span>
+                          <span style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', fontWeight: 700, color: hasVariance ? '#ef4444' : 'var(--text-muted)', fontSize: '0.95rem' }}>₱</span>
                           <input
                             type="number"
                             step="any"
@@ -9573,42 +9583,69 @@ export default function OrganizationView({
                             placeholder="e.g. 6500"
                             style={{
                               width: '100%',
-                              background: '#0e0e0e',
-                              border: isLargeVariance ? '1px solid #ef4444' : '1px solid #222222',
+                              background: hasVariance ? 'rgba(239, 68, 68, 0.06)' : 'var(--bg-input)',
+                              border: hasVariance ? '1.5px solid #ef4444' : '1px solid var(--border-strong, var(--border))',
+                              boxShadow: hasVariance ? '0 0 0 3px rgba(239, 68, 68, 0.14)' : 'none',
                               borderRadius: '8px',
                               padding: '10px 14px 10px 30px',
-                              color: '#ededed',
+                              color: hasVariance ? '#ef4444' : 'var(--text-primary)',
                               fontSize: '1.10rem',
                               fontWeight: 700,
                               fontFamily: 'var(--font-mono, monospace)',
                               outline: 'none',
-                              boxSizing: 'border-box'
+                              boxSizing: 'border-box',
+                              transition: 'border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease'
                             }}
                           />
                         </div>
 
-                        {/* Real-time Variance Warning */}
-                        {isLargeVariance && (
-                          <div style={{
-                            marginTop: '8px',
-                            padding: '10px 12px',
-                            borderRadius: '8px',
-                            background: 'rgba(239, 68, 68, 0.08)',
-                            border: '1px solid rgba(239, 68, 68, 0.28)',
-                            display: 'flex',
-                            gap: '8px',
-                            alignItems: 'flex-start'
-                          }}>
-                            <span className="material-symbols-outlined" style={{ color: '#ef4444', fontSize: '16px', marginTop: '1px', flexShrink: 0 }}>warning</span>
-                            <div style={{ fontSize: '0.72rem', color: '#fca5a5', lineHeight: 1.4 }}>
-                              <strong style={{ color: '#fff' }}>Amount Variance Detected (-₱{variancePhp.toLocaleString()} PHP):</strong> Recording ₱{enteredAmountNum.toLocaleString()} instead of claimed ₱{claimedAmountPhp.toLocaleString()}. This variance will be permanently recorded in the immutable public audit trail.
+                        {/* Real-time Red Warning whenever NGO edits the amount away from declared */}
+                        {hasVariance && (
+                          <div
+                            role="alert"
+                            style={{
+                              marginTop: '8px',
+                              padding: '10px 12px',
+                              borderRadius: '8px',
+                              background: 'rgba(239, 68, 68, 0.10)',
+                              border: '1px solid rgba(239, 68, 68, 0.45)',
+                              display: 'flex',
+                              gap: '9px',
+                              alignItems: 'flex-start'
+                            }}
+                          >
+                            <span className="material-symbols-outlined" style={{ color: '#ef4444', fontSize: '18px', marginTop: '1px', flexShrink: 0 }}>warning</span>
+                            <div style={{ flex: 1, fontSize: '0.74rem', color: 'var(--text-primary)', lineHeight: 1.45 }}>
+                              <div style={{ fontWeight: 700, color: '#ef4444', marginBottom: '2px' }}>
+                                Amount Difference Warning ({isShortage ? `-₱${absDiff.toLocaleString()}` : `+₱${absDiff.toLocaleString()}`} PHP · {isShortage ? 'Shortage' : 'Over-Credit'})
+                              </div>
+                              <div>
+                                You are about to credit <strong>₱{enteredAmountNum.toLocaleString()} PHP</strong> instead of the donor&apos;s declared <strong>₱{claimedAmountPhp.toLocaleString()} PHP</strong>. This difference will be permanently flagged and recorded in the immutable public audit trail.
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => setConfirmedAmountPhp(String(claimedAmountPhp))}
+                                style={{
+                                  marginTop: '6px',
+                                  padding: '3px 9px',
+                                  borderRadius: '6px',
+                                  border: '1px solid rgba(239, 68, 68, 0.45)',
+                                  background: 'var(--bg-card)',
+                                  color: '#ef4444',
+                                  fontSize: '0.70rem',
+                                  fontWeight: 600,
+                                  cursor: 'pointer'
+                                }}
+                              >
+                                Restore Declared Amount (₱{claimedAmountPhp.toLocaleString()})
+                              </button>
                             </div>
                           </div>
                         )}
 
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '6px', fontSize: '0.72rem', color: '#888888' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '6px', fontSize: '0.72rem', color: 'var(--text-muted)' }}>
                           <span>
-                            Credited to Campaign: <strong style={{ color: isLargeVariance ? '#f59e0b' : '#10b981' }}>₱{Math.round(parseFloat(confirmedAmountPhp) || 0).toLocaleString()} PHP</strong>
+                            Credited to Campaign: <strong style={{ color: hasVariance ? '#ef4444' : '#10b981' }}>₱{Math.round(parseFloat(confirmedAmountPhp) || 0).toLocaleString()} PHP</strong>
                           </span>
                           <span>Gasless Sepolia Notarization</span>
                         </div>
@@ -9618,8 +9655,8 @@ export default function OrganizationView({
 
                   {/* Reference / Transaction Trace Number */}
                   <div>
-                    <label style={{ display: 'block', fontSize: '0.74rem', fontWeight: 600, marginBottom: '6px', color: '#888888', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                      Transaction Reference / Trace No. <span style={{ color: '#666666', fontWeight: 400 }}>(Cross-reference code)</span>
+                    <label style={{ display: 'block', fontSize: '0.74rem', fontWeight: 600, marginBottom: '6px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                      Transaction Reference / Trace No. <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>(Cross-reference code)</span>
                     </label>
                     <input
                       type="text"
@@ -9628,11 +9665,11 @@ export default function OrganizationView({
                       placeholder="e.g. 1045 655 683789"
                       style={{
                         width: '100%',
-                        background: '#0e0e0e',
-                        border: '1px solid #222222',
+                        background: 'var(--bg-input)',
+                        border: '1px solid var(--border-strong, var(--border))',
                         borderRadius: '8px',
                         padding: '9px 12px',
-                        color: '#ededed',
+                        color: 'var(--text-primary)',
                         fontSize: '0.85rem',
                         fontFamily: 'var(--font-mono, monospace)',
                         fontWeight: 600,
@@ -9650,9 +9687,9 @@ export default function OrganizationView({
                       gap: '10px',
                       cursor: 'pointer',
                       fontSize: '0.78rem',
-                      color: checkAccountVerified ? '#ededed' : '#888888',
-                      background: checkAccountVerified ? '#141414' : '#0e0e0e',
-                      border: checkAccountVerified ? '1px solid #333333' : '1px solid #222222',
+                      color: checkAccountVerified ? 'var(--text-primary)' : 'var(--text-secondary)',
+                      background: checkAccountVerified ? 'var(--bg-inset)' : 'var(--bg-subcard)',
+                      border: checkAccountVerified ? '1px solid var(--border-strong)' : '1px solid var(--border)',
                       borderRadius: '8px',
                       padding: '10px 12px',
                       transition: 'all 0.15s ease'
@@ -9672,9 +9709,9 @@ export default function OrganizationView({
                       gap: '10px',
                       cursor: 'pointer',
                       fontSize: '0.78rem',
-                      color: checkAmountMatched ? '#ededed' : '#888888',
-                      background: checkAmountMatched ? '#141414' : '#0e0e0e',
-                      border: checkAmountMatched ? '1px solid #333333' : '1px solid #222222',
+                      color: checkAmountMatched ? 'var(--text-primary)' : 'var(--text-secondary)',
+                      background: checkAmountMatched ? 'var(--bg-inset)' : 'var(--bg-subcard)',
+                      border: checkAmountMatched ? '1px solid var(--border-strong)' : '1px solid var(--border)',
                       borderRadius: '8px',
                       padding: '10px 12px',
                       transition: 'all 0.15s ease'
@@ -9696,8 +9733,8 @@ export default function OrganizationView({
             {/* Modal Footer Actions */}
             <div style={{
               padding: '14px 22px',
-              borderTop: '1px solid #222222',
-              background: '#0a0a0a',
+              borderTop: '1px solid var(--border)',
+              background: 'var(--bg-card)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
@@ -9705,7 +9742,7 @@ export default function OrganizationView({
               gap: '12px'
             }}>
               {verifyingSubmitting ? (
-                <div style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '6px 0', color: '#888888', fontSize: '0.78rem' }}>
+                <div style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '6px 0', color: 'var(--text-muted)', fontSize: '0.78rem' }}>
                   <div className="spinner" style={{ width: '14px', height: '14px', borderWidth: '2px', borderColor: '#10b981', borderTopColor: 'transparent' }} />
                   <span style={{ fontFamily: 'var(--font-mono, monospace)', letterSpacing: '0.04em' }}>IMMUTABLE CRYPTOGRAPHIC CONSENSUS IN PROGRESS... PLEASE WAIT</span>
                 </div>
@@ -9717,7 +9754,7 @@ export default function OrganizationView({
                     style={{
                       background: 'rgba(239, 68, 68, 0.08)',
                       color: '#ef4444',
-                      border: '1px solid rgba(239, 68, 68, 0.25)',
+                      border: '1px solid rgba(239, 68, 68, 0.30)',
                       padding: '7px 14px',
                       display: 'inline-flex',
                       alignItems: 'center',
@@ -9741,9 +9778,9 @@ export default function OrganizationView({
                     <button
                       type="button"
                       style={{
-                        background: 'transparent',
-                        border: '1px solid #262626',
-                        color: '#888888',
+                        background: 'var(--bg-card)',
+                        border: '1px solid var(--border-strong, var(--border))',
+                        color: 'var(--text-secondary)',
                         padding: '8px 16px',
                         borderRadius: '8px',
                         fontSize: '0.80rem',
@@ -9764,11 +9801,11 @@ export default function OrganizationView({
                         gap: '6px',
                         fontWeight: 600,
                         fontSize: '0.82rem',
-                        background: (!checkAccountVerified || !checkAmountMatched || !(parseFloat(confirmedAmountPhp) > 0)) ? '#222222' : '#ededed',
-                        color: (!checkAccountVerified || !checkAmountMatched || !(parseFloat(confirmedAmountPhp) > 0)) ? '#666666' : '#000000',
-                        border: 'none',
+                        background: (!checkAccountVerified || !checkAmountMatched || !(parseFloat(confirmedAmountPhp) > 0)) ? 'var(--bg-inset)' : 'var(--pill-bg)',
+                        color: (!checkAccountVerified || !checkAmountMatched || !(parseFloat(confirmedAmountPhp) > 0)) ? 'var(--text-muted)' : 'var(--pill-text)',
+                        border: (!checkAccountVerified || !checkAmountMatched || !(parseFloat(confirmedAmountPhp) > 0)) ? '1px solid var(--border)' : '1px solid var(--pill-bg)',
                         borderRadius: '8px',
-                        opacity: (!checkAccountVerified || !checkAmountMatched || !(parseFloat(confirmedAmountPhp) > 0)) ? 0.6 : 1,
+                        opacity: (!checkAccountVerified || !checkAmountMatched || !(parseFloat(confirmedAmountPhp) > 0)) ? 0.65 : 1,
                         cursor: (!checkAccountVerified || !checkAmountMatched || !(parseFloat(confirmedAmountPhp) > 0)) ? 'not-allowed' : 'pointer',
                         transition: 'all 0.15s ease'
                       }}
