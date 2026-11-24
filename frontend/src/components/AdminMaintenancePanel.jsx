@@ -668,12 +668,12 @@ export default function AdminMaintenancePanel({ onMaintenanceStateChange, forced
       )}
 
       {/* ══════════════════════════════════════════════════════════════
-          SECTION 2: MAINTENANCE MODE CONFIGURATION (Clean, Flat, No Card Overload)
+          SECTION 2: MAINTENANCE MODE CONFIGURATION (Vercel Geist Operations UI)
          ══════════════════════════════════════════════════════════════ */}
       {activeSection === 'maintenance' && (
         <form onSubmit={handleSaveMaintenance} className="bbdrts-maint-clean-form fade-in">
-          
-          {/* Master Enable Banner */}
+
+          {/* Master Status Control Bar */}
           <div className={`bbdrts-maint-status-banner ${schedulePhase === 'ACTIVE' ? 'active' : schedulePhase === 'SCHEDULED' ? 'scheduled' : 'inactive'}`}>
             <div className="banner-left">
               <div className="status-icon-wrap">
@@ -682,218 +682,76 @@ export default function AdminMaintenancePanel({ onMaintenanceStateChange, forced
                 </span>
               </div>
               <div>
-                <strong className="status-title">
-                  Maintenance Mode:{' '}
-                  {schedulePhase === 'SCHEDULED'
-                    ? `SCHEDULED (STARTS IN ${formatDurationShort(startMs - liveNowMs)})`
-                    : schedulePhase === 'ACTIVE'
-                      ? 'ACTIVE (RESTRICTED ACCESS)'
-                      : 'DISABLED (NORMAL OPERATIONS)'}
-                </strong>
+                <div className="status-title-row">
+                  <strong className="status-title">
+                    {schedulePhase === 'SCHEDULED'
+                      ? `Scheduled Maintenance · Starts in ${formatDurationShort(startMs - liveNowMs)}`
+                      : schedulePhase === 'ACTIVE'
+                        ? 'Platform Maintenance Active'
+                        : 'All Systems Operational'}
+                  </strong>
+                  <span className={`maint-phase-pill is-${schedulePhase.toLowerCase()}`}>
+                    <span className="maint-phase-dot" />
+                    <span>{schedulePhase === 'SCHEDULED' ? 'Armed' : schedulePhase === 'ACTIVE' ? 'Lockdown Live' : 'Normal'}</span>
+                  </span>
+                </div>
                 <p className="status-sub">
                   {schedulePhase === 'SCHEDULED'
-                    ? `Armed for ${maintenance.startTime}. Users will see an upcoming notice bar until Effective From arrives, then enter maintenance automatically.`
+                    ? `Armed for ${maintenance.startTime}. Visitors see a non-blocking countdown bar until start time, then enter maintenance automatically.`
                     : schedulePhase === 'ACTIVE'
                       ? (endMs && maintenance.autoDeactivate
-                          ? `Lockdown active now · Auto-restores & reloads users in ${formatDurationShort(endMs - liveNowMs)}.`
-                          : 'Non-admin visitors are currently restricted according to the scope configured below. Administrators retain full access.')
-                      : 'All disaster relief campaigns, blockchain escrow releases, and donation gateways are operating normally.'}
+                          ? `Non-admin visitors are restricted · Auto-restores & refreshes users in ${formatDurationShort(endMs - liveNowMs)}.`
+                          : 'Non-admin visitors are currently restricted according to the selected scope below. Administrators retain full access.')
+                      : 'Toggle on to activate immediately or arm a scheduled maintenance window below.'}
                 </p>
               </div>
             </div>
 
-            <label className="bbdrts-switch">
-              <input
-                type="checkbox"
-                checked={maintenance.enabled}
-                onChange={e => setMaintenance(prev => ({ ...prev, enabled: e.target.checked }))}
-              />
-              <span className="slider round" />
-            </label>
+            <div className="banner-right-toggle">
+              <span className="banner-toggle-state">{maintenance.enabled ? 'Armed / On' : 'Off'}</span>
+              <label className="bbdrts-switch" aria-label="Toggle Maintenance Mode">
+                <input
+                  type="checkbox"
+                  checked={maintenance.enabled}
+                  onChange={e => setMaintenance(prev => ({ ...prev, enabled: e.target.checked }))}
+                />
+                <span className="slider round" />
+              </label>
+            </div>
           </div>
 
-          {/* Dual Column Layout: Left Form + Right Sticky Live User Preview */}
+          {/* Dual Column Workspace: Left Controls + Right Sticky Live Visitor Preview */}
           <div className="bbdrts-maint-dual-grid">
 
-            {/* ── LEFT COLUMN: Clean Form Canvas (Flat, No Nested Cards) ── */}
+            {/* ── LEFT COLUMN: Ordered by Operator Priority ── */}
             <div className="maint-grid-left">
 
-              {/* 1. Maintenance Scope Section (Flat List, No Nested Cards) */}
+              {/* 1. Schedule Window (Primary Action) */}
               <div className="bbdrts-maint-section-card">
                 <div className="section-card-header">
                   <div className="header-title-row">
-                    <span className="material-symbols-outlined icon">checklist</span>
-                    <div>
-                      <h4 className="section-title">Maintenance Scope &amp; Target Areas</h4>
-                      <p className="section-sub">Select which user portals and operational services are restricted to non-admin users</p>
+                    <div className="section-icon-badge is-blue">
+                      <span className="material-symbols-outlined">calendar_clock</span>
                     </div>
-                  </div>
-
-                  {/* Quick Presets Strip */}
-                  <div className="bbdrts-maint-presets-strip">
-                    <span className="presets-label">Presets:</span>
-                    <button
-                      type="button"
-                      className="preset-pill-btn"
-                      onClick={() => handleApplyPreset('ALL')}
-                      title="Lock down entire platform for all users except administrators"
-                    >
-                      <span className="material-symbols-outlined">lock</span>
-                      <span>Full Platform</span>
-                    </button>
-                    <button
-                      type="button"
-                      className="preset-pill-btn"
-                      onClick={() => handleApplyPreset('DONOR')}
-                      title="Restrict all donor dashboard pages, donations, and radar"
-                    >
-                      <span className="material-symbols-outlined">volunteer_activism</span>
-                      <span>Donors Only</span>
-                    </button>
-                    <button
-                      type="button"
-                      className="preset-pill-btn"
-                      onClick={() => handleApplyPreset('NGO')}
-                      title="Restrict all NGO operations, disbursements, and deployments"
-                    >
-                      <span className="material-symbols-outlined">corporate_fare</span>
-                      <span>NGOs Only</span>
-                    </button>
-                    <button
-                      type="button"
-                      className="preset-pill-btn"
-                      onClick={() => handleApplyPreset('FINANCIAL')}
-                      title="Pause incoming donations and outgoing disbursements"
-                    >
-                      <span className="material-symbols-outlined">payments</span>
-                      <span>Financial Only</span>
-                    </button>
-                    <button
-                      type="button"
-                      className="preset-pill-btn clear"
-                      onClick={() => handleApplyPreset('CLEAR')}
-                      title="Deselect all modules"
-                    >
-                      <span>Clear</span>
-                    </button>
-                  </div>
-                </div>
-
-                {/* Flat Categorized Rows */}
-                <div className="scopes-flat-container">
-                  {MAINTENANCE_CATEGORIES.map(cat => (
-                    <div key={cat.category} className="scope-flat-group">
-                      <div className="scope-group-divider">
-                        <span className="material-symbols-outlined group-icon">{cat.icon}</span>
-                        <span className="group-heading">{cat.category}</span>
-                        <span className="group-desc">— {cat.description}</span>
-                      </div>
-
-                      <div className="scope-flat-rows">
-                        {cat.items.map(opt => {
-                          const isChecked = maintenance.scope?.includes(opt.id);
-                          return (
-                            <label
-                              key={opt.id}
-                              className={`scope-flat-row ${isChecked ? 'selected' : ''}`}
-                            >
-                              <input
-                                type="checkbox"
-                                className="scope-checkbox-native"
-                                checked={isChecked}
-                                onChange={() => handleToggleScope(opt.id)}
-                              />
-                              <span className="material-symbols-outlined scope-row-icon">
-                                {opt.icon}
-                              </span>
-                              <div className="scope-row-body">
-                                <div className="scope-row-title-line">
-                                  <span className="scope-row-label">{opt.label}</span>
-                                  {opt.critical && <span className="scope-row-badge">PLATFORM-WIDE</span>}
-                                </div>
-                                <span className="scope-row-sub">{opt.desc}</span>
-                              </div>
-                            </label>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* 2. Message & Narrative Section */}
-              <div className="bbdrts-maint-section-card">
-                <div className="section-card-header">
-                  <div className="header-title-row">
-                    <span className="material-symbols-outlined icon">chat</span>
                     <div>
-                      <h4 className="section-title">Public Notice &amp; Explanation</h4>
-                      <p className="section-sub">Clear explanation preserves donor confidence during scheduled downtime</p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="form-fields-clean-stack">
-                  <div className="clean-field-group">
-                    <label htmlFor="maint-title" className="clean-label">
-                      <span>Display Title / Main Heading</span>
-                      <span className="req">*</span>
-                    </label>
-                    <input
-                      id="maint-title"
-                      type="text"
-                      className="clean-text-input"
-                      placeholder="e.g. SYSTEM UNDER SCHEDULED MAINTENANCE"
-                      value={maintenance.title}
-                      onChange={e => setMaintenance(prev => ({ ...prev, title: e.target.value }))}
-                      required
-                    />
-                  </div>
-
-                  <div className="clean-field-group">
-                    <label htmlFor="maint-msg" className="clean-label">
-                      <span>Detailed Public Explanation</span>
-                      <span className="req">*</span>
-                    </label>
-                    <textarea
-                      id="maint-msg"
-                      className="clean-textarea"
-                      rows={3}
-                      placeholder="e.g. Platform services are currently undergoing maintenance to enhance reliability and smart contract security..."
-                      value={maintenance.message}
-                      onChange={e => setMaintenance(prev => ({ ...prev, message: e.target.value }))}
-                      required
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* 3. Schedule Window (Custom Date & Time Picker) */}
-              <div className="bbdrts-maint-section-card">
-                <div className="section-card-header">
-                  <div className="header-title-row">
-                    <span className="material-symbols-outlined icon">calendar_clock</span>
-                    <div>
-                      <h4 className="section-title">Maintenance Schedule Window</h4>
-                      <p className="section-sub">Set when maintenance began and the target completion time</p>
+                      <h4 className="section-title">Schedule Window</h4>
+                      <p className="section-sub">Auto-starts at Effective From and auto-restores users at Expected Completion</p>
                     </div>
                   </div>
                 </div>
 
                 <div className="schedule-clean-grid">
-                  {/* Started Time (Effective From) */}
+                  {/* Effective From */}
                   <div className="schedule-clean-col">
                     <div className="schedule-col-head">
                       <label className="clean-label">
-                        <span className="material-symbols-outlined">schedule</span>
-                        <span>Effective From (Start Time)</span>
+                        <span>Effective From</span>
                       </label>
                       <div className="schedule-quick-chips">
-                        <button type="button" className="btn-set-now" onClick={() => handleSetStartOffset(0)} title="Start immediately">Now</button>
-                        <button type="button" className="btn-set-now" onClick={() => handleSetStartOffset(2)} title="Schedule 2 minutes from now">+2m</button>
-                        <button type="button" className="btn-set-now" onClick={() => handleSetStartOffset(5)} title="Schedule 5 minutes from now">+5m</button>
-                        <button type="button" className="btn-set-now" onClick={() => handleSetStartOffset(15)} title="Schedule 15 minutes from now">+15m</button>
+                        <button type="button" className="btn-set-now" onClick={() => handleSetStartOffset(0)}>Now</button>
+                        <button type="button" className="btn-set-now" onClick={() => handleSetStartOffset(2)}>+2m</button>
+                        <button type="button" className="btn-set-now" onClick={() => handleSetStartOffset(5)}>+5m</button>
+                        <button type="button" className="btn-set-now" onClick={() => handleSetStartOffset(15)}>+15m</button>
                       </div>
                     </div>
 
@@ -906,14 +764,14 @@ export default function AdminMaintenancePanel({ onMaintenanceStateChange, forced
                           startTimeIso: dateObj && !isNaN(dateObj.getTime()) ? dateObj.toISOString() : ''
                         }));
                       }}
-                      placeholder="Leave empty to start immediately, or pick future start..."
+                      placeholder="Immediate (or pick future start)..."
                       icon="schedule"
                       showPresets={false}
                     />
                     <span className="field-caption">
                       {startMs && startMs > liveNowMs
-                        ? `Scheduled to auto-activate in ${formatDurationShort(startMs - liveNowMs)} (${maintenance.startTime}).`
-                        : `Displayed as "${maintenance.startTime || 'In Progress (Immediate)'}" on public screen.`}
+                        ? `Auto-activates in ${formatDurationShort(startMs - liveNowMs)}`
+                        : `Shown as "${maintenance.startTime || 'In Progress'}"`}
                     </span>
                   </div>
 
@@ -921,15 +779,14 @@ export default function AdminMaintenancePanel({ onMaintenanceStateChange, forced
                   <div className="schedule-clean-col">
                     <div className="schedule-col-head">
                       <label className="clean-label">
-                        <span className="material-symbols-outlined highlight">event_available</span>
-                        <span>Expected Completion Time</span>
+                        <span>Expected Completion</span>
                       </label>
                       <div className="schedule-quick-chips">
-                        <button type="button" className="btn-set-now is-end" onClick={() => handleSetDurationFromStart(2)} title="2 minutes after Effective From">+2m</button>
-                        <button type="button" className="btn-set-now is-end" onClick={() => handleSetDurationFromStart(5)} title="5 minutes after Effective From">+5m</button>
-                        <button type="button" className="btn-set-now is-end" onClick={() => handleSetDurationFromStart(15)} title="15 minutes after Effective From">+15m</button>
-                        <button type="button" className="btn-set-now is-end" onClick={() => handleSetDurationFromStart(30)} title="30 minutes after Effective From">+30m</button>
-                        <button type="button" className="btn-set-now is-end" onClick={() => handleSetDurationFromStart(60)} title="1 hour after Effective From">+1h</button>
+                        <button type="button" className="btn-set-now is-end" onClick={() => handleSetDurationFromStart(2)}>+2m</button>
+                        <button type="button" className="btn-set-now is-end" onClick={() => handleSetDurationFromStart(5)}>+5m</button>
+                        <button type="button" className="btn-set-now is-end" onClick={() => handleSetDurationFromStart(15)}>+15m</button>
+                        <button type="button" className="btn-set-now is-end" onClick={() => handleSetDurationFromStart(30)}>+30m</button>
+                        <button type="button" className="btn-set-now is-end" onClick={() => handleSetDurationFromStart(60)}>+1h</button>
                       </div>
                     </div>
 
@@ -943,14 +800,14 @@ export default function AdminMaintenancePanel({ onMaintenanceStateChange, forced
                           autoDeactivate: formattedStr ? true : prev.autoDeactivate
                         }));
                       }}
-                      placeholder="Select target completion date & time..."
+                      placeholder="Select completion date & time..."
                       icon="event_available"
                       highlight={true}
                       showPresets={true}
                       align="right"
                     />
                     <span className="field-caption">
-                      Displayed as &quot;{maintenance.endTime || 'Expected Shortly'}&quot; on public screen.
+                      Shown as &quot;{maintenance.endTime || 'Expected Shortly'}&quot;
                     </span>
                   </div>
                 </div>
@@ -964,43 +821,154 @@ export default function AdminMaintenancePanel({ onMaintenanceStateChange, forced
                     <div className="maint-schedule-summary-text">
                       {hasInvalidWindow ? (
                         <>
-                          <strong>Invalid schedule window:</strong> Expected Completion Time must be later than Effective From. Use the <code>+5m</code> / <code>+15m</code> duration chips above or pick a later time.
+                          <strong>Invalid schedule window:</strong> Completion time must be later than Effective From. Click <code>+5m</code> or <code>+15m</code> above.
                         </>
                       ) : isEndInPast ? (
                         <>
-                          <strong>Completion time already passed:</strong> Pick a future Expected Completion Time (or turn off auto-deactivate) before saving.
+                          <strong>Completion time is in the past:</strong> Pick a future Expected Completion Time or disable auto-restore.
                         </>
                       ) : startMs && startMs > liveNowMs ? (
                         <>
-                          <strong>Automated Window Armed:</strong> Lockdown starts automatically in <strong>{formatDurationShort(startMs - liveNowMs)}</strong>
+                          <strong>Scheduled Window Ready:</strong> Starts automatically in <strong>{formatDurationShort(startMs - liveNowMs)}</strong>
                           {endMs ? <> · Duration: <strong>{formatDurationShort(endMs - startMs)}</strong></> : null}
-                          {endMs && maintenance.autoDeactivate ? ' · Users auto-refresh when completion arrives.' : '.'}
+                          {endMs && maintenance.autoDeactivate ? ' · Auto-refreshes users upon completion.' : '.'}
                         </>
                       ) : endMs && endMs > liveNowMs ? (
                         <>
-                          <strong>Active Window:</strong> Runs immediately and completes in <strong>{formatDurationShort(endMs - liveNowMs)}</strong>
-                          {maintenance.autoDeactivate ? ' · Users will automatically refresh into the live platform.' : '.'}
+                          <strong>Active Window:</strong> Runs immediately and finishes in <strong>{formatDurationShort(endMs - liveNowMs)}</strong>
+                          {maintenance.autoDeactivate ? ' · Users auto-refresh back into the live app.' : '.'}
                         </>
                       ) : (
                         <>
-                          <strong>Immediate Window:</strong> Maintenance starts right away once enabled and remains active until you disable it or set a completion time.
+                          <strong>Open-Ended Window:</strong> Runs immediately until manually turned off or given a completion time.
                         </>
                       )}
                     </div>
                   </div>
                 )}
 
-                <div className="auto-deactivate-row">
-                  <label className="auto-deactivate-checkbox-label">
+                <label className="auto-deactivate-tile">
+                  <input
+                    type="checkbox"
+                    checked={Boolean(maintenance.autoDeactivate)}
+                    onChange={e => setMaintenance(prev => ({ ...prev, autoDeactivate: e.target.checked }))}
+                  />
+                  <div>
+                    <div className="auto-deact-title">Auto-restore &amp; auto-refresh users at completion time</div>
+                    <div className="auto-deact-sub">Ends platform lockdown automatically and reloads visitor sessions when the window closes.</div>
+                  </div>
+                </label>
+              </div>
+
+              {/* 2. Target Scope & Access Control (Compact 2-Column Selectable Tiles) */}
+              <div className="bbdrts-maint-section-card">
+                <div className="section-card-header">
+                  <div className="header-title-row">
+                    <div className="section-icon-badge is-amber">
+                      <span className="material-symbols-outlined">tune</span>
+                    </div>
+                    <div>
+                      <h4 className="section-title">Target Scope &amp; Portals</h4>
+                      <p className="section-sub">Choose which portals or features are restricted during maintenance</p>
+                    </div>
+                  </div>
+
+                  <div className="bbdrts-maint-presets-strip">
+                    <button type="button" className="preset-pill-btn" onClick={() => handleApplyPreset('ALL')}>Full Platform</button>
+                    <button type="button" className="preset-pill-btn" onClick={() => handleApplyPreset('DONOR')}>Donors</button>
+                    <button type="button" className="preset-pill-btn" onClick={() => handleApplyPreset('NGO')}>NGOs</button>
+                    <button type="button" className="preset-pill-btn" onClick={() => handleApplyPreset('FINANCIAL')}>Financial</button>
+                    <button type="button" className="preset-pill-btn clear" onClick={() => handleApplyPreset('CLEAR')}>Clear</button>
+                  </div>
+                </div>
+
+                <div className="scopes-compact-groups">
+                  {MAINTENANCE_CATEGORIES.map(cat => (
+                    <div key={cat.category} className="scope-compact-group">
+                      <div className="scope-group-divider">
+                        <span className="material-symbols-outlined group-icon">{cat.icon}</span>
+                        <span className="group-heading">{cat.category}</span>
+                      </div>
+
+                      <div className="scope-tiles-grid">
+                        {cat.items.map(opt => {
+                          const isChecked = maintenance.scope?.includes(opt.id);
+                          return (
+                            <label
+                              key={opt.id}
+                              className={`scope-card-tile ${isChecked ? 'is-selected' : ''} ${opt.critical ? 'is-critical' : ''}`}
+                            >
+                              <input
+                                type="checkbox"
+                                className="scope-checkbox-native"
+                                checked={isChecked}
+                                onChange={() => handleToggleScope(opt.id)}
+                              />
+                              <div className="scope-tile-ico">
+                                <span className="material-symbols-outlined">{opt.icon}</span>
+                              </div>
+                              <div className="scope-tile-copy">
+                                <div className="scope-tile-top">
+                                  <span className="scope-row-label">{opt.label}</span>
+                                  {opt.critical && <span className="scope-row-badge">ALL</span>}
+                                </div>
+                                <span className="scope-row-sub">{opt.desc}</span>
+                              </div>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* 3. Public Notice & Explanation */}
+              <div className="bbdrts-maint-section-card">
+                <div className="section-card-header">
+                  <div className="header-title-row">
+                    <div className="section-icon-badge is-neutral">
+                      <span className="material-symbols-outlined">chat</span>
+                    </div>
+                    <div>
+                      <h4 className="section-title">Public Notice &amp; Explanation</h4>
+                      <p className="section-sub">Displayed prominently on the visitor maintenance screen</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="form-fields-clean-stack">
+                  <div className="clean-field-group">
+                    <label htmlFor="maint-title" className="clean-label">
+                      <span>Display Heading</span>
+                      <span className="req">*</span>
+                    </label>
                     <input
-                      type="checkbox"
-                      checked={Boolean(maintenance.autoDeactivate)}
-                      onChange={e => setMaintenance(prev => ({ ...prev, autoDeactivate: e.target.checked }))}
+                      id="maint-title"
+                      type="text"
+                      className="clean-text-input"
+                      placeholder="e.g. System Under Scheduled Maintenance"
+                      value={maintenance.title}
+                      onChange={e => setMaintenance(prev => ({ ...prev, title: e.target.value }))}
+                      required
                     />
-                    <span>
-                      <strong>Auto-restore &amp; auto-refresh users</strong> when Expected Completion Time arrives (ends lockdown automatically)
-                    </span>
-                  </label>
+                  </div>
+
+                  <div className="clean-field-group">
+                    <label htmlFor="maint-msg" className="clean-label">
+                      <span>Public Explanation</span>
+                      <span className="req">*</span>
+                    </label>
+                    <textarea
+                      id="maint-msg"
+                      className="clean-textarea"
+                      rows={3}
+                      placeholder="Explain why maintenance is happening and reassure donors that records remain safe on-chain..."
+                      value={maintenance.message}
+                      onChange={e => setMaintenance(prev => ({ ...prev, message: e.target.value }))}
+                      required
+                    />
+                  </div>
                 </div>
               </div>
 
@@ -1008,46 +976,48 @@ export default function AdminMaintenancePanel({ onMaintenanceStateChange, forced
               <div className="bbdrts-maint-section-card">
                 <div className="section-card-header">
                   <div className="header-title-row">
-                    <span className="material-symbols-outlined icon">support_agent</span>
+                    <div className="section-icon-badge is-emerald">
+                      <span className="material-symbols-outlined">support_agent</span>
+                    </div>
                     <div>
-                      <h4 className="section-title">Emergency Operations Support Contact</h4>
-                      <p className="section-sub">Direct assistance channels displayed on the maintenance screen for NGOs and donors</p>
+                      <h4 className="section-title">Operations Support Contact</h4>
+                      <p className="section-sub">Assistance details displayed in the maintenance screen footer</p>
                     </div>
                   </div>
                 </div>
 
                 <div className="contact-clean-grid">
                   <div className="clean-field-group">
-                    <label htmlFor="maint-person" className="clean-label">Contact Unit / Person</label>
+                    <label htmlFor="maint-person" className="clean-label">Support Unit</label>
                     <input
                       id="maint-person"
                       type="text"
                       className="clean-text-input"
-                      placeholder="e.g. Disaster Relief IT Support"
+                      placeholder="Disaster Relief IT Support"
                       value={maintenance.contactPerson}
                       onChange={e => setMaintenance(prev => ({ ...prev, contactPerson: e.target.value }))}
                     />
                   </div>
 
                   <div className="clean-field-group">
-                    <label htmlFor="maint-email" className="clean-label">Contact Email</label>
+                    <label htmlFor="maint-email" className="clean-label">Support Email</label>
                     <input
                       id="maint-email"
                       type="email"
                       className="clean-text-input"
-                      placeholder="e.g. support@bbdrts.gov.ph"
+                      placeholder="support@bbdrts.gov.ph"
                       value={maintenance.contactEmail}
                       onChange={e => setMaintenance(prev => ({ ...prev, contactEmail: e.target.value }))}
                     />
                   </div>
 
                   <div className="clean-field-group">
-                    <label htmlFor="maint-phone" className="clean-label">Contact Phone / Hotline</label>
+                    <label htmlFor="maint-phone" className="clean-label">Hotline</label>
                     <input
                       id="maint-phone"
                       type="text"
                       className="clean-text-input"
-                      placeholder="e.g. (053) 832-1923"
+                      placeholder="(053) 832-1923"
                       value={maintenance.contactPhone}
                       onChange={e => setMaintenance(prev => ({ ...prev, contactPhone: e.target.value }))}
                     />
@@ -1055,139 +1025,136 @@ export default function AdminMaintenancePanel({ onMaintenanceStateChange, forced
                 </div>
               </div>
 
-              {/* 5. Bottom Actions Bar */}
-              <div className="bbdrts-maint-actions-bar">
-                <div className="actions-left">
-                  <span className="actions-notice">
-                    Changes take effect immediately across all client sessions upon saving.
-                  </span>
-                </div>
-
-                <div className="actions-right">
-                  <button
-                    type="button"
-                    className="btn-preview-screen"
-                    onClick={handleTriggerPreview}
-                    title="Preview what non-admin visitors and donors see right now"
-                  >
-                    <span className="material-symbols-outlined">visibility</span>
-                    <span>Simulate / Preview User Screen</span>
-                  </button>
-
-                  <button
-                    type="submit"
-                    className="btn-save-maintenance"
-                    disabled={savingMaintenance}
-                  >
-                    <span className="material-symbols-outlined">save</span>
-                    <span>{savingMaintenance ? 'Saving Configuration...' : 'Save Maintenance Settings'}</span>
-                  </button>
-                </div>
-              </div>
-
             </div>
 
-            {/* ── RIGHT COLUMN: Sticky Live User Preview Card ── */}
+            {/* ── RIGHT COLUMN: Sticky Live Visitor Preview & Quick Save ── */}
             <div className="maint-grid-right">
               <div className="maint-sticky-preview">
-                
-                {/* Header above preview card */}
+
                 <div className="preview-top-head">
                   <div className="preview-head-left">
                     <span className="material-symbols-outlined icon">visibility</span>
-                    <strong className="preview-head-title">LIVE USER PREVIEW</strong>
+                    <strong className="preview-head-title">Live Visitor Preview</strong>
                   </div>
                   <span className="live-sync-badge">
                     <span className="live-sync-dot" />
-                    <span>REAL-TIME SYNC</span>
+                    <span>SYNCED</span>
                   </span>
                 </div>
 
-                {/* The Preview Card (Faithful Vercel Geist mirror of MaintenanceGuardModal) */}
-                <div className="simulated-maint-card geist-sim">
-                  <div className="sim-icon-box">
-                    <span className="material-symbols-outlined">construction</span>
+                {/* Browser-Frame Mini Preview */}
+                <div className="sim-browser-shell">
+                  <div className="sim-browser-bar">
+                    <div className="sim-browser-dots" aria-hidden="true">
+                      <span /><span /><span />
+                    </div>
+                    <span className="sim-browser-url">bbdrts / status</span>
+                    <span className={`sim-browser-state is-${schedulePhase.toLowerCase()}`}>
+                      {schedulePhase}
+                    </span>
                   </div>
 
-                  <div className="sim-geist-status-pill">
-                    <span className="sim-geist-dot" />
-                    <span>{schedulePhase === 'SCHEDULED' ? 'Scheduled Window' : 'Scheduled Maintenance'}</span>
-                  </div>
-
-                  <h4 className="sim-title">
-                    {maintenance.title || 'System Under Scheduled Maintenance'}
-                  </h4>
-
-                  <p className="sim-sec-desc sim-hero-desc">
-                    {maintenance.message || 'Our platform services are currently undergoing maintenance to enhance reliability and smart contract security. Essential relief tracking remains recorded on-chain.'}
-                  </p>
-
-                  {/* Unified Geist Bento Timeline */}
-                  <div className="sim-bento">
-                    <div className="sim-times-row">
-                      <div className="sim-time-box">
-                        <span className="time-lbl">Maintenance Started</span>
-                        <strong className="time-val">{maintenance.startTime || 'In Progress'}</strong>
-                      </div>
-                      <div className="sim-time-box highlight">
-                        <span className="time-lbl">Expected Completion</span>
-                        <strong className="time-val">{maintenance.endTime || 'Expected Shortly'}</strong>
-                      </div>
+                  <div className="simulated-maint-card geist-sim">
+                    <div className="sim-icon-box">
+                      <span className="material-symbols-outlined">construction</span>
                     </div>
 
-                    {(startMs && startMs > liveNowMs) ? (
-                      <div className="sim-countdown-strip">
-                        <span>Starts in</span>
-                        <strong>{formatDurationShort(startMs - liveNowMs)}</strong>
-                      </div>
-                    ) : (endMs && endMs > liveNowMs) ? (
-                      <div className="sim-countdown-strip">
-                        <span>Estimated remaining</span>
-                        <strong>{formatDurationShort(endMs - liveNowMs)}</strong>
-                      </div>
-                    ) : null}
-                  </div>
+                    <div className="sim-geist-status-pill">
+                      <span className="sim-geist-dot" />
+                      <span>{schedulePhase === 'SCHEDULED' ? 'Scheduled Window' : 'Scheduled Maintenance'}</span>
+                    </div>
 
-                  {/* Scope Note if Custom Scope */}
-                  {maintenance.scope && maintenance.scope.length > 0 && !maintenance.scope.includes('FULL_PLATFORM') && (
-                    <div className="sim-scope-note">
-                      <span className="scope-lbl">RESTRICTED SECTORS</span>
-                      <div className="sim-scope-tags">
-                        {maintenance.scope.map(s => (
-                          <span key={s} className="sim-scope-tag">{s.replace(/_/g, ' ')}</span>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+                    <h4 className="sim-title">
+                      {maintenance.title || 'System Under Scheduled Maintenance'}
+                    </h4>
 
-                  {/* Support Footer */}
-                  <div className="sim-footer">
-                    <div className="sim-footer-contact">
-                      <span className="material-symbols-outlined">headset_mic</span>
-                      <span>{maintenance.contactPerson || 'Operations Support'}</span>
+                    <p className="sim-sec-desc sim-hero-desc">
+                      {maintenance.message || 'Our platform services are currently undergoing maintenance to enhance reliability and smart contract security.'}
+                    </p>
+
+                    <div className="sim-bento">
+                      <div className="sim-times-row">
+                        <div className="sim-time-box">
+                          <span className="time-lbl">Started</span>
+                          <strong className="time-val">{maintenance.startTime || 'In Progress'}</strong>
+                        </div>
+                        <div className="sim-time-box highlight">
+                          <span className="time-lbl">Completion</span>
+                          <strong className="time-val">{maintenance.endTime || 'Shortly'}</strong>
+                        </div>
+                      </div>
+
+                      {(startMs && startMs > liveNowMs) ? (
+                        <div className="sim-countdown-strip">
+                          <span>Starts in</span>
+                          <strong>{formatDurationShort(startMs - liveNowMs)}</strong>
+                        </div>
+                      ) : (endMs && endMs > liveNowMs) ? (
+                        <div className="sim-countdown-strip">
+                          <span>Remaining</span>
+                          <strong>{formatDurationShort(endMs - liveNowMs)}</strong>
+                        </div>
+                      ) : null}
                     </div>
-                    <div className="sim-footer-details">
-                      {maintenance.contactPhone && <span>{maintenance.contactPhone}</span>}
-                      {maintenance.contactPhone && maintenance.contactEmail && <span>·</span>}
-                      {maintenance.contactEmail && <span>{maintenance.contactEmail}</span>}
-                    </div>
-                    <div className="sim-footer-telemetry">
-                      <span className="telemetry-dot" />
-                      <span>{maintenance.autoDeactivate && endMs ? 'Auto-refreshes users on completion' : 'Real-time SSE sync active'}</span>
+
+                    {maintenance.scope && maintenance.scope.length > 0 && !maintenance.scope.includes('FULL_PLATFORM') && (
+                      <div className="sim-scope-note">
+                        <span className="scope-lbl">TARGETED SCOPE</span>
+                        <div className="sim-scope-tags">
+                          {maintenance.scope.map(s => (
+                            <span key={s} className="sim-scope-tag">{s.replace(/_/g, ' ')}</span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="sim-footer">
+                      <div className="sim-footer-contact">
+                        <span className="material-symbols-outlined">headset_mic</span>
+                        <span>{maintenance.contactPerson || 'Operations Support'}</span>
+                      </div>
+                      <div className="sim-footer-details">
+                        {maintenance.contactPhone && <span>{maintenance.contactPhone}</span>}
+                        {maintenance.contactPhone && maintenance.contactEmail && <span>·</span>}
+                        {maintenance.contactEmail && <span>{maintenance.contactEmail}</span>}
+                      </div>
+                      <div className="sim-footer-telemetry">
+                        <span className="telemetry-dot" />
+                        <span>{maintenance.autoDeactivate && endMs ? 'Auto-refreshes users on completion' : 'Real-time SSE sync active'}</span>
+                      </div>
                     </div>
                   </div>
                 </div>
 
-                {/* Simulation Mode Action Button */}
-                <button
-                  type="button"
-                  className="btn-open-fullscreen-sim"
-                  onClick={handleTriggerPreview}
-                  title="Simulate what non-admin visitors and donors see in full-screen"
-                >
-                  <span className="material-symbols-outlined">open_in_new</span>
-                  <span>Open Fullscreen Simulation</span>
-                </button>
+                {/* Direct Sticky Actions */}
+                <div className="preview-sticky-actions">
+                  <button
+                    type="submit"
+                    className="btn-save-maintenance is-full"
+                    disabled={savingMaintenance || hasInvalidWindow || isEndInPast}
+                  >
+                    <span className="material-symbols-outlined">save</span>
+                    <span>
+                      {savingMaintenance
+                        ? 'Saving Configuration…'
+                        : schedulePhase === 'SCHEDULED'
+                          ? 'Save & Arm Schedule'
+                          : maintenance.enabled
+                            ? 'Save & Activate Maintenance'
+                            : 'Save Settings'}
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    className="btn-open-fullscreen-sim"
+                    onClick={handleTriggerPreview}
+                    title="Preview fullscreen maintenance screen"
+                  >
+                    <span className="material-symbols-outlined">open_in_new</span>
+                    <span>Open Fullscreen Preview</span>
+                  </button>
+                </div>
 
               </div>
             </div>
@@ -1196,7 +1163,6 @@ export default function AdminMaintenancePanel({ onMaintenanceStateChange, forced
 
         </form>
       )}
-
     </div>
   );
 }

@@ -187,6 +187,23 @@ body:has(.bbdrts-maint-modal-overlay) {
   font-size: 13px;
 }
 
+[data-theme="light"] .bbdrts-maint-preview-pill {
+  background: #ffffff;
+  border-color: #e4e4e7;
+  color: #18181b;
+  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.06);
+}
+
+[data-theme="light"] .bbdrts-btn-exit-preview {
+  background: #f4f4f5;
+  border-color: #d4d4d8;
+  color: #09090b;
+}
+
+[data-theme="light"] .bbdrts-btn-exit-preview:hover {
+  background: #e4e4e7;
+}
+
 /* ── Main Vercel Geist Status Card ── */
 .bbdrts-maint-modal-card {
   position: relative;
@@ -726,6 +743,36 @@ body:has(.bbdrts-maint-modal-overlay) {
 
 .bypass-close .material-symbols-outlined {
   font-size: 16px;
+}
+
+[data-theme="light"] .bbdrts-maint-admin-bypass {
+  background: rgba(255, 255, 255, 0.96);
+  border-color: rgba(217, 119, 6, 0.40);
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.14);
+}
+
+[data-theme="light"] .bbdrts-maint-admin-bypass .bypass-text strong {
+  color: #09090b;
+}
+
+[data-theme="light"] .bbdrts-maint-admin-bypass .bypass-text .scope-tag {
+  color: #b45309;
+}
+
+[data-theme="light"] .bbdrts-btn-sim-preview {
+  background: #f4f4f5;
+  border-color: #d4d4d8;
+  color: #09090b;
+}
+
+[data-theme="light"] .bbdrts-btn-sim-preview:hover {
+  background: #09090b;
+  border-color: #09090b;
+  color: #ffffff;
+}
+
+[data-theme="light"] .bypass-close:hover {
+  color: #09090b;
 }
 
 /* ══════════════════════════════════════════════════════════════

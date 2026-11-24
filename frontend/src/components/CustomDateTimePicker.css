@@ -1,58 +1,52 @@
-/* ══════════════════════════════════════════════════════════════════
-   CUSTOM DATE & TIME PICKER (Vercel Dark Theme with Side Time Panel)
-   ══════════════════════════════════════════════════════════════════ */
+/* ============================================================================
+   CUSTOM DATE & TIME PICKER — Dual-Theme Vercel Geist (Light & Dark Parity)
+   ============================================================================ */
 
 .bbdrts-custom-dt-root {
   position: relative;
   width: 100%;
-  font-family: var(--font-sans, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif);
+  font-family: var(--font-sans, 'Inter', -apple-system, BlinkMacSystemFont, sans-serif);
 }
 
-/* ── Trigger Box (Replaces Native Browser Input) ── */
+/* ── Trigger Box ── */
 .bbdrts-custom-dt-trigger {
   width: 100%;
-  background: #141414;
-  border: 1px solid #282828;
-  border-radius: 6px;
-  padding: 8px 12px;
+  height: 40px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-strong, var(--border));
+  border-radius: 8px;
+  padding: 0 12px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
-  color: #ededed;
+  gap: 9px;
+  color: var(--text-primary);
   font-size: 0.80rem;
   font-family: inherit;
   cursor: pointer;
   text-align: left;
-  transition: all 0.14s ease;
+  transition: border-color 0.14s ease, box-shadow 0.14s ease, background 0.14s ease;
   box-sizing: border-box;
 }
 
 .bbdrts-custom-dt-trigger:hover:not(:disabled) {
-  background: #191919;
-  border-color: #383838;
+  border-color: var(--text-muted);
 }
 
-.bbdrts-custom-dt-trigger:focus-visible {
-  outline: none;
-  border-color: #38bdf8;
-  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.2);
-}
-
+.bbdrts-custom-dt-trigger:focus-visible,
 .bbdrts-custom-dt-trigger.open {
-  border-color: #38bdf8;
-  background: #181818;
-  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.15);
+  outline: none;
+  border-color: var(--border-focus, var(--text-primary));
+  box-shadow: 0 0 0 3px var(--accent-dim);
 }
 
-/* Emerald highlight modifier (for completion time) */
 .bbdrts-custom-dt-trigger.highlight:hover:not(:disabled) {
-  border-color: rgba(16, 185, 129, 0.4);
+  border-color: rgba(16, 185, 129, 0.55);
 }
 
 .bbdrts-custom-dt-trigger.highlight.open {
   border-color: #10b981;
-  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.15);
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
 }
 
 .bbdrts-custom-dt-trigger.highlight .trigger-icon {
@@ -60,36 +54,37 @@
 }
 
 .bbdrts-custom-dt-trigger .trigger-icon {
-  font-size: 18px;
-  color: #71717a;
+  font-size: 17px;
+  color: var(--text-muted);
   flex-shrink: 0;
 }
 
 .bbdrts-custom-dt-trigger .trigger-display-text {
   flex: 1;
-  font-size: 0.78rem;
-  color: #71717a;
+  font-size: 0.79rem;
+  color: var(--text-muted);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .bbdrts-custom-dt-trigger.has-value .trigger-display-text {
-  color: #ffffff;
+  color: var(--text-primary);
   font-weight: 600;
+  font-variant-numeric: tabular-nums;
 }
 
 .bbdrts-custom-dt-trigger .trigger-actions {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   flex-shrink: 0;
 }
 
 .bbdrts-custom-dt-trigger .trigger-clear-btn {
   background: transparent;
   border: none;
-  color: #71717a;
+  color: var(--text-muted);
   cursor: pointer;
   padding: 2px;
   border-radius: 4px;
@@ -109,24 +104,24 @@
 
 .bbdrts-custom-dt-trigger .trigger-chevron {
   font-size: 18px;
-  color: #71717a;
-  transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  color: var(--text-muted);
+  transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), color 0.14s ease;
 }
 
 .bbdrts-custom-dt-trigger.open .trigger-chevron {
   transform: rotate(180deg);
-  color: #ededed;
+  color: var(--text-primary);
 }
 
-/* ── Custom Popover Dropdown Container ── */
+/* ── Popover Dropdown Container ── */
 .bbdrts-custom-dt-popover {
   position: absolute;
   top: calc(100% + 6px);
   left: 0;
-  background: #0d0d0d;
-  border: 1px solid #282828;
-  border-radius: 10px;
-  box-shadow: 0 24px 50px rgba(0, 0, 0, 0.95), 0 0 0 1px rgba(255, 255, 255, 0.05);
+  background: var(--bg-card);
+  border: 1px solid var(--border-strong, var(--border));
+  border-radius: 12px;
+  box-shadow: var(--shadow-dropdown, 0 20px 48px rgba(0, 0, 0, 0.45));
   display: flex;
   flex-direction: row;
   z-index: 1050;
@@ -135,35 +130,30 @@
   box-sizing: border-box;
 }
 
+[data-theme="light"] .bbdrts-custom-dt-popover {
+  box-shadow: 0 18px 44px rgba(15, 23, 42, 0.14);
+}
+
 .bbdrts-custom-dt-root.align-right .bbdrts-custom-dt-popover {
   left: auto;
   right: 0;
 }
 
 @keyframes dtPopIn {
-  from {
-    opacity: 0;
-    transform: translateY(-4px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
-/* ══════════════════════════════════════════════════════════════════
-   LEFT COLUMN: CALENDAR (Exact Match to Image 1, NO Colored Dots)
-   ══════════════════════════════════════════════════════════════════ */
+/* ── Left Column: Calendar ── */
 .dt-cal-column {
   width: 270px;
-  padding: 12px 14px;
+  padding: 13px 14px;
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
   box-sizing: border-box;
 }
 
-/* Header: < Nov 2026 [Today] > */
 .dt-cal-header {
   display: flex;
   align-items: center;
@@ -174,10 +164,10 @@
 .dt-cal-header-btn {
   background: transparent;
   border: 1px solid transparent;
-  color: #71717a;
+  color: var(--text-muted);
   cursor: pointer;
   padding: 4px;
-  border-radius: 4px;
+  border-radius: 6px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -185,9 +175,9 @@
 }
 
 .dt-cal-header-btn:hover {
-  background: #1a1a1a;
-  color: #ededed;
-  border-color: #2e2e2e;
+  background: var(--bg-hover);
+  color: var(--text-primary);
+  border-color: var(--border);
 }
 
 .dt-cal-header-btn .material-symbols-outlined {
@@ -203,14 +193,14 @@
 .dt-cal-month-title {
   font-size: 0.82rem;
   font-weight: 700;
-  color: #ededed;
+  color: var(--text-primary);
   letter-spacing: -0.01em;
 }
 
 .dt-cal-today-chip {
-  background: #1c1c1c;
-  border: 1px solid #2e2e2e;
-  color: #a1a1aa;
+  background: var(--bg-inset);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
   font-size: 0.62rem;
   font-weight: 600;
   padding: 1px 6px;
@@ -220,24 +210,23 @@
 }
 
 .dt-cal-today-chip:hover {
-  background: #282828;
-  color: #ffffff;
+  background: var(--bg-hover);
+  color: var(--text-primary);
+  border-color: var(--border-strong);
 }
 
-/* Weekdays: SU MO TU WE TH FR SA */
 .dt-cal-weekdays {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
   gap: 2px;
   text-align: center;
-  font-size: 0.63rem;
+  font-size: 0.62rem;
   font-weight: 700;
-  color: #71717a;
+  color: var(--text-muted);
   letter-spacing: 0.04em;
   margin-bottom: 6px;
 }
 
-/* 7-Col Day Buttons Grid */
 .dt-cal-grid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
@@ -251,7 +240,7 @@
   padding: 6px 0;
   font-size: 0.74rem;
   font-weight: 500;
-  color: #ededed;
+  color: var(--text-primary);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -262,16 +251,16 @@
 }
 
 .dt-cal-day:hover {
-  background: #1c1c1c;
-  color: #ffffff;
+  background: var(--bg-hover);
 }
 
 .dt-cal-day.outside {
-  color: #4b4b52;
+  color: var(--text-muted);
+  opacity: 0.45;
 }
 
 .dt-cal-day.past {
-  color: #71717a;
+  color: var(--text-muted);
 }
 
 .dt-cal-day.today {
@@ -279,37 +268,32 @@
   font-weight: 700;
 }
 
-/* Selected Day: Solid Emerald Capsule (Just like Image 1) */
 .dt-cal-day.selected {
   background: #10b981 !important;
-  color: #000000 !important;
-  font-weight: 800 !important;
-  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.4);
+  color: #ffffff !important;
+  font-weight: 700 !important;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.32);
 }
 
 .dt-cal-bottom-hint {
   margin-top: 10px;
   font-size: 0.62rem;
-  color: #52525b;
+  color: var(--text-muted);
   text-align: center;
 }
 
-/* ══════════════════════════════════════════════════════════════════
-   VERTICAL DIVIDER
-   ══════════════════════════════════════════════════════════════════ */
+/* ── Vertical Divider ── */
 .dt-cal-divider {
   width: 1px;
-  background: #242424;
+  background: var(--border);
   margin: 10px 0;
   flex-shrink: 0;
 }
 
-/* ══════════════════════════════════════════════════════════════════
-   RIGHT COLUMN: TIME & PRESETS PANEL (On the side of the calendar)
-   ══════════════════════════════════════════════════════════════════ */
+/* ── Right Column: Time & Presets ── */
 .dt-time-column {
-  width: 230px;
-  padding: 12px 14px;
+  width: 234px;
+  padding: 13px 14px;
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -330,7 +314,7 @@
   font-size: 0.64rem;
   font-weight: 700;
   letter-spacing: 0.05em;
-  color: #71717a;
+  color: var(--text-muted);
   text-transform: uppercase;
 }
 
@@ -339,16 +323,15 @@
   color: #10b981;
 }
 
-/* ── 12-Hour Time Picker Controls ── */
 .dt-time-picker-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 6px;
-  background: #141414;
-  border: 1px solid #242424;
-  border-radius: 6px;
-  padding: 6px 8px;
+  background: var(--bg-subcard);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 7px 8px;
 }
 
 .dt-time-unit {
@@ -361,21 +344,21 @@
 .dt-time-sub {
   font-size: 0.58rem;
   font-weight: 700;
-  color: #52525b;
+  color: var(--text-muted);
   letter-spacing: 0.04em;
 }
 
 .dt-select-input {
-  background: #1a1a1a;
-  border: 1px solid #2a2a2a;
-  border-radius: 4px;
-  color: #ffffff;
+  background: var(--bg-input);
+  border: 1px solid var(--border-strong, var(--border));
+  border-radius: 5px;
+  color: var(--text-primary);
   font-size: 0.78rem;
   font-weight: 700;
   padding: 3px 5px;
   cursor: pointer;
   outline: none;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-family: var(--font-mono, monospace);
 }
 
 .dt-select-input:focus {
@@ -385,16 +368,15 @@
 .dt-time-colon {
   font-size: 0.88rem;
   font-weight: 800;
-  color: #71717a;
+  color: var(--text-muted);
   margin-top: 10px;
 }
 
-/* AM / PM Segmented Control */
 .dt-ampm-switch {
   display: flex;
-  background: #1a1a1a;
-  border: 1px solid #282828;
-  border-radius: 4px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-strong, var(--border));
+  border-radius: 5px;
   overflow: hidden;
   margin-top: 10px;
 }
@@ -402,7 +384,7 @@
 .dt-ampm-btn {
   background: transparent;
   border: none;
-  color: #71717a;
+  color: var(--text-muted);
   font-size: 0.65rem;
   font-weight: 700;
   padding: 4px 7px;
@@ -411,30 +393,29 @@
 }
 
 .dt-ampm-btn:hover {
-  color: #ffffff;
+  color: var(--text-primary);
 }
 
 .dt-ampm-btn.active {
   background: #10b981;
-  color: #000000;
-  font-weight: 800;
+  color: #ffffff;
+  font-weight: 700;
 }
 
-/* ── Quick Duration Presets Grid ── */
 .dt-presets-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 4px;
+  gap: 5px;
 }
 
 .dt-preset-pill {
-  background: #161616;
-  border: 1px solid #262626;
-  color: #a1a1aa;
-  font-size: 0.67rem;
+  background: var(--bg-subcard);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  font-size: 0.68rem;
   font-weight: 600;
-  padding: 4px 6px;
-  border-radius: 4px;
+  padding: 5px 6px;
+  border-radius: 6px;
   cursor: pointer;
   text-align: center;
   transition: all 0.12s ease;
@@ -442,38 +423,42 @@
 }
 
 .dt-preset-pill:hover {
-  background: #202020;
-  border-color: #383838;
-  color: #ffffff;
+  background: var(--bg-hover);
+  border-color: var(--border-strong);
+  color: var(--text-primary);
 }
 
 .dt-preset-pill.highlight-preset {
   grid-column: span 2;
+  color: #059669;
+  border-color: rgba(16, 185, 129, 0.32);
+  background: rgba(16, 185, 129, 0.08);
+}
+
+[data-theme="dark"] .dt-preset-pill.highlight-preset {
   color: #10b981;
-  border-color: rgba(16, 185, 129, 0.25);
-  background: rgba(16, 185, 129, 0.05);
 }
 
 .dt-preset-pill.highlight-preset:hover {
-  background: rgba(16, 185, 129, 0.12);
+  background: rgba(16, 185, 129, 0.15);
   border-color: #10b981;
 }
 
-/* ── Footer Preview & Action Buttons ── */
+/* ── Footer Preview & Actions ── */
 .dt-column-footer {
   margin-top: auto;
   display: flex;
   flex-direction: column;
   gap: 8px;
-  border-top: 1px solid #1f1f1f;
-  padding-top: 8px;
+  border-top: 1px solid var(--border);
+  padding-top: 9px;
 }
 
 .dt-live-preview-box {
-  background: #111111;
-  border: 1px solid #1c1c1c;
-  border-radius: 4px;
-  padding: 5px 8px;
+  background: var(--bg-subcard);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 8px;
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -483,17 +468,21 @@
   font-size: 0.58rem;
   font-weight: 700;
   letter-spacing: 0.04em;
-  color: #71717a;
+  color: var(--text-muted);
   text-transform: uppercase;
 }
 
 .preview-val {
-  font-size: 0.72rem;
+  font-size: 0.73rem;
   font-weight: 700;
-  color: #10b981;
+  color: #059669;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+[data-theme="dark"] .preview-val {
+  color: #10b981;
 }
 
 .dt-actions-row {
@@ -504,50 +493,48 @@
 
 .dt-btn-set-now {
   flex: 1;
-  background: #181818;
-  border: 1px solid #282828;
-  color: #a1a1aa;
-  font-size: 0.68rem;
+  background: var(--bg-subcard);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  font-size: 0.69rem;
   font-weight: 600;
-  padding: 5px 8px;
-  border-radius: 4px;
+  padding: 6px 8px;
+  border-radius: 6px;
   cursor: pointer;
   transition: all 0.12s ease;
   font-family: inherit;
 }
 
 .dt-btn-set-now:hover {
-  background: #242424;
-  color: #ffffff;
+  background: var(--bg-hover);
+  color: var(--text-primary);
+  border-color: var(--border-strong);
 }
 
 .dt-btn-apply-done {
-  background: #10b981;
-  border: 1px solid #10b981;
-  color: #000000;
-  font-size: 0.68rem;
-  font-weight: 700;
-  padding: 5px 12px;
-  border-radius: 4px;
+  background: var(--pill-bg);
+  border: 1px solid var(--pill-bg);
+  color: var(--pill-text);
+  font-size: 0.69rem;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 6px;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  transition: all 0.12s ease;
+  transition: opacity 0.12s ease;
   font-family: inherit;
 }
 
 .dt-btn-apply-done:hover {
-  background: #059669;
-  border-color: #059669;
+  opacity: 0.88;
 }
 
 .dt-btn-apply-done .material-symbols-outlined {
   font-size: 13px;
-  font-weight: 800;
 }
 
-/* Mobile responsive fallback */
 @media (max-width: 580px) {
   .bbdrts-custom-dt-popover {
     flex-direction: column;
