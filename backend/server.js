@@ -1104,7 +1104,7 @@ app.post('/api/auth/direct-admin', async (req, res) => {
   }
 });
 
-// ── Routes: Login (Strict Role Isolation) ──────────────────
+// ── Routes: Login (Unified Auto-Detect across Donor, NGO, and Admin) ──
 app.post('/api/auth/login', rateLimiter(100, 15 * 60 * 1000), async (req, res) => {
   const { email, password, role } = req.body;
 
@@ -1113,53 +1113,42 @@ app.post('/api/auth/login', rateLimiter(100, 15 * 60 * 1000), async (req, res) =
   }
 
   const cleanEmail = email.trim().toLowerCase();
-  const requestedRole = role === 'organization' ? 'organization' : (role === 'admin' ? 'admin' : 'donor');
+  let requestedRole = role === 'admin' ? 'admin' : 'donor';
 
   try {
     let user = null;
     let idCol = 'Donor_ID';
 
-    if (requestedRole === 'donor') {
-      const [donorRows] = await db.query('SELECT * FROM DONOR WHERE LOWER(Username) = ?', [cleanEmail]);
-      if (donorRows.length > 0) {
-        user = donorRows[0];
-        idCol = 'Donor_ID';
-      } else {
-        // Cross-role safety check to prevent confusion
-        const [orgRows] = await db.query('SELECT * FROM ORGANIZATION WHERE LOWER(Username) = ?', [cleanEmail]);
-        if (orgRows.length > 0) {
-          return res.status(403).json({ error: 'This email is registered as an NGO / Relief Organization. Please switch to the NGO portal to log in.' });
-        }
-        const [adminRows] = await db.query('SELECT * FROM ADMINISTRATOR WHERE LOWER(Username) = ?', [cleanEmail]);
-        if (adminRows.length > 0) {
-          return res.status(403).json({ error: 'This account is an Administrator. Please use the Admin Portal.' });
-        }
-        return res.status(401).json({ error: 'No Donor account found with this email. Please check your spelling or sign up.' });
-      }
-    } else if (requestedRole === 'organization') {
-      const [orgRows] = await db.query('SELECT * FROM ORGANIZATION WHERE LOWER(Username) = ?', [cleanEmail]);
-      if (orgRows.length > 0) {
-        user = orgRows[0];
-        idCol = 'Org_ID';
-      } else {
-        // Cross-role safety check to prevent confusion
-        const [donorRows] = await db.query('SELECT * FROM DONOR WHERE LOWER(Username) = ?', [cleanEmail]);
-        if (donorRows.length > 0) {
-          return res.status(403).json({ error: 'This email is registered as a Donor. Please switch to the Donor portal to log in.' });
-        }
-        const [adminRows] = await db.query('SELECT * FROM ADMINISTRATOR WHERE LOWER(Username) = ?', [cleanEmail]);
-        if (adminRows.length > 0) {
-          return res.status(403).json({ error: 'This account is an Administrator. Please use the Admin Portal.' });
-        }
-        return res.status(401).json({ error: 'No NGO / Relief Organization found with this email. Please register your NGO first.' });
-      }
-    } else if (requestedRole === 'admin') {
+    if (role === 'admin') {
       const [adminRows] = await db.query('SELECT * FROM ADMINISTRATOR WHERE LOWER(Username) = ?', [cleanEmail]);
       if (adminRows.length > 0) {
         user = adminRows[0];
         idCol = 'Admin_ID';
+        requestedRole = 'admin';
       } else {
         return res.status(403).json({ error: 'Access denied. You do not have Administrator credentials.' });
+      }
+    } else {
+      // Unified auto-detection: emails are globally unique across DONOR, ORGANIZATION, and ADMINISTRATOR
+      const [donorRows] = await db.query('SELECT * FROM DONOR WHERE LOWER(Username) = ?', [cleanEmail]);
+      if (donorRows.length > 0) {
+        user = donorRows[0];
+        idCol = 'Donor_ID';
+        requestedRole = 'donor';
+      } else {
+        const [orgRows] = await db.query('SELECT * FROM ORGANIZATION WHERE LOWER(Username) = ?', [cleanEmail]);
+        if (orgRows.length > 0) {
+          user = orgRows[0];
+          idCol = 'Org_ID';
+          requestedRole = 'organization';
+        } else {
+          const [adminRows] = await db.query('SELECT * FROM ADMINISTRATOR WHERE LOWER(Username) = ?', [cleanEmail]);
+          if (adminRows.length > 0) {
+            user = adminRows[0];
+            idCol = 'Admin_ID';
+            requestedRole = 'admin';
+          }
+        }
       }
     }
 
@@ -1175,7 +1164,7 @@ app.post('/api/auth/login', rateLimiter(100, 15 * 60 * 1000), async (req, res) =
         status: 'FAILED',
         details: { reason: 'Account not found', requestedRole }
       }).catch(() => {});
-      return res.status(401).json({ error: 'No account found with this email.' });
+      return res.status(401).json({ error: 'No account found with this email. Please check your spelling or sign up.' });
     }
 
     // ── Enhanced Security: Check Account Lockout (Feature 3: Login Attempt Limiting) ──
@@ -1573,7 +1562,7 @@ app.post('/api/auth/login-2fa-verify', rateLimiter(30, 15 * 60 * 1000), async (r
 // ── In-Memory One-Time Login Passcode (OTP) Store ─────────
 const loginOtps = new Map();
 
-// ── Routes: One-Time Passcode (OTP) Login Request (Strict Role Check) ──
+// ── Routes: One-Time Passcode (OTP) Login Request (Unified Auto-Detect) ──
 app.post('/api/auth/login-otp-request', rateLimiter(100, 15 * 60 * 1000), async (req, res) => {
   const { email, role } = req.body;
 
@@ -1582,37 +1571,38 @@ app.post('/api/auth/login-otp-request', rateLimiter(100, 15 * 60 * 1000), async 
   }
 
   const targetEmail = email.trim().toLowerCase();
-  const requestedRole = role === 'organization' ? 'organization' : (role === 'admin' ? 'admin' : 'donor');
+  let requestedRole = role === 'admin' ? 'admin' : 'donor';
 
   try {
     let targetUser = null;
-    // 1. Verify that the user exists strictly for the requested role
-    if (requestedRole === 'donor') {
-      const [donorRows] = await db.query('SELECT * FROM DONOR WHERE LOWER(Username) = ?', [targetEmail]);
-      if (donorRows.length === 0) {
-        const [orgRows] = await db.query('SELECT * FROM ORGANIZATION WHERE LOWER(Username) = ?', [targetEmail]);
-        if (orgRows.length > 0) {
-          return res.status(403).json({ error: 'This email belongs to an NGO / Relief Organization. Please switch to the NGO portal.' });
-        }
-        return res.status(404).json({ error: 'No registered donor account found with this email. Please sign up first.' });
-      }
-      targetUser = donorRows[0];
-    } else if (requestedRole === 'organization') {
-      const [orgRows] = await db.query('SELECT * FROM ORGANIZATION WHERE LOWER(Username) = ?', [targetEmail]);
-      if (orgRows.length === 0) {
-        const [donorRows] = await db.query('SELECT * FROM DONOR WHERE LOWER(Username) = ?', [targetEmail]);
-        if (donorRows.length > 0) {
-          return res.status(403).json({ error: 'This email belongs to a Donor. Please switch to the Donor portal.' });
-        }
-        return res.status(404).json({ error: 'No registered NGO account found with this email. Please sign up first.' });
-      }
-      targetUser = orgRows[0];
-    } else if (requestedRole === 'admin') {
+    // 1. Auto-detect account across DONOR, ORGANIZATION, and ADMINISTRATOR
+    if (role === 'admin') {
       const [adminRows] = await db.query('SELECT * FROM ADMINISTRATOR WHERE LOWER(Username) = ?', [targetEmail]);
       if (adminRows.length === 0) {
         return res.status(403).json({ error: 'Access denied. You do not have Administrator credentials.' });
       }
       targetUser = adminRows[0];
+      requestedRole = 'admin';
+    } else {
+      const [donorRows] = await db.query('SELECT * FROM DONOR WHERE LOWER(Username) = ?', [targetEmail]);
+      if (donorRows.length > 0) {
+        targetUser = donorRows[0];
+        requestedRole = 'donor';
+      } else {
+        const [orgRows] = await db.query('SELECT * FROM ORGANIZATION WHERE LOWER(Username) = ?', [targetEmail]);
+        if (orgRows.length > 0) {
+          targetUser = orgRows[0];
+          requestedRole = 'organization';
+        } else {
+          const [adminRows] = await db.query('SELECT * FROM ADMINISTRATOR WHERE LOWER(Username) = ?', [targetEmail]);
+          if (adminRows.length > 0) {
+            targetUser = adminRows[0];
+            requestedRole = 'admin';
+          } else {
+            return res.status(404).json({ error: 'No registered account found with this email. Please sign up first.' });
+          }
+        }
+      }
     }
 
     // 2. Strict Lockout Protection: Prevent bypassing 15-minute brute-force lockout via Email OTP

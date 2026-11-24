@@ -607,14 +607,17 @@ export default function AuthView({ onLoginSuccess, onBack, theme, onToggleTheme,
     setLoading(true);
     try {
       const cleanLoginEmail = email.trim().toLowerCase();
-      const normalizedRole = String(role || 'donor').toLowerCase();
-      const scopedTrustKey = `bbdrts_trusted_device_${normalizedRole}_${cleanLoginEmail}`;
-      const legacyTrustKey = `bbdrts_trusted_device_${cleanLoginEmail}`;
-      const clientTrustToken = localStorage.getItem(scopedTrustKey) || localStorage.getItem(legacyTrustKey) || null;
+      const trustKeys = [
+        `bbdrts_trusted_device_donor_${cleanLoginEmail}`,
+        `bbdrts_trusted_device_organization_${cleanLoginEmail}`,
+        `bbdrts_trusted_device_admin_${cleanLoginEmail}`,
+        `bbdrts_trusted_device_${cleanLoginEmail}`
+      ];
+      const clientTrustToken = trustKeys.map(k => localStorage.getItem(k)).find(Boolean) || null;
       const response = await apiFetch(`${API_URL}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password, role, trustedDeviceToken: clientTrustToken })
+        body: JSON.stringify({ email, password, trustedDeviceToken: clientTrustToken })
       });
       const data = await parseApiResponse(response);
 
@@ -622,8 +625,7 @@ export default function AuthView({ onLoginSuccess, onBack, theme, onToggleTheme,
       if (data.requires2FA) {
         if (clientTrustToken) {
           try {
-            localStorage.removeItem(scopedTrustKey);
-            localStorage.removeItem(legacyTrustKey);
+            trustKeys.forEach(k => localStorage.removeItem(k));
           } catch (_) {}
         }
         setTwoFactorTempToken(data.tempToken);
@@ -825,7 +827,7 @@ export default function AuthView({ onLoginSuccess, onBack, theme, onToggleTheme,
         apiFetch(`${API_URL}/api/auth/login-otp-request`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: otpLoginEmail, role })
+          body: JSON.stringify({ email: otpLoginEmail })
         }),
         simulateDelay(800)
       ]);
@@ -857,7 +859,7 @@ export default function AuthView({ onLoginSuccess, onBack, theme, onToggleTheme,
         apiFetch(`${API_URL}/api/auth/login-otp-request`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: otpLoginEmail, role })
+          body: JSON.stringify({ email: otpLoginEmail })
         }),
         simulateDelay(750)
       ]);
@@ -1180,50 +1182,19 @@ export default function AuthView({ onLoginSuccess, onBack, theme, onToggleTheme,
 
               {/* Header */}
               <div className="login-header-modern">
-                <h2>{role === 'organization' ? 'NGO Portal Login' : 'Donor Portal Login'}</h2>
-                <p className="login-header-subtitle">Log in to access your transparent relief portal</p>
-              </div>
-
-              {/* Vercel-style Segmented Role Switcher */}
-              <div className="role-selector" role="tablist" aria-label="Account Login Role">
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={role === 'donor'}
-                  className={`role-card-opt ${role === 'donor' ? 'active' : ''}`}
-                  onClick={() => {
-                    setRole('donor');
-                    setError('');
-                  }}
-                >
-                  <span className="material-symbols-outlined role-type-icon">person</span>
-                  <span className="role-type-label">Donor</span>
-                </button>
-
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={role === 'organization'}
-                  className={`role-card-opt ${role === 'organization' ? 'active' : ''}`}
-                  onClick={() => {
-                    setRole('organization');
-                    setError('');
-                  }}
-                >
-                  <span className="material-symbols-outlined role-type-icon">domain</span>
-                  <span className="role-type-label">NGO</span>
-                </button>
+                <h2>Sign In</h2>
+                <p className="login-header-subtitle">Log in to your Donor or NGO transparent relief portal</p>
               </div>
 
               {/* Login Form */}
               <form className="modern-login-form" onSubmit={handleSubmit}>
                 <div className="input-group-modern">
-                  <label>{role === 'organization' ? 'OFFICIAL NGO EMAIL' : 'EMAIL ADDRESS'}</label>
+                  <label>EMAIL ADDRESS</label>
                   <div className="input-container">
                     <span className="material-symbols-outlined input-icon">mail</span>
                     <input
                       type="email"
-                      placeholder={role === 'organization' ? "contact@redcross.org.ph" : "your.email@gmail.com"}
+                      placeholder="you@example.com"
                       value={email}
                       onChange={e => setEmail(e.target.value)}
                       onKeyDown={e => {
@@ -1707,10 +1678,12 @@ export default function AuthView({ onLoginSuccess, onBack, theme, onToggleTheme,
               <div className="brand-welcome-block">
                 <div className="brand-welcome-eyebrow">
                   <span className="material-symbols-outlined">
-                    {role === 'organization' ? 'verified_user' : 'favorite'}
+                    {isRegistering ? (role === 'organization' ? 'verified_user' : 'favorite') : 'verified_user'}
                   </span>
                   <span>
-                    {role === 'organization' ? 'VERIFIED NGO PORTAL' : 'DISASTER & CHARITY PORTAL'}
+                    {isRegistering
+                      ? (role === 'organization' ? 'VERIFIED NGO PORTAL' : 'DISASTER & CHARITY PORTAL')
+                      : 'TRANSPARENT RELIEF PORTAL'}
                   </span>
                 </div>
                 <h2 className="brand-welcome-headline">
@@ -1718,18 +1691,14 @@ export default function AuthView({ onLoginSuccess, onBack, theme, onToggleTheme,
                     ? (role === 'organization'
                         ? 'Apply as a verified relief organization.'
                         : 'Create your donor portal account.')
-                    : (role === 'organization'
-                        ? 'Manage campaigns and spending logs.'
-                        : 'Track your relief and charity donations.')}
+                    : 'One portal for transparent relief.'}
                 </h2>
                 <p className="brand-welcome-copy">
-                  {role === 'organization'
-                    ? (isRegistering
+                  {isRegistering
+                    ? (role === 'organization'
                         ? 'Register with SEC or DSWD credentials for admin approval before posting drives and logging spending reports.'
-                        : 'Run approved campaigns, verify pending wallet slips, and upload itemized store receipts and delivery proof for donors.')
-                    : (isRegistering
-                        ? 'Donate in Philippine Pesos via Xendit QR Ph, GCash, Maya, cards, or bank transfer—with gasless Sepolia records and 0% BBDRTS commission.'
-                        : 'Browse verified campaigns, give via GCash, Maya, cards, or bank transfer, and inspect gasless blockchain records alongside NGO spending proof.')}
+                        : 'Donate in Philippine Pesos via Xendit QR Ph, GCash, Maya, cards, or bank transfer—with gasless Sepolia records and 0% BBDRTS commission.')
+                    : 'Sign in as a donor or verified NGO to track gasless Sepolia records, manage active relief drives, and inspect itemized delivery proof.'}
                 </p>
               </div>
 
