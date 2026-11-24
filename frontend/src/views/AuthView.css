@@ -2912,3 +2912,68 @@
 [data-theme="light"] .pwd-requirements-inline .pwd-requirements-counter {
   border-left-color: #e4e4e7;
 }
+
+
+/* ── Single-Sentence Password Requirement Alert Callout ── */
+.pwd-req-callout {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+  padding: 10px 13px;
+  border-radius: 9px;
+  font-size: 0.76rem;
+  line-height: 1.42;
+  font-weight: 500;
+  transition: background 0.18s ease, border-color 0.18s ease, color 0.18s ease;
+}
+
+.pwd-req-callout.is-invalid {
+  background: rgba(244, 63, 94, 0.11);
+  border: 1px solid rgba(244, 63, 94, 0.24);
+  color: #fda4af;
+}
+
+.pwd-req-callout.is-valid {
+  background: rgba(16, 185, 129, 0.11);
+  border: 1px solid rgba(16, 185, 129, 0.28);
+  color: #6ee7b7;
+}
+
+.pwd-req-callout-icon {
+  font-size: 18px;
+  flex-shrink: 0;
+  font-variation-settings: 'FILL' 1, 'wght' 500, 'GRAD' 0, 'opsz' 20;
+}
+
+.pwd-req-callout.is-invalid .pwd-req-callout-icon {
+  color: #f43f5e;
+}
+
+.pwd-req-callout.is-valid .pwd-req-callout-icon {
+  color: #10b981;
+}
+
+.pwd-req-callout-text {
+  display: block;
+}
+
+[data-theme="light"] .pwd-req-callout.is-invalid {
+  background: #fff1f2;
+  border-color: #fecdd3;
+  color: #e11d48;
+}
+
+[data-theme="light"] .pwd-req-callout.is-invalid .pwd-req-callout-icon {
+  color: #e11d48;
+}
+
+[data-theme="light"] .pwd-req-callout.is-valid {
+  background: #ecfdf5;
+  border-color: #a7f3d0;
+  color: #047857;
+}
+
+[data-theme="light"] .pwd-req-callout.is-valid .pwd-req-callout-icon {
+  color: #10b981;
+}

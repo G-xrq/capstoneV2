@@ -1501,30 +1501,21 @@ export default function AuthView({ onLoginSuccess, onBack, theme, onToggleTheme,
                     />
                   </div>
 
-                  {/* Compact 1-Line Password Requirements Strip */}
-                  {(passwordFocused || password.length > 0) && (
+                  {/* Single-Sentence Password Requirement Notice */}
+                  {(passwordFocused || (password.length > 0 && metRequirementsCount < 5)) && (
                     <div
                       id="pwd-requirements-panel"
-                      className="pwd-requirements-inline"
+                      className={`pwd-req-callout ${metRequirementsCount === 5 ? 'is-valid' : 'is-invalid'}`}
                       role="status"
                       aria-live="polite"
                     >
-                      <ul className="pwd-requirements-list">
-                        {passwordRequirements.map((req) => (
-                          <li
-                            key={req.id}
-                            className={`pwd-requirement-item ${req.met ? 'is-met' : 'is-unmet'}`}
-                            title={req.full}
-                          >
-                            <span className="material-symbols-outlined pwd-req-icon">
-                              {req.met ? 'check_circle' : 'radio_button_unchecked'}
-                            </span>
-                            <span className="pwd-req-label">{req.label}</span>
-                          </li>
-                        ))}
-                      </ul>
-                      <span className={`pwd-requirements-counter ${metRequirementsCount === 5 ? 'all-met' : ''}`}>
-                        {metRequirementsCount}/5
+                      <span className="material-symbols-outlined pwd-req-callout-icon">
+                        {metRequirementsCount === 5 ? 'check_circle' : 'error'}
+                      </span>
+                      <span className="pwd-req-callout-text">
+                        {metRequirementsCount === 5
+                          ? 'Password meets all security requirements.'
+                          : 'You must use a password that is at least 8 characters long, with one uppercase letter, one lowercase letter, one number, and one symbol.'}
                       </span>
                     </div>
                   )}
@@ -2458,30 +2449,21 @@ export default function AuthView({ onLoginSuccess, onBack, theme, onToggleTheme,
                     />
                   </div>
 
-                  {/* Compact 1-Line Password Requirements Strip */}
-                  {(resetPasswordFocused || resetNewPassword.length > 0) && (
+                  {/* Single-Sentence Password Requirement Notice */}
+                  {(resetPasswordFocused || (resetNewPassword.length > 0 && resetMetRequirementsCount < 5)) && (
                     <div
                       id="reset-pwd-requirements-panel"
-                      className="pwd-requirements-inline"
+                      className={`pwd-req-callout ${resetMetRequirementsCount === 5 ? 'is-valid' : 'is-invalid'}`}
                       role="status"
                       aria-live="polite"
                     >
-                      <ul className="pwd-requirements-list">
-                        {resetPasswordRequirements.map((req) => (
-                          <li
-                            key={req.id}
-                            className={`pwd-requirement-item ${req.met ? 'is-met' : 'is-unmet'}`}
-                            title={req.full}
-                          >
-                            <span className="material-symbols-outlined pwd-req-icon">
-                              {req.met ? 'check_circle' : 'radio_button_unchecked'}
-                            </span>
-                            <span className="pwd-req-label">{req.label}</span>
-                          </li>
-                        ))}
-                      </ul>
-                      <span className={`pwd-requirements-counter ${resetMetRequirementsCount === 5 ? 'all-met' : ''}`}>
-                        {resetMetRequirementsCount}/5
+                      <span className="material-symbols-outlined pwd-req-callout-icon">
+                        {resetMetRequirementsCount === 5 ? 'check_circle' : 'error'}
+                      </span>
+                      <span className="pwd-req-callout-text">
+                        {resetMetRequirementsCount === 5
+                          ? 'Password meets all security requirements.'
+                          : 'You must use a password that is at least 8 characters long, with one uppercase letter, one lowercase letter, one number, and one symbol.'}
                       </span>
                     </div>
                   )}
@@ -2680,30 +2662,21 @@ export default function AuthView({ onLoginSuccess, onBack, theme, onToggleTheme,
                     />
                   </div>
 
-                  {/* Compact 1-Line Password Requirements Strip */}
-                  {(securePasswordFocused || secureNewPassword.length > 0) && (
+                  {/* Single-Sentence Password Requirement Notice */}
+                  {(securePasswordFocused || (secureNewPassword.length > 0 && secureMetRequirementsCount < 5)) && (
                     <div
                       id="secure-pwd-requirements-panel"
-                      className="pwd-requirements-inline"
+                      className={`pwd-req-callout ${secureMetRequirementsCount === 5 ? 'is-valid' : 'is-invalid'}`}
                       role="status"
                       aria-live="polite"
                     >
-                      <ul className="pwd-requirements-list">
-                        {securePasswordRequirements.map((req) => (
-                          <li
-                            key={req.id}
-                            className={`pwd-requirement-item ${req.met ? 'is-met' : 'is-unmet'}`}
-                            title={req.full}
-                          >
-                            <span className="material-symbols-outlined pwd-req-icon">
-                              {req.met ? 'check_circle' : 'radio_button_unchecked'}
-                            </span>
-                            <span className="pwd-req-label">{req.label}</span>
-                          </li>
-                        ))}
-                      </ul>
-                      <span className={`pwd-requirements-counter ${secureMetRequirementsCount === 5 ? 'all-met' : ''}`}>
-                        {secureMetRequirementsCount}/5
+                      <span className="material-symbols-outlined pwd-req-callout-icon">
+                        {secureMetRequirementsCount === 5 ? 'check_circle' : 'error'}
+                      </span>
+                      <span className="pwd-req-callout-text">
+                        {secureMetRequirementsCount === 5
+                          ? 'Password meets all security requirements.'
+                          : 'You must use a password that is at least 8 characters long, with one uppercase letter, one lowercase letter, one number, and one symbol.'}
                       </span>
                     </div>
                   )}

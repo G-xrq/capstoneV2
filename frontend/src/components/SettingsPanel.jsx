@@ -3005,30 +3005,21 @@ export default function SettingsPanel({
                       />
                     </div>
 
-                    {/* Compact 1-Line Password Requirements Strip */}
-                    {(newPasswordFocused || newPassword.length > 0) && (
+                    {/* Single-Sentence Password Requirement Notice */}
+                    {(newPasswordFocused || (newPassword.length > 0 && newPwdMetCount < 5)) && (
                       <div
                         id="settings-pwd-requirements-panel"
-                        className="vs-pwd-inline"
+                        className={`vs-pwd-callout ${newPwdMetCount === 5 ? 'is-valid' : 'is-invalid'}`}
                         role="status"
                         aria-live="polite"
                       >
-                        <ul className="vs-pwd-dropdown-list">
-                          {newPasswordRequirements.map((req) => (
-                            <li
-                              key={req.id}
-                              className={`vs-pwd-dropdown-item ${req.met ? 'is-met' : 'is-unmet'}`}
-                              title={req.full}
-                            >
-                              <span className="material-symbols-outlined vs-pwd-dropdown-icon">
-                                {req.met ? 'check_circle' : 'radio_button_unchecked'}
-                              </span>
-                              <span>{req.label}</span>
-                            </li>
-                          ))}
-                        </ul>
-                        <span className={`vs-pwd-dropdown-counter ${newPwdMetCount === 5 ? 'all-met' : ''}`}>
-                          {newPwdMetCount}/5
+                        <span className="material-symbols-outlined vs-pwd-callout-icon">
+                          {newPwdMetCount === 5 ? 'check_circle' : 'error'}
+                        </span>
+                        <span>
+                          {newPwdMetCount === 5
+                            ? 'Password meets all security requirements.'
+                            : 'You must use a password that is at least 8 characters long, with one uppercase letter, one lowercase letter, one number, and one symbol.'}
                         </span>
                       </div>
                     )}
