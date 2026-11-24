@@ -29,6 +29,12 @@ import LiveCounter from '../components/LiveCounter';
 import { CONTRACT_ADDRESS } from '../contractConfig';
 import { getPaginationItems } from '../utils/pagination';
 import { getWorkspaceStrings } from '../data/workspaceTranslations';
+import {
+  exportDonorReportExcel,
+  exportDonorReportCsv,
+  exportDonorPrintableReport,
+  printDonationVoucher
+} from '../utils/reportExporter';
 import './ReferenceDashboard.css';
 import '../components/CampaignDetailsModal.css';
 import './DashboardOverview.css';
@@ -105,6 +111,7 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
   const [showAllProofTags, setShowAllProofTags] = useState(false);
   const [activeProofEvidenceImg, setActiveProofEvidenceImg] = useState(null);
   const [selectedVoucherTx, setSelectedVoucherTx] = useState(null);
+  const [donorExportOpen, setDonorExportOpen] = useState(false);
   const [showReceiptZoom, setShowReceiptZoom] = useState(false);
   const [showTierModal, setShowTierModal] = useState(false);
   const [unlockedTierModal, setUnlockedTierModal] = useState(null);
@@ -2179,15 +2186,103 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
                 </div>
 
                 <div className="admin-page-header-actions">
-                  <button
-                    type="button"
-                    className="dbo-cmd-btn"
-                    onClick={() => window.print()}
-                    title="Export or print tamper-proof audit report"
-                  >
-                    <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>print</span>
-                    <span>Export Report</span>
-                  </button>
+                  <div className="bbdrts-export-dd-wrap">
+                    <button
+                      type="button"
+                      className="dbo-cmd-btn dbo-cmd-btn--primary"
+                      onClick={() => setDonorExportOpen((o) => !o)}
+                      title="Export organized donation report (Excel, CSV, or Printable PDF)"
+                    >
+                      <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>download</span>
+                      <span>Export Report</span>
+                      <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>
+                        {donorExportOpen ? 'expand_less' : 'expand_more'}
+                      </span>
+                    </button>
+
+                    {donorExportOpen && (
+                      <div className="bbdrts-export-dd-menu" role="menu">
+                        <div className="bbdrts-export-dd-head">Export Contribution Statement</div>
+                        <button
+                          type="button"
+                          className="bbdrts-export-dd-item"
+                          onClick={() => {
+                            setDonorExportOpen(false);
+                            try {
+                              const file = exportDonorReportExcel({
+                                donorName: userDisplayName || currentUser?.name || 'Verified Donor',
+                                donorEmail: currentUser?.email || '',
+                                donations: myDonations || [],
+                                campaigns: campaigns || []
+                              });
+                              showSuccess(`Downloaded organized Excel statement "${file}".`, 'Excel Export Ready');
+                            } catch (err) {
+                              showError(err.message || 'Excel export failed.', 'Export Error');
+                            }
+                          }}
+                        >
+                          <div className="bbdrts-export-dd-item-left">
+                            <span className="material-symbols-outlined" style={{ fontSize: '17px', color: '#10b981' }}>table_view</span>
+                            <div>
+                              <span className="bbdrts-export-dd-item-title">Excel Workbook</span>
+                              <span className="bbdrts-export-dd-item-sub">Summary, Receipts &amp; Campaigns (3 sheets)</span>
+                            </div>
+                          </div>
+                          <span className="bbdrts-export-dd-ext">.xlsx</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          className="bbdrts-export-dd-item"
+                          onClick={() => {
+                            setDonorExportOpen(false);
+                            try {
+                              const file = exportDonorReportCsv({
+                                donations: myDonations || [],
+                                campaigns: campaigns || []
+                              });
+                              showSuccess(`Downloaded receipt spreadsheet "${file}".`, 'CSV Export Ready');
+                            } catch (err) {
+                              showError(err.message || 'CSV export failed.', 'Export Error');
+                            }
+                          }}
+                        >
+                          <div className="bbdrts-export-dd-item-left">
+                            <span className="material-symbols-outlined" style={{ fontSize: '17px', color: '#38bdf8' }}>description</span>
+                            <div>
+                              <span className="bbdrts-export-dd-item-title">CSV Spreadsheet</span>
+                              <span className="bbdrts-export-dd-item-sub">Clean tabular receipt ledger</span>
+                            </div>
+                          </div>
+                          <span className="bbdrts-export-dd-ext">.csv</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          className="bbdrts-export-dd-item"
+                          onClick={() => {
+                            setDonorExportOpen(false);
+                            exportDonorPrintableReport({
+                              donorName: userDisplayName || currentUser?.name || 'Verified Donor',
+                              donorEmail: currentUser?.email || '',
+                              donations: myDonations || [],
+                              campaigns: campaigns || []
+                            });
+                            showSuccess('Opened clean A4 PDF contribution statement.', 'PDF Report Ready');
+                          }}
+                        >
+                          <div className="bbdrts-export-dd-item-left">
+                            <span className="material-symbols-outlined" style={{ fontSize: '17px', color: '#f59e0b' }}>picture_as_pdf</span>
+                            <div>
+                              <span className="bbdrts-export-dd-item-title">Printable PDF Report</span>
+                              <span className="bbdrts-export-dd-item-sub">Formal A4 contribution statement</span>
+                            </div>
+                          </div>
+                          <span className="bbdrts-export-dd-ext">.pdf</span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
 
                   <button
                     type="button"
@@ -3639,7 +3734,14 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
                   <button
                     type="button"
                     className="btn btn-outline btn-sm"
-                    onClick={() => window.print()}
+                    onClick={() => printDonationVoucher({
+                      ...d,
+                      phpAmount: creditedPhp,
+                      campaignTitle: campTitle,
+                      orgName,
+                      donorName: d.isAnonymous ? 'Anonymous Supporter' : (userDisplayName || currentUser?.name || 'Verified Donor'),
+                      isShortage
+                    })}
                     style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
                   >
                     <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>print</span>

@@ -24,6 +24,12 @@ import { CONTRACT_ADDRESS } from '../contractConfig';
 import { autoCropQrScreenshot, extractQrVoucherText } from '../utils/qrCropper';
 import { formatPhoneNumber } from '../utils/formatters';
 import { getWorkspaceStrings } from '../data/workspaceTranslations';
+import {
+  exportNgoLedgerCsv,
+  exportNgoLedgerExcel,
+  exportNgoAuditPdf,
+  printDonationVoucher
+} from '../utils/reportExporter';
 import './ReferenceDashboard.css';
 import './DashboardOverview.css';
 
@@ -2330,57 +2336,43 @@ export default function OrganizationView({
     currentPageLedger * campaignsPerPage
   );
 
-  // Professional CSV Export for Financial Audits
-  const handleExportLedgerCsv = () => {
-    if (!filteredLedger || filteredLedger.length === 0) {
-      showWarning('No transactions available to export.', 'Export Empty');
-      return;
-    }
-    const headers = [
-      'Transaction ID',
-      'Date & Time',
-      'Campaign ID',
-      'Campaign Title',
-      'Category',
-      'Donor Name',
-      'Payment Rail',
-      'Amount (PHP)',
-      'Transaction Hash',
-      'Verification Status'
-    ];
-    const rows = filteredLedger.map((d) => {
-      const matchCamp = campaigns.find(c => String(c.id) === String(d.campaignId));
-      const rawTitle = matchCamp ? matchCamp.title : `Disaster Relief Campaign #${d.campaignId}`;
-      const campTitle = formatCampaignTitle(rawTitle, d.campaignId);
-      const isCharity = /charity|school|orphan|food|feed|community|aid|blood|medical/i.test(campTitle);
-      const catLabel = isCharity ? 'Charitable Aid' : 'Disaster Relief';
-      const donor = d.isAnonymous ? 'Anonymous Supporter' : (d.donorName || 'Public Philanthropist');
-      const amtEth = parseFloat(d.amount || 0).toFixed(4);
-      const amtPhp = Math.round(parseFloat(d.amount || 0) * 170000);
-      const dateStr = d.createdAt ? new Date(d.createdAt).toLocaleString() : 'Recent On-Chain';
-      return [
-        `"${d.id || ''}"`,
-        `"${dateStr}"`,
-        `"${d.campaignId || ''}"`,
-        `"${campTitle.replace(/"/g, '""')}"`,
-        `"${catLabel}"`,
-        `"${donor.replace(/"/g, '""')}"`,
-        `"${d.paymentMethod || 'Bank / Card'}"`,
-        `"${amtPhp}"`,
-        `"${d.txHash || ''}"`,
-        `"Verified On-Chain"`
-      ].join(',');
-    });
+  const [ngoLedgerExportOpen, setNgoLedgerExportOpen] = useState(false);
 
-    const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows].join('\n');
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement('a');
-    link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `bbdrts_donation_ledger_audit_${new Date().toISOString().slice(0, 10)}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    showSuccess(`Exported ${filteredLedger.length} ledger transactions to CSV.`, 'Export Completed');
+  // Organized NGO Ledger Exports (Blob UTF-8 BOM CSV, Multi-Sheet Excel, Printable Audit PDF)
+  const getNgoDisplayTitle = () =>
+    currentUser?.org_name || currentUser?.name || currentUser?.organization_name || 'Verified NGO';
+
+  const handleExportLedgerCsv = () => {
+    setNgoLedgerExportOpen(false);
+    const list = filteredLedger && filteredLedger.length > 0 ? filteredLedger : (orgDonations || []);
+    const file = exportNgoLedgerCsv({
+      orgName: getNgoDisplayTitle(),
+      donations: list,
+      campaigns
+    });
+    showSuccess(`Exported ${list.length} ledger record${list.length === 1 ? '' : 's'} to "${file}".`, 'CSV Export Ready');
+  };
+
+  const handleExportLedgerExcel = () => {
+    setNgoLedgerExportOpen(false);
+    const list = filteredLedger && filteredLedger.length > 0 ? filteredLedger : (orgDonations || []);
+    const file = exportNgoLedgerExcel({
+      orgName: getNgoDisplayTitle(),
+      donations: list,
+      campaigns
+    });
+    showSuccess(`Generated Excel audit workbook "${file}" (${list.length} records).`, 'Excel Export Ready');
+  };
+
+  const handleExportLedgerPdf = () => {
+    setNgoLedgerExportOpen(false);
+    const list = filteredLedger && filteredLedger.length > 0 ? filteredLedger : (orgDonations || []);
+    exportNgoAuditPdf({
+      orgName: getNgoDisplayTitle(),
+      donations: list,
+      campaigns
+    });
+    showSuccess('Opened formatted A4 NGO Financial Audit Report.', 'Audit PDF Ready');
   };
 
   // Deploy Campaign Logic
@@ -6007,8 +5999,8 @@ export default function OrganizationView({
                 <button
                   type="button"
                   className="dbo-cmd-btn"
-                  onClick={() => window.print()}
-                  title="Print formal audit report"
+                  onClick={handleExportLedgerPdf}
+                  title="Open formatted A4 NGO Financial Audit PDF Report"
                 >
                   <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>print</span>
                   <span>Audit Report</span>
@@ -6022,15 +6014,55 @@ export default function OrganizationView({
                   <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>add_card</span>
                   <span>Log Deposit</span>
                 </button>
-                <button
-                  type="button"
-                  className="dbo-cmd-btn dbo-cmd-btn--primary"
-                  onClick={handleExportLedgerCsv}
-                  title="Export filtered ledger records to a standard CSV spreadsheet"
-                >
-                  <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>file_download</span>
-                  <span>Export CSV</span>
-                </button>
+                <div className="bbdrts-export-dd-wrap">
+                  <button
+                    type="button"
+                    className="dbo-cmd-btn dbo-cmd-btn--primary"
+                    onClick={() => setNgoLedgerExportOpen((o) => !o)}
+                    title="Export organized NGO ledger (Excel, CSV, or Audit PDF)"
+                  >
+                    <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>file_download</span>
+                    <span>Export Ledger</span>
+                    <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>
+                      {ngoLedgerExportOpen ? 'expand_less' : 'expand_more'}
+                    </span>
+                  </button>
+                  {ngoLedgerExportOpen && (
+                    <div className="bbdrts-export-dd-menu" role="menu">
+                      <div className="bbdrts-export-dd-head">Download NGO Ledger</div>
+                      <button type="button" className="bbdrts-export-dd-item" onClick={handleExportLedgerExcel}>
+                        <div className="bbdrts-export-dd-item-left">
+                          <span className="material-symbols-outlined" style={{ fontSize: '17px', color: '#10b981' }}>table_view</span>
+                          <div>
+                            <span className="bbdrts-export-dd-item-title">Excel Workbook</span>
+                            <span className="bbdrts-export-dd-item-sub">Summary + Full Ledger (2 sheets)</span>
+                          </div>
+                        </div>
+                        <span className="bbdrts-export-dd-ext">.xlsx</span>
+                      </button>
+                      <button type="button" className="bbdrts-export-dd-item" onClick={handleExportLedgerCsv}>
+                        <div className="bbdrts-export-dd-item-left">
+                          <span className="material-symbols-outlined" style={{ fontSize: '17px', color: '#38bdf8' }}>description</span>
+                          <div>
+                            <span className="bbdrts-export-dd-item-title">CSV Spreadsheet</span>
+                            <span className="bbdrts-export-dd-item-sub">UTF-8 Excel-ready ledger table</span>
+                          </div>
+                        </div>
+                        <span className="bbdrts-export-dd-ext">.csv</span>
+                      </button>
+                      <button type="button" className="bbdrts-export-dd-item" onClick={handleExportLedgerPdf}>
+                        <div className="bbdrts-export-dd-item-left">
+                          <span className="material-symbols-outlined" style={{ fontSize: '17px', color: '#f59e0b' }}>picture_as_pdf</span>
+                          <div>
+                            <span className="bbdrts-export-dd-item-title">Printable Audit PDF</span>
+                            <span className="bbdrts-export-dd-item-sub">Formal A4 financial statement</span>
+                          </div>
+                        </div>
+                        <span className="bbdrts-export-dd-ext">.pdf</span>
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -9057,7 +9089,14 @@ export default function OrganizationView({
                 <button
                   type="button"
                   className="btn btn-outline btn-sm"
-                  onClick={() => window.print()}
+                  onClick={() => printDonationVoucher({
+                    ...selectedVoucherTx,
+                    phpAmount: amtPhp,
+                    campaignTitle: campTitle,
+                    orgName: getNgoDisplayTitle(),
+                    donorName: donorDisplay,
+                    isShortage
+                  })}
                   style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
                 >
                   <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>print</span>

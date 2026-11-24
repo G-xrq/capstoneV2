@@ -1902,19 +1902,9 @@
   background: #e4e4e7;
 }
 
-/* ── Print Media Stylesheet for Official Diploma Output ── */
+/* ── Print Media Stylesheet (Scoped without hiding entire page) ── */
 @media print {
-  body * {
-    visibility: hidden;
-  }
-  .donor-certificate-frame,
-  .donor-certificate-frame * {
-    visibility: visible;
-  }
   .donor-certificate-frame {
-    position: absolute;
-    left: 0;
-    top: 0;
     width: 100%;
     border: 2px solid #000000 !important;
     background: #ffffff !important;
