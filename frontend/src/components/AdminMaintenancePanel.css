@@ -1499,3 +1499,263 @@ input:checked + .slider:before {
 .btn-open-fullscreen-sim .material-symbols-outlined {
   font-size: 14px;
 }
+
+
+/* ── Enhanced Schedule Window, Chips, Validation & Dual-Theme Geist Preview ── */
+.bbdrts-maint-status-banner.scheduled {
+  background: rgba(56, 189, 248, 0.06);
+  border-color: rgba(56, 189, 248, 0.32);
+}
+
+.bbdrts-maint-status-banner.scheduled .status-icon-wrap {
+  background: rgba(56, 189, 248, 0.14);
+  border-color: rgba(56, 189, 248, 0.35);
+  color: #38bdf8;
+}
+
+[data-theme="light"] .bbdrts-maint-status-banner.scheduled {
+  background: #f0f9ff;
+  border-color: #bae6fd;
+}
+
+[data-theme="light"] .bbdrts-maint-status-banner.scheduled .status-icon-wrap {
+  background: #e0f2fe;
+  border-color: #7dd3fc;
+  color: #0284c7;
+}
+
+.schedule-quick-chips {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.btn-set-now.is-end {
+  color: #10b981;
+}
+
+.btn-set-now.is-end:hover {
+  background: rgba(16, 185, 129, 0.12);
+  border-color: #10b981;
+}
+
+[data-theme="light"] .btn-set-now {
+  background: #f4f4f5;
+  border-color: #e4e4e7;
+  color: #0284c7;
+}
+
+[data-theme="light"] .btn-set-now.is-end {
+  color: #059669;
+}
+
+[data-theme="light"] .btn-set-now:hover {
+  background: #e0f2fe;
+  border-color: #38bdf8;
+}
+
+[data-theme="light"] .btn-set-now.is-end:hover {
+  background: #ecfdf5;
+  border-color: #10b981;
+}
+
+.maint-schedule-summary {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 0.74rem;
+  line-height: 1.45;
+  border: 1px solid var(--border);
+  background: var(--bg-subcard);
+  color: var(--text-secondary);
+}
+
+.maint-schedule-summary.is-ok {
+  border-color: rgba(16, 185, 129, 0.32);
+  background: rgba(16, 185, 129, 0.07);
+  color: var(--text-primary);
+}
+.maint-schedule-summary.is-ok .material-symbols-outlined { color: #10b981; }
+
+.maint-schedule-summary.is-scheduled {
+  border-color: rgba(56, 189, 248, 0.35);
+  background: rgba(56, 189, 248, 0.08);
+  color: var(--text-primary);
+}
+.maint-schedule-summary.is-scheduled .material-symbols-outlined { color: #38bdf8; }
+
+.maint-schedule-summary.is-error {
+  border-color: rgba(244, 63, 94, 0.45);
+  background: rgba(244, 63, 94, 0.09);
+  color: #f43f5e;
+}
+.maint-schedule-summary.is-error .material-symbols-outlined { color: #f43f5e; }
+
+.maint-schedule-summary-text code {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.70rem;
+  padding: 1px 4px;
+  border-radius: 4px;
+  background: var(--bg-inset);
+}
+
+[data-theme="light"] .auto-deactivate-row {
+  border-top-color: #e4e4e7;
+}
+
+[data-theme="light"] .auto-deactivate-checkbox-label {
+  color: #3f3f46;
+}
+
+/* ── Geist Live Preview Card (Full Dark & Light Parity) ── */
+[data-theme="light"] .preview-head-left {
+  color: #09090b;
+}
+
+.simulated-maint-card.geist-sim {
+  background: var(--bg-card);
+  border: 1px solid var(--border-strong, var(--border));
+  border-radius: 14px;
+  padding: 22px 18px 16px;
+  gap: 10px;
+  box-shadow: var(--shadow-dropdown, 0 12px 32px rgba(0, 0, 0, 0.28));
+  color: var(--text-primary);
+}
+
+.simulated-maint-card.geist-sim .sim-icon-box {
+  margin-bottom: 2px;
+}
+
+.sim-geist-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.30);
+  color: #f59e0b;
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+
+[data-theme="light"] .sim-geist-status-pill {
+  background: #fffbeb;
+  border-color: #fcd34d;
+  color: #b45309;
+}
+
+.sim-geist-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #f59e0b;
+}
+
+.simulated-maint-card.geist-sim .sim-title {
+  text-transform: none;
+  font-size: 0.96rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.simulated-maint-card.geist-sim .sim-hero-desc {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  line-height: 1.48;
+  margin: 0 0 4px;
+}
+
+.sim-bento {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--bg-subcard);
+}
+
+.simulated-maint-card.geist-sim .sim-times-row {
+  gap: 0;
+  margin-bottom: 0;
+}
+
+.simulated-maint-card.geist-sim .sim-time-box {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  border-right: 1px solid var(--border);
+  padding: 10px 8px;
+}
+
+.simulated-maint-card.geist-sim .sim-time-box:last-child {
+  border-right: none;
+}
+
+.simulated-maint-card.geist-sim .sim-time-box .time-lbl {
+  color: var(--text-muted);
+  font-size: 0.58rem;
+}
+
+.simulated-maint-card.geist-sim .sim-time-box.highlight .time-lbl {
+  color: #10b981;
+}
+
+[data-theme="light"] .simulated-maint-card.geist-sim .sim-time-box.highlight .time-lbl {
+  color: #059669;
+}
+
+.simulated-maint-card.geist-sim .sim-time-box .time-val {
+  color: var(--text-primary);
+  font-size: 0.72rem;
+}
+
+.sim-countdown-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 11px;
+  border-top: 1px solid var(--border);
+  background: var(--bg-inset);
+  font-size: 0.68rem;
+  color: var(--text-muted);
+}
+
+.sim-countdown-strip strong {
+  color: var(--text-primary);
+  font-family: var(--font-mono, monospace);
+}
+
+.simulated-maint-card.geist-sim .sim-footer {
+  border-top-color: var(--border);
+}
+
+.simulated-maint-card.geist-sim .sim-footer-contact {
+  color: var(--text-muted);
+}
+
+.simulated-maint-card.geist-sim .sim-footer-details {
+  color: var(--text-primary);
+}
+
+.simulated-maint-card.geist-sim .sim-scope-tag {
+  background: var(--bg-inset);
+  border-color: var(--border);
+  color: #d97706;
+}
+
+[data-theme="light"] .btn-open-fullscreen-sim {
+  background: #ffffff;
+  border-color: #e4e4e7;
+  color: #09090b;
+}
+
+[data-theme="light"] .btn-open-fullscreen-sim:hover {
+  background: #f4f4f5;
+  border-color: #09090b;
+  color: #09090b;
+}

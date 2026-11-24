@@ -121,17 +121,57 @@ export default function AdminMaintenancePanel({ onMaintenanceStateChange, forced
   // ── Maintenance Mode State ──
   const [maintenance, setMaintenance] = useState({
     enabled: false,
-    autoDeactivate: false,
+    autoDeactivate: true,
     scope: [],
     title: 'System Under Scheduled Maintenance',
     message: 'Our platform services are currently undergoing maintenance to enhance reliability and smart contract security. Essential relief tracking remains recorded on-chain.',
     startTime: '',
+    startTimeIso: '',
     endTime: '',
+    endTimeIso: '',
     contactPerson: 'Disaster Relief IT Support',
     contactEmail: 'support@bbdrts.gov.ph',
     contactPhone: '(053) 832-1923'
   });
   const [savingMaintenance, setSavingMaintenance] = useState(false);
+  const [liveNowMs, setLiveNowMs] = useState(() => Date.now());
+
+  useEffect(() => {
+    const t = setInterval(() => setLiveNowMs(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, []);
+
+  const parseMaintMs = (iso, friendly) => {
+    for (const v of [iso, friendly]) {
+      if (!v || typeof v !== 'string' || !v.trim()) continue;
+      const ms = Date.parse(v.trim());
+      if (!isNaN(ms)) return ms;
+    }
+    return null;
+  };
+
+  const formatDurationShort = (ms) => {
+    const secs = Math.max(0, Math.ceil(ms / 1000));
+    const d = Math.floor(secs / 86400);
+    const h = Math.floor((secs % 86400) / 3600);
+    const m = Math.floor((secs % 3600) / 60);
+    const s = secs % 60;
+    if (d > 0) return `${d}d ${h}h ${m}m`;
+    if (h > 0) return `${h}h ${m}m ${s}s`;
+    return `${m}m ${s}s`;
+  };
+
+  const startMs = parseMaintMs(maintenance.startTimeIso, maintenance.startTime);
+  const endMs = parseMaintMs(maintenance.endTimeIso, maintenance.endTime);
+  const hasInvalidWindow = Boolean(startMs && endMs && endMs <= startMs);
+  const isEndInPast = Boolean(maintenance.enabled && maintenance.autoDeactivate && endMs && endMs <= liveNowMs);
+  const schedulePhase = !maintenance.enabled
+    ? 'OFF'
+    : (maintenance.autoDeactivate && endMs && liveNowMs >= endMs)
+      ? 'COMPLETED'
+      : (startMs && liveNowMs < startMs)
+        ? 'SCHEDULED'
+        : 'ACTIVE';
 
   // Fetch Backups
   const fetchBackups = async (silent = false) => {
@@ -175,6 +215,12 @@ export default function AdminMaintenancePanel({ onMaintenanceStateChange, forced
     ['backups'],
     () => fetchBackups(true),
     { debounceMs: 250 }
+  );
+
+  useRealtimeSync(
+    ['maintenance'],
+    () => fetchMaintenance(),
+    { debounceMs: 200 }
   );
 
   // ── Handlers: Database Backups ──
@@ -299,37 +345,59 @@ export default function AdminMaintenancePanel({ onMaintenanceStateChange, forced
     }));
   };
 
-  const handleSetStartNow = () => {
-    const now = new Date();
-    setMaintenance(prev => ({
-      ...prev,
-      startTime: formatFriendlyDateTime(now)
-    }));
+  const handleSetStartOffset = (minsFromNow = 0) => {
+    const startDate = new Date(Date.now() + minsFromNow * 60000);
+    startDate.setSeconds(0, 0);
+    setMaintenance(prev => {
+      const existingEndMs = parseMaintMs(prev.endTimeIso, prev.endTime);
+      const next = {
+        ...prev,
+        startTime: formatFriendlyDateTime(startDate),
+        startTimeIso: startDate.toISOString()
+      };
+      // If existing completion time is earlier than or equal to new start time, keep it cleanly ahead (+15m)
+      if (existingEndMs && existingEndMs <= startDate.getTime()) {
+        const shiftedEnd = new Date(startDate.getTime() + 15 * 60000);
+        next.endTime = formatFriendlyDateTime(shiftedEnd);
+        next.endTimeIso = shiftedEnd.toISOString();
+      }
+      return next;
+    });
   };
 
-  const handleSetPresetEnd = (mins) => {
-    const target = new Date();
-    target.setMinutes(target.getMinutes() + mins);
-    setMaintenance(prev => ({
-      ...prev,
-      endTime: formatFriendlyDateTime(target)
-    }));
-  };
+  const handleSetStartNow = () => handleSetStartOffset(0);
 
-  const handleSetPresetEndTomorrow = (hour = 9) => {
-    const target = new Date();
-    target.setDate(target.getDate() + 1);
-    target.setHours(hour, 0, 0, 0);
-    setMaintenance(prev => ({
-      ...prev,
-      endTime: formatFriendlyDateTime(target)
-    }));
+  const handleSetDurationFromStart = (durationMins) => {
+    setMaintenance(prev => {
+      const baseMs = parseMaintMs(prev.startTimeIso, prev.startTime) || Date.now();
+      const target = new Date(baseMs + durationMins * 60000);
+      return {
+        ...prev,
+        endTime: formatFriendlyDateTime(target),
+        endTimeIso: target.toISOString(),
+        autoDeactivate: true
+      };
+    });
   };
 
   const handleSaveMaintenance = async (e) => {
     e?.preventDefault();
+    if (hasInvalidWindow) {
+      showWarning('Expected Completion Time must be later than Effective From.', 'Invalid Schedule Window');
+      return;
+    }
+    if (isEndInPast) {
+      showWarning('Expected Completion Time is already in the past. Pick a future completion time or disable auto-deactivate.', 'Completion Time Passed');
+      return;
+    }
+
     setSavingMaintenance(true);
     try {
+      const payload = {
+        ...maintenance,
+        startTimeIso: startMs ? new Date(startMs).toISOString() : '',
+        endTimeIso: endMs ? new Date(endMs).toISOString() : ''
+      };
       const token = localStorage.getItem('bbdrts_token') || localStorage.getItem('token');
       const res = await fetch(`${API_URL}/api/admin/maintenance`, {
         method: 'POST',
@@ -337,20 +405,24 @@ export default function AdminMaintenancePanel({ onMaintenanceStateChange, forced
           'Content-Type': 'application/json',
           ...(token ? { Authorization: `Bearer ${token}` } : {})
         },
-        body: JSON.stringify(maintenance)
+        body: JSON.stringify(payload)
       });
 
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to update maintenance settings.');
 
-      const savedConfig = data.config || maintenance;
+      const savedConfig = data.config || payload;
+      setMaintenance(savedConfig);
       try {
         localStorage.setItem('bbdrts_maintenance', JSON.stringify(savedConfig));
       } catch (_) {}
       window.dispatchEvent(new CustomEvent('bbdrts_maintenance_changed', { detail: savedConfig }));
 
-      showSuccess(`Maintenance mode ${maintenance.enabled ? 'activated' : 'deactivated'} successfully!`, 'Settings Saved');
-      if (onMaintenanceStateChange) onMaintenanceStateChange(maintenance.enabled);
+      showSuccess(
+        data.message || `Maintenance mode ${savedConfig.enabled ? 'saved' : 'deactivated'} successfully!`,
+        savedConfig.effectiveState === 'SCHEDULED' ? 'Maintenance Scheduled' : 'Settings Saved'
+      );
+      if (onMaintenanceStateChange) onMaintenanceStateChange(Boolean(savedConfig.enabled));
     } catch (err) {
       showError(err.message, 'Save Error');
     } finally {
@@ -602,21 +674,30 @@ export default function AdminMaintenancePanel({ onMaintenanceStateChange, forced
         <form onSubmit={handleSaveMaintenance} className="bbdrts-maint-clean-form fade-in">
           
           {/* Master Enable Banner */}
-          <div className={`bbdrts-maint-status-banner ${maintenance.enabled ? 'active' : 'inactive'}`}>
+          <div className={`bbdrts-maint-status-banner ${schedulePhase === 'ACTIVE' ? 'active' : schedulePhase === 'SCHEDULED' ? 'scheduled' : 'inactive'}`}>
             <div className="banner-left">
               <div className="status-icon-wrap">
                 <span className="material-symbols-outlined">
-                  {maintenance.enabled ? 'construction' : 'check_circle'}
+                  {schedulePhase === 'ACTIVE' ? 'construction' : schedulePhase === 'SCHEDULED' ? 'schedule' : 'check_circle'}
                 </span>
               </div>
               <div>
                 <strong className="status-title">
-                  Maintenance Mode: {maintenance.enabled ? 'ACTIVE (RESTRICTED ACCESS)' : 'DISABLED (NORMAL OPERATIONS)'}
+                  Maintenance Mode:{' '}
+                  {schedulePhase === 'SCHEDULED'
+                    ? `SCHEDULED (STARTS IN ${formatDurationShort(startMs - liveNowMs)})`
+                    : schedulePhase === 'ACTIVE'
+                      ? 'ACTIVE (RESTRICTED ACCESS)'
+                      : 'DISABLED (NORMAL OPERATIONS)'}
                 </strong>
                 <p className="status-sub">
-                  {maintenance.enabled
-                    ? 'Non-admin visitors are currently restricted according to the scope configured below. Administrators retain full access.'
-                    : 'All disaster relief campaigns, blockchain escrow releases, and donation gateways are operating normally.'}
+                  {schedulePhase === 'SCHEDULED'
+                    ? `Armed for ${maintenance.startTime}. Users will see an upcoming notice bar until Effective From arrives, then enter maintenance automatically.`
+                    : schedulePhase === 'ACTIVE'
+                      ? (endMs && maintenance.autoDeactivate
+                          ? `Lockdown active now · Auto-restores & reloads users in ${formatDurationShort(endMs - liveNowMs)}.`
+                          : 'Non-admin visitors are currently restricted according to the scope configured below. Administrators retain full access.')
+                      : 'All disaster relief campaigns, blockchain escrow releases, and donation gateways are operating normally.'}
                 </p>
               </div>
             </div>
@@ -801,38 +882,38 @@ export default function AdminMaintenancePanel({ onMaintenanceStateChange, forced
                 </div>
 
                 <div className="schedule-clean-grid">
-                  {/* Started Time */}
+                  {/* Started Time (Effective From) */}
                   <div className="schedule-clean-col">
                     <div className="schedule-col-head">
                       <label className="clean-label">
                         <span className="material-symbols-outlined">schedule</span>
-                        <span>Maintenance Started (Effective From)</span>
+                        <span>Effective From (Start Time)</span>
                       </label>
-                      <button
-                        type="button"
-                        className="btn-set-now"
-                        onClick={handleSetStartNow}
-                        title="Stamp current instant as start time"
-                      >
-                        <span className="material-symbols-outlined">update</span>
-                        <span>Set to Now</span>
-                      </button>
+                      <div className="schedule-quick-chips">
+                        <button type="button" className="btn-set-now" onClick={() => handleSetStartOffset(0)} title="Start immediately">Now</button>
+                        <button type="button" className="btn-set-now" onClick={() => handleSetStartOffset(2)} title="Schedule 2 minutes from now">+2m</button>
+                        <button type="button" className="btn-set-now" onClick={() => handleSetStartOffset(5)} title="Schedule 5 minutes from now">+5m</button>
+                        <button type="button" className="btn-set-now" onClick={() => handleSetStartOffset(15)} title="Schedule 15 minutes from now">+15m</button>
+                      </div>
                     </div>
 
                     <CustomDateTimePicker
                       value={maintenance.startTime}
-                      onChange={(formattedStr) => {
+                      onChange={(formattedStr, dateObj) => {
                         setMaintenance(prev => ({
                           ...prev,
-                          startTime: formattedStr
+                          startTime: formattedStr,
+                          startTimeIso: dateObj && !isNaN(dateObj.getTime()) ? dateObj.toISOString() : ''
                         }));
                       }}
-                      placeholder="Select start date & time (or Leave empty for In Progress)..."
+                      placeholder="Leave empty to start immediately, or pick future start..."
                       icon="schedule"
                       showPresets={false}
                     />
                     <span className="field-caption">
-                      Displayed as &quot;{maintenance.startTime || 'In Progress (Immediate)'}&quot; on public screen.
+                      {startMs && startMs > liveNowMs
+                        ? `Scheduled to auto-activate in ${formatDurationShort(startMs - liveNowMs)} (${maintenance.startTime}).`
+                        : `Displayed as "${maintenance.startTime || 'In Progress (Immediate)'}" on public screen.`}
                     </span>
                   </div>
 
@@ -843,18 +924,26 @@ export default function AdminMaintenancePanel({ onMaintenanceStateChange, forced
                         <span className="material-symbols-outlined highlight">event_available</span>
                         <span>Expected Completion Time</span>
                       </label>
-                      <span className="custom-picker-tag">Custom Calendar &amp; Time</span>
+                      <div className="schedule-quick-chips">
+                        <button type="button" className="btn-set-now is-end" onClick={() => handleSetDurationFromStart(2)} title="2 minutes after Effective From">+2m</button>
+                        <button type="button" className="btn-set-now is-end" onClick={() => handleSetDurationFromStart(5)} title="5 minutes after Effective From">+5m</button>
+                        <button type="button" className="btn-set-now is-end" onClick={() => handleSetDurationFromStart(15)} title="15 minutes after Effective From">+15m</button>
+                        <button type="button" className="btn-set-now is-end" onClick={() => handleSetDurationFromStart(30)} title="30 minutes after Effective From">+30m</button>
+                        <button type="button" className="btn-set-now is-end" onClick={() => handleSetDurationFromStart(60)} title="1 hour after Effective From">+1h</button>
+                      </div>
                     </div>
 
                     <CustomDateTimePicker
                       value={maintenance.endTime}
-                      onChange={(formattedStr) => {
+                      onChange={(formattedStr, dateObj) => {
                         setMaintenance(prev => ({
                           ...prev,
-                          endTime: formattedStr
+                          endTime: formattedStr,
+                          endTimeIso: dateObj && !isNaN(dateObj.getTime()) ? dateObj.toISOString() : '',
+                          autoDeactivate: formattedStr ? true : prev.autoDeactivate
                         }));
                       }}
-                      placeholder="Select completion date & time..."
+                      placeholder="Select target completion date & time..."
                       icon="event_available"
                       highlight={true}
                       showPresets={true}
@@ -866,6 +955,41 @@ export default function AdminMaintenancePanel({ onMaintenanceStateChange, forced
                   </div>
                 </div>
 
+                {/* Live Schedule Window Validation & Telemetry Strip */}
+                {(hasInvalidWindow || isEndInPast || startMs || endMs) && (
+                  <div className={`maint-schedule-summary ${hasInvalidWindow || isEndInPast ? 'is-error' : schedulePhase === 'SCHEDULED' ? 'is-scheduled' : 'is-ok'}`}>
+                    <span className="material-symbols-outlined" style={{ fontSize: '16px', flexShrink: 0 }}>
+                      {hasInvalidWindow || isEndInPast ? 'error' : schedulePhase === 'SCHEDULED' ? 'schedule_send' : 'event_available'}
+                    </span>
+                    <div className="maint-schedule-summary-text">
+                      {hasInvalidWindow ? (
+                        <>
+                          <strong>Invalid schedule window:</strong> Expected Completion Time must be later than Effective From. Use the <code>+5m</code> / <code>+15m</code> duration chips above or pick a later time.
+                        </>
+                      ) : isEndInPast ? (
+                        <>
+                          <strong>Completion time already passed:</strong> Pick a future Expected Completion Time (or turn off auto-deactivate) before saving.
+                        </>
+                      ) : startMs && startMs > liveNowMs ? (
+                        <>
+                          <strong>Automated Window Armed:</strong> Lockdown starts automatically in <strong>{formatDurationShort(startMs - liveNowMs)}</strong>
+                          {endMs ? <> · Duration: <strong>{formatDurationShort(endMs - startMs)}</strong></> : null}
+                          {endMs && maintenance.autoDeactivate ? ' · Users auto-refresh when completion arrives.' : '.'}
+                        </>
+                      ) : endMs && endMs > liveNowMs ? (
+                        <>
+                          <strong>Active Window:</strong> Runs immediately and completes in <strong>{formatDurationShort(endMs - liveNowMs)}</strong>
+                          {maintenance.autoDeactivate ? ' · Users will automatically refresh into the live platform.' : '.'}
+                        </>
+                      ) : (
+                        <>
+                          <strong>Immediate Window:</strong> Maintenance starts right away once enabled and remains active until you disable it or set a completion time.
+                        </>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 <div className="auto-deactivate-row">
                   <label className="auto-deactivate-checkbox-label">
                     <input
@@ -873,7 +997,9 @@ export default function AdminMaintenancePanel({ onMaintenanceStateChange, forced
                       checked={Boolean(maintenance.autoDeactivate)}
                       onChange={e => setMaintenance(prev => ({ ...prev, autoDeactivate: e.target.checked }))}
                     />
-                    <span>Auto-deactivate platform lockdown when completion time arrives (Optional)</span>
+                    <span>
+                      <strong>Auto-restore &amp; auto-refresh users</strong> when Expected Completion Time arrives (ends lockdown automatically)
+                    </span>
                   </label>
                 </div>
               </div>
@@ -977,59 +1103,55 @@ export default function AdminMaintenancePanel({ onMaintenanceStateChange, forced
                   </span>
                 </div>
 
-                {/* The Preview Card (Faithful to actual MaintenanceGuardModal) */}
-                <div className="simulated-maint-card">
-                  {/* Industrial Corner Rivets */}
-                  <span className="sim-rivet tl" aria-hidden="true" />
-                  <span className="sim-rivet tr" aria-hidden="true" />
-                  <span className="sim-rivet bl" aria-hidden="true" />
-                  <span className="sim-rivet br" aria-hidden="true" />
-
-                  {/* Top Construction Icon with Amber Glow */}
+                {/* The Preview Card (Faithful Vercel Geist mirror of MaintenanceGuardModal) */}
+                <div className="simulated-maint-card geist-sim">
                   <div className="sim-icon-box">
                     <span className="material-symbols-outlined">construction</span>
                   </div>
 
-                  {/* Title & Warning Badge */}
+                  <div className="sim-geist-status-pill">
+                    <span className="sim-geist-dot" />
+                    <span>{schedulePhase === 'SCHEDULED' ? 'Scheduled Window' : 'Scheduled Maintenance'}</span>
+                  </div>
+
                   <h4 className="sim-title">
-                    {maintenance.title || 'SYSTEM UNDER SCHEDULED MAINTENANCE'}
+                    {maintenance.title || 'System Under Scheduled Maintenance'}
                   </h4>
 
-                  <div className="sim-badge">
-                    <span className="material-symbols-outlined">warning</span>
-                    <span>SERVICE TEMPORARILY UNAVAILABLE</span>
-                  </div>
+                  <p className="sim-sec-desc sim-hero-desc">
+                    {maintenance.message || 'Our platform services are currently undergoing maintenance to enhance reliability and smart contract security. Essential relief tracking remains recorded on-chain.'}
+                  </p>
 
-                  {/* What's Happening */}
-                  <div className="sim-section">
-                    <div className="sim-sec-head">
-                      <span className="material-symbols-outlined">info</span>
-                      <span>What&apos;s Happening?</span>
-                    </div>
-                    <p className="sim-sec-desc">
-                      {maintenance.message || 'Platform services are currently undergoing maintenance to enhance reliability and smart contract security. Essential relief tracking remains recorded on-chain.'}
-                    </p>
-                  </div>
-
-                  {/* Timeline Row (Started vs Expected Completion) */}
-                  <div className="sim-times-row">
-                    <div className="sim-time-box">
-                      <span className="material-symbols-outlined time-icon">event_upcoming</span>
-                      <span className="time-lbl">MAINTENANCE STARTED</span>
-                      <strong className="time-val">{maintenance.startTime || 'In Progress'}</strong>
+                  {/* Unified Geist Bento Timeline */}
+                  <div className="sim-bento">
+                    <div className="sim-times-row">
+                      <div className="sim-time-box">
+                        <span className="time-lbl">Maintenance Started</span>
+                        <strong className="time-val">{maintenance.startTime || 'In Progress'}</strong>
+                      </div>
+                      <div className="sim-time-box highlight">
+                        <span className="time-lbl">Expected Completion</span>
+                        <strong className="time-val">{maintenance.endTime || 'Expected Shortly'}</strong>
+                      </div>
                     </div>
 
-                    <div className="sim-time-box highlight">
-                      <span className="material-symbols-outlined time-icon">event_available</span>
-                      <span className="time-lbl">EXPECTED COMPLETION</span>
-                      <strong className="time-val">{maintenance.endTime || 'Expected Shortly'}</strong>
-                    </div>
+                    {(startMs && startMs > liveNowMs) ? (
+                      <div className="sim-countdown-strip">
+                        <span>Starts in</span>
+                        <strong>{formatDurationShort(startMs - liveNowMs)}</strong>
+                      </div>
+                    ) : (endMs && endMs > liveNowMs) ? (
+                      <div className="sim-countdown-strip">
+                        <span>Estimated remaining</span>
+                        <strong>{formatDurationShort(endMs - liveNowMs)}</strong>
+                      </div>
+                    ) : null}
                   </div>
 
                   {/* Scope Note if Custom Scope */}
                   {maintenance.scope && maintenance.scope.length > 0 && !maintenance.scope.includes('FULL_PLATFORM') && (
                     <div className="sim-scope-note">
-                      <span className="scope-lbl">RESTRICTED SECTORS:</span>
+                      <span className="scope-lbl">RESTRICTED SECTORS</span>
                       <div className="sim-scope-tags">
                         {maintenance.scope.map(s => (
                           <span key={s} className="sim-scope-tag">{s.replace(/_/g, ' ')}</span>
@@ -1041,19 +1163,17 @@ export default function AdminMaintenancePanel({ onMaintenanceStateChange, forced
                   {/* Support Footer */}
                   <div className="sim-footer">
                     <div className="sim-footer-contact">
-                      <span className="material-symbols-outlined">support_agent</span>
-                      <span>Need Help? Contact {maintenance.contactPerson || 'Operations Support'}</span>
+                      <span className="material-symbols-outlined">headset_mic</span>
+                      <span>{maintenance.contactPerson || 'Operations Support'}</span>
                     </div>
                     <div className="sim-footer-details">
                       {maintenance.contactPhone && <span>{maintenance.contactPhone}</span>}
-                      {maintenance.contactPhone && maintenance.contactEmail && <span>•</span>}
+                      {maintenance.contactPhone && maintenance.contactEmail && <span>·</span>}
                       {maintenance.contactEmail && <span>{maintenance.contactEmail}</span>}
                     </div>
-
-                    {/* Subtle Live Telemetry Line */}
                     <div className="sim-footer-telemetry">
                       <span className="telemetry-dot" />
-                      <span>Live telemetry active • Real-time status sync</span>
+                      <span>{maintenance.autoDeactivate && endMs ? 'Auto-refreshes users on completion' : 'Real-time SSE sync active'}</span>
                     </div>
                   </div>
                 </div>

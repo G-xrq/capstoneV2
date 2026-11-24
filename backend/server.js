@@ -11262,42 +11262,227 @@ app.delete('/api/admin/backups/:filename', authenticateToken, async (req, res) =
 // Default maintenance state
 const DEFAULT_MAINTENANCE_CONFIG = {
   enabled: false,
+  autoDeactivate: true,
   scope: [], // ['DONATIONS', 'DISBURSEMENTS', 'CAMPAIGN_CREATION', 'NGO_ONBOARDING', 'FULL_PLATFORM']
   title: 'System Under Scheduled Maintenance',
   message: 'Our platform services are currently undergoing maintenance to enhance reliability and smart contract security. Essential relief tracking remains recorded on-chain.',
   startTime: '',
+  startTimeIso: '',
   endTime: '',
+  endTimeIso: '',
   contactPerson: 'Disaster Relief IT Support',
   contactEmail: 'support@bbdrts.gov.ph',
   contactPhone: '(053) 832-1923'
 };
 
+function parseMaintenanceTimestampMs(isoVal, displayVal) {
+  const candidates = [isoVal, displayVal];
+  for (const rawVal of candidates) {
+    if (!rawVal || typeof rawVal !== 'string' || !rawVal.trim()) continue;
+    const ms = Date.parse(rawVal.trim());
+    if (!isNaN(ms)) return ms;
+  }
+  return null;
+}
+
+/**
+ * Evaluate live maintenance schedule window:
+ *  - OFF: enabled === false
+ *  - SCHEDULED: enabled === true && startMs > now (not blocking yet; shows upcoming countdown)
+ *  - ACTIVE: enabled === true && (!startMs || now >= startMs) && (!endMs || !autoDeactivate || now < endMs)
+ *  - COMPLETED: enabled === true && autoDeactivate && endMs && now >= endMs (auto-deactivates!)
+ */
+function evaluateMaintenanceRuntime(rawConfig, nowMs = Date.now()) {
+  const merged = { ...DEFAULT_MAINTENANCE_CONFIG, ...(rawConfig || {}) };
+  const startMs = parseMaintenanceTimestampMs(merged.startTimeIso, merged.startTime);
+  const endMs = parseMaintenanceTimestampMs(merged.endTimeIso, merged.endTime);
+
+  if (!merged.enabled) {
+    return {
+      config: {
+        ...merged,
+        effectiveState: 'OFF',
+        isActiveNow: false,
+        isScheduled: false,
+        startMs,
+        endMs,
+        startsInMs: null,
+        endsInMs: null,
+        serverNow: nowMs
+      },
+      shouldAutoDeactivate: false
+    };
+  }
+
+  // If completion time arrived and autoDeactivate is enabled -> deactivate automatically
+  if (merged.autoDeactivate && endMs && nowMs >= endMs) {
+    return {
+      config: {
+        ...merged,
+        enabled: false,
+        effectiveState: 'OFF',
+        isActiveNow: false,
+        isScheduled: false,
+        autoDeactivatedAt: new Date(nowMs).toISOString(),
+        startMs,
+        endMs,
+        startsInMs: null,
+        endsInMs: 0,
+        serverNow: nowMs
+      },
+      shouldAutoDeactivate: true
+    };
+  }
+
+  // If Effective From is still in the future -> armed/scheduled, not locking out yet
+  if (startMs && nowMs < startMs) {
+    return {
+      config: {
+        ...merged,
+        effectiveState: 'SCHEDULED',
+        isActiveNow: false,
+        isScheduled: true,
+        startMs,
+        endMs,
+        startsInMs: Math.max(0, startMs - nowMs),
+        endsInMs: endMs ? Math.max(0, endMs - nowMs) : null,
+        serverNow: nowMs
+      },
+      shouldAutoDeactivate: false
+    };
+  }
+
+  // Active right now
+  return {
+    config: {
+      ...merged,
+      effectiveState: 'ACTIVE',
+      isActiveNow: true,
+      isScheduled: false,
+      startMs,
+      endMs,
+      startsInMs: 0,
+      endsInMs: endMs ? Math.max(0, endMs - nowMs) : null,
+      serverNow: nowMs
+    },
+    shouldAutoDeactivate: false
+  };
+}
+
+async function readStoredMaintenanceConfig() {
+  const [rows] = await db.query('SELECT Setting_Value FROM SYSTEM_SETTINGS WHERE Setting_Key = "maintenance_mode"');
+  if (rows && rows.length > 0 && rows[0].Setting_Value) {
+    return typeof rows[0].Setting_Value === 'string'
+      ? JSON.parse(rows[0].Setting_Value)
+      : rows[0].Setting_Value;
+  }
+  return { ...DEFAULT_MAINTENANCE_CONFIG };
+}
+
+async function persistMaintenanceConfig(configObj) {
+  const {
+    effectiveState,
+    isActiveNow,
+    isScheduled,
+    startMs,
+    endMs,
+    startsInMs,
+    endsInMs,
+    serverNow,
+    ...storable
+  } = configObj;
+  const jsonStr = JSON.stringify(storable);
+  await db.query(`
+    INSERT INTO SYSTEM_SETTINGS (Setting_Key, Setting_Value)
+    VALUES ('maintenance_mode', ?)
+    ON DUPLICATE KEY UPDATE Setting_Value = VALUES(Setting_Value), Updated_At = CURRENT_TIMESTAMP
+  `, [jsonStr]);
+}
+
+let lastMaintenanceEffectiveState = null;
+
+async function checkMaintenanceScheduleTransitions() {
+  try {
+    const stored = await readStoredMaintenanceConfig();
+    const { config, shouldAutoDeactivate } = evaluateMaintenanceRuntime(stored);
+
+    if (shouldAutoDeactivate) {
+      await persistMaintenanceConfig(config);
+      lastMaintenanceEffectiveState = 'OFF';
+      try {
+        realtimeBus.publish(['maintenance'], { reason: 'schedule_completed', effectiveState: 'OFF', enabled: false });
+      } catch (_) {}
+      logActivity({
+        activity: 'Scheduled Maintenance window reached Expected Completion Time — platform automatically restored',
+        userName: 'System Scheduler',
+        userEmail: 'scheduler@bbdrts.internal',
+        role: 'SYSTEM',
+        target: 'System Maintenance Configuration',
+        category: 'ADMIN_SECURITY',
+        status: 'SUCCESS'
+      }).catch(() => {});
+      return config;
+    }
+
+    if (lastMaintenanceEffectiveState !== null && lastMaintenanceEffectiveState !== config.effectiveState) {
+      lastMaintenanceEffectiveState = config.effectiveState;
+      try {
+        realtimeBus.publish(['maintenance'], {
+          reason: config.effectiveState === 'ACTIVE' ? 'schedule_started' : 'state_changed',
+          effectiveState: config.effectiveState,
+          enabled: config.enabled
+        });
+      } catch (_) {}
+      if (config.effectiveState === 'ACTIVE') {
+        logActivity({
+          activity: 'Scheduled Maintenance Effective From time arrived — platform lockdown automatically activated',
+          userName: 'System Scheduler',
+          userEmail: 'scheduler@bbdrts.internal',
+          role: 'SYSTEM',
+          target: 'System Maintenance Configuration',
+          category: 'ADMIN_SECURITY',
+          status: 'SUCCESS'
+        }).catch(() => {});
+      }
+    } else {
+      lastMaintenanceEffectiveState = config.effectiveState;
+    }
+
+    return config;
+  } catch (_) {
+    return null;
+  }
+}
+
+// Lightweight 4-second server watchdog to push instant SSE events on schedule start & completion
+const maintenanceWatchdogTimer = setInterval(() => {
+  checkMaintenanceScheduleTransitions().catch(() => {});
+}, 4000);
+if (typeof maintenanceWatchdogTimer.unref === 'function') {
+  maintenanceWatchdogTimer.unref();
+}
+
 // GET /api/system/maintenance (Public)
 app.get('/api/system/maintenance', async (req, res) => {
   try {
-    const [rows] = await db.query('SELECT Setting_Value FROM SYSTEM_SETTINGS WHERE Setting_Key = "maintenance_mode"');
-    if (rows && rows.length > 0 && rows[0].Setting_Value) {
-      const parsed = typeof rows[0].Setting_Value === 'string'
-        ? JSON.parse(rows[0].Setting_Value)
-        : rows[0].Setting_Value;
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate');
+    const stored = await readStoredMaintenanceConfig();
+    const { config, shouldAutoDeactivate } = evaluateMaintenanceRuntime(stored);
 
-      // Auto-Deactivate Check: If autoDeactivate is enabled and endTime has passed
-      if (parsed.enabled && parsed.autoDeactivate && parsed.endTime) {
-        const parsedEnd = Date.parse(parsed.endTime);
-        if (!isNaN(parsedEnd) && Date.now() > parsedEnd) {
-          parsed.enabled = false;
-          parsed.autoDeactivatedAt = new Date().toISOString();
-          db.query('UPDATE SYSTEM_SETTINGS SET Setting_Value = ? WHERE Setting_Key = "maintenance_mode"', [JSON.stringify(parsed)]).catch(() => {});
-          return res.json({ ...DEFAULT_MAINTENANCE_CONFIG, ...parsed, enabled: false });
-        }
-      }
-
-      return res.json({ ...DEFAULT_MAINTENANCE_CONFIG, ...parsed });
+    if (shouldAutoDeactivate) {
+      persistMaintenanceConfig(config).catch(() => {});
+      lastMaintenanceEffectiveState = 'OFF';
+      try {
+        realtimeBus.publish(['maintenance'], { reason: 'schedule_completed', effectiveState: 'OFF', enabled: false });
+      } catch (_) {}
+    } else {
+      lastMaintenanceEffectiveState = config.effectiveState;
     }
-    res.json(DEFAULT_MAINTENANCE_CONFIG);
+
+    return res.json(config);
   } catch (err) {
     console.warn('Could not read maintenance setting:', err.message);
-    res.json(DEFAULT_MAINTENANCE_CONFIG);
+    res.json(evaluateMaintenanceRuntime(DEFAULT_MAINTENANCE_CONFIG).config);
   }
 });
 
@@ -11312,11 +11497,11 @@ app.post('/api/system/maintenance/emergency-unlock', async (req, res) => {
       updatedBy: 'Emergency Admin Unlock Gate'
     };
 
-    await db.query(`
-      INSERT INTO SYSTEM_SETTINGS (Setting_Key, Setting_Value)
-      VALUES ('maintenance_mode', ?)
-      ON DUPLICATE KEY UPDATE Setting_Value = VALUES(Setting_Value), Updated_At = CURRENT_TIMESTAMP
-    `, [JSON.stringify(configToSave)]);
+    await persistMaintenanceConfig(configToSave);
+    lastMaintenanceEffectiveState = 'OFF';
+    try {
+      realtimeBus.publish(['maintenance'], { reason: 'emergency_unlock', effectiveState: 'OFF', enabled: false });
+    } catch (_) {}
 
     logActivity({
       req,
@@ -11329,12 +11514,13 @@ app.post('/api/system/maintenance/emergency-unlock', async (req, res) => {
       status: 'SUCCESS'
     }).catch(() => {});
 
+    const { config } = evaluateMaintenanceRuntime(configToSave);
     res.json({
       success: true,
       message: 'Maintenance mode successfully deactivated. Full platform access restored.',
       token: 'direct_admin_access_token',
       role: 'admin',
-      config: configToSave
+      config
     });
   } catch (err) {
     console.error('Emergency unlock error:', err);
@@ -11354,21 +11540,40 @@ app.post('/api/admin/maintenance', authenticateToken, async (req, res) => {
     title = DEFAULT_MAINTENANCE_CONFIG.title,
     message = DEFAULT_MAINTENANCE_CONFIG.message,
     startTime = '',
+    startTimeIso = '',
     endTime = '',
+    endTimeIso = '',
     contactPerson = DEFAULT_MAINTENANCE_CONFIG.contactPerson,
     contactEmail = DEFAULT_MAINTENANCE_CONFIG.contactEmail,
     contactPhone = DEFAULT_MAINTENANCE_CONFIG.contactPhone,
-    autoDeactivate = false
+    autoDeactivate = true
   } = req.body || {};
+
+  const parsedStartMs = parseMaintenanceTimestampMs(startTimeIso, startTime);
+  const parsedEndMs = parseMaintenanceTimestampMs(endTimeIso, endTime);
+
+  if (parsedStartMs && parsedEndMs && parsedEndMs <= parsedStartMs) {
+    return res.status(400).json({
+      error: 'Expected Completion Time must be later than Effective From.'
+    });
+  }
+
+  if (Boolean(enabled) && Boolean(autoDeactivate) && parsedEndMs && parsedEndMs <= Date.now()) {
+    return res.status(400).json({
+      error: 'Expected Completion Time is already in the past. Pick a future completion time or turn off auto-deactivate.'
+    });
+  }
 
   const configToSave = {
     enabled: Boolean(enabled),
     autoDeactivate: Boolean(autoDeactivate),
     scope: Array.isArray(scope) ? scope : [],
-    title: String(title || '').trim(),
-    message: String(message || '').trim(),
+    title: String(title || '').trim() || DEFAULT_MAINTENANCE_CONFIG.title,
+    message: String(message || '').trim() || DEFAULT_MAINTENANCE_CONFIG.message,
     startTime: String(startTime || '').trim(),
+    startTimeIso: parsedStartMs ? new Date(parsedStartMs).toISOString() : '',
     endTime: String(endTime || '').trim(),
+    endTimeIso: parsedEndMs ? new Date(parsedEndMs).toISOString() : '',
     contactPerson: String(contactPerson || '').trim(),
     contactEmail: String(contactEmail || '').trim(),
     contactPhone: String(contactPhone || '').trim(),
@@ -11377,16 +11582,27 @@ app.post('/api/admin/maintenance', authenticateToken, async (req, res) => {
   };
 
   try {
-    const jsonStr = JSON.stringify(configToSave);
-    await db.query(`
-      INSERT INTO SYSTEM_SETTINGS (Setting_Key, Setting_Value)
-      VALUES ('maintenance_mode', ?)
-      ON DUPLICATE KEY UPDATE Setting_Value = VALUES(Setting_Value), Updated_At = CURRENT_TIMESTAMP
-    `, [jsonStr]);
+    await persistMaintenanceConfig(configToSave);
+    const { config: runtimeConfig } = evaluateMaintenanceRuntime(configToSave);
+    lastMaintenanceEffectiveState = runtimeConfig.effectiveState;
+
+    try {
+      realtimeBus.publish(['maintenance'], {
+        reason: 'admin_updated',
+        effectiveState: runtimeConfig.effectiveState,
+        enabled: runtimeConfig.enabled
+      });
+    } catch (_) {}
+
+    const stateDesc = runtimeConfig.effectiveState === 'SCHEDULED'
+      ? `SCHEDULED (Starts ${configToSave.startTime || configToSave.startTimeIso})`
+      : runtimeConfig.effectiveState === 'ACTIVE'
+        ? 'ACTIVE'
+        : 'DISABLED';
 
     logActivity({
       req,
-      activity: `Admin updated Maintenance Mode: ${configToSave.enabled ? 'ENABLED' : 'DISABLED'} (Scope: ${configToSave.scope.join(', ') || 'None'})`,
+      activity: `Admin updated Maintenance Mode: ${stateDesc} (Scope: ${configToSave.scope.join(', ') || 'Full Platform'})`,
       userName: req.user.username || 'Admin',
       userEmail: req.user.username || 'admin@bbdrts.internal',
       role: 'ADMIN',
@@ -11398,8 +11614,12 @@ app.post('/api/admin/maintenance', authenticateToken, async (req, res) => {
 
     res.json({
       success: true,
-      config: configToSave,
-      message: `Maintenance mode ${configToSave.enabled ? 'activated' : 'deactivated'} successfully.`
+      config: runtimeConfig,
+      message: runtimeConfig.effectiveState === 'SCHEDULED'
+        ? `Maintenance scheduled to start at ${configToSave.startTime || 'configured window'}.`
+        : runtimeConfig.effectiveState === 'ACTIVE'
+          ? 'Maintenance mode activated immediately across all client sessions.'
+          : 'Maintenance mode deactivated. Full platform access restored.'
     });
   } catch (err) {
     console.error('Failed to update maintenance settings:', err);

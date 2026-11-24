@@ -1,8 +1,28 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { API_URL } from '../config';
 import { useRealtimeSync } from '../hooks/useRealtimeSync';
 import './MaintenanceGuardModal.css';
+
+function parseTimeMs(isoVal, displayVal) {
+  for (const v of [isoVal, displayVal]) {
+    if (!v || typeof v !== 'string' || !v.trim()) continue;
+    const ms = Date.parse(v.trim());
+    if (!isNaN(ms)) return ms;
+  }
+  return null;
+}
+
+function formatCountdown(ms) {
+  const totalSecs = Math.max(0, Math.ceil(ms / 1000));
+  const days = Math.floor(totalSecs / 86400);
+  const hours = Math.floor((totalSecs % 86400) / 3600);
+  const mins = Math.floor((totalSecs % 3600) / 60);
+  const secs = totalSecs % 60;
+  if (days > 0) return `${days}d ${hours}h ${mins}m`;
+  if (hours > 0) return `${hours}h ${mins}m ${secs}s`;
+  return `${mins}m ${secs}s`;
+}
 
 export default function MaintenanceGuardModal({
   userRole = 'donor',
@@ -19,11 +39,18 @@ export default function MaintenanceGuardModal({
   });
 
   const [dismissBypass, setDismissBypass] = useState(false);
+  const [dismissUpcoming, setDismissUpcoming] = useState(false);
   const [isPreviewMode, setIsPreviewMode] = useState(false);
   const [manualRechecking, setManualRechecking] = useState(false);
+  const [restoringAccess, setRestoringAccess] = useState(false);
 
-  // Live ticking system clock state (ticks every 1000ms)
+  // Live ticking system clock state (ticks every 1000ms) + server clock skew compensation
   const [liveClock, setLiveClock] = useState(() => new Date());
+  const clockOffsetRef = useRef(0);
+  const wasActivelyBlockedRef = useRef(false);
+  const reloadScheduledRef = useRef(false);
+  const startTriggerFetchedRef = useRef(false);
+  const endTriggerFetchedRef = useRef(false);
 
   useEffect(() => {
     const clockTimer = setInterval(() => {
@@ -32,38 +59,38 @@ export default function MaintenanceGuardModal({
     return () => clearInterval(clockTimer);
   }, []);
 
-  const getRemainingInfo = () => {
-    if (!maintenance?.endTime) return null;
-    const end = new Date(maintenance.endTime);
-    if (isNaN(end.getTime())) return null;
-    const diff = end.getTime() - liveClock.getTime();
-    if (diff <= 0) {
-      return { isPast: true, text: 'Window reached • Verifying' };
-    }
-    const totalSecs = Math.floor(diff / 1000);
-    const hours = Math.floor(totalSecs / 3600);
-    const mins = Math.floor((totalSecs % 3600) / 60);
-    const secs = totalSecs % 60;
-
-    if (hours > 0) {
-      return { isPast: false, text: `~${hours}h ${mins}m ${secs}s remaining` };
-    }
-    return { isPast: false, text: `~${mins}m ${secs}s remaining` };
+  const triggerAutoRestoreReload = () => {
+    if (reloadScheduledRef.current || isPreviewMode) return;
+    reloadScheduledRef.current = true;
+    setRestoringAccess(true);
+    try {
+      localStorage.removeItem('bbdrts_maintenance');
+    } catch (_) {}
+    setTimeout(() => {
+      window.location.reload();
+    }, 1200);
   };
-
-  const remainingInfo = getRemainingInfo();
 
   // Status fetcher with clean separation between background polling and manual user click
   const fetchStatus = async (isManual = false) => {
     if (isManual) setManualRechecking(true);
     try {
-      const res = await fetch(`${API_URL}/api/system/maintenance`);
+      const res = await fetch(`${API_URL}/api/system/maintenance?_t=${Date.now()}`, { cache: 'no-store' });
       if (res.ok) {
         const data = await res.json();
+        if (typeof data.serverNow === 'number' && !isNaN(data.serverNow)) {
+          clockOffsetRef.current = data.serverNow - Date.now();
+        }
         setMaintenance(data);
         try {
           localStorage.setItem('bbdrts_maintenance', JSON.stringify(data));
         } catch (_) {}
+
+        // If user was actively viewing the live maintenance screen and server now says maintenance ended -> auto-refresh!
+        const serverActive = Boolean(data.enabled && data.isActiveNow !== false && !data.isScheduled);
+        if (wasActivelyBlockedRef.current && !serverActive && !isPreviewMode) {
+          triggerAutoRestoreReload();
+        }
       }
     } catch (err) {
       console.warn('Could not check system maintenance status:', err.message);
@@ -79,6 +106,9 @@ export default function MaintenanceGuardModal({
 
     const handleMaintEvent = (e) => {
       if (e.detail) {
+        startTriggerFetchedRef.current = false;
+        endTriggerFetchedRef.current = false;
+        setDismissUpcoming(false);
         setMaintenance(e.detail);
       } else {
         fetchStatus(false);
@@ -98,7 +128,7 @@ export default function MaintenanceGuardModal({
 
     const interval = setInterval(() => {
       fetchStatus(false);
-    }, 20000);
+    }, 10000);
 
     return () => {
       window.removeEventListener('bbdrts_maintenance_changed', handleMaintEvent);
@@ -110,7 +140,7 @@ export default function MaintenanceGuardModal({
   useRealtimeSync(
     ['maintenance'],
     () => fetchStatus(false),
-    { debounceMs: 150 }
+    { debounceMs: 120 }
   );
 
   // 1-Tap Direct Admin Access Handler (Bypasses barrier directly into Admin Console)
@@ -120,12 +150,22 @@ export default function MaintenanceGuardModal({
     window.location.reload();
   };
 
+  const nowMs = liveClock.getTime() + clockOffsetRef.current;
+  const startMs = parseTimeMs(maintenance?.startTimeIso, maintenance?.startTime);
+  const endMs = parseTimeMs(maintenance?.endTimeIso, maintenance?.endTime);
+
+  const isEnabled = Boolean(maintenance?.enabled);
+  const autoDeactivate = maintenance?.autoDeactivate !== false;
+  const isEndReached = Boolean(isEnabled && autoDeactivate && endMs && nowMs >= endMs);
+  const isScheduledFuture = Boolean(isEnabled && !isEndReached && startMs && nowMs < startMs);
+  const isActiveNow = Boolean(isEnabled && !isEndReached && (!startMs || nowMs >= startMs));
+
   const currentRole = (userRole || dbUser?.role || 'donor').toLowerCase();
   const isAdmin = (currentRole === 'admin' || dbUser?.role === 'admin') && !isPreviewMode;
   const scopes = Array.isArray(maintenance?.scope) ? maintenance.scope : [];
   const isFullPlatform = scopes.length === 0 || scopes.includes('FULL_PLATFORM');
 
-  const isViewBlocked = Boolean(maintenance && (maintenance.enabled || isPreviewMode)) && (
+  const isViewTargeted =
     isPreviewMode
     || isFullPlatform
     || (activeView === 'landing' && (scopes.includes('PUBLIC_LANDING') || isFullPlatform))
@@ -133,10 +173,46 @@ export default function MaintenanceGuardModal({
     || (activeView === 'donor' && scopes.includes('DONOR_PORTAL'))
     || (activeView === 'ngo' && scopes.includes('NGO_PORTAL'))
     || (currentRole === 'donor' && scopes.includes('DONOR_PORTAL'))
-    || ((currentRole === 'organization' || currentRole === 'ngo') && scopes.includes('NGO_PORTAL'))
+    || ((currentRole === 'organization' || currentRole === 'ngo') && scopes.includes('NGO_PORTAL'));
+
+  const isFullscreenVisible = Boolean(
+    !isAdmin &&
+    (restoringAccess || isPreviewMode || (isActiveNow && isViewTargeted))
   );
 
-  const isFullscreenVisible = Boolean(maintenance && (maintenance.enabled || isPreviewMode) && !isAdmin && isViewBlocked);
+  // Track whether this visitor has actually been placed on the live maintenance screen
+  useEffect(() => {
+    if (isActiveNow && isViewTargeted && !isAdmin && !isPreviewMode) {
+      wasActivelyBlockedRef.current = true;
+    }
+  }, [isActiveNow, isViewTargeted, isAdmin, isPreviewMode]);
+
+  // Exact-second Schedule Start & Completion triggers
+  useEffect(() => {
+    if (!maintenance?.enabled || isPreviewMode) return;
+
+    // 1. When scheduled Effective From arrives -> sync immediately with backend
+    if (startMs && nowMs >= startMs && !startTriggerFetchedRef.current && maintenance.isScheduled) {
+      startTriggerFetchedRef.current = true;
+      fetchStatus(false);
+    }
+
+    // 2. When Expected Completion Time arrives & autoDeactivate is enabled -> confirm with server & auto-refresh!
+    if (autoDeactivate && endMs && nowMs >= endMs && !endTriggerFetchedRef.current) {
+      endTriggerFetchedRef.current = true;
+      if (wasActivelyBlockedRef.current && !isAdmin) {
+        fetchStatus(false);
+        // Safety net: even if fetch is slow, restore smoothly once server confirms or after short grace
+        setTimeout(() => {
+          if (wasActivelyBlockedRef.current && !reloadScheduledRef.current) {
+            triggerAutoRestoreReload();
+          }
+        }, 1500);
+      } else {
+        fetchStatus(false);
+      }
+    }
+  }, [nowMs, startMs, endMs, autoDeactivate, maintenance?.enabled, maintenance?.isScheduled, isAdmin, isPreviewMode]);
 
   // Lock background html/body scroll whenever the fullscreen maintenance screen is visible
   useEffect(() => {
@@ -153,10 +229,57 @@ export default function MaintenanceGuardModal({
     };
   }, [isFullscreenVisible]);
 
-  if (!maintenance || (!maintenance.enabled && !isPreviewMode)) return null;
+  const remainingInfo = (() => {
+    if (!endMs) return null;
+    const diff = endMs - nowMs;
+    if (diff <= 0) {
+      return {
+        isPast: true,
+        text: autoDeactivate ? 'Completion reached • Restoring access…' : 'Window reached • Verifying'
+      };
+    }
+    return { isPast: false, text: `${formatCountdown(diff)} remaining` };
+  })();
 
-  // If user is Admin and NOT previewing: Render persistent Admin Bypass banner
-  if (isAdmin) {
+  if (!maintenance && !isPreviewMode && !restoringAccess) return null;
+
+  // Non-blocking Upcoming Maintenance Countdown Banner (when Effective From is in the future)
+  if (!isAdmin && !isPreviewMode && !restoringAccess && isScheduledFuture && isViewTargeted) {
+    if (dismissUpcoming) return null;
+    const startsInText = formatCountdown(startMs - nowMs);
+    return createPortal(
+      <div className="bbdrts-maint-upcoming-bar" role="status" aria-live="polite">
+        <div className="upcoming-bar-inner">
+          <div className="upcoming-bar-left">
+            <span className="upcoming-pulse-dot" aria-hidden="true" />
+            <span className="material-symbols-outlined upcoming-ico">schedule</span>
+            <span className="upcoming-copy">
+              <strong>Scheduled Maintenance in {startsInText}</strong>
+              <span className="upcoming-sep">·</span>
+              <span>
+                Window: {maintenance.startTime || 'Soon'}
+                {maintenance.endTime ? ` – ${maintenance.endTime}` : ''}
+              </span>
+              <span className="upcoming-sep">·</span>
+              <span>Please save your work</span>
+            </span>
+          </div>
+          <button
+            type="button"
+            className="upcoming-close-btn"
+            onClick={() => setDismissUpcoming(true)}
+            aria-label="Dismiss upcoming maintenance notice"
+          >
+            <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>close</span>
+          </button>
+        </div>
+      </div>,
+      document.body
+    );
+  }
+
+  // If user is Admin and NOT previewing: Render persistent Admin Bypass banner (only outside admin dashboard)
+  if (isAdmin && (isActiveNow || isScheduledFuture)) {
     if (dismissBypass || activeView === 'admin' || userRole === 'admin' || currentRole === 'admin' || dbUser?.role === 'admin') return null;
     return createPortal(
       <div className="bbdrts-maint-admin-bypass" role="status">
@@ -164,7 +287,11 @@ export default function MaintenanceGuardModal({
           <span className="bypass-pulse-dot" />
           <span className="material-symbols-outlined icon">shield</span>
           <div className="bypass-text">
-            <strong>Admin Bypass: Maintenance Active</strong>
+            <strong>
+              {isScheduledFuture
+                ? `Admin Notice: Maintenance Scheduled (in ${formatCountdown(startMs - nowMs)})`
+                : 'Admin Bypass: Maintenance Active'}
+            </strong>
             <span className="scope-tag">
               {isFullPlatform ? 'Full System Lockdown' : (scopes.join(', ') || 'Custom')}
             </span>
@@ -196,7 +323,7 @@ export default function MaintenanceGuardModal({
     );
   }
 
-  if (!isViewBlocked) return null;
+  if (!isFullscreenVisible) return null;
 
   return createPortal(
     <div className="bbdrts-maint-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="bbdrts-maint-heading">
@@ -240,79 +367,94 @@ export default function MaintenanceGuardModal({
         </div>
 
         {/* ── Main Vercel Geist Maintenance Surface ── */}
-        <div className="bbdrts-maint-modal-card">
+        <div className={`bbdrts-maint-modal-card ${restoringAccess ? 'is-restoring' : ''}`}>
 
           <div className="bbdrts-maint-hero">
-            <div className="bbdrts-maint-icon-box" aria-hidden="true">
-              <span className="material-symbols-outlined maint-floating-tool">construction</span>
+            <div className={`bbdrts-maint-icon-box ${restoringAccess ? 'is-restoring' : ''}`} aria-hidden="true">
+              <span className="material-symbols-outlined maint-floating-tool">
+                {restoringAccess ? 'check_circle' : 'construction'}
+              </span>
             </div>
 
-            <div className="bbdrts-maint-status-pill">
+            <div className={`bbdrts-maint-status-pill ${restoringAccess ? 'is-restoring' : ''}`}>
               <span className="bbdrts-maint-status-dot" aria-hidden="true" />
-              <span>Scheduled Maintenance</span>
+              <span>{restoringAccess ? 'Maintenance Complete' : 'Scheduled Maintenance'}</span>
             </div>
 
             <h2 id="bbdrts-maint-heading" className="bbdrts-maint-title">
-              {maintenance.title || 'System Under Scheduled Maintenance'}
+              {restoringAccess
+                ? 'Platform Access Restored'
+                : (maintenance?.title || 'System Under Scheduled Maintenance')}
             </h2>
 
             <p className="bbdrts-maint-desc">
-              {maintenance.message || 'Our platform services are currently undergoing maintenance to improve reliability and smart contract security. Essential relief records remain safe on-chain.'}
+              {restoringAccess
+                ? 'Scheduled maintenance has concluded. Refreshing your workspace automatically so you can continue using BBDRTS…'
+                : (maintenance?.message || 'Our platform services are currently undergoing maintenance to improve reliability and smart contract security. Essential relief records remain safe on-chain.')}
             </p>
           </div>
 
-          {/* Unified Geist Bento Telemetry Box (Clean Timeline + Countdown Only) */}
-          <div className="bbdrts-maint-bento">
-            <div className="bbdrts-maint-grid-2">
-              <div className="bbdrts-maint-time-cell">
-                <div className="bbdrts-maint-cell-head">
-                  <span className="material-symbols-outlined">schedule</span>
-                  <span>Maintenance Started</span>
+          {/* Unified Geist Bento Telemetry Box */}
+          {!restoringAccess && (
+            <div className="bbdrts-maint-bento">
+              <div className="bbdrts-maint-grid-2">
+                <div className="bbdrts-maint-time-cell">
+                  <div className="bbdrts-maint-cell-head">
+                    <span className="material-symbols-outlined">schedule</span>
+                    <span>Maintenance Started</span>
+                  </div>
+                  <strong className="bbdrts-maint-cell-val">
+                    {maintenance?.startTime || 'In Progress'}
+                  </strong>
                 </div>
-                <strong className="bbdrts-maint-cell-val">
-                  {maintenance.startTime || 'In Progress'}
-                </strong>
+
+                <div className="bbdrts-maint-time-cell highlight">
+                  <div className="bbdrts-maint-cell-head">
+                    <span className="material-symbols-outlined">event_available</span>
+                    <span>Expected Completion</span>
+                  </div>
+                  <strong className="bbdrts-maint-cell-val">
+                    {maintenance?.endTime || 'Expected Shortly'}
+                  </strong>
+                </div>
               </div>
 
-              <div className="bbdrts-maint-time-cell highlight">
-                <div className="bbdrts-maint-cell-head">
-                  <span className="material-symbols-outlined">event_available</span>
-                  <span>Expected Completion</span>
+              {remainingInfo && (
+                <div className={`bbdrts-maint-countdown-strip ${remainingInfo.isPast ? 'concluded' : ''}`}>
+                  <span className="bbdrts-maint-countdown-left">
+                    <span className="material-symbols-outlined">
+                      {remainingInfo.isPast ? 'hourglass_bottom' : 'hourglass_top'}
+                    </span>
+                    <span className="countdown-label">
+                      {remainingInfo.isPast ? 'Scheduled window' : 'Estimated remaining'}
+                    </span>
+                  </span>
+                  <strong className="countdown-val">{remainingInfo.text}</strong>
                 </div>
-                <strong className="bbdrts-maint-cell-val">
-                  {maintenance.endTime || 'Expected Shortly'}
-                </strong>
-              </div>
+              )}
             </div>
-
-            {remainingInfo && (
-              <div className={`bbdrts-maint-countdown-strip ${remainingInfo.isPast ? 'concluded' : ''}`}>
-                <span className="bbdrts-maint-countdown-left">
-                  <span className="material-symbols-outlined">
-                    {remainingInfo.isPast ? 'hourglass_bottom' : 'hourglass_top'}
-                  </span>
-                  <span className="countdown-label">
-                    {remainingInfo.isPast ? 'Scheduled window' : 'Estimated remaining'}
-                  </span>
-                </span>
-                <strong className="countdown-val">{remainingInfo.text}</strong>
-              </div>
-            )}
-          </div>
+          )}
 
           {/* Primary Recheck Action */}
           <div className="bbdrts-maint-recheck-strip">
-            <button
-              type="button"
-              className="bbdrts-btn-maint-recheck"
-              onClick={() => fetchStatus(true)}
-              disabled={manualRechecking}
-            >
-              <span className={`material-symbols-outlined ${manualRechecking ? 'spin' : ''}`}>
-                sync
-              </span>
-              <span>{manualRechecking ? 'Checking Status...' : 'Check Platform Status'}</span>
-            </button>
+            {restoringAccess ? (
+              <div className="bbdrts-maint-restoring-pill">
+                <span className="material-symbols-outlined spin" style={{ fontSize: '16px' }}>sync</span>
+                <span>Refreshing platform automatically…</span>
+              </div>
+            ) : (
+              <button
+                type="button"
+                className="bbdrts-btn-maint-recheck"
+                onClick={() => fetchStatus(true)}
+                disabled={manualRechecking}
+              >
+                <span className={`material-symbols-outlined ${manualRechecking ? 'spin' : ''}`}>
+                  sync
+                </span>
+                <span>{manualRechecking ? 'Checking Status...' : 'Check Platform Status'}</span>
+              </button>
+            )}
           </div>
 
           {/* Support Footer & Live Timestamp */}
@@ -331,7 +473,7 @@ export default function MaintenanceGuardModal({
               </div>
             </div>
 
-            {(maintenance.contactPerson || maintenance.contactEmail || maintenance.contactPhone) && (
+            {(maintenance?.contactPerson || maintenance?.contactEmail || maintenance?.contactPhone) && (
               <div className="support-links-row">
                 {maintenance.contactPerson && (
                   <span className="contact-item" title="Support Coordinator">
