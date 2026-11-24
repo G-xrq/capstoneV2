@@ -3005,8 +3005,8 @@ export default function SettingsPanel({
                       />
                     </div>
 
-                    {/* Single-Sentence Password Requirement Notice */}
-                    {(newPasswordFocused || (newPassword.length > 0 && newPwdMetCount < 5)) && (
+                    {/* Floating Password Requirement Dropdown (only while input is active) */}
+                    {newPasswordFocused && (
                       <div
                         id="settings-pwd-requirements-panel"
                         className={`vs-pwd-callout ${newPwdMetCount === 5 ? 'is-valid' : 'is-invalid'}`}

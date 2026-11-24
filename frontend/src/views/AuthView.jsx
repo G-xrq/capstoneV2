@@ -1501,8 +1501,8 @@ export default function AuthView({ onLoginSuccess, onBack, theme, onToggleTheme,
                     />
                   </div>
 
-                  {/* Single-Sentence Password Requirement Notice */}
-                  {(passwordFocused || (password.length > 0 && metRequirementsCount < 5)) && (
+                  {/* Floating Password Requirement Dropdown (only while input is active) */}
+                  {passwordFocused && (
                     <div
                       id="pwd-requirements-panel"
                       className={`pwd-req-callout ${metRequirementsCount === 5 ? 'is-valid' : 'is-invalid'}`}
@@ -2420,7 +2420,7 @@ export default function AuthView({ onLoginSuccess, onBack, theme, onToggleTheme,
                       value={resetNewPassword}
                       onChange={e => setResetNewPassword(e.target.value)}
                       onFocus={() => setResetPasswordFocused(true)}
-                      onBlur={() => setTimeout(() => setResetPasswordFocused(false), 200)}
+                      onBlur={() => setResetPasswordFocused(false)}
                       required
                       autoFocus
                     />
@@ -2449,8 +2449,8 @@ export default function AuthView({ onLoginSuccess, onBack, theme, onToggleTheme,
                     />
                   </div>
 
-                  {/* Single-Sentence Password Requirement Notice */}
-                  {(resetPasswordFocused || (resetNewPassword.length > 0 && resetMetRequirementsCount < 5)) && (
+                  {/* Floating Password Requirement Dropdown (only while input is active) */}
+                  {resetPasswordFocused && (
                     <div
                       id="reset-pwd-requirements-panel"
                       className={`pwd-req-callout ${resetMetRequirementsCount === 5 ? 'is-valid' : 'is-invalid'}`}
@@ -2633,7 +2633,7 @@ export default function AuthView({ onLoginSuccess, onBack, theme, onToggleTheme,
                       value={secureNewPassword}
                       onChange={e => setSecureNewPassword(e.target.value)}
                       onFocus={() => setSecurePasswordFocused(true)}
-                      onBlur={() => setTimeout(() => setSecurePasswordFocused(false), 200)}
+                      onBlur={() => setSecurePasswordFocused(false)}
                       required
                       autoFocus
                     />
@@ -2662,8 +2662,8 @@ export default function AuthView({ onLoginSuccess, onBack, theme, onToggleTheme,
                     />
                   </div>
 
-                  {/* Single-Sentence Password Requirement Notice */}
-                  {(securePasswordFocused || (secureNewPassword.length > 0 && secureMetRequirementsCount < 5)) && (
+                  {/* Floating Password Requirement Dropdown (only while input is active) */}
+                  {securePasswordFocused && (
                     <div
                       id="secure-pwd-requirements-panel"
                       className={`pwd-req-callout ${secureMetRequirementsCount === 5 ? 'is-valid' : 'is-invalid'}`}

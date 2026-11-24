@@ -657,6 +657,7 @@
 }
 
 .input-group-modern {
+  position: relative;
   display: flex;
   flex-direction: column;
 }
@@ -2914,30 +2915,72 @@
 }
 
 
-/* ── Single-Sentence Password Requirement Alert Callout ── */
+/* ── Floating Password Requirement Dropdown (Shows Only While Input Is Active) ── */
+@keyframes pwdDropdownIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 .pwd-req-callout {
+  position: absolute;
+  top: calc(100% + 7px);
+  left: 0;
+  right: 0;
+  z-index: 60;
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-top: 8px;
   padding: 10px 13px;
   border-radius: 9px;
   font-size: 0.76rem;
   line-height: 1.42;
   font-weight: 500;
+  pointer-events: none;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.55);
+  animation: pwdDropdownIn 0.14s ease-out forwards;
   transition: background 0.18s ease, border-color 0.18s ease, color 0.18s ease;
 }
 
+.pwd-req-callout::before {
+  content: '';
+  position: absolute;
+  top: -5px;
+  left: 18px;
+  width: 9px;
+  height: 9px;
+  transform: rotate(45deg);
+  border-top: 1px solid transparent;
+  border-left: 1px solid transparent;
+}
+
 .pwd-req-callout.is-invalid {
-  background: rgba(244, 63, 94, 0.11);
-  border: 1px solid rgba(244, 63, 94, 0.24);
+  background: #1c0b10;
+  border: 1px solid rgba(244, 63, 94, 0.38);
   color: #fda4af;
 }
 
+.pwd-req-callout.is-invalid::before {
+  background: #1c0b10;
+  border-top-color: rgba(244, 63, 94, 0.38);
+  border-left-color: rgba(244, 63, 94, 0.38);
+}
+
 .pwd-req-callout.is-valid {
-  background: rgba(16, 185, 129, 0.11);
-  border: 1px solid rgba(16, 185, 129, 0.28);
+  background: #071c15;
+  border: 1px solid rgba(16, 185, 129, 0.42);
   color: #6ee7b7;
+}
+
+.pwd-req-callout.is-valid::before {
+  background: #071c15;
+  border-top-color: rgba(16, 185, 129, 0.42);
+  border-left-color: rgba(16, 185, 129, 0.42);
 }
 
 .pwd-req-callout-icon {
@@ -2958,10 +3001,20 @@
   display: block;
 }
 
+[data-theme="light"] .pwd-req-callout {
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
+}
+
 [data-theme="light"] .pwd-req-callout.is-invalid {
   background: #fff1f2;
-  border-color: #fecdd3;
+  border-color: #fda4af;
   color: #e11d48;
+}
+
+[data-theme="light"] .pwd-req-callout.is-invalid::before {
+  background: #fff1f2;
+  border-top-color: #fda4af;
+  border-left-color: #fda4af;
 }
 
 [data-theme="light"] .pwd-req-callout.is-invalid .pwd-req-callout-icon {
@@ -2970,8 +3023,14 @@
 
 [data-theme="light"] .pwd-req-callout.is-valid {
   background: #ecfdf5;
-  border-color: #a7f3d0;
+  border-color: #6ee7b7;
   color: #047857;
+}
+
+[data-theme="light"] .pwd-req-callout.is-valid::before {
+  background: #ecfdf5;
+  border-top-color: #6ee7b7;
+  border-left-color: #6ee7b7;
 }
 
 [data-theme="light"] .pwd-req-callout.is-valid .pwd-req-callout-icon {
