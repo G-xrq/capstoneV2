@@ -235,11 +235,6 @@ export default function Footer({ onNavigate, theme, toggleTheme }) {
                   Relief Radar
                 </button>
               </li>
-              <li>
-                <button type="button" className="ftv-link" onClick={() => setShowLeaderboard(true)}>
-                  Top Donors &amp; Partners
-                </button>
-              </li>
             </ul>
           </div>
 
@@ -401,13 +396,6 @@ export default function Footer({ onNavigate, theme, toggleTheme }) {
       <LiveTrackerModal
         isOpen={showLiveTracker}
         onClose={() => setShowLiveTracker(false)}
-        theme={resolvedTheme}
-      />
-
-      {/* Top Donors & Relief Partners Modal */}
-      <LeaderboardModal
-        isOpen={showLeaderboard}
-        onClose={() => setShowLeaderboard(false)}
         theme={resolvedTheme}
       />
 

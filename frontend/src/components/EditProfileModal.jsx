@@ -2252,27 +2252,14 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
 
                         <label className="bbdrts-toggle-row">
                           <div className="bbdrts-toggle-meta">
-                            <strong>Anonymous Mode & Leaderboard Privacy</strong>
-                            <span>Mask your public persona as "Anonymous" on honor rolls, rankings, and public searches.</span>
+                            <strong>Anonymous Donor Mode</strong>
+                            <span>Mask your public name as "Anonymous" on campaign donor logs and public receipts.</span>
                           </div>
                           <input
                             type="checkbox"
                             className="bbdrts-switch-checkbox"
                             checked={isAnonymous}
                             onChange={e => setIsAnonymous(e.target.checked)}
-                          />
-                        </label>
-
-                        <label className="bbdrts-toggle-row">
-                          <div className="bbdrts-toggle-meta">
-                            <strong>Display Merit Badge on Public Ledgers</strong>
-                            <span>Show your cumulative honors tier medal on public receipts and the leaderboard (your name remains visible even when disabled).</span>
-                          </div>
-                          <input
-                            type="checkbox"
-                            className="bbdrts-switch-checkbox"
-                            checked={showBadge}
-                            onChange={e => setShowBadge(e.target.checked)}
                           />
                         </label>
                       </div>

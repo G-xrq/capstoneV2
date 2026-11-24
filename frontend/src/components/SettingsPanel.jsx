@@ -1460,70 +1460,6 @@ export default function SettingsPanel({
 
             {/* RIGHT COLUMN: Recognition Standing + Quick Account Health */}
             <div className="vs-side-col">
-              {!isOrg && !isAdmin && donorTierInfo && (
-                <div className="vs-card">
-                  <div className="vs-card-head">
-                    <div>
-                      <h4 className="vs-card-title">Recognition Standing</h4>
-                      <p className="vs-card-desc">
-                        Cumulative PHP giving notarized on Sepolia.
-                      </p>
-                    </div>
-                    {donorTierInfo.tier && (
-                      <span className="vs-tier-tag">Tier {donorTierInfo.tier.id} / 15</span>
-                    )}
-                  </div>
-
-                  <div className="vs-standing-body">
-                    <div className="vs-standing-top">
-                      <DonorBadge
-                        size="md"
-                        walletAddress={walletAddress || currentUser?.wallet_address}
-                        donorId={currentUser?.id}
-                        amountEth={totalDonatedEth}
-                        amountPhp={totalDonatedPhp}
-                        showProgress={false}
-                        onClick={onOpenHonorsLadder}
-                      />
-                      <div style={{ minWidth: 0 }}>
-                        <div className="vs-standing-tier-name">
-                          {donorTierInfo.tier ? donorTierInfo.tier.title : 'Supporter'}
-                        </div>
-                        <div className="vs-standing-amt">
-                          ₱{Math.round(Number(totalDonatedPhp) || 0).toLocaleString('en-US')}
-                        </div>
-                      </div>
-                    </div>
-
-                    {donorTierInfo.nextTier && (
-                      <div className="vs-standing-progress">
-                        <div className="vs-progress-track">
-                          <div
-                            className="vs-progress-fill"
-                            style={{ width: `${Math.min(100, Math.max(2, Math.round(donorTierInfo.progressPct || 0)))}%` }}
-                          />
-                        </div>
-                        <div className="vs-progress-meta">
-                          <span>Next: <strong>{donorTierInfo.nextTier.title}</strong></span>
-                          <span>₱{Math.round(donorTierInfo.remainingPhp || 0).toLocaleString('en-US')} to go</span>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {onOpenHonorsLadder && (
-                    <button
-                      type="button"
-                      className="vs-card-foot-action"
-                      onClick={onOpenHonorsLadder}
-                    >
-                      <span>View all 15 recognition tiers</span>
-                      <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>north_east</span>
-                    </button>
-                  )}
-                </div>
-              )}
-
               {/* Public Visibility & Privacy Controls (Directly governs how your Public Profile appears) */}
               {!isOrg && (
                 <div className="vs-card">
@@ -1531,7 +1467,7 @@ export default function SettingsPanel({
                     <div>
                       <h4 className="vs-card-title">Public Visibility</h4>
                       <p className="vs-card-desc">
-                        Control how your identity appears on campaign donor logs and leaderboards.
+                        Control how your identity appears on campaign donor logs and public receipts.
                       </p>
                     </div>
                   </div>
@@ -1549,22 +1485,6 @@ export default function SettingsPanel({
                         <span className="vs-toggle-desc">Mask your name on public donor feeds.</span>
                       </div>
                       <span className={`vs-switch ${anonDefault ? 'is-on' : ''}`}>
-                        <span className="vs-switch-thumb" />
-                      </span>
-                    </button>
-
-                    <button
-                      type="button"
-                      role="switch"
-                      aria-checked={showBadge}
-                      className="vs-toggle-row"
-                      onClick={handleToggleBadgeVisibility}
-                    >
-                      <div className="vs-toggle-info">
-                        <span className="vs-toggle-label">Recognition Badge</span>
-                        <span className="vs-toggle-desc">Show your tier insignia beside contributions.</span>
-                      </div>
-                      <span className={`vs-switch ${showBadge ? 'is-on' : ''}`}>
                         <span className="vs-switch-thumb" />
                       </span>
                     </button>

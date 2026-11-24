@@ -469,21 +469,6 @@ export default function Header({
                       <button
                         type="button"
                         className="bbdrts-dropdown-action"
-                        onClick={() => {
-                          setActiveDropdown(null);
-                          setShowLeaderboardModal(true);
-                        }}
-                      >
-                        <span className="material-symbols-outlined">emoji_events</span>
-                        <div className="bbdrts-dropdown-action-text">
-                          <span className="bbdrts-dropdown-action-title">Top Donors & Partners</span>
-                          <span className="bbdrts-dropdown-action-desc">Verified contributors & accredited NGOs</span>
-                        </div>
-                      </button>
-
-                      <button
-                        type="button"
-                        className="bbdrts-dropdown-action"
                         onClick={handleHowItWorksClick}
                       >
                         <span className="material-symbols-outlined">schema</span>
@@ -556,17 +541,6 @@ export default function Header({
             >
               <span className="bbdrts-live-beacon" />
               <span>Live</span>
-            </button>
-
-            {/* Leaderboard Trigger */}
-            <button
-              type="button"
-              className={`bbdrts-icon-btn bbdrts-leaderboard-btn ${showLeaderboardModal ? 'active' : ''}`}
-              onClick={() => setShowLeaderboardModal(true)}
-              title="Top Donors & Relief Partners"
-              aria-label="Open Top Donors and Relief Partners"
-            >
-              <span className="material-symbols-outlined bbdrts-theme-icon" style={{ fontSize: '18px' }}>history_edu</span>
             </button>
 
             {/* Quick Theme Switcher */}
@@ -736,11 +710,6 @@ export default function Header({
                       <a href="#" className="bbdrts-dropdown-link" onClick={(e) => { e.preventDefault(); setShowLiveTrackerModal(true); setIsProfileOpen(false); }}>
                         <span className="material-symbols-outlined bbdrts-dropdown-item-icon" style={{ color: '#10b981' }}>sensors</span>
                         <span>Live Donations</span>
-                      </a>
-
-                      <a href="#" className="bbdrts-dropdown-link" onClick={(e) => { e.preventDefault(); setShowLeaderboardModal(true); setIsProfileOpen(false); }}>
-                        <span className="material-symbols-outlined bbdrts-dropdown-item-icon">leaderboard</span>
-                        <span>Top Donors &amp; Partners</span>
                       </a>
 
                       {(roleLabel === 'NGO' || roleLabel === 'ORGANIZATION') && (
@@ -979,17 +948,6 @@ export default function Header({
                 <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: '#10b981', boxShadow: '0 0 8px rgba(16, 185, 129, 0.75)', flexShrink: 0 }} />
                 <span>Live Donations</span>
               </button>
-              <button
-                type="button"
-                className="bbdrts-mobile-drawer-btn"
-                onClick={() => {
-                  setMobileMenuOpen(false);
-                  setShowLeaderboardModal(true);
-                }}
-              >
-                <span className="material-symbols-outlined">emoji_events</span>
-                <span>Top Donors &amp; Relief Partners</span>
-              </button>
             </div>
 
             {/* No personal wallet required — gasless relayer active */}
@@ -1026,19 +984,6 @@ export default function Header({
           </div>
         )}
       </header>
-
-      <LeaderboardModal
-        isOpen={showLeaderboardModal}
-        onClose={() => setShowLeaderboardModal(false)}
-        dbUser={dbUser}
-        theme={theme}
-        onOpenNgoProfile={onOpenNgoProfile}
-        onLogin={() => {
-          setShowLeaderboardModal(false);
-          if (setAuthMode) setAuthMode('login');
-          setShowAuth(true);
-        }}
-      />
 
       <SmartContractModal
         isOpen={showSmartContractModal}

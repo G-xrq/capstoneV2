@@ -271,7 +271,7 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
       badge: 'Key Metrics',
       placement: 'bottom',
       align: 'center',
-      description: 'Track your total verified PHP contributions with real-time momentum, active relief causes, and your current Recognition Tier.'
+      description: 'Track your total verified PHP contributions with real-time momentum, active relief causes, and notarized on-chain receipts.'
     },
     {
       target: '#tour-donor-first-campaign, #tour-donor-featured-causes',
@@ -280,14 +280,6 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
       placement: 'bottom',
       align: 'center',
       description: 'Browse prioritized campaigns from SEC-accredited NGOs. Donate in PHP via GCash, Maya, Bank Transfer, or Card with gasless on-chain receipts.'
-    },
-    {
-      target: '#tour-donor-badge-card',
-      title: 'Recognition Circle Progress',
-      badge: '15 Donor Tiers',
-      placement: 'top',
-      align: 'start',
-      description: 'Follow your milestone progress across all 15 institutional donor recognition tiers and view your verified appreciation certificates.'
     },
     {
       target: '#tour-donor-tab-campaigns',
@@ -990,27 +982,7 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
     }
   }, [activeTab, onActiveTabChange, campaigns, myDonations, totalDonated, totalDonatedPhp, donorReceiptsCount, activeCampaignsCount, categoryFilter, urgencyFilter, searchQuery, activeTierInfo]);
 
-  // Automated Tier Upgrade Detection (Subtle celebration notification)
-  useEffect(() => {
-    const key = walletAddress || currentUser?.wallet_address;
-    if (!key || !myDonations || myDonations.length === 0) return;
-    const tierInfo = getDonorTier(totalDonated, totalDonatedPhp);
-    if (!tierInfo || !tierInfo.tier) return;
-    
-    const currentTier = tierInfo.tier;
-    const storageKey = `bbdrts_highest_tier_${key.toLowerCase()}`;
-    const storedTierStr = localStorage.getItem(storageKey);
-    const storedTierNum = storedTierStr ? parseInt(storedTierStr, 10) : null;
-
-    if (storedTierNum === null) {
-      // First time observing donations: record baseline tier without disruptive popup
-      localStorage.setItem(storageKey, String(currentTier.tierNumber));
-    } else if (currentTier.tierNumber > storedTierNum) {
-      // New Tier Unlocked from successful cumulative donation!
-      localStorage.setItem(storageKey, String(currentTier.tierNumber));
-      setUnlockedTierModal(currentTier);
-    }
-  }, [walletAddress, currentUser, myDonations, totalDonated, totalDonatedPhp]);
+  // Donor badge upgrade popups disabled
 
 
 
@@ -1354,26 +1326,15 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
                       <button
                         type="button"
                         className="dbo-bare-stat clickable"
-                        onClick={() => setShowTierModal(true)}
-                        title="View Philanthropic Honor Roll"
+                        onClick={() => setActiveTab('my-donations')}
+                        title="View your notarized donation receipts"
                       >
-                        <span className="dbo-bare-badge-wrap" aria-hidden="true">
-                          {activeTierInfo?.tier?.IconComponent ? (
-                            <activeTierInfo.tier.IconComponent size={36} />
-                          ) : (
-                            <span className="dbo-bare-icon-box">
-                              <span className="material-symbols-outlined">workspace_premium</span>
-                            </span>
-                          )}
+                        <span className="dbo-bare-icon-box" aria-hidden="true">
+                          <span className="material-symbols-outlined">verified</span>
                         </span>
                         <span className="dbo-bare-text">
-                          <span className="dbo-bare-val dbo-bare-val--tier">
-                            <span>{activeTierInfo?.tier ? activeTierInfo.tier.name : 'New Contributor'}</span>
-                            <span className="material-symbols-outlined" style={{ fontSize: '14px', opacity: 0.55 }}>north_east</span>
-                          </span>
-                          <span className="dbo-bare-lbl">
-                            {donorReceiptsCount > 0 ? `${donorReceiptsCount} verified receipts` : 'Honor Roll Standing'}
-                          </span>
+                          <LiveCounter value={donorReceiptsCount} duration={900} className="dbo-bare-val" />
+                          <span className="dbo-bare-lbl">Verified Receipts</span>
                         </span>
                       </button>
                     )}
@@ -1655,50 +1616,7 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
                     )}
                   </div>
 
-                  {/* Honor Roll Recognition Milestone Card */}
-                  {interfaceMode !== 'simplified' && (
-                    <button
-                      type="button"
-                      className="dbo-milestone-card"
-                      id="tour-donor-badge-card"
-                      onClick={() => setShowTierModal(true)}
-                      title="Explore Philanthropic Recognition Circles"
-                    >
-                      <div className="dbo-milestone-top">
-                        <div className="dbo-milestone-left">
-                          <span className="dbo-milestone-label">Recognition Circle</span>
-                          <span className="dbo-milestone-name">
-                            {activeTierInfo?.tier ? activeTierInfo.tier.name : 'Community Contributor'}
-                          </span>
-                        </div>
-                        <span className="dbo-milestone-cta">
-                          <span>15 Circles</span>
-                          <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>north_east</span>
-                        </span>
-                      </div>
 
-                      <div className="dbo-clean-progress-bar" style={{ marginTop: '12px' }}>
-                        <div
-                          className="dbo-clean-progress-fill"
-                          style={{ width: `${Math.min(100, Math.max(4, activeTierInfo?.nextTier ? (activeTierInfo.progressPct || 0) : 100))}%` }}
-                        />
-                      </div>
-
-                      <div className="dbo-milestone-foot">
-                        {activeTierInfo?.nextTier ? (
-                          <>
-                            <span>Next: <strong>{activeTierInfo.nextTier.name}</strong></span>
-                            <span>₱{Math.max(0, Math.round(activeTierInfo.remainingPhp || 0)).toLocaleString('en-US')} to go</span>
-                          </>
-                        ) : (
-                          <>
-                            <span>Highest Recognition Circle Achieved</span>
-                            <span>100%</span>
-                          </>
-                        )}
-                      </div>
-                    </button>
-                  )}
                 </div>
               </div>
             </div>
@@ -2309,47 +2227,12 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
                   <span className="rcp-band-lbl">Campaigns Supported</span>
                 </div>
 
-                <div className="rcp-band-cell rcp-band-cell--tier">
-                  <button
-                    type="button"
-                    className="rcp-band-tier-btn"
-                    onClick={() => setShowTierModal(true)}
-                    title="View Certificate & all 15 Donor Tiers"
-                  >
-                    <span className="rcp-band-badge">
-                      {activeTierInfo?.tier?.IconComponent ? (
-                        <activeTierInfo.tier.IconComponent size={36} />
-                      ) : (
-                        <span className="dbo-bare-icon-box" style={{ width: '36px', height: '36px', borderRadius: '50%' }}>
-                          <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>workspace_premium</span>
-                        </span>
-                      )}
-                    </span>
-                    <span className="rcp-band-tier-info">
-                      <span className="rcp-band-tier-name">
-                        <span>{activeTierInfo?.tier ? activeTierInfo.tier.name : 'Donor'}</span>
-                        <span className="material-symbols-outlined" style={{ fontSize: '13px', opacity: 0.6 }}>north_east</span>
-                      </span>
-                      <span className="rcp-band-tier-bar">
-                        <span className="rcp-band-tier-fill" style={{ width: `${tierPct}%` }} />
-                      </span>
-                      <span className="rcp-band-lbl">
-                        {activeTierInfo?.nextTier
-                          ? `Next: ${activeTierInfo.nextTier.name} (${tierPct}%)`
-                          : 'Highest Circle Achieved'}
-                      </span>
-                    </span>
-                  </button>
-
-                  <button
-                    type="button"
-                    className="dbo-cmd-btn dbo-cmd-btn--primary rcp-cert-compact-btn"
-                    onClick={() => setShowTierModal(true)}
-                    title="View Certificate of Appreciation"
-                  >
-                    <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>workspace_premium</span>
-                    <span>Certificate</span>
-                  </button>
+                <div className="rcp-band-cell">
+                  <span className="rcp-band-num" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                    <span className="material-symbols-outlined" style={{ fontSize: '20px', color: '#10b981' }}>verified_user</span>
+                    <span>Sepolia</span>
+                  </span>
+                  <span className="rcp-band-lbl">On-Chain Proof Active</span>
                 </div>
               </div>
 
@@ -3391,42 +3274,12 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
                 setLowBandwidthMode={setLowBandwidthMode}
                 totalDonatedEth={totalDonated}
                 totalDonatedPhp={totalDonatedPhp}
-                onOpenHonorsLadder={() => setShowTierModal(true)}
                 onStartTour={handleStartTour}
               />
             </div>
           )}
 
         </section>
-
-      {/* Humanitarian Honors Ladder Modal */}
-      <DonorTierModal
-        isOpen={showTierModal}
-        onClose={() => setShowTierModal(false)}
-        walletAddress={walletAddress || currentUser?.wallet_address}
-        donorId={currentUser?.id || currentUser?.Donor_ID}
-        txHash={myDonations?.[0]?.txHash || myDonations?.[0]?.Tx_Hash}
-        transactions={myDonations}
-        totalDonatedEth={totalDonated}
-        totalDonatedPhp={totalDonatedPhp}
-        donationCount={Math.max(myDonations?.length || 0, globalCumulative?.donationCount || 0)}
-        campaignsSupported={new Set((myDonations || []).map(d => d.campaignId).filter(Boolean)).size || 1}
-        donorName={userDisplayName || 'Verified Donor'}
-        dedication={currentUser?.bio || ''}
-      />
-
-      {/* Subtle Badge Upgrade Unlocked Modal Notification */}
-      <BadgeUpgradeModal
-        newTier={unlockedTierModal}
-        isOpen={Boolean(unlockedTierModal)}
-        onClose={() => setUnlockedTierModal(null)}
-        totalDonatedPhp={totalDonatedPhp}
-        donorName={userDisplayName || ''}
-        onViewCertificate={() => {
-          setUnlockedTierModal(null);
-          setShowTierModal(true);
-        }}
-      />
 
       {/* Interactive Guided Onboarding Spotlight Tour */}
       <GuidedTour

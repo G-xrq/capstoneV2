@@ -4572,12 +4572,8 @@ export default function CampaignCard(props) {
                               {/* 2. Contributor */}
                               <td>
                                 <div className="ledger-cell-contributor">
-                                  <div 
-                                    className={`ledger-avatar-dot ${isAnon ? 'dot-anon' : isGuest ? 'dot-guest' : 'dot-named'} ${!isGuest && !isAnon ? 'is-clickable' : ''}`}
-                                    onClick={() => {
-                                      if (!isGuest && !isAnon) setSelectedLedgerDonor(rec);
-                                    }}
-                                    title={!isGuest && !isAnon ? `View ${donorDisplayName}'s Donor Profile & Honors` : undefined}
+                                  <div
+                                    className={`ledger-avatar-dot ${isAnon ? 'dot-anon' : isGuest ? 'dot-guest' : 'dot-named'}`}
                                   >
                                     {isAnon ? (
                                       <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>
@@ -4601,32 +4597,9 @@ export default function CampaignCard(props) {
                                   </div>
                                   <div className="ledger-contributor-info">
                                     <div className="ledger-contributor-name-line">
-                                      {!isGuest && !isAnon ? (
-                                        <button
-                                          type="button"
-                                          className="ledger-contributor-name-btn"
-                                          onClick={() => setSelectedLedgerDonor(rec)}
-                                          title={`View ${donorDisplayName}'s Profile & Impact`}
-                                        >
-                                          {donorDisplayName}
-                                        </button>
-                                      ) : (
-                                        <span className="ledger-contributor-name" title={donorDisplayName}>
-                                          {donorDisplayName}
-                                        </span>
-                                      )}
-                                      {!isGuest && !isAnon && !rec.hideBadge && (rec.donorId || rec.wallet) && (
-                                        <DonorBadge
-                                          size="xs"
-                                          donorId={rec.donorId}
-                                          walletAddress={rec.wallet}
-                                          amountEth={rec.globalAmountEth}
-                                          amountPhp={rec.globalAmountPhp}
-                                          showLabel={false}
-                                          showTooltip={true}
-                                          showProgress={false}
-                                        />
-                                      )}
+                                      <span className="ledger-contributor-name" title={donorDisplayName}>
+                                        {donorDisplayName}
+                                      </span>
                                     </div>
                                     {isAnon ? (
                                       <span className="ledger-anon-tag">Private Donor</span>
@@ -4764,52 +4737,6 @@ export default function CampaignCard(props) {
         </div>,
         document.body
       )}
-
-      {/* ── Interactive Donor Profile & Honors Modal ── */}
-      {selectedLedgerDonor && (
-        <DonorTierModal
-          isOpen={Boolean(selectedLedgerDonor)}
-          onClose={() => setSelectedLedgerDonor(null)}
-          walletAddress={selectedLedgerDonor.wallet}
-          donorId={selectedLedgerDonor.donorId}
-          txHash={selectedLedgerDonor.txHash || selectedLedgerDonor.Tx_Hash}
-          totalDonatedEth={selectedLedgerDonor.globalAmountEth || selectedLedgerDonor.rawAmount || 0}
-          totalDonatedPhp={selectedLedgerDonor.globalAmountPhp || selectedLedgerDonor.phpAmount || 0}
-          donationCount={1}
-          campaignsSupported={selectedLedgerDonor.campaignsSupported || 1}
-          dedication={selectedLedgerDonor.dedication || selectedLedgerDonor.bio || ''}
-          donorName={selectedLedgerDonor.donor || 'Verified Contributor'}
-        />
-      )}
-
-      {/* ── Donor's Own Philanthropy Certificate Modal ── */}
-      {certModalOpen && (() => {
-        let loggedUser = null;
-        try {
-          const raw = localStorage.getItem('bbdrts_user');
-          if (raw) loggedUser = JSON.parse(raw);
-        } catch (_) {}
-        const userEth = (Number(amount || 0)) / 170000;
-        const userPhp = Number(amount || 0);
-        const resolvedName = isAnonymous
-          ? 'Anonymous Donor'
-          : (donorName || loggedUser?.display_name || loggedUser?.name || 'Verified Philanthropist');
-        return (
-          <DonorTierModal
-            isOpen={certModalOpen}
-            onClose={() => setCertModalOpen(false)}
-            walletAddress={walletAddress || loggedUser?.wallet_address || ''}
-            donorId={loggedUser?.id || loggedUser?.Donor_ID || ''}
-            txHash={txHash}
-            totalDonatedEth={userEth}
-            totalDonatedPhp={userPhp}
-            donationCount={1}
-            campaignsSupported={1}
-            dedication={customMsg || loggedUser?.bio || 'In solidarity with disaster relief efforts.'}
-            donorName={resolvedName}
-          />
-        );
-      })()}
 
       {/* ── Premium Checkout Modal ── */}
       {modalOpen && createPortal(
@@ -5716,21 +5643,6 @@ export default function CampaignCard(props) {
                         </div>
                       </div>
 
-                      {/* Clean Certificate Shortcut */}
-                      <button
-                        type="button"
-                        className="qr8-cert-banner"
-                        onClick={() => setCertModalOpen(true)}
-                      >
-                        <span className="qr8-cert-icon">
-                          <span className="material-symbols-outlined">workspace_premium</span>
-                        </span>
-                        <span className="qr8-cert-copy">
-                          <strong>Official Donor Certificate Ready</strong>
-                          <span>View your updated Giving Circle &amp; printable certificate</span>
-                        </span>
-                        <span className="material-symbols-outlined qr8-cert-arrow">arrow_forward</span>
-                      </button>
                     </div>
 
                     {/* Flush Recessed Footer Actions */}

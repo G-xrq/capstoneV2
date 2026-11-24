@@ -674,19 +674,7 @@ export default function LiveTrackerModal({ isOpen, onClose, theme }) {
                             <div className="ltm-row-top">
                               <div className="ltm-donor-wrap">
                                 <span className="ltm-donor-name" title={donorTitle}>{donorTitle}</span>
-                                {!isGuest && !isAnon && item.tierAtTime && (
-                                  <DonorBadge
-                                    tier={item.tierAtTime}
-                                    donorId={item.donorId}
-                                    walletAddress={item.wallet}
-                                    amountEth={item.cumulativeEthAtTime || item.amountEth}
-                                    amountPhp={item.cumulativePhpAtTime || item.amountPhp}
-                                    size="xs"
-                                    interactive={true}
-                                    showTooltip={true}
-                                  />
-                                )}
-                                {!isGuest && !isAnon && !item.tierAtTime && (
+                                {!isGuest && !isAnon && (
                                   <span className="material-symbols-outlined ltm-verified-check" title="Verified Donor">
                                     verified
                                   </span>

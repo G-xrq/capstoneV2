@@ -410,7 +410,7 @@ export default function TermsPolicyModal({ isOpen, onClose, initialTab = 'agreem
                         <tr>
                           <td><strong>Identity Data</strong></td>
                           <td>Public Display Name, User Role, Profile Avatar</td>
-                          <td>Public leaderboard display, donor pass generation, and community attribution.</td>
+                          <td>Public donor ledger attribution and verified receipt generation.</td>
                         </tr>
                         <tr>
                           <td><strong>Contact Data</strong></td>
