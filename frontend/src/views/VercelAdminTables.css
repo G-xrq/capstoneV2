@@ -990,3 +990,615 @@
   border-color: #d4d4d8;
 }
 
+
+
+/* ============================================================================
+   NGO Institutional Dossier & Regulatory Accreditation Modal (Vercel Geist)
+   ============================================================================ */
+.ngo-dossier-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483000;
+  background: rgba(10, 12, 18, 0.72);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+  box-sizing: border-box;
+  animation: ngoDossierFade 0.16s ease-out forwards;
+}
+
+[data-theme="light"] .ngo-dossier-backdrop {
+  background: rgba(15, 23, 42, 0.45);
+}
+
+@keyframes ngoDossierFade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.ngo-dossier-modal {
+  width: 820px;
+  max-width: 100%;
+  max-height: 90vh;
+  background: var(--bg-card);
+  border: 1px solid var(--border-strong, var(--border));
+  border-radius: 14px;
+  box-shadow: 0 28px 72px rgba(0, 0, 0, 0.48);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  color: var(--text-primary);
+  animation: ngoDossierPop 0.18s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+[data-theme="light"] .ngo-dossier-modal {
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.18);
+}
+
+@keyframes ngoDossierPop {
+  from { opacity: 0; transform: scale(0.975) translateY(6px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* Sticky Header */
+.ngo-dossier-header {
+  flex-shrink: 0;
+  padding: 18px 22px 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-card);
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.ngo-dossier-head-left {
+  display: flex;
+  align-items: flex-start;
+  gap: 13px;
+  min-width: 0;
+  flex: 1;
+}
+
+.ngo-dossier-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border: 1px solid var(--border);
+}
+
+.ngo-dossier-avatar.is-approved {
+  background: rgba(16, 185, 129, 0.12);
+  border-color: rgba(16, 185, 129, 0.32);
+  color: #10b981;
+}
+
+.ngo-dossier-avatar.is-pending {
+  background: rgba(245, 158, 11, 0.12);
+  border-color: rgba(245, 158, 11, 0.32);
+  color: #f59e0b;
+}
+
+.ngo-dossier-avatar.is-rejected {
+  background: rgba(244, 63, 94, 0.12);
+  border-color: rgba(244, 63, 94, 0.32);
+  color: #f43f5e;
+}
+
+.ngo-dossier-title-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ngo-dossier-title {
+  margin: 0;
+  font-size: 1.08rem;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  color: var(--text-primary);
+  line-height: 1.28;
+}
+
+.ngo-dossier-id-chip {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.66rem;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 5px;
+  background: var(--bg-inset);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+}
+
+.ngo-dossier-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 2px 9px;
+  border-radius: 999px;
+  letter-spacing: 0.02em;
+}
+
+.ngo-dossier-status-pill .dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.ngo-dossier-status-pill.is-approved {
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.32);
+  color: #10b981;
+}
+.ngo-dossier-status-pill.is-approved .dot { background: #10b981; }
+
+.ngo-dossier-status-pill.is-pending {
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.32);
+  color: #d97706;
+}
+.ngo-dossier-status-pill.is-pending .dot { background: #f59e0b; }
+
+.ngo-dossier-status-pill.is-rejected {
+  background: rgba(244, 63, 94, 0.12);
+  border: 1px solid rgba(244, 63, 94, 0.32);
+  color: #f43f5e;
+}
+.ngo-dossier-status-pill.is-rejected .dot { background: #f43f5e; }
+
+.ngo-dossier-subrow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 5px;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.ngo-dossier-wallet-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  border-radius: 5px;
+  border: 1px solid var(--border);
+  background: var(--bg-inset);
+  color: var(--text-secondary);
+  font-family: var(--font-mono, monospace);
+  font-size: 0.70rem;
+  cursor: pointer;
+  transition: border-color 0.14s ease, color 0.14s ease;
+}
+
+.ngo-dossier-wallet-btn:hover {
+  border-color: var(--border-strong);
+  color: var(--text-primary);
+}
+
+.ngo-dossier-close {
+  width: 32px;
+  height: 32px;
+  border-radius: 7px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.14s ease, color 0.14s ease;
+}
+
+.ngo-dossier-close:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+/* Telemetry Strip */
+.ngo-dossier-strip {
+  flex-shrink: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-subcard);
+}
+
+.ngo-dossier-strip-cell {
+  padding: 11px 18px;
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ngo-dossier-strip-cell:last-child {
+  border-right: none;
+}
+
+.ngo-dossier-strip-k {
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+.ngo-dossier-strip-v {
+  font-size: 0.86rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  font-family: var(--font-mono, monospace);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Scrollable Body */
+.ngo-dossier-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 20px 22px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  background: var(--bg-card);
+}
+
+.ngo-dossier-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ngo-dossier-sec-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.ngo-dossier-sec-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+.ngo-dossier-sec-badge {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--bg-inset);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+}
+
+/* Hairline Profile Info Grid */
+.ngo-dossier-info-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--bg-subcard);
+}
+
+.ngo-dossier-info-cell {
+  padding: 11px 14px;
+  border-bottom: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.ngo-dossier-info-cell:nth-child(2n) {
+  border-right: none;
+}
+
+.ngo-dossier-info-cell.is-full {
+  grid-column: 1 / -1;
+  border-right: none;
+}
+
+.ngo-dossier-info-cell:last-child {
+  border-bottom: none;
+}
+
+.ngo-dossier-info-lbl {
+  font-size: 0.67rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+
+.ngo-dossier-info-val {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  word-break: break-word;
+}
+
+.ngo-dossier-info-val.is-mono {
+  font-family: var(--font-mono, monospace);
+}
+
+.ngo-dossier-info-val.is-muted {
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.ngo-dossier-board-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.ngo-dossier-board-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border-radius: 6px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  font-size: 0.72rem;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+/* Submitted Legal Document Cards */
+.ngo-dossier-docs-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.ngo-dossier-doc-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg-subcard);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.14s ease, background 0.14s ease, transform 0.12s ease;
+  width: 100%;
+  min-width: 0;
+}
+
+.ngo-dossier-doc-card:hover:not(:disabled) {
+  border-color: var(--border-strong);
+  background: var(--bg-hover);
+  transform: translateY(-1px);
+}
+
+.ngo-dossier-doc-card:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.ngo-dossier-doc-ico {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  background: var(--bg-inset);
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: #10b981;
+}
+
+.ngo-dossier-doc-card:disabled .ngo-dossier-doc-ico {
+  color: var(--text-muted);
+}
+
+.ngo-dossier-doc-meta {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ngo-dossier-doc-name {
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ngo-dossier-doc-sub {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 4-Point Compliance Rubric Grid */
+.ngo-dossier-rubric-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.ngo-dossier-rubric-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 9px;
+  border: 1px solid var(--border);
+  background: var(--bg-subcard);
+  cursor: pointer;
+  transition: border-color 0.14s ease, background 0.14s ease;
+  user-select: none;
+}
+
+.ngo-dossier-rubric-item:hover {
+  border-color: var(--border-strong);
+}
+
+.ngo-dossier-rubric-item.is-checked {
+  border-color: rgba(16, 185, 129, 0.40);
+  background: rgba(16, 185, 129, 0.06);
+}
+
+.ngo-dossier-rubric-item input[type="checkbox"] {
+  margin-top: 2px;
+  accent-color: #10b981;
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.ngo-dossier-rubric-title {
+  font-size: 0.77rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.3;
+}
+
+.ngo-dossier-rubric-sub {
+  font-size: 0.69rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+  line-height: 1.3;
+}
+
+/* Notes Textarea */
+.ngo-dossier-notes {
+  width: 100%;
+  padding: 10px 12px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-strong, var(--border));
+  border-radius: 9px;
+  color: var(--text-primary);
+  font-size: 0.80rem;
+  font-family: inherit;
+  line-height: 1.5;
+  resize: vertical;
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color 0.14s ease, box-shadow 0.14s ease;
+}
+
+.ngo-dossier-notes:focus {
+  border-color: var(--border-focus, var(--text-primary));
+  box-shadow: 0 0 0 3px var(--accent-dim);
+}
+
+/* Sticky Footer */
+.ngo-dossier-footer {
+  flex-shrink: 0;
+  padding: 14px 22px;
+  border-top: 1px solid var(--border);
+  background: var(--bg-subcard);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.ngo-dossier-footer-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.ngo-dossier-btn {
+  height: 36px;
+  padding: 0 14px;
+  border-radius: 8px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  border: 1px solid var(--border-strong, var(--border));
+  background: var(--bg-card);
+  color: var(--text-primary);
+  transition: background 0.14s ease, border-color 0.14s ease, opacity 0.14s ease;
+}
+
+.ngo-dossier-btn:hover:not(:disabled) {
+  background: var(--bg-hover);
+}
+
+.ngo-dossier-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.ngo-dossier-btn--danger {
+  color: #f43f5e;
+  border-color: rgba(244, 63, 94, 0.35);
+  background: rgba(244, 63, 94, 0.06);
+}
+
+.ngo-dossier-btn--danger:hover:not(:disabled) {
+  background: rgba(244, 63, 94, 0.14);
+  border-color: rgba(244, 63, 94, 0.55);
+}
+
+.ngo-dossier-btn--primary {
+  background: var(--pill-bg);
+  color: var(--pill-text);
+  border-color: var(--pill-bg);
+}
+
+.ngo-dossier-btn--primary:hover:not(:disabled) {
+  opacity: 0.88;
+  background: var(--pill-bg);
+}
+
+@media (max-width: 720px) {
+  .ngo-dossier-strip,
+  .ngo-dossier-info-grid,
+  .ngo-dossier-docs-grid,
+  .ngo-dossier-rubric-grid {
+    grid-template-columns: 1fr;
+  }
+  .ngo-dossier-strip-cell,
+  .ngo-dossier-info-cell {
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+  }
+  .ngo-dossier-strip-cell:last-child {
+    border-bottom: none;
+  }
+}

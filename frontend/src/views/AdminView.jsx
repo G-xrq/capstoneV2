@@ -1071,6 +1071,21 @@ export default function AdminView({
     bankVerified: true
   });
   const [auditNotes, setAuditNotes] = useState('Duly verified against Philippine SEC Non-Stock Corporate Standards. Identity and non-profit charter confirmed.');
+
+  useEffect(() => {
+    if (!approvalModal.show || !approvalModal.org) return;
+    const savedNotes = approvalModal.org.auditNotes || approvalModal.org.Audit_Notes || '';
+    setAuditNotes(
+      savedNotes ||
+      'Duly verified against Philippine SEC Non-Stock Corporate Standards. Identity and non-profit charter confirmed.'
+    );
+    setAuditRubric({
+      secVerified: true,
+      boardIdentified: true,
+      dswdPermitVerified: Boolean(approvalModal.org.dswdAccreditationNo || approvalModal.org.Dswd_Accreditation_No || String(approvalModal.org.Verification_Status || '').toLowerCase() === 'approved'),
+      bankVerified: true
+    });
+  }, [approvalModal.show, approvalModal.org]);
   const [txModal, setTxModal] = useState({ show: false, step: 0, hash: '', type: '', addr: '' });
 
   const loadOrganizations = async (arg) => {
@@ -1150,7 +1165,9 @@ export default function AdminView({
         },
         body: JSON.stringify({
           status: 'Approved',
+          audit_notes: fullNotes,
           notes: fullNotes,
+          audit_checklist: auditRubric,
           rubric: auditRubric
         })
       });
@@ -1199,6 +1216,7 @@ export default function AdminView({
         },
         body: JSON.stringify({
           status: 'Rejected',
+          audit_notes: auditNotes || 'Application does not satisfy SEC regulatory non-stock requirements.',
           notes: auditNotes || 'Application does not satisfy SEC regulatory non-stock requirements.'
         })
       });
@@ -5017,188 +5035,376 @@ export default function AdminView({
         </div>
       )}
 
-      {/* ── MODAL 3: KYC ACCREDITATION & RUBRIC REVIEW ───────── */}
-      {approvalModal.show && approvalModal.org && (
-        <div className="modal-overlay" onClick={() => setApprovalModal({ show: false, org: null })}>
-          <div className="modal-content" onClick={e => e.stopPropagation()} style={{ maxWidth: '740px', width: '92%', maxHeight: '90vh', overflowY: 'auto' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-              <div>
-                <h3 style={{ fontSize: '1.1rem', fontWeight: 800, margin: '0 0 2px 0', color: 'var(--text-primary)' }}>
-                  SEC Regulatory Accreditation Rubric
-                </h3>
-                <p style={{ fontSize: '0.76rem', color: 'var(--text-muted)', margin: 0 }}>
-                  Reviewing: <strong style={{ color: 'var(--text-primary)' }}>{getOrgName(approvalModal.org)}</strong>
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setApprovalModal({ show: false, org: null })}
-                style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
-              >
-                <span className="material-symbols-outlined">close</span>
-              </button>
-            </div>
+      {/* ── MODAL 3: NGO INSTITUTIONAL DOSSIER & ACCREDITATION RUBRIC ── */}
+      {approvalModal.show && approvalModal.org && createPortal((() => {
+        const org = approvalModal.org;
+        const st = String(org.Verification_Status || '').toLowerCase();
+        const isApproved = st === 'approved';
+        const isRejected = st === 'rejected';
+        const statusKey = isApproved ? 'is-approved' : isRejected ? 'is-rejected' : 'is-pending';
+        const statusLabel = isApproved ? 'SEC Accredited' : isRejected ? 'Application Rejected' : 'Awaiting Review';
 
-            {/* Institutional Dossier Summary */}
-            <div style={{
-              background: 'var(--bg-subcard)',
-              border: '1px solid var(--border)',
-              borderRadius: '8px',
-              padding: '12px 14px',
-              marginBottom: '16px',
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-              gap: '10px',
-              fontSize: '0.78rem'
-            }}>
-              <div>
-                <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '0.70rem', fontWeight: 600 }}>SEC Registration No</span>
-                <strong style={{ color: '#0284c7', fontFamily: 'monospace' }}>{getSecReg(approvalModal.org) || 'Not provided'}</strong>
-              </div>
-              <div>
-                <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '0.70rem', fontWeight: 600 }}>BIR TIN (Tax ID)</span>
-                <strong style={{ fontFamily: 'monospace' }}>{approvalModal.org.tinNumber || approvalModal.org.Tin_Number || 'Not provided'}</strong>
-              </div>
-              <div>
-                <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '0.70rem', fontWeight: 600 }}>DSWD / LGU Permit</span>
-                <strong style={{ fontFamily: 'monospace' }}>{approvalModal.org.dswdAccreditationNo || approvalModal.org.Dswd_Accreditation_No || 'Optional'}</strong>
-              </div>
-              <div>
-                <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '0.70rem', fontWeight: 600 }}>Authorized Signatory</span>
-                <strong>{approvalModal.org.authorizedRepName || approvalModal.org.Authorized_Rep_Name || 'Not designated'} {approvalModal.org.authorizedRepPosition ? `(${approvalModal.org.authorizedRepPosition})` : ''}</strong>
-              </div>
-              <div style={{ gridColumn: '1 / -1' }}>
-                <span style={{ color: 'var(--text-muted)', display: 'block', fontSize: '0.70rem', fontWeight: 600 }}>Registered Headquarters</span>
-                <span>{approvalModal.org.registeredAddress || approvalModal.org.Registered_Address || 'Not specified'}</span>
-              </div>
-            </div>
+        const orgWallet = org.Wallet_Address || org.walletAddress || '';
+        const orgEmail = getOrgEmail(org);
+        const orgMobile = org.Mobile_Number || org.mobileNumber || '';
+        const secReg = getSecReg(org);
+        const secCert = getSecCert(org);
+        const primaryIdUrl = org.primaryIdUrl || org.Primary_Id_Url || '';
+        const primaryIdType = org.primaryIdType || org.Primary_Id_Type || 'Primary Gov ID';
+        const primaryIdNo = org.primaryIdNumber || org.Primary_Id_Number || '';
+        const secondaryIdUrl = org.secondaryIdUrl || org.Secondary_Id_Url || '';
+        const secondaryIdType = org.secondaryIdType || org.Secondary_Id_Type || 'Secondary Gov ID';
+        const secondaryIdNo = org.secondaryIdNumber || org.Secondary_Id_Number || '';
 
-            {/* Anti-Bias 4-Point Checklist */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '16px' }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 14px', background: 'var(--bg-subcard)', borderRadius: '8px', border: '1px solid var(--border)', cursor: 'pointer' }}>
-                <input
-                  type="checkbox"
-                  checked={auditRubric.secVerified}
-                  onChange={(e) => setAuditRubric({ ...auditRubric, secVerified: e.target.checked })}
-                />
-                <span style={{ fontSize: '0.80rem', color: 'var(--text-primary)' }}>
-                  Philippine SEC Non-Stock Registration Number Verified ({getSecReg(approvalModal.org) || 'Pending'})
-                </span>
-              </label>
+        // Parse Board of Trustees if present
+        let boardList = [];
+        try {
+          const rawBoard = org.boardMembers || org.Board_Members_Json;
+          const parsed = typeof rawBoard === 'string' ? JSON.parse(rawBoard) : rawBoard;
+          if (Array.isArray(parsed)) boardList = parsed.filter(Boolean);
+        } catch (_) {}
 
-              <label style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 14px', background: 'var(--bg-subcard)', borderRadius: '8px', border: '1px solid var(--border)', cursor: 'pointer' }}>
-                <input
-                  type="checkbox"
-                  checked={auditRubric.boardIdentified}
-                  onChange={(e) => setAuditRubric({ ...auditRubric, boardIdentified: e.target.checked })}
-                />
-                <span style={{ fontSize: '0.80rem', color: 'var(--text-primary)' }}>
-                  Board of Trustees & Legal Officers Documented
-                </span>
-              </label>
+        // Live campaign telemetry for this NGO
+        const orgCamps = (campaigns || []).filter((c) => {
+          const wMatch = orgWallet && c.orgAddress && c.orgAddress.toLowerCase() === orgWallet.toLowerCase();
+          const nMatch = c.orgName && getOrgName(org) && c.orgName.toLowerCase() === getOrgName(org).toLowerCase();
+          return wMatch || nMatch;
+        });
+        const orgRaisedPhp = orgCamps.reduce((sum, c) => {
+          const php = Number(c.currentAmountPhp || c.current_amount_php || 0);
+          return sum + (php > 0 ? php : Math.round(parseFloat(c.currentAmount || 0) * 170000));
+        }, 0);
 
-              <label style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 14px', background: 'var(--bg-subcard)', borderRadius: '8px', border: '1px solid var(--border)', cursor: 'pointer' }}>
-                <input
-                  type="checkbox"
-                  checked={auditRubric.dswdPermitVerified}
-                  onChange={(e) => setAuditRubric({ ...auditRubric, dswdPermitVerified: e.target.checked })}
-                />
-                <span style={{ fontSize: '0.80rem', color: 'var(--text-primary)' }}>
-                  DSWD National / Regional Solicitation Permit Active
-                </span>
-              </label>
+        const rubricCount = [
+          auditRubric.secVerified,
+          auditRubric.boardIdentified,
+          auditRubric.dswdPermitVerified,
+          auditRubric.bankVerified
+        ].filter(Boolean).length;
 
-              <label style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 14px', background: 'var(--bg-subcard)', borderRadius: '8px', border: '1px solid var(--border)', cursor: 'pointer' }}>
-                <input
-                  type="checkbox"
-                  checked={auditRubric.bankVerified}
-                  onChange={(e) => setAuditRubric({ ...auditRubric, bankVerified: e.target.checked })}
-                />
-                <span style={{ fontSize: '0.80rem', color: 'var(--text-primary)' }}>
-                  Official Organization Operating Bank or GCash Account Confirmed
-                </span>
-              </label>
-            </div>
+        const closeDossier = () => setApprovalModal({ show: false, org: null });
 
-            {/* Audit Notes */}
-            <div style={{ marginBottom: '16px' }}>
-              <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '6px' }}>
-                Regulatory Compliance Statement / Notes
-              </label>
-              <textarea
-                rows="3"
-                value={auditNotes}
-                onChange={(e) => setAuditNotes(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '10px 12px',
-                  background: 'var(--bg-input)',
-                  border: '1px solid var(--border)',
-                  borderRadius: '8px',
-                  color: 'var(--text-primary)',
-                  fontSize: '0.80rem'
-                }}
-              />
-            </div>
+        return (
+          <div className="ngo-dossier-backdrop" onClick={closeDossier}>
+            <div className="ngo-dossier-modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="NGO Institutional Dossier">
+              {/* Sticky Executive Header */}
+              <div className="ngo-dossier-header">
+                <div className="ngo-dossier-head-left">
+                  <div className={`ngo-dossier-avatar ${statusKey}`}>
+                    <span className="material-symbols-outlined" style={{ fontSize: '22px' }}>
+                      {isApproved ? 'verified_user' : isRejected ? 'gpp_bad' : 'corporate_fare'}
+                    </span>
+                  </div>
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div className="ngo-dossier-title-row">
+                      <h3 className="ngo-dossier-title">{getOrgName(org)}</h3>
+                      <span className={`ngo-dossier-status-pill ${statusKey}`}>
+                        <span className="dot" />
+                        <span>{statusLabel}</span>
+                      </span>
+                      <span className="ngo-dossier-id-chip">ORG #{org.Org_ID}</span>
+                    </div>
+                    <div className="ngo-dossier-subrow">
+                      <span>{orgEmail}</span>
+                      {orgMobile && (
+                        <>
+                          <span>·</span>
+                          <span>{orgMobile}</span>
+                        </>
+                      )}
+                      {orgWallet && (
+                        <button
+                          type="button"
+                          className="ngo-dossier-wallet-btn"
+                          onClick={() => {
+                            navigator.clipboard?.writeText(orgWallet);
+                            showSuccess('Organization wallet copied to clipboard.', 'Copied');
+                          }}
+                          title="Copy organization wallet address"
+                        >
+                          <span>{shortAddr(orgWallet)}</span>
+                          <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>content_copy</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
 
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
-                {getSecCert(approvalModal.org) && (
-                  <button
-                    type="button"
-                    className="btn btn-outline btn-sm"
-                    onClick={() => setViewingCertUrl(getSecCert(approvalModal.org))}
-                  >
-                    <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>description</span>
-                    <span>SEC Cert</span>
-                  </button>
-                )}
-
-                {(approvalModal.org.primaryIdUrl || approvalModal.org.Primary_Id_Url) && (
-                  <button
-                    type="button"
-                    className="btn btn-outline btn-sm"
-                    onClick={() => setViewingCertUrl(approvalModal.org.primaryIdUrl || approvalModal.org.Primary_Id_Url)}
-                  >
-                    <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>contact_page</span>
-                    <span>Primary ID ({approvalModal.org.primaryIdType || approvalModal.org.Primary_Id_Type || 'Gov ID'})</span>
-                  </button>
-                )}
-
-                {(approvalModal.org.secondaryIdUrl || approvalModal.org.Secondary_Id_Url) && (
-                  <button
-                    type="button"
-                    className="btn btn-outline btn-sm"
-                    onClick={() => setViewingCertUrl(approvalModal.org.secondaryIdUrl || approvalModal.org.Secondary_Id_Url)}
-                  >
-                    <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>badge</span>
-                    <span>Secondary ID ({approvalModal.org.secondaryIdType || approvalModal.org.Secondary_Id_Type || 'Gov ID'})</span>
-                  </button>
-                )}
-              </div>
-
-              <div style={{ display: 'flex', gap: '8px', marginLeft: 'auto' }}>
-                <button
-                  type="button"
-                  className="btn btn-ghost btn-sm"
-                  onClick={() => handleRejectOrg(approvalModal.org.Org_ID)}
-                  style={{ color: '#f43f5e' }}
-                >
-                  Reject Application
+                <button type="button" className="ngo-dossier-close" onClick={closeDossier} aria-label="Close dossier">
+                  <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>close</span>
                 </button>
+              </div>
 
-                <button
-                  type="button"
-                  className="btn btn-primary btn-sm"
-                  onClick={() => handleApproveOrg(approvalModal.org.Org_ID)}
-                >
-                  Accredit Organization
-                </button>
+              {/* 3-Column Telemetry Strip */}
+              <div className="ngo-dossier-strip">
+                <div className="ngo-dossier-strip-cell">
+                  <span className="ngo-dossier-strip-k">{isApproved ? 'Accreditation Record' : 'Rubric Progress'}</span>
+                  <span className="ngo-dossier-strip-v" style={{ color: isApproved ? '#10b981' : 'var(--text-primary)' }}>
+                    {isApproved
+                      ? (org.verifiedAt ? new Date(org.verifiedAt).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : 'Verified Active')
+                      : `${rubricCount} / 4 Checks Met`}
+                  </span>
+                </div>
+                <div className="ngo-dossier-strip-cell">
+                  <span className="ngo-dossier-strip-k">Relief Operations</span>
+                  <span className="ngo-dossier-strip-v">
+                    {orgCamps.length} {orgCamps.length === 1 ? 'Campaign' : 'Campaigns'}
+                  </span>
+                </div>
+                <div className="ngo-dossier-strip-cell">
+                  <span className="ngo-dossier-strip-k">Total Verified Raised</span>
+                  <span className="ngo-dossier-strip-v" style={{ color: '#10b981' }}>
+                    ₱{orgRaisedPhp.toLocaleString('en-US')} PHP
+                  </span>
+                </div>
+              </div>
+
+              {/* Scrollable Dossier Body */}
+              <div className="ngo-dossier-body">
+                {/* 1. Regulatory & Entity Profile */}
+                <div className="ngo-dossier-section">
+                  <div className="ngo-dossier-sec-head">
+                    <span className="ngo-dossier-sec-title">
+                      <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>account_balance</span>
+                      <span>Regulatory &amp; Entity Profile</span>
+                    </span>
+                    {org.verifiedBy && isApproved && (
+                      <span className="ngo-dossier-sec-badge">Audited by {org.verifiedBy}</span>
+                    )}
+                  </div>
+
+                  <div className="ngo-dossier-info-grid">
+                    <div className="ngo-dossier-info-cell">
+                      <span className="ngo-dossier-info-lbl">SEC Registration No.</span>
+                      <span className={`ngo-dossier-info-val is-mono ${secReg ? '' : 'is-muted'}`} style={secReg ? { color: '#0ea5e9' } : undefined}>
+                        {secReg || 'Not provided'}
+                      </span>
+                    </div>
+                    <div className="ngo-dossier-info-cell">
+                      <span className="ngo-dossier-info-lbl">BIR TIN (Tax ID)</span>
+                      <span className={`ngo-dossier-info-val is-mono ${(org.tinNumber || org.Tin_Number) ? '' : 'is-muted'}`}>
+                        {org.tinNumber || org.Tin_Number || 'Not provided'}
+                      </span>
+                    </div>
+                    <div className="ngo-dossier-info-cell">
+                      <span className="ngo-dossier-info-lbl">DSWD / LGU Solicitation Permit</span>
+                      <span className={`ngo-dossier-info-val is-mono ${(org.dswdAccreditationNo || org.Dswd_Accreditation_No) ? '' : 'is-muted'}`}>
+                        {org.dswdAccreditationNo || org.Dswd_Accreditation_No || 'Optional / Not filed'}
+                      </span>
+                    </div>
+                    <div className="ngo-dossier-info-cell">
+                      <span className="ngo-dossier-info-lbl">Authorized Signatory</span>
+                      <span className={`ngo-dossier-info-val ${(org.authorizedRepName || org.Authorized_Rep_Name) ? '' : 'is-muted'}`}>
+                        {org.authorizedRepName || org.Authorized_Rep_Name || 'Not designated'}
+                        {org.authorizedRepPosition ? ` · ${org.authorizedRepPosition}` : ''}
+                      </span>
+                    </div>
+                    <div className="ngo-dossier-info-cell is-full">
+                      <span className="ngo-dossier-info-lbl">Registered Headquarters</span>
+                      <span className={`ngo-dossier-info-val ${(org.registeredAddress || org.Registered_Address) ? '' : 'is-muted'}`}>
+                        {org.registeredAddress || org.Registered_Address || 'No headquarters address specified'}
+                      </span>
+                    </div>
+                    {boardList.length > 0 && (
+                      <div className="ngo-dossier-info-cell is-full">
+                        <span className="ngo-dossier-info-lbl">Board of Trustees &amp; Legal Officers ({boardList.length})</span>
+                        <div className="ngo-dossier-board-chips">
+                          {boardList.map((member, idx) => (
+                            <span key={idx} className="ngo-dossier-board-chip">
+                              <span className="material-symbols-outlined" style={{ fontSize: '13px', color: 'var(--text-muted)' }}>person</span>
+                              <span>
+                                {typeof member === 'string'
+                                  ? member
+                                  : [member.name || member.fullName, member.position || member.role].filter(Boolean).join(' · ')}
+                              </span>
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* 2. Submitted Legal & Identity Documents */}
+                <div className="ngo-dossier-section">
+                  <div className="ngo-dossier-sec-head">
+                    <span className="ngo-dossier-sec-title">
+                      <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>folder_open</span>
+                      <span>Submitted Legal &amp; Identity Documents</span>
+                    </span>
+                    <span className="ngo-dossier-sec-badge">
+                      {[secCert, primaryIdUrl, secondaryIdUrl].filter(Boolean).length} / 3 Files
+                    </span>
+                  </div>
+
+                  <div className="ngo-dossier-docs-grid">
+                    <button
+                      type="button"
+                      className="ngo-dossier-doc-card"
+                      disabled={!secCert}
+                      onClick={() => secCert && setViewingCertUrl(secCert)}
+                    >
+                      <div className="ngo-dossier-doc-ico">
+                        <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>description</span>
+                      </div>
+                      <div className="ngo-dossier-doc-meta">
+                        <span className="ngo-dossier-doc-name">SEC Certificate</span>
+                        <span className="ngo-dossier-doc-sub">{secCert ? 'Click to inspect ↗' : 'Not uploaded'}</span>
+                      </div>
+                    </button>
+
+                    <button
+                      type="button"
+                      className="ngo-dossier-doc-card"
+                      disabled={!primaryIdUrl}
+                      onClick={() => primaryIdUrl && setViewingCertUrl(primaryIdUrl)}
+                    >
+                      <div className="ngo-dossier-doc-ico">
+                        <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>contact_page</span>
+                      </div>
+                      <div className="ngo-dossier-doc-meta">
+                        <span className="ngo-dossier-doc-name">{primaryIdType}</span>
+                        <span className="ngo-dossier-doc-sub">
+                          {primaryIdUrl ? (primaryIdNo ? `#${primaryIdNo} · Inspect ↗` : 'Click to inspect ↗') : 'Not uploaded'}
+                        </span>
+                      </div>
+                    </button>
+
+                    <button
+                      type="button"
+                      className="ngo-dossier-doc-card"
+                      disabled={!secondaryIdUrl}
+                      onClick={() => secondaryIdUrl && setViewingCertUrl(secondaryIdUrl)}
+                    >
+                      <div className="ngo-dossier-doc-ico">
+                        <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>badge</span>
+                      </div>
+                      <div className="ngo-dossier-doc-meta">
+                        <span className="ngo-dossier-doc-name">{secondaryIdType}</span>
+                        <span className="ngo-dossier-doc-sub">
+                          {secondaryIdUrl ? (secondaryIdNo ? `#${secondaryIdNo} · Inspect ↗` : 'Click to inspect ↗') : 'Optional · None'}
+                        </span>
+                      </div>
+                    </button>
+                  </div>
+                </div>
+
+                {/* 3. 4-Point Regulatory Accreditation Rubric */}
+                <div className="ngo-dossier-section">
+                  <div className="ngo-dossier-sec-head">
+                    <span className="ngo-dossier-sec-title">
+                      <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>checklist</span>
+                      <span>4-Point Regulatory Compliance Rubric</span>
+                    </span>
+                    <span className="ngo-dossier-sec-badge" style={rubricCount === 4 ? { color: '#10b981', borderColor: 'rgba(16, 185, 129, 0.35)' } : undefined}>
+                      {rubricCount} / 4 Verified
+                    </span>
+                  </div>
+
+                  <div className="ngo-dossier-rubric-grid">
+                    <label className={`ngo-dossier-rubric-item ${auditRubric.secVerified ? 'is-checked' : ''}`}>
+                      <input
+                        type="checkbox"
+                        checked={auditRubric.secVerified}
+                        onChange={(e) => setAuditRubric({ ...auditRubric, secVerified: e.target.checked })}
+                      />
+                      <div>
+                        <div className="ngo-dossier-rubric-title">SEC Non-Stock Registration</div>
+                        <div className="ngo-dossier-rubric-sub">Verified against SEC registry ({secReg || 'Pending'})</div>
+                      </div>
+                    </label>
+
+                    <label className={`ngo-dossier-rubric-item ${auditRubric.boardIdentified ? 'is-checked' : ''}`}>
+                      <input
+                        type="checkbox"
+                        checked={auditRubric.boardIdentified}
+                        onChange={(e) => setAuditRubric({ ...auditRubric, boardIdentified: e.target.checked })}
+                      />
+                      <div>
+                        <div className="ngo-dossier-rubric-title">Board &amp; Legal Signatories</div>
+                        <div className="ngo-dossier-rubric-sub">Trustees and authorized representative documented</div>
+                      </div>
+                    </label>
+
+                    <label className={`ngo-dossier-rubric-item ${auditRubric.dswdPermitVerified ? 'is-checked' : ''}`}>
+                      <input
+                        type="checkbox"
+                        checked={auditRubric.dswdPermitVerified}
+                        onChange={(e) => setAuditRubric({ ...auditRubric, dswdPermitVerified: e.target.checked })}
+                      />
+                      <div>
+                        <div className="ngo-dossier-rubric-title">DSWD / LGU Solicitation Permit</div>
+                        <div className="ngo-dossier-rubric-sub">National or regional public solicitation standing</div>
+                      </div>
+                    </label>
+
+                    <label className={`ngo-dossier-rubric-item ${auditRubric.bankVerified ? 'is-checked' : ''}`}>
+                      <input
+                        type="checkbox"
+                        checked={auditRubric.bankVerified}
+                        onChange={(e) => setAuditRubric({ ...auditRubric, bankVerified: e.target.checked })}
+                      />
+                      <div>
+                        <div className="ngo-dossier-rubric-title">Operating Disbursement Account</div>
+                        <div className="ngo-dossier-rubric-sub">Official Bank, GCash, or Maya receiving rail confirmed</div>
+                      </div>
+                    </label>
+                  </div>
+                </div>
+
+                {/* 4. Regulatory Compliance Notes */}
+                <div className="ngo-dossier-section">
+                  <div className="ngo-dossier-sec-head">
+                    <span className="ngo-dossier-sec-title">
+                      <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>edit_note</span>
+                      <span>Regulatory Compliance Statement / Audit Notes</span>
+                    </span>
+                  </div>
+                  <textarea
+                    rows="3"
+                    className="ngo-dossier-notes"
+                    value={auditNotes}
+                    onChange={(e) => setAuditNotes(e.target.value)}
+                    placeholder="Record compliance findings, SEC verification remarks, or reason for rejection..."
+                  />
+                </div>
+              </div>
+
+              {/* Sticky Context-Aware Footer */}
+              <div className="ngo-dossier-footer">
+                <div className="ngo-dossier-footer-group">
+                  <button
+                    type="button"
+                    className="ngo-dossier-btn ngo-dossier-btn--danger"
+                    onClick={() => handleRejectOrg(org.Org_ID)}
+                    disabled={orgLoading}
+                  >
+                    <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>block</span>
+                    <span>{isApproved ? 'Revoke Accreditation' : 'Reject Application'}</span>
+                  </button>
+                </div>
+
+                <div className="ngo-dossier-footer-group">
+                  <button type="button" className="ngo-dossier-btn" onClick={closeDossier}>
+                    <span>Close</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="ngo-dossier-btn ngo-dossier-btn--primary"
+                    onClick={() => handleApproveOrg(org.Org_ID)}
+                    disabled={orgLoading}
+                  >
+                    <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>
+                      {isApproved ? 'save' : 'verified_user'}
+                    </span>
+                    <span>{isApproved ? 'Save Audit Record' : 'Accredit Organization'}</span>
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })(), document.body)}
 
       {/* ── MODAL 4: SEC CERTIFICATE DOCUMENT VIEWER ────────── */}
       {viewingCertUrl && (
