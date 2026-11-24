@@ -1373,9 +1373,9 @@ export default function LandingView({
         <div className="container">
           <div className="bbdrts-section-header-centered">
             <div className="bbdrts-section-eyebrow">WHY IT MATTERS</div>
-            <h2 className="bbdrts-section-title">Verified Proof vs. Regular Donations</h2>
+            <h2 className="bbdrts-section-title">Verified Proof vs. Traditional Donations</h2>
             <p className="bbdrts-section-desc">
-              Whether helping disaster victims or local charities across the Philippines, regular donations often leave donors guessing. BBDRTS checks NGOs, donation receipts, and spending proof in one open system.
+              Whether helping disaster victims or local charities across the Philippines, traditional donations often leave donors guessing. BBDRTS checks NGOs, donation receipts, and spending proof in one open system.
             </p>
           </div>
 
@@ -1385,7 +1385,7 @@ export default function LandingView({
               <div className="bbdrts-comparison-header">
                 <div className="bbdrts-comparison-tag danger">
                   <span className="material-symbols-outlined">cancel</span>
-                  <span>Regular Donations</span>
+                  <span>Traditional Donations</span>
                 </div>
                 <h3 className="bbdrts-comparison-title">Hidden accounts with no proof of delivery</h3>
               </div>
@@ -1776,7 +1776,7 @@ export default function LandingView({
 
           <div className="bbdrts-lifecycle-header">
             <div className="bbdrts-section-eyebrow">HOW IT WORKS</div>
-            <h2 className="bbdrts-section-title">How Every Donation Goes from Giving to Proof</h2>
+            <h2 className="bbdrts-section-title">From Donation to Verified Distribution</h2>
             <p className="bbdrts-section-desc">
               From the moment you give until help reaches people, every step is checked and saved publicly.
             </p>
@@ -1836,7 +1836,7 @@ export default function LandingView({
         <div className="container">
           <div className="bbdrts-section-header-centered">
             <div className="bbdrts-section-eyebrow">PAYMENT METHODS &amp; ON-CHAIN AUDIT</div>
-            <h2 className="bbdrts-section-title">Pay Using Everyday Filipino Apps</h2>
+            <h2 className="bbdrts-section-title">Donate Using Everyday Filipino Apps</h2>
             <p className="bbdrts-section-desc">
               Donate in Philippine Pesos using the apps and banks Filipinos use every day—while our gasless relayer anchors every verified record on Ethereum Sepolia.
             </p>
@@ -2146,7 +2146,7 @@ export default function LandingView({
             <span className="bbdrts-pulse-beacon" />
             <span>SAINT JOSEPH COLLEGE · COLLEGE OF COMPUTER STUDIES</span>
           </div>
-          <h2 className="bbdrts-cta-title">Help Make Giving Clear Across the Philippines</h2>
+          <h2 className="bbdrts-cta-title">Bringing Transparent Relief Giving Across the Philippines</h2>
           <p className="bbdrts-cta-desc">
             Support disaster relief and local charity campaigns, check the live map, or sign in to manage your account.
           </p>
