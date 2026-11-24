@@ -7,7 +7,7 @@ import { regions as fetchRegions, provinces as fetchProvinces, cities as fetchCi
 import { autoCropQrScreenshot, extractQrVoucherText } from '../utils/qrCropper';
 import { formatPhoneNumber } from '../utils/formatters';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+import { API_URL } from '../config';
 
 const PROHIBITED_WORDS = [
   'sex', 'sexy', 'porn', 'porno', 'nude', 'naked', 'penis', 'cock', 'vagina', 'pussy', 'dick', 'boobs', 'tits', 'anal',

@@ -13,7 +13,8 @@ import { autoCropQrScreenshot, extractQrVoucherText } from '../utils/qrCropper';
 import OtpPinBoxes from './OtpPinBoxes';
 import { getWorkspaceStrings } from '../data/workspaceTranslations';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+import { API_URL } from '../config';
+import { notifyLocalMutation } from '../utils/realtimeSync';
 
 export default function SettingsPanel({
   pageTitle,
@@ -1059,6 +1060,7 @@ export default function SettingsPanel({
       if (res.ok) {
         showSuccess(`"${qr.custom_name}" is now the active default ${qr.payment_method} payout channel!`, 'Default Assigned');
         fetchSavedQrCodes();
+        notifyLocalMutation(['campaigns', 'organizations']);
         if (typeof onProfileUpdated === 'function') {
           onProfileUpdated();
         }
@@ -1092,29 +1094,47 @@ export default function SettingsPanel({
     }
   };
 
-  const handleMassApplyQrDefaults = async () => {
+  const handleMassApplyQrDefaults = async (mode = 'replace_all', specificQr = null) => {
+    if (mode === 'replace_all') {
+      const label = specificQr
+        ? `Replace the ${specificQr.payment_method} QR code on ALL of your campaigns with "${specificQr.custom_name}"?`
+        : 'Replace the QR codes on ALL of your existing campaigns with your active default QR codes?';
+      if (!window.confirm(label)) return;
+    }
     try {
       setIsApplyingQrToCamps(true);
       const token = localStorage.getItem('bbdrts_token') || localStorage.getItem('token');
       const targetOrgId = (currentUser?.role === 'organization' || currentUser?.role === ROLES.ORGANIZATION)
         ? (currentUser?.id || 8)
         : 8;
+      const payload = {
+        org_id: targetOrgId,
+        mode,
+        ...(specificQr ? { qr_id: specificQr.id, payment_method: specificQr.payment_method } : {})
+      };
       const res = await fetch(`${API_URL}/api/organization/qr-codes/apply-to-campaigns`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           ...(token ? { Authorization: `Bearer ${token}` } : {})
         },
-        body: JSON.stringify({ org_id: targetOrgId, mode: 'missing_only' })
+        body: JSON.stringify(payload)
       });
       const data = await res.json();
       if (res.ok) {
-        showSuccess(data.message || 'Default QR codes applied to all campaigns with missing channels!', 'Mass Apply Complete');
+        showSuccess(
+          data.message || (mode === 'replace_all' ? 'Replaced QR codes across all campaigns!' : 'Applied defaults to campaigns with missing QR codes!'),
+          mode === 'replace_all' ? 'Mass Replace Complete' : 'Mass Apply Complete'
+        );
+        notifyLocalMutation(['campaigns', 'organizations']);
+        if (typeof onProfileUpdated === 'function') {
+          onProfileUpdated();
+        }
       } else {
-        showError(data.error || 'Failed to mass-apply QR codes.', 'Error');
+        showError(data.error || 'Failed to update campaign QR codes.', 'Error');
       }
     } catch (err) {
-      showError(err.message, 'Mass Apply Failed');
+      showError(err.message, 'Mass Replace Failed');
     } finally {
       setIsApplyingQrToCamps(false);
     }
@@ -1836,11 +1856,22 @@ export default function SettingsPanel({
                 <button
                   type="button"
                   className="vs-subtle-btn"
-                  onClick={handleMassApplyQrDefaults}
+                  onClick={() => handleMassApplyQrDefaults('missing_only')}
                   disabled={isApplyingQrToCamps || savedQrList.length === 0}
-                  title="Applies active default QR codes to campaigns without a payout channel"
+                  title="Fills only campaigns that do not have a QR code yet"
                 >
-                  <span>{isApplyingQrToCamps ? 'Applying...' : 'Mass-Apply Defaults'}</span>
+                  <span>{isApplyingQrToCamps ? 'Applying...' : 'Fill Missing'}</span>
+                </button>
+                <button
+                  type="button"
+                  className="vs-subtle-btn"
+                  onClick={() => handleMassApplyQrDefaults('replace_all')}
+                  disabled={isApplyingQrToCamps || savedQrList.length === 0}
+                  title="Overwrites QR codes across ALL of your existing campaigns with your active defaults"
+                  style={{ borderColor: 'rgba(16, 185, 129, 0.45)', color: '#10b981' }}
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>sync</span>
+                  <span>{isApplyingQrToCamps ? 'Replacing...' : 'Replace All Campaigns'}</span>
                 </button>
                 <button
                   type="button"
@@ -1974,7 +2005,7 @@ export default function SettingsPanel({
                         </div>
                       </div>
 
-                      <div className="vs-qr-card-foot">
+                      <div className="vs-qr-card-foot" style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                         {isDefault ? (
                           <span className="vs-inline-status" style={{ fontSize: '0.74rem', fontWeight: 600, color: '#10b981' }}>
                             <span className="vs-live-dot" />
@@ -1990,6 +2021,17 @@ export default function SettingsPanel({
                             <span>Set as Active Default</span>
                           </button>
                         )}
+                        <button
+                          type="button"
+                          className="vs-subtle-btn"
+                          style={{ width: '100%', justifyContent: 'center', fontSize: '0.72rem' }}
+                          disabled={isApplyingQrToCamps}
+                          onClick={() => handleMassApplyQrDefaults('replace_all', qr)}
+                          title={`Replace ${qr.payment_method} QR across ALL of your campaigns with this QR`}
+                        >
+                          <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>published_with_changes</span>
+                          <span>Replace on All Campaigns</span>
+                        </button>
                       </div>
                     </div>
                   );

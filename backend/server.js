@@ -3514,6 +3514,10 @@ app.post('/api/auth/profile', authenticateToken, async (req, res) => {
       } catch (qrSyncErr) {
         console.warn('QR sync to library error:', qrSyncErr);
       }
+      try {
+        invalidateCampaignsCache();
+        realtimeBus.publish(['campaigns', 'organizations'], { orgId: id, reason: 'profile_qr_updated' });
+      } catch (_) {}
     } else if (role === 'admin') {
       await db.query(
         `UPDATE ADMINISTRATOR SET 
@@ -3955,6 +3959,11 @@ app.put('/api/organization/qr-codes/:id', authenticateToken, async (req, res) =>
       }
     }
 
+    invalidateOrgProfileCache(orgId);
+    invalidateCampaignsCache();
+    await loadCampaignsFromDb().catch(() => {});
+    try { realtimeBus.publish(['campaigns', 'organizations'], { orgId, qrId, reason: 'qr_default_updated' }); } catch (_) {}
+
     res.json({ success: true, message: 'QR Code updated successfully.' });
   } catch (err) {
     console.error('Failed to update QR code:', err);
@@ -3977,12 +3986,13 @@ app.delete('/api/organization/qr-codes/:id', authenticateToken, async (req, res)
   }
 });
 
-// Mass Apply QR codes to existing campaigns (All campaigns OR Missing QR codes only)
+// Mass Apply QR codes to existing campaigns (replace_all OR missing_only)
 app.post('/api/organization/qr-codes/apply-to-campaigns', authenticateToken, async (req, res) => {
   const orgId = (req.body.org_id || req.query.org_id)
     ? parseInt(req.body.org_id || req.query.org_id, 10)
     : (req.user.role === 'organization' ? req.user.id : (req.user.role === 'admin' ? 8 : 8));
-  const { mode = 'missing_only', payment_method, qr_id } = req.body;
+  const { mode = 'replace_all', payment_method, qr_id } = req.body;
+  const isMissingOnly = mode === 'missing_only';
 
   try {
     let qrsToApply = [];
@@ -3990,75 +4000,116 @@ app.post('/api/organization/qr-codes/apply-to-campaigns', authenticateToken, asy
       const [rows] = await db.query(`SELECT * FROM ORGANIZATION_QR_CODE WHERE Qr_ID = ? AND Org_ID = ?`, [qr_id, orgId]);
       if (rows && rows.length > 0) qrsToApply = rows;
     } else {
-      // Find default QR for each payment method
-      const [defaults] = await db.query(
-        `SELECT * FROM ORGANIZATION_QR_CODE WHERE Org_ID = ? AND Is_Default = 1`,
+      // Prefer active defaults; if a channel has saved QRs without an explicit default flag, fall back to the newest QR per channel
+      const [allQrs] = await db.query(
+        `SELECT * FROM ORGANIZATION_QR_CODE WHERE Org_ID = ? ORDER BY Is_Default DESC, Qr_ID DESC`,
         [orgId]
       );
-      qrsToApply = defaults || [];
+      const byMethod = new Map();
+      for (const q of (allQrs || [])) {
+        if (!byMethod.has(q.Payment_Method)) byMethod.set(q.Payment_Method, q);
+      }
+      qrsToApply = Array.from(byMethod.values());
     }
 
     if (qrsToApply.length === 0) {
-      return res.status(400).json({ error: 'No default or selected QR code found to apply. Please designate a default QR code first.' });
+      return res.status(400).json({ error: 'No saved QR codes found in your library. Upload a QR code first.' });
     }
 
-    let updatedCount = 0;
+    const [campCountRows] = await db.query(`SELECT COUNT(*) AS cnt FROM CAMPAIGN WHERE Org_ID = ?`, [orgId]);
+    const totalCampaigns = Number(campCountRows?.[0]?.cnt || 0);
+
+    let updatedOps = 0;
+    const appliedMethods = [];
 
     for (const qr of qrsToApply) {
       const method = qr.Payment_Method;
       if (payment_method && payment_method !== 'All' && payment_method !== method) continue;
+      if (!qr.Qr_Image_Url) continue;
+
+      const acctName = (qr.Account_Name || '').trim() || null;
+      const acctNum = (qr.Account_Number || '').trim() || null;
 
       if (method === 'GCash') {
-        const sql = mode === 'missing_only'
+        const sql = isMissingOnly
           ? `UPDATE CAMPAIGN SET
               Gcash_Qr_Url = ?,
               Gcash_Name = CASE WHEN (Gcash_Name IS NULL OR Gcash_Name = '') THEN ? ELSE Gcash_Name END,
               Gcash_Number = CASE WHEN (Gcash_Number IS NULL OR Gcash_Number = '') THEN ? ELSE Gcash_Number END
-             WHERE Org_ID = ? AND (Gcash_Qr_Url IS NULL OR Gcash_Qr_Url = '')`
+             WHERE Org_ID = ? AND (Gcash_Qr_Url IS NULL OR Gcash_Qr_Url = '' OR Gcash_Qr_Url LIKE '%/api/campaigns/%/qr/%')`
           : `UPDATE CAMPAIGN SET
               Gcash_Qr_Url = ?,
               Gcash_Name = COALESCE(?, Gcash_Name),
               Gcash_Number = COALESCE(?, Gcash_Number)
              WHERE Org_ID = ?`;
-        const [r] = await db.query(sql, [qr.Qr_Image_Url, qr.Account_Name || null, qr.Account_Number || null, orgId]);
-        updatedCount += (r?.affectedRows || r?.changes || 0);
+        const [r] = await db.query(sql, [qr.Qr_Image_Url, acctName, acctNum, orgId]);
+        updatedOps += (r?.affectedRows || r?.changes || 0);
+        // Also sync org default so fallback stays in lockstep
+        await db.query(
+          `UPDATE ORGANIZATION SET Gcash_Qr_Url = ?, Gcash_Name = COALESCE(?, Gcash_Name), Gcash_Number = COALESCE(?, Gcash_Number) WHERE Org_ID = ?`,
+          [qr.Qr_Image_Url, acctName, acctNum, orgId]
+        );
+        appliedMethods.push('GCash');
       } else if (method === 'Maya') {
-        const sql = mode === 'missing_only'
+        const sql = isMissingOnly
           ? `UPDATE CAMPAIGN SET
               Maya_Qr_Url = ?,
               Maya_Name = CASE WHEN (Maya_Name IS NULL OR Maya_Name = '') THEN ? ELSE Maya_Name END,
               Maya_Number = CASE WHEN (Maya_Number IS NULL OR Maya_Number = '') THEN ? ELSE Maya_Number END
-             WHERE Org_ID = ? AND (Maya_Qr_Url IS NULL OR Maya_Qr_Url = '')`
+             WHERE Org_ID = ? AND (Maya_Qr_Url IS NULL OR Maya_Qr_Url = '' OR Maya_Qr_Url LIKE '%/api/campaigns/%/qr/%')`
           : `UPDATE CAMPAIGN SET
               Maya_Qr_Url = ?,
               Maya_Name = COALESCE(?, Maya_Name),
               Maya_Number = COALESCE(?, Maya_Number)
              WHERE Org_ID = ?`;
-        const [r] = await db.query(sql, [qr.Qr_Image_Url, qr.Account_Name || null, qr.Account_Number || null, orgId]);
-        updatedCount += (r?.affectedRows || r?.changes || 0);
+        const [r] = await db.query(sql, [qr.Qr_Image_Url, acctName, acctNum, orgId]);
+        updatedOps += (r?.affectedRows || r?.changes || 0);
+        await db.query(
+          `UPDATE ORGANIZATION SET Maya_Qr_Url = ?, Maya_Name = COALESCE(?, Maya_Name), Maya_Number = COALESCE(?, Maya_Number) WHERE Org_ID = ?`,
+          [qr.Qr_Image_Url, acctName, acctNum, orgId]
+        );
+        appliedMethods.push('Maya');
       } else if (method === 'Bank') {
-        const sql = mode === 'missing_only'
+        const sql = isMissingOnly
           ? `UPDATE CAMPAIGN SET
               Bank_Qr_Url = ?,
               Bank_Account_Name = CASE WHEN (Bank_Account_Name IS NULL OR Bank_Account_Name = '') THEN ? ELSE Bank_Account_Name END,
               Bank_Account_Number = CASE WHEN (Bank_Account_Number IS NULL OR Bank_Account_Number = '') THEN ? ELSE Bank_Account_Number END
-             WHERE Org_ID = ? AND (Bank_Qr_Url IS NULL OR Bank_Qr_Url = '')`
+             WHERE Org_ID = ? AND (Bank_Qr_Url IS NULL OR Bank_Qr_Url = '' OR Bank_Qr_Url LIKE '%/api/campaigns/%/qr/%')`
           : `UPDATE CAMPAIGN SET
               Bank_Qr_Url = ?,
               Bank_Account_Name = COALESCE(?, Bank_Account_Name),
               Bank_Account_Number = COALESCE(?, Bank_Account_Number)
              WHERE Org_ID = ?`;
-        const [r] = await db.query(sql, [qr.Qr_Image_Url, qr.Account_Name || null, qr.Account_Number || null, orgId]);
-        updatedCount += (r?.affectedRows || r?.changes || 0);
+        const [r] = await db.query(sql, [qr.Qr_Image_Url, acctName, acctNum, orgId]);
+        updatedOps += (r?.affectedRows || r?.changes || 0);
+        await db.query(
+          `UPDATE ORGANIZATION SET Bank_Qr_Url = ?, Bank_Account_Name = COALESCE(?, Bank_Account_Name), Bank_Account_Number = COALESCE(?, Bank_Account_Number) WHERE Org_ID = ?`,
+          [qr.Qr_Image_Url, acctName, acctNum, orgId]
+        );
+        appliedMethods.push('Bank');
       }
     }
 
+    // Critical: Clear both RAM campaign cache AND binary QR media cache, then reload immediately
+    invalidateOrgProfileCache(orgId);
+    invalidateCampaignsCache();
+    await loadCampaignsFromDb().catch(() => {});
+    try {
+      realtimeBus.publish(['campaigns', 'organizations'], { orgId, mode, appliedMethods });
+    } catch (_) {}
+
+    const methodsLabel = appliedMethods.join(', ') || 'QR';
     res.json({
       success: true,
-      updatedCount,
-      message: mode === 'missing_only'
-        ? `Successfully applied default QR codes to ${updatedCount} campaign(s) that were missing QR codes.`
-        : `Successfully updated all ${updatedCount} campaign(s) with designated default QR codes.`
+      updatedCount: isMissingOnly ? updatedOps : totalCampaigns,
+      totalCampaigns,
+      appliedMethods,
+      message: isMissingOnly
+        ? (updatedOps > 0
+            ? `Filled missing ${methodsLabel} QR channel(s) across ${updatedOps} campaign slot(s).`
+            : `All ${totalCampaigns} campaign(s) already had ${methodsLabel} QR codes. Use "Replace All Campaigns" to overwrite existing QRs.`)
+        : `Replaced ${methodsLabel} QR code(s) across all ${totalCampaigns} campaign(s)!`
     });
   } catch (err) {
     console.error('Failed to apply QR codes to campaigns:', err);
@@ -4652,6 +4703,45 @@ app.put('/api/campaigns/:id', authenticateToken, async (req, res) => {
       ? (typeof rawUpdateImages === 'string' ? rawUpdateImages : JSON.stringify(Array.isArray(rawUpdateImages) ? rawUpdateImages : []))
       : null;
 
+    // Protect against overwriting stored base64 QR images with self-referential /api/campaigns/:id/qr/:rail proxy URLs,
+    // while still supporting explicit removal (empty string -> NULL) and direct replacement (new data:image or URL).
+    const resolveQrUpdate = (val) => {
+      if (val === undefined) return { action: 'keep', value: null };
+      if (val === null || (typeof val === 'string' && val.trim() === '')) return { action: 'clear', value: null };
+      if (typeof val === 'string' && /\/api\/campaigns\/\d+\/qr\//i.test(val)) return { action: 'keep', value: null };
+      return { action: 'set', value: val };
+    };
+    const gQr = resolveQrUpdate(gcash_qr_url);
+    const mQr = resolveQrUpdate(maya_qr_url);
+    const bQr = resolveQrUpdate(bank_qr_url);
+
+    const qrSqlExpr = (resObj, colName) =>
+      resObj.action === 'clear' ? 'NULL' : (resObj.action === 'set' ? '?' : colName);
+
+    const updateParams = [
+      description !== undefined ? description : null,
+      location_region !== undefined ? location_region : null,
+      gps_coordinates !== undefined ? gps_coordinates : null,
+      beneficiaries_impact !== undefined ? beneficiaries_impact : null,
+      contact_info !== undefined ? contact_info : null,
+      urgency !== undefined ? urgency : null,
+      target_date !== undefined ? target_date : null,
+      document_url !== undefined ? document_url : null,
+      tags !== undefined ? tags : null,
+      gcash_name !== undefined ? gcash_name : null,
+      gcash_number !== undefined ? gcash_number : null,
+      ...(gQr.action === 'set' ? [gQr.value] : []),
+      maya_name !== undefined ? maya_name : null,
+      maya_number !== undefined ? maya_number : null,
+      ...(mQr.action === 'set' ? [mQr.value] : []),
+      bank_name !== undefined ? bank_name : null,
+      bank_account_name !== undefined ? bank_account_name : null,
+      bank_account_number !== undefined ? bank_account_number : null,
+      ...(bQr.action === 'set' ? [bQr.value] : []),
+      serializedUpdateImages,
+      campaignId
+    ];
+
     await db.query(
       `UPDATE CAMPAIGN SET
         Description = COALESCE(?, Description),
@@ -4665,39 +4755,17 @@ app.put('/api/campaigns/:id', authenticateToken, async (req, res) => {
         Tags = COALESCE(?, Tags),
         Gcash_Name = COALESCE(?, Gcash_Name),
         Gcash_Number = COALESCE(?, Gcash_Number),
-        Gcash_Qr_Url = COALESCE(?, Gcash_Qr_Url),
+        Gcash_Qr_Url = ${qrSqlExpr(gQr, 'Gcash_Qr_Url')},
         Maya_Name = COALESCE(?, Maya_Name),
         Maya_Number = COALESCE(?, Maya_Number),
-        Maya_Qr_Url = COALESCE(?, Maya_Qr_Url),
+        Maya_Qr_Url = ${qrSqlExpr(mQr, 'Maya_Qr_Url')},
         Bank_Name = COALESCE(?, Bank_Name),
         Bank_Account_Name = COALESCE(?, Bank_Account_Name),
         Bank_Account_Number = COALESCE(?, Bank_Account_Number),
-        Bank_Qr_Url = COALESCE(?, Bank_Qr_Url),
+        Bank_Qr_Url = ${qrSqlExpr(bQr, 'Bank_Qr_Url')},
         Disaster_Images_Json = COALESCE(?, Disaster_Images_Json)
       WHERE Campaign_ID = ?`,
-      [
-        description !== undefined ? description : null,
-        location_region !== undefined ? location_region : null,
-        gps_coordinates !== undefined ? gps_coordinates : null,
-        beneficiaries_impact !== undefined ? beneficiaries_impact : null,
-        contact_info !== undefined ? contact_info : null,
-        urgency !== undefined ? urgency : null,
-        target_date !== undefined ? target_date : null,
-        document_url !== undefined ? document_url : null,
-        tags !== undefined ? tags : null,
-        gcash_name !== undefined ? gcash_name : null,
-        gcash_number !== undefined ? gcash_number : null,
-        gcash_qr_url !== undefined ? gcash_qr_url : null,
-        maya_name !== undefined ? maya_name : null,
-        maya_number !== undefined ? maya_number : null,
-        maya_qr_url !== undefined ? maya_qr_url : null,
-        bank_name !== undefined ? bank_name : null,
-        bank_account_name !== undefined ? bank_account_name : null,
-        bank_account_number !== undefined ? bank_account_number : null,
-        bank_qr_url !== undefined ? bank_qr_url : null,
-        serializedUpdateImages,
-        campaignId
-      ]
+      updateParams
     );
 
     // Server-side audit logging
@@ -4714,7 +4782,8 @@ app.put('/api/campaigns/:id', authenticateToken, async (req, res) => {
     }).catch(() => {});
 
     invalidateCampaignsCache();
-    loadCampaignsFromDb().catch(() => {});
+    await loadCampaignsFromDb().catch(() => {});
+    try { realtimeBus.publish(['campaigns'], { campaignId, reason: 'campaign_updated' }); } catch (_) {}
 
     res.json({ message: 'Campaign operational logistics updated successfully.' });
   } catch (err) {
@@ -6263,9 +6332,25 @@ let cachedCampaignsData = null;
 let cachedCampaignsTimestamp = 0;
 const CAMPAIGNS_CACHE_TTL = 300000; // 5 minutes fast RAM cache
 
+function shortMediaHash(str) {
+  if (!str || typeof str !== 'string') return '0';
+  let h = 2166136261;
+  const len = str.length;
+  const step = Math.max(1, Math.floor(len / 512));
+  for (let i = 0; i < len; i += step) {
+    h ^= str.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  h ^= len;
+  return (h >>> 0).toString(36);
+}
+
 function invalidateCampaignsCache() {
   cachedCampaignsData = null;
   cachedCampaignsTimestamp = 0;
+  if (typeof campaignMediaCache !== 'undefined' && campaignMediaCache) {
+    campaignMediaCache.clear();
+  }
 }
 
 let cachedPublicStats = null;
@@ -6299,16 +6384,16 @@ async function loadCampaignsFromDb() {
         c.Target_Date as targetDate,
         c.Created_At as createdAt,
         c.Document_Url as documentUrl,
-        COALESCE(c.Gcash_Name, o.Gcash_Name) as gcashName,
-        COALESCE(c.Gcash_Number, o.Gcash_Number) as gcashNumber,
-        COALESCE(c.Gcash_Qr_Url, o.Gcash_Qr_Url) as gcashQrUrl,
-        COALESCE(c.Maya_Name, o.Maya_Name) as mayaName,
-        COALESCE(c.Maya_Number, o.Maya_Number) as mayaNumber,
-        COALESCE(c.Maya_Qr_Url, o.Maya_Qr_Url) as mayaQrUrl,
-        COALESCE(c.Bank_Name, o.Bank_Name) as bankName,
-        COALESCE(c.Bank_Account_Name, o.Bank_Account_Name) as bankAccountName,
-        COALESCE(c.Bank_Account_Number, o.Bank_Account_Number) as bankAccountNumber,
-        COALESCE(c.Bank_Qr_Url, o.Bank_Qr_Url) as bankQrUrl,
+        COALESCE(NULLIF(c.Gcash_Name, ''), o.Gcash_Name) as gcashName,
+        COALESCE(NULLIF(c.Gcash_Number, ''), o.Gcash_Number) as gcashNumber,
+        CASE WHEN c.Gcash_Qr_Url IS NULL OR c.Gcash_Qr_Url = '' OR c.Gcash_Qr_Url LIKE '%/api/campaigns/%/qr/%' THEN o.Gcash_Qr_Url ELSE c.Gcash_Qr_Url END as gcashQrUrl,
+        COALESCE(NULLIF(c.Maya_Name, ''), o.Maya_Name) as mayaName,
+        COALESCE(NULLIF(c.Maya_Number, ''), o.Maya_Number) as mayaNumber,
+        CASE WHEN c.Maya_Qr_Url IS NULL OR c.Maya_Qr_Url = '' OR c.Maya_Qr_Url LIKE '%/api/campaigns/%/qr/%' THEN o.Maya_Qr_Url ELSE c.Maya_Qr_Url END as mayaQrUrl,
+        COALESCE(NULLIF(c.Bank_Name, ''), o.Bank_Name) as bankName,
+        COALESCE(NULLIF(c.Bank_Account_Name, ''), o.Bank_Account_Name) as bankAccountName,
+        COALESCE(NULLIF(c.Bank_Account_Number, ''), o.Bank_Account_Number) as bankAccountNumber,
+        CASE WHEN c.Bank_Qr_Url IS NULL OR c.Bank_Qr_Url = '' OR c.Bank_Qr_Url LIKE '%/api/campaigns/%/qr/%' THEN o.Bank_Qr_Url ELSE c.Bank_Qr_Url END as bankQrUrl,
         c.Disaster_Images_Json as disasterImagesJson,
         o.Org_Name as orgName,
         o.Wallet_Address as orgAddress,
@@ -6395,7 +6480,7 @@ async function loadCampaignsFromDb() {
             parsedDisasterImages = parsed.map((img, idx) => {
               if (typeof img === 'string' && img.startsWith('data:image/') && img.length > 512) {
                 campaignMediaCache.set(`img_${r.id}_${idx}`, img);
-                return `/api/campaigns/${r.id}/image/${idx}`;
+                return `/api/campaigns/${r.id}/image/${idx}?v=${shortMediaHash(img)}`;
               }
               return img;
             });
@@ -6406,7 +6491,7 @@ async function loadCampaignsFromDb() {
       const toLightQr = (rawQr, rail) => {
         if (typeof rawQr === 'string' && rawQr.startsWith('data:image/') && rawQr.length > 512) {
           campaignMediaCache.set(`qr_${r.id}_${rail}`, rawQr);
-          return `/api/campaigns/${r.id}/qr/${rail}`;
+          return `/api/campaigns/${r.id}/qr/${rail}?v=${shortMediaHash(rawQr)}`;
         }
         return rawQr || '';
       };
@@ -6544,21 +6629,26 @@ app.get('/api/campaigns/:id/qr/:rail', async (req, res) => {
     const id = Number(req.params.id);
     const rail = String(req.params.rail || '').toLowerCase();
     const colMap = {
-      gcash: 'COALESCE(c.Gcash_Qr_Url, o.Gcash_Qr_Url)',
-      maya: 'COALESCE(c.Maya_Qr_Url, o.Maya_Qr_Url)',
-      bank: 'COALESCE(c.Bank_Qr_Url, o.Bank_Qr_Url)'
+      gcash: "CASE WHEN c.Gcash_Qr_Url IS NULL OR c.Gcash_Qr_Url = '' OR c.Gcash_Qr_Url LIKE '%/api/campaigns/%/qr/%' THEN o.Gcash_Qr_Url ELSE c.Gcash_Qr_Url END",
+      maya: "CASE WHEN c.Maya_Qr_Url IS NULL OR c.Maya_Qr_Url = '' OR c.Maya_Qr_Url LIKE '%/api/campaigns/%/qr/%' THEN o.Maya_Qr_Url ELSE c.Maya_Qr_Url END",
+      bank: "CASE WHEN c.Bank_Qr_Url IS NULL OR c.Bank_Qr_Url = '' OR c.Bank_Qr_Url LIKE '%/api/campaigns/%/qr/%' THEN o.Bank_Qr_Url ELSE c.Bank_Qr_Url END"
     };
     const expr = colMap[rail];
     if (!expr) return res.status(400).end();
     const cacheKey = `qr_${id}_${rail}`;
     if (campaignMediaCache.has(cacheKey)) {
-      return sendDataUrlOrRedirect(res, campaignMediaCache.get(cacheKey));
+      const cached = campaignMediaCache.get(cacheKey);
+      if (typeof cached === 'string' && !/\/api\/campaigns\/\d+\/qr\//i.test(cached)) {
+        return sendDataUrlOrRedirect(res, cached);
+      }
+      campaignMediaCache.delete(cacheKey);
     }
     const [rows] = await db.query(
       `SELECT ${expr} as qrUrl FROM CAMPAIGN c LEFT JOIN ORGANIZATION o ON c.Org_ID = o.Org_ID WHERE c.Campaign_ID = ? LIMIT 1`,
       [id]
     );
     if (!rows || rows.length === 0 || !rows[0].qrUrl) return res.status(404).end();
+    if (/\/api\/campaigns\/\d+\/qr\//i.test(String(rows[0].qrUrl))) return res.status(404).end();
     campaignMediaCache.set(cacheKey, rows[0].qrUrl);
     return sendDataUrlOrRedirect(res, rows[0].qrUrl);
   } catch (_) {
@@ -6567,7 +6657,7 @@ app.get('/api/campaigns/:id/qr/:rail', async (req, res) => {
 });
 
 app.get('/api/campaigns', async (req, res) => {
-  res.setHeader('Cache-Control', 'public, max-age=60, stale-while-revalidate=300');
+  res.setHeader('Cache-Control', 'no-cache, must-revalidate');
   const now = Date.now();
   const base = `${req.protocol}://${req.get('host')}`;
   const abs = (u) => (typeof u === 'string' && u.startsWith('/api/campaigns/') ? `${base}${u}` : u);

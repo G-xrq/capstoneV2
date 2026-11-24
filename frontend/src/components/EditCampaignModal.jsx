@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { API_URL } from '../config';
+import { notifyLocalMutation } from '../utils/realtimeSync';
 import { useToast } from '../context/ToastContext';
 import { formatPhoneNumber, cleanPhoneNumber } from '../utils/formatters';
 import { autoCropQrScreenshot, extractQrVoucherText } from '../utils/qrCropper';
@@ -94,6 +95,9 @@ export default function EditCampaignModal({ camp, isOpen, onClose, onSaved }) {
   const [showSelectQrModal, setShowSelectQrModal] = useState(null);
   const [uploadingQrRail, setUploadingQrRail] = useState(null);
   const [previewQrModalUrl, setPreviewQrModalUrl] = useState(null);
+  const [dirtyQrRails, setDirtyQrRails] = useState({ gcash: false, maya: false, bank: false });
+  const wasOpenRef = useRef(false);
+  const lastCampIdRef = useRef(null);
 
   // Fetch NGO's reusable QR code library
   const fetchSavedQrCodes = async () => {
@@ -113,7 +117,11 @@ export default function EditCampaignModal({ camp, isOpen, onClose, onSaved }) {
   };
 
   useEffect(() => {
-    if (camp && isOpen) {
+    const campId = camp?.id || camp?.Campaign_ID;
+    const justOpened = isOpen && (!wasOpenRef.current || lastCampIdRef.current !== campId);
+    if (justOpened && camp) {
+      lastCampIdRef.current = campId;
+      setDirtyQrRails({ gcash: false, maya: false, bank: false });
       setDescription(camp.description || '');
       const initialDate = camp.targetDate || camp.target_date || '';
       setTargetDate(initialDate);
@@ -191,6 +199,7 @@ export default function EditCampaignModal({ camp, isOpen, onClose, onSaved }) {
       setShowSelectQrModal(null);
       setPreviewQrModalUrl(null);
     }
+    wasOpenRef.current = Boolean(isOpen);
   }, [camp, isOpen]);
 
   // Outside click listener for popovers
@@ -387,19 +396,22 @@ export default function EditCampaignModal({ camp, isOpen, onClose, onSaved }) {
   const handleSelectSavedQr = (qr) => {
     if (qr.payment_method === 'GCash') {
       setGcashQrUrl(qr.qr_image_url);
+      setDirtyQrRails((prev) => ({ ...prev, gcash: true }));
       if (qr.account_name) setGcashName(qr.account_name);
       if (qr.account_number) setGcashNumber(formatPhoneNumber(qr.account_number));
-      showSuccess(`Assigned "${qr.custom_name}" GCash QR!`, 'QR Code Assigned');
+      showSuccess(`Assigned "${qr.custom_name}" GCash QR! Click "Save Changes" to apply.`, 'QR Code Assigned');
     } else if (qr.payment_method === 'Maya') {
       setMayaQrUrl(qr.qr_image_url);
+      setDirtyQrRails((prev) => ({ ...prev, maya: true }));
       if (qr.account_name) setMayaName(qr.account_name);
       if (qr.account_number) setMayaNumber(formatPhoneNumber(qr.account_number));
-      showSuccess(`Assigned "${qr.custom_name}" Maya QR!`, 'QR Code Assigned');
+      showSuccess(`Assigned "${qr.custom_name}" Maya QR! Click "Save Changes" to apply.`, 'QR Code Assigned');
     } else if (qr.payment_method === 'Bank') {
       setBankQrUrl(qr.qr_image_url);
+      setDirtyQrRails((prev) => ({ ...prev, bank: true }));
       if (qr.account_name) setBankAccountName(qr.account_name);
       if (qr.account_number) setBankAccountNumber(formatPhoneNumber(qr.account_number));
-      showSuccess(`Assigned "${qr.custom_name}" Bank QR!`, 'QR Code Assigned');
+      showSuccess(`Assigned "${qr.custom_name}" Bank QR! Click "Save Changes" to apply.`, 'QR Code Assigned');
     }
     setShowSelectQrModal(null);
   };
@@ -413,9 +425,9 @@ export default function EditCampaignModal({ camp, isOpen, onClose, onSaved }) {
     try {
       const cropResult = await autoCropQrScreenshot(file);
       const cleanQr = cropResult?.croppedUrl || cropResult;
-      if (rail === 'GCash') setGcashQrUrl(cleanQr);
-      else if (rail === 'Maya') setMayaQrUrl(cleanQr);
-      else if (rail === 'Bank') setBankQrUrl(cleanQr);
+      if (rail === 'GCash') { setGcashQrUrl(cleanQr); setDirtyQrRails((prev) => ({ ...prev, gcash: true })); }
+      else if (rail === 'Maya') { setMayaQrUrl(cleanQr); setDirtyQrRails((prev) => ({ ...prev, maya: true })); }
+      else if (rail === 'Bank') { setBankQrUrl(cleanQr); setDirtyQrRails((prev) => ({ ...prev, bank: true })); }
 
       try {
         const { detectedName, detectedNumber, isMaskedNumber } = await extractQrVoucherText(cropResult);
@@ -439,13 +451,14 @@ export default function EditCampaignModal({ camp, isOpen, onClose, onSaved }) {
     } catch (_) {
       const reader = new FileReader();
       reader.onload = (ev) => {
-        if (rail === 'GCash') setGcashQrUrl(ev.target.result);
-        else if (rail === 'Maya') setMayaQrUrl(ev.target.result);
-        else if (rail === 'Bank') setBankQrUrl(ev.target.result);
+        if (rail === 'GCash') { setGcashQrUrl(ev.target.result); setDirtyQrRails((prev) => ({ ...prev, gcash: true })); }
+        else if (rail === 'Maya') { setMayaQrUrl(ev.target.result); setDirtyQrRails((prev) => ({ ...prev, maya: true })); }
+        else if (rail === 'Bank') { setBankQrUrl(ev.target.result); setDirtyQrRails((prev) => ({ ...prev, bank: true })); }
       };
       reader.readAsDataURL(file);
     } finally {
       setUploadingQrRail(null);
+      if (e?.target) e.target.value = '';
     }
   };
 
@@ -485,14 +498,14 @@ export default function EditCampaignModal({ camp, isOpen, onClose, onSaved }) {
           landmark: landmark.trim(),
           gcash_name: gcashName.trim(),
           gcash_number: cleanPhoneNumber(gcashNumber),
-          gcash_qr_url: gcashQrUrl,
+          ...(dirtyQrRails.gcash ? { gcash_qr_url: gcashQrUrl } : {}),
           maya_name: mayaName.trim(),
           maya_number: cleanPhoneNumber(mayaNumber),
-          maya_qr_url: mayaQrUrl,
+          ...(dirtyQrRails.maya ? { maya_qr_url: mayaQrUrl } : {}),
           bank_name: bankName.trim(),
           bank_account_name: bankAccountName.trim(),
           bank_account_number: bankAccountNumber.trim(),
-          bank_qr_url: bankQrUrl
+          ...(dirtyQrRails.bank ? { bank_qr_url: bankQrUrl } : {})
         })
       });
 
@@ -501,8 +514,9 @@ export default function EditCampaignModal({ camp, isOpen, onClose, onSaved }) {
         throw new Error(errData.error || 'Failed to update campaign details.');
       }
 
-      showSuccess('Campaign details updated successfully!', 'Changes Saved');
-      onSaved?.();
+      notifyLocalMutation(['campaigns']);
+      showSuccess('Campaign details & QR codes updated successfully!', 'Changes Saved');
+      await onSaved?.();
       onClose();
     } catch (err) {
       console.error(err);
@@ -1356,7 +1370,7 @@ export default function EditCampaignModal({ camp, isOpen, onClose, onSaved }) {
                         {gcashQrUrl && (
                           <button
                             type="button"
-                            onClick={() => setGcashQrUrl('')}
+                            onClick={() => { setGcashQrUrl(''); setDirtyQrRails((prev) => ({ ...prev, gcash: true })); }}
                             style={{ background: 'transparent', border: 'none', color: '#f43f5e', fontSize: '0.68rem', cursor: 'pointer', textAlign: 'left', padding: 0, marginTop: '2px' }}
                           >
                             Remove QR
@@ -1432,7 +1446,7 @@ export default function EditCampaignModal({ camp, isOpen, onClose, onSaved }) {
                         {mayaQrUrl && (
                           <button
                             type="button"
-                            onClick={() => setMayaQrUrl('')}
+                            onClick={() => { setMayaQrUrl(''); setDirtyQrRails((prev) => ({ ...prev, maya: true })); }}
                             style={{ background: 'transparent', border: 'none', color: '#f43f5e', fontSize: '0.68rem', cursor: 'pointer', textAlign: 'left', padding: 0, marginTop: '2px' }}
                           >
                             Remove QR
@@ -1520,7 +1534,7 @@ export default function EditCampaignModal({ camp, isOpen, onClose, onSaved }) {
                         {bankQrUrl && (
                           <button
                             type="button"
-                            onClick={() => setBankQrUrl('')}
+                            onClick={() => { setBankQrUrl(''); setDirtyQrRails((prev) => ({ ...prev, bank: true })); }}
                             style={{ background: 'transparent', border: 'none', color: '#f43f5e', fontSize: '0.68rem', cursor: 'pointer', textAlign: 'left', padding: 0, marginTop: '2px' }}
                           >
                             Remove QR
