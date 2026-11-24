@@ -4432,3 +4432,54 @@
   background: #060606;
   border-top-color: #18181b;
 }
+
+
+/* ── Compact 1-Line Password Requirements Strip (Settings) ── */
+.vs-pwd-inline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 6px;
+  padding: 5px 9px;
+  border-radius: 7px;
+  background: var(--bg-inset, #fafafa);
+  border: 1px solid var(--border, #e4e4e7);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.vs-pwd-inline::-webkit-scrollbar {
+  display: none;
+}
+
+.vs-pwd-inline .vs-pwd-dropdown-list {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 9px;
+}
+
+.vs-pwd-inline .vs-pwd-dropdown-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  white-space: nowrap;
+  font-size: 0.68rem;
+  font-weight: 500;
+  line-height: 1;
+}
+
+.vs-pwd-inline .vs-pwd-dropdown-icon {
+  font-size: 12px;
+}
+
+.vs-pwd-inline .vs-pwd-dropdown-counter {
+  font-size: 0.66rem;
+  font-weight: 700;
+  white-space: nowrap;
+  flex-shrink: 0;
+  padding-left: 7px;
+  border-left: 1px solid var(--border, #e4e4e7);
+}

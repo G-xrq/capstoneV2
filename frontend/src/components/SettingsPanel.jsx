@@ -442,11 +442,11 @@ export default function SettingsPanel({
 
   const newPwdStrength = getPasswordStrength(newPassword);
   const newPasswordRequirements = useMemo(() => [
-    { id: 'length', label: 'At least 8 characters', met: newPassword.length >= 8 },
-    { id: 'uppercase', label: 'At least 1 uppercase letter (A–Z)', met: /[A-Z]/.test(newPassword) },
-    { id: 'lowercase', label: 'At least 1 lowercase letter (a–z)', met: /[a-z]/.test(newPassword) },
-    { id: 'number', label: 'At least 1 number (0–9)', met: /\d/.test(newPassword) },
-    { id: 'symbol', label: 'At least 1 special symbol (@$!%*?)', met: /[!@#$%^&*(),.?":{}|<>]/.test(newPassword) }
+    { id: 'length', label: '8+ chars', full: 'At least 8 characters', met: newPassword.length >= 8 },
+    { id: 'uppercase', label: 'A–Z', full: 'At least 1 uppercase letter', met: /[A-Z]/.test(newPassword) },
+    { id: 'lowercase', label: 'a–z', full: 'At least 1 lowercase letter', met: /[a-z]/.test(newPassword) },
+    { id: 'number', label: '0–9', full: 'At least 1 number', met: /\d/.test(newPassword) },
+    { id: 'symbol', label: 'Symbol', full: 'At least 1 special symbol (@$!%*?)', met: /[!@#$%^&*(),.?":{}|<>]/.test(newPassword) }
   ], [newPassword]);
   const newPwdMetCount = useMemo(() => newPasswordRequirements.filter(r => r.met).length, [newPasswordRequirements]);
   const passwordsMatch = confirmPassword.length > 0 && newPassword === confirmPassword;
@@ -3005,26 +3005,20 @@ export default function SettingsPanel({
                       />
                     </div>
 
-                    {/* Floating Real-Time Password Requirements Dropdown Panel (Zero layout shift) */}
-                    {newPasswordFocused && (
+                    {/* Compact 1-Line Password Requirements Strip */}
+                    {(newPasswordFocused || newPassword.length > 0) && (
                       <div
                         id="settings-pwd-requirements-panel"
-                        className="vs-pwd-dropdown"
-                        onMouseDown={(e) => e.preventDefault()}
-                        role="tooltip"
+                        className="vs-pwd-inline"
+                        role="status"
                         aria-live="polite"
                       >
-                        <div className="vs-pwd-dropdown-header">
-                          <span className="vs-pwd-dropdown-title">PASSWORD REQUIREMENTS</span>
-                          <span className={`vs-pwd-dropdown-counter ${newPwdMetCount === 5 ? 'all-met' : ''}`}>
-                            {newPwdMetCount}/5 met
-                          </span>
-                        </div>
                         <ul className="vs-pwd-dropdown-list">
                           {newPasswordRequirements.map((req) => (
                             <li
                               key={req.id}
                               className={`vs-pwd-dropdown-item ${req.met ? 'is-met' : 'is-unmet'}`}
+                              title={req.full}
                             >
                               <span className="material-symbols-outlined vs-pwd-dropdown-icon">
                                 {req.met ? 'check_circle' : 'radio_button_unchecked'}
@@ -3033,6 +3027,9 @@ export default function SettingsPanel({
                             </li>
                           ))}
                         </ul>
+                        <span className={`vs-pwd-dropdown-counter ${newPwdMetCount === 5 ? 'all-met' : ''}`}>
+                          {newPwdMetCount}/5
+                        </span>
                       </div>
                     )}
                   </div>

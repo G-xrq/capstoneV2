@@ -426,11 +426,11 @@ export default function AuthView({ onLoginSuccess, onBack, theme, onToggleTheme,
 
   const resetPwdStrength = getPasswordStrength(resetNewPassword);
   const resetPasswordRequirements = useMemo(() => [
-    { id: 'length', label: 'At least 8 characters', met: resetNewPassword.length >= 8 },
-    { id: 'uppercase', label: 'At least 1 uppercase letter (A–Z)', met: /[A-Z]/.test(resetNewPassword) },
-    { id: 'lowercase', label: 'At least 1 lowercase letter (a–z)', met: /[a-z]/.test(resetNewPassword) },
-    { id: 'number', label: 'At least 1 number (0–9)', met: /\d/.test(resetNewPassword) },
-    { id: 'symbol', label: 'At least 1 special symbol (@$!%*?)', met: /[!@#$%^&*(),.?":{}|<>]/.test(resetNewPassword) }
+    { id: 'length', label: '8+ chars', full: 'At least 8 characters', met: resetNewPassword.length >= 8 },
+    { id: 'uppercase', label: 'A–Z', full: 'At least 1 uppercase letter', met: /[A-Z]/.test(resetNewPassword) },
+    { id: 'lowercase', label: 'a–z', full: 'At least 1 lowercase letter', met: /[a-z]/.test(resetNewPassword) },
+    { id: 'number', label: '0–9', full: 'At least 1 number', met: /\d/.test(resetNewPassword) },
+    { id: 'symbol', label: 'Symbol', full: 'At least 1 special symbol (@$!%*?)', met: /[!@#$%^&*(),.?":{}|<>]/.test(resetNewPassword) }
   ], [resetNewPassword]);
   const resetMetRequirementsCount = useMemo(() => resetPasswordRequirements.filter(r => r.met).length, [resetPasswordRequirements]);
   const resetPasswordsMatch = resetConfirmPassword.length > 0 && resetNewPassword === resetConfirmPassword;
@@ -438,43 +438,23 @@ export default function AuthView({ onLoginSuccess, onBack, theme, onToggleTheme,
 
   const securePwdStrength = getPasswordStrength(secureNewPassword);
   const securePasswordRequirements = useMemo(() => [
-    { id: 'length', label: 'At least 8 characters', met: secureNewPassword.length >= 8 },
-    { id: 'uppercase', label: 'At least 1 uppercase letter (A–Z)', met: /[A-Z]/.test(secureNewPassword) },
-    { id: 'lowercase', label: 'At least 1 lowercase letter (a–z)', met: /[a-z]/.test(secureNewPassword) },
-    { id: 'number', label: 'At least 1 number (0–9)', met: /\d/.test(secureNewPassword) },
-    { id: 'symbol', label: 'At least 1 special symbol (@$!%*?)', met: /[!@#$%^&*(),.?":{}|<>]/.test(secureNewPassword) }
+    { id: 'length', label: '8+ chars', full: 'At least 8 characters', met: secureNewPassword.length >= 8 },
+    { id: 'uppercase', label: 'A–Z', full: 'At least 1 uppercase letter', met: /[A-Z]/.test(secureNewPassword) },
+    { id: 'lowercase', label: 'a–z', full: 'At least 1 lowercase letter', met: /[a-z]/.test(secureNewPassword) },
+    { id: 'number', label: '0–9', full: 'At least 1 number', met: /\d/.test(secureNewPassword) },
+    { id: 'symbol', label: 'Symbol', full: 'At least 1 special symbol (@$!%*?)', met: /[!@#$%^&*(),.?":{}|<>]/.test(secureNewPassword) }
   ], [secureNewPassword]);
   const secureMetRequirementsCount = useMemo(() => securePasswordRequirements.filter(r => r.met).length, [securePasswordRequirements]);
   const securePasswordsMatch = secureConfirmPassword.length > 0 && secureNewPassword === secureConfirmPassword;
   const securePasswordsMismatch = secureConfirmPassword.length > 0 && secureNewPassword !== secureConfirmPassword;
 
-  // Live real-time password requirements list for floating dropdown
+  // Live real-time password requirements list (compact 1-line bar)
   const passwordRequirements = useMemo(() => [
-    {
-      id: 'length',
-      label: 'At least 8 characters',
-      met: password.length >= 8
-    },
-    {
-      id: 'uppercase',
-      label: 'At least 1 uppercase letter (A–Z)',
-      met: /[A-Z]/.test(password)
-    },
-    {
-      id: 'lowercase',
-      label: 'At least 1 lowercase letter (a–z)',
-      met: /[a-z]/.test(password)
-    },
-    {
-      id: 'number',
-      label: 'At least 1 number (0–9)',
-      met: /\d/.test(password)
-    },
-    {
-      id: 'symbol',
-      label: 'At least 1 special symbol (@$!%*?)',
-      met: /[!@#$%^&*(),.?":{}|<>]/.test(password)
-    }
+    { id: 'length', label: '8+ chars', full: 'At least 8 characters', met: password.length >= 8 },
+    { id: 'uppercase', label: 'A–Z', full: 'At least 1 uppercase letter', met: /[A-Z]/.test(password) },
+    { id: 'lowercase', label: 'a–z', full: 'At least 1 lowercase letter', met: /[a-z]/.test(password) },
+    { id: 'number', label: '0–9', full: 'At least 1 number', met: /\d/.test(password) },
+    { id: 'symbol', label: 'Symbol', full: 'At least 1 special symbol (@$!%*?)', met: /[!@#$%^&*(),.?":{}|<>]/.test(password) }
   ], [password]);
 
   const metRequirementsCount = useMemo(() => {
@@ -1521,26 +1501,20 @@ export default function AuthView({ onLoginSuccess, onBack, theme, onToggleTheme,
                     />
                   </div>
 
-                  {/* Floating Password Requirements Dropdown Panel (Zero layout shift) */}
-                  {passwordFocused && (
+                  {/* Compact 1-Line Password Requirements Strip */}
+                  {(passwordFocused || password.length > 0) && (
                     <div
                       id="pwd-requirements-panel"
-                      className="pwd-requirements-dropdown"
-                      onMouseDown={(e) => e.preventDefault()}
-                      role="tooltip"
+                      className="pwd-requirements-inline"
+                      role="status"
                       aria-live="polite"
                     >
-                      <div className="pwd-requirements-header">
-                        <span className="pwd-requirements-title">PASSWORD REQUIREMENTS</span>
-                        <span className={`pwd-requirements-counter ${metRequirementsCount === 5 ? 'all-met' : ''}`}>
-                          {metRequirementsCount}/5 met
-                        </span>
-                      </div>
                       <ul className="pwd-requirements-list">
                         {passwordRequirements.map((req) => (
                           <li
                             key={req.id}
                             className={`pwd-requirement-item ${req.met ? 'is-met' : 'is-unmet'}`}
+                            title={req.full}
                           >
                             <span className="material-symbols-outlined pwd-req-icon">
                               {req.met ? 'check_circle' : 'radio_button_unchecked'}
@@ -1549,6 +1523,9 @@ export default function AuthView({ onLoginSuccess, onBack, theme, onToggleTheme,
                           </li>
                         ))}
                       </ul>
+                      <span className={`pwd-requirements-counter ${metRequirementsCount === 5 ? 'all-met' : ''}`}>
+                        {metRequirementsCount}/5
+                      </span>
                     </div>
                   )}
                 </div>
@@ -2481,26 +2458,20 @@ export default function AuthView({ onLoginSuccess, onBack, theme, onToggleTheme,
                     />
                   </div>
 
-                  {/* Floating Password Requirements Dropdown Panel (Zero layout shift) */}
-                  {resetPasswordFocused && (
+                  {/* Compact 1-Line Password Requirements Strip */}
+                  {(resetPasswordFocused || resetNewPassword.length > 0) && (
                     <div
                       id="reset-pwd-requirements-panel"
-                      className="pwd-requirements-dropdown"
-                      onMouseDown={(e) => e.preventDefault()}
-                      role="tooltip"
+                      className="pwd-requirements-inline"
+                      role="status"
                       aria-live="polite"
                     >
-                      <div className="pwd-requirements-header">
-                        <span className="pwd-requirements-title">PASSWORD REQUIREMENTS</span>
-                        <span className={`pwd-requirements-counter ${resetMetRequirementsCount === 5 ? 'all-met' : ''}`}>
-                          {resetMetRequirementsCount}/5 met
-                        </span>
-                      </div>
                       <ul className="pwd-requirements-list">
                         {resetPasswordRequirements.map((req) => (
                           <li
                             key={req.id}
                             className={`pwd-requirement-item ${req.met ? 'is-met' : 'is-unmet'}`}
+                            title={req.full}
                           >
                             <span className="material-symbols-outlined pwd-req-icon">
                               {req.met ? 'check_circle' : 'radio_button_unchecked'}
@@ -2509,6 +2480,9 @@ export default function AuthView({ onLoginSuccess, onBack, theme, onToggleTheme,
                           </li>
                         ))}
                       </ul>
+                      <span className={`pwd-requirements-counter ${resetMetRequirementsCount === 5 ? 'all-met' : ''}`}>
+                        {resetMetRequirementsCount}/5
+                      </span>
                     </div>
                   )}
                 </div>
@@ -2706,26 +2680,20 @@ export default function AuthView({ onLoginSuccess, onBack, theme, onToggleTheme,
                     />
                   </div>
 
-                  {/* Floating Password Requirements Dropdown Panel */}
-                  {securePasswordFocused && (
+                  {/* Compact 1-Line Password Requirements Strip */}
+                  {(securePasswordFocused || secureNewPassword.length > 0) && (
                     <div
                       id="secure-pwd-requirements-panel"
-                      className="pwd-requirements-dropdown"
-                      onMouseDown={(e) => e.preventDefault()}
-                      role="tooltip"
+                      className="pwd-requirements-inline"
+                      role="status"
                       aria-live="polite"
                     >
-                      <div className="pwd-requirements-header">
-                        <span className="pwd-requirements-title">PASSWORD REQUIREMENTS</span>
-                        <span className={`pwd-requirements-counter ${secureMetRequirementsCount === 5 ? 'all-met' : ''}`}>
-                          {secureMetRequirementsCount}/5 met
-                        </span>
-                      </div>
                       <ul className="pwd-requirements-list">
                         {securePasswordRequirements.map((req) => (
                           <li
                             key={req.id}
                             className={`pwd-requirement-item ${req.met ? 'is-met' : 'is-unmet'}`}
+                            title={req.full}
                           >
                             <span className="material-symbols-outlined pwd-req-icon">
                               {req.met ? 'check_circle' : 'radio_button_unchecked'}
@@ -2734,6 +2702,9 @@ export default function AuthView({ onLoginSuccess, onBack, theme, onToggleTheme,
                           </li>
                         ))}
                       </ul>
+                      <span className={`pwd-requirements-counter ${secureMetRequirementsCount === 5 ? 'all-met' : ''}`}>
+                        {secureMetRequirementsCount}/5
+                      </span>
                     </div>
                   )}
                 </div>

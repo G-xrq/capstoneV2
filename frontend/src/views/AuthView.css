@@ -2849,3 +2849,66 @@
     padding: 0;
   }
 }
+
+
+/* ── Compact 1-Line Password Requirements Strip ── */
+.pwd-requirements-inline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  margin-top: 6px;
+  padding: 5px 8px;
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.pwd-requirements-inline::-webkit-scrollbar {
+  display: none;
+}
+
+.pwd-requirements-inline .pwd-requirements-list {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pwd-requirements-inline .pwd-requirement-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  white-space: nowrap;
+  font-size: 0.67rem;
+  font-weight: 500;
+  line-height: 1;
+}
+
+.pwd-requirements-inline .pwd-req-icon {
+  font-size: 12px;
+}
+
+.pwd-requirements-inline .pwd-requirements-counter {
+  font-size: 0.65rem;
+  font-weight: 700;
+  white-space: nowrap;
+  flex-shrink: 0;
+  padding-left: 6px;
+  border-left: 1px solid rgba(255, 255, 255, 0.09);
+}
+
+[data-theme="light"] .pwd-requirements-inline {
+  background: #fafafa;
+  border-color: #e4e4e7;
+}
+
+[data-theme="light"] .pwd-requirements-inline .pwd-requirements-counter {
+  border-left-color: #e4e4e7;
+}
