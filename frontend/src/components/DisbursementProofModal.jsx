@@ -7,11 +7,11 @@ import './DisbursementProofModal.css';
 const SEPOLIA_EXPLORER = 'https://sepolia.etherscan.io/tx/';
 
 const CATEGORY_MAP = {
-  OFFICIAL_RECEIPT: { label: 'Official Merchant Receipt / Invoice', icon: 'receipt_long' },
-  GROUND_PHOTO: { label: 'Ground Aid Handover Photo', icon: 'photo_camera' },
-  LGU_CERTIFICATE: { label: 'Barangay Certificate of Turnover', icon: 'verified_user' },
-  BENEFICIARY_ROSTER: { label: 'Masked Recipient Masterlist (RA 10173)', icon: 'assignment_turned_in' },
-  LOGISTICS_WAYBILL: { label: 'Transport Manifest / Waybill', icon: 'local_shipping' }
+  OFFICIAL_RECEIPT: { label: 'Merchant Receipt', icon: 'receipt_long' },
+  GROUND_PHOTO: { label: 'Handover Photo', icon: 'photo_camera' },
+  LGU_CERTIFICATE: { label: 'LGU Turnover Cert', icon: 'verified_user' },
+  BENEFICIARY_ROSTER: { label: 'Recipient Masterlist', icon: 'assignment_turned_in' },
+  LOGISTICS_WAYBILL: { label: 'Logistics Waybill', icon: 'local_shipping' }
 };
 
 const AID_CATEGORY_MAP = {
@@ -94,6 +94,7 @@ export default function DisbursementProofModal({ camp, isOpen, onClose, theme })
   const [activePreview, setActivePreview] = useState(null);
   const [campaignDetails, setCampaignDetails] = useState(null);
   const [copiedKey, setCopiedKey] = useState(null);
+  const [selectedBatchIdx, setSelectedBatchIdx] = useState('ALL');
 
   const campId = camp?.id || camp?.Campaign_ID || camp?.campaignId;
 
@@ -103,6 +104,19 @@ export default function DisbursementProofModal({ camp, isOpen, onClose, theme })
     setCopiedKey(key);
     setTimeout(() => setCopiedKey((prev) => (prev === key ? null : prev)), 1800);
   };
+
+  useEffect(() => {
+    if (!isOpen) return;
+    setSelectedBatchIdx('ALL');
+    const onKey = (e) => {
+      if (e.key === 'Escape') {
+        if (activePreview) setActivePreview(null);
+        else onClose?.();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [isOpen, activePreview, onClose]);
 
   useEffect(() => {
     if (!isOpen || !campId) return;
@@ -177,44 +191,63 @@ export default function DisbursementProofModal({ camp, isOpen, onClose, theme })
 
   const totalDisbursedPhp = disbursements.reduce((sum, d) => sum + parseFloat(d.amountPhp || 0), 0);
   const totalBeneficiaries = disbursements.reduce((sum, d) => sum + (parseInt(d.beneficiariesReached, 10) || 0), 0);
+  const totalProofFiles = disbursements.reduce((sum, d) => sum + (parseProofData(d.proofUrl).proofs?.length || 0), 0);
+
+  const visibleDisbursements =
+    selectedBatchIdx === 'ALL'
+      ? disbursements.map((d, idx) => ({ d, idx }))
+      : disbursements
+          .map((d, idx) => ({ d, idx }))
+          .filter(({ idx }) => idx === selectedBatchIdx);
 
   const currentTheme = theme || (typeof document !== 'undefined' ? document.documentElement.getAttribute('data-theme') : 'dark') || 'dark';
 
   return createPortal(
     <div className="bbdrts-modal-overlay" onClick={onClose} role="dialog" aria-modal="true" data-theme={currentTheme}>
       <div className="bbdrts-proof-modal" onClick={(e) => e.stopPropagation()} data-theme={currentTheme}>
-        {/* Header */}
+        {/* Sticky Executive Header */}
         <div className="bbdrts-proof-header">
           <div className="bbdrts-proof-title-cluster">
             <div className="bbdrts-proof-icon-wrap">
               <span className="material-symbols-outlined">verified</span>
             </div>
-            <div>
-              <div className="bbdrts-proof-tag">Audited Relief Delivery &amp; Donor Proofs</div>
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <div className="bbdrts-proof-eyebrow-row">
+                <span className="bbdrts-proof-tag">Audited Relief Delivery &amp; Donor Proofs</span>
+                {totalProofFiles > 0 && (
+                  <span className="bbdrts-proof-count-chip">
+                    {totalProofFiles} Evidence {totalProofFiles === 1 ? 'File' : 'Files'}
+                  </span>
+                )}
+              </div>
               <h2 className="bbdrts-proof-title">{displayTitle}</h2>
               <p className="bbdrts-proof-subtitle">
-                Official merchant receipts, ground handover photos, turnover certificates, spreadsheets, and Sepolia on-chain audit proofs.
+                Verified handover photos, merchant receipts, turnover certificates, and Sepolia on-chain audit proofs.
               </p>
             </div>
           </div>
           <button type="button" className="bbdrts-proof-close-btn" onClick={onClose} aria-label="Close modal">
-            <span className="material-symbols-outlined">close</span>
+            <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>close</span>
           </button>
         </div>
 
-        {/* Aggregate Stats */}
+        {/* Hairline 4-Cell Executive KPI Strip */}
         <div className="bbdrts-proof-stats-strip">
           <div className="bbdrts-proof-stat">
             <span className="stat-label">Total Aid Disbursed</span>
-            <strong className="stat-val emerald">₱{totalDisbursedPhp.toLocaleString()}</strong>
+            <strong className="stat-val emerald">₱{totalDisbursedPhp.toLocaleString('en-US')}</strong>
           </div>
           <div className="bbdrts-proof-stat">
             <span className="stat-label">Beneficiaries Reached</span>
-            <strong className="stat-val">{totalBeneficiaries > 0 ? `${totalBeneficiaries.toLocaleString()} Recipients` : 'Community Distribution'}</strong>
+            <strong className="stat-val">
+              {totalBeneficiaries > 0 ? `${totalBeneficiaries.toLocaleString('en-US')} Recipients` : 'Community Distribution'}
+            </strong>
           </div>
           <div className="bbdrts-proof-stat">
             <span className="stat-label">Disbursement Batches</span>
-            <strong className="stat-val">{disbursements.length} Record{disbursements.length === 1 ? '' : 's'}</strong>
+            <strong className="stat-val">
+              {disbursements.length} {disbursements.length === 1 ? 'Record' : 'Records'}
+            </strong>
           </div>
           <div className="bbdrts-proof-stat">
             <span className="stat-label">Operating NGO</span>
@@ -222,24 +255,54 @@ export default function DisbursementProofModal({ camp, isOpen, onClose, theme })
           </div>
         </div>
 
-        {/* Content Body */}
+        {/* Quick Batch Switcher (when 2+ batches exist) */}
+        {!loading && disbursements.length > 1 && (
+          <div className="bbdrts-batch-tabs-bar" role="tablist" aria-label="Filter disbursement batch">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={selectedBatchIdx === 'ALL'}
+              className={`bbdrts-batch-tab ${selectedBatchIdx === 'ALL' ? 'is-active' : ''}`}
+              onClick={() => setSelectedBatchIdx('ALL')}
+            >
+              <span>All Batches ({disbursements.length})</span>
+            </button>
+            {disbursements.map((d, idx) => (
+              <button
+                key={d.id || idx}
+                type="button"
+                role="tab"
+                aria-selected={selectedBatchIdx === idx}
+                className={`bbdrts-batch-tab ${selectedBatchIdx === idx ? 'is-active' : ''}`}
+                onClick={() => setSelectedBatchIdx(idx)}
+              >
+                <span>Batch #{disbursements.length - idx}</span>
+                <span className="bbdrts-batch-tab-amt">₱{parseFloat(d.amountPhp || 0).toLocaleString('en-US')}</span>
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Scrollable Content Body */}
         <div className="bbdrts-proof-body">
           {loading ? (
             <div className="bbdrts-proof-loading">
-              <div className="spinner-border text-primary" role="status" style={{ width: '2rem', height: '2rem' }} />
-              <span>Fetching live cryptographic distribution records...</span>
+              <div className="spinner-border text-primary" role="status" style={{ width: '1.8rem', height: '1.8rem' }} />
+              <span>Fetching live cryptographic distribution records…</span>
             </div>
           ) : disbursements.length === 0 ? (
             <div className="bbdrts-proof-empty">
-              <span className="material-symbols-outlined empty-icon">pending_actions</span>
+              <div className="empty-icon-wrap">
+                <span className="material-symbols-outlined empty-icon">pending_actions</span>
+              </div>
               <h3>No Disbursements Recorded Yet</h3>
               <p>
-                The NGO is currently procuring supplies and mobilizing logistics for this operation. When relief goods are released to the community, audited receipts and distribution photos will appear here automatically.
+                The NGO is currently procuring supplies and mobilizing logistics for this operation. Audited receipts and distribution photos will appear here automatically once aid is released.
               </p>
             </div>
           ) : (
             <div className="bbdrts-proof-timeline">
-              {disbursements.map((d, idx) => {
+              {visibleDisbursements.map(({ d, idx }) => {
                 const proofData = parseProofData(d.proofUrl);
                 const proofsList = proofData.proofs || [];
                 const expensesList = proofData.expenseBreakdown || [];
@@ -251,74 +314,106 @@ export default function DisbursementProofModal({ camp, isOpen, onClose, theme })
                     ? `${SEPOLIA_EXPLORER}${d.txHash}`
                     : '');
 
+                const metricCells = [
+                  {
+                    label: 'Amount Released',
+                    value: `₱${parseFloat(d.amountPhp || 0).toLocaleString('en-US')}`,
+                    accent: 'emerald',
+                    mono: true
+                  },
+                  ...(d.beneficiariesReached > 0
+                    ? [{
+                        label: 'Recipients Impacted',
+                        value: `${Number(d.beneficiariesReached).toLocaleString('en-US')} Families`,
+                        icon: 'groups'
+                      }]
+                    : []),
+                  ...(proofData.location
+                    ? [{
+                        label: 'Distribution Site',
+                        value: proofData.location,
+                        icon: 'location_on'
+                      }]
+                    : []),
+                  ...(proofData.lguPartner
+                    ? [{
+                        label: 'LGU / Partner',
+                        value: proofData.lguPartner,
+                        icon: 'handshake'
+                      }]
+                    : [])
+                ];
+
                 return (
-                  <div key={d.id || idx} className="bbdrts-proof-card">
+                  <article key={d.id || idx} className="bbdrts-proof-card">
+                    {/* Card Header Bar */}
                     <div className="proof-card-header">
                       <div className="proof-card-header-left">
-                        <div className="batch-pill">
-                          <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>task_alt</span>
+                        <span className="batch-pill">
+                          <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>check_circle</span>
                           <span>Disbursement #{disbursements.length - idx}</span>
-                        </div>
+                        </span>
                         {aidCat && (
                           <span className="proof-aid-cat-pill">
                             <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>{aidCat.icon}</span>
                             <span>{aidCat.label}</span>
                           </span>
                         )}
+                        {isLiveOnChain && (
+                          <span className="proof-chain-badge is-live">
+                            <span className="chain-dot" />
+                            <span>On-Chain</span>
+                          </span>
+                        )}
                       </div>
                       <span className="timestamp">
-                        {d.disbursedAt
-                          ? new Date(d.disbursedAt).toLocaleString('en-US', {
-                              month: 'short',
-                              day: 'numeric',
-                              year: 'numeric',
-                              hour: '2-digit',
-                              minute: '2-digit'
-                            })
-                          : 'Verified Delivery'}
+                        <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>schedule</span>
+                        <span>
+                          {d.disbursedAt
+                            ? new Date(d.disbursedAt).toLocaleString('en-US', {
+                                month: 'short',
+                                day: 'numeric',
+                                year: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                              })
+                            : 'Verified Delivery'}
+                        </span>
                       </span>
                     </div>
 
-                    <div className="proof-card-metrics">
-                      <div className="metric-item">
-                        <span className="metric-label">Amount Released</span>
-                        <strong className="metric-val">₱{parseFloat(d.amountPhp || 0).toLocaleString()}</strong>
-                      </div>
-                      {d.beneficiariesReached > 0 && (
-                        <div className="metric-item">
-                          <span className="metric-label">Recipients Impacted</span>
-                          <strong className="metric-val">{Number(d.beneficiariesReached).toLocaleString()} Families</strong>
+                    {/* Structured Hairline Metrics Bar */}
+                    <div
+                      className="proof-card-metrics"
+                      style={{ gridTemplateColumns: `repeat(${Math.min(4, Math.max(1, metricCells.length))}, minmax(0, 1fr))` }}
+                    >
+                      {metricCells.map((cell, cIdx) => (
+                        <div key={cIdx} className="metric-item">
+                          <span className="metric-label">{cell.label}</span>
+                          <strong className={`metric-val ${cell.accent || ''} ${cell.mono ? 'is-mono' : ''}`} title={cell.value}>
+                            {cell.value}
+                          </strong>
                         </div>
-                      )}
-                      {proofData.location && (
-                        <div className="metric-item">
-                          <span className="metric-label">Evacuation Site / Location</span>
-                          <strong className="metric-val" style={{ fontSize: '0.85rem' }}>{proofData.location}</strong>
-                        </div>
-                      )}
-                      {proofData.lguPartner && (
-                        <div className="metric-item">
-                          <span className="metric-label">LGU / Agency Partner</span>
-                          <strong className="metric-val" style={{ fontSize: '0.85rem' }}>{proofData.lguPartner}</strong>
-                        </div>
-                      )}
+                      ))}
                     </div>
 
                     {/* Summary Narrative */}
-                    <div className="proof-narrative-box">
-                      <div className="narrative-label">
-                        <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>description</span>
-                        <span>Relief Distribution Summary</span>
+                    {d.impactSummary && (
+                      <div className="proof-narrative-box">
+                        <div className="narrative-label">
+                          <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>description</span>
+                          <span>Relief Distribution Summary</span>
+                        </div>
+                        <p className="narrative-text">{d.impactSummary}</p>
                       </div>
-                      <p className="narrative-text">{d.impactSummary}</p>
-                    </div>
+                    )}
 
-                    {/* Itemized Expense Breakdown (Where the Money Went) */}
+                    {/* Itemized Expense Breakdown */}
                     {expensesList.length > 0 && (
                       <div className="proof-expenses-box">
                         <div className="narrative-label">
                           <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>receipt_long</span>
-                          <span>Itemized Procurement &amp; Liquidation Breakdown ({expensesList.length} items)</span>
+                          <span>Itemized Procurement Breakdown ({expensesList.length} {expensesList.length === 1 ? 'item' : 'items'})</span>
                         </div>
                         <div className="proof-expense-table-wrap">
                           <table className="proof-expense-table">
@@ -335,7 +430,7 @@ export default function DisbursementProofModal({ camp, isOpen, onClose, theme })
                                   <td>{exp.description || 'Relief Supplies'}</td>
                                   <td>{exp.quantity || '—'}</td>
                                   <td style={{ textAlign: 'right', fontFamily: 'var(--font-mono)' }}>
-                                    ₱{parseFloat(exp.costPhp || 0).toLocaleString()}
+                                    ₱{parseFloat(exp.costPhp || 0).toLocaleString('en-US')}
                                   </td>
                                 </tr>
                               ))}
@@ -345,15 +440,21 @@ export default function DisbursementProofModal({ camp, isOpen, onClose, theme })
                       </div>
                     )}
 
-                    {/* Multiple Verifiable Proofs Gallery (Images + PDFs + Excel/CSV Spreadsheets) */}
+                    {/* Evidentiary Gallery */}
                     {proofsList.length > 0 && (
                       <div className="proof-attachment-box">
-                        <div className="narrative-label">
-                          <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>collections</span>
-                          <span>Verified Evidentiary Documents &amp; Photos ({proofsList.length})</span>
+                        <div className="narrative-label-row">
+                          <div className="narrative-label">
+                            <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>collections</span>
+                            <span>Verified Evidentiary Documents &amp; Photos ({proofsList.length})</span>
+                          </div>
+                          <span className="proof-privacy-note">
+                            <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>shield_person</span>
+                            <span>RA 10173 Privacy-Protected</span>
+                          </span>
                         </div>
 
-                        <div className="proof-gallery-grid">
+                        <div className={`proof-gallery-grid ${proofsList.length === 1 ? 'is-single' : ''}`}>
                           {proofsList.map((proof, pIdx) => {
                             const cat = CATEGORY_MAP[proof.category] || CATEGORY_MAP.OFFICIAL_RECEIPT;
                             const fileKind = classifyProofFile(proof);
@@ -387,8 +488,8 @@ export default function DisbursementProofModal({ camp, isOpen, onClose, theme })
                                   <div className="proof-gallery-img-wrap">
                                     <img src={proof.url} alt={proof.caption || 'Proof'} loading="lazy" />
                                     <div className="proof-gallery-overlay">
-                                      <span className="material-symbols-outlined">zoom_in</span>
-                                      <span>Expand Photo</span>
+                                      <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>zoom_in</span>
+                                      <span>Inspect Full Photo</span>
                                     </div>
                                   </div>
                                 ) : (
@@ -409,7 +510,7 @@ export default function DisbursementProofModal({ camp, isOpen, onClose, theme })
                                     </span>
                                     {proof.fileSize && <span className="doc-size">{proof.fileSize}</span>}
                                     <div className="proof-gallery-overlay">
-                                      <span className="material-symbols-outlined">
+                                      <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>
                                         {fileKind === 'pdf' ? 'visibility' : 'download'}
                                       </span>
                                       <span>{fileKind === 'pdf' ? 'Preview PDF' : 'Download File'}</span>
@@ -450,7 +551,10 @@ export default function DisbursementProofModal({ camp, isOpen, onClose, theme })
                     {(d.txHash || proofData.proofDigest) && (
                       <div className="proof-tx-box">
                         <div className="proof-tx-header">
-                          <span className="tx-label">Cryptographic Audit Ledger Proof:</span>
+                          <span className="tx-label">
+                            <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>verified_user</span>
+                            <span>Cryptographic Audit Proof</span>
+                          </span>
                           {isLiveOnChain ? (
                             <span className="proof-chain-badge is-live">
                               <span className="chain-dot" />
@@ -467,30 +571,32 @@ export default function DisbursementProofModal({ camp, isOpen, onClose, theme })
 
                         {d.txHash && (
                           <div className="tx-row">
-                            <code className="tx-code">{d.txHash}</code>
-                            <button
-                              type="button"
-                              className="btn btn-outline btn-xs"
-                              onClick={() => handleCopyValue(`tx_${d.id || idx}`, d.txHash)}
-                              title="Copy transaction / seal hash"
-                            >
-                              <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>
-                                {copiedKey === `tx_${d.id || idx}` ? 'check' : 'content_copy'}
-                              </span>
-                              <span>{copiedKey === `tx_${d.id || idx}` ? 'Copied' : 'Copy'}</span>
-                            </button>
-                            {explorerHref && (
-                              <a
-                                href={explorerHref}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="btn btn-outline btn-xs"
-                                title="Verify on Sepolia Etherscan"
+                            <code className="tx-code" title={d.txHash}>{d.txHash}</code>
+                            <div className="tx-actions">
+                              <button
+                                type="button"
+                                className="proof-mini-btn"
+                                onClick={() => handleCopyValue(`tx_${d.id || idx}`, d.txHash)}
+                                title="Copy transaction / seal hash"
                               >
-                                <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>open_in_new</span>
-                                <span>Etherscan</span>
-                              </a>
-                            )}
+                                <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>
+                                  {copiedKey === `tx_${d.id || idx}` ? 'check' : 'content_copy'}
+                                </span>
+                                <span>{copiedKey === `tx_${d.id || idx}` ? 'Copied' : 'Copy'}</span>
+                              </button>
+                              {explorerHref && (
+                                <a
+                                  href={explorerHref}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="proof-mini-btn"
+                                  title="Verify on Sepolia Etherscan"
+                                >
+                                  <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>open_in_new</span>
+                                  <span>Etherscan</span>
+                                </a>
+                              )}
+                            </div>
                           </div>
                         )}
 
@@ -514,21 +620,21 @@ export default function DisbursementProofModal({ camp, isOpen, onClose, theme })
                         )}
                       </div>
                     )}
-                  </div>
+                  </article>
                 );
               })}
             </div>
           )}
         </div>
 
-        {/* Footer */}
+        {/* Sticky Footer */}
         <div className="bbdrts-proof-footer">
           <div className="footer-left">
-            <span className="material-symbols-outlined text-emerald" style={{ fontSize: '17px' }}>shield</span>
-            <span>All receipts &amp; records permanently synchronized with Sepolia EVM &amp; BBDRTS Audit Vault</span>
+            <span className="material-symbols-outlined text-emerald" style={{ fontSize: '16px' }}>verified_user</span>
+            <span>Permanently synchronized with Ethereum Sepolia &amp; BBDRTS Audit Vault</span>
           </div>
-          <button type="button" className="btn btn-outline" onClick={onClose}>
-            Close Proof
+          <button type="button" className="bbdrts-proof-done-btn" onClick={onClose}>
+            Done
           </button>
         </div>
 
@@ -547,7 +653,7 @@ export default function DisbursementProofModal({ camp, isOpen, onClose, theme })
                       href={activePreview.hostedUrl}
                       target="_blank"
                       rel="noreferrer"
-                      className="btn btn-outline btn-xs"
+                      className="zoom-action-btn"
                     >
                       <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>open_in_new</span>
                       <span>Open Tab</span>
@@ -558,13 +664,13 @@ export default function DisbursementProofModal({ camp, isOpen, onClose, theme })
                     download={activePreview.fileName}
                     target="_blank"
                     rel="noreferrer"
-                    className="btn btn-outline btn-xs"
+                    className="zoom-action-btn"
                   >
                     <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>download</span>
                     <span>Download</span>
                   </a>
                   <button type="button" className="zoom-close-inline-btn" onClick={() => setActivePreview(null)} aria-label="Close preview">
-                    <span className="material-symbols-outlined">close</span>
+                    <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>close</span>
                   </button>
                 </div>
               </div>
