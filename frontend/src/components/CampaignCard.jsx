@@ -15,6 +15,7 @@ import { autoCropQrScreenshot } from '../utils/qrCropper';
 import { formatPhoneNumber } from '../utils/formatters';
 import { getWorkspaceStrings } from '../data/workspaceTranslations';
 import './MultiRailProgress.css';
+import { isScopeBlockedNow } from '../utils/maintenanceWindow';
 import './CampaignDetailsModal.css';
 import './DonateCheckoutModal.css';
 
@@ -1080,33 +1081,50 @@ export default function CampaignCard(props) {
   const [auditProofExpanded, setAuditProofExpanded] = useState(false);
   const [showAllocationDrawer, setShowAllocationDrawer] = useState(false);
 
-  // ── Maintenance Mode Guard State ──
+  // ── Maintenance Mode & Pre-Maintenance Freeze Guard State ──
   const [maintState, setMaintState] = useState(() => {
     try {
       const c = localStorage.getItem('bbdrts_maintenance');
       return c ? JSON.parse(c) : null;
     } catch (_) { return null; }
   });
+  const [maintNowMs, setMaintNowMs] = useState(() => Date.now());
 
   useEffect(() => {
     const handleMaint = (e) => {
-      if (e.detail) setMaintState(e.detail);
+      if (e.detail) {
+        setMaintState(e.detail);
+        setMaintNowMs(Date.now());
+      }
     };
     window.addEventListener('bbdrts_maintenance_changed', handleMaint);
-    return () => window.removeEventListener('bbdrts_maintenance_changed', handleMaint);
+    window.addEventListener('bbdrts_maintenance_sync', handleMaint);
+    return () => {
+      window.removeEventListener('bbdrts_maintenance_changed', handleMaint);
+      window.removeEventListener('bbdrts_maintenance_sync', handleMaint);
+    };
   }, []);
 
-  const isDonationsMaintenance = Boolean(
-    maintState?.enabled &&
-    (maintState.scope?.includes('DONATIONS') || maintState.scope?.includes('FULL_PLATFORM') || maintState.scope?.includes('DONOR_PORTAL')) &&
-    role !== ROLES.ADMIN
-  );
+  useEffect(() => {
+    if (!maintState?.enabled) return;
+    const iv = setInterval(() => setMaintNowMs(Date.now()), 1000);
+    return () => clearInterval(iv);
+  }, [maintState?.enabled]);
 
-  const isDisbursementsMaintenance = Boolean(
-    maintState?.enabled &&
-    (maintState.scope?.includes('DISBURSEMENTS') || maintState.scope?.includes('FULL_PLATFORM') || maintState.scope?.includes('NGO_PORTAL')) &&
-    role !== ROLES.ADMIN
-  );
+  const donationsMaintCheck = role === ROLES.ADMIN
+    ? { blocked: false, reason: null, snap: null }
+    : isScopeBlockedNow(maintState, ['DONATIONS', 'DONOR_PORTAL'], maintNowMs);
+  const disbursementsMaintCheck = role === ROLES.ADMIN
+    ? { blocked: false, reason: null, snap: null }
+    : isScopeBlockedNow(maintState, ['DISBURSEMENTS', 'NGO_PORTAL'], maintNowMs);
+
+  const isDonationsMaintenance = donationsMaintCheck.blocked;
+  const isDonationsPreFreeze = donationsMaintCheck.reason === 'PRE_FREEZE';
+  const donationsFreezeSecs = donationsMaintCheck.snap?.startsInMs ? Math.max(1, Math.ceil(donationsMaintCheck.snap.startsInMs / 1000)) : null;
+
+  const isDisbursementsMaintenance = disbursementsMaintCheck.blocked;
+  const isDisbursementsPreFreeze = disbursementsMaintCheck.reason === 'PRE_FREEZE';
+  const disbursementsFreezeSecs = disbursementsMaintCheck.snap?.startsInMs ? Math.max(1, Math.ceil(disbursementsMaintCheck.snap.startsInMs / 1000)) : null;
 
   // Fiat Gateway Additions
   const [donorName, setDonorName] = useState('');
@@ -2258,8 +2276,10 @@ export default function CampaignCard(props) {
   const handleOpenCheckout = () => {
     if (isDonationsMaintenance) {
       showWarning(
-        `Donation gateway is temporarily paused for scheduled maintenance (${maintState?.title || 'System Maintenance'}). Please try again shortly.`,
-        'Maintenance Mode Active'
+        isDonationsPreFreeze
+          ? `Scheduled maintenance begins in ${donationsFreezeSecs || 60}s. New donations are paused to prevent interrupted transfers.`
+          : `Donation gateway is temporarily paused for scheduled maintenance (${maintState?.title || 'System Maintenance'}). Please try again shortly.`,
+        isDonationsPreFreeze ? 'Maintenance Starting Soon' : 'Maintenance Mode Active'
       );
       return;
     }
@@ -3808,9 +3828,15 @@ export default function CampaignCard(props) {
                 }}
               >
                 <span className="material-symbols-outlined" style={{ fontSize: '17px' }}>
-                  {isDisbursementsMaintenance ? 'construction' : 'local_shipping'}
+                  {isDisbursementsPreFreeze ? 'pause_circle' : isDisbursementsMaintenance ? 'construction' : 'local_shipping'}
                 </span>
-                <span>{isDisbursementsMaintenance ? 'Disbursement (Maintenance)' : 'Disburse & Upload Relief Proof'}</span>
+                <span>
+                  {isDisbursementsPreFreeze
+                    ? `Disbursement Paused (${disbursementsFreezeSecs || 60}s)`
+                    : isDisbursementsMaintenance
+                      ? 'Disbursement (Maintenance)'
+                      : 'Disburse & Upload Relief Proof'}
+                </span>
               </button>
 
               {(camp.disbursementStatus === 'DISBURSED' || camp.disbursementStatus === 'PARTIALLY_DISBURSED' || (camp.disbursedAmountPhp || 0) > 0) && (
@@ -3993,12 +4019,19 @@ export default function CampaignCard(props) {
                   <button
                     className="btn btn-primary donate-cta-btn"
                     onClick={handleOpenCheckout}
-                    disabled={!canDonate}
+                    disabled={!canDonate || isDonationsMaintenance}
+                    title={isDonationsPreFreeze ? `Donations paused — maintenance starts in ${donationsFreezeSecs || 60}s` : isDonationsMaintenance ? 'Donations paused for maintenance' : undefined}
                   >
-                    <span>{interfaceMode === 'simplified' ? wt.donateRelief : wt.donate}</span>
-                    <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>arrow_forward</span>
+                    <span>{isDonationsPreFreeze ? `Paused (${donationsFreezeSecs || 60}s)` : isDonationsMaintenance ? 'Paused' : (interfaceMode === 'simplified' ? wt.donateRelief : wt.donate)}</span>
+                    <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>{isDonationsMaintenance ? 'pause_circle' : 'arrow_forward'}</span>
                   </button>
                 </div>
+
+                {isDonationsPreFreeze && camp.isActive && (
+                  <p style={{ fontSize: '0.72rem', color: 'var(--danger, #f43f5e)', textAlign: 'center', margin: '4px 0 0', fontWeight: 600 }}>
+                    Maintenance starts in {donationsFreezeSecs || 60}s — donations paused to prevent interrupted transfers.
+                  </p>
+                )}
 
                 {!camp.isActive && (
                   <p style={{ fontSize: '0.74rem', color: 'var(--danger)', textAlign: 'center', margin: 0 }}>

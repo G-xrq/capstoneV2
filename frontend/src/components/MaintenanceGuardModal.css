@@ -909,6 +909,31 @@ body:has(.bbdrts-maint-modal-overlay) {
   box-shadow: 0 4px 14px rgba(15, 23, 42, 0.08);
 }
 
+.bbdrts-maint-upcoming-bar.is-freezing {
+  background: #240b10;
+  border-bottom-color: rgba(244, 63, 94, 0.55);
+  color: #fecdd3;
+}
+
+.bbdrts-maint-upcoming-bar.is-freezing .upcoming-pulse-dot {
+  background: #f43f5e;
+  box-shadow: 0 0 8px rgba(244, 63, 94, 0.9);
+}
+
+.bbdrts-maint-upcoming-bar.is-freezing .upcoming-ico {
+  color: #fb7185;
+}
+
+[data-theme="light"] .bbdrts-maint-upcoming-bar.is-freezing {
+  background: #fff1f2;
+  border-bottom-color: #fda4af;
+  color: #9f1239;
+}
+
+[data-theme="light"] .bbdrts-maint-upcoming-bar.is-freezing .upcoming-ico {
+  color: #e11d48;
+}
+
 @keyframes upcomingSlideIn {
   from { opacity: 0; transform: translateY(-100%); }
   to { opacity: 1; transform: translateY(0); }

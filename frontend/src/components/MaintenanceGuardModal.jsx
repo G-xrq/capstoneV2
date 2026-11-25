@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { API_URL } from '../config';
 import { useRealtimeSync } from '../hooks/useRealtimeSync';
+import { PRE_MAINT_FREEZE_MS } from '../utils/maintenanceWindow';
 import './MaintenanceGuardModal.css';
 
 function parseTimeMs(isoVal, displayVal) {
@@ -84,6 +85,7 @@ export default function MaintenanceGuardModal({
         setMaintenance(data);
         try {
           localStorage.setItem('bbdrts_maintenance', JSON.stringify(data));
+          window.dispatchEvent(new CustomEvent('bbdrts_maintenance_sync', { detail: data }));
         } catch (_) {}
 
         // If user was actively viewing the live maintenance screen and server now says maintenance ended -> auto-refresh!
@@ -158,6 +160,8 @@ export default function MaintenanceGuardModal({
   const autoDeactivate = maintenance?.autoDeactivate !== false;
   const isEndReached = Boolean(isEnabled && autoDeactivate && endMs && nowMs >= endMs);
   const isScheduledFuture = Boolean(isEnabled && !isEndReached && startMs && nowMs < startMs);
+  const startsInMs = isScheduledFuture && startMs ? Math.max(0, startMs - nowMs) : null;
+  const isPreFreeze = Boolean(isScheduledFuture && startsInMs !== null && startsInMs <= PRE_MAINT_FREEZE_MS);
   const isActiveNow = Boolean(isEnabled && !isEndReached && (!startMs || nowMs >= startMs));
 
   const currentRole = (userRole || dbUser?.role || 'donor').toLowerCase();
@@ -175,9 +179,14 @@ export default function MaintenanceGuardModal({
     || (currentRole === 'donor' && scopes.includes('DONOR_PORTAL'))
     || ((currentRole === 'organization' || currentRole === 'ngo') && scopes.includes('NGO_PORTAL'));
 
+  // Keep the overlay continuously mounted on completion (prevents any flash of the underlying page before reload)
+  const isRestoringNow = Boolean(
+    restoringAccess || (!isAdmin && !isPreviewMode && wasActivelyBlockedRef.current && isEndReached)
+  );
+
   const isFullscreenVisible = Boolean(
     !isAdmin &&
-    (restoringAccess || isPreviewMode || (isActiveNow && isViewTargeted))
+    (isRestoringNow || isPreviewMode || (isActiveNow && isViewTargeted))
   );
 
   // Track whether this visitor has actually been placed on the live maintenance screen
@@ -197,17 +206,13 @@ export default function MaintenanceGuardModal({
       fetchStatus(false);
     }
 
-    // 2. When Expected Completion Time arrives & autoDeactivate is enabled -> confirm with server & auto-refresh!
+    // 2. When Expected Completion Time arrives & autoDeactivate is enabled -> stay on restoring screen & reload seamlessly
     if (autoDeactivate && endMs && nowMs >= endMs && !endTriggerFetchedRef.current) {
       endTriggerFetchedRef.current = true;
       if (wasActivelyBlockedRef.current && !isAdmin) {
+        setRestoringAccess(true);
         fetchStatus(false);
-        // Safety net: even if fetch is slow, restore smoothly once server confirms or after short grace
-        setTimeout(() => {
-          if (wasActivelyBlockedRef.current && !reloadScheduledRef.current) {
-            triggerAutoRestoreReload();
-          }
-        }, 1500);
+        triggerAutoRestoreReload();
       } else {
         fetchStatus(false);
       }
@@ -243,35 +248,49 @@ export default function MaintenanceGuardModal({
 
   if (!maintenance && !isPreviewMode && !restoringAccess) return null;
 
-  // Non-blocking Upcoming Maintenance Countdown Banner (when Effective From is in the future)
-  if (!isAdmin && !isPreviewMode && !restoringAccess && isScheduledFuture && isViewTargeted) {
-    if (dismissUpcoming) return null;
+  // Non-blocking Upcoming Maintenance Countdown Banner (upgrades to non-dismissible Pre-Maintenance Freeze in final 60s)
+  if (!isAdmin && !isPreviewMode && !isRestoringNow && isScheduledFuture && isViewTargeted) {
+    if (dismissUpcoming && !isPreFreeze) return null;
     const startsInText = formatCountdown(startMs - nowMs);
     return createPortal(
-      <div className="bbdrts-maint-upcoming-bar" role="status" aria-live="polite">
+      <div className={`bbdrts-maint-upcoming-bar ${isPreFreeze ? 'is-freezing' : ''}`} role="status" aria-live="polite">
         <div className="upcoming-bar-inner">
           <div className="upcoming-bar-left">
             <span className="upcoming-pulse-dot" aria-hidden="true" />
-            <span className="material-symbols-outlined upcoming-ico">schedule</span>
+            <span className="material-symbols-outlined upcoming-ico">
+              {isPreFreeze ? 'pause_circle' : 'schedule'}
+            </span>
             <span className="upcoming-copy">
-              <strong>Scheduled Maintenance in {startsInText}</strong>
+              <strong>
+                {isPreFreeze
+                  ? `Maintenance starting in ${startsInText}`
+                  : `Scheduled Maintenance in ${startsInText}`}
+              </strong>
               <span className="upcoming-sep">·</span>
-              <span>
-                Window: {maintenance.startTime || 'Soon'}
-                {maintenance.endTime ? ` – ${maintenance.endTime}` : ''}
-              </span>
-              <span className="upcoming-sep">·</span>
-              <span>Please save your work</span>
+              {isPreFreeze ? (
+                <span>Donations, disbursements &amp; campaign launches are paused to prevent interrupted transactions</span>
+              ) : (
+                <>
+                  <span>
+                    Window: {maintenance.startTime || 'Soon'}
+                    {maintenance.endTime ? ` – ${maintenance.endTime}` : ''}
+                  </span>
+                  <span className="upcoming-sep">·</span>
+                  <span>Please finish active forms soon</span>
+                </>
+              )}
             </span>
           </div>
-          <button
-            type="button"
-            className="upcoming-close-btn"
-            onClick={() => setDismissUpcoming(true)}
-            aria-label="Dismiss upcoming maintenance notice"
-          >
-            <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>close</span>
-          </button>
+          {!isPreFreeze && (
+            <button
+              type="button"
+              className="upcoming-close-btn"
+              onClick={() => setDismissUpcoming(true)}
+              aria-label="Dismiss upcoming maintenance notice"
+            >
+              <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>close</span>
+            </button>
+          )}
         </div>
       </div>,
       document.body
@@ -367,35 +386,35 @@ export default function MaintenanceGuardModal({
         </div>
 
         {/* ── Main Vercel Geist Maintenance Surface ── */}
-        <div className={`bbdrts-maint-modal-card ${restoringAccess ? 'is-restoring' : ''}`}>
+        <div className={`bbdrts-maint-modal-card ${isRestoringNow ? 'is-restoring' : ''}`}>
 
           <div className="bbdrts-maint-hero">
-            <div className={`bbdrts-maint-icon-box ${restoringAccess ? 'is-restoring' : ''}`} aria-hidden="true">
+            <div className={`bbdrts-maint-icon-box ${isRestoringNow ? 'is-restoring' : ''}`} aria-hidden="true">
               <span className="material-symbols-outlined maint-floating-tool">
-                {restoringAccess ? 'check_circle' : 'construction'}
+                {isRestoringNow ? 'check_circle' : 'construction'}
               </span>
             </div>
 
-            <div className={`bbdrts-maint-status-pill ${restoringAccess ? 'is-restoring' : ''}`}>
+            <div className={`bbdrts-maint-status-pill ${isRestoringNow ? 'is-restoring' : ''}`}>
               <span className="bbdrts-maint-status-dot" aria-hidden="true" />
-              <span>{restoringAccess ? 'Maintenance Complete' : 'Scheduled Maintenance'}</span>
+              <span>{isRestoringNow ? 'Maintenance Complete' : 'Scheduled Maintenance'}</span>
             </div>
 
             <h2 id="bbdrts-maint-heading" className="bbdrts-maint-title">
-              {restoringAccess
+              {isRestoringNow
                 ? 'Platform Access Restored'
                 : (maintenance?.title || 'System Under Scheduled Maintenance')}
             </h2>
 
             <p className="bbdrts-maint-desc">
-              {restoringAccess
+              {isRestoringNow
                 ? 'Scheduled maintenance has concluded. Refreshing your workspace automatically so you can continue using BBDRTS…'
                 : (maintenance?.message || 'Our platform services are currently undergoing maintenance to improve reliability and smart contract security. Essential relief records remain safe on-chain.')}
             </p>
           </div>
 
           {/* Unified Geist Bento Telemetry Box */}
-          {!restoringAccess && (
+          {!isRestoringNow && (
             <div className="bbdrts-maint-bento">
               <div className="bbdrts-maint-grid-2">
                 <div className="bbdrts-maint-time-cell">
@@ -437,7 +456,7 @@ export default function MaintenanceGuardModal({
 
           {/* Primary Recheck Action */}
           <div className="bbdrts-maint-recheck-strip">
-            {restoringAccess ? (
+            {isRestoringNow ? (
               <div className="bbdrts-maint-restoring-pill">
                 <span className="material-symbols-outlined spin" style={{ fontSize: '16px' }}>sync</span>
                 <span>Refreshing platform automatically…</span>

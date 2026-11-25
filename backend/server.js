@@ -691,6 +691,9 @@ const formatUserObj = (user, role, idCol) => {
 };
 
 // ── SYSTEM OPERATIONS: Granular Maintenance Guard Middleware ──
+const PRE_MAINT_FREEZE_MS = 60 * 1000; // Final 60 seconds before Effective From
+const PRE_MAINT_SENSITIVE_SCOPES = new Set(['DONATIONS', 'DISBURSEMENTS', 'CAMPAIGN_CREATION', 'NGO_ONBOARDING']);
+
 async function checkMaintenanceGuard(scopeKey, user = null) {
   // Administrators always retain access and bypass all maintenance gates
   if (user && (user.role === 'admin' || user.Role === 'admin')) return null;
@@ -698,18 +701,42 @@ async function checkMaintenanceGuard(scopeKey, user = null) {
   try {
     const [rows] = await db.query('SELECT Setting_Value FROM SYSTEM_SETTINGS WHERE Setting_Key = "maintenance_mode"');
     if (rows && rows.length > 0 && rows[0].Setting_Value) {
-      const config = typeof rows[0].Setting_Value === 'string'
+      const rawConfig = typeof rows[0].Setting_Value === 'string'
         ? JSON.parse(rows[0].Setting_Value)
         : rows[0].Setting_Value;
+      const evaluated = evaluateMaintenanceRuntime(rawConfig);
+      if (evaluated.shouldAutoDeactivate) {
+        persistAutoDeactivation(evaluated.config).catch(() => {});
+        return null;
+      }
+      const config = evaluated.config;
       if (config.enabled) {
         const scopes = Array.isArray(config.scope) ? config.scope : [];
         const isFull = scopes.length === 0 || scopes.includes('FULL_PLATFORM');
-        if (isFull || scopes.includes(scopeKey)) {
+        const scopeMatched = isFull || scopes.includes(scopeKey);
+        if (scopeMatched && config.isActiveNow) {
           return {
             error: `Feature paused for scheduled maintenance: ${config.title || 'System Under Maintenance'}. ${config.message || 'Please check back shortly.'}`,
             maintenance: true,
             scope: scopeKey,
             title: config.title || 'System Under Maintenance',
+            message: config.message,
+            startTime: config.startTime,
+            endTime: config.endTime,
+            contactPerson: config.contactPerson,
+            contactEmail: config.contactEmail,
+            contactPhone: config.contactPhone
+          };
+        }
+        if (scopeMatched && config.isScheduled && config.isPreFreeze && PRE_MAINT_SENSITIVE_SCOPES.has(scopeKey)) {
+          const secsLeft = Math.max(1, Math.ceil((config.startsInMs || 0) / 1000));
+          return {
+            error: `Scheduled maintenance begins in ${secsLeft}s. New donations, disbursements, and campaign launches are temporarily paused to prevent interrupted transactions.`,
+            maintenance: true,
+            preFreeze: true,
+            startsInMs: config.startsInMs,
+            scope: scopeKey,
+            title: config.title || 'Scheduled Maintenance Imminent',
             message: config.message,
             startTime: config.startTime,
             endTime: config.endTime,
@@ -11326,15 +11353,18 @@ function evaluateMaintenanceRuntime(rawConfig, nowMs = Date.now()) {
 
   // If Effective From is still in the future -> armed/scheduled, not locking out yet
   if (startMs && nowMs < startMs) {
+    const startsInMs = Math.max(0, startMs - nowMs);
     return {
       config: {
         ...merged,
         effectiveState: 'SCHEDULED',
         isActiveNow: false,
         isScheduled: true,
+        isPreFreeze: startsInMs <= PRE_MAINT_FREEZE_MS,
+        freezeWindowMs: PRE_MAINT_FREEZE_MS,
         startMs,
         endMs,
-        startsInMs: Math.max(0, startMs - nowMs),
+        startsInMs,
         endsInMs: endMs ? Math.max(0, endMs - nowMs) : null,
         serverNow: nowMs
       },

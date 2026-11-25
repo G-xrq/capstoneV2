@@ -25,6 +25,7 @@ import { CONTRACT_ADDRESS } from '../contractConfig';
 import { autoCropQrScreenshot, extractQrVoucherText } from '../utils/qrCropper';
 import { formatPhoneNumber } from '../utils/formatters';
 import { getWorkspaceStrings } from '../data/workspaceTranslations';
+import { isScopeBlockedNow } from '../utils/maintenanceWindow';
 import {
   exportNgoLedgerCsv,
   exportNgoLedgerExcel,
@@ -305,6 +306,43 @@ export default function OrganizationView({
       window.removeEventListener('bbdrts_navigate_tab', handleTabNav);
     };
   }, []);
+
+  // Maintenance & Pre-Maintenance Freeze Guard State (prevents interrupted campaign launches)
+  const [maintState, setMaintState] = useState(() => {
+    try {
+      const c = localStorage.getItem('bbdrts_maintenance');
+      return c ? JSON.parse(c) : null;
+    } catch (_) { return null; }
+  });
+  const [maintNowMs, setMaintNowMs] = useState(() => Date.now());
+
+  useEffect(() => {
+    const handleMaint = (e) => {
+      if (e.detail) {
+        setMaintState(e.detail);
+        setMaintNowMs(Date.now());
+      }
+    };
+    window.addEventListener('bbdrts_maintenance_changed', handleMaint);
+    window.addEventListener('bbdrts_maintenance_sync', handleMaint);
+    return () => {
+      window.removeEventListener('bbdrts_maintenance_changed', handleMaint);
+      window.removeEventListener('bbdrts_maintenance_sync', handleMaint);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!maintState?.enabled) return;
+    const iv = setInterval(() => setMaintNowMs(Date.now()), 1000);
+    return () => clearInterval(iv);
+  }, [maintState?.enabled]);
+
+  const campaignCreateMaint = isScopeBlockedNow(maintState, ['CAMPAIGN_CREATION', 'NGO_PORTAL'], maintNowMs);
+  const isCampaignCreateBlocked = campaignCreateMaint.blocked;
+  const isCampaignCreatePreFreeze = campaignCreateMaint.reason === 'PRE_FREEZE';
+  const campaignCreateFreezeSecs = campaignCreateMaint.snap?.startsInMs
+    ? Math.max(1, Math.ceil(campaignCreateMaint.snap.startsInMs / 1000))
+    : null;
 
   // Create campaign form state
   const DISASTER_TAGS = [
@@ -2469,6 +2507,16 @@ export default function OrganizationView({
     if (deployStep < 5) {
       setDeployStep(s => Math.min(5, s + 1));
       window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+
+    if (isCampaignCreateBlocked) {
+      showWarning(
+        isCampaignCreatePreFreeze
+          ? `Scheduled maintenance begins in ${campaignCreateFreezeSecs || 60}s. Campaign launches are paused to prevent interrupted deployments.`
+          : 'Campaign deployment is currently paused for scheduled platform maintenance.',
+        isCampaignCreatePreFreeze ? 'Maintenance Starting Soon' : 'Maintenance Active'
+      );
       return;
     }
 
@@ -6033,11 +6081,22 @@ export default function OrganizationView({
                           type="button"
                           className="btn btn-primary"
                           onClick={handleCreateCampaign}
-                          disabled={creating}
+                          disabled={creating || isCampaignCreateBlocked}
+                          title={isCampaignCreatePreFreeze ? `Paused — maintenance starts in ${campaignCreateFreezeSecs || 60}s` : undefined}
                           style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '12px 32px', borderRadius: '8px', fontWeight: 700 }}
                         >
                           {creating ? (
                             <><div className="spinner" /> Deploying Campaign to Ledger…</>
+                          ) : isCampaignCreatePreFreeze ? (
+                            <>
+                              <span className="material-symbols-outlined" style={{ fontSize: '17px' }}>pause_circle</span>
+                              <span>Paused — Maintenance in {campaignCreateFreezeSecs || 60}s</span>
+                            </>
+                          ) : isCampaignCreateBlocked ? (
+                            <>
+                              <span className="material-symbols-outlined" style={{ fontSize: '17px' }}>construction</span>
+                              <span>Paused for Maintenance</span>
+                            </>
                           ) : (
                             <>
                               <span className="material-symbols-outlined" style={{ fontSize: '17px' }}>check_circle</span>
