@@ -83,7 +83,7 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
   const [selectedTags, setSelectedTags] = useState([]);
   const [urgencyFilter, setUrgencyFilter] = useState('ALL');
   const [progressFilter, setProgressFilter] = useState('ALL');
-  const [statusFilter, setStatusFilter] = useState('ALL');
+  const [statusFilter, setStatusFilter] = useState('ACTIVE');
   const [campaignSort, setCampaignSort] = useState('NEWEST');
   const [searchQuery, setSearchQuery] = useState('');
   const [onlyTracked, setOnlyTracked] = useState(false);
@@ -456,6 +456,7 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
       setActiveTab('campaigns');
       setCategoryFilter('ALL');
       setUrgencyFilter('ALL');
+      setStatusFilter('ALL');
       setSelectedTags([]);
       setSearchQuery('');
 
@@ -510,14 +511,14 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
     return { availableTags: tagsSorted, tagCounts: counts };
   }, [campaigns]);
 
-  const hasActiveFilters = onlyTracked || categoryFilter !== 'ALL' || selectedTags.length > 0 || urgencyFilter !== 'ALL' || progressFilter !== 'ALL' || statusFilter !== 'ALL' || searchQuery.trim() !== '';
+  const hasActiveFilters = onlyTracked || categoryFilter !== 'ALL' || selectedTags.length > 0 || urgencyFilter !== 'ALL' || progressFilter !== 'ALL' || statusFilter !== 'ACTIVE' || searchQuery.trim() !== '';
 
   const resetAllFilters = () => {
     setCategoryFilter('ALL');
     setSelectedTags([]);
     setUrgencyFilter('ALL');
     setProgressFilter('ALL');
-    setStatusFilter('ALL');
+    setStatusFilter('ACTIVE');
     setSearchQuery('');
     setOnlyTracked(false);
   };
@@ -1709,6 +1710,39 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
 
                   {/* Filter Controls Cluster */}
                   <div className="ec-filters-group">
+                    {/* Status Filter (Active by default · Concluded · All) */}
+                    <GeistSelect
+                      compact
+                      width="142px"
+                      menuMinWidth={220}
+                      activeHighlight={statusFilter !== 'ACTIVE'}
+                      value={statusFilter}
+                      onChange={(val) => setStatusFilter(val)}
+                      options={[
+                        {
+                          id: 'ACTIVE',
+                          label: `Active (${(campaigns || []).filter(c => c.isActive !== false && !c.isClosed).length})`,
+                          triggerLabel: 'Active',
+                          sub: 'Open drives accepting donations now',
+                          icon: 'radio_button_checked'
+                        },
+                        {
+                          id: 'CLOSED',
+                          label: `Concluded (${(campaigns || []).filter(c => c.isActive === false || c.isClosed).length})`,
+                          triggerLabel: 'Concluded',
+                          sub: 'Completed drives & audited relief proofs',
+                          icon: 'task_alt'
+                        },
+                        {
+                          id: 'ALL',
+                          label: `All Drives (${(campaigns || []).length})`,
+                          triggerLabel: 'All Statuses',
+                          sub: 'Active and concluded operations combined',
+                          icon: 'apps'
+                        }
+                      ]}
+                    />
+
                     {/* Cause Filter */}
                     <GeistSelect
                       compact

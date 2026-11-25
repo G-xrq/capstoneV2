@@ -142,6 +142,7 @@ export default function OrganizationView({
 
 
   // Filter & Sort States for "All Campaigns" (Unified Toolbar matching DonorView)
+  const [statusFilterAll, setStatusFilterAll] = useState('ACTIVE');
   const [categoryFilterAll, setCategoryFilterAll] = useState('ALL');
   const [urgencyFilterAll, setUrgencyFilterAll] = useState('ALL');
   const [selectedTagsAll, setSelectedTagsAll] = useState([]);
@@ -161,6 +162,7 @@ export default function OrganizationView({
   const searchInputRefAll = useRef(null);
 
   // Filter & Sort States for "My Campaigns"
+  const [statusFilterMy, setStatusFilterMy] = useState('ALL');
   const [categoryFilterMy, setCategoryFilterMy] = useState('ALL');
   const [urgencyFilterMy, setUrgencyFilterMy] = useState('ALL');
   const [selectedTagsMy, setSelectedTagsMy] = useState([]);
@@ -1639,8 +1641,8 @@ export default function OrganizationView({
     return { availableTagsMy: unique, tagCountsMy: counts };
   }, [myCampaigns]);
 
-  const hasActiveFiltersAll = categoryFilterAll !== 'ALL' || urgencyFilterAll !== 'ALL' || selectedTagsAll.length > 0 || Boolean(searchQueryAll.trim());
-  const hasActiveFiltersMy = categoryFilterMy !== 'ALL' || urgencyFilterMy !== 'ALL' || selectedTagsMy.length > 0 || Boolean(searchQueryMy.trim());
+  const hasActiveFiltersAll = statusFilterAll !== 'ACTIVE' || categoryFilterAll !== 'ALL' || urgencyFilterAll !== 'ALL' || selectedTagsAll.length > 0 || Boolean(searchQueryAll.trim());
+  const hasActiveFiltersMy = statusFilterMy !== 'ALL' || categoryFilterMy !== 'ALL' || urgencyFilterMy !== 'ALL' || selectedTagsMy.length > 0 || Boolean(searchQueryMy.trim());
 
   // Close dropdowns on outside click
   useEffect(() => {
@@ -2291,6 +2293,11 @@ export default function OrganizationView({
   const filteredAllCampaigns = useMemo(() => {
     return campaigns
       .filter(c => {
+        if (statusFilterAll !== 'ALL') {
+          const isAct = c.isActive !== false && !c.isClosed;
+          if (statusFilterAll === 'ACTIVE' && !isAct) return false;
+          if (statusFilterAll === 'CLOSED' && isAct) return false;
+        }
         if (categoryFilterAll !== 'ALL') {
           const displayTitle = formatCampaignTitle(c.title, c.id);
           const isCharity = /charity|school|orphan|food|feed|community|aid|blood|medical/i.test(displayTitle);
@@ -2330,7 +2337,7 @@ export default function OrganizationView({
         if (campaignSortAll === 'RAISED_HIGH') return (parseFloat(b.currentAmount) || 0) - (parseFloat(a.currentAmount) || 0);
         return b.id - a.id;
       });
-  }, [campaigns, categoryFilterAll, urgencyFilterAll, selectedTagsAll, searchQueryAll, campaignSortAll]);
+  }, [campaigns, statusFilterAll, categoryFilterAll, urgencyFilterAll, selectedTagsAll, searchQueryAll, campaignSortAll]);
 
   const totalPagesAll = Math.ceil(filteredAllCampaigns.length / campaignsPerPage);
   const paginatedAllCampaigns = filteredAllCampaigns.slice(
@@ -2342,6 +2349,11 @@ export default function OrganizationView({
   const filteredMyCampaigns = useMemo(() => {
     return myCampaigns
       .filter(c => {
+        if (statusFilterMy !== 'ALL') {
+          const isAct = c.isActive !== false && !c.isClosed;
+          if (statusFilterMy === 'ACTIVE' && !isAct) return false;
+          if (statusFilterMy === 'CLOSED' && isAct) return false;
+        }
         if (categoryFilterMy !== 'ALL') {
           const displayTitle = formatCampaignTitle(c.title, c.id);
           const isCharity = /charity|school|orphan|food|feed|community|aid|blood|medical/i.test(displayTitle);
@@ -2380,7 +2392,7 @@ export default function OrganizationView({
         if (campaignSortMy === 'RAISED_HIGH') return (parseFloat(b.currentAmount) || 0) - (parseFloat(a.currentAmount) || 0);
         return b.id - a.id;
       });
-  }, [myCampaigns, categoryFilterMy, urgencyFilterMy, selectedTagsMy, searchQueryMy, campaignSortMy]);
+  }, [myCampaigns, statusFilterMy, categoryFilterMy, urgencyFilterMy, selectedTagsMy, searchQueryMy, campaignSortMy]);
 
   const totalPagesMy = Math.ceil(filteredMyCampaigns.length / campaignsPerPage);
   const paginatedMyCampaigns = filteredMyCampaigns.slice(
@@ -3405,6 +3417,21 @@ export default function OrganizationView({
                     <span>Filters</span>
                   </div>
 
+                  {/* Status Filter (Active default · Concluded · All) */}
+                  <GeistSelect
+                    compact
+                    width="138px"
+                    menuMinWidth={220}
+                    activeHighlight={statusFilterAll !== 'ACTIVE'}
+                    value={statusFilterAll}
+                    onChange={(val) => { setStatusFilterAll(val); setCurrentPageAll(1); }}
+                    options={[
+                      { id: 'ACTIVE', label: `Active (${(campaigns || []).filter(c => c.isActive !== false && !c.isClosed).length})`, triggerLabel: 'Active', sub: 'Ongoing relief operations', icon: 'radio_button_checked' },
+                      { id: 'CLOSED', label: `Concluded (${(campaigns || []).filter(c => c.isActive === false || c.isClosed).length})`, triggerLabel: 'Concluded', sub: 'Finished drives & audited proofs', icon: 'task_alt' },
+                      { id: 'ALL', label: `All Drives (${(campaigns || []).length})`, triggerLabel: 'All Statuses', sub: 'Active and concluded drives', icon: 'apps' }
+                    ]}
+                  />
+
                   {/* Cause Filter */}
                   <GeistSelect
                     compact
@@ -3709,6 +3736,21 @@ export default function OrganizationView({
                     <span className="material-symbols-outlined">filter_list</span>
                     <span>Filters</span>
                   </div>
+
+                  {/* Status Filter (All default for NGO owners · Active · Concluded) */}
+                  <GeistSelect
+                    compact
+                    width="142px"
+                    menuMinWidth={220}
+                    activeHighlight={statusFilterMy !== 'ALL'}
+                    value={statusFilterMy}
+                    onChange={(val) => { setStatusFilterMy(val); setCurrentPageMy(1); }}
+                    options={[
+                      { id: 'ALL', label: `All Drives (${(myCampaigns || []).length})`, triggerLabel: 'All Statuses', sub: 'Active & concluded campaigns', icon: 'apps' },
+                      { id: 'ACTIVE', label: `Active (${(myCampaigns || []).filter(c => c.isActive !== false && !c.isClosed).length})`, triggerLabel: 'Active', sub: 'Open drives accepting donations', icon: 'radio_button_checked' },
+                      { id: 'CLOSED', label: `Concluded (${(myCampaigns || []).filter(c => c.isActive === false || c.isClosed).length})`, triggerLabel: 'Concluded', sub: 'Closed operations & proofs', icon: 'task_alt' }
+                    ]}
+                  />
 
                   {/* Cause Filter */}
                   <GeistSelect

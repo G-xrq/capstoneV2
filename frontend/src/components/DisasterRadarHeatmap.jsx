@@ -1150,6 +1150,7 @@ function DisasterRadarHeatmapInner({
   const preFocusViewRef = useRef(null);
   const [simulateDensity, setSimulateDensity] = useState(false);
   const [simSeed, setSimSeed] = useState(1);
+  const [includeConcluded, setIncludeConcluded] = useState(false);
 
   // ── Interactive Beacon Focus Experience State ──
   const [selectedBeaconCampaign, setSelectedBeaconCampaign] = useState(null);
@@ -1167,12 +1168,19 @@ function DisasterRadarHeatmapInner({
   const preBeaconViewRef = useRef(null);
   const pinCoordsByCampIdRef = useRef(new Map());
 
-  // Active campaigns combining real on-chain campaigns with simulated density missions
+  const concludedCampaignCount = useMemo(() => {
+    return (campaigns || []).filter(c => c.isActive === false || c.isClosed).length;
+  }, [campaigns]);
+
+  // Active campaigns combining real on-chain campaigns (excluding concluded unless toggled) with simulated density missions
   const activeCampaigns = useMemo(() => {
-    if (!simulateDensity) return campaigns || [];
-    const simulated = generateSimulatedMissions(simSeed, campaigns || []);
-    return [...(campaigns || []), ...simulated];
-  }, [campaigns, simulateDensity, simSeed]);
+    const base = includeConcluded
+      ? (campaigns || [])
+      : (campaigns || []).filter(c => c.isActive !== false && !c.isClosed);
+    if (!simulateDensity) return base;
+    const simulated = generateSimulatedMissions(simSeed, base);
+    return [...base, ...simulated];
+  }, [campaigns, includeConcluded, simulateDensity, simSeed]);
 
   const activeLayerRef = useRef(activeLayer);
   activeLayerRef.current = activeLayer;
@@ -3394,8 +3402,36 @@ function DisasterRadarHeatmapInner({
                 <span>{wt.dataSaverRadar}</span>
               </div>
             )}
+            {concludedCampaignCount > 0 && (
+              <button
+                type="button"
+                className={`region-segment-btn ${includeConcluded ? 'active' : ''}`}
+                onClick={() => setIncludeConcluded(prev => !prev)}
+                aria-pressed={includeConcluded}
+                title={includeConcluded ? 'Showing active + concluded operations on radar (click to show active only)' : 'Show concluded relief operations on the map'}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '5px',
+                  height: '28px',
+                  padding: '0 10px',
+                  borderRadius: '7px',
+                  border: includeConcluded ? '1px solid rgba(16, 185, 129, 0.45)' : '1px solid var(--border)',
+                  background: includeConcluded ? 'rgba(16, 185, 129, 0.14)' : 'var(--bg-inset)',
+                  color: includeConcluded ? '#10b981' : 'var(--text-muted)',
+                  fontSize: '0.70rem',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>task_alt</span>
+                <span>{includeConcluded ? `Concluded Shown (${concludedCampaignCount})` : `Show Concluded (${concludedCampaignCount})`}</span>
+              </button>
+            )}
+
             {/* Active Telemetry Pill */}
-            <div className="radar-telemetry-pill" title="Total active relief operations tracked">
+            <div className="radar-telemetry-pill" title={includeConcluded ? 'Total active & concluded operations tracked' : 'Total active relief operations tracked'}>
               <span className="telemetry-pill-dot"></span>
               <span className="telemetry-pill-val">{totalTrackedCampaigns}</span>
               <span className="telemetry-pill-label">Causes</span>
