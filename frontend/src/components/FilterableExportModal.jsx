@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import {
+  buildExportFileStem,
   resolveDonationPhp,
   normalizePaymentRail,
   exportDonorReportExcel,
@@ -371,7 +372,7 @@ export default function FilterableExportModal({
         const f = exportAdminFinancialLedgerExcel(filteredRecords, filterSummary);
         onExported?.(`Exported ${filteredRecords.length} ledger record(s) to "${f}".`, 'Excel Report Ready');
       } else if (format === 'csv') {
-        const f = exportAdminFinancialLedgerCsv(filteredRecords);
+        const f = exportAdminFinancialLedgerCsv(filteredRecords, filterSummary);
         onExported?.(`Exported ${filteredRecords.length} ledger record(s) to "${f}".`, 'CSV Report Ready');
       } else {
         exportAdminFinancialLedgerPdf(filteredRecords, filterSummary);
@@ -382,7 +383,7 @@ export default function FilterableExportModal({
         const f = exportAdminActivityLogsExcel(filteredRecords, filterSummary);
         onExported?.(`Exported ${filteredRecords.length} activity log(s) to "${f}".`, 'Excel Audit Ready');
       } else if (format === 'csv') {
-        const f = exportAdminActivityLogsCsv(filteredRecords);
+        const f = exportAdminActivityLogsCsv(filteredRecords, filterSummary);
         onExported?.(`Exported ${filteredRecords.length} activity log(s) to "${f}".`, 'CSV Audit Ready');
       } else {
         exportAdminActivityLogsPdf(filteredRecords, filterSummary);
@@ -603,9 +604,37 @@ export default function FilterableExportModal({
           </div>
         </div>
 
-        {/* Footer */}
+        {/* Footer with Live Accurate Filename Preview */}
         <div className="fem-foot">
-          <span>Active scope: {filterSummary}</span>
+          <div style={{ minWidth: 0, flex: 1, display: 'flex', flexDirection: 'column', gap: '2px' }}>
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              Scope: <strong>{filterSummary}</strong>
+            </span>
+            <span
+              style={{ fontFamily: 'var(--font-mono, monospace)', fontSize: '0.67rem', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+              title={buildExportFileStem(
+                role === 'donor'
+                  ? ['Donor', 'Receipts', meta.donorName && meta.donorName !== 'Verified Donor' ? meta.donorName : '']
+                  : role === 'ngo'
+                    ? ['NGO', 'Ledger', meta.orgName || 'NGO']
+                    : role === 'admin_ledger'
+                      ? ['Admin', 'Financial', 'Ledger']
+                      : ['Activity', 'Logs'],
+                filterSummary
+              )}
+            >
+              File: {buildExportFileStem(
+                role === 'donor'
+                  ? ['Donor', 'Receipts', meta.donorName && meta.donorName !== 'Verified Donor' ? meta.donorName : '']
+                  : role === 'ngo'
+                    ? ['NGO', 'Ledger', meta.orgName || 'NGO']
+                    : role === 'admin_ledger'
+                      ? ['Admin', 'Financial', 'Ledger']
+                      : ['Activity', 'Logs'],
+                filterSummary
+              )}.xlsx / .csv / .pdf
+            </span>
+          </div>
           <button type="button" className="rcp-modal-btn" onClick={onClose}>
             Cancel
           </button>

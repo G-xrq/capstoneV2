@@ -62,6 +62,43 @@ function writeCsvRows(rows, filename) {
   return downloadBlobFile('\uFEFF' + csvBody, 'text/csv;charset=utf-8;', filename);
 }
 
+function slugSegment(raw, maxLen = 34) {
+  return String(raw || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, maxLen)
+    .replace(/-+$/g, '');
+}
+
+/** Build an accurate, descriptive filename stem reflecting role, entity, active filters, and date. */
+export function buildExportFileStem(baseParts = [], filterSummary = '') {
+  const dateStamp = new Date().toISOString().slice(0, 10);
+  const parts = ['BBDRTS', ...baseParts.map((p) => slugSegment(p, 32)).filter(Boolean)];
+
+  const rawTokens = String(filterSummary || '')
+    .split('·')
+    .map((t) => t.trim())
+    .filter(Boolean);
+
+  for (const tok of rawTokens) {
+    if (/^(all time|all records|all activity logs|all)$/i.test(tok)) continue;
+    const cleaned = tok
+      .replace(/^(channel|campaign|category|role|status|search):\s*/i, '')
+      .replace(/["']/g, '');
+    const slug = slugSegment(cleaned, 30);
+    if (slug && !parts.includes(slug)) parts.push(slug);
+  }
+
+  parts.push(dateStamp);
+  return parts.join('_').slice(0, 128).replace(/[_-]+$/g, '');
+}
+
+export function buildExportFilename(baseParts = [], filterSummary = '', ext = 'xlsx') {
+  return `${buildExportFileStem(baseParts, filterSummary)}.${ext}`;
+}
+
 export function resolveDonationPhp(d) {
   if (!d) return 0;
   const isShortage = d.auditStatus === 'SHORTAGE' || Number(d.variancePhp || 0) < -20;
@@ -147,13 +184,14 @@ function applyPhpAndPctFormats(ws, phpCols = [], pctCols = [], startRow = 1) {
  * an interactive top print bar (hidden during printing), and automatic iframe
  * fallback when popup blockers prevent a new tab.
  */
-function openPrintableHtml(title, bodyHtml) {
+function openPrintableHtml(title, bodyHtml, documentTitle = '') {
+  const pdfTitle = documentTitle || title;
   const html = `<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>${escHtml(title)}</title>
+<title>${escHtml(pdfTitle)}</title>
 <style>
   @page { size: A4; margin: 12mm; }
   * { box-sizing: border-box; }
@@ -607,10 +645,12 @@ export function exportExcelWorkbook(analytics, options = {}) {
   else applyPhpAndPctFormats(wsLedger, [5], [], 4);
   XLSX.utils.book_append_sheet(wb, wsLedger, 'Transaction Ledger');
 
-  const safePrefix = isAdmin
-    ? 'BBDRTS_Admin_Analytics_Report'
-    : `BBDRTS_${String(safeAnalytics?.meta?.orgName || 'NGO').replace(/[^a-zA-Z0-9]+/g, '_')}_Analytics`;
-  const filename = `${safePrefix}_${dateStamp}.xlsx`;
+  const tfLabel = safeAnalytics?.meta?.timeframeLabel || options.timeframeLabel || '';
+  const filename = buildExportFilename(
+    isAdmin ? ['Admin', 'Analytics'] : ['NGO', 'Analytics', safeAnalytics?.meta?.orgName || 'Report'],
+    tfLabel,
+    'xlsx'
+  );
   XLSX.writeFile(wb, filename);
   return filename;
 }
@@ -661,9 +701,13 @@ export function exportFormattedCsv(analytics, options = {}) {
     rows.push(['TOTAL', `${camps.length} Campaigns`, '', '', '', '', sumGoal, sumRaised, sumGoal > 0 ? `${((sumRaised / sumGoal) * 100).toFixed(1)}%` : '0%', sumDisb]);
   }
 
-  const filename = isAdmin
-    ? `BBDRTS_Admin_Report_${dateStamp}.csv`
-    : `BBDRTS_${String(safeAnalytics?.meta?.orgName || 'NGO').replace(/[^a-zA-Z0-9]+/g, '_')}_Report_${dateStamp}.csv`;
+  const tfLabel = safeAnalytics?.meta?.timeframeLabel || options.timeframeLabel || '';
+  const dataKind = txList.length > 0 ? 'Transactions' : 'Campaigns';
+  const filename = buildExportFilename(
+    isAdmin ? ['Admin', dataKind] : ['NGO', safeAnalytics?.meta?.orgName || 'Report', dataKind],
+    tfLabel,
+    'csv'
+  );
   return writeCsvRows(rows, filename);
 }
 
@@ -671,9 +715,12 @@ export function exportStructuredJson(analytics, options = {}) {
   const safeAnalytics = analytics || {};
   const isAdmin = (options.mode || safeAnalytics?.meta?.scope) === 'admin' || safeAnalytics?.meta?.scope === 'PLATFORM';
   const dateStamp = new Date().toISOString().slice(0, 10);
-  const filename = isAdmin
-    ? `BBDRTS_Admin_Analytics_${dateStamp}.json`
-    : `BBDRTS_NGO_Analytics_${dateStamp}.json`;
+  const tfLabel = safeAnalytics?.meta?.timeframeLabel || options.timeframeLabel || '';
+  const filename = buildExportFilename(
+    isAdmin ? ['Admin', 'Analytics'] : ['NGO', safeAnalytics?.meta?.orgName || 'Operations', 'Analytics'],
+    tfLabel,
+    'json'
+  );
   const payload = {
     reportTitle: isAdmin ? 'BBDRTS Platform Analytics & Governance Report' : 'BBDRTS NGO Operations Analytics Report',
     exportedAtPht: formatPhtNow(safeAnalytics?.meta?.generatedAt),
@@ -876,7 +923,12 @@ export function exportPrintablePdfReport(analytics, options = {}) {
       <span>Printed ${escHtml(formatPhtNow())}</span>
     </div>`;
 
-  return openPrintableHtml(title, bodyHtml);
+  const tfLabel = meta.timeframeLabel || options.timeframeLabel || '';
+  const pdfStem = buildExportFileStem(
+    isAdmin ? ['Admin', 'Analytics', 'Report'] : ['NGO', meta.orgName || 'Operations', 'Analytics'],
+    tfLabel
+  );
+  return openPrintableHtml(title, bodyHtml, pdfStem);
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -1009,12 +1061,12 @@ export function exportDonorReportExcel({ donorName = 'Verified Donor', donorEmai
   applyPhpAndPctFormats(wsCamp, [4], [], 4);
   XLSX.utils.book_append_sheet(wb, wsCamp, 'Campaigns Supported');
 
-  const filename = `BBDRTS_Donor_Statement_${dateStamp}.xlsx`;
+  const filename = buildExportFilename(['Donor', 'Statement', donorName !== 'Verified Donor' ? donorName : ''], filterSummary, 'xlsx');
   XLSX.writeFile(wb, filename);
   return filename;
 }
 
-export function exportDonorReportCsv({ donations = [], campaigns = [] }) {
+export function exportDonorReportCsv({ donorName = '', donations = [], campaigns = [], filterSummary = '' }) {
   const rows = normalizeDonorRows(donations, campaigns);
   const totalPhp = rows.reduce((s, r) => s + r.php, 0);
   const csvRows = [
@@ -1028,7 +1080,8 @@ export function exportDonorReportCsv({ donations = [], campaigns = [] }) {
     csvRows.push(['—', 'No donation receipts recorded yet', '', '', '', '', 0, '—', '—']);
   }
   csvRows.push(['TOTAL', `${rows.length} Verified Receipts`, '', '', '', '', totalPhp, '', '']);
-  return writeCsvRows(csvRows, `BBDRTS_Donor_Receipts_${new Date().toISOString().slice(0, 10)}.csv`);
+  const filename = buildExportFilename(['Donor', 'Receipts', donorName && donorName !== 'Verified Donor' ? donorName : ''], filterSummary, 'csv');
+  return writeCsvRows(csvRows, filename);
 }
 
 export function exportDonorPrintableReport({ donorName = 'Verified Donor', donorEmail = '', donations = [], campaigns = [], filterSummary = 'All Records' }) {
@@ -1127,7 +1180,11 @@ export function exportDonorPrintableReport({ donorName = 'Verified Donor', donor
       <span>Issued ${escHtml(formatPhtNow())}</span>
     </div>`;
 
-  return openPrintableHtml(`BBDRTS Donor Statement — ${donorName}`, bodyHtml);
+  const pdfStem = buildExportFileStem(['Donor', 'Statement', donorName !== 'Verified Donor' ? donorName : ''], filterSummary);
+  const displayTitle = filterSummary && !/^(all time|all records)$/i.test(filterSummary)
+    ? `BBDRTS Donor Statement — ${donorName} (${filterSummary})`
+    : `BBDRTS Donor Statement — ${donorName}`;
+  return openPrintableHtml(displayTitle, bodyHtml, pdfStem);
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -1159,7 +1216,7 @@ function normalizeNgoLedgerRows(donations = [], campaigns = []) {
   });
 }
 
-export function exportNgoLedgerCsv({ orgName = 'NGO', donations = [], campaigns = [] }) {
+export function exportNgoLedgerCsv({ orgName = 'NGO', donations = [], campaigns = [], filterSummary = '' }) {
   const rows = normalizeNgoLedgerRows(donations, campaigns);
   const totalPhp = rows.reduce((s, r) => s + r.php, 0);
   const csvRows = [
@@ -1173,8 +1230,8 @@ export function exportNgoLedgerCsv({ orgName = 'NGO', donations = [], campaigns 
     csvRows.push(['—', 'No transactions in current filter', '', '', '', '', '', 0, '—', '—']);
   }
   csvRows.push(['TOTAL', `${rows.length} Verified Transactions`, '', '', '', '', '', totalPhp, '', '']);
-  const safeOrg = String(orgName || 'NGO').replace(/[^a-zA-Z0-9]+/g, '_');
-  return writeCsvRows(csvRows, `BBDRTS_${safeOrg}_Ledger_${new Date().toISOString().slice(0, 10)}.csv`);
+  const filename = buildExportFilename(['NGO', 'Ledger', orgName], filterSummary, 'csv');
+  return writeCsvRows(csvRows, filename);
 }
 
 export function exportNgoLedgerExcel({ orgName = 'NGO', donations = [], campaigns = [], filterSummary = 'All Records' }) {
@@ -1262,8 +1319,7 @@ export function exportNgoLedgerExcel({ orgName = 'NGO', donations = [], campaign
   applyPhpAndPctFormats(wsNgoCamp, [3], [4], 4);
   XLSX.utils.book_append_sheet(wb, wsNgoCamp, 'Campaign Breakdown');
 
-  const safeOrg = String(orgName || 'NGO').replace(/[^a-zA-Z0-9]+/g, '_');
-  const filename = `BBDRTS_${safeOrg}_Ledger_${new Date().toISOString().slice(0, 10)}.xlsx`;
+  const filename = buildExportFilename(['NGO', 'Ledger', orgName], filterSummary, 'xlsx');
   XLSX.writeFile(wb, filename);
   return filename;
 }
@@ -1365,7 +1421,11 @@ export function exportNgoAuditPdf({ orgName = 'NGO', donations = [], campaigns =
       <span>Printed ${escHtml(formatPhtNow())}</span>
     </div>`;
 
-  return openPrintableHtml(`BBDRTS NGO Audit Report — ${orgName}`, bodyHtml);
+  const pdfStem = buildExportFileStem(['NGO', 'Audit', orgName], filterSummary);
+  const displayTitle = filterSummary && !/^(all time|all records)$/i.test(filterSummary)
+    ? `BBDRTS NGO Audit Report — ${orgName} (${filterSummary})`
+    : `BBDRTS NGO Audit Report — ${orgName}`;
+  return openPrintableHtml(displayTitle, bodyHtml, pdfStem);
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -1387,7 +1447,7 @@ function normalizeAdminLedgerRows(items = []) {
   }));
 }
 
-export function exportAdminFinancialLedgerCsv(items = []) {
+export function exportAdminFinancialLedgerCsv(items = [], filterSummary = '') {
   const rows = normalizeAdminLedgerRows(items);
   const totalPhp = rows.reduce((s, r) => s + r.php, 0);
   const csvRows = [
@@ -1401,7 +1461,8 @@ export function exportAdminFinancialLedgerCsv(items = []) {
     csvRows.push(['—', 'No transactions matched current filters', '', '', '', '', 0, '—', '—']);
   }
   csvRows.push(['TOTAL', `${rows.length} Transactions`, '', '', '', '', totalPhp, '', '']);
-  return writeCsvRows(csvRows, `BBDRTS_Admin_Financial_Ledger_${new Date().toISOString().slice(0, 10)}.csv`);
+  const filename = buildExportFilename(['Admin', 'Financial', 'Ledger'], filterSummary, 'csv');
+  return writeCsvRows(csvRows, filename);
 }
 
 export function exportAdminFinancialLedgerExcel(items = [], filterSummary = 'All Records') {
@@ -1485,7 +1546,7 @@ export function exportAdminFinancialLedgerExcel(items = [], filterSummary = 'All
   applyPhpAndPctFormats(wsAdmCamp, [2], [3], 4);
   XLSX.utils.book_append_sheet(wb, wsAdmCamp, 'Campaign Breakdown');
 
-  const filename = `BBDRTS_Admin_Financial_Ledger_${new Date().toISOString().slice(0, 10)}.xlsx`;
+  const filename = buildExportFilename(['Admin', 'Financial', 'Ledger'], filterSummary, 'xlsx');
   XLSX.writeFile(wb, filename);
   return filename;
 }
@@ -1586,10 +1647,14 @@ export function exportAdminFinancialLedgerPdf(items = [], filterSummary = 'All R
       <span>Printed ${escHtml(formatPhtNow())}</span>
     </div>`;
 
-  return openPrintableHtml('BBDRTS Admin Financial Ledger Report', bodyHtml);
+  const pdfStem = buildExportFileStem(['Admin', 'Financial', 'Ledger'], filterSummary);
+  const displayTitle = filterSummary && !/^(all time|all records)$/i.test(filterSummary)
+    ? `BBDRTS Admin Financial Ledger (${filterSummary})`
+    : 'BBDRTS Admin Financial Ledger Report';
+  return openPrintableHtml(displayTitle, bodyHtml, pdfStem);
 }
 
-export function exportAdminActivityLogsCsv(logs = []) {
+export function exportAdminActivityLogsCsv(logs = [], filterSummary = '') {
   const csvRows = [
     ['Log ID', 'Timestamp (PHT)', 'Category', 'Activity Description', 'Actor Name', 'Actor Email', 'Role', 'Target Entity', 'Status', 'Source IP', 'Details Summary']
   ];
@@ -1612,7 +1677,8 @@ export function exportAdminActivityLogsCsv(logs = []) {
   } else {
     csvRows.push(['—', 'No activity logs matched current filters', '', '', '', '', '', '', '', '', '']);
   }
-  return writeCsvRows(csvRows, `BBDRTS_System_Activity_Logs_${new Date().toISOString().slice(0, 10)}.csv`);
+  const filename = buildExportFilename(['Activity', 'Logs'], filterSummary, 'csv');
+  return writeCsvRows(csvRows, filename);
 }
 
 export function exportAdminActivityLogsExcel(logs = [], filterSummary = 'All Activity Logs') {
@@ -1674,7 +1740,7 @@ export function exportAdminActivityLogsExcel(logs = [], filterSummary = 'All Act
   ws['!merges'] = [{ s: { r: 0, c: 0 }, e: { r: 0, c: 10 } }, { s: { r: 1, c: 0 }, e: { r: 1, c: 10 } }];
   autoSizeSheet(ws, rows, 3);
   XLSX.utils.book_append_sheet(wb, ws, 'System Activity Logs');
-  const filename = `BBDRTS_System_Activity_Logs_${new Date().toISOString().slice(0, 10)}.xlsx`;
+  const filename = buildExportFilename(['Activity', 'Logs'], filterSummary, 'xlsx');
   XLSX.writeFile(wb, filename);
   return filename;
 }
@@ -1747,7 +1813,11 @@ export function exportAdminActivityLogsPdf(logs = [], filterSummary = 'All Activ
       <span>Printed ${escHtml(formatPhtNow())}</span>
     </div>`;
 
-  return openPrintableHtml('BBDRTS System Activity Logs Report', bodyHtml);
+  const pdfStem = buildExportFileStem(['Activity', 'Logs'], filterSummary);
+  const displayTitle = filterSummary && !/^(all time|all records|all activity logs)$/i.test(filterSummary)
+    ? `BBDRTS System Activity Logs (${filterSummary})`
+    : 'BBDRTS System Activity Logs Report';
+  return openPrintableHtml(displayTitle, bodyHtml, pdfStem);
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -1819,5 +1889,7 @@ export function printDonationVoucher(voucher = {}) {
       </div>
     </div>`;
 
-  return openPrintableHtml(`BBDRTS Official Receipt — ${campaignTitle}`, bodyHtml);
+  const voucherIdTag = voucher.id ? `Receipt-${voucher.id}` : 'Receipt';
+  const pdfStem = buildExportFileStem(['Audit', 'Voucher', voucherIdTag, orgName, campaignTitle], '');
+  return openPrintableHtml(`BBDRTS Official Audit Voucher ${voucher.id ? `#${voucher.id} ` : ''}— ${campaignTitle}`, bodyHtml, pdfStem);
 }
