@@ -12,6 +12,7 @@ import DisasterRadarHeatmap from '../components/DisasterRadarHeatmap';
 import SecCertificateModal from '../components/SecCertificateModal';
 import DisbursementProofModal from '../components/DisbursementProofModal';
 import FilterableExportModal from '../components/FilterableExportModal';
+import GeistSelect from '../components/GeistSelect';
 import SidebarToggleIcon from '../components/SidebarToggleIcon';
 import AdminBroadcastPanel from '../components/AdminBroadcastPanel';
 import AdminMaintenancePanel from '../components/AdminMaintenancePanel';
@@ -1518,17 +1519,17 @@ export default function AdminView({
           </span>
           <div className="page-size-selector">
             <span>Rows:</span>
-            <select
-              value={pageSize}
-              onChange={(e) => {
-                onPageSizeChange(Number(e.target.value));
+            <GeistSelect
+              compact
+              width="74px"
+              menuMinWidth={96}
+              value={String(pageSize)}
+              onChange={(val) => {
+                onPageSizeChange(Number(val));
                 onPageChange(1);
               }}
-            >
-              {pageSizeOptions.map(sz => (
-                <option key={sz} value={sz}>{sz}</option>
-              ))}
-            </select>
+              options={pageSizeOptions.map(sz => ({ id: String(sz), label: String(sz) }))}
+            />
           </div>
         </div>
 

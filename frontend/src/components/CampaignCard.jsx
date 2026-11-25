@@ -16,6 +16,7 @@ import { formatPhoneNumber } from '../utils/formatters';
 import { getWorkspaceStrings } from '../data/workspaceTranslations';
 import './MultiRailProgress.css';
 import { isScopeBlockedNow } from '../utils/maintenanceWindow';
+import GeistSelect from './GeistSelect';
 import './CampaignDetailsModal.css';
 import './DonateCheckoutModal.css';
 
@@ -4520,20 +4521,20 @@ export default function CampaignCard(props) {
                         )}
                       </div>
 
-                      <div className="ledger-sort-wrapper">
-                        <span className="material-symbols-outlined ledger-sort-icon">sort</span>
-                        <select
-                          className="ledger-sort-select"
-                          value={ledgerSort}
-                          onChange={(e) => setLedgerSort(e.target.value)}
-                          aria-label="Sort ledger records"
-                        >
-                          <option value="NEWEST">Newest</option>
-                          <option value="OLDEST">Oldest</option>
-                          <option value="AMOUNT_HIGH">Highest Amount</option>
-                          <option value="AMOUNT_LOW">Lowest Amount</option>
-                        </select>
-                      </div>
+                      <GeistSelect
+                        compact
+                        alignRight
+                        width="162px"
+                        menuMinWidth={200}
+                        value={ledgerSort}
+                        onChange={(val) => setLedgerSort(val)}
+                        options={[
+                          { id: 'NEWEST', label: 'Newest First', triggerLabel: 'Newest', icon: 'schedule' },
+                          { id: 'OLDEST', label: 'Oldest First', triggerLabel: 'Oldest', icon: 'history' },
+                          { id: 'AMOUNT_HIGH', label: 'Highest Amount', icon: 'trending_up' },
+                          { id: 'AMOUNT_LOW', label: 'Lowest Amount', icon: 'trending_down' }
+                        ]}
+                      />
                     </div>
                   </div>
                 </div>

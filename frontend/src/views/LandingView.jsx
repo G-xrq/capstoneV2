@@ -10,6 +10,7 @@ import { contractAddress } from '../contractConfig';
 import { API_URL } from '../config';
 import { useRealtimeSync } from '../hooks/useRealtimeSync';
 import { getPaginationItems } from '../utils/pagination';
+import GeistSelect from '../components/GeistSelect';
 import './LandingView.css';
 
 // ── Curated Fallback Slides Matching Live BBDRTS Database Campaigns ──
@@ -1608,18 +1609,20 @@ export default function LandingView({
             <div className="bbdrts-toolbar-right">
               {/* Sort selector */}
               <div className="bbdrts-sort-wrap">
-                <span className="bbdrts-sort-label">Sort:</span>
-                <select
-                  className="bbdrts-sort-select"
+                <GeistSelect
+                  compact
+                  alignRight
+                  width="186px"
+                  menuMinWidth={225}
                   value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value)}
-                  aria-label="Sort campaigns"
-                >
-                  <option value="urgency">Most Urgent Need</option>
-                  <option value="target">Highest Target Goal</option>
-                  <option value="raised">Most Funds Raised</option>
-                  <option value="newest">Recently Launched</option>
-                </select>
+                  onChange={(val) => setSortBy(val)}
+                  options={[
+                    { id: 'urgency', label: 'Most Urgent Need', icon: 'priority_high' },
+                    { id: 'target', label: 'Highest Target Goal', icon: 'flag' },
+                    { id: 'raised', label: 'Most Funds Raised', icon: 'trending_up' },
+                    { id: 'newest', label: 'Recently Launched', icon: 'schedule' }
+                  ]}
+                />
               </div>
 
               {/* Search Field */}

@@ -23,6 +23,7 @@ import GuidedTour from '../components/GuidedTour';
 import SidebarToggleIcon from '../components/SidebarToggleIcon';
 import DisbursementProofModal from '../components/DisbursementProofModal';
 import FilterableExportModal from '../components/FilterableExportModal';
+import GeistSelect from '../components/GeistSelect';
 import { useToast } from '../context/ToastContext';
 import { API_URL } from '../config';
 import { useRealtimeSync } from '../hooks/useRealtimeSync';
@@ -2358,35 +2359,34 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
                       </div>
 
                       <div className="rcp-select-cluster">
-                        <div className="rcp-select-wrap">
-                          <select
-                            className="rcp-select"
-                            value={receiptRailFilter}
-                            onChange={(e) => setReceiptRailFilter(e.target.value)}
-                            title="Filter by Payment Channel"
-                          >
-                            <option value="ALL">All Channels</option>
-                            <option value="GCASH">GCash</option>
-                            <option value="MAYA">Maya</option>
-                            <option value="CARD">Card / Bank</option>
-                          </select>
-                          <span className="material-symbols-outlined rcp-select-chevron" aria-hidden="true">expand_more</span>
-                        </div>
+                        <GeistSelect
+                          compact
+                          width="154px"
+                          menuMinWidth={210}
+                          value={receiptRailFilter}
+                          onChange={(val) => setReceiptRailFilter(val)}
+                          options={[
+                            { id: 'ALL', label: 'All Channels', sub: 'Every payment method', icon: 'apps' },
+                            { id: 'GCASH', label: 'GCash', sub: 'GCash e-wallet transfers', icon: 'account_balance_wallet' },
+                            { id: 'MAYA', label: 'Maya', sub: 'Maya e-wallet transfers', icon: 'account_balance_wallet' },
+                            { id: 'CARD', label: 'Card / Bank', sub: 'QR Ph, cards & bank rails', icon: 'credit_card' }
+                          ]}
+                        />
 
-                        <div className="rcp-select-wrap">
-                          <select
-                            className="rcp-select"
-                            value={receiptSort}
-                            onChange={(e) => setReceiptSort(e.target.value)}
-                            title="Sort Contributions"
-                          >
-                            <option value="NEWEST">Newest First</option>
-                            <option value="AMOUNT_HIGH">Highest Amount</option>
-                            <option value="AMOUNT_LOW">Lowest Amount</option>
-                            <option value="OLDEST">Oldest First</option>
-                          </select>
-                          <span className="material-symbols-outlined rcp-select-chevron" aria-hidden="true">expand_more</span>
-                        </div>
+                        <GeistSelect
+                          compact
+                          alignRight
+                          width="158px"
+                          menuMinWidth={200}
+                          value={receiptSort}
+                          onChange={(val) => setReceiptSort(val)}
+                          options={[
+                            { id: 'NEWEST', label: 'Newest First', icon: 'schedule' },
+                            { id: 'AMOUNT_HIGH', label: 'Highest Amount', icon: 'trending_up' },
+                            { id: 'AMOUNT_LOW', label: 'Lowest Amount', icon: 'trending_down' },
+                            { id: 'OLDEST', label: 'Oldest First', icon: 'history' }
+                          ]}
+                        />
                       </div>
                     </div>
 

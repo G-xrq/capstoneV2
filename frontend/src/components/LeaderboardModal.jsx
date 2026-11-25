@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { API_URL } from '../config';
 import { useRealtimeSync } from '../hooks/useRealtimeSync';
 import DonorBadge, { DonorTierModal, getDonorTier, DONOR_TIERS } from './DonorBadge';
+import GeistSelect from './GeistSelect';
 import './LeaderboardModal.css';
 
 export default function LeaderboardModal({
@@ -437,32 +438,35 @@ export default function LeaderboardModal({
               )}
             </div>
 
-            <div className="lbv-select-wrap">
-              <span className="material-symbols-outlined lbv-select-ico">sort</span>
-              {activeTab === 'donors' ? (
-                <select
-                  value={donorSortBy}
-                  onChange={(e) => handleDonorSortChange(e.target.value)}
-                  className="lbv-select"
-                  aria-label="Sort donors"
-                >
-                  <option value="amount">Highest Donated</option>
-                  <option value="campaigns">Most Campaigns</option>
-                  <option value="recent">Most Recent</option>
-                </select>
-              ) : (
-                <select
-                  value={ngoSortBy}
-                  onChange={(e) => handleNgoSortChange(e.target.value)}
-                  className="lbv-select"
-                  aria-label="Sort organizations"
-                >
-                  <option value="amount">Highest Raised</option>
-                  <option value="campaigns">Most Campaigns</option>
-                  <option value="supporters">Most Donors</option>
-                </select>
-              )}
-            </div>
+            {activeTab === 'donors' ? (
+              <GeistSelect
+                compact
+                alignRight
+                width="174px"
+                menuMinWidth={210}
+                value={donorSortBy}
+                onChange={(val) => handleDonorSortChange(val)}
+                options={[
+                  { id: 'amount', label: 'Highest Donated', icon: 'trending_up' },
+                  { id: 'campaigns', label: 'Most Campaigns', icon: 'campaign' },
+                  { id: 'recent', label: 'Most Recent', icon: 'schedule' }
+                ]}
+              />
+            ) : (
+              <GeistSelect
+                compact
+                alignRight
+                width="174px"
+                menuMinWidth={210}
+                value={ngoSortBy}
+                onChange={(val) => handleNgoSortChange(val)}
+                options={[
+                  { id: 'amount', label: 'Highest Raised', icon: 'trending_up' },
+                  { id: 'campaigns', label: 'Most Campaigns', icon: 'campaign' },
+                  { id: 'supporters', label: 'Most Donors', icon: 'groups' }
+                ]}
+              />
+            )}
 
             <div className="lbv-seg" role="group" aria-label="Timeframe filter">
               {[

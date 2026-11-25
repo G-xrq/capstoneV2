@@ -6781,7 +6781,7 @@ export default function OrganizationView({
                 {/* Category Dropdown */}
                 <GeistSelect
                   compact
-                  width="148px"
+                  width="154px"
                   menuMinWidth={240}
                   value={ledgerFilter}
                   onChange={(val) => { setLedgerFilter(val); setCurrentPageLedger(1); }}
@@ -6818,7 +6818,7 @@ export default function OrganizationView({
                 <GeistSelect
                   compact
                   alignRight
-                  width="142px"
+                  width="150px"
                   menuMinWidth={200}
                   value={ledgerSort}
                   onChange={(val) => setLedgerSort(val)}

@@ -5,6 +5,7 @@ import { useToast } from '../context/ToastContext';
 import { getLiveSessionId } from '../hooks/useLivePresence';
 import { useRealtimeSync } from '../hooks/useRealtimeSync';
 import '../views/VercelAdminTables.css';
+import GeistSelect from './GeistSelect';
 import './AdminActiveUsersPanel.css';
 
 function formatElapsed(ms) {
@@ -415,30 +416,35 @@ export default function AdminActiveUsersPanel({ onPresenceSummaryChange }) {
           </div>
 
           <div className="presence-toolbar-selects">
-            <select
-              className="presence-select"
+            <GeistSelect
+              compact
+              width="148px"
+              menuMinWidth={200}
               value={roleFilter}
-              onChange={(e) => setRoleFilter(e.target.value)}
-              aria-label="Filter by role"
-            >
-              <option value="ALL">All Roles</option>
-              <option value="donor">Donors</option>
-              <option value="organization">NGOs / Orgs</option>
-              <option value="admin">Admins</option>
-              <option value="guest">Guests</option>
-            </select>
+              onChange={(val) => setRoleFilter(val)}
+              options={[
+                { id: 'ALL', label: 'All Roles', icon: 'groups' },
+                { id: 'donor', label: 'Donors', icon: 'person' },
+                { id: 'organization', label: 'NGOs / Orgs', icon: 'domain' },
+                { id: 'admin', label: 'Admins', icon: 'shield_person' },
+                { id: 'guest', label: 'Guests', icon: 'visibility' }
+              ]}
+            />
 
-            <select
-              className="presence-select"
-              value={windowMinutes}
-              onChange={(e) => setWindowMinutes(Number(e.target.value))}
-              aria-label="History window"
-            >
-              <option value={30}>Window: 30 min</option>
-              <option value={60}>Window: 1 hour</option>
-              <option value={360}>Window: 6 hours</option>
-              <option value={1440}>Window: 24 hours</option>
-            </select>
+            <GeistSelect
+              compact
+              alignRight
+              width="162px"
+              menuMinWidth={200}
+              value={String(windowMinutes)}
+              onChange={(val) => setWindowMinutes(Number(val))}
+              options={[
+                { id: '30', label: 'Window: 30 min', icon: 'schedule' },
+                { id: '60', label: 'Window: 1 hour', icon: 'schedule' },
+                { id: '360', label: 'Window: 6 hours', icon: 'history' },
+                { id: '1440', label: 'Window: 24 hours', icon: 'calendar_today' }
+              ]}
+            />
           </div>
         </div>
 
