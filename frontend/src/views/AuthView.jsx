@@ -1674,31 +1674,56 @@ export default function AuthView({ onLoginSuccess, onBack, theme, onToggleTheme,
                 </div>
               </div>
 
-              {/* Clean Hairline Protocol Spec List */}
-              <div className="brand-spec-card">
-                <div className="brand-spec-row">
-                  <span className="brand-spec-k">Ledger Network</span>
-                  <span className="brand-spec-v">Ethereum Sepolia</span>
+              {/* Centerpiece Editorial Mission Statement */}
+              <div className="brand-welcome-block">
+                <div className="brand-welcome-eyebrow">
+                  <span className="material-symbols-outlined">
+                    {isRegistering ? (role === 'organization' ? 'verified_user' : 'favorite') : 'verified_user'}
+                  </span>
+                  <span>
+                    {isRegistering
+                      ? (role === 'organization' ? 'NGO PORTAL' : 'DONOR PORTAL')
+                      : 'RELIEF PORTAL'}
+                  </span>
                 </div>
-                <div className="brand-spec-row">
-                  <span className="brand-spec-k">Payment Rails</span>
-                  <span className="brand-spec-v">GCash · Maya · Bank · Card</span>
-                </div>
-                <div className="brand-spec-row">
-                  <span className="brand-spec-k">Platform Fee</span>
-                  <span className="brand-spec-v is-accent">0% Commission</span>
-                </div>
-                <div className="brand-spec-row">
-                  <span className="brand-spec-k">Verification</span>
-                  <span className="brand-spec-v">SEC / DSWD · Receipt Audit</span>
-                </div>
+                <h2 className="brand-welcome-headline">
+                  {isRegistering
+                    ? (role === 'organization'
+                        ? 'Register your organization.'
+                        : 'Create your donor account.')
+                    : 'Transparent relief, verified.'}
+                </h2>
+                <p className="brand-welcome-copy">
+                  {isRegistering
+                    ? (role === 'organization'
+                        ? 'Verify SEC or DSWD credentials to launch audited drives.'
+                        : 'Give in PHP with 0% commission and on-chain receipts.')
+                    : 'Track verified donations, active drives, and delivery proofs.'}
+                </p>
               </div>
 
-              {/* Bottom Network Status Pill */}
+              {/* Bottom Status Pill & Accurate Trust Labels */}
               <div className="brand-footer-block">
                 <div className="brand-live-pill">
                   <span className="pulse-dot"></span>
                   <span>Sepolia Network Live</span>
+                  <span className="pill-dot-sep">•</span>
+                  <span className="pill-subtext">Gasless On-Chain Proof</span>
+                </div>
+
+                <div className="brand-trust-labels">
+                  <div className="trust-badge-item">
+                    <span className="material-symbols-outlined">document_scanner</span>
+                    <span>AI Slip Checks</span>
+                  </div>
+                  <div className="trust-badge-item">
+                    <span className="material-symbols-outlined">verified</span>
+                    <span>Checked NGOs</span>
+                  </div>
+                  <div className="trust-badge-item">
+                    <span className="material-symbols-outlined">volunteer_activism</span>
+                    <span>100% Direct Aid</span>
+                  </div>
                 </div>
               </div>
 
