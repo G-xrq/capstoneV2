@@ -20,6 +20,7 @@ import AnalyticsReportsPanel from '../components/AnalyticsReportsPanel';
 import DeclareDirectDepositModal from '../components/DeclareDirectDepositModal';
 import FilterableExportModal from '../components/FilterableExportModal';
 import OfficialAuditVoucherModal from '../components/OfficialAuditVoucherModal';
+import GeistSelect from '../components/GeistSelect';
 import { useToast } from '../context/ToastContext';
 import { getRegions, getRegionForProvince } from '../data/philippineGeoData';
 import { CONTRACT_ADDRESS } from '../contractConfig';
@@ -6778,70 +6779,56 @@ export default function OrganizationView({
               {/* Right: Dropdowns + Segmented Mode Switcher */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                 {/* Category Dropdown */}
-                <select
+                <GeistSelect
+                  compact
+                  width="162px"
+                  menuMinWidth={240}
                   value={ledgerFilter}
-                  onChange={(e) => { setLedgerFilter(e.target.value); setCurrentPageLedger(1); }}
-                  style={{
-                    height: '36px',
-                    background: 'var(--bg-input)',
-                    color: 'var(--text-primary)',
-                    border: '1px solid var(--border)',
-                    borderRadius: '8px',
-                    padding: '0 10px',
-                    fontSize: '0.78rem',
-                    outline: 'none',
-                    cursor: 'pointer'
-                  }}
-                >
-                  <option value="ALL">All Categories</option>
-                  <option value="DR">Disaster Relief (DR)</option>
-                  <option value="CD">Charitable Aid (CD)</option>
-                </select>
+                  onChange={(val) => { setLedgerFilter(val); setCurrentPageLedger(1); }}
+                  options={[
+                    { id: 'ALL', label: 'All Categories', sub: 'Disaster relief & charitable drives', icon: 'apps' },
+                    { id: 'DR', label: 'Disaster Relief (DR)', triggerLabel: 'Disaster Relief', sub: 'Typhoon, flood & emergency drives', icon: 'flood' },
+                    { id: 'CD', label: 'Charitable Aid (CD)', triggerLabel: 'Charitable Aid', sub: 'Community, medical & outreach drives', icon: 'volunteer_activism' }
+                  ]}
+                />
 
-                {/* Campaign Dropdown */}
-                <select
+                {/* Campaign Dropdown (Searchable + Full Titles & IDs) */}
+                <GeistSelect
+                  compact
+                  width="210px"
+                  menuMinWidth={360}
+                  searchable={(myCampaigns || []).length > 5}
+                  searchPlaceholder="Search campaign by title, #ID, or location..."
+                  emptyText="No campaigns match your filter"
                   value={ledgerCampaignFilter}
-                  onChange={(e) => { setLedgerCampaignFilter(e.target.value); setCurrentPageLedger(1); }}
-                  style={{
-                    height: '36px',
-                    background: 'var(--bg-input)',
-                    color: 'var(--text-primary)',
-                    border: '1px solid var(--border)',
-                    borderRadius: '8px',
-                    padding: '0 10px',
-                    fontSize: '0.78rem',
-                    outline: 'none',
-                    cursor: 'pointer',
-                    maxWidth: '180px'
-                  }}
-                >
-                  <option value="ALL">All Campaigns</option>
-                  {(myCampaigns || []).map(c => (
-                    <option key={c.id} value={c.id}>#{c.id} - {c.title?.slice(0, 20)}...</option>
-                  ))}
-                </select>
+                  onChange={(val) => { setLedgerCampaignFilter(val); setCurrentPageLedger(1); }}
+                  options={[
+                    { id: 'ALL', label: `All Campaigns (${(myCampaigns || []).length})`, triggerLabel: 'All Campaigns', sub: 'Show verified receipts across every drive', icon: 'apps' },
+                    ...(myCampaigns || []).map(c => ({
+                      id: String(c.id),
+                      label: c.title || `Campaign #${c.id}`,
+                      sub: [`#${c.id}`, c.locationMunicipality || c.locationCity || c.locationProvince || ''].filter(Boolean).join(' · '),
+                      badge: c.isActive === false ? 'Closed' : (c.category === 'CD' ? 'Charity' : 'Relief'),
+                      icon: c.category === 'CD' ? 'volunteer_activism' : 'campaign'
+                    }))
+                  ]}
+                />
 
                 {/* Sort Dropdown */}
-                <select
+                <GeistSelect
+                  compact
+                  alignRight
+                  width="156px"
+                  menuMinWidth={200}
                   value={ledgerSort}
-                  onChange={(e) => setLedgerSort(e.target.value)}
-                  style={{
-                    height: '36px',
-                    background: 'var(--bg-input)',
-                    color: 'var(--text-primary)',
-                    border: '1px solid var(--border)',
-                    borderRadius: '8px',
-                    padding: '0 10px',
-                    fontSize: '0.78rem',
-                    outline: 'none',
-                    cursor: 'pointer'
-                  }}
-                >
-                  <option value="NEWEST">Newest First</option>
-                  <option value="AMOUNT_HIGH">Highest Amount</option>
-                  <option value="AMOUNT_LOW">Lowest Amount</option>
-                  <option value="OLDEST">Oldest First</option>
-                </select>
+                  onChange={(val) => setLedgerSort(val)}
+                  options={[
+                    { id: 'NEWEST', label: 'Newest First', icon: 'schedule' },
+                    { id: 'AMOUNT_HIGH', label: 'Highest Amount', icon: 'trending_up' },
+                    { id: 'AMOUNT_LOW', label: 'Lowest Amount', icon: 'trending_down' },
+                    { id: 'OLDEST', label: 'Oldest First', icon: 'history' }
+                  ]}
+                />
 
                 {/* Reset button if active filters */}
                 {(ledgerFilter !== 'ALL' || ledgerCampaignFilter !== 'ALL' || searchQueryLedger.trim()) && (

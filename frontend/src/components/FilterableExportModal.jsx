@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import {
   resolveDonationPhp,
@@ -16,6 +16,7 @@ import {
   exportAdminActivityLogsCsv,
   exportAdminActivityLogsPdf
 } from '../utils/reportExporter';
+import GeistSelect from './GeistSelect';
 import './FilterableExportModal.css';
 
 const DATE_RANGES = [
@@ -64,204 +65,6 @@ const LOG_ROLES = [
   { id: 'DONOR', label: 'DONOR', icon: 'person' },
   { id: 'SYSTEM', label: 'SYSTEM', icon: 'memory' }
 ];
-
-/* ═══════════════════════════════════════════════════════════════════════
-   Custom Dual-Theme Vercel Geist Dropdown (Portal-Anchored + Searchable)
-   ═══════════════════════════════════════════════════════════════════════ */
-function FemSelect({
-  value,
-  onChange,
-  options = [],
-  placeholder = 'Select option...',
-  searchable = false,
-  searchPlaceholder = 'Search...',
-  emptyText = 'No matching options',
-  alignRight = false
-}) {
-  const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState('');
-  const [menuStyle, setMenuStyle] = useState(null);
-  const triggerRef = useRef(null);
-  const menuRef = useRef(null);
-  const searchInputRef = useRef(null);
-
-  const selectedOption = useMemo(
-    () => options.find((o) => String(o.id) === String(value)) || options[0] || null,
-    [options, value]
-  );
-
-  const filteredOptions = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return options;
-    return options.filter((o) =>
-      `${o.label || ''} ${o.sub || ''} ${o.badge || ''}`.toLowerCase().includes(q)
-    );
-  }, [options, query]);
-
-  const computePosition = () => {
-    const el = triggerRef.current;
-    if (!el) return;
-    const rect = el.getBoundingClientRect();
-    const viewportW = window.innerWidth;
-    const viewportH = window.innerHeight;
-    const desiredWidth = Math.max(rect.width, searchable ? Math.min(360, viewportW - 32) : rect.width);
-    const width = Math.min(desiredWidth, viewportW - 24);
-    let left = alignRight ? rect.right - width : rect.left;
-    if (left + width > viewportW - 12) left = viewportW - width - 12;
-    if (left < 12) left = 12;
-
-    const spaceBelow = viewportH - rect.bottom - 14;
-    const spaceAbove = rect.top - 14;
-    const estimatedH = Math.min(310, (searchable ? 52 : 12) + options.length * 42);
-    const openUpward = spaceBelow < Math.min(estimatedH, 220) && spaceAbove > spaceBelow;
-
-    setMenuStyle({
-      position: 'fixed',
-      left: `${Math.round(left)}px`,
-      width: `${Math.round(width)}px`,
-      ...(openUpward
-        ? { bottom: `${Math.round(viewportH - rect.top + 6)}px`, top: 'auto' }
-        : { top: `${Math.round(rect.bottom + 6)}px`, bottom: 'auto' }),
-      maxHeight: `${Math.max(150, Math.min(320, (openUpward ? spaceAbove : spaceBelow) - 8))}px`
-    });
-  };
-
-  useEffect(() => {
-    if (!open) {
-      setQuery('');
-      return;
-    }
-    computePosition();
-    if (searchable) {
-      setTimeout(() => searchInputRef.current?.focus(), 20);
-    }
-
-    const handleOutside = (e) => {
-      if (
-        triggerRef.current?.contains(e.target) ||
-        menuRef.current?.contains(e.target)
-      ) {
-        return;
-      }
-      setOpen(false);
-    };
-    const handleKey = (e) => {
-      if (e.key === 'Escape') {
-        e.stopPropagation();
-        setOpen(false);
-      }
-    };
-    const handleReposition = () => computePosition();
-
-    document.addEventListener('mousedown', handleOutside);
-    window.addEventListener('keydown', handleKey, true);
-    window.addEventListener('resize', handleReposition);
-    window.addEventListener('scroll', handleReposition, true);
-    return () => {
-      document.removeEventListener('mousedown', handleOutside);
-      window.removeEventListener('keydown', handleKey, true);
-      window.removeEventListener('resize', handleReposition);
-      window.removeEventListener('scroll', handleReposition, true);
-    };
-  }, [open, searchable, options.length]);
-
-  return (
-    <div className="fem-dd-root">
-      <button
-        ref={triggerRef}
-        type="button"
-        className={`fem-dd-trigger ${open ? 'is-open' : ''}`}
-        onClick={() => setOpen((prev) => !prev)}
-        aria-haspopup="listbox"
-        aria-expanded={open}
-      >
-        <span className="fem-dd-trigger-left">
-          {selectedOption?.icon && (
-            <span className="material-symbols-outlined fem-dd-trigger-ico">
-              {selectedOption.icon}
-            </span>
-          )}
-          <span className="fem-dd-trigger-label" title={selectedOption?.label || placeholder}>
-            {selectedOption?.label || placeholder}
-          </span>
-        </span>
-        <span className="material-symbols-outlined fem-dd-chevron">expand_more</span>
-      </button>
-
-      {open && menuStyle && createPortal(
-        <div
-          ref={menuRef}
-          className="fem-dd-popover"
-          style={menuStyle}
-          role="listbox"
-          onClick={(e) => e.stopPropagation()}
-        >
-          {searchable && (
-            <div className="fem-dd-search-wrap">
-              <span className="material-symbols-outlined fem-dd-search-ico">search</span>
-              <input
-                ref={searchInputRef}
-                type="text"
-                className="fem-dd-search-input"
-                placeholder={searchPlaceholder}
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-              />
-              {query && (
-                <button
-                  type="button"
-                  className="fem-dd-search-clear"
-                  onClick={() => setQuery('')}
-                  aria-label="Clear filter"
-                >
-                  <span className="material-symbols-outlined">close</span>
-                </button>
-              )}
-            </div>
-          )}
-
-          <div className="fem-dd-list">
-            {filteredOptions.length === 0 ? (
-              <div className="fem-dd-empty">{emptyText}</div>
-            ) : (
-              filteredOptions.map((opt) => {
-                const isSelected = String(opt.id) === String(value);
-                return (
-                  <button
-                    key={opt.id}
-                    type="button"
-                    role="option"
-                    aria-selected={isSelected}
-                    className={`fem-dd-option ${isSelected ? 'is-selected' : ''}`}
-                    onClick={() => {
-                      onChange?.(opt.id);
-                      setOpen(false);
-                    }}
-                  >
-                    {opt.icon && (
-                      <span className="material-symbols-outlined fem-dd-opt-ico">
-                        {opt.icon}
-                      </span>
-                    )}
-                    <span className="fem-dd-opt-text">
-                      <span className="fem-dd-opt-label">{opt.label}</span>
-                      {opt.sub && <span className="fem-dd-opt-sub">{opt.sub}</span>}
-                    </span>
-                    {opt.badge && <span className="fem-dd-opt-badge">{opt.badge}</span>}
-                    {isSelected && (
-                      <span className="material-symbols-outlined fem-dd-check">check</span>
-                    )}
-                  </button>
-                );
-              })
-            )}
-          </div>
-        </div>,
-        document.body
-      )}
-    </div>
-  );
-}
 
 function resolveRecordDate(item) {
   const raw = item?.createdAt || item?.Created_At || item?.timestamp || item?.Timestamp || item?.Payment_Date;
@@ -663,7 +466,7 @@ export default function FilterableExportModal({
               <div className="fem-grid-2">
                 <div>
                   <span className="fem-section-lbl">Cause Category</span>
-                  <FemSelect
+                  <GeistSelect
                     value={category}
                     onChange={setCategory}
                     options={CATEGORIES}
@@ -673,7 +476,7 @@ export default function FilterableExportModal({
                 {role === 'admin_ledger' ? (
                   <div>
                     <span className="fem-section-lbl">Verification Status</span>
-                    <FemSelect
+                    <GeistSelect
                       value={statusFilter}
                       onChange={setStatusFilter}
                       options={STATUSES}
@@ -683,7 +486,7 @@ export default function FilterableExportModal({
                 ) : (
                   <div>
                     <span className="fem-section-lbl">Campaign</span>
-                    <FemSelect
+                    <GeistSelect
                       value={campaignId}
                       onChange={setCampaignId}
                       options={campaignSelectOptions}
@@ -699,7 +502,7 @@ export default function FilterableExportModal({
               {role === 'admin_ledger' && campaignOptions.length > 0 && (
                 <div>
                   <span className="fem-section-lbl">Campaign</span>
-                  <FemSelect
+                  <GeistSelect
                     value={campaignId}
                     onChange={setCampaignId}
                     options={campaignSelectOptions}
@@ -714,7 +517,7 @@ export default function FilterableExportModal({
             <div className="fem-grid-2">
               <div>
                 <span className="fem-section-lbl">Event Category</span>
-                <FemSelect
+                <GeistSelect
                   value={logCategory}
                   onChange={setLogCategory}
                   options={LOG_CATEGORIES}
@@ -722,7 +525,7 @@ export default function FilterableExportModal({
               </div>
               <div>
                 <span className="fem-section-lbl">Actor Role</span>
-                <FemSelect
+                <GeistSelect
                   value={logRole}
                   onChange={setLogRole}
                   options={LOG_ROLES}
