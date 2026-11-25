@@ -18,6 +18,7 @@ import AdminBroadcastPanel from '../components/AdminBroadcastPanel';
 import AdminMaintenancePanel from '../components/AdminMaintenancePanel';
 import AdminActiveUsersPanel from '../components/AdminActiveUsersPanel';
 import AdminDonorsPanel from '../components/AdminDonorsPanel';
+import AdminDisputesPanel from '../components/AdminDisputesPanel';
 import AnalyticsReportsPanel from '../components/AnalyticsReportsPanel';
 import {
   exportAdminActivityLogsCsv,
@@ -1186,6 +1187,42 @@ export default function AdminView({
     }
   };
 
+  // ── DATA STATE: DONOR AUDIT DISPUTES ───────────────────────
+  const [disputesList, setDisputesList] = useState([]);
+  const [disputesLoading, setDisputesLoading] = useState(false);
+
+  const loadDisputes = async (arg) => {
+    const silent = Boolean(arg && typeof arg === 'object' && arg.silent === true);
+    try {
+      if (!silent) setDisputesLoading(true);
+      let token = await getAdminToken();
+      let res = await fetch(`${API_URL}/api/admin/disputes`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if ((res.status === 401 || res.status === 403) && token !== 'direct_admin_access_token') {
+        token = 'direct_admin_access_token';
+        res = await fetch(`${API_URL}/api/admin/disputes`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+      }
+      if (res.ok) {
+        const data = await res.json();
+        setDisputesList(Array.isArray(data) ? data : []);
+      }
+    } catch (err) {
+      if (!silent) console.error('Error loading disputes:', err);
+    } finally {
+      if (!silent) setDisputesLoading(false);
+    }
+  };
+
+  const openDisputesCount = useMemo(() => {
+    return disputesList.filter(d => {
+      const s = String(d.status || '').toUpperCase();
+      return s === 'OPEN' || s === 'UNDER_REVIEW';
+    }).length;
+  }, [disputesList]);
+
   // Helper mappings for organization fields
   const getOrgName = (org) => org?.Org_Name || org?.Name || 'Unnamed Entity';
   const getOrgEmail = (org) => org?.Username || org?.Email || 'No email registered';
@@ -1448,6 +1485,7 @@ export default function AdminView({
   useEffect(() => {
     loadOrganizations();
     loadDonors();
+    loadDisputes();
     loadAuditLogs();
     loadFinancialLedger();
     loadDisbursements();
@@ -1458,6 +1496,12 @@ export default function AdminView({
     ['donors', 'donations', 'profile'],
     () => loadDonors({ silent: true }),
     { debounceMs: 320 }
+  );
+
+  useRealtimeSync(
+    ['disputes', 'donations'],
+    () => loadDisputes({ silent: true }),
+    { debounceMs: 280 }
   );
 
   // ── REAL-TIME LIVE SYNC ACROSS ALL ADMIN GOVERNANCE TABLES ──
@@ -3326,6 +3370,21 @@ export default function AdminView({
                   <span>Disbursements &amp; Proofs</span>
                   <span className="count-badge">{disbursementsList?.length || 0}</span>
                 </button>
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={financeSubTab === 'disputes'}
+                  className={`admin-segmented-tab-btn ${financeSubTab === 'disputes' ? 'active' : ''}`}
+                  onClick={() => setFinanceSubTab('disputes')}
+                >
+                  <span>Audit Disputes</span>
+                  <span
+                    className="count-badge"
+                    style={openDisputesCount > 0 ? { background: '#ef4444', color: '#fff', fontWeight: 800 } : undefined}
+                  >
+                    {openDisputesCount > 0 ? openDisputesCount : disputesList.length}
+                  </span>
+                </button>
               </div>
 
               {financeSubTab === 'ledger' && (
@@ -4015,6 +4074,31 @@ export default function AdminView({
                 {renderPaginationBar(disbPage, disbPageSize, filteredDisbursements.length, setDisbPage, setDisbPageSize, [10, 20, 50])}
               </div>
             </div>
+              )}
+
+              {financeSubTab === 'disputes' && (
+                <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <div className="admin-page-header">
+                    <div className="admin-page-title-wrap">
+                      <h2 className="admin-page-title">
+                        <span className="material-symbols-outlined" style={{ fontSize: '24px', color: '#ef4444' }}>gavel</span>
+                        Donation Audit Disputes
+                      </h2>
+                      <p className="admin-page-sub">
+                        Investigate donor-reported credit shortages and over-credits against on-chain Sepolia records and issue governance resolutions.
+                      </p>
+                    </div>
+                  </div>
+
+                  <AdminDisputesPanel
+                    disputes={disputesList}
+                    loading={disputesLoading}
+                    apiUrl={API_URL}
+                    getAdminToken={getAdminToken}
+                    onRefresh={loadDisputes}
+                    onToast={(msg) => showSuccess(msg)}
+                  />
+                </div>
               )}
             </div>
           )}

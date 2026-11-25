@@ -6106,9 +6106,403 @@ app.get('/api/donations/me', authenticateToken, async (req, res) => {
         AND ${PHP_RAIL_SQL('dt')}
       ORDER BY dt.Transaction_ID DESC
     `, isDonor ? [req.user.id, userWallet || '___none___'] : [req.user.id, req.user.id, userWallet || '___none___']);
-    res.json(rows || []);
+    // Attach latest audit dispute metadata (if any) per transaction
+    const list = rows || [];
+    if (list.length > 0) {
+      try {
+        const txHashes = list.map(r => r.txHash).filter(Boolean);
+        if (txHashes.length > 0) {
+          const placeholders = txHashes.map(() => '?').join(',');
+          const [dispRows] = await db.query(
+            `SELECT Dispute_ID, Ticket_Code, Tx_Hash, Dispute_Type, Reason, Status, Admin_Notes, Resolved_By, Resolved_At, Created_At
+             FROM DONATION_DISPUTE
+             WHERE Tx_Hash IN (${placeholders})
+             ORDER BY Dispute_ID DESC`,
+            txHashes
+          );
+          const byHash = new Map();
+          for (const dp of (dispRows || [])) {
+            const key = String(dp.Tx_Hash || '').toLowerCase();
+            if (key && !byHash.has(key)) byHash.set(key, dp);
+          }
+          for (const item of list) {
+            const dp = byHash.get(String(item.txHash || '').toLowerCase());
+            if (dp) {
+              item.disputeId = dp.Dispute_ID;
+              item.disputeTicket = dp.Ticket_Code;
+              item.disputeStatus = dp.Status;
+              item.disputeType = dp.Dispute_Type;
+              item.disputeReason = dp.Reason;
+              item.disputeAdminNotes = dp.Admin_Notes;
+              item.disputeResolvedBy = dp.Resolved_By;
+              item.disputeResolvedAt = dp.Resolved_At;
+              item.disputeCreatedAt = dp.Created_At;
+            }
+          }
+        }
+      } catch (_) {
+        // DONATION_DISPUTE may not exist yet on first cold boot; safely ignore
+      }
+    }
+    res.json(list);
   } catch (err) {
     res.status(500).json({ error: 'Failed to fetch personal donations: ' + err.message });
+  }
+});
+
+// Helper to ensure DONATION_DISPUTE table exists even before restart
+let _disputeTableEnsured = false;
+async function ensureDonationDisputeTable() {
+  if (_disputeTableEnsured) return;
+  try {
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS DONATION_DISPUTE (
+        Dispute_ID INT AUTO_INCREMENT PRIMARY KEY,
+        Ticket_Code VARCHAR(48) NOT NULL UNIQUE,
+        Transaction_ID INT NULL,
+        Tx_Hash VARCHAR(120) NOT NULL,
+        Campaign_ID INT NULL,
+        Org_ID INT NULL,
+        Donor_ID INT NULL,
+        Donor_Email VARCHAR(255) NULL,
+        Donor_Name VARCHAR(255) NULL,
+        Declared_Php DECIMAL(14, 2) DEFAULT 0,
+        Credited_Php DECIMAL(14, 2) DEFAULT 0,
+        Variance_Php DECIMAL(14, 2) DEFAULT 0,
+        Dispute_Type VARCHAR(32) DEFAULT 'SHORTAGE',
+        Reason TEXT NOT NULL,
+        Status VARCHAR(32) DEFAULT 'OPEN',
+        Admin_Notes TEXT NULL,
+        Resolved_By VARCHAR(255) NULL,
+        Resolved_At DATETIME NULL,
+        Created_At TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        Updated_At TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      )
+    `);
+  } catch (_) {}
+  _disputeTableEnsured = true;
+}
+
+// ── POST /api/donations/disputes (Donor files a formal audit dispute) ──
+app.post('/api/donations/disputes', authenticateToken, async (req, res) => {
+  if (req.user.role !== 'donor') {
+    return res.status(403).json({ error: 'Only registered donors can file a donation audit dispute.' });
+  }
+
+  const { transactionId, txHash, reason = '' } = req.body || {};
+  const cleanReason = String(reason || '').trim();
+  if (cleanReason.length < 5) {
+    return res.status(400).json({ error: 'Please explain the discrepancy (minimum 5 characters).' });
+  }
+  if (!txHash && !transactionId) {
+    return res.status(400).json({ error: 'Transaction hash or ID is required.' });
+  }
+
+  try {
+    await ensureDonationDisputeTable();
+
+    const userWallet = String(req.user.wallet_address || '').toLowerCase().trim();
+    const [txRows] = await db.query(`
+      SELECT
+        dt.Transaction_ID as id,
+        dt.Tx_Hash as txHash,
+        dt.Amount as dtAmount,
+        dt.Campaign_ID as campaignId,
+        COALESCE(dt.Org_ID, c.Org_ID) as orgId,
+        dt.Donor_ID as donorId,
+        dt.Wallet_Address as txWallet,
+        dt.Payment_Method as paymentMethod,
+        c.Campaign_Title as campaignTitle,
+        o.Org_Name as orgName,
+        o.Username as orgEmail,
+        d.Username as donorEmail,
+        COALESCE(NULLIF(d.Display_Name, ''), NULLIF(d.Legal_Name, ''), NULLIF(d.Name, ''), d.Username) as donorName,
+        m.Amount as declaredEth,
+        m.Reference_Number as referenceNumber
+      FROM DONATION_TRANSACTION dt
+      LEFT JOIN MANUAL_DONATION m ON dt.Tx_Hash = m.Tx_Hash
+      LEFT JOIN CAMPAIGN c ON dt.Campaign_ID = c.Campaign_ID
+      LEFT JOIN ORGANIZATION o ON COALESCE(dt.Org_ID, c.Org_ID) = o.Org_ID
+      LEFT JOIN DONOR d ON dt.Donor_ID = d.Donor_ID
+      WHERE (${txHash ? 'LOWER(dt.Tx_Hash) = LOWER(?)' : 'dt.Transaction_ID = ?'})
+      LIMIT 1
+    `, [txHash ? String(txHash).trim() : Number(transactionId)]);
+
+    if (!txRows || txRows.length === 0) {
+      return res.status(404).json({ error: 'Donation transaction not found.' });
+    }
+
+    const tx = txRows[0];
+    const ownsById = Number(tx.donorId) === Number(req.user.id);
+    const ownsByWallet = Boolean(userWallet && tx.txWallet && String(tx.txWallet).toLowerCase() === userWallet);
+    if (!ownsById && !ownsByWallet) {
+      return res.status(403).json({ error: 'You are not authorized to dispute this transaction.' });
+    }
+
+    // Prevent duplicate active disputes for the same transaction
+    const [existing] = await db.query(
+      `SELECT Dispute_ID, Ticket_Code, Status, Reason, Admin_Notes, Created_At
+       FROM DONATION_DISPUTE
+       WHERE LOWER(Tx_Hash) = LOWER(?) AND Status IN ('OPEN', 'UNDER_REVIEW')
+       ORDER BY Dispute_ID DESC LIMIT 1`,
+      [tx.txHash]
+    );
+    if (existing && existing.length > 0) {
+      const ex = existing[0];
+      return res.status(200).json({
+        success: true,
+        alreadyExists: true,
+        message: `An active dispute (${ex.Ticket_Code}) is already open for this transaction.`,
+        dispute: {
+          id: ex.Dispute_ID,
+          ticketCode: ex.Ticket_Code,
+          status: ex.Status,
+          reason: ex.Reason,
+          adminNotes: ex.Admin_Notes,
+          createdAt: ex.Created_At
+        }
+      });
+    }
+
+    const creditedPhp = Math.round((parseFloat(tx.dtAmount) || 0) * 170000 * 100) / 100;
+    const declaredPhp = tx.declaredEth != null
+      ? Math.round((parseFloat(tx.declaredEth) || 0) * 170000 * 100) / 100
+      : creditedPhp;
+    const variancePhp = Math.round((creditedPhp - declaredPhp) * 100) / 100;
+    const disputeType = variancePhp <= -0.01 ? 'SHORTAGE' : (variancePhp >= 0.01 ? 'OVER_CREDIT' : 'OTHER');
+    const randSuffix = crypto.randomBytes(3).toString('hex').toUpperCase();
+    const ticketCode = `AUDIT-${randSuffix}`;
+    const donorEmail = tx.donorEmail || req.user.email || '';
+    const donorName = tx.donorName || req.user.name || donorEmail || 'Registered Donor';
+
+    const [ins] = await db.query(`
+      INSERT INTO DONATION_DISPUTE (
+        Ticket_Code, Transaction_ID, Tx_Hash, Campaign_ID, Org_ID, Donor_ID,
+        Donor_Email, Donor_Name, Declared_Php, Credited_Php, Variance_Php,
+        Dispute_Type, Reason, Status
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'OPEN')
+    `, [
+      ticketCode, tx.id, tx.txHash, tx.campaignId || null, tx.orgId || null, req.user.id,
+      donorEmail, donorName, declaredPhp, creditedPhp, variancePhp,
+      disputeType, cleanReason
+    ]);
+
+    const disputeId = ins.insertId || ins[0]?.insertId;
+    const diffLabel = variancePhp < 0
+      ? `-₱${Math.abs(variancePhp).toLocaleString()}`
+      : `+₱${Math.abs(variancePhp).toLocaleString()}`;
+
+    // Notify System Admin(s)
+    try {
+      const [admins] = await db.query('SELECT Username FROM ADMINISTRATOR LIMIT 5');
+      const adminEmails = (admins && admins.length > 0)
+        ? admins.map(a => a.Username).filter(Boolean)
+        : ['admin@bbdrts.gov.ph'];
+      for (const aEmail of adminEmails) {
+        await sendNotificationToUser({
+          userEmail: aEmail,
+          role: 'admin',
+          type: 'SECURITY',
+          title: `Audit Dispute Filed (${ticketCode}): ${disputeType === 'SHORTAGE' ? 'Shortage' : disputeType === 'OVER_CREDIT' ? 'Over-Credit' : 'Review'}`,
+          message: `${donorName} disputed "${tx.campaignTitle || 'Campaign'}" (${tx.orgName || 'NGO'}). Declared ₱${declaredPhp.toLocaleString()} vs Credited ₱${creditedPhp.toLocaleString()} (${diffLabel}). Reason: ${cleanReason}`,
+          referenceId: ticketCode,
+          referenceType: 'DISPUTE',
+          link: '/admin?tab=finance'
+        });
+      }
+    } catch (_) {}
+
+    // Notify Managing NGO
+    if (tx.orgEmail) {
+      sendNotificationToUser({
+        userEmail: tx.orgEmail,
+        role: 'organization',
+        type: 'SYSTEM',
+        title: `Donor Audit Dispute Logged (${ticketCode})`,
+        message: `A donor filed an audit review for "${tx.campaignTitle || 'your campaign'}" regarding a ${diffLabel} variance (Declared ₱${declaredPhp.toLocaleString()} vs Credited ₱${creditedPhp.toLocaleString()}). Administrators are reviewing the record.`,
+        referenceId: ticketCode,
+        referenceType: 'DISPUTE',
+        link: '/organization'
+      }).catch(() => {});
+    }
+
+    logActivity({
+      req,
+      activity: `Donor ${donorName} filed audit dispute ${ticketCode} against ${tx.orgName || 'NGO'} (${diffLabel})`,
+      userName: donorName,
+      userEmail: donorEmail,
+      role: 'DONOR',
+      target: `Dispute ${ticketCode} · TX ${String(tx.txHash).slice(0, 12)}...`,
+      category: 'ADMIN_SECURITY',
+      status: 'WARNING',
+      details: {
+        disputeId,
+        ticketCode,
+        txHash: tx.txHash,
+        campaignId: tx.campaignId,
+        orgName: tx.orgName,
+        declaredPhp,
+        creditedPhp,
+        variancePhp,
+        disputeType,
+        reason: cleanReason
+      }
+    }).catch(() => {});
+
+    try { realtimeBus.publish(['disputes', 'donations', 'audit', 'notifications'], { disputeId, ticketCode }); } catch (_) {}
+
+    return res.status(201).json({
+      success: true,
+      message: `Audit dispute ${ticketCode} submitted. Administrators and ${tx.orgName || 'the organization'} have been notified.`,
+      dispute: {
+        id: disputeId,
+        ticketCode,
+        txHash: tx.txHash,
+        declaredPhp,
+        creditedPhp,
+        variancePhp,
+        disputeType,
+        reason: cleanReason,
+        status: 'OPEN',
+        createdAt: new Date().toISOString()
+      }
+    });
+  } catch (err) {
+    console.error('Error creating donation dispute:', err);
+    return res.status(500).json({ error: 'Failed to file dispute: ' + err.message });
+  }
+});
+
+// ── GET /api/admin/disputes (Admin Audit Dispute Queue) ──
+app.get('/api/admin/disputes', authenticateToken, async (req, res) => {
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ error: 'Access denied. Admin privileges required.' });
+  }
+  try {
+    await ensureDonationDisputeTable();
+    const [rows] = await db.query(`
+      SELECT
+        dd.Dispute_ID as id,
+        dd.Ticket_Code as ticketCode,
+        dd.Transaction_ID as transactionId,
+        dd.Tx_Hash as txHash,
+        dd.Campaign_ID as campaignId,
+        dd.Org_ID as orgId,
+        dd.Donor_ID as donorId,
+        dd.Donor_Email as donorEmail,
+        dd.Donor_Name as donorName,
+        dd.Declared_Php as declaredPhp,
+        dd.Credited_Php as creditedPhp,
+        dd.Variance_Php as variancePhp,
+        dd.Dispute_Type as disputeType,
+        dd.Reason as reason,
+        dd.Status as status,
+        dd.Admin_Notes as adminNotes,
+        dd.Resolved_By as resolvedBy,
+        dd.Resolved_At as resolvedAt,
+        dd.Created_At as createdAt,
+        dd.Updated_At as updatedAt,
+        c.Campaign_Title as campaignTitle,
+        o.Org_Name as orgName,
+        o.Username as orgEmail,
+        m.Manual_ID as manualId,
+        m.Reference_Number as referenceNumber,
+        m.Payment_Method as paymentMethod,
+        IF(m.Receipt_Base64 IS NOT NULL AND m.Receipt_Base64 != '', 1, 0) as hasReceipt
+      FROM DONATION_DISPUTE dd
+      LEFT JOIN CAMPAIGN c ON dd.Campaign_ID = c.Campaign_ID
+      LEFT JOIN ORGANIZATION o ON dd.Org_ID = o.Org_ID
+      LEFT JOIN MANUAL_DONATION m ON dd.Tx_Hash = m.Tx_Hash
+      ORDER BY
+        CASE dd.Status WHEN 'OPEN' THEN 0 WHEN 'UNDER_REVIEW' THEN 1 ELSE 2 END,
+        dd.Dispute_ID DESC
+    `);
+    return res.json(rows || []);
+  } catch (err) {
+    return res.status(500).json({ error: 'Failed to fetch disputes: ' + err.message });
+  }
+});
+
+// ── PATCH /api/admin/disputes/:id (Admin reviews or resolves a dispute) ──
+app.patch('/api/admin/disputes/:id', authenticateToken, async (req, res) => {
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ error: 'Access denied. Admin privileges required.' });
+  }
+  const disputeId = parseInt(req.params.id, 10);
+  const { status = 'UNDER_REVIEW', adminNotes = '' } = req.body || {};
+  const allowed = ['OPEN', 'UNDER_REVIEW', 'RESOLVED', 'DISMISSED'];
+  const cleanStatus = String(status || '').toUpperCase().trim();
+  if (!allowed.includes(cleanStatus)) {
+    return res.status(400).json({ error: 'Invalid dispute status.' });
+  }
+
+  try {
+    await ensureDonationDisputeTable();
+    const [rows] = await db.query(
+      `SELECT dd.*, c.Campaign_Title, o.Org_Name, o.Username as Org_Email
+       FROM DONATION_DISPUTE dd
+       LEFT JOIN CAMPAIGN c ON dd.Campaign_ID = c.Campaign_ID
+       LEFT JOIN ORGANIZATION o ON dd.Org_ID = o.Org_ID
+       WHERE dd.Dispute_ID = ? LIMIT 1`,
+      [disputeId]
+    );
+    if (!rows || rows.length === 0) {
+      return res.status(404).json({ error: 'Dispute ticket not found.' });
+    }
+    const dp = rows[0];
+    const cleanNotes = String(adminNotes || '').trim();
+    const isClosed = cleanStatus === 'RESOLVED' || cleanStatus === 'DISMISSED';
+    const adminActor = req.user.email || 'admin@bbdrts.gov.ph';
+
+    await db.query(`
+      UPDATE DONATION_DISPUTE
+      SET Status = ?, Admin_Notes = ?, Resolved_By = ?, Resolved_At = ?, Updated_At = CURRENT_TIMESTAMP
+      WHERE Dispute_ID = ?
+    `, [
+      cleanStatus,
+      cleanNotes || dp.Admin_Notes || null,
+      isClosed ? adminActor : dp.Resolved_By,
+      isClosed ? new Date() : null,
+      disputeId
+    ]);
+
+    // Notify the donor of the admin's update
+    if (dp.Donor_Email) {
+      const statusLabel = cleanStatus === 'RESOLVED' ? 'Resolved' : cleanStatus === 'DISMISSED' ? 'Dismissed' : cleanStatus === 'UNDER_REVIEW' ? 'Under Investigation' : 'Re-Opened';
+      sendNotificationToUser({
+        userEmail: dp.Donor_Email,
+        role: 'donor',
+        type: 'SYSTEM',
+        title: `Audit Dispute ${dp.Ticket_Code}: ${statusLabel}`,
+        message: `An administrator updated your dispute for "${dp.Campaign_Title || 'your donation'}" to ${statusLabel}.${cleanNotes ? ` Admin Note: ${cleanNotes}` : ''}`,
+        referenceId: dp.Ticket_Code,
+        referenceType: 'DISPUTE',
+        link: '/donor'
+      }).catch(() => {});
+    }
+
+    logActivity({
+      req,
+      activity: `Administrator updated dispute ${dp.Ticket_Code} status to ${cleanStatus}`,
+      userName: req.user.name || 'System Administrator',
+      userEmail: adminActor,
+      role: 'ADMIN',
+      target: `Dispute ${dp.Ticket_Code}`,
+      category: 'ADMIN_SECURITY',
+      status: 'SUCCESS',
+      details: { disputeId, ticketCode: dp.Ticket_Code, status: cleanStatus, adminNotes: cleanNotes }
+    }).catch(() => {});
+
+    try { realtimeBus.publish(['disputes', 'donations', 'audit', 'notifications'], { disputeId, status: cleanStatus }); } catch (_) {}
+
+    return res.json({
+      success: true,
+      message: `Dispute ${dp.Ticket_Code} marked as ${cleanStatus}.`,
+      status: cleanStatus,
+      adminNotes: cleanNotes
+    });
+  } catch (err) {
+    return res.status(500).json({ error: 'Failed to update dispute: ' + err.message });
   }
 });
 

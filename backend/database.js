@@ -492,6 +492,31 @@ function initSqlite() {
           `);
 
           sqliteDb.run(`
+            CREATE TABLE IF NOT EXISTS DONATION_DISPUTE (
+              Dispute_ID INTEGER PRIMARY KEY AUTOINCREMENT,
+              Ticket_Code TEXT NOT NULL UNIQUE,
+              Transaction_ID INTEGER NULL,
+              Tx_Hash TEXT NOT NULL,
+              Campaign_ID INTEGER NULL,
+              Org_ID INTEGER NULL,
+              Donor_ID INTEGER NULL,
+              Donor_Email TEXT NULL,
+              Donor_Name TEXT NULL,
+              Declared_Php REAL DEFAULT 0,
+              Credited_Php REAL DEFAULT 0,
+              Variance_Php REAL DEFAULT 0,
+              Dispute_Type TEXT DEFAULT 'SHORTAGE',
+              Reason TEXT NOT NULL,
+              Status TEXT DEFAULT 'OPEN',
+              Admin_Notes TEXT NULL,
+              Resolved_By TEXT NULL,
+              Resolved_At DATETIME NULL,
+              Created_At DATETIME DEFAULT CURRENT_TIMESTAMP,
+              Updated_At DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+          `);
+
+          sqliteDb.run(`
             CREATE TABLE IF NOT EXISTS LIVE_PRESENCE (
               Session_ID TEXT PRIMARY KEY,
               Visitor_Code TEXT NOT NULL,
@@ -1019,6 +1044,34 @@ async function initializeDatabase() {
         Setting_Key VARCHAR(100) PRIMARY KEY,
         Setting_Value LONGTEXT,
         Updated_At TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    `);
+
+    await mysqlPool.query(`
+      CREATE TABLE IF NOT EXISTS DONATION_DISPUTE (
+        Dispute_ID INT AUTO_INCREMENT PRIMARY KEY,
+        Ticket_Code VARCHAR(48) NOT NULL UNIQUE,
+        Transaction_ID INT NULL,
+        Tx_Hash VARCHAR(120) NOT NULL,
+        Campaign_ID INT NULL,
+        Org_ID INT NULL,
+        Donor_ID INT NULL,
+        Donor_Email VARCHAR(255) NULL,
+        Donor_Name VARCHAR(255) NULL,
+        Declared_Php DECIMAL(14, 2) DEFAULT 0,
+        Credited_Php DECIMAL(14, 2) DEFAULT 0,
+        Variance_Php DECIMAL(14, 2) DEFAULT 0,
+        Dispute_Type VARCHAR(32) DEFAULT 'SHORTAGE',
+        Reason TEXT NOT NULL,
+        Status VARCHAR(32) DEFAULT 'OPEN',
+        Admin_Notes TEXT NULL,
+        Resolved_By VARCHAR(255) NULL,
+        Resolved_At DATETIME NULL,
+        Created_At TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        Updated_At TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        INDEX idx_dispute_tx_hash (Tx_Hash),
+        INDEX idx_dispute_status (Status),
+        INDEX idx_dispute_donor (Donor_ID)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     `);
 

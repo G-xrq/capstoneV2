@@ -22,6 +22,7 @@ import DonorBadge, { DonorTierModal, DonorProgressCard, BadgeUpgradeModal, getDo
 import GuidedTour from '../components/GuidedTour';
 import SidebarToggleIcon from '../components/SidebarToggleIcon';
 import DisbursementProofModal from '../components/DisbursementProofModal';
+import FileDisputeModal from '../components/FileDisputeModal';
 import FilterableExportModal from '../components/FilterableExportModal';
 import GeistSelect, { GeistMultiSelect } from '../components/GeistSelect';
 import { useToast } from '../context/ToastContext';
@@ -113,6 +114,7 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
   const [showAllProofTags, setShowAllProofTags] = useState(false);
   const [activeProofEvidenceImg, setActiveProofEvidenceImg] = useState(null);
   const [selectedVoucherTx, setSelectedVoucherTx] = useState(null);
+  const [disputeTarget, setDisputeTarget] = useState(null);
   const [donorExportOpen, setDonorExportOpen] = useState(false);
   const [showReceiptZoom, setShowReceiptZoom] = useState(false);
   const [showTierModal, setShowTierModal] = useState(false);
@@ -810,6 +812,13 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
     if (!myDonations || !Array.isArray(myDonations)) return false;
     return myDonations.some(d => d.auditStatus === 'SHORTAGE' || Number(d.variancePhp || 0) <= -0.01);
   }, [myDonations]);
+
+  const hasAnyOverCredit = useMemo(() => {
+    if (!myDonations || !Array.isArray(myDonations)) return false;
+    return myDonations.some(d => d.auditStatus === 'OVER_CREDIT' || Number(d.variancePhp || 0) >= 0.01);
+  }, [myDonations]);
+
+  const hasAnyVariance = hasAnyShortage || hasAnyOverCredit;
 
   const drReceiptsCount = useMemo(() => {
     if (!myDonations || !Array.isArray(myDonations)) return 0;
@@ -2116,9 +2125,15 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
                 <div className="rcp-band-cell rcp-band-cell--primary">
                   <div className="rcp-band-val-row">
                     <LiveCounter value={Math.round(totalDonatedPhp)} prefix="₱" duration={1050} className="rcp-band-total" />
-                    <span className={`rcp-audit-pill ${hasAnyShortage ? 'is-alert' : 'is-ok'}`}>
-                      <span className={`rcp-live-dot ${hasAnyShortage ? 'is-alert' : ''}`} />
-                      <span>{hasAnyShortage ? 'Shortage Notarized' : '100% Balanced'}</span>
+                    <span className={`rcp-audit-pill ${hasAnyVariance ? 'is-alert' : 'is-ok'}`}>
+                      <span className={`rcp-live-dot ${hasAnyVariance ? 'is-alert' : ''}`} />
+                      <span>
+                        {hasAnyShortage
+                          ? 'Shortage Notarized'
+                          : hasAnyOverCredit
+                            ? 'Over-Credit Flagged'
+                            : '100% Balanced'}
+                      </span>
                     </span>
                   </div>
                   <span className="rcp-band-lbl">Total Contributed · Gasless Sepolia Notarized</span>
@@ -2388,7 +2403,9 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
                             const ethAmt = parseFloat(d.amount || 0);
                             const rawEthPhp = Math.round(ethAmt * 170000);
                             const isShortage = d.auditStatus === 'SHORTAGE' || Number(d.variancePhp || 0) <= -0.01;
-                            const phpAmt = !isShortage && Number(d.declaredPhp) > 0 && Math.abs(rawEthPhp - Number(d.declaredPhp)) < 0.01
+                            const isOverCredit = !isShortage && (d.auditStatus === 'OVER_CREDIT' || Number(d.variancePhp || 0) >= 0.01);
+                            const hasVariance = isShortage || isOverCredit;
+                            const phpAmt = !hasVariance && Number(d.declaredPhp) > 0 && Math.abs(rawEthPhp - Number(d.declaredPhp)) < 0.01
                               ? Number(d.declaredPhp)
                               : (Number(d.creditedPhp) > 0 ? Number(d.creditedPhp) : rawEthPhp);
                             const isDisbursed = matchCamp.disbursementStatus === 'DISBURSED' || matchCamp.disbursementStatus === 'PARTIALLY_DISBURSED' || (matchCamp.disbursedAmountPhp || 0) > 0;
@@ -2397,7 +2414,7 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
                               : 'Recent';
 
                             return (
-                              <div key={d.txHash || `${startIdx + idx}`} className={`rcp-row ${isShortage ? 'is-shortage' : ''}`}>
+                              <div key={d.txHash || `${startIdx + idx}`} className={`rcp-row ${hasVariance ? 'is-shortage' : ''}`}>
                                 <div className="rcp-row-main">
                                   <button
                                     type="button"
@@ -2418,7 +2435,17 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
                                         {campTitle}
                                       </h3>
 
-                                      {isDisbursed ? (
+                                      {isShortage ? (
+                                        <span className="rcp-status-pill is-shortage">
+                                          <span className="rcp-status-dot alert" />
+                                          <span>Shortage Detected</span>
+                                        </span>
+                                      ) : isOverCredit ? (
+                                        <span className="rcp-status-pill is-shortage" style={{ borderColor: 'rgba(245, 158, 11, 0.4)', color: '#f59e0b' }}>
+                                          <span className="rcp-status-dot alert" style={{ background: '#f59e0b' }} />
+                                          <span>Over-Credit Flagged</span>
+                                        </span>
+                                      ) : isDisbursed ? (
                                         <button
                                           type="button"
                                           className="rcp-status-pill is-disbursed"
@@ -2428,11 +2455,6 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
                                           <span className="rcp-status-dot ok" />
                                           <span>Relief Disbursed</span>
                                         </button>
-                                      ) : isShortage ? (
-                                        <span className="rcp-status-pill is-shortage">
-                                          <span className="rcp-status-dot alert" />
-                                          <span>Shortage Detected</span>
-                                        </span>
                                       ) : (
                                         <span className="rcp-status-pill">
                                           <span className="rcp-status-dot ok" />
@@ -2507,13 +2529,15 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
 
                                   <div className="rcp-row-right">
                                     <div className="rcp-amt-block">
-                                      <div className={`rcp-amt-val ${isShortage ? 'is-alert' : ''}`}>
+                                      <div className={`rcp-amt-val ${hasVariance ? 'is-alert' : ''}`}>
                                         +₱{phpAmt.toLocaleString('en-US')}
                                       </div>
-                                      {isShortage && d.declaredPhp ? (
+                                      {hasVariance && d.declaredPhp ? (
                                         <div className="rcp-amt-variance">
                                           <span className="rcp-struck">₱{Number(d.declaredPhp).toLocaleString('en-US')}</span>
-                                          <span className="rcp-var-diff">-₱{Math.abs(d.variancePhp || 0).toLocaleString()}</span>
+                                          <span className="rcp-var-diff">
+                                            {isShortage ? '-' : '+'}₱{Math.abs(d.variancePhp || 0).toLocaleString()}
+                                          </span>
                                         </div>
                                       ) : (
                                         <div className="rcp-amt-sub">Sepolia Verified</div>
@@ -2544,32 +2568,38 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
 
                                       <button
                                         type="button"
-                                        className={`rcp-btn-primary ${isShortage ? 'is-alert' : ''}`}
+                                        className={`rcp-btn-primary ${hasVariance ? 'is-alert' : ''}`}
                                         onClick={() => setSelectedVoucherTx(d)}
                                         title="Open Official Donation Receipt"
                                       >
-                                        <span>{isShortage ? 'Audit' : 'Receipt'}</span>
+                                        <span>{hasVariance ? 'Audit' : 'Receipt'}</span>
                                         <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>arrow_forward</span>
                                       </button>
                                     </div>
                                   </div>
                                 </div>
 
-                                {isShortage && (
+                                {hasVariance && (
                                   <div className="rcp-shortage-bar">
                                     <div className="rcp-shortage-left">
                                       <span className="material-symbols-outlined" style={{ fontSize: '16px', flexShrink: 0 }}>gavel</span>
                                       <span>
-                                        <strong>Audit Discrepancy Notarized:</strong> Declared ₱{Number(d.declaredPhp || 0).toLocaleString()}, NGO credited ₱{Number(d.creditedPhp || 0).toLocaleString()} (<strong>-₱{Math.abs(d.variancePhp || 0).toLocaleString()} PHP</strong>).
+                                        <strong>{isShortage ? 'Audit Shortage Notarized:' : 'Audit Over-Credit Flagged:'}</strong> Declared ₱{Number(d.declaredPhp || 0).toLocaleString()}, NGO credited ₱{Number(d.creditedPhp || 0).toLocaleString()} (<strong>{isShortage ? '-' : '+'}₱{Math.abs(d.variancePhp || 0).toLocaleString()} PHP</strong>).
                                       </span>
                                     </div>
                                     <button
                                       type="button"
                                       className="rcp-dispute-btn"
-                                      onClick={() => showSuccess(`Dispute filed for TX ${d.txHash?.slice(0, 10)}... Admin audit investigation initiated against ${orgName}.`, 'Audit Dispute Filed')}
+                                      onClick={() => setDisputeTarget({ tx: d, campaignTitle: campTitle, orgName })}
                                     >
-                                      <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>flag</span>
-                                      <span>File Dispute</span>
+                                      <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>
+                                        {d.disputeTicket ? 'assignment_turned_in' : 'flag'}
+                                      </span>
+                                      <span>
+                                        {d.disputeTicket
+                                          ? `Dispute ${d.disputeStatus === 'RESOLVED' ? 'Resolved' : d.disputeStatus === 'UNDER_REVIEW' ? 'In Review' : 'Open'} · #${d.disputeTicket}`
+                                          : 'File Dispute'}
+                                      </span>
                                     </button>
                                   </div>
                                 )}
@@ -3213,7 +3243,9 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
         const rawCreditedPhp = Number(d.creditedPhp || fallbackPhp);
         const rawVariancePhp = Number(d.variancePhp !== undefined ? d.variancePhp : (rawCreditedPhp - rawDeclaredPhp));
         const isShortage = d.auditStatus === 'SHORTAGE' || rawVariancePhp <= -0.01;
-        const isRoundingDrift = !isShortage && Math.abs(rawCreditedPhp - rawDeclaredPhp) < 0.01;
+        const isOverCredit = !isShortage && (d.auditStatus === 'OVER_CREDIT' || rawVariancePhp >= 0.01);
+        const hasVariance = isShortage || isOverCredit;
+        const isRoundingDrift = !hasVariance && Math.abs(rawCreditedPhp - rawDeclaredPhp) < 0.01;
         const canonicalPhp = Number(d.phpAmount || d.amountPhp || rawDeclaredPhp || rawCreditedPhp || fallbackPhp);
         const declaredPhp = isRoundingDrift ? canonicalPhp : rawDeclaredPhp;
         const creditedPhp = isRoundingDrift ? canonicalPhp : rawCreditedPhp;
@@ -3241,15 +3273,15 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
             aria-label="Official Donation Receipt"
           >
             <div
-              className={`rcp-modal-card fade-in ${isShortage ? 'is-shortage' : ''}`}
+              className={`rcp-modal-card fade-in ${hasVariance ? 'is-shortage' : ''}`}
               onClick={(e) => e.stopPropagation()}
             >
               {/* Top Header */}
               <div className="rcp-modal-head">
                 <div className="rcp-modal-head-left">
-                  <div className={`rcp-modal-icon ${isShortage ? 'is-alert' : ''}`}>
+                  <div className={`rcp-modal-icon ${hasVariance ? 'is-alert' : ''}`}>
                     <span className="material-symbols-outlined">
-                      {isShortage ? 'report_problem' : 'receipt_long'}
+                      {hasVariance ? 'report_problem' : 'receipt_long'}
                     </span>
                   </div>
                   <div>
@@ -3273,11 +3305,17 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
 
               {/* Amount Hero Centerpiece */}
               <div className="rcp-modal-hero">
-                <div className={`rcp-modal-status-pill ${isShortage ? 'is-alert' : 'is-ok'}`}>
+                <div className={`rcp-modal-status-pill ${hasVariance ? 'is-alert' : 'is-ok'}`}>
                   <span className="rcp-modal-status-dot" />
-                  <span>{isShortage ? 'Discrepancy Flagged On-Chain' : 'Verified & Notarized'}</span>
+                  <span>
+                    {isShortage
+                      ? 'Shortage Flagged On-Chain'
+                      : isOverCredit
+                        ? 'Over-Credit Flagged On-Chain'
+                        : 'Verified & Notarized'}
+                  </span>
                 </div>
-                <div className={`rcp-modal-amount ${isShortage ? 'is-alert' : ''}`}>
+                <div className={`rcp-modal-amount ${hasVariance ? 'is-alert' : ''}`}>
                   ₱{creditedPhp.toLocaleString('en-US')}
                   <span className="rcp-modal-currency">PHP</span>
                 </div>
@@ -3292,13 +3330,17 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
 
               {/* Body */}
               <div className="rcp-modal-body">
-                {isShortage && (
+                {hasVariance && (
                   <div className="rcp-modal-alert-box">
                     <span className="material-symbols-outlined" style={{ fontSize: '18px', flexShrink: 0 }}>gavel</span>
                     <div>
-                      <strong>Shortage of ₱{Math.abs(variancePhp).toLocaleString('en-US')} recorded on-chain</strong>
+                      <strong>
+                        {isShortage
+                          ? `Shortage of ₱${Math.abs(variancePhp).toLocaleString('en-US')} recorded on-chain`
+                          : `Over-credit of +₱${Math.abs(variancePhp).toLocaleString('en-US')} recorded on-chain`}
+                      </strong>
                       <p>
-                        Your slip confirms <strong>₱{declaredPhp.toLocaleString('en-US')}</strong> sent, while <strong>₱{creditedPhp.toLocaleString('en-US')}</strong> was credited. This variance is permanently sealed on Sepolia.
+                        Your slip declared <strong>₱{declaredPhp.toLocaleString('en-US')}</strong> sent, while <strong>₱{creditedPhp.toLocaleString('en-US')}</strong> was credited. This variance is permanently sealed on Sepolia.
                       </p>
                     </div>
                   </div>
@@ -3330,9 +3372,9 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
                   </div>
                   <div className="rcp-modal-row">
                     <span className="rcp-modal-row-lbl">Amount Credited</span>
-                    <span className={`rcp-modal-row-val rcp-mono ${isShortage ? 'is-alert' : 'is-ok'}`}>
+                    <span className={`rcp-modal-row-val rcp-mono ${hasVariance ? 'is-alert' : 'is-ok'}`}>
                       ₱{creditedPhp.toLocaleString('en-US')}
-                      {!isShortage && ' · Exact Match'}
+                      {!hasVariance ? ' · Exact Match' : (isShortage ? ` · -₱${Math.abs(variancePhp).toLocaleString('en-US')}` : ` · +₱${Math.abs(variancePhp).toLocaleString('en-US')}`)}
                     </span>
                   </div>
                   <div className="rcp-modal-row">
@@ -3390,15 +3432,15 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
               {/* Footer Actions */}
               <div className="rcp-modal-foot">
                 <div className="rcp-modal-foot-left">
-                  {isShortage && (
+                  {hasVariance && (
                     <button
                       type="button"
                       className="btn btn-danger btn-sm"
                       style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}
-                      onClick={() => showSuccess(`Dispute logged against ${orgName}. Ticket #AUDIT-${Date.now().toString().slice(-6)} created.`, 'Dispute Filed')}
+                      onClick={() => setDisputeTarget({ tx: d, campaignTitle: campTitle, orgName })}
                     >
                       <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>gavel</span>
-                      <span>File Dispute</span>
+                      <span>{d.disputeTicket ? `View Dispute #${d.disputeTicket}` : 'File Dispute'}</span>
                     </button>
                   )}
                 </div>
@@ -3445,6 +3487,28 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
           </div>
         );
       })(), document.body)}
+
+      {disputeTarget && (
+        <FileDisputeModal
+          tx={disputeTarget.tx}
+          campaignTitle={disputeTarget.campaignTitle}
+          orgName={disputeTarget.orgName}
+          apiUrl={apiUrl}
+          onClose={() => setDisputeTarget(null)}
+          onSuccess={(data) => {
+            showSuccess(data.message || 'Audit dispute filed with BBDRTS Governance.', 'Audit Dispute Filed');
+            fetchMyDonations({ silent: true });
+            if (selectedVoucherTx && disputeTarget?.tx && selectedVoucherTx.txHash === disputeTarget.tx.txHash && data.dispute) {
+              setSelectedVoucherTx(prev => prev ? {
+                ...prev,
+                disputeTicket: data.dispute.ticketCode,
+                disputeStatus: data.dispute.status,
+                disputeReason: data.dispute.reason
+              } : prev);
+            }
+          }}
+        />
+      )}
 
       {/* ── Verified Aid Distribution Proof & Receipts Modal ── */}
       <DisbursementProofModal
