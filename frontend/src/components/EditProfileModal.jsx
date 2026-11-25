@@ -88,6 +88,15 @@ const NGO_AVATAR_PRESETS = [
   { id: 'domain', icon: 'domain', label: 'Institutional Center', color: '#10b981' }
 ];
 
+const ADMIN_AVATAR_PRESETS = [
+  { id: 'shield_person', icon: 'shield_person', label: 'Governance Lead', color: '#10b981' },
+  { id: 'admin_panel_settings', icon: 'admin_panel_settings', label: 'System Admin', color: '#38bdf8' },
+  { id: 'verified_user', icon: 'verified_user', label: 'Compliance Officer', color: '#22c55e' },
+  { id: 'gavel', icon: 'gavel', label: 'Policy Oversight', color: '#f59e0b' },
+  { id: 'security', icon: 'security', label: 'Platform Security', color: '#a855f7' },
+  { id: 'policy', icon: 'policy', label: 'Audit Controller', color: '#06b6d4' }
+];
+
 
 // ── Philippine Mobile Number Formatter (0000 000 0000) & NTC Carrier Validator ──
 const PH_CARRIER_PREFIXES = {
@@ -452,6 +461,8 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
   const [originalBannerSrc, setOriginalBannerSrc] = useState(currentUser?.banner_url || initialPrefs.banner_url || '');
   const [phone, setPhone] = useState(() => formatPhMobileDisplay(currentUser?.phone || ''));
   const [location, setLocation] = useState(currentUser?.location || '');
+  const [adminTitle, setAdminTitle] = useState(currentUser?.title || '');
+  const [adminAgency, setAdminAgency] = useState(currentUser?.agency || '');
 
   const verifiedDateStr = currentUser?.verified_date
     ? new Date(currentUser.verified_date).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
@@ -657,7 +668,9 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
     bankQrUrl: currentUser?.bank_qr_url || initialPrefs.bank_qr_url || '',
     missionStatement: initialPrefs.missionStatement || '',
     focusAreas: initialPrefs.focusAreas || '',
-    hqLandmark: initialPrefs.hqLandmark || ''
+    hqLandmark: initialPrefs.hqLandmark || '',
+    adminTitle: currentUser?.title || '',
+    adminAgency: currentUser?.agency || ''
   });
 
   const isFormDirty = () => {
@@ -685,7 +698,9 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
       bankQrUrl !== init.bankQrUrl ||
       missionStatement !== init.missionStatement ||
       focusAreas !== init.focusAreas ||
-      hqLandmark !== init.hqLandmark
+      hqLandmark !== init.hqLandmark ||
+      adminTitle !== init.adminTitle ||
+      adminAgency !== init.adminAgency
     );
   };
 
@@ -965,7 +980,7 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
       setIsProcessingQr(false);
     }
   };
-  const [activeTab, setActiveTab] = useState(isOrg ? 'org_details' : 'persona');
+  const [activeTab, setActiveTab] = useState(isAdmin ? 'admin_profile' : isOrg ? 'org_details' : 'persona');
 
   // Cascading Handlers: selecting parent resets all lower levels
   const handleRegionSelect = (e) => {
@@ -1305,7 +1320,25 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!isOrg) {
+    if (isAdmin) {
+      const cleanAdminName = (displayName || '').trim();
+      if (cleanAdminName.length < 2) {
+        setActiveTab('admin_profile');
+        setDisplayNameError('Administrator name must be at least 2 characters.');
+        return;
+      }
+      if (cleanAdminName.length > 60) {
+        setActiveTab('admin_profile');
+        setDisplayNameError('Administrator name cannot exceed 60 characters.');
+        return;
+      }
+      const adminPhoneCheck = validatePhMobile(phone, { required: false });
+      if (!adminPhoneCheck.valid) {
+        setActiveTab('admin_contact');
+        showError(adminPhoneCheck.message, 'Invalid Contact Number');
+        return;
+      }
+    } else if (!isOrg) {
       const clientErr = checkDisplayNameValidation(displayName);
       if (clientErr) {
         setDisplayNameError(clientErr);
@@ -1338,7 +1371,18 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
         regionName
       ].filter(Boolean).join(', ');
 
-      const payload = isOrg
+      const payload = isAdmin
+        ? {
+          id: currentUser?.id,
+          email: currentUser?.email,
+          role: 'admin',
+          name: (displayName || '').trim(),
+          phone: (phone || '').trim(),
+          title: (adminTitle || '').trim(),
+          agency: (adminAgency || '').trim(),
+          avatar_url: avatarUrl
+        }
+        : isOrg
         ? {
           id: currentUser?.id,
           email: currentUser?.email,
@@ -1526,11 +1570,13 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
         {/* ── Minimal Vercel Studio Header ── */}
         <div className="bbdrts-studio-header epm2-header">
           <div className="epm2-header-copy">
-            <h3>{isOrg ? 'Edit Organization Profile' : 'Edit Profile'}</h3>
+            <h3>{isAdmin ? 'Edit Administrator Profile' : isOrg ? 'Edit Organization Profile' : 'Edit Profile'}</h3>
             <p>
-              {isOrg
-                ? 'Manage institutional identity, hotlines, payout rails, and accreditation.'
-                : 'Manage your public display name, photo, contact details, and relief profile.'}
+              {isAdmin
+                ? 'Manage your governance display name, photo, official title, and contact desk.'
+                : isOrg
+                  ? 'Manage institutional identity, hotlines, payout rails, and accreditation.'
+                  : 'Manage your public display name, photo, contact details, and relief profile.'}
             </p>
           </div>
           <div className="epm2-header-right">
@@ -1547,9 +1593,36 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
           {/* Left Navigation Rail */}
           <aside className="bbdrts-studio-sidebar epm2-sidebar">
             <div className="epm2-nav-group">
-              <span className="epm2-nav-heading">{isOrg ? 'Organization' : 'Profile'}</span>
+              <span className="epm2-nav-heading">{isAdmin ? 'Governance' : isOrg ? 'Organization' : 'Profile'}</span>
 
-              {!isOrg && !isAdmin ? (
+              {isAdmin ? (
+                <>
+                  <button
+                    type="button"
+                    className={`epm2-nav-item ${activeTab === 'admin_profile' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('admin_profile')}
+                  >
+                    <span className="material-symbols-outlined">shield_person</span>
+                    <span>Admin Profile</span>
+                  </button>
+                  <button
+                    type="button"
+                    className={`epm2-nav-item ${activeTab === 'admin_contact' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('admin_contact')}
+                  >
+                    <span className="material-symbols-outlined">call</span>
+                    <span>Contact &amp; Desk</span>
+                  </button>
+                  <button
+                    type="button"
+                    className={`epm2-nav-item ${activeTab === 'admin_credentials' ? 'active' : ''}`}
+                    onClick={() => setActiveTab('admin_credentials')}
+                  >
+                    <span className="material-symbols-outlined">verified_user</span>
+                    <span>Access &amp; Audit</span>
+                  </button>
+                </>
+              ) : !isOrg ? (
                 <>
                   <button
                     type="button"
@@ -1648,7 +1721,7 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
                   </strong>
                   <span className="epm2-mini-id">
                     <span className="epm2-dot" />
-                    <span>BBDRTS-{isOrg ? 'NGO' : 'DONOR'}-2026</span>
+                    <span>BBDRTS-{isAdmin ? 'ADMIN' : isOrg ? 'NGO' : 'DONOR'}-2026</span>
                   </span>
                 </div>
               </div>
@@ -3328,13 +3401,294 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
                   </div>
                 )}
 
+                {/* ══════════════════════════════════════════════════
+                  ADMIN: PROFILE & IDENTITY TAB
+                 ══════════════════════════════════════════════════ */}
+                {isAdmin && activeTab === 'admin_profile' && (
+                  <div className="epm2-pane" key="epm2-admin-profile">
+                    <div className="epm2-pane-head">
+                      <h4>Administrator Profile</h4>
+                      <p>Your display name, official title, and avatar appear in governance audit trails and live admin sessions.</p>
+                    </div>
+
+                    {/* Profile Photo Section */}
+                    <div className="epm2-section">
+                      <div className="epm2-avatar-row">
+                        <div className="epm2-avatar-box">
+                          {avatarUrl && (avatarUrl.startsWith('data:') || avatarUrl.startsWith('http')) ? (
+                            <img src={avatarUrl} alt="Admin Avatar" />
+                          ) : avatarUrl && avatarUrl.length < 30 ? (
+                            <span className="material-symbols-outlined" style={{ fontSize: '28px' }}>{avatarUrl}</span>
+                          ) : (
+                            <span>{userInitials}</span>
+                          )}
+                        </div>
+
+                        <div className="epm2-avatar-meta">
+                          <div className="epm2-name-row">
+                            <h4>{displayName || 'System Administrator'}</h4>
+                            <span className="material-symbols-outlined epm2-verified-icon" title="Verified System Administrator">verified</span>
+                          </div>
+                          <p className="epm2-sub-line">PNG, JPG, or WEBP up to 15MB · 1:1 square recommended</p>
+
+                          <div className="epm2-btn-row">
+                            <button
+                              type="button"
+                              className="epm2-btn epm2-btn--solid"
+                              onClick={() => fileInputRef.current?.click()}
+                            >
+                              Upload Photo
+                            </button>
+
+                            {(avatarUrl || originalImageSrc) && (avatarUrl?.startsWith('data:') || avatarUrl?.startsWith('http') || originalImageSrc?.startsWith('data:') || originalImageSrc?.startsWith('http')) && (
+                              <button
+                                type="button"
+                                className="epm2-btn epm2-btn--outline"
+                                onClick={handleOpenAdjuster}
+                                title="Adjust zoom, pan, and rotation"
+                              >
+                                Adjust Framing
+                              </button>
+                            )}
+
+                            {avatarUrl && (
+                              <button
+                                type="button"
+                                className="epm2-btn epm2-btn--ghost-danger"
+                                onClick={handleRemovePhoto}
+                              >
+                                Remove
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="epm2-preset-bar">
+                        <span className="epm2-preset-lbl">Or choose a governance icon</span>
+                        <div className="epm2-preset-list">
+                          {ADMIN_AVATAR_PRESETS.map((p) => (
+                            <button
+                              key={p.id}
+                              type="button"
+                              className={`epm2-preset-btn ${avatarUrl === p.icon ? 'active' : ''}`}
+                              onClick={() => setAvatarUrl(p.icon)}
+                              title={p.label}
+                            >
+                              <span className="material-symbols-outlined">{p.icon}</span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Administrator Name */}
+                    <div className="epm2-section">
+                      <div className="epm2-field-head">
+                        <div>
+                          <label htmlFor="epm2-admin-name" className="epm2-field-title">Administrator Name</label>
+                          <p className="epm2-field-sub">Displayed across admin governance logs, approvals, and session lists.</p>
+                        </div>
+                        <span className="epm2-status-pill">
+                          <span className="epm2-dot" />
+                          <span>Editable</span>
+                        </span>
+                      </div>
+
+                      <input
+                        id="epm2-admin-name"
+                        type="text"
+                        className={`epm2-input ${displayNameError ? 'is-error' : ''}`}
+                        value={displayName}
+                        onChange={(e) => {
+                          setDisplayName(e.target.value);
+                          if (displayNameError) setDisplayNameError('');
+                        }}
+                        placeholder="e.g. System Administrator"
+                        required
+                      />
+                      {displayNameError && <p className="epm2-error-text">{displayNameError}</p>}
+                    </div>
+
+                    {/* Official Title & Agency */}
+                    <div className="epm2-section">
+                      <div className="epm2-grid-2">
+                        <div>
+                          <label htmlFor="epm2-admin-title" className="epm2-field-title">Official Title</label>
+                          <p className="epm2-field-sub">Role title shown on governance records.</p>
+                          <input
+                            id="epm2-admin-title"
+                            type="text"
+                            className="epm2-input"
+                            value={adminTitle}
+                            onChange={(e) => setAdminTitle(e.target.value)}
+                            placeholder="e.g. Lead Platform Administrator"
+                            style={{ marginTop: '6px' }}
+                          />
+                        </div>
+
+                        <div>
+                          <label htmlFor="epm2-admin-agency" className="epm2-field-title">Agency / Office</label>
+                          <p className="epm2-field-sub">Oversight office or coordinating unit.</p>
+                          <input
+                            id="epm2-admin-agency"
+                            type="text"
+                            className="epm2-input"
+                            value={adminAgency}
+                            onChange={(e) => setAdminAgency(e.target.value)}
+                            placeholder="e.g. BBDRTS Oversight Office"
+                            style={{ marginTop: '6px' }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* ══════════════════════════════════════════════════
+                  ADMIN: CONTACT & DESK TAB
+                 ══════════════════════════════════════════════════ */}
+                {isAdmin && activeTab === 'admin_contact' && (() => {
+                  const phoneCheck = validatePhMobile(phone, { required: false });
+                  return (
+                    <div className="epm2-pane" key="epm2-admin-contact">
+                      <div className="epm2-pane-head">
+                        <h4>Contact &amp; Desk</h4>
+                        <p>Governance email and direct contact number for urgent escalations and system alerts.</p>
+                      </div>
+
+                      <div className="epm2-section">
+                        <div className="epm2-kv-list">
+                          <div className="epm2-kv-row">
+                            <div className="epm2-kv-info">
+                              <span className="epm2-kv-lbl">Governance Email</span>
+                              <span className="epm2-kv-val">{currentUser?.email || 'admin@bbdrts.gov.ph'}</span>
+                            </div>
+                            <span className="epm2-status-pill">
+                              <span className="epm2-dot" />
+                              <span>Verified</span>
+                            </span>
+                          </div>
+                        </div>
+                        <p className="epm2-note-text" style={{ marginTop: '6px' }}>
+                          To change your administrator login email or password, use Account Settings in the Admin Governance Console.
+                        </p>
+                      </div>
+
+                      <div className="epm2-section">
+                        <div className="epm2-field-head">
+                          <div>
+                            <label htmlFor="epm2-admin-phone" className="epm2-field-title">Direct Mobile Number</label>
+                            <p className="epm2-field-sub">Optional Philippine mobile number (09XX XXX XXXX) for escalation coordination.</p>
+                          </div>
+                          {phoneCheck.carrier && (
+                            <span className="epm2-status-pill">
+                              <span className="epm2-dot" />
+                              <span>{phoneCheck.carrier}</span>
+                            </span>
+                          )}
+                        </div>
+
+                        <input
+                          id="epm2-admin-phone"
+                          type="tel"
+                          className={`epm2-input ${phone && !phoneCheck.valid ? 'is-error' : ''}`}
+                          value={phone}
+                          onChange={(e) => setPhone(formatPhMobileDisplay(e.target.value))}
+                          placeholder="0992 982 4615"
+                        />
+
+                        {phone && !phoneCheck.valid ? (
+                          <p className="epm2-error-text">{phoneCheck.message}</p>
+                        ) : (
+                          <p className="epm2-note-text">
+                            Stored securely in the administrator directory. Leave blank if not applicable.
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* ══════════════════════════════════════════════════
+                  ADMIN: ACCESS & AUDIT CREDENTIALS TAB
+                 ══════════════════════════════════════════════════ */}
+                {isAdmin && activeTab === 'admin_credentials' && (
+                  <div className="epm2-pane" key="epm2-admin-credentials">
+                    <div className="epm2-pane-head">
+                      <h4>Access &amp; Audit Credentials</h4>
+                      <p>Read-only governance identity, privilege level, and protocol telemetry.</p>
+                    </div>
+
+                    <div className="epm2-section">
+                      <div className="epm2-kv-list">
+                        <div className="epm2-kv-row">
+                          <div className="epm2-kv-info">
+                            <span className="epm2-kv-lbl">Administrator System ID</span>
+                            <span className="epm2-kv-val" style={{ fontFamily: 'var(--font-mono, monospace)' }}>
+                              {currentUser?.system_id || `BBDRTS-ADMIN-2026-${String(currentUser?.id || 1).padStart(5, '0')}`}
+                            </span>
+                          </div>
+                          <span className="epm2-status-pill">
+                            <span className="epm2-dot" />
+                            <span>Active</span>
+                          </span>
+                        </div>
+
+                        <div className="epm2-kv-row">
+                          <div className="epm2-kv-info">
+                            <span className="epm2-kv-lbl">Privilege Scope</span>
+                            <span className="epm2-kv-val">Full Governance Console · NGO Accreditation · System Operations</span>
+                          </div>
+                          <span className="epm2-status-pill">
+                            <span className="epm2-dot" />
+                            <span>Admin</span>
+                          </span>
+                        </div>
+
+                        <div className="epm2-kv-row">
+                          <div className="epm2-kv-info">
+                            <span className="epm2-kv-lbl">Two-Factor Security</span>
+                            <span className="epm2-kv-val">
+                              {currentUser?.two_factor_enabled ? 'Email OTP Two-Factor Enabled' : 'Standard Password Authentication'}
+                            </span>
+                          </div>
+                          <span className={`epm2-status-pill ${currentUser?.two_factor_enabled ? '' : 'is-warn'}`}>
+                            <span className={`epm2-dot ${currentUser?.two_factor_enabled ? '' : 'is-warn'}`} />
+                            <span>{currentUser?.two_factor_enabled ? 'Protected' : 'Optional'}</span>
+                          </span>
+                        </div>
+
+                        <div className="epm2-kv-row">
+                          <div className="epm2-kv-info">
+                            <span className="epm2-kv-lbl">Blockchain Audit Ledger</span>
+                            <span className="epm2-kv-val">Gasless Ethereum Sepolia · Chain ID 11155111</span>
+                          </div>
+                          <span className="epm2-status-pill">
+                            <span className="epm2-dot" />
+                            <span>Synced</span>
+                          </span>
+                        </div>
+                      </div>
+
+                      <p className="epm2-note-text" style={{ marginTop: '6px' }}>
+                        Every administrator profile modification is recorded in the platform activity audit log with field-level diffs.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
               </div>
 
               {/* ── Minimal Vercel Footer ── */}
               <div className="bbdrts-studio-footer epm2-footer">
                 <div className="epm2-footer-meta">
                   <span className="epm2-dot" />
-                  <span>Syncs with official registry &amp; Sepolia receipts</span>
+                  <span>
+                    {isAdmin
+                      ? 'Logged to administrator audit trail'
+                      : 'Syncs with official registry & Sepolia receipts'}
+                  </span>
                 </div>
                 <div className="epm2-footer-actions">
                   <button
