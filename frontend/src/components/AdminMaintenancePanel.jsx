@@ -95,16 +95,22 @@ function toDatetimeLocal(val) {
 
 function formatFriendlyDateTime(val) {
   if (!val) return '';
-  const d = new Date(val);
+  const normalized = typeof val === 'string'
+    ? val.trim().replace(/\s*[|·•]\s*/g, ', ')
+    : val;
+  const d = new Date(normalized);
   if (isNaN(d.getTime())) return '';
-  return d.toLocaleString('en-US', {
+  const datePart = d.toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric',
-    year: 'numeric',
+    year: 'numeric'
+  });
+  const timePart = d.toLocaleTimeString('en-US', {
     hour: 'numeric',
     minute: '2-digit',
     hour12: true
   });
+  return `${datePart} | ${timePart}`;
 }
 
 export default function AdminMaintenancePanel({ onMaintenanceStateChange, forcedSection = null }) {
@@ -147,7 +153,8 @@ export default function AdminMaintenancePanel({ onMaintenanceStateChange, forced
   const parseMaintMs = (iso, friendly) => {
     for (const v of [iso, friendly]) {
       if (!v || typeof v !== 'string' || !v.trim()) continue;
-      const ms = Date.parse(v.trim());
+      const normalized = v.trim().replace(/\s*[|·•]\s*/g, ', ');
+      const ms = Date.parse(normalized);
       if (!isNaN(ms)) return ms;
     }
     return null;

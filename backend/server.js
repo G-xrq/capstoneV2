@@ -11291,7 +11291,8 @@ function parseMaintenanceTimestampMs(isoVal, displayVal) {
   const candidates = [isoVal, displayVal];
   for (const rawVal of candidates) {
     if (!rawVal || typeof rawVal !== 'string' || !rawVal.trim()) continue;
-    const ms = Date.parse(rawVal.trim());
+    const normalized = rawVal.trim().replace(/\s*[|·•]\s*/g, ', ');
+    const ms = Date.parse(normalized);
     if (!isNaN(ms)) return ms;
   }
   return null;

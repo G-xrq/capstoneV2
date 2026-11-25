@@ -7,22 +7,28 @@ import './CustomDateTimePicker.css';
  */
 export function formatFriendlyDate(d) {
   if (!d || isNaN(d.getTime())) return '';
-  return d.toLocaleString('en-US', {
+  const datePart = d.toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric',
-    year: 'numeric',
+    year: 'numeric'
+  });
+  const timePart = d.toLocaleTimeString('en-US', {
     hour: 'numeric',
     minute: '2-digit',
     hour12: true
   });
+  return `${datePart} | ${timePart}`;
 }
 
 /**
- * Helper: Parse any date string into a valid Date object or null
+ * Helper: Parse any date string (including "Nov 25, 2026 | 12:36 PM") into a valid Date object or null
  */
 export function parseDateSafe(val) {
   if (!val) return null;
-  const d = new Date(val);
+  const normalized = typeof val === 'string'
+    ? val.trim().replace(/\s*[|·•]\s*/g, ', ')
+    : val;
+  const d = new Date(normalized);
   return isNaN(d.getTime()) ? null : d;
 }
 

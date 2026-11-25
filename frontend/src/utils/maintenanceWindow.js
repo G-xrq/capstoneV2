@@ -9,7 +9,8 @@ export const PRE_MAINT_FREEZE_MS = 60 * 1000; // Final 60 seconds before Effecti
 export function parseMaintTimeMs(isoVal, displayVal) {
   for (const v of [isoVal, displayVal]) {
     if (!v || typeof v !== 'string' || !v.trim()) continue;
-    const ms = Date.parse(v.trim());
+    const normalized = v.trim().replace(/\s*[|·•]\s*/g, ', ');
+    const ms = Date.parse(normalized);
     if (!isNaN(ms)) return ms;
   }
   return null;

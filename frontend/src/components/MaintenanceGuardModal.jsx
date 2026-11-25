@@ -8,10 +8,20 @@ import './MaintenanceGuardModal.css';
 function parseTimeMs(isoVal, displayVal) {
   for (const v of [isoVal, displayVal]) {
     if (!v || typeof v !== 'string' || !v.trim()) continue;
-    const ms = Date.parse(v.trim());
+    const normalized = v.trim().replace(/\s*[|·•]\s*/g, ', ');
+    const ms = Date.parse(normalized);
     if (!isNaN(ms)) return ms;
   }
   return null;
+}
+
+function formatPipeDateTime(isoVal, displayVal, fallback = '') {
+  const ms = parseTimeMs(isoVal, displayVal);
+  if (!ms) return displayVal || fallback;
+  const d = new Date(ms);
+  const datePart = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  const timePart = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+  return `${datePart} | ${timePart}`;
 }
 
 function formatCountdown(ms) {
@@ -272,8 +282,8 @@ export default function MaintenanceGuardModal({
               ) : (
                 <>
                   <span>
-                    Window: {maintenance.startTime || 'Soon'}
-                    {maintenance.endTime ? ` – ${maintenance.endTime}` : ''}
+                    Window: {formatPipeDateTime(maintenance.startTimeIso, maintenance.startTime, 'Soon')}
+                    {(maintenance.endTimeIso || maintenance.endTime) ? ` – ${formatPipeDateTime(maintenance.endTimeIso, maintenance.endTime)}` : ''}
                   </span>
                   <span className="upcoming-sep">·</span>
                   <span>Please finish active forms soon</span>
@@ -422,7 +432,7 @@ export default function MaintenanceGuardModal({
                     <span>Maintenance Started</span>
                   </div>
                   <strong className="bbdrts-maint-cell-val">
-                    {maintenance?.startTime || 'In Progress'}
+                    {formatPipeDateTime(maintenance?.startTimeIso, maintenance?.startTime, 'In Progress')}
                   </strong>
                 </div>
 
@@ -432,7 +442,7 @@ export default function MaintenanceGuardModal({
                     <span>Expected Completion</span>
                   </div>
                   <strong className="bbdrts-maint-cell-val">
-                    {maintenance?.endTime || 'Expected Shortly'}
+                    {formatPipeDateTime(maintenance?.endTimeIso, maintenance?.endTime, 'Expected Shortly')}
                   </strong>
                 </div>
               </div>
