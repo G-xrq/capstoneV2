@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import {
   resolveDonationPhp,
@@ -35,19 +35,233 @@ const CHANNELS = [
 ];
 
 const CATEGORIES = [
-  { id: 'ALL', label: 'All Causes' },
-  { id: 'DR', label: 'Disaster Relief' },
-  { id: 'CD', label: 'Charitable Aid' }
+  { id: 'ALL', label: 'All Causes', sub: 'Disaster relief & charitable drives', icon: 'apps' },
+  { id: 'DR', label: 'Disaster Relief', sub: 'Typhoon, flood, fire & emergency aid', icon: 'flood' },
+  { id: 'CD', label: 'Charitable Aid', sub: 'Community outreach, medical & welfare', icon: 'volunteer_activism' }
 ];
 
 const STATUSES = [
-  { id: 'ALL', label: 'All Statuses' },
-  { id: 'VERIFIED', label: 'Verified Only' },
-  { id: 'PENDING', label: 'Pending / Review' }
+  { id: 'ALL', label: 'All Statuses', sub: 'Include verified & pending records', icon: 'fact_check' },
+  { id: 'VERIFIED', label: 'Verified Only', sub: 'Notarized & confirmed transactions', icon: 'verified' },
+  { id: 'PENDING', label: 'Pending / Review', sub: 'Awaiting NGO or admin confirmation', icon: 'hourglass_top' }
 ];
 
-const LOG_CATEGORIES = ['ALL', 'AUTH', 'CAMPAIGN', 'DONATION', 'DISBURSEMENT', 'KYC', 'ADMIN', 'SYSTEM'];
-const LOG_ROLES = ['ALL', 'ADMIN', 'NGO', 'DONOR', 'SYSTEM'];
+const LOG_CATEGORIES = [
+  { id: 'ALL', label: 'All Categories', icon: 'apps' },
+  { id: 'AUTH', label: 'AUTH', icon: 'lock' },
+  { id: 'CAMPAIGN', label: 'CAMPAIGN', icon: 'campaign' },
+  { id: 'DONATION', label: 'DONATION', icon: 'payments' },
+  { id: 'DISBURSEMENT', label: 'DISBURSEMENT', icon: 'local_shipping' },
+  { id: 'KYC', label: 'KYC', icon: 'badge' },
+  { id: 'ADMIN', label: 'ADMIN', icon: 'admin_panel_settings' },
+  { id: 'SYSTEM', label: 'SYSTEM', icon: 'dns' }
+];
+
+const LOG_ROLES = [
+  { id: 'ALL', label: 'All Roles', icon: 'groups' },
+  { id: 'ADMIN', label: 'ADMIN', icon: 'shield_person' },
+  { id: 'NGO', label: 'NGO', icon: 'domain' },
+  { id: 'DONOR', label: 'DONOR', icon: 'person' },
+  { id: 'SYSTEM', label: 'SYSTEM', icon: 'memory' }
+];
+
+/* ═══════════════════════════════════════════════════════════════════════
+   Custom Dual-Theme Vercel Geist Dropdown (Portal-Anchored + Searchable)
+   ═══════════════════════════════════════════════════════════════════════ */
+function FemSelect({
+  value,
+  onChange,
+  options = [],
+  placeholder = 'Select option...',
+  searchable = false,
+  searchPlaceholder = 'Search...',
+  emptyText = 'No matching options',
+  alignRight = false
+}) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const [menuStyle, setMenuStyle] = useState(null);
+  const triggerRef = useRef(null);
+  const menuRef = useRef(null);
+  const searchInputRef = useRef(null);
+
+  const selectedOption = useMemo(
+    () => options.find((o) => String(o.id) === String(value)) || options[0] || null,
+    [options, value]
+  );
+
+  const filteredOptions = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return options;
+    return options.filter((o) =>
+      `${o.label || ''} ${o.sub || ''} ${o.badge || ''}`.toLowerCase().includes(q)
+    );
+  }, [options, query]);
+
+  const computePosition = () => {
+    const el = triggerRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    const viewportW = window.innerWidth;
+    const viewportH = window.innerHeight;
+    const desiredWidth = Math.max(rect.width, searchable ? Math.min(360, viewportW - 32) : rect.width);
+    const width = Math.min(desiredWidth, viewportW - 24);
+    let left = alignRight ? rect.right - width : rect.left;
+    if (left + width > viewportW - 12) left = viewportW - width - 12;
+    if (left < 12) left = 12;
+
+    const spaceBelow = viewportH - rect.bottom - 14;
+    const spaceAbove = rect.top - 14;
+    const estimatedH = Math.min(310, (searchable ? 52 : 12) + options.length * 42);
+    const openUpward = spaceBelow < Math.min(estimatedH, 220) && spaceAbove > spaceBelow;
+
+    setMenuStyle({
+      position: 'fixed',
+      left: `${Math.round(left)}px`,
+      width: `${Math.round(width)}px`,
+      ...(openUpward
+        ? { bottom: `${Math.round(viewportH - rect.top + 6)}px`, top: 'auto' }
+        : { top: `${Math.round(rect.bottom + 6)}px`, bottom: 'auto' }),
+      maxHeight: `${Math.max(150, Math.min(320, (openUpward ? spaceAbove : spaceBelow) - 8))}px`
+    });
+  };
+
+  useEffect(() => {
+    if (!open) {
+      setQuery('');
+      return;
+    }
+    computePosition();
+    if (searchable) {
+      setTimeout(() => searchInputRef.current?.focus(), 20);
+    }
+
+    const handleOutside = (e) => {
+      if (
+        triggerRef.current?.contains(e.target) ||
+        menuRef.current?.contains(e.target)
+      ) {
+        return;
+      }
+      setOpen(false);
+    };
+    const handleKey = (e) => {
+      if (e.key === 'Escape') {
+        e.stopPropagation();
+        setOpen(false);
+      }
+    };
+    const handleReposition = () => computePosition();
+
+    document.addEventListener('mousedown', handleOutside);
+    window.addEventListener('keydown', handleKey, true);
+    window.addEventListener('resize', handleReposition);
+    window.addEventListener('scroll', handleReposition, true);
+    return () => {
+      document.removeEventListener('mousedown', handleOutside);
+      window.removeEventListener('keydown', handleKey, true);
+      window.removeEventListener('resize', handleReposition);
+      window.removeEventListener('scroll', handleReposition, true);
+    };
+  }, [open, searchable, options.length]);
+
+  return (
+    <div className="fem-dd-root">
+      <button
+        ref={triggerRef}
+        type="button"
+        className={`fem-dd-trigger ${open ? 'is-open' : ''}`}
+        onClick={() => setOpen((prev) => !prev)}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+      >
+        <span className="fem-dd-trigger-left">
+          {selectedOption?.icon && (
+            <span className="material-symbols-outlined fem-dd-trigger-ico">
+              {selectedOption.icon}
+            </span>
+          )}
+          <span className="fem-dd-trigger-label" title={selectedOption?.label || placeholder}>
+            {selectedOption?.label || placeholder}
+          </span>
+        </span>
+        <span className="material-symbols-outlined fem-dd-chevron">expand_more</span>
+      </button>
+
+      {open && menuStyle && createPortal(
+        <div
+          ref={menuRef}
+          className="fem-dd-popover"
+          style={menuStyle}
+          role="listbox"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {searchable && (
+            <div className="fem-dd-search-wrap">
+              <span className="material-symbols-outlined fem-dd-search-ico">search</span>
+              <input
+                ref={searchInputRef}
+                type="text"
+                className="fem-dd-search-input"
+                placeholder={searchPlaceholder}
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+              />
+              {query && (
+                <button
+                  type="button"
+                  className="fem-dd-search-clear"
+                  onClick={() => setQuery('')}
+                  aria-label="Clear filter"
+                >
+                  <span className="material-symbols-outlined">close</span>
+                </button>
+              )}
+            </div>
+          )}
+
+          <div className="fem-dd-list">
+            {filteredOptions.length === 0 ? (
+              <div className="fem-dd-empty">{emptyText}</div>
+            ) : (
+              filteredOptions.map((opt) => {
+                const isSelected = String(opt.id) === String(value);
+                return (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    role="option"
+                    aria-selected={isSelected}
+                    className={`fem-dd-option ${isSelected ? 'is-selected' : ''}`}
+                    onClick={() => {
+                      onChange?.(opt.id);
+                      setOpen(false);
+                    }}
+                  >
+                    {opt.icon && (
+                      <span className="material-symbols-outlined fem-dd-opt-ico">
+                        {opt.icon}
+                      </span>
+                    )}
+                    <span className="fem-dd-opt-text">
+                      <span className="fem-dd-opt-label">{opt.label}</span>
+                      {opt.sub && <span className="fem-dd-opt-sub">{opt.sub}</span>}
+                    </span>
+                    {opt.badge && <span className="fem-dd-opt-badge">{opt.badge}</span>}
+                    {isSelected && (
+                      <span className="material-symbols-outlined fem-dd-check">check</span>
+                    )}
+                  </button>
+                );
+              })
+            )}
+          </div>
+        </div>,
+        document.body
+      )}
+    </div>
+  );
+}
 
 function resolveRecordDate(item) {
   const raw = item?.createdAt || item?.Created_At || item?.timestamp || item?.Timestamp || item?.Payment_Date;
@@ -114,24 +328,55 @@ export default function FilterableExportModal({
 
   const isLogs = role === 'admin_logs';
 
-  // Unique campaign options present in the dataset
+  // Unique campaign options present in the dataset (with helpful sub-metadata so duplicate titles are distinguishable)
   const campaignOptions = useMemo(() => {
     if (isLogs) return [];
     const map = new Map();
     (campaigns || []).forEach((c) => {
-      if (c?.id) map.set(String(c.id), c.title || `Campaign #${c.id}`);
+      if (!c?.id) return;
+      const org = c.orgName || c.org_name || '';
+      const loc = c.locationMunicipality || c.locationCity || c.locationProvince || '';
+      const subParts = [`#${c.id}`, org, loc].filter(Boolean);
+      const badge = c.isActive === false ? 'Closed' : (c.category === 'CD' ? 'Charity' : 'Relief');
+      map.set(String(c.id), {
+        id: String(c.id),
+        label: c.title || `Campaign #${c.id}`,
+        sub: subParts.join(' · '),
+        badge,
+        icon: c.category === 'CD' ? 'volunteer_activism' : 'campaign'
+      });
     });
     (records || []).forEach((r) => {
       const cid = r.campaignId || r.Campaign_ID;
       const ctitle = r.campaignTitle || r.Campaign_Title;
       if (cid && !map.has(String(cid))) {
-        map.set(String(cid), ctitle || `Campaign #${cid}`);
+        map.set(String(cid), {
+          id: String(cid),
+          label: ctitle || `Campaign #${cid}`,
+          sub: `#${cid}${r.orgName ? ` · ${r.orgName}` : ''}`,
+          icon: 'campaign'
+        });
       } else if (!cid && ctitle && !map.has(ctitle)) {
-        map.set(ctitle, ctitle);
+        map.set(ctitle, {
+          id: ctitle,
+          label: ctitle,
+          sub: r.orgName || '',
+          icon: 'campaign'
+        });
       }
     });
-    return Array.from(map.entries()).map(([id, label]) => ({ id, label }));
+    return Array.from(map.values());
   }, [isLogs, campaigns, records]);
+
+  const campaignSelectOptions = useMemo(() => ([
+    {
+      id: 'ALL',
+      label: `All Campaigns (${campaignOptions.length})`,
+      sub: 'Include records across every campaign',
+      icon: 'apps'
+    },
+    ...campaignOptions
+  ]), [campaignOptions]);
 
   // Live filtered dataset
   const filteredRecords = useMemo(() => {
@@ -418,31 +663,35 @@ export default function FilterableExportModal({
               <div className="fem-grid-2">
                 <div>
                   <span className="fem-section-lbl">Cause Category</span>
-                  <select className="fem-select" value={category} onChange={(e) => setCategory(e.target.value)}>
-                    {CATEGORIES.map((c) => (
-                      <option key={c.id} value={c.id}>{c.label}</option>
-                    ))}
-                  </select>
+                  <FemSelect
+                    value={category}
+                    onChange={setCategory}
+                    options={CATEGORIES}
+                  />
                 </div>
 
                 {role === 'admin_ledger' ? (
                   <div>
                     <span className="fem-section-lbl">Verification Status</span>
-                    <select className="fem-select" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-                      {STATUSES.map((s) => (
-                        <option key={s.id} value={s.id}>{s.label}</option>
-                      ))}
-                    </select>
+                    <FemSelect
+                      value={statusFilter}
+                      onChange={setStatusFilter}
+                      options={STATUSES}
+                      alignRight
+                    />
                   </div>
                 ) : (
                   <div>
                     <span className="fem-section-lbl">Campaign</span>
-                    <select className="fem-select" value={campaignId} onChange={(e) => setCampaignId(e.target.value)}>
-                      <option value="ALL">All Campaigns ({campaignOptions.length})</option>
-                      {campaignOptions.map((c) => (
-                        <option key={c.id} value={c.id}>{c.label}</option>
-                      ))}
-                    </select>
+                    <FemSelect
+                      value={campaignId}
+                      onChange={setCampaignId}
+                      options={campaignSelectOptions}
+                      searchable={campaignOptions.length > 5}
+                      searchPlaceholder="Search campaigns by title, ID, or NGO..."
+                      emptyText="No campaigns match your search"
+                      alignRight
+                    />
                   </div>
                 )}
               </div>
@@ -450,12 +699,14 @@ export default function FilterableExportModal({
               {role === 'admin_ledger' && campaignOptions.length > 0 && (
                 <div>
                   <span className="fem-section-lbl">Campaign</span>
-                  <select className="fem-select" value={campaignId} onChange={(e) => setCampaignId(e.target.value)}>
-                    <option value="ALL">All Campaigns ({campaignOptions.length})</option>
-                    {campaignOptions.map((c) => (
-                      <option key={c.id} value={c.id}>{c.label}</option>
-                    ))}
-                  </select>
+                  <FemSelect
+                    value={campaignId}
+                    onChange={setCampaignId}
+                    options={campaignSelectOptions}
+                    searchable={campaignOptions.length > 5}
+                    searchPlaceholder="Search campaigns by title, ID, or NGO..."
+                    emptyText="No campaigns match your search"
+                  />
                 </div>
               )}
             </>
@@ -463,19 +714,20 @@ export default function FilterableExportModal({
             <div className="fem-grid-2">
               <div>
                 <span className="fem-section-lbl">Event Category</span>
-                <select className="fem-select" value={logCategory} onChange={(e) => setLogCategory(e.target.value)}>
-                  {LOG_CATEGORIES.map((c) => (
-                    <option key={c} value={c}>{c === 'ALL' ? 'All Categories' : c}</option>
-                  ))}
-                </select>
+                <FemSelect
+                  value={logCategory}
+                  onChange={setLogCategory}
+                  options={LOG_CATEGORIES}
+                />
               </div>
               <div>
                 <span className="fem-section-lbl">Actor Role</span>
-                <select className="fem-select" value={logRole} onChange={(e) => setLogRole(e.target.value)}>
-                  {LOG_ROLES.map((r) => (
-                    <option key={r} value={r}>{r === 'ALL' ? 'All Roles' : r}</option>
-                  ))}
-                </select>
+                <FemSelect
+                  value={logRole}
+                  onChange={setLogRole}
+                  options={LOG_ROLES}
+                  alignRight
+                />
               </div>
             </div>
           )}
