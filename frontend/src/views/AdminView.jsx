@@ -17,6 +17,7 @@ import SidebarToggleIcon from '../components/SidebarToggleIcon';
 import AdminBroadcastPanel from '../components/AdminBroadcastPanel';
 import AdminMaintenancePanel from '../components/AdminMaintenancePanel';
 import AdminActiveUsersPanel from '../components/AdminActiveUsersPanel';
+import AdminDonorsPanel from '../components/AdminDonorsPanel';
 import AnalyticsReportsPanel from '../components/AnalyticsReportsPanel';
 import {
   exportAdminActivityLogsCsv,
@@ -569,6 +570,10 @@ export default function AdminView({
         setActiveTab('ngo-governance');
         setNgoSubTab('moderators');
         break;
+      case 'donors':
+      case 'donor-accounts':
+        setActiveTab('donors');
+        break;
       case 'broadcast':
       case 'announcements':
       case 'alerts':
@@ -609,6 +614,7 @@ export default function AdminView({
       finance: financeSubTab === 'disbursements' ? 'Fund Disbursements & Procurement Audit' : 'Multi-Rail Financial Ledger',
       'campaigns-hub': campaignsSubTab === 'radar' ? 'Disaster Heatmap Operations' : 'All Campaigns & Relief Operations',
       'ngo-governance': ngoSubTab === 'moderators' ? 'Accredited Partner Organizations' : 'Organization Regulatory KYC',
+      donors: 'Donor Accounts & Credential Recovery',
       'system-hub': systemSubTab === 'operations' ? 'System Operations, Backups & Maintenance' : 'Broadcast Announcements & Alerts',
       settings: 'Platform & Security Settings'
     };
@@ -1151,6 +1157,35 @@ export default function AdminView({
     }
   };
 
+  // ── DATA STATE: REGISTERED DONOR ACCOUNTS ──────────────────
+  const [donorsList, setDonorsList] = useState([]);
+  const [donorsLoading, setDonorsLoading] = useState(false);
+
+  const loadDonors = async (arg) => {
+    const silent = Boolean(arg && typeof arg === 'object' && arg.silent === true);
+    try {
+      if (!silent) setDonorsLoading(true);
+      let token = await getAdminToken();
+      let res = await fetch(`${API_URL}/api/admin/donors`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if ((res.status === 401 || res.status === 403) && token !== 'direct_admin_access_token') {
+        token = 'direct_admin_access_token';
+        res = await fetch(`${API_URL}/api/admin/donors`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+      }
+      if (res.ok) {
+        const data = await res.json();
+        setDonorsList(Array.isArray(data) ? data : []);
+      }
+    } catch (err) {
+      if (!silent) console.error('Error loading donors:', err);
+    } finally {
+      if (!silent) setDonorsLoading(false);
+    }
+  };
+
   // Helper mappings for organization fields
   const getOrgName = (org) => org?.Org_Name || org?.Name || 'Unnamed Entity';
   const getOrgEmail = (org) => org?.Username || org?.Email || 'No email registered';
@@ -1412,11 +1447,18 @@ export default function AdminView({
   // ── CRITICAL: FETCH ALL DATA ON INITIAL MOUNT ───────────────
   useEffect(() => {
     loadOrganizations();
+    loadDonors();
     loadAuditLogs();
     loadFinancialLedger();
     loadDisbursements();
     if (contract) loadModerators();
   }, [contract, walletAddress]);
+
+  useRealtimeSync(
+    ['donors', 'donations', 'profile'],
+    () => loadDonors({ silent: true }),
+    { debounceMs: 320 }
+  );
 
   // ── REAL-TIME LIVE SYNC ACROSS ALL ADMIN GOVERNANCE TABLES ──
   useRealtimeSync(
@@ -1717,6 +1759,19 @@ export default function AdminView({
                 </span>
               ) : (approvedOrgsCount || effectiveModCount) > 0 && (
                 <span className="ref-nav-count tab-count">{approvedOrgsCount || effectiveModCount}</span>
+              )}
+            </button>
+
+            <button
+              type="button"
+              className={`ref-nav-item ${activeTab === 'donors' ? 'active' : ''}`}
+              onClick={() => { setActiveTab('donors'); setMobileSidebarOpen(false); }}
+              title="Registered Donor Accounts & Password Recovery"
+            >
+              <span className="material-symbols-outlined">group</span>
+              <span>Donor Accounts</span>
+              {donorsList.length > 0 && (
+                <span className="ref-nav-count tab-count">{donorsList.length}</span>
               )}
             </button>
 
@@ -4278,6 +4333,34 @@ export default function AdminView({
               </div>
             </div>
               )}
+            </div>
+          )}
+
+          {/* ══════════════════════════════════════════════════════════════
+              TAB: DONOR ACCOUNTS & CREDENTIAL RECOVERY
+             ══════════════════════════════════════════════════════════════ */}
+          {activeTab === 'donors' && (
+            <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div className="admin-page-header">
+                <div className="admin-page-title-wrap">
+                  <h2 className="admin-page-title">
+                    <span className="material-symbols-outlined" style={{ fontSize: '24px', color: '#38bdf8' }}>group</span>
+                    Donor Accounts &amp; Credential Recovery
+                  </h2>
+                  <p className="admin-page-sub">
+                    Manage registered donor accounts, inspect lockout status, and execute audited password resets when donors require access recovery.
+                  </p>
+                </div>
+              </div>
+
+              <AdminDonorsPanel
+                donors={donorsList}
+                loading={donorsLoading}
+                apiUrl={API_URL}
+                getAdminToken={getAdminToken}
+                onRefresh={loadDonors}
+                onToast={(msg) => showSuccess(msg)}
+              />
             </div>
           )}
 

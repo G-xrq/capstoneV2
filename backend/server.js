@@ -8621,29 +8621,312 @@ app.get('/api/admin/donors', authenticateToken, async (req, res) => {
         d.Donor_ID as id,
         d.Username as email,
         d.Name as name,
-        COALESCE(d.Display_Name, d.Legal_Name, d.Name, d.Username) as displayName,
+        COALESCE(NULLIF(d.Display_Name, ''), NULLIF(d.Legal_Name, ''), NULLIF(d.Name, ''), d.Username) as displayName,
         d.Legal_Name as legalName,
         d.Mobile_Number as mobile,
         d.Wallet_Address as walletAddress,
         d.Location as location,
         d.Avatar_Url as avatarUrl,
+        d.Created_At as createdAt,
+        COALESCE(d.Two_Factor_Enabled, 0) as twoFactorEnabled,
+        COALESCE(d.Failed_Login_Attempts, 0) as failedLoginAttempts,
+        d.Lockout_Until as lockoutUntil,
         d.Deletion_Scheduled_At as deletionScheduledAt,
         d.Deletion_Effective_At as deletionEffectiveAt,
-        d.Is_Deleted as isDeleted,
+        COALESCE(d.Is_Deleted, 0) as isDeleted,
         d.Deletion_Reason as deletionReason,
         COALESCE(d.Total_Donated, 0) as totalDonatedEth,
-        COUNT(DISTINCT dt.Transaction_ID) as onChainTxCount,
-        COALESCE(SUM(dt.Amount), 0) as totalOnChainEth,
-        COUNT(DISTINCT md.Manual_ID) as manualTxCount
+        COALESCE(dtStats.onChainTxCount, 0) as onChainTxCount,
+        COALESCE(dtStats.totalOnChainEth, 0) as totalOnChainEth,
+        ROUND(COALESCE(dtStats.totalOnChainEth, 0) * 170000) as totalOnChainPhp,
+        COALESCE(mdStats.manualTxCount, 0) as manualTxCount
       FROM DONOR d
-      LEFT JOIN DONATION_TRANSACTION dt ON d.Donor_ID = dt.Donor_ID AND ${PHP_RAIL_SQL('dt')}
-      LEFT JOIN MANUAL_DONATION md ON d.Donor_ID = md.Donor_ID
-      GROUP BY d.Donor_ID
+      LEFT JOIN (
+        SELECT
+          Donor_ID,
+          COUNT(*) as onChainTxCount,
+          SUM(Amount) as totalOnChainEth
+        FROM DONATION_TRANSACTION dt
+        WHERE ${PHP_RAIL_SQL('dt')} AND Donor_ID IS NOT NULL
+        GROUP BY Donor_ID
+      ) dtStats ON d.Donor_ID = dtStats.Donor_ID
+      LEFT JOIN (
+        SELECT
+          Donor_ID,
+          COUNT(*) as manualTxCount
+        FROM MANUAL_DONATION
+        WHERE Donor_ID IS NOT NULL
+        GROUP BY Donor_ID
+      ) mdStats ON d.Donor_ID = mdStats.Donor_ID
       ORDER BY d.Donor_ID DESC
     `);
     res.json(rows || []);
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+// ── POST /api/admin/donors/:id/reset-password ─────────────────
+app.post('/api/admin/donors/:id/reset-password', authenticateToken, async (req, res) => {
+  if (req.user.role !== 'admin') {
+    return res.status(403).json({ error: 'Access denied. Admin privileges required.' });
+  }
+
+  const donorId = parseInt(req.params.id, 10);
+  if (!donorId || Number.isNaN(donorId)) {
+    return res.status(400).json({ error: 'Valid donor ID is required.' });
+  }
+
+  const {
+    mode = 'direct',
+    newPassword = '',
+    generateTemporary = false,
+    reason = '',
+    notifyEmail = true,
+    includeTempPasswordInEmail = false,
+    revokeSessions = true
+  } = req.body || {};
+
+  const cleanReason = String(reason || '').trim();
+  if (cleanReason.length < 3) {
+    return res.status(400).json({ error: 'Please provide an audit reason for resetting this donor password (min. 3 characters).' });
+  }
+
+  try {
+    const [rows] = await db.query(
+      `SELECT Donor_ID, Username, Name, Display_Name, Legal_Name, Is_Deleted, Failed_Login_Attempts, Lockout_Until
+       FROM DONOR WHERE Donor_ID = ? LIMIT 1`,
+      [donorId]
+    );
+    if (!rows || rows.length === 0) {
+      return res.status(404).json({ error: 'Donor account not found.' });
+    }
+
+    const donor = rows[0];
+    if (donor.Is_Deleted) {
+      return res.status(400).json({ error: 'Cannot reset password for a permanently deleted donor account.' });
+    }
+
+    const donorEmail = String(donor.Username || '').trim();
+    const donorDisplayName = donor.Display_Name || donor.Legal_Name || donor.Name || donorEmail;
+    const adminEmail = req.user.email || 'admin@bbdrts.gov.ph';
+    const adminName = req.user.name || 'System Administrator';
+    const hadLockout = Boolean(
+      (Number(donor.Failed_Login_Attempts || 0) > 0) ||
+      (donor.Lockout_Until && new Date(donor.Lockout_Until).getTime() > Date.now())
+    );
+
+    // Helper: generate unambiguous cryptographically strong temporary password
+    const generateStrongTempPassword = () => {
+      const upper = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+      const lower = 'abcdefghijkmnopqrstuvwxyz';
+      const digits = '23456789';
+      const symbols = '@#$%&*!';
+      const all = upper + lower + digits + symbols;
+      const pick = (chars) => chars[crypto.randomBytes(1)[0] % chars.length];
+      const parts = [
+        pick(upper), pick(upper),
+        pick(lower), pick(lower), pick(lower),
+        pick(digits), pick(digits), pick(digits),
+        pick(symbols),
+        pick(all), pick(all), pick(all)
+      ];
+      for (let i = parts.length - 1; i > 0; i--) {
+        const j = crypto.randomBytes(1)[0] % (i + 1);
+        [parts[i], parts[j]] = [parts[j], parts[i]];
+      }
+      return parts.join('');
+    };
+
+    if (mode === 'reset_link') {
+      // Mode 2: Generate a single-use 60-minute reset link & email the donor
+      const resetToken = crypto.randomBytes(32).toString('hex');
+      const expiresAt = Date.now() + 60 * 60 * 1000;
+
+      // Clear any previous unused tokens for this email
+      try {
+        for (const [tok, rec] of passwordResetTokens.entries()) {
+          if (String(rec.email || '').toLowerCase() === donorEmail.toLowerCase()) {
+            passwordResetTokens.delete(tok);
+          }
+        }
+        await db.query('DELETE FROM PASSWORD_RESET_TOKENS WHERE LOWER(Email) = ?', [donorEmail.toLowerCase()]);
+      } catch (_) {}
+
+      passwordResetTokens.set(resetToken, {
+        token: resetToken,
+        email: donorEmail,
+        role: 'donor',
+        table: 'DONOR',
+        idCol: 'Donor_ID',
+        userId: donor.Donor_ID,
+        expiresAt
+      });
+
+      try {
+        await db.query(
+          'INSERT INTO PASSWORD_RESET_TOKENS (Token, Email, Role, User_ID, Expires_At) VALUES (?, ?, ?, ?, ?)',
+          [resetToken, donorEmail, 'donor', donor.Donor_ID, new Date(expiresAt)]
+        );
+      } catch (_) {}
+
+      // Clear any brute-force lockout so the donor can sign in immediately after resetting
+      await db.query(
+        'UPDATE DONOR SET Failed_Login_Attempts = 0, Lockout_Until = NULL WHERE Donor_ID = ?',
+        [donor.Donor_ID]
+      );
+
+      const origin = req.headers.origin || process.env.APP_URL || 'http://localhost:5173';
+      const resetUrl = `${origin}/reset-password/${resetToken}?email=${encodeURIComponent(donorEmail)}`;
+
+      let emailSent = false;
+      if (notifyEmail !== false && donorEmail.includes('@')) {
+        emailSent = await sendMailSafe({
+          from: `"${SYSTEM_DISPLAY_NAME}" <${SYSTEM_EMAIL_ADDRESS}>`,
+          to: donorEmail,
+          replyTo: SUPPORT_EMAIL,
+          subject: 'Admin-Initiated Password Reset Link - BBDRTS',
+          text: `Hello ${donorDisplayName},\n\nA BBDRTS Administrator initiated a password reset for your donor account (${donorEmail}).\nReason: ${cleanReason}\n\nReset your password here (valid for 60 minutes, single use):\n${resetUrl}\n\nIf you did not request assistance, please contact ${SUPPORT_EMAIL} immediately.\n\nRegards,\nBBDRTS Security & Governance Team`,
+          html: emailTemplates.renderPasswordResetEmail({ resetUrl, email: donorEmail, expiresMinutes: 60 })
+        }, 6000);
+      }
+
+      logActivity({
+        req,
+        activity: `Administrator issued password reset link for donor ${donorDisplayName} (${donorEmail})`,
+        userName: adminName,
+        userEmail: adminEmail,
+        role: 'ADMIN',
+        target: `Donor #${donor.Donor_ID}: ${donorDisplayName}`,
+        category: 'ADMIN_SECURITY',
+        status: 'SUCCESS',
+        details: {
+          donorId: donor.Donor_ID,
+          donorEmail,
+          resetMode: 'reset_link',
+          reason: cleanReason,
+          emailSent,
+          lockoutCleared: hadLockout
+        }
+      }).catch(() => {});
+
+      try { realtimeBus.publish(['audit', 'donors'], { donorId: donor.Donor_ID, action: 'admin_password_reset_link' }); } catch (_) {}
+
+      return res.json({
+        success: true,
+        mode: 'reset_link',
+        donor: { id: donor.Donor_ID, email: donorEmail, displayName: donorDisplayName },
+        emailSent,
+        resetUrl,
+        expiresInMinutes: 60,
+        lockoutCleared: hadLockout,
+        message: emailSent
+          ? `Single-use password reset link sent to ${donorEmail} (expires in 60 minutes).`
+          : `Single-use password reset link generated for ${donorEmail}. Copy and deliver it securely.`
+      });
+    }
+
+    // Mode 1: Direct password override (admin-chosen or server-generated temporary password)
+    const plainPassword = generateTemporary ? generateStrongTempPassword() : String(newPassword || '');
+    if (plainPassword.length < 8) {
+      return res.status(400).json({ error: 'New password must be at least 8 characters long.' });
+    }
+    if (plainPassword.length > 128) {
+      return res.status(400).json({ error: 'New password must not exceed 128 characters.' });
+    }
+
+    const hashedPassword = await bcrypt.hash(plainPassword, 10);
+
+    if (revokeSessions !== false) {
+      await db.query(
+        `UPDATE DONOR
+         SET Password = ?, Failed_Login_Attempts = 0, Lockout_Until = NULL, Active_Sessions_Json = '[]'
+         WHERE Donor_ID = ?`,
+        [hashedPassword, donor.Donor_ID]
+      );
+    } else {
+      await db.query(
+        `UPDATE DONOR
+         SET Password = ?, Failed_Login_Attempts = 0, Lockout_Until = NULL
+         WHERE Donor_ID = ?`,
+        [hashedPassword, donor.Donor_ID]
+      );
+    }
+
+    // Purge any stale password reset tokens for this donor
+    try {
+      for (const [tok, rec] of passwordResetTokens.entries()) {
+        if (String(rec.email || '').toLowerCase() === donorEmail.toLowerCase()) {
+          passwordResetTokens.delete(tok);
+        }
+      }
+      await db.query('DELETE FROM PASSWORD_RESET_TOKENS WHERE LOWER(Email) = ?', [donorEmail.toLowerCase()]);
+    } catch (_) {}
+
+    let emailSent = false;
+    if (notifyEmail !== false && donorEmail.includes('@')) {
+      const tempNoticeText = includeTempPasswordInEmail
+        ? `\nTemporary Password: ${plainPassword}\nPlease sign in and change this password immediately from Profile & Settings.\n`
+        : `\nYour administrator will share your new temporary credentials with you securely. Please sign in and update your password from Profile & Settings.\n`;
+
+      emailSent = await sendMailSafe({
+        from: `"${SYSTEM_DISPLAY_NAME}" <${SYSTEM_EMAIL_ADDRESS}>`,
+        to: donorEmail,
+        replyTo: SUPPORT_EMAIL,
+        subject: 'Your BBDRTS Donor Account Password Was Reset by Support',
+        text: `Hello ${donorDisplayName},\n\nA BBDRTS Administrator has reset the password for your donor account (${donorEmail}).\nReason: ${cleanReason}${tempNoticeText}\nIf you did not request this reset, please contact ${SUPPORT_EMAIL} immediately.\n\nRegards,\nBBDRTS Security & Governance Team`,
+        html: includeTempPasswordInEmail
+          ? `<div style="font-family:Inter,Arial,sans-serif;max-width:560px;margin:0 auto;padding:24px;background:#0a0a0a;color:#f5f5f5;border:1px solid #262626;border-radius:12px;">
+              <h2 style="margin:0 0 12px;font-size:18px;color:#ffffff;">Donor Account Password Reset</h2>
+              <p style="margin:0 0 12px;font-size:14px;color:#a3a3a3;line-height:1.6;">Hello <strong style="color:#fff;">${donorDisplayName}</strong>, a BBDRTS Administrator has reset the password for your account (<strong style="color:#fff;">${donorEmail}</strong>).</p>
+              <p style="margin:0 0 14px;font-size:13px;color:#a3a3a3;">Audit Reason: <strong style="color:#e5e5e5;">${cleanReason.replace(/</g, '&lt;')}</strong></p>
+              <div style="padding:14px 16px;background:#141414;border:1px solid #2e2e2e;border-radius:8px;margin-bottom:16px;">
+                <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.06em;color:#888;margin-bottom:6px;">Temporary Password</div>
+                <div style="font-family:monospace;font-size:16px;font-weight:700;color:#10b981;letter-spacing:0.04em;">${plainPassword.replace(/</g, '&lt;')}</div>
+              </div>
+              <p style="margin:0;font-size:12px;color:#888;line-height:1.5;">Please sign in and change this password immediately under <strong>Profile &amp; Settings</strong>. If you did not request this action, contact ${SUPPORT_EMAIL}.</p>
+            </div>`
+          : emailTemplates.renderPasswordChangedEmail({ email: donorEmail })
+      }, 6000);
+    }
+
+    logActivity({
+      req,
+      activity: `Administrator reset password for donor ${donorDisplayName} (${donorEmail})`,
+      userName: adminName,
+      userEmail: adminEmail,
+      role: 'ADMIN',
+      target: `Donor #${donor.Donor_ID}: ${donorDisplayName}`,
+      category: 'ADMIN_SECURITY',
+      status: 'SUCCESS',
+      details: {
+        donorId: donor.Donor_ID,
+        donorEmail,
+        resetMode: generateTemporary ? 'direct_generated_temp' : 'direct_custom',
+        reason: cleanReason,
+        sessionsRevoked: revokeSessions !== false,
+        lockoutCleared: hadLockout,
+        emailSent,
+        includedTempInEmail: Boolean(notifyEmail !== false && includeTempPasswordInEmail)
+      }
+    }).catch(() => {});
+
+    try { realtimeBus.publish(['audit', 'donors'], { donorId: donor.Donor_ID, action: 'admin_password_reset_direct' }); } catch (_) {}
+
+    return res.json({
+      success: true,
+      mode: 'direct',
+      donor: { id: donor.Donor_ID, email: donorEmail, displayName: donorDisplayName },
+      temporaryPassword: plainPassword,
+      generated: Boolean(generateTemporary),
+      emailSent,
+      sessionsRevoked: revokeSessions !== false,
+      lockoutCleared: hadLockout,
+      message: `Password updated for ${donorDisplayName} (${donorEmail}).`
+    });
+  } catch (err) {
+    console.error('Admin donor password reset error:', err);
+    return res.status(500).json({ error: 'Failed to reset donor password: ' + err.message });
   }
 });
 
