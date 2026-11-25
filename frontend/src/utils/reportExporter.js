@@ -101,12 +101,12 @@ export function buildExportFilename(baseParts = [], filterSummary = '', ext = 'x
 
 export function resolveDonationPhp(d) {
   if (!d) return 0;
-  const isShortage = d.auditStatus === 'SHORTAGE' || Number(d.variancePhp || 0) < -20;
+  const isShortage = d.auditStatus === 'SHORTAGE' || Number(d.variancePhp || 0) <= -0.01;
   const direct = Number(d.phpAmount ?? d.amountPhp ?? d.Amount_Php ?? d.Confirmed_Amount ?? 0);
   if (Number.isFinite(direct) && direct > 0) return Math.round(direct);
   const declared = Number(d.declaredPhp || 0);
   const credited = Number(d.creditedPhp || 0);
-  if (!isShortage && declared > 0 && credited > 0 && Math.abs(declared - credited) <= 20) {
+  if (!isShortage && declared > 0 && credited > 0 && Math.abs(declared - credited) < 0.01) {
     return Math.round(declared);
   }
   if (credited > 0) return Math.round(credited);

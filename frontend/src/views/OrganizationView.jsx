@@ -6702,8 +6702,8 @@ export default function OrganizationView({
 
                   const variancePhp = d.variancePhp !== undefined && d.variancePhp !== null ? Number(d.variancePhp) : 0;
                   const declaredPhp = d.declaredPhp !== undefined && d.declaredPhp !== null ? Number(d.declaredPhp) : (variancePhp !== 0 ? (phpVal - variancePhp) : phpVal);
-                  const isShortage = d.auditStatus === 'SHORTAGE' || variancePhp < -20;
-                  const isOverCredit = d.auditStatus === 'OVER_CREDIT' || variancePhp > 20;
+                  const isShortage = d.auditStatus === 'SHORTAGE' || variancePhp <= -0.01;
+                  const isOverCredit = d.auditStatus === 'OVER_CREDIT' || variancePhp >= 0.01;
                   const hasVariance = isShortage || isOverCredit;
 
                   return (
@@ -7001,8 +7001,8 @@ export default function OrganizationView({
 
                         const variancePhp = d.variancePhp !== undefined && d.variancePhp !== null ? Number(d.variancePhp) : 0;
                         const declaredPhp = d.declaredPhp !== undefined && d.declaredPhp !== null ? Number(d.declaredPhp) : (variancePhp !== 0 ? (phpVal - variancePhp) : phpVal);
-                        const isShortage = d.auditStatus === 'SHORTAGE' || variancePhp < -20;
-                        const isOverCredit = d.auditStatus === 'OVER_CREDIT' || variancePhp > 20;
+                        const isShortage = d.auditStatus === 'SHORTAGE' || variancePhp <= -0.01;
+                        const isOverCredit = d.auditStatus === 'OVER_CREDIT' || variancePhp >= 0.01;
                         const hasVariance = isShortage || isOverCredit;
 
                         const dtObj = d.createdAt ? new Date(d.createdAt) : null;
@@ -8710,8 +8710,8 @@ export default function OrganizationView({
         const amtPhp = Math.round(parseFloat(selectedVoucherTx.amount || 0) * 170000);
         const variancePhp = selectedVoucherTx.variancePhp !== undefined && selectedVoucherTx.variancePhp !== null ? Number(selectedVoucherTx.variancePhp) : 0;
         const declaredPhp = selectedVoucherTx.declaredPhp !== undefined && selectedVoucherTx.declaredPhp !== null ? Number(selectedVoucherTx.declaredPhp) : (variancePhp !== 0 ? (amtPhp - variancePhp) : amtPhp);
-        const isShortage = selectedVoucherTx.auditStatus === 'SHORTAGE' || variancePhp < -20;
-        const isOverCredit = selectedVoucherTx.auditStatus === 'OVER_CREDIT' || variancePhp > 20;
+        const isShortage = selectedVoucherTx.auditStatus === 'SHORTAGE' || variancePhp <= -0.01;
+        const isOverCredit = selectedVoucherTx.auditStatus === 'OVER_CREDIT' || variancePhp >= 0.01;
 
         return (
           <OfficialAuditVoucherModal

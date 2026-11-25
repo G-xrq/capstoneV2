@@ -808,7 +808,7 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
 
   const hasAnyShortage = useMemo(() => {
     if (!myDonations || !Array.isArray(myDonations)) return false;
-    return myDonations.some(d => d.auditStatus === 'SHORTAGE' || Number(d.variancePhp || 0) < -20);
+    return myDonations.some(d => d.auditStatus === 'SHORTAGE' || Number(d.variancePhp || 0) <= -0.01);
   }, [myDonations]);
 
   const drReceiptsCount = useMemo(() => {
@@ -2387,8 +2387,8 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
                             const railLabel = pm.includes('GCASH') ? 'GCASH' : pm.includes('MAYA') ? 'MAYA' : (pm.includes('BANK') || pm.includes('CARD')) ? 'CARD / BANK' : ((d.paymentMethod && !/eth|crypto|metamask/i.test(d.paymentMethod)) ? d.paymentMethod.toUpperCase() : 'PHP');
                             const ethAmt = parseFloat(d.amount || 0);
                             const rawEthPhp = Math.round(ethAmt * 170000);
-                            const isShortage = d.auditStatus === 'SHORTAGE' || Number(d.variancePhp || 0) < -20;
-                            const phpAmt = !isShortage && Number(d.declaredPhp) > 0 && Math.abs(rawEthPhp - Number(d.declaredPhp)) <= 20
+                            const isShortage = d.auditStatus === 'SHORTAGE' || Number(d.variancePhp || 0) <= -0.01;
+                            const phpAmt = !isShortage && Number(d.declaredPhp) > 0 && Math.abs(rawEthPhp - Number(d.declaredPhp)) < 0.01
                               ? Number(d.declaredPhp)
                               : (Number(d.creditedPhp) > 0 ? Number(d.creditedPhp) : rawEthPhp);
                             const isDisbursed = matchCamp.disbursementStatus === 'DISBURSED' || matchCamp.disbursementStatus === 'PARTIALLY_DISBURSED' || (matchCamp.disbursedAmountPhp || 0) > 0;
@@ -3212,8 +3212,8 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
         const rawDeclaredPhp = Number(d.declaredPhp || fallbackPhp);
         const rawCreditedPhp = Number(d.creditedPhp || fallbackPhp);
         const rawVariancePhp = Number(d.variancePhp !== undefined ? d.variancePhp : (rawCreditedPhp - rawDeclaredPhp));
-        const isShortage = d.auditStatus === 'SHORTAGE' || rawVariancePhp < -20;
-        const isRoundingDrift = !isShortage && Math.abs(rawCreditedPhp - rawDeclaredPhp) <= 20;
+        const isShortage = d.auditStatus === 'SHORTAGE' || rawVariancePhp <= -0.01;
+        const isRoundingDrift = !isShortage && Math.abs(rawCreditedPhp - rawDeclaredPhp) < 0.01;
         const canonicalPhp = Number(d.phpAmount || d.amountPhp || rawDeclaredPhp || rawCreditedPhp || fallbackPhp);
         const declaredPhp = isRoundingDrift ? canonicalPhp : rawDeclaredPhp;
         const creditedPhp = isRoundingDrift ? canonicalPhp : rawCreditedPhp;

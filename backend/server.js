@@ -5823,9 +5823,10 @@ app.post('/api/manual-donations/:id/:action', authenticateToken, async (req, res
         ? reference_number.trim()
         : (record.Reference_Number && record.Reference_Number.trim() ? record.Reference_Number.trim() : `MANUAL-${record.Manual_ID}`);
 
-      const declaredPhp = Math.round((parseFloat(record.Amount) || 0) * 170000);
-      const variancePhp = parsedPhp - declaredPhp;
-      const hasVariance = declaredPhp > 0 && Math.abs(variancePhp) > 20;
+      const declaredPhp = Math.round((parseFloat(record.Amount) || 0) * 170000 * 100) / 100;
+      const creditedPhp = Math.round(parsedPhp * 100) / 100;
+      const variancePhp = Math.round((creditedPhp - declaredPhp) * 100) / 100;
+      const hasVariance = declaredPhp > 0 && Math.abs(variancePhp) >= 0.01;
 
       // Relay on-chain with full tamper-evident audit trail
       const relayRes = await blockchainRelayer.relayDonation({
@@ -5857,10 +5858,8 @@ app.post('/api/manual-donations/:id/:action', authenticateToken, async (req, res
 
       // Notify donor that their donation was verified and confirmed by the NGO
       if (record.Donor_Email) {
-        const declaredPhp = Math.round((parseFloat(record.Amount) || 0) * 170000);
-        const hasVariance = declaredPhp > 0 && Math.abs(declaredPhp - parsedPhp) > 20;
         const varianceNote = hasVariance
-          ? ` [Audit Note: Declared ₱${declaredPhp.toLocaleString()} · Credited ₱${parsedPhp.toLocaleString()} (Variance: ₱${(parsedPhp - declaredPhp).toLocaleString()})]`
+          ? ` [Audit Note: Declared ₱${declaredPhp.toLocaleString()} · Credited ₱${creditedPhp.toLocaleString()} (Variance: ${variancePhp < 0 ? '-' : '+'}₱${Math.abs(variancePhp).toLocaleString()})]`
           : '';
 
         await sendNotificationToUser({
@@ -6086,12 +6085,12 @@ app.get('/api/donations/me', authenticateToken, async (req, res) => {
         COALESCE(dt.Wallet_Address, d.Wallet_Address, '') as donorWallet,
         COALESCE(NULLIF(d.Display_Name, ''), NULLIF(d.Name, ''), NULLIF(d.Username, '')) as donorName,
         d.Avatar_Url as donorAvatar,
-        ROUND(COALESCE(m.Amount, dt.Amount) * 170000) as declaredPhp,
-        ROUND(dt.Amount * 170000) as creditedPhp,
-        ROUND((dt.Amount - COALESCE(m.Amount, dt.Amount)) * 170000) as variancePhp,
+        ROUND(COALESCE(m.Amount, dt.Amount) * 170000, 2) as declaredPhp,
+        ROUND(dt.Amount * 170000, 2) as creditedPhp,
+        ROUND((dt.Amount - COALESCE(m.Amount, dt.Amount)) * 170000, 2) as variancePhp,
         CASE 
-          WHEN m.Amount IS NOT NULL AND ROUND((dt.Amount - m.Amount) * 170000) < -20 THEN 'SHORTAGE'
-          WHEN m.Amount IS NOT NULL AND ROUND((dt.Amount - m.Amount) * 170000) > 20 THEN 'OVER_CREDIT'
+          WHEN m.Amount IS NOT NULL AND ROUND((dt.Amount - m.Amount) * 170000, 2) <= -0.01 THEN 'SHORTAGE'
+          WHEN m.Amount IS NOT NULL AND ROUND((dt.Amount - m.Amount) * 170000, 2) >= 0.01 THEN 'OVER_CREDIT'
           ELSE 'MATCH'
         END as auditStatus,
         m.Reference_Number as referenceNumber,
