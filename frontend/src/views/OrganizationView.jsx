@@ -36,6 +36,7 @@ import {
 } from '../utils/reportExporter';
 import './ReferenceDashboard.css';
 import './DashboardOverview.css';
+import './PendingVerificationsQueue.css';
 
 export const formatImageSrc = (rawSrc) => {
   if (!rawSrc) return '';
@@ -1778,6 +1779,8 @@ export default function OrganizationView({
   const [rejectingDonation, setRejectingDonation] = useState(null);
   const [rejectionReason, setRejectionReason] = useState('');
   const [rejectingSubmitting, setRejectingSubmitting] = useState(false);
+  const [batchConfirmOpen, setBatchConfirmOpen] = useState(false);
+  const [batchVerifying, setBatchVerifying] = useState(false);
 
   const handleOpenVerification = (donation) => {
     setVerifyingDonation(donation);
@@ -6011,416 +6014,389 @@ export default function OrganizationView({
               })()}
             </div>
 
-            {/* ── Pending Manual Donations Section (E-Wallets & Banks) — Premium Redesign + AI Audit & Batch Verification ── */}
-            {Boolean((pendingDonations || []).length > 0) && (
-              <div style={{
-                marginBottom: '28px',
-                background: 'var(--bg-card)',
-                border: '1px solid var(--border)',
-                padding: '22px 26px',
-                borderRadius: '16px',
-                boxShadow: 'var(--shadow-card)'
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '18px', flexWrap: 'wrap', gap: '12px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <div style={{
-                      width: '38px',
-                      height: '38px',
-                      borderRadius: '10px',
-                      background: 'rgba(56, 189, 248, 0.15)',
-                      border: '1px solid rgba(56, 189, 248, 0.3)',
-                      color: '#38bdf8',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center'
-                    }}>
-                      <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>pending_actions</span>
-                    </div>
-                    <div>
-                      <h3 style={{ margin: 0, fontSize: '1.12rem', color: 'var(--text-primary)', fontWeight: 800, letterSpacing: '-0.01em' }}>
-                        Pending E-Wallet &amp; Bank Slip Verifications ({(pendingDonations || []).length})
-                      </h3>
-                      <p style={{ margin: '2px 0 0 0', fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                        AI Receipt Audit Engine automatically verifies reference patterns and amounts to protect NGOs from fraud.
-                      </p>
-                    </div>
-                  </div>
+            {/* ── Pending E-Wallet & Bank Slip Verifications Queue (Dual-Theme Geist) ── */}
+            {Boolean((pendingDonations || []).length > 0) && (() => {
+              const pendingList = pendingDonations || [];
+              const analyzedPending = pendingList.map((d) => {
+                const ai = d.ai_result || {};
+                const refNo = String(d.Reference_Number || ai.extractedRef || '').trim();
+                const hasRef = refNo.length >= 8;
+                const flags = Array.isArray(ai.fraudFlags) ? ai.fraudFlags : [];
+                const isInvalidImg = flags.some((f) => String(f).includes('INVALID_RECEIPT_IMAGE'));
+                const isDup = flags.some((f) => String(f).includes('DUPLICATE'));
+                const isRailMismatch = flags.some((f) => String(f).includes('PAYMENT_RAIL_MISMATCH'));
+                const isAmtMismatch = flags.some((f) => String(f).includes('AMOUNT_MISMATCH'));
+                const isVerified = Boolean(
+                  ai.isAiVerified !== false &&
+                  (hasRef || ai.isAiVerified) &&
+                  !isInvalidImg &&
+                  !isDup &&
+                  !isRailMismatch &&
+                  !isAmtMismatch
+                );
+                const score = (ai.confidenceScore && ai.confidenceScore > 50 && isVerified)
+                  ? ai.confidenceScore
+                  : (isVerified ? 98 : (ai.confidenceScore || 35));
+                const isFlagged = isInvalidImg || isDup || isRailMismatch || isAmtMismatch;
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        const allIds = (pendingDonations || []).map(d => d.Manual_ID);
-                        if (!window.confirm(`Fast-Approve ALL ${allIds.length} pending donation slips with AI Verification?`)) return;
-                        try {
-                          const res = await fetch(`${API_BASE_URL}/manual-donations/batch-verify`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ manualIds: allIds })
-                          });
-                          const data = await res.json();
-                          if (res.ok && data.success) {
-                            alert(`Successfully batch-verified ${data.verifiedCount} donation slip(s)!`);
-                            fetchPendingDonations();
-                            fetchOrgDashboardData();
-                          } else {
-                            alert(`Batch verification failed: ${data.error || 'Unknown error'}`);
+                const rawAmt = parseFloat(d.Amount || 0);
+                const phpVal = Number(d.Amount_PHP || d.amountPhp) > 0
+                  ? Math.round(Number(d.Amount_PHP || d.amountPhp))
+                  : (rawAmt > 100 ? Math.round(rawAmt) : Math.round(rawAmt * 170000));
+
+                return {
+                  d,
+                  ai,
+                  refNo,
+                  flags,
+                  isInvalidImg,
+                  isDup,
+                  isRailMismatch,
+                  isAmtMismatch,
+                  isVerified,
+                  isFlagged,
+                  score,
+                  phpVal
+                };
+              });
+
+              const aiVerifiedIds = analyzedPending.filter((x) => x.isVerified).map((x) => x.d.Manual_ID);
+              const flaggedCount = analyzedPending.filter((x) => x.isFlagged).length;
+
+              const handleBatchApproveVerified = async () => {
+                if (aiVerifiedIds.length === 0 || batchVerifying) return;
+                setBatchVerifying(true);
+                try {
+                  const token = localStorage.getItem('bbdrts_token');
+                  const res = await fetch(`${API_URL}/api/manual-donations/batch-verify`, {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/json',
+                      ...(token ? { Authorization: `Bearer ${token}` } : {})
+                    },
+                    body: JSON.stringify({ manualIds: aiVerifiedIds })
+                  });
+                  const data = await res.json();
+                  if (res.ok && data.success) {
+                    const count = data.verifiedCount ?? aiVerifiedIds.length;
+                    showSuccess(
+                      `Verified and recorded ${count} AI-audited donation slip${count === 1 ? '' : 's'} to the ledger.`,
+                      'Batch Verification Complete'
+                    );
+                    setBatchConfirmOpen(false);
+                    fetchPendingDonations();
+                    fetchOrgDonations();
+                    if (typeof fetchCampaigns === 'function') fetchCampaigns();
+                  } else {
+                    showError(data.error || 'Batch verification failed.', 'Batch Verification Error');
+                  }
+                } catch (err) {
+                  showError('Failed to connect to server for batch verification.', 'Connection Error');
+                } finally {
+                  setBatchVerifying(false);
+                }
+              };
+
+              const getInitials = (label) => {
+                const clean = String(label || '').trim();
+                if (!clean) return 'DN';
+                if (clean.includes('@')) {
+                  return clean.slice(0, 2).toUpperCase();
+                }
+                const parts = clean.split(/\s+/).filter(Boolean);
+                if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase();
+                return clean.slice(0, 2).toUpperCase();
+              };
+
+              const formatPendingTime = (rawDate) => {
+                if (!rawDate) return null;
+                const dt = new Date(rawDate);
+                if (Number.isNaN(dt.getTime())) return null;
+                return dt.toLocaleString('en-US', {
+                  month: 'short',
+                  day: 'numeric',
+                  hour: 'numeric',
+                  minute: '2-digit',
+                  hour12: true
+                });
+              };
+
+              return (
+                <section className="pvq-card" aria-label="Pending E-Wallet and Bank Slip Verifications">
+                  <div className="pvq-header">
+                    <div className="pvq-header-left">
+                      <div className="pvq-icon-badge" aria-hidden="true">
+                        <span className="material-symbols-outlined" style={{ fontSize: '19px' }}>pending_actions</span>
+                      </div>
+                      <div className="pvq-title-wrap">
+                        <div className="pvq-title-row">
+                          <h3 className="pvq-title">Pending E-Wallet &amp; Bank Slip Verifications</h3>
+                          <span className="pvq-count-pill">
+                            <span className="pvq-pulse-dot" />
+                            <span>{pendingList.length} Action Required</span>
+                          </span>
+                        </div>
+                        <p className="pvq-subtitle">
+                          AI receipt audit checks reference patterns, amounts, and duplicates before on-chain confirmation.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="pvq-header-actions">
+                      {pendingList.length > 1 && (
+                        <div className="pvq-audit-summary">
+                          <span className="pvq-summary-ok">{aiVerifiedIds.length} AI-Verified</span>
+                          {flaggedCount > 0 && (
+                            <>
+                              <span className="pvq-summary-sep">·</span>
+                              <span className="pvq-summary-flag">{flaggedCount} Flagged</span>
+                            </>
+                          )}
+                        </div>
+                      )}
+
+                      {!batchConfirmOpen ? (
+                        <button
+                          type="button"
+                          className="pvq-batch-btn"
+                          disabled={aiVerifiedIds.length === 0 || batchVerifying}
+                          onClick={() => setBatchConfirmOpen(true)}
+                          title={
+                            aiVerifiedIds.length > 0
+                              ? `Approve all ${aiVerifiedIds.length} AI-verified slip${aiVerifiedIds.length === 1 ? '' : 's'} (flagged slips remain for manual review)`
+                              : 'No AI-verified slips available for batch approval'
                           }
-                        } catch (err) {
-                          alert('Failed to connect to server for batch verification.');
-                        }
-                      }}
-                      style={{
-                        background: '#16a34a',
-                        color: '#fff',
-                        border: 'none',
-                        padding: '8px 16px',
-                        borderRadius: '8px',
-                        fontWeight: 700,
-                        fontSize: '0.8rem',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                        cursor: 'pointer',
-                        boxShadow: '0 2px 8px rgba(22, 163, 74, 0.25)'
-                      }}
-                      title="Batch approve all pending slips with AI OCR Verification"
-                    >
-                      <span className="material-symbols-outlined" style={{ fontSize: '17px' }}>bolt</span>
-                      <span>1-Click Approve All AI-Verified Slips</span>
-                    </button>
-
-                    <span className="ref-status-live-chip" style={{ background: 'rgba(245, 158, 11, 0.15)', color: '#f59e0b', border: '1px solid rgba(245, 158, 11, 0.3)', padding: '5px 12px', borderRadius: '8px', fontSize: '0.72rem', fontWeight: 800, letterSpacing: '0.5px' }}>
-                      ACTION REQUIRED ({(pendingDonations || []).length})
-                    </span>
+                        >
+                          <span className="material-symbols-outlined">done_all</span>
+                          <span>Approve AI-Verified ({aiVerifiedIds.length})</span>
+                        </button>
+                      ) : (
+                        <div className="pvq-confirm-bar">
+                          <span className="pvq-confirm-label">
+                            Approve {aiVerifiedIds.length} slip{aiVerifiedIds.length === 1 ? '' : 's'}?
+                          </span>
+                          <button
+                            type="button"
+                            className="pvq-confirm-yes"
+                            disabled={batchVerifying}
+                            onClick={handleBatchApproveVerified}
+                          >
+                            {batchVerifying ? 'Approving...' : 'Confirm'}
+                          </button>
+                          <button
+                            type="button"
+                            className="pvq-confirm-no"
+                            disabled={batchVerifying}
+                            onClick={() => setBatchConfirmOpen(false)}
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
 
-                {loadingPending ? (
-                  <div style={{ textAlign: 'center', padding: '30px' }}><div className="spinner spinner-light" /></div>
-                ) : (
-                  <div style={{ overflowX: 'auto', borderRadius: '12px' }}>
-                    <table style={{
-                      width: '100%',
-                      minWidth: '960px',
-                      borderCollapse: 'separate',
-                      borderSpacing: '0 8px',
-                      fontSize: '0.85rem'
-                    }}>
-                      <thead>
-                        <tr style={{ color: 'var(--text-muted)', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.6px', fontWeight: 700 }}>
-                          <th style={{ padding: '8px 16px', textAlign: 'left', width: '20%' }}>Donor Identity</th>
-                          <th style={{ padding: '8px 16px', textAlign: 'left', width: '24%' }}>Relief Campaign</th>
-                          <th style={{ padding: '8px 16px', textAlign: 'left', width: '14%' }}>Payment Rail</th>
-                          <th style={{ padding: '8px 16px', textAlign: 'left', width: '15%' }}>Amount (PHP)</th>
-                          <th style={{ padding: '8px 16px', textAlign: 'center', width: '15%' }}>AI OCR Status</th>
-                          <th style={{ padding: '8px 16px', textAlign: 'right', width: '12%' }}>Review Action</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {pendingDonations.map((d) => {
-                          const pm = String(d.Payment_Method || 'Fiat').toUpperCase();
-                          const isGcash = pm.includes('GCASH');
-                          const isMaya = pm.includes('MAYA') || pm.includes('PAYMAYA');
+                  {loadingPending ? (
+                    <div className="pvq-loading">
+                      <div className="spinner spinner-light" />
+                      <span>Loading pending slips...</span>
+                    </div>
+                  ) : (
+                    <div className="pvq-table-scroll">
+                      <table className="pvq-table">
+                        <colgroup>
+                          <col style={{ width: '23%' }} />
+                          <col style={{ width: '24%' }} />
+                          <col style={{ width: '108px' }} />
+                          <col style={{ width: '124px' }} />
+                          <col style={{ width: '232px' }} />
+                          <col style={{ width: '166px' }} />
+                        </colgroup>
+                        <thead>
+                          <tr>
+                            <th>Donor</th>
+                            <th>Campaign</th>
+                            <th>Rail</th>
+                            <th className="pvq-th-right">Amount</th>
+                            <th>AI Audit &amp; Slip</th>
+                            <th className="pvq-th-right">Action</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {analyzedPending.map(({
+                            d,
+                            ai,
+                            refNo,
+                            flags,
+                            isInvalidImg,
+                            isDup,
+                            isRailMismatch,
+                            isAmtMismatch,
+                            isVerified,
+                            isFlagged,
+                            score,
+                            phpVal
+                          }) => {
+                            const pm = String(d.Payment_Method || 'Bank / Card').toUpperCase();
+                            const isGcash = pm.includes('GCASH');
+                            const isMaya = pm.includes('MAYA') || pm.includes('PAYMAYA');
+                            const railLabel = isGcash ? 'GCash' : isMaya ? 'Maya' : (d.Payment_Method || 'Bank / Card');
+                            const railClass = isGcash ? 'pvq-rail-gcash' : isMaya ? 'pvq-rail-maya' : 'pvq-rail-bank';
+                            const railIcon = isGcash ? 'smartphone' : isMaya ? 'account_balance_wallet' : 'account_balance';
 
-                          return (
-                            <tr
-                              key={d.Manual_ID}
-                              style={{
-                                background: 'var(--bg-subcard, var(--bg-card))',
-                                border: '1px solid var(--border)',
-                                boxShadow: 'var(--shadow-sm)',
-                                transition: 'all 0.2s ease'
-                              }}
-                            >
-                              {/* 1. Donor Name / Badge */}
-                              <td style={{ padding: '14px 16px', borderRadius: '10px 0 0 10px', verticalAlign: 'middle' }}>
-                                {d.Donor_Name && d.Donor_Name !== 'Anonymous Donor' ? (
-                                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', background: 'rgba(56, 189, 248, 0.1)', border: '1px solid rgba(56, 189, 248, 0.25)', padding: '5px 12px', borderRadius: '8px', color: 'var(--text-primary)', fontWeight: 700, fontSize: '0.82rem' }}>
-                                    <span className="material-symbols-outlined" style={{ fontSize: '16px', color: '#38bdf8' }}>account_circle</span>
-                                    <span>{d.Donor_Name}</span>
+                            const isAnon = !d.Donor_Name || d.Donor_Name === 'Anonymous Donor';
+                            const donorLabel = isAnon ? 'Anonymous Donor' : d.Donor_Name;
+                            const submittedLabel = formatPendingTime(d.Created_At || d.createdAt);
+                            const donorSub = refNo
+                              ? `Ref ${refNo.length > 16 ? refNo.slice(0, 16) + '…' : refNo}`
+                              : (submittedLabel || `Slip #${d.Manual_ID}`);
+
+                            let aiToneClass = 'pvq-ai-warn';
+                            let aiIcon = 'help_outline';
+                            let aiLabel = `Manual Audit · ${score}%`;
+                            let aiTitle = ai.summary || 'Requires manual NGO verification';
+
+                            if (isVerified) {
+                              aiToneClass = 'pvq-ai-verified';
+                              aiIcon = 'verified';
+                              aiLabel = `AI Verified · ${score}%`;
+                              aiTitle = ai.summary || 'Receipt verified by AI Vision & OCR';
+                            } else if (isInvalidImg) {
+                              aiToneClass = 'pvq-ai-danger';
+                              aiIcon = 'gpp_bad';
+                              aiLabel = 'Not a Receipt';
+                              aiTitle = ai.summary || 'Uploaded image is not a valid payment receipt';
+                            } else if (isDup) {
+                              aiToneClass = 'pvq-ai-warn';
+                              aiIcon = 'warning';
+                              aiLabel = 'Duplicate Ref';
+                              aiTitle = flags.join('\n') || 'Duplicate reference detected on ledger';
+                            } else if (isAmtMismatch) {
+                              aiToneClass = 'pvq-ai-danger';
+                              aiIcon = 'error';
+                              aiLabel = 'Amount Mismatch';
+                              aiTitle = flags.find((f) => String(f).includes('AMOUNT_MISMATCH')) || 'Extracted amount differs from declared amount';
+                            } else if (isRailMismatch) {
+                              aiToneClass = 'pvq-ai-danger';
+                              aiIcon = 'gpp_bad';
+                              aiLabel = 'Rail Mismatch';
+                              aiTitle = flags.find((f) => String(f).includes('PAYMENT_RAIL_MISMATCH')) || 'Declared payment rail differs from receipt image';
+                            }
+
+                            return (
+                              <tr key={d.Manual_ID} className={isFlagged ? 'pvq-row-flagged' : undefined}>
+                                {/* 1. Donor */}
+                                <td>
+                                  <div className="pvq-donor-cell">
+                                    <div className={`pvq-avatar${isAnon ? ' is-anon' : ''}`} aria-hidden="true">
+                                      {isAnon ? (
+                                        <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>visibility_off</span>
+                                      ) : (
+                                        getInitials(donorLabel)
+                                      )}
+                                    </div>
+                                    <div className="pvq-donor-info">
+                                      <span className={`pvq-donor-name${isAnon ? ' is-anon' : ''}`} title={donorLabel}>
+                                        {donorLabel}
+                                      </span>
+                                      <span className="pvq-donor-meta" title={refNo ? `Reference: ${refNo}` : donorSub}>
+                                        {donorSub}
+                                      </span>
+                                    </div>
                                   </div>
-                                ) : (
-                                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', background: 'var(--bg-input, rgba(255, 255, 255, 0.06))', border: '1px solid var(--border)', padding: '5px 12px', borderRadius: '8px', color: 'var(--text-muted)', fontWeight: 600, fontSize: '0.81rem' }}>
-                                    <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>visibility_off</span>
-                                    <span>Anonymous Donor</span>
+                                </td>
+
+                                {/* 2. Relief Campaign */}
+                                <td>
+                                  <div className="pvq-campaign-wrap">
+                                    <span className="pvq-campaign-title" title={d.Campaign_Title}>
+                                      {d.Campaign_Title}
+                                    </span>
+                                    {d.Campaign_ID && (
+                                      <span className="pvq-campaign-sub">Campaign #{d.Campaign_ID}</span>
+                                    )}
                                   </div>
-                                )}
-                              </td>
+                                </td>
 
-                              {/* 2. Relief Campaign */}
-                              <td style={{ padding: '14px 16px', verticalAlign: 'middle' }}>
-                                <div style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '0.86rem', lineHeight: 1.4, paddingRight: '8px' }}>
-                                  {d.Campaign_Title}
-                                </div>
-                              </td>
-
-                              {/* 3. Payment Rail Badge */}
-                              <td style={{ padding: '14px 16px', verticalAlign: 'middle' }}>
-                                <span style={{
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: '5px',
-                                  padding: '4px 10px',
-                                  borderRadius: '6px',
-                                  fontSize: '0.74rem',
-                                  fontWeight: 700,
-                                  background: isGcash ? 'rgba(56, 189, 248, 0.15)' : isMaya ? 'rgba(34, 197, 94, 0.15)' : 'rgba(168, 85, 247, 0.15)',
-                                  color: isGcash ? '#0284c7' : isMaya ? '#16a34a' : '#9333ea',
-                                  border: `1px solid ${isGcash ? 'rgba(56, 189, 248, 0.35)' : isMaya ? 'rgba(34, 197, 94, 0.35)' : 'rgba(168, 85, 247, 0.35)'}`
-                                }}>
-                                  <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>
-                                    {isGcash ? 'smartphone' : isMaya ? 'credit_card' : 'account_balance'}
+                                {/* 3. Payment Rail */}
+                                <td>
+                                  <span className={`pvq-rail-badge ${railClass}`}>
+                                    <span className="material-symbols-outlined">{railIcon}</span>
+                                    <span>{railLabel}</span>
                                   </span>
-                                  <span>{pm}</span>
-                                </span>
-                              </td>
+                                </td>
 
-                              {/* 4. Amount ETH + PHP */}
-                              <td style={{ padding: '14px 16px', verticalAlign: 'middle' }}>
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                                  <span style={{ color: '#16a34a', fontWeight: 850, fontSize: '0.94rem', letterSpacing: '-0.01em' }}>
-                                    ₱{Math.round(parseFloat(d.Amount) * 170000).toLocaleString('en-US')} <span style={{ fontSize: '0.76rem' }}>PHP</span>
-                                  </span>
-                                  <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 500 }}>
-                                    Awaiting NGO check
-                                  </span>
-                                </div>
-                              </td>
+                                {/* 4. Amount */}
+                                <td>
+                                  <div className="pvq-amount-wrap">
+                                    <span className="pvq-amount-value">
+                                      ₱{phpVal.toLocaleString('en-US')}
+                                    </span>
+                                    <span className={`pvq-amount-sub${isAmtMismatch && ai.extractedAmountPhp ? ' is-warn' : ''}`}>
+                                      {isAmtMismatch && ai.extractedAmountPhp
+                                        ? `Slip: ₱${Number(ai.extractedAmountPhp).toLocaleString('en-US')}`
+                                        : 'Pending check'}
+                                    </span>
+                                  </div>
+                                </td>
 
-                              {/* 5. AI OCR Status & Proof Slip */}
-                              <td style={{ padding: '14px 16px', textAlign: 'center', verticalAlign: 'middle' }}>
-                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
-                                  {(() => {
-                                    const ai = d.ai_result || {};
-                                    const refNo = d.Reference_Number || ai.extractedRef || '';
-                                    const hasRef = Boolean(refNo && refNo.trim().length >= 8);
-                                    const hasImage = Boolean(d.Receipt_Base64);
-                                    const flags = ai.fraudFlags || [];
-                                    const isInvalidImg = flags.some(f => String(f).includes('INVALID_RECEIPT_IMAGE'));
-                                    const isDup = flags.some(f => String(f).includes('DUPLICATE'));
+                                {/* 5. AI Audit & Slip Preview */}
+                                <td>
+                                  <div className="pvq-audit-cell">
+                                    <span className={`pvq-ai-pill ${aiToneClass}`} title={aiTitle}>
+                                      <span className="material-symbols-outlined">{aiIcon}</span>
+                                      <span>{aiLabel}</span>
+                                    </span>
 
-                                    const isRailMismatch = flags.some(f => String(f).includes('PAYMENT_RAIL_MISMATCH'));
-                                    const isAmtMismatch = flags.some(f => String(f).includes('AMOUNT_MISMATCH'));
-                                    const isVerified = Boolean(ai.isAiVerified !== false && (hasRef || ai.isAiVerified) && !isInvalidImg && !isDup && !isRailMismatch && !isAmtMismatch);
-                                    const score = (ai.confidenceScore && ai.confidenceScore > 50 && isVerified) ? ai.confidenceScore : (isVerified ? 98 : (ai.confidenceScore || 35));
+                                    {d.Receipt_Base64 ? (
+                                      <button
+                                        type="button"
+                                        className="pvq-slip-btn"
+                                        onClick={() => setProofPreviewModalImg({ img: d.Receipt_Base64, donation: d })}
+                                        title="Inspect uploaded payment slip"
+                                      >
+                                        <span className="material-symbols-outlined">image</span>
+                                        <span>Slip</span>
+                                      </button>
+                                    ) : (
+                                      <span className="pvq-no-slip">No slip</span>
+                                    )}
+                                  </div>
+                                </td>
 
-                                    if (isVerified) {
-                                      return (
-                                        <span
-                                          style={{
-                                            display: 'inline-flex',
-                                            alignItems: 'center',
-                                            gap: '4px',
-                                            padding: '3px 8px',
-                                            borderRadius: '6px',
-                                            fontSize: '0.71rem',
-                                            fontWeight: 800,
-                                            background: 'rgba(34, 197, 94, 0.12)',
-                                            color: '#16a34a',
-                                            border: '1px solid rgba(34, 197, 94, 0.3)'
-                                          }}
-                                          title={ai.summary || 'Receipt verified by Gemini AI Vision & Tesseract OCR'}
-                                        >
-                                          <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>verified</span>
-                                          <span>AI Verified ({score}%)</span>
-                                        </span>
-                                      );
-                                    } else if (isInvalidImg) {
-                                      return (
-                                        <span
-                                          style={{
-                                            display: 'inline-flex',
-                                            alignItems: 'center',
-                                            gap: '4px',
-                                            padding: '3px 8px',
-                                            borderRadius: '6px',
-                                            fontSize: '0.71rem',
-                                            fontWeight: 800,
-                                            background: 'rgba(239, 68, 68, 0.15)',
-                                            color: '#ef4444',
-                                            border: '1px solid rgba(239, 68, 68, 0.35)'
-                                          }}
-                                          title={ai.summary || 'Not a valid payment receipt screenshot'}
-                                        >
-                                          <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>gpp_bad</span>
-                                          <span>Not a Receipt ({score}%)</span>
-                                        </span>
-                                      );
-                                    } else if (isDup) {
-                                      return (
-                                        <span
-                                          style={{
-                                            display: 'inline-flex',
-                                            alignItems: 'center',
-                                            gap: '4px',
-                                            padding: '3px 8px',
-                                            borderRadius: '6px',
-                                            fontSize: '0.71rem',
-                                            fontWeight: 800,
-                                            background: 'rgba(245, 158, 11, 0.18)',
-                                            color: '#d97706',
-                                            border: '1px solid rgba(245, 158, 11, 0.4)'
-                                          }}
-                                          title={flags.join('\n')}
-                                        >
-                                          <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>warning</span>
-                                          <span>Duplicate Ref ({score}%)</span>
-                                        </span>
-                                      );
-                                    } else if (isAmtMismatch) {
-                                      return (
-                                        <span
-                                          style={{
-                                            display: 'inline-flex',
-                                            alignItems: 'center',
-                                            gap: '4px',
-                                            padding: '3px 8px',
-                                            borderRadius: '6px',
-                                            fontSize: '0.71rem',
-                                            fontWeight: 800,
-                                            background: 'rgba(239, 68, 68, 0.15)',
-                                            color: '#ef4444',
-                                            border: '1px solid rgba(239, 68, 68, 0.35)'
-                                          }}
-                                          title={flags.find(f => String(f).includes('AMOUNT_MISMATCH')) || 'Extracted receipt amount differs from declared amount'}
-                                        >
-                                          <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>error</span>
-                                          <span>Amount Mismatch ({score}%)</span>
-                                        </span>
-                                      );
-                                    } else if (isRailMismatch) {
-                                      return (
-                                        <span
-                                          style={{
-                                            display: 'inline-flex',
-                                            alignItems: 'center',
-                                            gap: '4px',
-                                            padding: '3px 8px',
-                                            borderRadius: '6px',
-                                            fontSize: '0.71rem',
-                                            fontWeight: 800,
-                                            background: 'rgba(239, 68, 68, 0.15)',
-                                            color: '#ef4444',
-                                            border: '1px solid rgba(239, 68, 68, 0.35)'
-                                          }}
-                                          title={flags.find(f => String(f).includes('PAYMENT_RAIL_MISMATCH')) || 'Declared rail differs from receipt image'}
-                                        >
-                                          <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>gpp_bad</span>
-                                          <span>Rail Mismatch ({score}%)</span>
-                                        </span>
-                                      );
-                                    } else {
-                                      return (
-                                        <span
-                                          style={{
-                                            display: 'inline-flex',
-                                            alignItems: 'center',
-                                            gap: '4px',
-                                            padding: '3px 8px',
-                                            borderRadius: '6px',
-                                            fontSize: '0.71rem',
-                                            fontWeight: 800,
-                                            background: 'rgba(245, 158, 11, 0.12)',
-                                            color: '#d97706',
-                                            border: '1px solid rgba(245, 158, 11, 0.3)'
-                                          }}
-                                          title={ai.summary || 'Requires manual NGO verification'}
-                                        >
-                                          <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>help_outline</span>
-                                          <span>Manual Audit ({score}%)</span>
-                                        </span>
-                                      );
-                                    }
-                                  })()}
-
-                                  {d.Receipt_Base64 ? (
+                                {/* 6. Action */}
+                                <td>
+                                  <div className="pvq-actions-cell">
                                     <button
                                       type="button"
-                                      onClick={() => setProofPreviewModalImg({ img: d.Receipt_Base64, donation: d })}
-                                      style={{
-                                        background: 'rgba(56, 189, 248, 0.15)',
-                                        border: '1px solid rgba(56, 189, 248, 0.35)',
-                                        color: '#38bdf8',
-                                        padding: '4px 10px',
-                                        borderRadius: '6px',
-                                        fontSize: '0.73rem',
-                                        fontWeight: 700,
-                                        cursor: 'pointer',
-                                        display: 'inline-flex',
-                                        alignItems: 'center',
-                                        gap: '4px'
-                                      }}
+                                      className="pvq-btn-verify"
+                                      onClick={() => handleOpenVerification(d)}
+                                      title="Review donor slip and cross-reference with account statement"
                                     >
-                                      <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>image</span>
-                                      <span>Preview Slip</span>
+                                      <span className="material-symbols-outlined">fact_check</span>
+                                      <span>Verify</span>
                                     </button>
-                                  ) : (
-                                    <span style={{ color: '#64748b', fontSize: '0.73rem', fontStyle: 'italic' }}>No Slip Uploaded</span>
-                                  )}
-                                </div>
-                              </td>
-
-                              {/* 6. Review Actions */}
-                              <td style={{ padding: '14px 16px', borderRadius: '0 10px 10px 0', verticalAlign: 'middle' }}>
-                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '8px' }}>
-                                  <button
-                                    type="button"
-                                    className="btn btn-sm"
-                                    style={{
-                                      background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-                                      color: '#fff',
-                                      border: 'none',
-                                      padding: '7px 14px',
-                                      borderRadius: '8px',
-                                      display: 'inline-flex',
-                                      alignItems: 'center',
-                                      gap: '5px',
-                                      fontWeight: 700,
-                                      fontSize: '0.78rem',
-                                      boxShadow: '0 2px 8px rgba(16, 185, 129, 0.25)',
-                                      cursor: 'pointer'
-                                    }}
-                                    onClick={() => handleOpenVerification(d)}
-                                    title="Review donor slip and cross-reference with account statement"
-                                  >
-                                    <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>fact_check</span>
-                                    <span>Verify</span>
-                                  </button>
-
-                                  <button
-                                    type="button"
-                                    className="btn btn-sm"
-                                    style={{
-                                      background: 'rgba(239, 68, 68, 0.12)',
-                                      color: '#ef4444',
-                                      border: '1px solid rgba(239, 68, 68, 0.35)',
-                                      padding: '7px 12px',
-                                      borderRadius: '8px',
-                                      display: 'inline-flex',
-                                      alignItems: 'center',
-                                      gap: '4px',
-                                      fontWeight: 600,
-                                      fontSize: '0.78rem',
-                                      cursor: 'pointer'
-                                    }}
-                                    onClick={() => handleOpenRejection(d)}
-                                    title="Reject unverified or mismatched payment slip"
-                                  >
-                                    <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>cancel</span>
-                                    <span>Reject</span>
-                                  </button>
-                                </div>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </div>
-            )}
+                                    <button
+                                      type="button"
+                                      className="pvq-btn-reject"
+                                      onClick={() => handleOpenRejection(d)}
+                                      title="Reject unverified or mismatched payment slip"
+                                    >
+                                      <span className="material-symbols-outlined">close</span>
+                                      <span>Reject</span>
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </section>
+              );
+            })()}
 
             {/* ── Vercel Navigation Underline Tabs (Payment Rails) ── */}
             <div style={{
