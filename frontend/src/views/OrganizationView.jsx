@@ -19,6 +19,7 @@ import SidebarToggleIcon from '../components/SidebarToggleIcon';
 import AnalyticsReportsPanel from '../components/AnalyticsReportsPanel';
 import DeclareDirectDepositModal from '../components/DeclareDirectDepositModal';
 import FilterableExportModal from '../components/FilterableExportModal';
+import OfficialAuditVoucherModal from '../components/OfficialAuditVoucherModal';
 import { useToast } from '../context/ToastContext';
 import { getRegions, getRegionForProvince } from '../data/philippineGeoData';
 import { CONTRACT_ADDRESS } from '../contractConfig';
@@ -8865,360 +8866,41 @@ export default function OrganizationView({
       )}
 
       {/* ── Official Cryptographic Receipt Voucher Modal ── */}
-      {selectedVoucherTx && createPortal((() => {
+      {selectedVoucherTx && (() => {
         const matchCamp = campaigns.find(c => String(c.id) === String(selectedVoucherTx.campaignId));
         const rawTitle = matchCamp ? matchCamp.title : `Disaster Relief Campaign #${selectedVoucherTx.campaignId}`;
         const campTitle = formatCampaignTitle(rawTitle, selectedVoucherTx.campaignId);
         const donorDisplay = selectedVoucherTx.isAnonymous ? 'Anonymous Supporter' : (selectedVoucherTx.donorName || 'Public Philanthropist');
-        const amtEth = parseFloat(selectedVoucherTx.amount || 0).toFixed(4);
         const amtPhp = Math.round(parseFloat(selectedVoucherTx.amount || 0) * 170000);
-
         const variancePhp = selectedVoucherTx.variancePhp !== undefined && selectedVoucherTx.variancePhp !== null ? Number(selectedVoucherTx.variancePhp) : 0;
         const declaredPhp = selectedVoucherTx.declaredPhp !== undefined && selectedVoucherTx.declaredPhp !== null ? Number(selectedVoucherTx.declaredPhp) : (variancePhp !== 0 ? (amtPhp - variancePhp) : amtPhp);
         const isShortage = selectedVoucherTx.auditStatus === 'SHORTAGE' || variancePhp < -20;
         const isOverCredit = selectedVoucherTx.auditStatus === 'OVER_CREDIT' || variancePhp > 20;
-        const hasVariance = isShortage || isOverCredit;
 
         return (
-          <div
-            className="bbdrts-edit-profile-backdrop"
-            onClick={() => setSelectedVoucherTx(null)}
-            style={{
-              position: 'fixed',
-              top: 0,
-              left: 0,
-              width: '100vw',
-              height: '100vh',
-              background: 'rgba(0, 0, 0, 0.78)',
-              backdropFilter: 'blur(8px)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              zIndex: 9999999,
-              padding: '20px'
-            }}
-          >
-            <div
-              className="fade-in"
-              onClick={(e) => e.stopPropagation()}
-              style={{
-                width: '100%',
-                maxWidth: '600px',
-                background: 'var(--bg-card, #1c1c1c)',
-                border: isShortage ? '1px solid rgba(239, 68, 68, 0.45)' : (isOverCredit ? '1px solid rgba(245, 158, 11, 0.4)' : '1px solid var(--border-strong, rgba(255, 255, 255, 0.16))'),
-                borderRadius: '18px',
-                overflow: 'hidden',
-                boxShadow: isShortage ? '0 24px 60px rgba(239, 68, 68, 0.25)' : '0 24px 60px rgba(0, 0, 0, 0.65)'
-              }}
-            >
-              {/* Voucher Header */}
-              <div style={{
-                padding: '18px 24px',
-                background: 'var(--bg-subcard, #242424)',
-                borderBottom: '1px solid var(--border)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between'
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <div style={{
-                    width: '40px',
-                    height: '40px',
-                    borderRadius: '12px',
-                    background: isShortage ? 'rgba(239, 68, 68, 0.15)' : (isOverCredit ? 'rgba(245, 158, 11, 0.15)' : 'rgba(34, 197, 94, 0.15)'),
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: isShortage ? '#ef4444' : (isOverCredit ? '#f59e0b' : '#22c55e'),
-                    border: `1px solid ${isShortage ? 'rgba(239, 68, 68, 0.35)' : (isOverCredit ? 'rgba(245, 158, 11, 0.35)' : 'rgba(34, 197, 94, 0.3)')}`
-                  }}>
-                    <span className="material-symbols-outlined" style={{ fontSize: '22px' }}>
-                      {isShortage ? 'warning' : (isOverCredit ? 'info' : 'verified')}
-                    </span>
-                  </div>
-                  <div>
-                    <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-                      {isShortage ? 'Official Audit Voucher · Discrepancy Flagged' : 'Official Audit Voucher'}
-                    </h3>
-                    <div style={{ fontSize: '0.76rem', color: isShortage ? '#fca5a5' : 'var(--text-muted)' }}>
-                      {isShortage ? 'Variance Recorded in Immutable Public Ledger' : 'BBDRTS Humanitarian Protocol · Blockchain Audited'}
-                    </div>
-                  </div>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => setSelectedVoucherTx(null)}
-                  className="btn btn-ghost btn-sm"
-                  style={{ color: 'var(--text-muted)' }}
-                  title="Close Voucher"
-                >
-                  <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>close</span>
-                </button>
-              </div>
-
-              {/* Verified / Discrepancy Ribbon */}
-              {isShortage ? (
-                <div style={{
-                  padding: '11px 24px',
-                  background: 'rgba(239, 68, 68, 0.12)',
-                  borderBottom: '1px solid rgba(239, 68, 68, 0.28)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  fontSize: '0.78rem'
-                }}>
-                  <span style={{ color: '#ef4444', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                    <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>gpp_bad</span>
-                    Audit Shortage Flagged · Credited Amount Altered by NGO
-                  </span>
-                  <span style={{ color: '#fca5a5', fontFamily: 'var(--font-mono)', fontWeight: 700 }}>
-                    Variance: {variancePhp < 0 ? `-₱${Math.abs(variancePhp).toLocaleString()} PHP` : `+₱${variancePhp.toLocaleString()} PHP`}
-                  </span>
-                </div>
-              ) : isOverCredit ? (
-                <div style={{
-                  padding: '11px 24px',
-                  background: 'rgba(245, 158, 11, 0.12)',
-                  borderBottom: '1px solid rgba(245, 158, 11, 0.28)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  fontSize: '0.78rem'
-                }}>
-                  <span style={{ color: '#f59e0b', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                    <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>info</span>
-                    Over-Credited Transaction (+₱{variancePhp.toLocaleString()} PHP)
-                  </span>
-                  <span style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
-                    ID #{selectedVoucherTx.id || 'ON-CHAIN'}
-                  </span>
-                </div>
-              ) : (
-                <div style={{
-                  padding: '10px 24px',
-                  background: 'linear-gradient(90deg, rgba(34, 197, 94, 0.15), transparent)',
-                  borderBottom: '1px solid var(--border-subtle)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  fontSize: '0.78rem'
-                }}>
-                  <span style={{ color: '#22c55e', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
-                    <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>check_circle</span>
-                    Verified On-Chain Transaction
-                  </span>
-                  <span style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
-                    ID #{selectedVoucherTx.id || 'ON-CHAIN'}
-                  </span>
-                </div>
-              )}
-
-              {/* Voucher Details Body */}
-              <div style={{ padding: '22px 24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                {/* Variance Breakdown Box */}
-                {hasVariance && (
-                  <div style={{
-                    background: isShortage ? 'rgba(239, 68, 68, 0.08)' : 'rgba(245, 158, 11, 0.08)',
-                    border: `1px solid ${isShortage ? 'rgba(239, 68, 68, 0.3)' : 'rgba(245, 158, 11, 0.3)'}`,
-                    borderRadius: '10px',
-                    padding: '12px 16px'
-                  }}>
-                    <div style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', color: isShortage ? '#ef4444' : '#f59e0b', letterSpacing: '0.04em', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '5px' }}>
-                      <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>rule</span>
-                      <span>Tamper-Proof Audit Discrepancy Breakdown</span>
-                    </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', fontSize: '0.78rem' }}>
-                      <div>
-                        <div style={{ color: '#888888', fontSize: '0.70rem' }}>Declared by Contributor</div>
-                        <div style={{ fontWeight: 700, color: '#ededed', marginTop: '2px', fontFamily: 'var(--font-mono)' }}>₱{declaredPhp.toLocaleString()} PHP</div>
-                      </div>
-                      <div>
-                        <div style={{ color: '#888888', fontSize: '0.70rem' }}>Credited by NGO</div>
-                        <div style={{ fontWeight: 700, color: isShortage ? '#ef4444' : '#f59e0b', marginTop: '2px', fontFamily: 'var(--font-mono)' }}>₱{amtPhp.toLocaleString()} PHP</div>
-                      </div>
-                      <div>
-                        <div style={{ color: '#888888', fontSize: '0.70rem' }}>On-Chain Variance</div>
-                        <div style={{ fontWeight: 800, color: isShortage ? '#ef4444' : '#f59e0b', marginTop: '2px', fontFamily: 'var(--font-mono)' }}>
-                          {variancePhp < 0 ? `-₱${Math.abs(variancePhp).toLocaleString()} PHP` : `+₱${variancePhp.toLocaleString()} PHP`}
-                        </div>
-                      </div>
-                    </div>
-                    <div style={{ fontSize: '0.70rem', color: isShortage ? '#fca5a5' : '#fde68a', marginTop: '8px', lineHeight: 1.4 }}>
-                      {isShortage
-                        ? '⚠️ Warning: The beneficiary organization modified and verified this transaction with a shortage compared to the contributor\'s declared payment slip. This discrepancy has been permanently sealed on Ethereum Sepolia.'
-                        : 'Notice: Contributor was credited with additional funds beyond the initial declaration.'}
-                    </div>
-                  </div>
-                )}
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px' }}>
-                  <div>
-                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 700, marginBottom: '3px' }}>
-                      Beneficiary Organization
-                    </div>
-                    <div style={{ fontSize: '0.92rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                      {orgDisplayName}
-                    </div>
-                  </div>
-
-                  <div>
-                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 700, marginBottom: '3px' }}>
-                      Payment Method Rail
-                    </div>
-                    <div style={{ fontSize: '0.92rem', fontWeight: 700, color: '#38bdf8' }}>
-                      {selectedVoucherTx.paymentMethod || 'Bank / Card'}
-                    </div>
-                  </div>
-
-                  <div style={{ gridColumn: '1 / -1' }}>
-                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 700, marginBottom: '3px' }}>
-                      Relief Campaign
-                    </div>
-                    <div style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                      {campTitle}
-                    </div>
-                  </div>
-
-                  <div>
-                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 700, marginBottom: '3px' }}>
-                      Contributor / Donor
-                    </div>
-                    <div style={{ fontSize: '0.88rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                      {donorDisplay}
-                    </div>
-                  </div>
-
-                  <div>
-                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 700, marginBottom: '3px' }}>
-                      Contribution Timestamp
-                    </div>
-                    <div style={{ fontSize: '0.84rem', color: 'var(--text-secondary)' }}>
-                      {selectedVoucherTx.createdAt ? new Date(selectedVoucherTx.createdAt).toLocaleString() : 'Audited On-Chain'}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Amount Highlight Box */}
-                <div style={{
-                  background: 'var(--bg-subcard)',
-                  border: isShortage ? '1px solid rgba(239, 68, 68, 0.35)' : '1px solid var(--border)',
-                  borderRadius: '12px',
-                  padding: '14px 18px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between'
-                }}>
-                  {(() => {
-                    const pm = String(selectedVoucherTx.paymentMethod || 'ETH').toUpperCase();
-                    const isFiat = pm.includes('GCASH') || pm.includes('MAYA') || pm.includes('BANK') || pm.includes('CARD') || String(selectedVoucherTx.txHash || '').startsWith('FIAT-');
-                    return (
-                      <>
-                        <div>
-                          <div style={{ fontSize: '0.74rem', color: isShortage ? '#ef4444' : 'var(--text-muted)', fontWeight: 600 }}>
-                            {isShortage ? 'Amount Credited (Altered)' : 'Amount Transferred'}
-                          </div>
-                          <div style={{ fontSize: '1.45rem', fontWeight: 850, color: isShortage ? '#ef4444' : 'var(--accent, #22c55e)' }}>
-                            +₱{amtPhp.toLocaleString('en-US')} PHP
-                          </div>
-                        </div>
-                        <div style={{ textAlign: 'right' }}>
-                          <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', fontWeight: 600 }}>Audit Verification</div>
-                          <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#38bdf8' }}>
-                            Gasless Sepolia Seal
-                          </div>
-                        </div>
-                      </>
-                    );
-                  })()}
-                </div>
-
-                {/* Tx Hash Box */}
-                <div>
-                  <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 700, marginBottom: '4px' }}>
-                    Cryptographic Transaction Hash
-                  </div>
-                  <div style={{
-                    background: 'var(--bg-input)',
-                    border: '1px solid var(--border)',
-                    borderRadius: '8px',
-                    padding: '8px 12px',
-                    fontFamily: 'var(--font-mono)',
-                    fontSize: '0.78rem',
-                    color: 'var(--text-primary)',
-                    wordBreak: 'break-all',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    gap: '8px'
-                  }}>
-                    <span>{selectedVoucherTx.txHash}</span>
-                    <button
-                      type="button"
-                      className="btn btn-xs btn-ghost"
-                      onClick={() => {
-                        navigator.clipboard.writeText(selectedVoucherTx.txHash);
-                        showSuccess('Hash copied to clipboard!', 'Copied');
-                      }}
-                      title="Copy Hash"
-                      style={{ display: 'inline-flex', alignItems: 'center' }}
-                    >
-                      <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>content_copy</span>
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              {/* Voucher Footer Actions */}
-              <div style={{
-                padding: '14px 24px',
-                background: 'var(--bg-subcard)',
-                borderTop: '1px solid var(--border)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'flex-end',
-                gap: '10px'
-              }}>
-                <button
-                  type="button"
-                  className="btn btn-outline btn-sm"
-                  onClick={() => printDonationVoucher({
-                    ...selectedVoucherTx,
-                    phpAmount: amtPhp,
-                    campaignTitle: campTitle,
-                    orgName: getNgoDisplayTitle(),
-                    donorName: donorDisplay,
-                    isShortage
-                  })}
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-                >
-                  <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>print</span>
-                  <span>Print Voucher</span>
-                </button>
-                {selectedVoucherTx.txHash && !selectedVoucherTx.txHash.startsWith('MOCK') && (
-                  <a
-                    href={`https://sepolia.etherscan.io/tx/${selectedVoucherTx.txHash}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="btn btn-outline btn-sm"
-                    style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', textDecoration: 'none' }}
-                  >
-                    <span>Etherscan</span>
-                    <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>open_in_new</span>
-                  </a>
-                )}
-                <button
-                  type="button"
-                  className="btn btn-primary btn-sm"
-                  onClick={() => setSelectedVoucherTx(null)}
-                >
-                  Close
-                </button>
-              </div>
-            </div>
-          </div>
+          <OfficialAuditVoucherModal
+            tx={selectedVoucherTx}
+            campTitle={campTitle}
+            orgDisplayName={orgDisplayName}
+            donorDisplay={donorDisplay}
+            amtPhp={amtPhp}
+            declaredPhp={declaredPhp}
+            variancePhp={variancePhp}
+            isShortage={isShortage}
+            isOverCredit={isOverCredit}
+            onClose={() => setSelectedVoucherTx(null)}
+            onCopySuccess={(msg, title) => showSuccess(msg, title)}
+            onPrint={() => printDonationVoucher({
+              ...selectedVoucherTx,
+              phpAmount: amtPhp,
+              campaignTitle: campTitle,
+              orgName: getNgoDisplayTitle(),
+              donorName: donorDisplay,
+              isShortage
+            })}
+          />
         );
-      })(), document.body)}
+      })()}
 
       {/* ── NGO Declare Unclaimed Direct Deposit Modal ── */}
       <DeclareDirectDepositModal
