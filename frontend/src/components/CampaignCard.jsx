@@ -5102,13 +5102,13 @@ export default function CampaignCard(props) {
                     badgeClass: 'instapay',
                     icon: <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>account_balance</span>
                   },
-                  {
+                  ...(!isInstant ? [{
                     id: 'Card',
                     name: 'Credit / Debit Card',
-                    desc: 'Visa, Mastercard, or Amex direct card checkout',
+                    desc: 'Visa, Mastercard, or Amex card checkout',
                     badgeClass: 'bank',
                     icon: <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>credit_card</span>
-                  }
+                  }] : [])
                 ];
 
                 const presets = [
@@ -5825,10 +5825,10 @@ export default function CampaignCard(props) {
                     <div>
                       <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', fontSize: '0.74rem', color: '#22c55e', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: '4px' }}>
                         <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>credit_card</span>
-                        Direct Card & Bank Transfer Gateway
+                        Credit &amp; Debit Card Gateway
                       </div>
                       <h2 style={{ margin: 0, fontSize: '1.35rem', color: 'var(--text-primary, #fff)', fontWeight: 800 }}>
-                        Card & Bank Checkout
+                        Credit / Debit Card Checkout
                       </h2>
                       <div style={{ fontSize: '0.78rem', color: 'var(--text-muted, #94a3b8)', marginTop: '3px' }}>
                         Beneficiary Campaign: <strong style={{ color: 'var(--text-secondary, #cbd5e1)' }}>{camp.title}</strong>
@@ -6086,72 +6086,49 @@ export default function CampaignCard(props) {
                         </div>
                       </div>
 
-                      {/* Official NGO Bank Transfer Info (if available) */}
-                      {(camp.bankAccountNumber || camp.bank_account_number) && (
-                        <div style={{ marginTop: '12px', background: 'rgba(56, 189, 248, 0.05)', border: '1px solid rgba(56, 189, 248, 0.25)', borderRadius: '12px', padding: '12px', fontSize: '0.78rem' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '5px', color: '#38bdf8', fontWeight: 700 }}>
-                              <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>account_balance</span>
-                              <span>NGO Direct Bank Deposit</span>
-                            </div>
-                            <span style={{ fontSize: '0.68rem', background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', padding: '1px 6px', borderRadius: '4px', fontWeight: 700 }}>InstaPay</span>
+                      {/* Clean Switcher to Bank / InstaPay QR Transfer */}
+                      <div style={{
+                        marginTop: '12px',
+                        padding: '10px 12px',
+                        borderRadius: '10px',
+                        border: '1px solid var(--border, rgba(255,255,255,0.08))',
+                        background: 'var(--bg-input, rgba(255,255,255,0.02))',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: '10px'
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
+                          <span className="material-symbols-outlined" style={{ fontSize: '17px', color: '#a78bfa', flexShrink: 0 }}>account_balance</span>
+                          <div style={{ fontSize: '0.74rem', color: 'var(--text-secondary)', lineHeight: 1.35 }}>
+                            Prefer zero-fee bank deposit or InstaPay QR?
                           </div>
-                          <div style={{ color: 'var(--text-secondary, #cbd5e1)', fontSize: '0.74rem', marginBottom: '4px' }}>
-                            <strong>Bank:</strong> {camp.bankName || camp.bank_name || 'BDO Unibank'}
-                          </div>
-                          <div style={{ color: 'var(--text-secondary, #cbd5e1)', fontSize: '0.74rem', marginBottom: '6px' }}>
-                            <strong>Account Name:</strong> {camp.bankAccountName || camp.bank_account_name || camp.orgName || 'BBDRTS Relief Foundation Inc.'}
-                          </div>
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(0,0,0,0.25)', padding: '6px 8px', borderRadius: '6px', border: '1px solid rgba(255,255,255,0.06)' }}>
-                            <span style={{ fontFamily: 'monospace', color: '#38bdf8', fontWeight: 700, fontSize: '0.84rem' }}>
-                              {camp.bankAccountNumber || camp.bank_account_number}
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const acct = (camp.bankAccountNumber || camp.bank_account_number).replace(/\s+/g, '');
-                                navigator.clipboard.writeText(acct);
-                                showSuccess?.(`Account number ${acct} copied!`, 'Copied');
-                              }}
-                              style={{ background: 'rgba(56, 189, 248, 0.2)', border: '1px solid rgba(56, 189, 248, 0.4)', color: '#38bdf8', padding: '2px 6px', borderRadius: '4px', fontSize: '0.68rem', cursor: 'pointer', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '3px' }}
-                            >
-                              <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>content_copy</span>
-                              Copy
-                            </button>
-                          </div>
-                          {(camp.bankQrUrl || camp.bank_qr_url) && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setGatewayMethod('Bank Transfer');
-                                setGatewayStep(0);
-                                handleRemoveProof();
-                                createDirectQrIntent('Bank Transfer');
-                                setDonateStep(7);
-                              }}
-                              style={{
-                                marginTop: '8px',
-                                width: '100%',
-                                padding: '6px 10px',
-                                borderRadius: '7px',
-                                border: '1px solid rgba(139, 92, 246, 0.35)',
-                                background: 'rgba(139, 92, 246, 0.12)',
-                                color: '#c4b5fd',
-                                fontSize: '0.73rem',
-                                fontWeight: 600,
-                                cursor: 'pointer',
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                gap: '5px'
-                              }}
-                            >
-                              <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>qr_code_2</span>
-                              <span>Scan Bank / InstaPay QR &amp; Upload Slip</span>
-                            </button>
-                          )}
                         </div>
-                      )}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setGatewayMethod('Bank Transfer');
+                            setGatewayStep(0);
+                            handleRemoveProof();
+                            createDirectQrIntent('Bank Transfer');
+                            setDonateStep(7);
+                          }}
+                          style={{
+                            flexShrink: 0,
+                            padding: '5px 10px',
+                            borderRadius: '7px',
+                            border: '1px solid rgba(139, 92, 246, 0.35)',
+                            background: 'rgba(139, 92, 246, 0.12)',
+                            color: '#a78bfa',
+                            fontSize: '0.72rem',
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                            whiteSpace: 'nowrap'
+                          }}
+                        >
+                          Use Bank QR
+                        </button>
+                      </div>
 
                     </div>
 
