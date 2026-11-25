@@ -1674,56 +1674,11 @@ export default function AuthView({ onLoginSuccess, onBack, theme, onToggleTheme,
                 </div>
               </div>
 
-              {/* Centerpiece Editorial Mission Statement */}
-              <div className="brand-welcome-block">
-                <div className="brand-welcome-eyebrow">
-                  <span className="material-symbols-outlined">
-                    {isRegistering ? (role === 'organization' ? 'verified_user' : 'favorite') : 'verified_user'}
-                  </span>
-                  <span>
-                    {isRegistering
-                      ? (role === 'organization' ? 'VERIFIED NGO PORTAL' : 'DISASTER & CHARITY PORTAL')
-                      : 'TRANSPARENT RELIEF PORTAL'}
-                  </span>
-                </div>
-                <h2 className="brand-welcome-headline">
-                  {isRegistering
-                    ? (role === 'organization'
-                        ? 'Apply as a verified relief organization.'
-                        : 'Create your donor portal account.')
-                    : 'One portal for transparent relief.'}
-                </h2>
-                <p className="brand-welcome-copy">
-                  {isRegistering
-                    ? (role === 'organization'
-                        ? 'Register with SEC or DSWD credentials for admin approval before posting drives and logging spending reports.'
-                        : 'Donate in Philippine Pesos via Xendit QR Ph, GCash, Maya, cards, or bank transfer—with gasless Sepolia records and 0% BBDRTS commission.')
-                    : 'Sign in as a donor or verified NGO to track gasless Sepolia records, manage active relief drives, and inspect itemized delivery proof.'}
-                </p>
-              </div>
-
-              {/* Bottom Status Pill & Accurate Trust Labels */}
+              {/* Bottom Network Status Pill */}
               <div className="brand-footer-block">
                 <div className="brand-live-pill">
                   <span className="pulse-dot"></span>
                   <span>Sepolia Network Live</span>
-                  <span className="pill-dot-sep">•</span>
-                  <span className="pill-subtext">Gasless On-Chain Proof</span>
-                </div>
-
-                <div className="brand-trust-labels">
-                  <div className="trust-badge-item">
-                    <span className="material-symbols-outlined">document_scanner</span>
-                    <span>AI Slip Checks</span>
-                  </div>
-                  <div className="trust-badge-item">
-                    <span className="material-symbols-outlined">verified</span>
-                    <span>Checked NGOs</span>
-                  </div>
-                  <div className="trust-badge-item">
-                    <span className="material-symbols-outlined">volunteer_activism</span>
-                    <span>100% Direct Aid</span>
-                  </div>
                 </div>
               </div>
 
