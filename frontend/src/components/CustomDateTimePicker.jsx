@@ -273,7 +273,18 @@ export default function CustomDateTimePicker({
         <span className="material-symbols-outlined trigger-icon">{icon}</span>
 
         <span className="trigger-display-text">
-          {value || placeholder}
+          {value && String(value).includes(' | ')
+            ? (() => {
+                const [dPart, tPart] = String(value).split(' | ');
+                return (
+                  <>
+                    <span>{dPart}</span>
+                    <span className="dt-pipe-sep" aria-hidden="true">|</span>
+                    <span>{tPart}</span>
+                  </>
+                );
+              })()
+            : (value || placeholder)}
         </span>
 
         <div className="trigger-actions">

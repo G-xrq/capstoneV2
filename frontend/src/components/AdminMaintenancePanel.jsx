@@ -1268,11 +1268,25 @@ export default function AdminMaintenancePanel({ onMaintenanceStateChange, forced
                       <div className="sim-times-row">
                         <div className="sim-time-box">
                           <span className="time-lbl">Started</span>
-                          <strong className="time-val">{effectiveStartDisplay || 'In Progress'}</strong>
+                          <strong className="time-val">
+                            {effectiveStartDisplay && effectiveStartDisplay.includes(' | ')
+                              ? (() => {
+                                  const [dP, tP] = effectiveStartDisplay.split(' | ');
+                                  return (<><span>{dP}</span><span className="dt-pipe-sep" aria-hidden="true">|</span><span>{tP}</span></>);
+                                })()
+                              : (effectiveStartDisplay || 'In Progress')}
+                          </strong>
                         </div>
                         <div className="sim-time-box highlight">
                           <span className="time-lbl">Completion</span>
-                          <strong className="time-val">{effectiveEndDisplay || 'Shortly'}</strong>
+                          <strong className="time-val">
+                            {effectiveEndDisplay && effectiveEndDisplay.includes(' | ')
+                              ? (() => {
+                                  const [dP, tP] = effectiveEndDisplay.split(' | ');
+                                  return (<><span>{dP}</span><span className="dt-pipe-sep" aria-hidden="true">|</span><span>{tP}</span></>);
+                                })()
+                              : (effectiveEndDisplay || 'Shortly')}
+                          </strong>
                         </div>
                       </div>
 

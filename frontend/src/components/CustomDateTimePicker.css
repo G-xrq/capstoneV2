@@ -83,6 +83,12 @@
   font-variant-numeric: tabular-nums;
 }
 
+.dt-pipe-sep {
+  font-weight: 400;
+  opacity: 0.42;
+  margin: 0 5px;
+}
+
 .bbdrts-custom-dt-trigger .trigger-actions {
   display: flex;
   align-items: center;

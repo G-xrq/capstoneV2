@@ -24,6 +24,19 @@ function formatPipeDateTime(isoVal, displayVal, fallback = '') {
   return `${datePart} | ${timePart}`;
 }
 
+function renderPipeDateTime(isoVal, displayVal, fallback = '') {
+  const formatted = formatPipeDateTime(isoVal, displayVal, fallback);
+  if (!formatted || !formatted.includes(' | ')) return formatted;
+  const [datePart, timePart] = formatted.split(' | ');
+  return (
+    <>
+      <span>{datePart}</span>
+      <span style={{ fontWeight: 400, opacity: 0.42, margin: '0 5px' }} aria-hidden="true">|</span>
+      <span>{timePart}</span>
+    </>
+  );
+}
+
 function formatCountdown(ms) {
   const totalSecs = Math.max(0, Math.ceil(ms / 1000));
   const days = Math.floor(totalSecs / 86400);
@@ -282,8 +295,13 @@ export default function MaintenanceGuardModal({
               ) : (
                 <>
                   <span>
-                    Window: {formatPipeDateTime(maintenance.startTimeIso, maintenance.startTime, 'Soon')}
-                    {(maintenance.endTimeIso || maintenance.endTime) ? ` – ${formatPipeDateTime(maintenance.endTimeIso, maintenance.endTime)}` : ''}
+                    Window: {renderPipeDateTime(maintenance.startTimeIso, maintenance.startTime, 'Soon')}
+                    {(maintenance.endTimeIso || maintenance.endTime) ? (
+                      <>
+                        {' – '}
+                        {renderPipeDateTime(maintenance.endTimeIso, maintenance.endTime)}
+                      </>
+                    ) : null}
                   </span>
                   <span className="upcoming-sep">·</span>
                   <span>Please finish active forms soon</span>
@@ -432,7 +450,7 @@ export default function MaintenanceGuardModal({
                     <span>Maintenance Started</span>
                   </div>
                   <strong className="bbdrts-maint-cell-val">
-                    {formatPipeDateTime(maintenance?.startTimeIso, maintenance?.startTime, 'In Progress')}
+                    {renderPipeDateTime(maintenance?.startTimeIso, maintenance?.startTime, 'In Progress')}
                   </strong>
                 </div>
 
@@ -442,7 +460,7 @@ export default function MaintenanceGuardModal({
                     <span>Expected Completion</span>
                   </div>
                   <strong className="bbdrts-maint-cell-val">
-                    {formatPipeDateTime(maintenance?.endTimeIso, maintenance?.endTime, 'Expected Shortly')}
+                    {renderPipeDateTime(maintenance?.endTimeIso, maintenance?.endTime, 'Expected Shortly')}
                   </strong>
                 </div>
               </div>
