@@ -136,6 +136,8 @@ export default function AdminMaintenancePanel({ onMaintenanceStateChange, forced
   const [savingMaintenance, setSavingMaintenance] = useState(false);
   const [liveNowMs, setLiveNowMs] = useState(() => Date.now());
   const [followLiveStart, setFollowLiveStart] = useState(true);
+  const [linkedDurationMins, setLinkedDurationMins] = useState(15);
+  const [isEndOpenEnded, setIsEndOpenEnded] = useState(false);
 
   useEffect(() => {
     const t = setInterval(() => setLiveNowMs(Date.now()), 1000);
@@ -163,6 +165,8 @@ export default function AdminMaintenancePanel({ onMaintenanceStateChange, forced
   };
 
   const rawStartMs = parseMaintMs(maintenance.startTimeIso, maintenance.startTime);
+  const rawEndMs = parseMaintMs(maintenance.endTimeIso, maintenance.endTime);
+
   // Follow real live time whenever user is in Live/Now mode OR when a non-active saved/draft start time has fallen into the past
   const isLiveStartActive = Boolean(
     followLiveStart ||
@@ -173,9 +177,25 @@ export default function AdminMaintenancePanel({ onMaintenanceStateChange, forced
     ? formatFriendlyDateTime(effectiveStartDate)
     : (maintenance.startTime || '');
   const effectiveStartIso = effectiveStartDate ? effectiveStartDate.toISOString() : '';
-
   const startMs = isLiveStartActive ? liveNowMs : rawStartMs;
-  const endMs = parseMaintMs(maintenance.endTimeIso, maintenance.endTime);
+
+  // Keep Expected Completion always a specific duration ahead of Effective From unless explicitly cleared or running a saved countdown
+  const isLinkedEndActive = Boolean(
+    !isEndOpenEnded && (
+      linkedDurationMins !== null ||
+      (!maintenance.enabled && (!rawEndMs || rawEndMs <= (startMs || liveNowMs)))
+    )
+  );
+  const activeOffsetMins = linkedDurationMins || 15;
+  const endMs = isEndOpenEnded
+    ? null
+    : (isLinkedEndActive ? (startMs || liveNowMs) + activeOffsetMins * 60000 : rawEndMs);
+  const effectiveEndDate = endMs ? new Date(endMs) : null;
+  const effectiveEndDisplay = isEndOpenEnded
+    ? ''
+    : (isLinkedEndActive ? formatFriendlyDateTime(effectiveEndDate) : (maintenance.endTime || ''));
+  const effectiveEndIso = effectiveEndDate ? effectiveEndDate.toISOString() : '';
+
   const hasInvalidWindow = Boolean(startMs && endMs && endMs <= startMs);
   const isEndPastNow = Boolean(endMs && endMs <= liveNowMs);
   const isEndInPast = Boolean(maintenance.enabled && maintenance.autoDeactivate && isEndPastNow);
@@ -213,10 +233,29 @@ export default function AdminMaintenancePanel({ onMaintenanceStateChange, forced
       if (res.ok) {
         const data = await res.json();
         setMaintenance(data);
+        const nowFetch = Date.now();
         const fetchedStartMs = parseMaintMs(data.startTimeIso, data.startTime);
-        const isFutureScheduled = Boolean(fetchedStartMs && fetchedStartMs > Date.now());
-        const isActiveRunning = Boolean(data.enabled && fetchedStartMs && fetchedStartMs <= Date.now());
+        const fetchedEndMs = parseMaintMs(data.endTimeIso, data.endTime);
+        const isFutureScheduled = Boolean(fetchedStartMs && fetchedStartMs > nowFetch);
+        const isActiveRunning = Boolean(data.enabled && fetchedStartMs && fetchedStartMs <= nowFetch);
         setFollowLiveStart(!isFutureScheduled && !isActiveRunning);
+
+        if (data.enabled && fetchedEndMs && fetchedEndMs > nowFetch) {
+          // Preserve active countdown target without moving the finish line
+          setLinkedDurationMins(null);
+          setIsEndOpenEnded(false);
+        } else if (data.enabled && !fetchedEndMs) {
+          setLinkedDurationMins(null);
+          setIsEndOpenEnded(true);
+        } else {
+          // Inactive or previously completed window: keep Expected Completion cleanly ahead (+15m default)
+          const inferredMins = (fetchedStartMs && fetchedEndMs && fetchedEndMs > fetchedStartMs)
+            ? Math.max(2, Math.round((fetchedEndMs - fetchedStartMs) / 60000))
+            : 15;
+          const snapped = [2, 5, 15, 30, 60].includes(inferredMins) ? inferredMins : 15;
+          setLinkedDurationMins(snapped);
+          setIsEndOpenEnded(false);
+        }
         if (onMaintenanceStateChange) onMaintenanceStateChange(data.enabled);
       }
     } catch (err) {
@@ -364,7 +403,9 @@ export default function AdminMaintenancePanel({ onMaintenanceStateChange, forced
         config: {
           ...maintenance,
           startTime: effectiveStartDisplay,
-          startTimeIso: effectiveStartIso
+          startTimeIso: effectiveStartIso,
+          endTime: effectiveEndDisplay,
+          endTimeIso: effectiveEndIso
         }
       }
     }));
@@ -382,11 +423,14 @@ export default function AdminMaintenancePanel({ onMaintenanceStateChange, forced
         startTime: formatFriendlyDateTime(startDate),
         startTimeIso: startDate.toISOString()
       };
-      // If existing completion time is earlier than or equal to new start time, keep it cleanly ahead (+15m)
-      if (existingEndMs && existingEndMs <= startDate.getTime()) {
-        const shiftedEnd = new Date(startDate.getTime() + 15 * 60000);
-        next.endTime = formatFriendlyDateTime(shiftedEnd);
-        next.endTimeIso = shiftedEnd.toISOString();
+      if (!isEndOpenEnded) {
+        const offsetToKeep = linkedDurationMins || (existingEndMs && existingEndMs <= startDate.getTime() ? 15 : null);
+        if (offsetToKeep) {
+          const shiftedEnd = new Date(startDate.getTime() + offsetToKeep * 60000);
+          next.endTime = formatFriendlyDateTime(shiftedEnd);
+          next.endTimeIso = shiftedEnd.toISOString();
+          next.autoDeactivate = true;
+        }
       }
       return next;
     });
@@ -395,18 +439,19 @@ export default function AdminMaintenancePanel({ onMaintenanceStateChange, forced
   const handleSetStartNow = () => handleSetStartOffset(0);
 
   const handleSetDurationFromStart = (durationMins) => {
+    setIsEndOpenEnded(false);
+    setLinkedDurationMins(durationMins);
     setMaintenance(prev => {
       const now = Date.now();
       const startParsed = parseMaintMs(prev.startTimeIso, prev.startTime);
       const isFutureStart = Boolean(!followLiveStart && startParsed && startParsed > now);
-      if (!isFutureStart) setFollowLiveStart(true);
-      const baseDate = new Date(isFutureStart ? startParsed : now);
-      baseDate.setSeconds(0, 0);
-      const target = new Date(baseDate.getTime() + durationMins * 60000);
+      if (!isFutureStart && !prev.enabled) setFollowLiveStart(true);
+      const baseMs = isFutureStart ? startParsed : now;
+      const target = new Date(baseMs + durationMins * 60000);
       return {
         ...prev,
-        ...(!isFutureStart
-          ? { startTime: formatFriendlyDateTime(baseDate), startTimeIso: baseDate.toISOString() }
+        ...(!isFutureStart && !prev.enabled
+          ? { startTime: formatFriendlyDateTime(new Date(baseMs)), startTimeIso: new Date(baseMs).toISOString() }
           : {}),
         endTime: formatFriendlyDateTime(target),
         endTimeIso: target.toISOString(),
@@ -416,6 +461,8 @@ export default function AdminMaintenancePanel({ onMaintenanceStateChange, forced
   };
 
   const handleMakeOpenEnded = () => {
+    setLinkedDurationMins(null);
+    setIsEndOpenEnded(true);
     setMaintenance(prev => ({
       ...prev,
       endTime: '',
@@ -439,11 +486,18 @@ export default function AdminMaintenancePanel({ onMaintenanceStateChange, forced
     try {
       const nowAtSave = new Date();
       const finalStartDate = isLiveStartActive ? nowAtSave : (startMs ? new Date(startMs) : null);
+      const finalEndDate = isEndOpenEnded
+        ? null
+        : (isLinkedEndActive
+            ? new Date((finalStartDate ? finalStartDate.getTime() : nowAtSave.getTime()) + activeOffsetMins * 60000)
+            : (endMs ? new Date(endMs) : null));
       const payload = {
         ...maintenance,
         startTime: finalStartDate ? formatFriendlyDateTime(finalStartDate) : '',
         startTimeIso: finalStartDate ? finalStartDate.toISOString() : '',
-        endTimeIso: endMs ? new Date(endMs).toISOString() : ''
+        endTime: finalEndDate ? formatFriendlyDateTime(finalEndDate) : '',
+        endTimeIso: finalEndDate ? finalEndDate.toISOString() : '',
+        autoDeactivate: finalEndDate ? Boolean(maintenance.autoDeactivate) : false
       };
       const token = localStorage.getItem('bbdrts_token') || localStorage.getItem('token');
       const res = await fetch(`${API_URL}/api/admin/maintenance`, {
@@ -460,6 +514,10 @@ export default function AdminMaintenancePanel({ onMaintenanceStateChange, forced
 
       const savedConfig = data.config || payload;
       setMaintenance(savedConfig);
+      if (savedConfig.enabled && finalEndDate) {
+        setFollowLiveStart(false);
+        setLinkedDurationMins(null);
+      }
       try {
         localStorage.setItem('bbdrts_maintenance', JSON.stringify(savedConfig));
       } catch (_) {}
@@ -820,11 +878,24 @@ export default function AdminMaintenancePanel({ onMaintenanceStateChange, forced
                         }
                         const isFuture = dateObj.getTime() > Date.now() + 30000;
                         setFollowLiveStart(!isFuture);
-                        setMaintenance(prev => ({
-                          ...prev,
-                          startTime: formattedStr,
-                          startTimeIso: dateObj.toISOString()
-                        }));
+                        setMaintenance(prev => {
+                          const next = {
+                            ...prev,
+                            startTime: formattedStr,
+                            startTimeIso: dateObj.toISOString()
+                          };
+                          if (!isEndOpenEnded) {
+                            const prevEnd = parseMaintMs(prev.endTimeIso, prev.endTime);
+                            const offsetToKeep = linkedDurationMins || (prevEnd && prevEnd <= dateObj.getTime() ? 15 : null);
+                            if (offsetToKeep) {
+                              const shifted = new Date(dateObj.getTime() + offsetToKeep * 60000);
+                              next.endTime = formatFriendlyDateTime(shifted);
+                              next.endTimeIso = shifted.toISOString();
+                              next.autoDeactivate = true;
+                            }
+                          }
+                          return next;
+                        });
                       }}
                       placeholder="Following live time..."
                       icon="schedule"
@@ -846,22 +917,44 @@ export default function AdminMaintenancePanel({ onMaintenanceStateChange, forced
                         <span>Expected Completion</span>
                       </label>
                       <div className="schedule-quick-chips">
-                        <button type="button" className="btn-set-now is-end" onClick={() => handleSetDurationFromStart(2)}>+2m</button>
-                        <button type="button" className="btn-set-now is-end" onClick={() => handleSetDurationFromStart(5)}>+5m</button>
-                        <button type="button" className="btn-set-now is-end" onClick={() => handleSetDurationFromStart(15)}>+15m</button>
-                        <button type="button" className="btn-set-now is-end" onClick={() => handleSetDurationFromStart(30)}>+30m</button>
-                        <button type="button" className="btn-set-now is-end" onClick={() => handleSetDurationFromStart(60)}>+1h</button>
+                        {[
+                          { mins: 2, label: '+2m' },
+                          { mins: 5, label: '+5m' },
+                          { mins: 15, label: '+15m' },
+                          { mins: 30, label: '+30m' },
+                          { mins: 60, label: '+1h' }
+                        ].map((opt) => {
+                          const isActiveChip = Boolean(isLinkedEndActive && activeOffsetMins === opt.mins);
+                          return (
+                            <button
+                              key={opt.mins}
+                              type="button"
+                              className={`btn-set-now is-end${isActiveChip ? ' is-end-active' : ''}`}
+                              onClick={() => handleSetDurationFromStart(opt.mins)}
+                              title={`Keep Expected Completion ${opt.label} ahead of Effective From`}
+                            >
+                              {isActiveChip && <span className="live-chip-dot" />}
+                              <span>{opt.label}</span>
+                            </button>
+                          );
+                        })}
                       </div>
                     </div>
 
                     <CustomDateTimePicker
-                      value={maintenance.endTime}
+                      value={effectiveEndDisplay}
                       onChange={(formattedStr, dateObj) => {
+                        if (!formattedStr || !dateObj || isNaN(dateObj.getTime())) {
+                          handleMakeOpenEnded();
+                          return;
+                        }
+                        setIsEndOpenEnded(false);
+                        setLinkedDurationMins(null);
                         setMaintenance(prev => ({
                           ...prev,
                           endTime: formattedStr,
-                          endTimeIso: dateObj && !isNaN(dateObj.getTime()) ? dateObj.toISOString() : '',
-                          autoDeactivate: formattedStr ? true : false
+                          endTimeIso: dateObj.toISOString(),
+                          autoDeactivate: true
                         }));
                       }}
                       placeholder="Open-ended (no completion time)..."
@@ -876,9 +969,11 @@ export default function AdminMaintenancePanel({ onMaintenanceStateChange, forced
                         ? 'Must be later than Effective From'
                         : isEndPastNow
                           ? 'Completion time has already passed'
-                          : endMs
-                            ? `Duration: ${formatDurationShort(endMs - (startMs && startMs > liveNowMs ? startMs : liveNowMs))}`
-                            : 'Open-ended until turned off manually'}
+                          : isLinkedEndActive
+                            ? `Tracks +${activeOffsetMins >= 60 ? `${activeOffsetMins / 60}h` : `${activeOffsetMins}m`} ahead of Effective From`
+                            : endMs
+                              ? `Duration: ${formatDurationShort(endMs - (startMs && startMs > liveNowMs ? startMs : liveNowMs))}`
+                              : 'Open-ended until turned off manually'}
                     </span>
                   </div>
                 </div>
@@ -896,7 +991,7 @@ export default function AdminMaintenancePanel({ onMaintenanceStateChange, forced
                         </>
                       ) : isEndPastNow ? (
                         <>
-                          <strong>Completion time has passed:</strong> {maintenance.endTime} is in the past. Set a future completion time or make it open-ended.
+                          <strong>Completion time has passed:</strong> {effectiveEndDisplay || maintenance.endTime} is in the past. Set a future completion time or make it open-ended.
                         </>
                       ) : startMs && startMs > liveNowMs ? (
                         <>
@@ -1170,7 +1265,7 @@ export default function AdminMaintenancePanel({ onMaintenanceStateChange, forced
                         </div>
                         <div className="sim-time-box highlight">
                           <span className="time-lbl">Completion</span>
-                          <strong className="time-val">{maintenance.endTime || 'Shortly'}</strong>
+                          <strong className="time-val">{effectiveEndDisplay || 'Shortly'}</strong>
                         </div>
                       </div>
 
