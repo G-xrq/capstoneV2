@@ -23,7 +23,7 @@ import GuidedTour from '../components/GuidedTour';
 import SidebarToggleIcon from '../components/SidebarToggleIcon';
 import DisbursementProofModal from '../components/DisbursementProofModal';
 import FilterableExportModal from '../components/FilterableExportModal';
-import GeistSelect from '../components/GeistSelect';
+import GeistSelect, { GeistMultiSelect } from '../components/GeistSelect';
 import { useToast } from '../context/ToastContext';
 import { API_URL } from '../config';
 import { useRealtimeSync } from '../hooks/useRealtimeSync';
@@ -1709,162 +1709,55 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
 
                   {/* Filter Controls Cluster */}
                   <div className="ec-filters-group">
-                    {/* Cause Dropdown */}
-                    <div className="ec-dropdown-wrap" ref={causesDropdownRef}>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setShowCausesDropdown(prev => !prev);
-                          setShowPrioritiesDropdown(false);
-                          setShowTagsDropdown(false);
-                          setShowSortDropdown(false);
-                        }}
-                        className={`ec-filter-btn ${categoryFilter !== 'ALL' ? 'is-active' : ''}`}
-                        title="Filter by cause category"
-                      >
-                        <span className="material-symbols-outlined ec-filter-icon">{selectedCauseObj.icon}</span>
-                        <span>{selectedCauseObj.label}</span>
-                        <span className="material-symbols-outlined ec-filter-chevron">
-                          {showCausesDropdown ? 'expand_less' : 'expand_more'}
-                        </span>
-                      </button>
+                    {/* Cause Filter */}
+                    <GeistSelect
+                      compact
+                      width="154px"
+                      menuMinWidth={230}
+                      activeHighlight={categoryFilter !== 'ALL'}
+                      value={categoryFilter}
+                      onChange={(val) => setCategoryFilter(val)}
+                      options={CAUSE_OPTIONS.map(opt => ({
+                        id: opt.value,
+                        label: opt.label,
+                        sub: opt.value === 'DR' ? 'Typhoon, flood & emergency drives' : opt.value === 'CD' ? 'Community, medical & outreach drives' : 'Disaster relief & charitable drives',
+                        icon: opt.icon
+                      }))}
+                    />
 
-                      {showCausesDropdown && (
-                        <div className="ec-popover">
-                          <div className="ec-popover-label">Cause Category</div>
-                          {CAUSE_OPTIONS.map(opt => (
-                            <button
-                              key={opt.value}
-                              type="button"
-                              onClick={() => {
-                                setCategoryFilter(opt.value);
-                                setShowCausesDropdown(false);
-                              }}
-                              className={`ec-popover-opt ${categoryFilter === opt.value ? 'is-selected' : ''}`}
-                            >
-                              <span className="material-symbols-outlined ec-popover-opt-icon">{opt.icon}</span>
-                              <span>{opt.label}</span>
-                              {categoryFilter === opt.value && (
-                                <span className="material-symbols-outlined ec-popover-check">check</span>
-                              )}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
+                    {/* Priority Filter */}
+                    <GeistSelect
+                      compact
+                      width="154px"
+                      menuMinWidth={220}
+                      activeHighlight={urgencyFilter !== 'ALL'}
+                      value={urgencyFilter}
+                      onChange={(val) => setUrgencyFilter(val)}
+                      options={PRIORITY_OPTIONS.map(opt => ({
+                        id: opt.value,
+                        label: opt.label,
+                        icon: opt.icon
+                      }))}
+                    />
 
-                    {/* Priority Dropdown */}
-                    <div className="ec-dropdown-wrap" ref={prioritiesDropdownRef}>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setShowPrioritiesDropdown(prev => !prev);
-                          setShowCausesDropdown(false);
-                          setShowTagsDropdown(false);
-                          setShowSortDropdown(false);
-                        }}
-                        className={`ec-filter-btn ${urgencyFilter !== 'ALL' ? 'is-active' : ''}`}
-                        title="Filter by urgency priority"
-                      >
-                        <span className="material-symbols-outlined ec-filter-icon">{selectedPriorityObj.icon}</span>
-                        <span>{selectedPriorityObj.label}</span>
-                        <span className="material-symbols-outlined ec-filter-chevron">
-                          {showPrioritiesDropdown ? 'expand_less' : 'expand_more'}
-                        </span>
-                      </button>
-
-                      {showPrioritiesDropdown && (
-                        <div className="ec-popover">
-                          <div className="ec-popover-label">Urgency Priority</div>
-                          {PRIORITY_OPTIONS.map(opt => (
-                            <button
-                              key={opt.value}
-                              type="button"
-                              onClick={() => {
-                                setUrgencyFilter(opt.value);
-                                setShowPrioritiesDropdown(false);
-                              }}
-                              className={`ec-popover-opt ${urgencyFilter === opt.value ? 'is-selected' : ''}`}
-                            >
-                              <span className="material-symbols-outlined ec-popover-opt-icon">{opt.icon}</span>
-                              <span>{opt.label}</span>
-                              {urgencyFilter === opt.value && (
-                                <span className="material-symbols-outlined ec-popover-check">check</span>
-                              )}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Tags Multi-Select Popover */}
-                    <div className="ec-dropdown-wrap" ref={tagsDropdownRef}>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setShowTagsDropdown(prev => !prev);
-                          setShowCausesDropdown(false);
-                          setShowPrioritiesDropdown(false);
-                          setShowSortDropdown(false);
-                        }}
-                        className={`ec-filter-btn ${selectedTags.length > 0 ? 'is-active' : ''}`}
-                        title="Filter by tags"
-                      >
-                        <span className="material-symbols-outlined ec-filter-icon">sell</span>
-                        <span>Tags</span>
-                        {selectedTags.length > 0 && (
-                          <span className="ec-filter-badge">{selectedTags.length}</span>
-                        )}
-                        <span className="material-symbols-outlined ec-filter-chevron">
-                          {showTagsDropdown ? 'expand_less' : 'expand_more'}
-                        </span>
-                      </button>
-
-                      {showTagsDropdown && (
-                        <div className="ec-popover ec-tags-popover">
-                          <div className="ec-tags-popover-head">
-                            <span className="ec-popover-label" style={{ padding: 0 }}>Filter by Tags</span>
-                            {selectedTags.length > 0 && (
-                              <button
-                                type="button"
-                                onClick={() => setSelectedTags([])}
-                                className="ec-tags-clear-btn"
-                              >
-                                Clear ({selectedTags.length})
-                              </button>
-                            )}
-                          </div>
-
-                          <div className="ec-tags-list">
-                            <label className={`ec-tag-row ${selectedTags.length === 0 ? 'is-checked' : ''}`}>
-                              <input
-                                type="checkbox"
-                                checked={selectedTags.length === 0}
-                                onChange={() => setSelectedTags([])}
-                              />
-                              <span className="ec-tag-name">All Tags</span>
-                              <span className="ec-tag-count">{campaigns?.length || 0}</span>
-                            </label>
-
-                            {availableTags.map((tag) => {
-                              const isChecked = selectedTags.includes(tag);
-                              const count = tagCounts[tag] || 0;
-                              return (
-                                <label key={tag} className={`ec-tag-row ${isChecked ? 'is-checked' : ''}`}>
-                                  <input
-                                    type="checkbox"
-                                    checked={isChecked}
-                                    onChange={() => toggleTag(tag)}
-                                  />
-                                  <span className="ec-tag-name">#{tag}</span>
-                                  {count > 0 && <span className="ec-tag-count">{count}</span>}
-                                </label>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      )}
-                    </div>
+                    {/* Tags Multi-Select Filter */}
+                    <GeistMultiSelect
+                      compact
+                      width="112px"
+                      menuMinWidth={260}
+                      label="Tags"
+                      allLabel="All Tags"
+                      allCount={campaigns?.length || 0}
+                      searchPlaceholder="Search campaign tags..."
+                      selected={selectedTags}
+                      onClear={() => setSelectedTags([])}
+                      onToggle={(tag) => toggleTag(tag)}
+                      options={availableTags.map(tag => ({
+                        id: tag,
+                        label: `#${tag}`,
+                        count: tagCounts[tag] || 0
+                      }))}
+                    />
 
                     {/* Tracked Watchlist Toggle */}
                     <button
@@ -1883,49 +1776,20 @@ export default function DonorView({ contract, walletAddress, walletAlertBanner, 
 
                     <span className="ec-toolbar-divider" aria-hidden="true" />
 
-                    {/* Sort Popover */}
-                    <div className="ec-dropdown-wrap" ref={sortDropdownRef}>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setShowSortDropdown(prev => !prev);
-                          setShowCausesDropdown(false);
-                          setShowPrioritiesDropdown(false);
-                          setShowTagsDropdown(false);
-                        }}
-                        className="ec-filter-btn"
-                        title="Sort campaigns"
-                      >
-                        <span className="material-symbols-outlined ec-filter-icon">swap_vert</span>
-                        <span>{selectedSortObj.label}</span>
-                        <span className="material-symbols-outlined ec-filter-chevron">
-                          {showSortDropdown ? 'expand_less' : 'expand_more'}
-                        </span>
-                      </button>
-
-                      {showSortDropdown && (
-                        <div className="ec-popover ec-popover--right">
-                          <div className="ec-popover-label">Sort Order</div>
-                          {SORT_OPTIONS.map(opt => (
-                            <button
-                              key={opt.value}
-                              type="button"
-                              onClick={() => {
-                                setCampaignSort(opt.value);
-                                setShowSortDropdown(false);
-                              }}
-                              className={`ec-popover-opt ${campaignSort === opt.value ? 'is-selected' : ''}`}
-                            >
-                              <span className="material-symbols-outlined ec-popover-opt-icon">{opt.icon}</span>
-                              <span>{opt.label}</span>
-                              {campaignSort === opt.value && (
-                                <span className="material-symbols-outlined ec-popover-check">check</span>
-                              )}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </div>
+                    {/* Sort Filter */}
+                    <GeistSelect
+                      compact
+                      alignRight
+                      width="160px"
+                      menuMinWidth={210}
+                      value={campaignSort}
+                      onChange={(val) => setCampaignSort(val)}
+                      options={SORT_OPTIONS.map(opt => ({
+                        id: opt.value,
+                        label: opt.label,
+                        icon: opt.icon
+                      }))}
+                    />
 
                     {/* Segmented List / Grid Switcher */}
                     <div className="ec-view-seg" role="group" aria-label="Layout view mode">

@@ -20,7 +20,7 @@ import AnalyticsReportsPanel from '../components/AnalyticsReportsPanel';
 import DeclareDirectDepositModal from '../components/DeclareDirectDepositModal';
 import FilterableExportModal from '../components/FilterableExportModal';
 import OfficialAuditVoucherModal from '../components/OfficialAuditVoucherModal';
-import GeistSelect from '../components/GeistSelect';
+import GeistSelect, { GeistMultiSelect } from '../components/GeistSelect';
 import { useToast } from '../context/ToastContext';
 import { getRegions, getRegionForProvince } from '../data/philippineGeoData';
 import { CONTRACT_ADDRESS } from '../contractConfig';
@@ -3405,169 +3405,59 @@ export default function OrganizationView({
                     <span>Filters</span>
                   </div>
 
-                  {/* Cause Filter Pill Popover */}
-                  <div style={{ position: 'relative' }} ref={causesDropdownRefAll}>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowCausesDropdownAll(prev => !prev);
-                        setShowPrioritiesDropdownAll(false);
-                        setShowTagsDropdownAll(false);
-                        setShowSortDropdownAll(false);
-                      }}
-                      className={`filter-pill-btn ${categoryFilterAll !== 'ALL' ? 'active-filter' : ''}`}
-                      title="Filter by cause category"
-                    >
-                      <span className="material-symbols-outlined filter-pill-icon" style={{ color: 'var(--text-secondary)' }}>{selectedCauseObjAll.icon}</span>
-                      <span>{selectedCauseObjAll.label}</span>
-                      <span className="material-symbols-outlined filter-pill-arrow" style={{ position: 'static', marginLeft: '4px' }}>
-                        {showCausesDropdownAll ? 'expand_less' : 'expand_more'}
-                      </span>
-                    </button>
+                  {/* Cause Filter */}
+                  <GeistSelect
+                    compact
+                    width="156px"
+                    menuMinWidth={230}
+                    activeHighlight={categoryFilterAll !== 'ALL'}
+                    value={categoryFilterAll}
+                    onChange={(val) => setCategoryFilterAll(val)}
+                    options={CAUSE_OPTIONS.map(opt => ({
+                      id: opt.value,
+                      label: opt.label,
+                      sub: opt.value === 'DR' ? 'Typhoon, flood & emergency drives' : opt.value === 'CD' ? 'Community, medical & outreach drives' : 'Disaster relief & charitable drives',
+                      icon: opt.icon
+                    }))}
+                  />
 
-                    {showCausesDropdownAll && (
-                      <div className="filter-custom-popover">
-                        {CAUSE_OPTIONS.map(opt => (
-                          <button
-                            key={opt.value}
-                            type="button"
-                            onClick={() => {
-                              setCategoryFilterAll(opt.value);
-                              setShowCausesDropdownAll(false);
-                            }}
-                            className={`filter-popover-option ${categoryFilterAll === opt.value ? 'selected' : ''}`}
-                          >
-                            <span className="material-symbols-outlined filter-popover-option-icon" style={{ color: 'var(--text-secondary)' }}>{opt.icon}</span>
-                            <span>{opt.label}</span>
-                            {categoryFilterAll === opt.value && (
-                              <span className="material-symbols-outlined filter-popover-check">check</span>
-                            )}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+                  {/* Priority Filter */}
+                  <GeistSelect
+                    compact
+                    width="158px"
+                    menuMinWidth={220}
+                    activeHighlight={urgencyFilterAll !== 'ALL'}
+                    value={urgencyFilterAll}
+                    onChange={(val) => setUrgencyFilterAll(val)}
+                    options={PRIORITY_OPTIONS.map(opt => ({
+                      id: opt.value,
+                      label: opt.label,
+                      icon: opt.icon
+                    }))}
+                  />
 
-                  {/* Priority Filter Pill Popover */}
-                  <div style={{ position: 'relative' }} ref={prioritiesDropdownRefAll}>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowPrioritiesDropdownAll(prev => !prev);
-                        setShowCausesDropdownAll(false);
-                        setShowTagsDropdownAll(false);
-                        setShowSortDropdownAll(false);
-                      }}
-                      className={`filter-pill-btn ${urgencyFilterAll !== 'ALL' ? 'active-filter' : ''}`}
-                      title="Filter by urgency priority"
-                    >
-                      <span className="material-symbols-outlined filter-pill-icon" style={{ color: 'var(--text-secondary)' }}>{selectedPriorityObjAll.icon}</span>
-                      <span>{selectedPriorityObjAll.label}</span>
-                      <span className="material-symbols-outlined filter-pill-arrow" style={{ position: 'static', marginLeft: '4px' }}>
-                        {showPrioritiesDropdownAll ? 'expand_less' : 'expand_more'}
-                      </span>
-                    </button>
-
-                    {showPrioritiesDropdownAll && (
-                      <div className="filter-custom-popover">
-                        {PRIORITY_OPTIONS.map(opt => (
-                          <button
-                            key={opt.value}
-                            type="button"
-                            onClick={() => {
-                              setUrgencyFilterAll(opt.value);
-                              setShowPrioritiesDropdownAll(false);
-                            }}
-                            className={`filter-popover-option ${urgencyFilterAll === opt.value ? 'selected' : ''}`}
-                          >
-                            <span className="material-symbols-outlined filter-popover-option-icon" style={{ color: 'var(--text-secondary)' }}>{opt.icon}</span>
-                            <span>{opt.label}</span>
-                            {urgencyFilterAll === opt.value && (
-                              <span className="material-symbols-outlined filter-popover-check">check</span>
-                            )}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Tags Dropdown Popover with Checkboxes */}
-                  <div style={{ position: 'relative' }} ref={tagsDropdownRefAll}>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowTagsDropdownAll(prev => !prev);
-                        setShowCausesDropdownAll(false);
-                        setShowPrioritiesDropdownAll(false);
-                        setShowSortDropdownAll(false);
-                      }}
-                      className={`filter-pill-btn ${selectedTagsAll.length > 0 ? 'active-filter' : ''}`}
-                      title="Filter by tags"
-                    >
-                      <span className="material-symbols-outlined filter-pill-icon" style={{ color: 'var(--text-secondary)' }}>sell</span>
-                      <span>Tags</span>
-                      {selectedTagsAll.length > 0 && (
-                        <span className="tags-dropdown-badge-ref">{selectedTagsAll.length}</span>
-                      )}
-                      <span className="material-symbols-outlined filter-pill-arrow" style={{ position: 'static', marginLeft: '4px' }}>
-                        {showTagsDropdownAll ? 'expand_less' : 'expand_more'}
-                      </span>
-                    </button>
-
-                    {showTagsDropdownAll && (
-                      <div className="tags-popover-menu">
-                        <div className="tags-popover-header">
-                          <span className="tags-popover-title">
-                            <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>sell</span>
-                            Filter by Tags
-                          </span>
-                          {selectedTagsAll.length > 0 && (
-                            <button
-                              type="button"
-                              onClick={() => setSelectedTagsAll([])}
-                              className="tags-popover-clear-btn"
-                            >
-                              Clear ({selectedTagsAll.length})
-                            </button>
-                          )}
-                        </div>
-
-                        <div className="tags-popover-list">
-                          {/* "All Tags" Checkbox */}
-                          <label className={`tags-popover-item ${selectedTagsAll.length === 0 ? 'checked' : ''}`}>
-                            <input
-                              type="checkbox"
-                              checked={selectedTagsAll.length === 0}
-                              onChange={() => setSelectedTagsAll([])}
-                            />
-                            <span className="tags-popover-tag-text">All Tags</span>
-                            <span className="tags-popover-count">{campaigns?.length || 0}</span>
-                          </label>
-
-                          {/* Individual Tag Checkboxes */}
-                          {availableTagsAll.map((tag) => {
-                            const isChecked = selectedTagsAll.includes(tag);
-                            const count = tagCountsAll[tag] || 0;
-                            return (
-                              <label key={tag} className={`tags-popover-item ${isChecked ? 'checked' : ''}`}>
-                                <input
-                                  type="checkbox"
-                                  checked={isChecked}
-                                  onChange={() => {
-                                    setSelectedTagsAll(prev =>
-                                      prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]
-                                    );
-                                  }}
-                                />
-                                <span className="tags-popover-tag-text">#{tag}</span>
-                                {count > 0 && <span className="tags-popover-count">{count}</span>}
-                              </label>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
-                  </div>
+                  {/* Tags Multi-Select Filter */}
+                  <GeistMultiSelect
+                    compact
+                    width="116px"
+                    menuMinWidth={260}
+                    label="Tags"
+                    allLabel="All Tags"
+                    allCount={campaigns?.length || 0}
+                    searchPlaceholder="Search campaign tags..."
+                    selected={selectedTagsAll}
+                    onClear={() => setSelectedTagsAll([])}
+                    onToggle={(tag) => {
+                      setSelectedTagsAll(prev =>
+                        prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]
+                      );
+                    }}
+                    options={availableTagsAll.map(tag => ({
+                      id: tag,
+                      label: `#${tag}`,
+                      count: tagCountsAll[tag] || 0
+                    }))}
+                  />
                 </div>
 
                 {/* Right: Search Box + Sort Pill */}
@@ -3599,48 +3489,20 @@ export default function OrganizationView({
                     <kbd className="filter-search-shortcut-badge" title="Press Ctrl+K or ⌘K to focus search">⌘ K</kbd>
                   </div>
 
-                  {/* Sort Pill Popover */}
-                  <div style={{ position: 'relative' }} ref={sortDropdownRefAll}>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowSortDropdownAll(prev => !prev);
-                        setShowCausesDropdownAll(false);
-                        setShowPrioritiesDropdownAll(false);
-                        setShowTagsDropdownAll(false);
-                      }}
-                      className="filter-pill-btn"
-                      title="Sort campaigns"
-                    >
-                      <span className="material-symbols-outlined filter-pill-icon" style={{ color: '#94a3b8' }}>swap_vert</span>
-                      <span>{selectedSortObjAll.label}</span>
-                      <span className="material-symbols-outlined filter-pill-arrow" style={{ position: 'static', marginLeft: '4px' }}>
-                        {showSortDropdownAll ? 'expand_less' : 'expand_more'}
-                      </span>
-                    </button>
-
-                    {showSortDropdownAll && (
-                      <div className="filter-custom-popover align-right">
-                        {SORT_OPTIONS.map(opt => (
-                          <button
-                            key={opt.value}
-                            type="button"
-                            onClick={() => {
-                              setCampaignSortAll(opt.value);
-                              setShowSortDropdownAll(false);
-                            }}
-                            className={`filter-popover-option ${campaignSortAll === opt.value ? 'selected' : ''}`}
-                          >
-                            <span className="material-symbols-outlined filter-popover-option-icon" style={{ color: '#94a3b8' }}>{opt.icon}</span>
-                            <span>{opt.label}</span>
-                            {campaignSortAll === opt.value && (
-                              <span className="material-symbols-outlined filter-popover-check">check</span>
-                            )}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+                  {/* Sort Filter */}
+                  <GeistSelect
+                    compact
+                    alignRight
+                    width="162px"
+                    menuMinWidth={210}
+                    value={campaignSortAll}
+                    onChange={(val) => setCampaignSortAll(val)}
+                    options={SORT_OPTIONS.map(opt => ({
+                      id: opt.value,
+                      label: opt.label,
+                      icon: opt.icon
+                    }))}
+                  />
                 </div>
               </div>
 
@@ -3848,173 +3710,59 @@ export default function OrganizationView({
                     <span>Filters</span>
                   </div>
 
-                  {/* Causes Dropdown Popover */}
-                  <div style={{ position: 'relative' }} ref={causesDropdownRefMy}>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowCausesDropdownMy(prev => !prev);
-                        setShowPrioritiesDropdownMy(false);
-                        setShowTagsDropdownMy(false);
-                        setShowSortDropdownMy(false);
-                      }}
-                      className={`filter-pill-btn ${categoryFilterMy !== 'ALL' ? 'active-filter' : ''}`}
-                      title="Filter by cause type"
-                    >
-                      <span className="material-symbols-outlined filter-pill-icon" style={{ color: 'var(--text-secondary)' }}>
-                        {selectedCauseObjMy.icon}
-                      </span>
-                      <span>{selectedCauseObjMy.label}</span>
-                      <span className="material-symbols-outlined filter-pill-arrow" style={{ position: 'static', marginLeft: '4px' }}>
-                        {showCausesDropdownMy ? 'expand_less' : 'expand_more'}
-                      </span>
-                    </button>
+                  {/* Cause Filter */}
+                  <GeistSelect
+                    compact
+                    width="156px"
+                    menuMinWidth={230}
+                    activeHighlight={categoryFilterMy !== 'ALL'}
+                    value={categoryFilterMy}
+                    onChange={(val) => setCategoryFilterMy(val)}
+                    options={CAUSE_OPTIONS.map(opt => ({
+                      id: opt.value,
+                      label: opt.label,
+                      sub: opt.value === 'DR' ? 'Typhoon, flood & emergency drives' : opt.value === 'CD' ? 'Community, medical & outreach drives' : 'Disaster relief & charitable drives',
+                      icon: opt.icon
+                    }))}
+                  />
 
-                    {showCausesDropdownMy && (
-                      <div className="filter-custom-popover">
-                        {CAUSE_OPTIONS.map(opt => (
-                          <button
-                            key={opt.value}
-                            type="button"
-                            onClick={() => {
-                              setCategoryFilterMy(opt.value);
-                              setShowCausesDropdownMy(false);
-                            }}
-                            className={`filter-popover-option ${categoryFilterMy === opt.value ? 'selected' : ''}`}
-                          >
-                            <span className="material-symbols-outlined filter-popover-option-icon" style={{ color: 'var(--text-secondary)' }}>{opt.icon}</span>
-                            <span>{opt.label}</span>
-                            {categoryFilterMy === opt.value && (
-                              <span className="material-symbols-outlined filter-popover-check">check</span>
-                            )}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+                  {/* Priority Filter */}
+                  <GeistSelect
+                    compact
+                    width="158px"
+                    menuMinWidth={220}
+                    activeHighlight={urgencyFilterMy !== 'ALL'}
+                    value={urgencyFilterMy}
+                    onChange={(val) => setUrgencyFilterMy(val)}
+                    options={PRIORITY_OPTIONS.map(opt => ({
+                      id: opt.value,
+                      label: opt.label,
+                      icon: opt.icon
+                    }))}
+                  />
 
-                  {/* Priorities Dropdown Popover */}
-                  <div style={{ position: 'relative' }} ref={prioritiesDropdownRefMy}>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowPrioritiesDropdownMy(prev => !prev);
-                        setShowCausesDropdownMy(false);
-                        setShowTagsDropdownMy(false);
-                        setShowSortDropdownMy(false);
-                      }}
-                      className={`filter-pill-btn ${urgencyFilterMy !== 'ALL' ? 'active-filter' : ''}`}
-                      title="Filter by urgency level"
-                    >
-                      <span className="material-symbols-outlined filter-pill-icon" style={{ color: 'var(--text-secondary)' }}>
-                        {selectedPriorityObjMy.icon}
-                      </span>
-                      <span>{selectedPriorityObjMy.label}</span>
-                      <span className="material-symbols-outlined filter-pill-arrow" style={{ position: 'static', marginLeft: '4px' }}>
-                        {showPrioritiesDropdownMy ? 'expand_less' : 'expand_more'}
-                      </span>
-                    </button>
-
-                    {showPrioritiesDropdownMy && (
-                      <div className="filter-custom-popover">
-                        {PRIORITY_OPTIONS.map(opt => (
-                          <button
-                            key={opt.value}
-                            type="button"
-                            onClick={() => {
-                              setUrgencyFilterMy(opt.value);
-                              setShowPrioritiesDropdownMy(false);
-                            }}
-                            className={`filter-popover-option ${urgencyFilterMy === opt.value ? 'selected' : ''}`}
-                          >
-                            <span className="material-symbols-outlined filter-popover-option-icon" style={{ color: 'var(--text-secondary)' }}>{opt.icon}</span>
-                            <span>{opt.label}</span>
-                            {urgencyFilterMy === opt.value && (
-                              <span className="material-symbols-outlined filter-popover-check">check</span>
-                            )}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Tags Dropdown Popover with Checkboxes */}
-                  <div style={{ position: 'relative' }} ref={tagsDropdownRefMy}>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowTagsDropdownMy(prev => !prev);
-                        setShowCausesDropdownMy(false);
-                        setShowPrioritiesDropdownMy(false);
-                        setShowSortDropdownMy(false);
-                      }}
-                      className={`filter-pill-btn ${selectedTagsMy.length > 0 ? 'active-filter' : ''}`}
-                      title="Filter by tags"
-                    >
-                      <span className="material-symbols-outlined filter-pill-icon" style={{ color: 'var(--text-secondary)' }}>sell</span>
-                      <span>Tags</span>
-                      {selectedTagsMy.length > 0 && (
-                        <span className="tags-dropdown-badge-ref">{selectedTagsMy.length}</span>
-                      )}
-                      <span className="material-symbols-outlined filter-pill-arrow" style={{ position: 'static', marginLeft: '4px' }}>
-                        {showTagsDropdownMy ? 'expand_less' : 'expand_more'}
-                      </span>
-                    </button>
-
-                    {showTagsDropdownMy && (
-                      <div className="tags-popover-menu">
-                        <div className="tags-popover-header">
-                          <span className="tags-popover-title">
-                            <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>sell</span>
-                            Filter by Tags
-                          </span>
-                          {selectedTagsMy.length > 0 && (
-                            <button
-                              type="button"
-                              onClick={() => setSelectedTagsMy([])}
-                              className="tags-popover-clear-btn"
-                            >
-                              Clear ({selectedTagsMy.length})
-                            </button>
-                          )}
-                        </div>
-
-                        <div className="tags-popover-list">
-                          {/* "All Tags" Checkbox */}
-                          <label className={`tags-popover-item ${selectedTagsMy.length === 0 ? 'checked' : ''}`}>
-                            <input
-                              type="checkbox"
-                              checked={selectedTagsMy.length === 0}
-                              onChange={() => setSelectedTagsMy([])}
-                            />
-                            <span className="tags-popover-tag-text">All Tags</span>
-                            <span className="tags-popover-count">{myCampaigns?.length || 0}</span>
-                          </label>
-
-                          {/* Individual Tag Checkboxes */}
-                          {availableTagsMy.map((tag) => {
-                            const isChecked = selectedTagsMy.includes(tag);
-                            const count = tagCountsMy[tag] || 0;
-                            return (
-                              <label key={tag} className={`tags-popover-item ${isChecked ? 'checked' : ''}`}>
-                                <input
-                                  type="checkbox"
-                                  checked={isChecked}
-                                  onChange={() => {
-                                    setSelectedTagsMy(prev =>
-                                      prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]
-                                    );
-                                  }}
-                                />
-                                <span className="tags-popover-tag-text">#{tag}</span>
-                                {count > 0 && <span className="tags-popover-count">{count}</span>}
-                              </label>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
-                  </div>
+                  {/* Tags Multi-Select Filter */}
+                  <GeistMultiSelect
+                    compact
+                    width="116px"
+                    menuMinWidth={260}
+                    label="Tags"
+                    allLabel="All Tags"
+                    allCount={myCampaigns?.length || 0}
+                    searchPlaceholder="Search campaign tags..."
+                    selected={selectedTagsMy}
+                    onClear={() => setSelectedTagsMy([])}
+                    onToggle={(tag) => {
+                      setSelectedTagsMy(prev =>
+                        prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]
+                      );
+                    }}
+                    options={availableTagsMy.map(tag => ({
+                      id: tag,
+                      label: `#${tag}`,
+                      count: tagCountsMy[tag] || 0
+                    }))}
+                  />
                 </div>
 
                 {/* Right: Search Box + Sort Pill */}
@@ -4046,48 +3794,20 @@ export default function OrganizationView({
                     <kbd className="filter-search-shortcut-badge" title="Press Ctrl+K or ⌘K to focus search">⌘ K</kbd>
                   </div>
 
-                  {/* Sort Pill Popover */}
-                  <div style={{ position: 'relative' }} ref={sortDropdownRefMy}>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowSortDropdownMy(prev => !prev);
-                        setShowCausesDropdownMy(false);
-                        setShowPrioritiesDropdownMy(false);
-                        setShowTagsDropdownMy(false);
-                      }}
-                      className="filter-pill-btn"
-                      title="Sort campaigns"
-                    >
-                      <span className="material-symbols-outlined filter-pill-icon" style={{ color: '#94a3b8' }}>swap_vert</span>
-                      <span>{selectedSortObjMy.label}</span>
-                      <span className="material-symbols-outlined filter-pill-arrow" style={{ position: 'static', marginLeft: '4px' }}>
-                        {showSortDropdownMy ? 'expand_less' : 'expand_more'}
-                      </span>
-                    </button>
-
-                    {showSortDropdownMy && (
-                      <div className="filter-custom-popover align-right">
-                        {SORT_OPTIONS.map(opt => (
-                          <button
-                            key={opt.value}
-                            type="button"
-                            onClick={() => {
-                              setCampaignSortMy(opt.value);
-                              setShowSortDropdownMy(false);
-                            }}
-                            className={`filter-popover-option ${campaignSortMy === opt.value ? 'selected' : ''}`}
-                          >
-                            <span className="material-symbols-outlined filter-popover-option-icon" style={{ color: '#94a3b8' }}>{opt.icon}</span>
-                            <span>{opt.label}</span>
-                            {campaignSortMy === opt.value && (
-                              <span className="material-symbols-outlined filter-popover-check">check</span>
-                            )}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+                  {/* Sort Filter */}
+                  <GeistSelect
+                    compact
+                    alignRight
+                    width="162px"
+                    menuMinWidth={210}
+                    value={campaignSortMy}
+                    onChange={(val) => setCampaignSortMy(val)}
+                    options={SORT_OPTIONS.map(opt => ({
+                      id: opt.value,
+                      label: opt.label,
+                      icon: opt.icon
+                    }))}
+                  />
                 </div>
               </div>
 
