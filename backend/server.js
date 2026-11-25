@@ -12163,6 +12163,7 @@ app.get('/api/admin/active-users', authenticateToken, async (req, res) => {
         os: r.OS || 'Unknown',
         browser: r.Browser || 'Web Browser',
         ipAddress: maskPresenceIp(r.IP_Address),
+        _rawIp: String(r.IP_Address || '').trim(),
         liveStatus,
         firstSeenMs,
         lastSeenMs,
@@ -12172,12 +12173,52 @@ app.get('/api/admin/active-users', authenticateToken, async (req, res) => {
       };
     });
 
-    // Sort: ONLINE first, then IDLE, then OFFLINE; inside each group newest heartbeat first
+    // Deduplicate multi-tab authenticated users & duplicate guest fingerprints (e.g. headless crawlers / multiple guest tabs)
     const rank = { ONLINE: 0, IDLE: 1, OFFLINE: 2 };
-    sessions.sort((a, b) => {
+    const dedupMap = new Map();
+    for (const s of sessions) {
+      const key = s.isAuthenticated
+        ? `auth:${s.role}:${String(s.userEmail || s.userId || s.sessionId).toLowerCase()}`
+        : `guest:${s._rawIp || s.ipAddress}:${s.os}:${s.browser}:${s.deviceType}:${s.liveStatus === 'OFFLINE' ? 'off' : 'live'}`;
+      const existing = dedupMap.get(key);
+      if (!existing) {
+        dedupMap.set(key, { ...s, tabCount: 1 });
+      } else {
+        // Pick the higher-priority (more active) or more recently pinged record as primary, while preserving earliest firstSeenMs for stability
+        const preferNew =
+          rank[s.liveStatus] < rank[existing.liveStatus] ||
+          (rank[s.liveStatus] === rank[existing.liveStatus] && s.lastSeenMs > existing.lastSeenMs);
+        const primary = preferNew ? s : existing;
+        const secondary = preferNew ? existing : s;
+        const stableFirstSeen = Math.min(primary.firstSeenMs, secondary.firstSeenMs);
+        const mergedEndMs = primary.liveStatus === 'OFFLINE'
+          ? (primary.disconnectedMs || primary.lastSeenMs)
+          : primary.lastSeenMs;
+        dedupMap.set(key, {
+          ...primary,
+          firstSeenMs: stableFirstSeen,
+          sessionDurationMs: Math.max(primary.sessionDurationMs, Math.max(0, mergedEndMs - stableFirstSeen)),
+          tabCount: (existing.tabCount || 1) + (s.liveStatus !== 'OFFLINE' ? 1 : 0)
+        });
+      }
+    }
+
+    const dedupedSessions = Array.from(dedupMap.values()).map(({ _rawIp, ...clean }) => clean);
+
+    // Stable sort: ONLINE -> IDLE -> OFFLINE; inside live groups sort by firstSeenMs ASC (never lastSeenMs!) so rows never jump on heartbeat pings
+    dedupedSessions.sort((a, b) => {
       if (rank[a.liveStatus] !== rank[b.liveStatus]) return rank[a.liveStatus] - rank[b.liveStatus];
-      return b.lastSeenMs - a.lastSeenMs;
+      if (a.liveStatus === 'OFFLINE') {
+        const diff = (b.disconnectedMs || b.lastSeenMs) - (a.disconnectedMs || a.lastSeenMs);
+        if (diff !== 0) return diff;
+      } else {
+        if (a.firstSeenMs !== b.firstSeenMs) return a.firstSeenMs - b.firstSeenMs;
+      }
+      return String(a.userEmail || a.visitorCode || a.sessionId).localeCompare(String(b.userEmail || b.visitorCode || b.sessionId));
     });
+
+    sessions.length = 0;
+    sessions.push(...dedupedSessions);
 
     const liveList = sessions.filter(s => s.liveStatus !== 'OFFLINE');
     const summary = {

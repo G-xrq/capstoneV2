@@ -310,8 +310,21 @@ export default function AdminActiveUsersPanel({ onPresenceSummaryChange }) {
         if (!hay.includes(q)) return false;
       }
       return true;
+    }).sort((a, b) => {
+      const rank = { ONLINE: 0, IDLE: 1, OFFLINE: 2 };
+      const rA = rank[a.liveStatus] ?? 2;
+      const rB = rank[b.liveStatus] ?? 2;
+      if (rA !== rB) return rA - rB;
+      const aSelf = a.sessionId === currentSessionId ? 0 : 1;
+      const bSelf = b.sessionId === currentSessionId ? 0 : 1;
+      if (aSelf !== bSelf) return aSelf - bSelf;
+      if (a.liveStatus === 'OFFLINE') {
+        return (b.disconnectedMs || b.lastSeenMs) - (a.disconnectedMs || a.lastSeenMs);
+      }
+      if (a.firstSeenMs !== b.firstSeenMs) return a.firstSeenMs - b.firstSeenMs;
+      return String(a.userEmail || a.visitorCode || a.sessionId).localeCompare(String(b.userEmail || b.visitorCode || b.sessionId));
     });
-  }, [sessions, scopeFilter, roleFilter, searchQuery]);
+  }, [sessions, scopeFilter, roleFilter, searchQuery, currentSessionId]);
 
   return (
     <div className="admin-presence-panel">
@@ -540,6 +553,13 @@ export default function AdminActiveUsersPanel({ onPresenceSummaryChange }) {
         ) : (
           <div className="presence-table-wrap">
             <table className="presence-table">
+              <colgroup>
+                <col style={{ width: '29%' }} />
+                <col style={{ width: '25%' }} />
+                <col style={{ width: '21%' }} />
+                <col style={{ width: '196px' }} />
+                <col style={{ width: '108px' }} />
+              </colgroup>
               <thead>
                 <tr>
                   <th>User &amp; Identity</th>
@@ -593,6 +613,11 @@ export default function AdminActiveUsersPanel({ onPresenceSummaryChange }) {
                                 </span>
                               )}
                               {isSelf && <span className="presence-tag tag-self">YOU</span>}
+                              {s.isAuthenticated && s.tabCount > 1 && s.liveStatus !== 'OFFLINE' && (
+                                <span className="presence-tag tag-tabs" title={`${s.tabCount} open browser tabs consolidated into one row`}>
+                                  {s.tabCount} TABS
+                                </span>
+                              )}
                             </div>
 
                             <div className="presence-sub-line">

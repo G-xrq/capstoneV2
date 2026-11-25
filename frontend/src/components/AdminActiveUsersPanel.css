@@ -189,6 +189,8 @@
 
 .presence-table {
   width: 100%;
+  min-width: 880px;
+  table-layout: fixed;
   border-collapse: collapse;
   font-size: 0.8rem;
   text-align: left;
@@ -247,7 +249,7 @@
   display: flex;
   align-items: center;
   gap: 11px;
-  min-width: 240px;
+  min-width: 0;
 }
 
 .presence-avatar {
@@ -348,6 +350,10 @@
   font-weight: 600;
   color: var(--text-primary, #ffffff);
   line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
 }
 
 .presence-role-badge {
@@ -561,6 +567,43 @@
 }
 
 /* ── Empty State ── */
+.presence-tag.tag-tabs {
+  background: rgba(161, 161, 170, 0.12);
+  border: 1px solid rgba(161, 161, 170, 0.28);
+  color: var(--text-secondary, #a1a1aa);
+}
+
+.presence-activity-cell,
+.presence-device-cell,
+.presence-time-cell {
+  min-width: 0;
+}
+
+.presence-view-name,
+.presence-subpage-name,
+.presence-email,
+.presence-ip,
+.presence-time-meta {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.presence-time-meta {
+  font-variant-numeric: tabular-nums;
+}
+
+.presence-device-top {
+  min-width: 0;
+}
+
+.presence-device-top > span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .presence-empty-state {
   display: flex;
   flex-direction: column;
