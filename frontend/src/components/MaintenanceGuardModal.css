@@ -424,12 +424,149 @@ body:has(.bbdrts-maint-modal-overlay) {
 .bbdrts-maint-countdown-left {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 7px;
+  user-select: none;
 }
 
 .bbdrts-maint-countdown-left .material-symbols-outlined {
   font-size: 14px;
   color: #10b981;
+}
+
+/* ── Animated Spinning Sandclock (Seamless Drain + Stream + 180° Flip) ── */
+.bbdrts-sandclock-wrap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  color: #10b981;
+  flex-shrink: 0;
+}
+
+[data-theme="light"] .bbdrts-sandclock-wrap {
+  color: #059669;
+}
+
+.bbdrts-maint-countdown-strip.concluded .bbdrts-sandclock-wrap {
+  color: #fbbf24;
+}
+
+[data-theme="light"] .bbdrts-maint-countdown-strip.concluded .bbdrts-sandclock-wrap {
+  color: #d97706;
+}
+
+.bbdrts-sandclock-svg {
+  display: block;
+  overflow: visible;
+  transform-origin: center center;
+}
+
+.bbdrts-sandclock-wrap.is-running .bbdrts-sandclock-svg {
+  animation: bbdrtsSandclockFlip 3.4s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+}
+
+.bbdrts-sc-sand-top {
+  transform-box: fill-box;
+  transform-origin: center bottom;
+}
+
+.bbdrts-sandclock-wrap.is-running .bbdrts-sc-sand-top {
+  animation: bbdrtsSandTopDrain 3.4s linear infinite;
+}
+
+.bbdrts-sandclock-wrap.is-settled .bbdrts-sc-sand-top {
+  transform: scaleY(0);
+  opacity: 0;
+}
+
+.bbdrts-sc-sand-bot {
+  transform-box: fill-box;
+  transform-origin: center bottom;
+}
+
+.bbdrts-sandclock-wrap.is-running .bbdrts-sc-sand-bot {
+  animation: bbdrtsSandBotFill 3.4s linear infinite;
+}
+
+.bbdrts-sandclock-wrap.is-settled .bbdrts-sc-sand-bot {
+  transform: scaleY(1);
+}
+
+.bbdrts-sc-stream {
+  opacity: 0;
+}
+
+.bbdrts-sandclock-wrap.is-running .bbdrts-sc-stream {
+  animation:
+    bbdrtsSandStreamVis 3.4s linear infinite,
+    bbdrtsSandStreamFlow 0.45s linear infinite;
+}
+
+@keyframes bbdrtsSandclockFlip {
+  0%, 74% {
+    transform: rotate(0deg) scale(1);
+  }
+  80% {
+    transform: rotate(-10deg) scale(1.04);
+  }
+  94% {
+    transform: rotate(186deg) scale(1.04);
+  }
+  100% {
+    transform: rotate(180deg) scale(1);
+  }
+}
+
+@keyframes bbdrtsSandTopDrain {
+  0%, 4% {
+    transform: scaleY(1);
+    opacity: 0.92;
+  }
+  70% {
+    transform: scaleY(0.02);
+    opacity: 0.9;
+  }
+  74%, 100% {
+    transform: scaleY(0);
+    opacity: 0;
+  }
+}
+
+@keyframes bbdrtsSandBotFill {
+  0%, 6% {
+    transform: scaleY(0.05);
+    opacity: 0.85;
+  }
+  72% {
+    transform: scaleY(1);
+    opacity: 0.95;
+  }
+  100% {
+    transform: scaleY(1);
+    opacity: 0.95;
+  }
+}
+
+@keyframes bbdrtsSandStreamVis {
+  0%, 3% {
+    opacity: 0;
+  }
+  7%, 68% {
+    opacity: 0.88;
+  }
+  73%, 100% {
+    opacity: 0;
+  }
+}
+
+@keyframes bbdrtsSandStreamFlow {
+  from {
+    stroke-dashoffset: 6.8;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
 }
 
 .bbdrts-maint-countdown-strip .countdown-label {
@@ -881,7 +1018,11 @@ body:has(.bbdrts-maint-modal-overlay) {
   .bbdrts-maint-modal-card,
   .bbdrts-maint-status-dot,
   .bbdrts-btn-maint-recheck .material-symbols-outlined.spin,
-  .bbdrts-maint-admin-bypass {
+  .bbdrts-maint-admin-bypass,
+  .bbdrts-sandclock-svg,
+  .bbdrts-sc-sand-top,
+  .bbdrts-sc-sand-bot,
+  .bbdrts-sc-stream {
     animation: none !important;
     transition: none !important;
   }

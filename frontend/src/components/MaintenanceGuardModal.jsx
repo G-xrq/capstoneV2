@@ -440,8 +440,82 @@ export default function MaintenanceGuardModal({
               {remainingInfo && (
                 <div className={`bbdrts-maint-countdown-strip ${remainingInfo.isPast ? 'concluded' : ''}`}>
                   <span className="bbdrts-maint-countdown-left">
-                    <span className="material-symbols-outlined">
-                      {remainingInfo.isPast ? 'hourglass_bottom' : 'hourglass_top'}
+                    <span
+                      className={`bbdrts-sandclock-wrap ${remainingInfo.isPast ? 'is-settled' : 'is-running'}`}
+                      aria-hidden="true"
+                    >
+                      <svg
+                        className="bbdrts-sandclock-svg"
+                        viewBox="0 0 24 24"
+                        width="17"
+                        height="17"
+                        fill="none"
+                        xmlns="http://www.w3.org/2000/svg"
+                      >
+                        <defs>
+                          <clipPath id="bbdrts-sc-top-bulb">
+                            <path d="M7.6 4.8 H16.4 V6.4 C16.4 8.7 13.8 10.4 12 11.3 C10.2 10.4 7.6 8.7 7.6 6.4 Z" />
+                          </clipPath>
+                          <clipPath id="bbdrts-sc-bot-bulb">
+                            <path d="M7.6 19.2 H16.4 V17.6 C16.4 15.3 13.8 13.6 12 12.7 C10.2 13.6 7.6 15.3 7.6 17.6 Z" />
+                          </clipPath>
+                        </defs>
+
+                        {/* Top sand chamber (drains downward) */}
+                        <g clipPath="url(#bbdrts-sc-top-bulb)">
+                          <rect
+                            className="bbdrts-sc-sand-top"
+                            x="7"
+                            y="4.6"
+                            width="10"
+                            height="7"
+                            fill="currentColor"
+                          />
+                        </g>
+
+                        {/* Falling sand stream through the waist */}
+                        <line
+                          className="bbdrts-sc-stream"
+                          x1="12"
+                          y1="11.6"
+                          x2="12"
+                          y2="19.1"
+                          stroke="currentColor"
+                          strokeWidth="1.35"
+                          strokeLinecap="round"
+                          strokeDasharray="1.8 1.6"
+                        />
+
+                        {/* Bottom sand chamber (fills upward) */}
+                        <g clipPath="url(#bbdrts-sc-bot-bulb)">
+                          <rect
+                            className="bbdrts-sc-sand-bot"
+                            x="7"
+                            y="12.5"
+                            width="10"
+                            height="7"
+                            fill="currentColor"
+                          />
+                        </g>
+
+                        {/* Hourglass glass silhouette */}
+                        <path
+                          d="M6.8 4.2 H17.2 V6.5 C17.2 9.2 14.3 11 12 12 C9.7 11 6.8 9.2 6.8 6.5 Z"
+                          stroke="currentColor"
+                          strokeWidth="1.65"
+                          strokeLinejoin="round"
+                        />
+                        <path
+                          d="M6.8 19.8 H17.2 V17.5 C17.2 14.8 14.3 13 12 12 C9.7 13 6.8 14.8 6.8 17.5 Z"
+                          stroke="currentColor"
+                          strokeWidth="1.65"
+                          strokeLinejoin="round"
+                        />
+
+                        {/* Top & bottom caps */}
+                        <line x1="5.2" y1="3.4" x2="18.8" y2="3.4" stroke="currentColor" strokeWidth="1.85" strokeLinecap="round" />
+                        <line x1="5.2" y1="20.6" x2="18.8" y2="20.6" stroke="currentColor" strokeWidth="1.85" strokeLinecap="round" />
+                      </svg>
                     </span>
                     <span className="countdown-label">
                       {remainingInfo.isPast ? 'Scheduled window' : 'Estimated remaining'}
