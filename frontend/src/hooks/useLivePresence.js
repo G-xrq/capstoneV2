@@ -2,17 +2,22 @@ import { useEffect, useRef } from 'react';
 import { API_URL } from '../config';
 
 const SESSION_KEY = 'bbdrts_live_session_id';
+const USER_IDLE_AFTER_MS = 2 * 60 * 1000; // Mark idle after 2 minutes without user input
+
+function generateSessionId() {
+  const rand =
+    typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+      ? crypto.randomUUID().replace(/-/g, '')
+      : `${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 12)}`;
+  return `sess_${rand}`;
+}
 
 export function getLiveSessionId() {
   if (typeof window === 'undefined') return 'sess_ssr';
   try {
     let id = sessionStorage.getItem(SESSION_KEY);
     if (!id || !/^[a-zA-Z0-9_-]{8,96}$/.test(id)) {
-      const rand =
-        typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
-          ? crypto.randomUUID().replace(/-/g, '')
-          : `${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 12)}`;
-      id = `sess_${rand}`;
+      id = generateSessionId();
       sessionStorage.setItem(SESSION_KEY, id);
     }
     return id;
@@ -23,8 +28,8 @@ export function getLiveSessionId() {
 
 /**
  * Real-time client presence heartbeat hook.
- * Tracks guest visitors, authenticated donors/NGOs/admins, guest-to-account
- * conversions, current active view/subpage, and clean disconnect beacons.
+ * Accurately tracks real user activity (active vs idle/background tab),
+ * clean session boundaries on account switch/reopen, and immediate leave beacons.
  */
 export function useLivePresence({
   dbUser,
@@ -39,6 +44,8 @@ export function useLivePresence({
     sessionIdRef.current = getLiveSessionId();
   }
   const hasLeftRef = useRef(false);
+  const lastActivityMsRef = useRef(Date.now());
+  const lastStatusSentRef = useRef('active');
 
   const latestRef = useRef({
     dbUser,
@@ -54,12 +61,24 @@ export function useLivePresence({
     walletAddress
   };
 
+  const computeTabState = (overrideTabState = null) => {
+    if (overrideTabState) return overrideTabState;
+    if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
+      return 'idle';
+    }
+    if (Date.now() - lastActivityMsRef.current >= USER_IDLE_AFTER_MS) {
+      return 'idle';
+    }
+    return 'active';
+  };
+
   const sendHeartbeat = async (overrideEventType = null, overrideTabState = null) => {
     if (typeof window === 'undefined' || hasLeftRef.current) return;
     const sessionId = sessionIdRef.current;
     const { currentView: view, currentSubpage: subpage, walletAddress: wallet, dbUser: user } = latestRef.current;
     const token = user ? (localStorage.getItem('bbdrts_token') || localStorage.getItem('token') || '') : '';
-    const tabState = overrideTabState || (document.visibilityState === 'hidden' ? 'idle' : 'active');
+    const tabState = computeTabState(overrideTabState);
+    lastStatusSentRef.current = tabState;
     const path = `${window.location.pathname || '/'}${window.location.hash || ''}`.slice(0, 240);
 
     try {
@@ -87,6 +106,7 @@ export function useLivePresence({
 
   // Trigger immediate heartbeat whenever identity, screen, subpage, wallet, or auth event changes
   useEffect(() => {
+    lastActivityMsRef.current = Date.now();
     const hint = eventHint;
     sendHeartbeat(hint);
     if (hint && typeof onEventHintConsumed === 'function') {
@@ -104,16 +124,40 @@ export function useLivePresence({
     eventHint
   ]);
 
-  // Periodic heartbeat + visibility + clean disconnect beacon
+  // Real user interaction tracker + periodic heartbeat + visibility + clean disconnect beacon
   useEffect(() => {
     if (typeof window === 'undefined') return;
+
+    let activityThrottleMs = 0;
+    const markUserActive = () => {
+      const now = Date.now();
+      if (now - activityThrottleMs < 1500) return;
+      activityThrottleMs = now;
+      const wasIdle = lastStatusSentRef.current === 'idle';
+      lastActivityMsRef.current = now;
+      if (wasIdle && document.visibilityState === 'visible') {
+        sendHeartbeat(null, 'active');
+      }
+    };
 
     const intervalId = window.setInterval(() => {
       sendHeartbeat();
     }, 15000);
 
     const handleVisibility = () => {
-      sendHeartbeat(null, document.visibilityState === 'hidden' ? 'idle' : 'active');
+      if (document.visibilityState === 'visible') {
+        hasLeftRef.current = false;
+        lastActivityMsRef.current = Date.now();
+        sendHeartbeat(null, 'active');
+      } else {
+        sendHeartbeat(null, 'idle');
+      }
+    };
+
+    const handlePageShow = () => {
+      hasLeftRef.current = false;
+      lastActivityMsRef.current = Date.now();
+      sendHeartbeat(null, 'active');
     };
 
     const handleLeave = () => {
@@ -123,7 +167,6 @@ export function useLivePresence({
       const url = `${API_URL}/api/presence/leave`;
       try {
         if (navigator.sendBeacon) {
-          // Use CORS-safelisted text/plain so cross-origin beacons (Vercel -> Render) never trigger preflight rejection
           const blob = new Blob([payload], { type: 'text/plain;charset=UTF-8' });
           if (navigator.sendBeacon(url, blob)) return;
         }
@@ -138,13 +181,18 @@ export function useLivePresence({
       } catch (_) {}
     };
 
+    const activityEvents = ['pointerdown', 'keydown', 'scroll', 'touchstart', 'mousemove'];
+    activityEvents.forEach((evt) => window.addEventListener(evt, markUserActive, { passive: true }));
     document.addEventListener('visibilitychange', handleVisibility);
+    window.addEventListener('pageshow', handlePageShow);
     window.addEventListener('pagehide', handleLeave);
     window.addEventListener('beforeunload', handleLeave);
 
     return () => {
       window.clearInterval(intervalId);
+      activityEvents.forEach((evt) => window.removeEventListener(evt, markUserActive));
       document.removeEventListener('visibilitychange', handleVisibility);
+      window.removeEventListener('pageshow', handlePageShow);
       window.removeEventListener('pagehide', handleLeave);
       window.removeEventListener('beforeunload', handleLeave);
     };

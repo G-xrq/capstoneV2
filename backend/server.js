@@ -11868,25 +11868,44 @@ app.post('/api/presence/heartbeat', async (req, res) => {
     const visitorCode = existing?.Visitor_Code || makeVisitorCode(rawSessionId);
     const isAuthenticated = authUser ? 1 : 0;
     const prevWasAuth = existing ? Boolean(existing.Is_Authenticated) : false;
-
-    const wasGuestConverted =
-      (existing && Boolean(existing.Was_Guest_Converted) && isAuthenticated) ||
-      (existing && !prevWasAuth && isAuthenticated)
-        ? 1
-        : 0;
+    const prevLastSeenMs = existing ? (Number(existing.Last_Seen_Ms) || 0) : 0;
+    const prevDisconnectedMs = existing?.Disconnected_Ms ? Number(existing.Disconnected_Ms) : null;
+    const switchedIdentity = Boolean(
+      existing && authUser && prevWasAuth &&
+      (Number(existing.User_ID) !== Number(authUser.id) || existing.User_Role !== authUser.role)
+    );
+    // Reset session start clock if reconnecting after offline/sleep gap (> 3 min) or switching accounts
+    const shouldResetSessionClock = Boolean(
+      existing && (
+        existing.Status === 'OFFLINE' ||
+        (prevDisconnectedMs && prevDisconnectedMs >= prevLastSeenMs) ||
+        (prevLastSeenMs > 0 && (now - prevLastSeenMs) > 3 * 60 * 1000) ||
+        switchedIdentity
+      )
+    );
+    const nextFirstSeenMs = (!existing || shouldResetSessionClock) ? now : (Number(existing.First_Seen_Ms) || now);
 
     let isNewAccount = 0;
-    if (authUser) {
+    if (authUser && authUser.role !== 'admin') {
       const sameUser = existing && prevWasAuth && Number(existing.User_ID) === Number(authUser.id) && existing.User_Role === authUser.role;
       const recentlyCreated = authUser.createdAt
-        ? (now - new Date(authUser.createdAt).getTime()) <= 24 * 60 * 60 * 1000
+        ? (now - new Date(authUser.createdAt).getTime()) <= 2 * 60 * 60 * 1000
         : false;
-      if (eventType === 'account_created' || recentlyCreated || (sameUser && Boolean(existing.Is_New_Account))) {
+      if (eventType === 'account_created' || recentlyCreated || (sameUser && !shouldResetSessionClock && Boolean(existing.Is_New_Account))) {
         isNewAccount = 1;
       }
     }
 
-    let journey = existing ? parseJourneySafe(existing.Journey_Json) : [];
+    // Only mark guest-converted when a guest actually registers a new account (not on normal returning logins/admin)
+    const wasGuestConverted =
+      isAuthenticated && isNewAccount && (
+        eventType === 'account_created' ||
+        (existing && !shouldResetSessionClock && Boolean(existing.Was_Guest_Converted))
+      )
+        ? 1
+        : 0;
+
+    let journey = (existing && !shouldResetSessionClock) ? parseJourneySafe(existing.Journey_Json) : [];
     const viewSummary = currentSubpage && currentSubpage !== currentView
       ? `${currentView} · ${currentSubpage}`
       : currentView;
@@ -11955,6 +11974,7 @@ app.post('/api/presence/heartbeat', async (req, res) => {
           Browser = ?,
           IP_Address = ?,
           Status = ?,
+          First_Seen_Ms = ?,
           Last_Seen_Ms = ?,
           Disconnected_Ms = NULL,
           Journey_Json = ?
@@ -11979,6 +11999,7 @@ app.post('/api/presence/heartbeat', async (req, res) => {
           deviceInfo.browser || 'Web Browser',
           cleanIp,
           tabState,
+          nextFirstSeenMs,
           now,
           journeyStr,
           rawSessionId
@@ -12086,8 +12107,22 @@ app.get('/api/admin/active-users', authenticateToken, async (req, res) => {
       [cutoffMs]
     );
 
-    const ONLINE_THRESHOLD_MS = 55 * 1000;
-    const IDLE_THRESHOLD_MS = 5 * 60 * 1000;
+    const ONLINE_THRESHOLD_MS = 40 * 1000;
+    const IDLE_THRESHOLD_MS = 95 * 1000;
+
+    const maskPresenceIp = (rawIp) => {
+      const ip = String(rawIp || '').trim();
+      if (!ip || ip === 'Unknown' || ip === 'localhost' || ip === '127.0.0.1' || ip === '::1') return ip || 'Local';
+      if (ip.includes('.')) {
+        const parts = ip.split('.');
+        if (parts.length === 4) return `${parts[0]}.${parts[1]}.${parts[2]}.•••`;
+      }
+      if (ip.includes(':')) {
+        const parts = ip.split(':').filter(Boolean);
+        return `${parts.slice(0, 3).join(':')}:••••`;
+      }
+      return 'Masked';
+    };
 
     const sessions = (rows || []).map((r) => {
       const lastSeenMs = Number(r.Last_Seen_Ms) || now;
@@ -12107,6 +12142,10 @@ app.get('/api/admin/active-users', authenticateToken, async (req, res) => {
       }
 
       const isAuthenticated = Boolean(r.Is_Authenticated);
+      const sessionEndMs = liveStatus === 'OFFLINE' ? (disconnectedMs || lastSeenMs) : lastSeenMs;
+      const sessionDurationMs = Math.max(0, sessionEndMs - firstSeenMs);
+      const showNewAccount = Boolean(r.Is_New_Account && r.User_Role !== 'admin');
+      const showGuestConverted = Boolean(showNewAccount && r.Was_Guest_Converted);
       return {
         sessionId: r.Session_ID,
         visitorCode: r.Visitor_Code,
@@ -12118,20 +12157,21 @@ app.get('/api/admin/active-users', authenticateToken, async (req, res) => {
         orgName: r.Org_Name || null,
         verificationStatus: r.Verification_Status || null,
         walletAddress: r.Wallet_Address || null,
-        isNewAccount: Boolean(r.Is_New_Account),
+        isNewAccount: showNewAccount,
         accountCreatedAt: r.Account_Created_At || null,
-        wasGuestConverted: Boolean(r.Was_Guest_Converted),
+        wasGuestConverted: showGuestConverted,
         currentView: r.Current_View || 'Public Landing Page',
         currentSubpage: r.Current_Subpage || 'Overview',
         currentPath: r.Current_Path || '/',
         deviceType: r.Device_Type || 'Desktop',
         os: r.OS || 'Unknown',
         browser: r.Browser || 'Web Browser',
-        ipAddress: r.IP_Address || 'Unknown',
+        ipAddress: maskPresenceIp(r.IP_Address),
         liveStatus,
         firstSeenMs,
         lastSeenMs,
         disconnectedMs,
+        sessionDurationMs,
         journey: parseJourneySafe(r.Journey_Json)
       };
     });

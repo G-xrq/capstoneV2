@@ -454,7 +454,7 @@ export default function AdminActiveUsersPanel({ onPresenceSummaryChange }) {
             Showing <strong>{filteredSessions.length}</strong> of <strong>{sessions.length}</strong> tracked session{sessions.length === 1 ? '' : 's'}
           </span>
           <span className="presence-sync-time">
-            {lastSyncedAt ? `Last synced ${formatLastSeen(lastSyncedAt, nowMs)}` : 'Syncing...'}
+            RA 10173 Masked IPs · {lastSyncedAt ? `Synced ${formatLastSeen(lastSyncedAt, nowMs)}` : 'Syncing...'}
           </span>
         </div>
 
@@ -493,10 +493,9 @@ export default function AdminActiveUsersPanel({ onPresenceSummaryChange }) {
                   const roleMeta = getRoleMeta(s.role, s.isAuthenticated);
                   const isSelf = s.sessionId === currentSessionId;
                   const statusKey = (s.liveStatus || 'OFFLINE').toLowerCase();
-                  const durationMs =
-                    s.liveStatus === 'OFFLINE' && s.disconnectedMs
-                      ? Math.max(0, s.disconnectedMs - (s.firstSeenMs || s.lastSeenMs))
-                      : Math.max(0, nowMs - (s.firstSeenMs || s.lastSeenMs));
+                  const durationMs = typeof s.sessionDurationMs === 'number'
+                    ? Math.max(0, s.sessionDurationMs)
+                    : Math.max(0, (s.liveStatus === 'OFFLINE' ? (s.disconnectedMs || s.lastSeenMs) : s.lastSeenMs) - (s.firstSeenMs || s.lastSeenMs));
 
                   return (
                     <tr
@@ -539,9 +538,9 @@ export default function AdminActiveUsersPanel({ onPresenceSummaryChange }) {
                               {s.isAuthenticated ? (
                                 <>
                                   <span className="presence-email">{s.userEmail}</span>
-                                  {s.wasGuestConverted && (
-                                    <span className="presence-converted-note" title="Started as an anonymous guest and upgraded to a signed-in account in this session">
-                                      · Converted from {s.visitorCode}
+                                  {s.isNewAccount && s.wasGuestConverted && (
+                                    <span className="presence-converted-note" title="Registered a new account during this session">
+                                      · New signup ({s.visitorCode})
                                     </span>
                                   )}
                                 </>
@@ -580,12 +579,12 @@ export default function AdminActiveUsersPanel({ onPresenceSummaryChange }) {
                         <div className="presence-time-cell">
                           <span className={`presence-status-pill status-${statusKey}`}>
                             <span className={`presence-status-dot ${statusKey}`} />
-                            {s.liveStatus === 'ONLINE' ? 'Online' : s.liveStatus === 'IDLE' ? 'Idle Tab' : 'Left'}
+                            {s.liveStatus === 'ONLINE' ? 'Online' : s.liveStatus === 'IDLE' ? 'Away / Idle' : 'Offline'}
                           </span>
                           <span className="presence-time-meta">
                             {s.liveStatus === 'OFFLINE'
                               ? `Left ${formatLastSeen(s.disconnectedMs || s.lastSeenMs, nowMs)}`
-                              : `${formatLastSeen(s.lastSeenMs, nowMs)} · Active ${formatElapsed(durationMs)}`}
+                              : `${formatLastSeen(s.lastSeenMs, nowMs)} · Session ${formatElapsed(durationMs)}`}
                           </span>
                         </div>
                       </td>
