@@ -7234,26 +7234,35 @@ export default function OrganizationView({
                 })}
               </div>
             ) : (
-              /* ── AUDIT TABLE VIEW: Vercel Dark Theme ── */
+              /* ── AUDIT TABLE VIEW: Fixed-Column Dual-Theme Vercel Geist ── */
               <div style={{
                 background: 'var(--bg-card)',
-                borderRadius: '10px',
+                borderRadius: '12px',
                 border: '1px solid var(--border)',
                 overflow: 'hidden'
               }}>
                 <div style={{ overflowX: 'auto' }}>
-                  <table style={{ width: '100%', minWidth: '920px', fontSize: '0.82rem', borderCollapse: 'collapse' }}>
+                  <table style={{ width: '100%', minWidth: '940px', tableLayout: 'fixed', fontSize: '0.81rem', borderCollapse: 'collapse' }}>
+                    <colgroup>
+                      <col style={{ width: '142px' }} />
+                      <col style={{ width: '132px' }} />
+                      <col />
+                      <col style={{ width: '148px' }} />
+                      <col style={{ width: '108px' }} />
+                      <col style={{ width: '136px' }} />
+                      <col style={{ width: '126px' }} />
+                      <col style={{ width: '112px' }} />
+                    </colgroup>
                     <thead>
                       <tr style={{ background: 'var(--bg-subcard)', borderBottom: '1px solid var(--border)' }}>
-                        <th style={{ padding: '10px 14px', color: 'var(--text-muted)', fontSize: '0.70rem', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'left' }}>Tx Hash</th>
-                        <th style={{ padding: '10px 14px', color: 'var(--text-muted)', fontSize: '0.70rem', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'left' }}>Timestamp</th>
-                        <th style={{ padding: '10px 14px', color: 'var(--text-muted)', fontSize: '0.70rem', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'left' }}>Campaign</th>
-                        <th style={{ padding: '10px 14px', color: 'var(--text-muted)', fontSize: '0.70rem', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'left' }}>Donor</th>
-                        <th style={{ padding: '10px 14px', color: 'var(--text-muted)', fontSize: '0.70rem', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'left' }}>Rail</th>
-                        <th style={{ padding: '10px 14px', color: 'var(--text-muted)', fontSize: '0.70rem', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'left' }}>Amount Credited</th>
-                        <th style={{ padding: '10px 14px', color: 'var(--text-muted)', fontSize: '0.70rem', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'left' }}>Audit Status</th>
-                        <th style={{ padding: '10px 14px', color: 'var(--text-muted)', fontSize: '0.70rem', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'left' }}>On-Chain Equivalent</th>
-                        <th style={{ padding: '10px 14px', color: 'var(--text-muted)', fontSize: '0.70rem', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'right' }}>Action</th>
+                        <th style={{ padding: '10px 12px', color: 'var(--text-muted)', fontSize: '0.67rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', textAlign: 'left', whiteSpace: 'nowrap' }}>Tx Hash</th>
+                        <th style={{ padding: '10px 12px', color: 'var(--text-muted)', fontSize: '0.67rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', textAlign: 'left', whiteSpace: 'nowrap' }}>Timestamp</th>
+                        <th style={{ padding: '10px 12px', color: 'var(--text-muted)', fontSize: '0.67rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', textAlign: 'left', whiteSpace: 'nowrap' }}>Campaign</th>
+                        <th style={{ padding: '10px 12px', color: 'var(--text-muted)', fontSize: '0.67rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', textAlign: 'left', whiteSpace: 'nowrap' }}>Donor</th>
+                        <th style={{ padding: '10px 12px', color: 'var(--text-muted)', fontSize: '0.67rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', textAlign: 'left', whiteSpace: 'nowrap' }}>Rail</th>
+                        <th style={{ padding: '10px 12px', color: 'var(--text-muted)', fontSize: '0.67rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', textAlign: 'right', whiteSpace: 'nowrap' }}>Credited</th>
+                        <th style={{ padding: '10px 12px', color: 'var(--text-muted)', fontSize: '0.67rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', textAlign: 'left', whiteSpace: 'nowrap' }}>Audit Status</th>
+                        <th style={{ padding: '10px 12px', color: 'var(--text-muted)', fontSize: '0.67rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', textAlign: 'right', whiteSpace: 'nowrap' }}>Action</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -7270,123 +7279,194 @@ export default function OrganizationView({
                         const isOverCredit = d.auditStatus === 'OVER_CREDIT' || variancePhp > 20;
                         const hasVariance = isShortage || isOverCredit;
 
+                        const dtObj = d.createdAt ? new Date(d.createdAt) : null;
+                        const validDt = dtObj && !isNaN(dtObj.getTime());
+                        const datePart = validDt ? dtObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Audited';
+                        const timePart = validDt ? dtObj.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }) : 'On-Chain';
+
+                        const railLabel = d.paymentMethod || 'Bank / Card';
+                        const pmUpper = String(railLabel).toUpperCase();
+                        const railTone = pmUpper.includes('GCASH')
+                          ? { bg: 'rgba(14, 165, 233, 0.10)', border: 'rgba(14, 165, 233, 0.28)', color: '#0ea5e9' }
+                          : pmUpper.includes('MAYA')
+                            ? { bg: 'rgba(16, 185, 129, 0.10)', border: 'rgba(16, 185, 129, 0.28)', color: '#10b981' }
+                            : { bg: 'var(--bg-inset)', border: 'var(--border-strong, var(--border))', color: 'var(--text-secondary)' };
+
                         return (
-                          <tr key={idx} style={{ borderBottom: '1px solid var(--border-subtle, var(--border))', background: isShortage ? 'rgba(239, 68, 68, 0.03)' : 'transparent', transition: 'background-color 0.15s ease' }}
-                            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = isShortage ? 'rgba(239, 68, 68, 0.08)' : 'var(--bg-hover)'; }}
-                            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = isShortage ? 'rgba(239, 68, 68, 0.03)' : 'transparent'; }}
+                          <tr
+                            key={d.id || d.txHash || idx}
+                            style={{
+                              borderBottom: '1px solid var(--border-subtle, var(--border))',
+                              background: isShortage ? 'rgba(239, 68, 68, 0.04)' : 'transparent',
+                              transition: 'background-color 0.14s ease'
+                            }}
+                            onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = isShortage ? 'rgba(239, 68, 68, 0.09)' : 'var(--bg-hover)'; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = isShortage ? 'rgba(239, 68, 68, 0.04)' : 'transparent'; }}
                           >
-                            <td style={{ padding: '12px 14px', fontFamily: 'monospace', fontSize: '0.75rem' }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                <span style={{ color: isShortage ? '#ef4444' : '#10b981' }}>
-                                  {d.txHash ? `${d.txHash.slice(0, 8)}…${d.txHash.slice(-6)}` : 'N/A'}
-                                </span>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    navigator.clipboard.writeText(d.txHash);
-                                    showSuccess('Transaction hash copied!', 'Copied');
-                                  }}
-                                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 0 }}
-                                  title="Copy Hash"
+                            {/* 1. Tx Hash */}
+                            <td style={{ padding: '11px 12px', fontFamily: 'var(--font-mono, monospace)', fontSize: '0.73rem', whiteSpace: 'nowrap', verticalAlign: 'middle' }}>
+                              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', maxWidth: '100%' }}>
+                                <span
+                                  style={{ color: isShortage ? '#ef4444' : '#10b981', fontWeight: 600 }}
+                                  title={d.txHash || ''}
                                 >
-                                  <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>content_copy</span>
-                                </button>
+                                  {d.txHash ? `${d.txHash.slice(0, 6)}…${d.txHash.slice(-4)}` : 'N/A'}
+                                </span>
+                                {d.txHash && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      navigator.clipboard.writeText(d.txHash);
+                                      showSuccess('Transaction hash copied!', 'Copied');
+                                    }}
+                                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: '2px', display: 'inline-flex', alignItems: 'center', borderRadius: '4px' }}
+                                    title="Copy Hash"
+                                  >
+                                    <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>content_copy</span>
+                                  </button>
+                                )}
                               </div>
                             </td>
-                            <td style={{ padding: '12px 14px', color: 'var(--text-muted)', fontSize: '0.76rem' }}>
-                              {d.createdAt ? new Date(d.createdAt).toLocaleString() : 'Audited'}
+
+                            {/* 2. Timestamp */}
+                            <td style={{ padding: '11px 12px', whiteSpace: 'nowrap', verticalAlign: 'middle', fontVariantNumeric: 'tabular-nums' }}>
+                              <div style={{ fontSize: '0.75rem', fontWeight: 500, color: 'var(--text-secondary)', lineHeight: 1.3 }}>{datePart}</div>
+                              <div style={{ fontSize: '0.69rem', color: 'var(--text-muted)', lineHeight: 1.3 }}>{timePart}</div>
                             </td>
-                            <td style={{ padding: '12px 14px', fontWeight: 500, color: 'var(--text-primary)', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+
+                            {/* 3. Campaign */}
+                            <td
+                              title={campTitle}
+                              style={{ padding: '11px 12px', fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', verticalAlign: 'middle' }}
+                            >
                               {campTitle}
                             </td>
-                            <td style={{ padding: '12px 14px' }}>
+
+                            {/* 4. Donor */}
+                            <td
+                              title={donor}
+                              style={{ padding: '11px 12px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', verticalAlign: 'middle' }}
+                            >
                               <span style={{ color: d.isAnonymous ? 'var(--text-muted)' : 'var(--text-primary)', fontWeight: d.isAnonymous ? 400 : 600 }}>
                                 {donor}
                               </span>
                             </td>
-                            <td style={{ padding: '12px 14px' }}>
-                              <span style={{ padding: '2px 7px', borderRadius: '4px', background: 'var(--bg-inset)', border: '1px solid var(--border-strong)', fontSize: '0.70rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
-                                {d.paymentMethod || 'Bank / Card'}
+
+                            {/* 5. Payment Rail */}
+                            <td style={{ padding: '11px 12px', whiteSpace: 'nowrap', verticalAlign: 'middle' }}>
+                              <span style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                padding: '3px 8px',
+                                borderRadius: '6px',
+                                background: railTone.bg,
+                                border: `1px solid ${railTone.border}`,
+                                fontSize: '0.69rem',
+                                color: railTone.color,
+                                fontWeight: 600,
+                                whiteSpace: 'nowrap',
+                                lineHeight: 1.2
+                              }}>
+                                {railLabel}
                               </span>
                             </td>
-                            <td style={{ padding: '12px 14px', fontFamily: 'monospace' }}>
-                              <div style={{ color: isShortage ? '#ef4444' : (isOverCredit ? '#f59e0b' : '#10b981'), fontWeight: 750 }}>
+
+                            {/* 6. Amount Credited */}
+                            <td style={{ padding: '11px 12px', fontFamily: 'var(--font-mono, monospace)', textAlign: 'right', whiteSpace: 'nowrap', verticalAlign: 'middle', fontVariantNumeric: 'tabular-nums' }}>
+                              <div style={{ color: isShortage ? '#ef4444' : (isOverCredit ? '#f59e0b' : '#10b981'), fontWeight: 700, fontSize: '0.81rem' }}>
                                 +₱{phpVal.toLocaleString('en-US')}
                               </div>
                               {hasVariance && (
-                                <div style={{ fontSize: '0.68rem', color: isShortage ? '#ef4444' : '#f59e0b', fontWeight: 600, marginTop: '2px' }}>
-                                  Claimed: ₱{declaredPhp.toLocaleString()} ({variancePhp < 0 ? `-₱${Math.abs(variancePhp).toLocaleString()}` : `+₱${variancePhp.toLocaleString()}`})
+                                <div
+                                  title={`Declared: ₱${declaredPhp.toLocaleString()} (${variancePhp < 0 ? `-₱${Math.abs(variancePhp).toLocaleString()}` : `+₱${variancePhp.toLocaleString()}`})`}
+                                  style={{ fontSize: '0.65rem', color: isShortage ? '#ef4444' : '#f59e0b', fontWeight: 600, marginTop: '2px', overflow: 'hidden', textOverflow: 'ellipsis' }}
+                                >
+                                  Claimed ₱{declaredPhp.toLocaleString()}
                                 </div>
                               )}
                             </td>
-                            <td style={{ padding: '12px 14px' }}>
+
+                            {/* 7. Audit Status */}
+                            <td style={{ padding: '11px 12px', whiteSpace: 'nowrap', verticalAlign: 'middle' }}>
                               {isShortage ? (
-                                <span style={{
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: '3px',
-                                  padding: '2px 8px',
-                                  borderRadius: '4px',
-                                  background: 'rgba(239, 68, 68, 0.12)',
-                                  border: '1px solid rgba(239, 68, 68, 0.3)',
-                                  color: '#ef4444',
-                                  fontSize: '0.68rem',
-                                  fontWeight: 700
-                                }}>
-                                  <span className="material-symbols-outlined" style={{ fontSize: '11px' }}>warning</span>
-                                  <span>Shortage ({variancePhp < 0 ? `-₱${Math.abs(variancePhp).toLocaleString()}` : `+₱${variancePhp}`})</span>
+                                <span
+                                  title={`Shortage: -₱${Math.abs(variancePhp).toLocaleString()}`}
+                                  style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '4px',
+                                    padding: '3px 8px',
+                                    borderRadius: '6px',
+                                    background: 'rgba(239, 68, 68, 0.12)',
+                                    border: '1px solid rgba(239, 68, 68, 0.30)',
+                                    color: '#ef4444',
+                                    fontSize: '0.69rem',
+                                    fontWeight: 700,
+                                    whiteSpace: 'nowrap',
+                                    lineHeight: 1.2
+                                  }}
+                                >
+                                  <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>warning</span>
+                                  <span>Shortage</span>
                                 </span>
                               ) : isOverCredit ? (
-                                <span style={{
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: '3px',
-                                  padding: '2px 8px',
-                                  borderRadius: '4px',
-                                  background: 'rgba(245, 158, 11, 0.12)',
-                                  border: '1px solid rgba(245, 158, 11, 0.3)',
-                                  color: '#f59e0b',
-                                  fontSize: '0.68rem',
-                                  fontWeight: 700
-                                }}>
-                                  <span className="material-symbols-outlined" style={{ fontSize: '11px' }}>info</span>
+                                <span
+                                  title={`Over-Credited: +₱${Math.abs(variancePhp).toLocaleString()}`}
+                                  style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '4px',
+                                    padding: '3px 8px',
+                                    borderRadius: '6px',
+                                    background: 'rgba(245, 158, 11, 0.12)',
+                                    border: '1px solid rgba(245, 158, 11, 0.30)',
+                                    color: '#f59e0b',
+                                    fontSize: '0.69rem',
+                                    fontWeight: 700,
+                                    whiteSpace: 'nowrap',
+                                    lineHeight: 1.2
+                                  }}
+                                >
+                                  <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>info</span>
                                   <span>Over-Credit</span>
                                 </span>
                               ) : (
                                 <span style={{
                                   display: 'inline-flex',
                                   alignItems: 'center',
-                                  gap: '3px',
-                                  padding: '2px 8px',
-                                  borderRadius: '4px',
-                                  background: 'rgba(16, 185, 129, 0.1)',
-                                  border: '1px solid rgba(16, 185, 129, 0.25)',
+                                  gap: '4px',
+                                  padding: '3px 8px',
+                                  borderRadius: '6px',
+                                  background: 'rgba(16, 185, 129, 0.10)',
+                                  border: '1px solid rgba(16, 185, 129, 0.26)',
                                   color: '#10b981',
-                                  fontSize: '0.68rem',
-                                  fontWeight: 600
+                                  fontSize: '0.69rem',
+                                  fontWeight: 600,
+                                  whiteSpace: 'nowrap',
+                                  lineHeight: 1.2
                                 }}>
-                                  <span className="material-symbols-outlined" style={{ fontSize: '11px' }}>verified</span>
+                                  <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>verified</span>
                                   <span>Clean Match</span>
                                 </span>
                               )}
                             </td>
-                            <td style={{ padding: '12px 14px', color: 'var(--text-muted)', fontSize: '0.75rem' }}>
-                              Sepolia Audited
-                            </td>
-                            <td style={{ padding: '12px 14px', textAlign: 'right' }}>
-                              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+
+                            {/* 8. Action */}
+                            <td style={{ padding: '11px 12px', textAlign: 'right', whiteSpace: 'nowrap', verticalAlign: 'middle' }}>
+                              <div style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
                                 <button
                                   type="button"
                                   onClick={() => setSelectedVoucherTx(d)}
                                   style={{
                                     background: 'var(--bg-inset)',
-                                    border: '1px solid var(--border-strong)',
+                                    border: '1px solid var(--border-strong, var(--border))',
                                     color: 'var(--text-primary)',
-                                    borderRadius: '4px',
-                                    padding: '4px 8px',
+                                    borderRadius: '6px',
+                                    padding: '4px 9px',
                                     fontSize: '0.70rem',
                                     fontWeight: 600,
-                                    cursor: 'pointer'
+                                    cursor: 'pointer',
+                                    whiteSpace: 'nowrap'
                                   }}
                                 >
                                   Voucher
@@ -7397,13 +7477,17 @@ export default function OrganizationView({
                                     target="_blank"
                                     rel="noreferrer"
                                     style={{
+                                      width: '26px',
+                                      height: '26px',
+                                      borderRadius: '6px',
+                                      border: '1px solid var(--border)',
                                       color: 'var(--text-muted)',
-                                      fontSize: '0.70rem',
                                       textDecoration: 'none',
                                       display: 'inline-flex',
-                                      alignItems: 'center'
+                                      alignItems: 'center',
+                                      justifyContent: 'center'
                                     }}
-                                    title="Sepolia Explorer"
+                                    title="View on Sepolia Etherscan"
                                   >
                                     <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>open_in_new</span>
                                   </a>
