@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { API_URL } from '../config';
 import { useRealtimeSync } from '../hooks/useRealtimeSync';
@@ -65,16 +65,43 @@ function parseProofData(raw) {
   }
 }
 
+function normalizeProofSrc(rawUrl) {
+  const url = String(rawUrl || '').trim();
+  if (!url) return '';
+  if (url.startsWith('data:') || url.startsWith('http://') || url.startsWith('https://') || url.startsWith('blob:') || url.startsWith('/api/')) {
+    return url;
+  }
+  if (url.startsWith('/9j/')) return `data:image/jpeg;base64,${url}`;
+  if (url.startsWith('iVBORw0')) return `data:image/png;base64,${url}`;
+  if (url.startsWith('R0lGOD')) return `data:image/gif;base64,${url}`;
+  if (url.startsWith('UklGR')) return `data:image/webp;base64,${url}`;
+  return url;
+}
+
 function classifyProofFile(proof) {
-  const url = String(proof?.url || '');
+  const url = String(proof?.url || '').trim();
+  const mime = String(proof?.mimeType || proof?.type || '').toLowerCase();
   const name = String(proof?.name || proof?.caption || '').toLowerCase();
-  if (url.startsWith('data:image/') || /\.(png|jpe?g|webp|gif|bmp)$/i.test(name)) {
+
+  if (
+    mime.startsWith('image/') ||
+    url.startsWith('data:image/') ||
+    url.startsWith('/9j/') ||
+    url.startsWith('iVBORw0') ||
+    url.startsWith('R0lGOD') ||
+    url.startsWith('UklGR') ||
+    /\.(png|jpe?g|webp|gif|bmp|avif)$/i.test(name) ||
+    (/\.(png|jpe?g|webp|gif|bmp|avif)(\?|$)/i.test(url))
+  ) {
     return 'image';
   }
-  if (url.startsWith('data:application/pdf') || /\.pdf$/i.test(name)) {
+  if (mime === 'application/pdf' || url.startsWith('data:application/pdf') || /\.pdf$/i.test(name) || /\.pdf(\?|$)/i.test(url)) {
     return 'pdf';
   }
   if (
+    mime.includes('spreadsheet') ||
+    mime.includes('excel') ||
+    mime === 'text/csv' ||
     url.includes('spreadsheet') ||
     url.includes('excel') ||
     url.startsWith('data:text/csv') ||
@@ -82,19 +109,38 @@ function classifyProofFile(proof) {
   ) {
     return 'spreadsheet';
   }
-  if (/^https?:\/\//i.test(url) && /\.(png|jpe?g|webp|gif)(\?|$)/i.test(url)) {
+  // Ground photos & receipts without explicit extension default to image preview if URL looks like a hosted media/proof asset
+  if (proof?.category === 'GROUND_PHOTO' && (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('blob:'))) {
     return 'image';
   }
   return 'document';
 }
 
+function formatBatchDateTime(rawDate) {
+  if (!rawDate) return { date: 'Verified Delivery', time: '' };
+  const d = new Date(rawDate);
+  if (Number.isNaN(d.getTime())) return { date: 'Verified Delivery', time: '' };
+  return {
+    date: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+    time: d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
+  };
+}
+
+function formatShortDate(rawDate) {
+  if (!rawDate) return 'Verified';
+  const d = new Date(rawDate);
+  if (Number.isNaN(d.getTime())) return 'Verified';
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
 export default function DisbursementProofModal({ camp, isOpen, onClose, theme }) {
   const [disbursements, setDisbursements] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [activePreview, setActivePreview] = useState(null);
+  const [activePreview, setActivePreview] = useState(null); // { items: [], index: number }
+  const [zoomed, setZoomed] = useState(false);
   const [campaignDetails, setCampaignDetails] = useState(null);
   const [copiedKey, setCopiedKey] = useState(null);
-  const [selectedBatchIdx, setSelectedBatchIdx] = useState('ALL');
+  const [selectedBatchIdx, setSelectedBatchIdx] = useState(0);
 
   const campId = camp?.id || camp?.Campaign_ID || camp?.campaignId;
 
@@ -105,13 +151,34 @@ export default function DisbursementProofModal({ camp, isOpen, onClose, theme })
     setTimeout(() => setCopiedKey((prev) => (prev === key ? null : prev)), 1800);
   };
 
+  // Reset selected batch & preview ONLY when the modal opens for a campaign (NOT when activePreview toggles!)
+  useEffect(() => {
+    if (isOpen) {
+      setSelectedBatchIdx(0);
+      setActivePreview(null);
+      setZoomed(false);
+    }
+  }, [isOpen, campId]);
+
+  // Keyboard navigation (Escape closes lightbox first, then modal; ArrowLeft/ArrowRight cycle gallery images)
   useEffect(() => {
     if (!isOpen) return;
-    setSelectedBatchIdx('ALL');
     const onKey = (e) => {
       if (e.key === 'Escape') {
-        if (activePreview) setActivePreview(null);
-        else onClose?.();
+        if (activePreview) {
+          setActivePreview(null);
+          setZoomed(false);
+        } else {
+          onClose?.();
+        }
+      } else if (activePreview && activePreview.items.length > 1) {
+        if (e.key === 'ArrowRight') {
+          setZoomed(false);
+          setActivePreview((prev) => prev ? { ...prev, index: (prev.index + 1) % prev.items.length } : null);
+        } else if (e.key === 'ArrowLeft') {
+          setZoomed(false);
+          setActivePreview((prev) => prev ? { ...prev, index: (prev.index - 1 + prev.items.length) % prev.items.length } : null);
+        }
       }
     };
     window.addEventListener('keydown', onKey);
@@ -173,6 +240,18 @@ export default function DisbursementProofModal({ camp, isOpen, onClose, theme })
     { enabled: Boolean(isOpen && campId), debounceMs: 250 }
   );
 
+  // Clamp selectedBatchIdx cleanly if disbursements array shrinks
+  const safeBatchIdx = disbursements.length > 0 ? Math.min(selectedBatchIdx, disbursements.length - 1) : 0;
+
+  const parsedBatches = useMemo(() => {
+    return disbursements.map((d, idx) => ({
+      d,
+      idx,
+      batchNumber: disbursements.length - idx,
+      proofData: parseProofData(d.proofUrl)
+    }));
+  }, [disbursements]);
+
   if (!isOpen || !camp) return null;
 
   const displayTitle =
@@ -191,505 +270,626 @@ export default function DisbursementProofModal({ camp, isOpen, onClose, theme })
 
   const totalDisbursedPhp = disbursements.reduce((sum, d) => sum + parseFloat(d.amountPhp || 0), 0);
   const totalBeneficiaries = disbursements.reduce((sum, d) => sum + (parseInt(d.beneficiariesReached, 10) || 0), 0);
-  const totalProofFiles = disbursements.reduce((sum, d) => sum + (parseProofData(d.proofUrl).proofs?.length || 0), 0);
+  const totalProofFiles = parsedBatches.reduce((sum, b) => sum + (b.proofData.proofs?.length || 0), 0);
 
-  const visibleDisbursements =
-    selectedBatchIdx === 'ALL'
-      ? disbursements.map((d, idx) => ({ d, idx }))
-      : disbursements
-          .map((d, idx) => ({ d, idx }))
-          .filter(({ idx }) => idx === selectedBatchIdx);
-
+  const activeBatch = parsedBatches[safeBatchIdx] || null;
   const currentTheme = theme || (typeof document !== 'undefined' ? document.documentElement.getAttribute('data-theme') : 'dark') || 'dark';
+  const currentPreviewItem = activePreview ? activePreview.items[activePreview.index] : null;
 
   return createPortal(
-    <div className="bbdrts-modal-overlay" onClick={onClose} role="dialog" aria-modal="true" data-theme={currentTheme}>
-      <div className="bbdrts-proof-modal" onClick={(e) => e.stopPropagation()} data-theme={currentTheme}>
-        {/* Sticky Executive Header */}
-        <div className="bbdrts-proof-header">
-          <div className="bbdrts-proof-title-cluster">
-            <div className="bbdrts-proof-icon-wrap">
-              <span className="material-symbols-outlined">verified</span>
-            </div>
-            <div style={{ minWidth: 0, flex: 1 }}>
-              <div className="bbdrts-proof-eyebrow-row">
-                <span className="bbdrts-proof-tag">Audited Relief Delivery &amp; Donor Proofs</span>
-                {totalProofFiles > 0 && (
-                  <span className="bbdrts-proof-count-chip">
-                    {totalProofFiles} Evidence {totalProofFiles === 1 ? 'File' : 'Files'}
-                  </span>
-                )}
+    <>
+      <div className="bbdrts-modal-overlay" onClick={onClose} role="dialog" aria-modal="true" data-theme={currentTheme}>
+        <div
+          className={`bbdrts-proof-modal ${parsedBatches.length > 1 ? 'has-rail' : ''}`}
+          onClick={(e) => e.stopPropagation()}
+          data-theme={currentTheme}
+        >
+          {/* Compact Executive Header + Inline Summary Metrics */}
+          <div className="bbdrts-proof-header">
+            <div className="bbdrts-proof-title-cluster">
+              <div className="bbdrts-proof-icon-wrap" aria-hidden="true">
+                <span className="material-symbols-outlined">verified</span>
               </div>
-              <h2 className="bbdrts-proof-title">{displayTitle}</h2>
-              <p className="bbdrts-proof-subtitle">
-                Verified handover photos, merchant receipts, turnover certificates, and Sepolia on-chain audit proofs.
-              </p>
+              <div className="bbdrts-proof-title-copy">
+                <div className="bbdrts-proof-eyebrow-row">
+                  <span className="bbdrts-proof-tag">Audited Relief Delivery Proofs</span>
+                  <span className="bbdrts-proof-sep">·</span>
+                  <span className="bbdrts-proof-org-inline" title={displayOrg}>{displayOrg}</span>
+                  {totalProofFiles > 0 && (
+                    <span className="bbdrts-proof-count-chip">
+                      {totalProofFiles} {totalProofFiles === 1 ? 'File' : 'Files'}
+                    </span>
+                  )}
+                </div>
+                <h2 className="bbdrts-proof-title" title={displayTitle}>{displayTitle}</h2>
+              </div>
             </div>
-          </div>
-          <button type="button" className="bbdrts-proof-close-btn" onClick={onClose} aria-label="Close modal">
-            <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>close</span>
-          </button>
-        </div>
 
-        {/* Hairline 4-Cell Executive KPI Strip */}
-        <div className="bbdrts-proof-stats-strip">
-          <div className="bbdrts-proof-stat">
-            <span className="stat-label">Total Aid Disbursed</span>
-            <strong className="stat-val emerald">₱{totalDisbursedPhp.toLocaleString('en-US')}</strong>
-          </div>
-          <div className="bbdrts-proof-stat">
-            <span className="stat-label">Beneficiaries Reached</span>
-            <strong className="stat-val">
-              {totalBeneficiaries > 0 ? `${totalBeneficiaries.toLocaleString('en-US')} Recipients` : 'Community Distribution'}
-            </strong>
-          </div>
-          <div className="bbdrts-proof-stat">
-            <span className="stat-label">Disbursement Batches</span>
-            <strong className="stat-val">
-              {disbursements.length} {disbursements.length === 1 ? 'Record' : 'Records'}
-            </strong>
-          </div>
-          <div className="bbdrts-proof-stat">
-            <span className="stat-label">Operating NGO</span>
-            <strong className="stat-val highlight" title={displayOrg}>{displayOrg}</strong>
-          </div>
-        </div>
+            <div className="bbdrts-proof-header-right">
+              {!loading && disbursements.length > 0 && (
+                <div className="bbdrts-header-kpis">
+                  <div className="bbdrts-hkpi">
+                    <span className="hkpi-lbl">Total Disbursed</span>
+                    <strong className="hkpi-val is-emerald">₱{totalDisbursedPhp.toLocaleString('en-US')}</strong>
+                  </div>
+                  <div className="bbdrts-hkpi">
+                    <span className="hkpi-lbl">Reached</span>
+                    <strong className="hkpi-val">
+                      {totalBeneficiaries > 0 ? `${totalBeneficiaries.toLocaleString('en-US')}` : 'Community'}
+                    </strong>
+                  </div>
+                  <div className="bbdrts-hkpi">
+                    <span className="hkpi-lbl">Batches</span>
+                    <strong className="hkpi-val">{disbursements.length}</strong>
+                  </div>
+                </div>
+              )}
 
-        {/* Quick Batch Switcher (when 2+ batches exist) */}
-        {!loading && disbursements.length > 1 && (
-          <div className="bbdrts-batch-tabs-bar" role="tablist" aria-label="Filter disbursement batch">
-            <button
-              type="button"
-              role="tab"
-              aria-selected={selectedBatchIdx === 'ALL'}
-              className={`bbdrts-batch-tab ${selectedBatchIdx === 'ALL' ? 'is-active' : ''}`}
-              onClick={() => setSelectedBatchIdx('ALL')}
-            >
-              <span>All Batches ({disbursements.length})</span>
-            </button>
-            {disbursements.map((d, idx) => (
-              <button
-                key={d.id || idx}
-                type="button"
-                role="tab"
-                aria-selected={selectedBatchIdx === idx}
-                className={`bbdrts-batch-tab ${selectedBatchIdx === idx ? 'is-active' : ''}`}
-                onClick={() => setSelectedBatchIdx(idx)}
-              >
-                <span>Batch #{disbursements.length - idx}</span>
-                <span className="bbdrts-batch-tab-amt">₱{parseFloat(d.amountPhp || 0).toLocaleString('en-US')}</span>
+              <button type="button" className="bbdrts-proof-close-btn" onClick={onClose} aria-label="Close modal" title="Close (Esc)">
+                <span className="material-symbols-outlined" style={{ fontSize: '19px' }}>close</span>
               </button>
-            ))}
+            </div>
           </div>
-        )}
 
-        {/* Scrollable Content Body */}
-        <div className="bbdrts-proof-body">
-          {loading ? (
-            <div className="bbdrts-proof-loading">
-              <div className="spinner-border text-primary" role="status" style={{ width: '1.8rem', height: '1.8rem' }} />
-              <span>Fetching live cryptographic distribution records…</span>
-            </div>
-          ) : disbursements.length === 0 ? (
-            <div className="bbdrts-proof-empty">
-              <div className="empty-icon-wrap">
-                <span className="material-symbols-outlined empty-icon">pending_actions</span>
+          {/* Main Workspace: Master-Detail Split when 2+ batches, clean single pane when 1 */}
+          <div className={`bbdrts-proof-workspace ${parsedBatches.length > 1 ? 'is-split' : ''}`}>
+            {loading ? (
+              <div className="bbdrts-proof-loading">
+                <div className="spinner-border text-primary" role="status" style={{ width: '1.7rem', height: '1.7rem' }} />
+                <span>Fetching live cryptographic distribution records…</span>
               </div>
-              <h3>No Disbursements Recorded Yet</h3>
-              <p>
-                The NGO is currently procuring supplies and mobilizing logistics for this operation. Audited receipts and distribution photos will appear here automatically once aid is released.
-              </p>
-            </div>
-          ) : (
-            <div className="bbdrts-proof-timeline">
-              {visibleDisbursements.map(({ d, idx }) => {
-                const proofData = parseProofData(d.proofUrl);
-                const proofsList = proofData.proofs || [];
-                const expensesList = proofData.expenseBreakdown || [];
-                const aidCat = proofData.aidCategory ? AID_CATEGORY_MAP[proofData.aidCategory] : null;
-                const isLiveOnChain = proofData.onChain === true || Boolean(proofData.explorerUrl);
-                const explorerHref =
-                  proofData.explorerUrl ||
-                  (d.txHash && String(d.txHash).startsWith('0x') && proofData.onChain !== false
-                    ? `${SEPOLIA_EXPLORER}${d.txHash}`
-                    : '');
-
-                const metricCells = [
-                  {
-                    label: 'Amount Released',
-                    value: `₱${parseFloat(d.amountPhp || 0).toLocaleString('en-US')}`,
-                    accent: 'emerald',
-                    mono: true
-                  },
-                  ...(d.beneficiariesReached > 0
-                    ? [{
-                        label: 'Recipients Impacted',
-                        value: `${Number(d.beneficiariesReached).toLocaleString('en-US')} Families`,
-                        icon: 'groups'
-                      }]
-                    : []),
-                  ...(proofData.location
-                    ? [{
-                        label: 'Distribution Site',
-                        value: proofData.location,
-                        icon: 'location_on'
-                      }]
-                    : []),
-                  ...(proofData.lguPartner
-                    ? [{
-                        label: 'LGU / Partner',
-                        value: proofData.lguPartner,
-                        icon: 'handshake'
-                      }]
-                    : [])
-                ];
-
-                return (
-                  <article key={d.id || idx} className="bbdrts-proof-card">
-                    {/* Card Header Bar */}
-                    <div className="proof-card-header">
-                      <div className="proof-card-header-left">
-                        <span className="batch-pill">
-                          <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>check_circle</span>
-                          <span>Disbursement #{disbursements.length - idx}</span>
-                        </span>
-                        {aidCat && (
-                          <span className="proof-aid-cat-pill">
-                            <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>{aidCat.icon}</span>
-                            <span>{aidCat.label}</span>
-                          </span>
-                        )}
-                        {isLiveOnChain && (
-                          <span className="proof-chain-badge is-live">
-                            <span className="chain-dot" />
-                            <span>On-Chain</span>
-                          </span>
-                        )}
-                      </div>
-                      <span className="timestamp">
-                        <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>schedule</span>
-                        <span>
-                          {d.disbursedAt
-                            ? new Date(d.disbursedAt).toLocaleString('en-US', {
-                                month: 'short',
-                                day: 'numeric',
-                                year: 'numeric',
-                                hour: '2-digit',
-                                minute: '2-digit'
-                              })
-                            : 'Verified Delivery'}
-                        </span>
-                      </span>
+            ) : disbursements.length === 0 ? (
+              <div className="bbdrts-proof-empty">
+                <div className="empty-icon-wrap">
+                  <span className="material-symbols-outlined empty-icon">pending_actions</span>
+                </div>
+                <h3>No Disbursements Recorded Yet</h3>
+                <p>
+                  The NGO is currently procuring supplies and mobilizing logistics for this operation. Audited receipts and distribution photos will appear here automatically once aid is released.
+                </p>
+              </div>
+            ) : (
+              <>
+                {/* Left Batch Navigator Rail (only shown when 2+ batches exist) */}
+                {parsedBatches.length > 1 && (
+                  <aside className="bbdrts-batch-rail" aria-label="Disbursement batches">
+                    <div className="bbdrts-batch-rail-head">
+                      <span>Disbursement Batches</span>
+                      <span className="rail-count">{parsedBatches.length}</span>
                     </div>
-
-                    {/* Structured Hairline Metrics Bar */}
-                    <div
-                      className="proof-card-metrics"
-                      style={{ gridTemplateColumns: `repeat(${Math.min(4, Math.max(1, metricCells.length))}, minmax(0, 1fr))` }}
-                    >
-                      {metricCells.map((cell, cIdx) => (
-                        <div key={cIdx} className="metric-item">
-                          <span className="metric-label">{cell.label}</span>
-                          <strong className={`metric-val ${cell.accent || ''} ${cell.mono ? 'is-mono' : ''}`} title={cell.value}>
-                            {cell.value}
-                          </strong>
-                        </div>
-                      ))}
+                    <div className="bbdrts-batch-rail-list" role="tablist" aria-orientation="vertical">
+                      {parsedBatches.map(({ d, idx, batchNumber, proofData }) => {
+                        const isSelected = safeBatchIdx === idx;
+                        const aidCat = proofData.aidCategory ? AID_CATEGORY_MAP[proofData.aidCategory] : null;
+                        const isLiveOnChain = proofData.onChain === true || Boolean(proofData.explorerUrl);
+                        const fileCount = proofData.proofs?.length || 0;
+                        return (
+                          <button
+                            key={d.id || idx}
+                            type="button"
+                            role="tab"
+                            aria-selected={isSelected}
+                            className={`bbdrts-rail-item ${isSelected ? 'is-active' : ''}`}
+                            onClick={() => setSelectedBatchIdx(idx)}
+                          >
+                            <div className="rail-item-top">
+                              <span className="rail-batch-name">
+                                {isLiveOnChain && <span className="rail-chain-dot" title="Verified On-Chain" />}
+                                <span>Batch #{batchNumber}</span>
+                              </span>
+                              <span className="rail-batch-date">{formatShortDate(d.disbursedAt)}</span>
+                            </div>
+                            <div className="rail-item-amt">
+                              ₱{parseFloat(d.amountPhp || 0).toLocaleString('en-US')}
+                            </div>
+                            <div className="rail-item-meta">
+                              <span className="rail-meta-cat">{aidCat ? aidCat.label : (proofData.location || 'Relief Release')}</span>
+                              <span className="rail-meta-files">{fileCount} {fileCount === 1 ? 'file' : 'files'}</span>
+                            </div>
+                          </button>
+                        );
+                      })}
                     </div>
+                  </aside>
+                )}
 
-                    {/* Summary Narrative */}
-                    {d.impactSummary && (
-                      <div className="proof-narrative-box">
-                        <div className="narrative-label">
-                          <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>description</span>
-                          <span>Relief Distribution Summary</span>
-                        </div>
-                        <p className="narrative-text">{d.impactSummary}</p>
-                      </div>
-                    )}
+                {/* Right Focused Batch Detail View */}
+                {activeBatch && (() => {
+                  const { d, idx, batchNumber, proofData } = activeBatch;
+                  const proofsList = proofData.proofs || [];
+                  const expensesList = proofData.expenseBreakdown || [];
+                  const aidCat = proofData.aidCategory ? AID_CATEGORY_MAP[proofData.aidCategory] : null;
+                  const isLiveOnChain = proofData.onChain === true || Boolean(proofData.explorerUrl);
+                  const explorerHref =
+                    proofData.explorerUrl ||
+                    (d.txHash && String(d.txHash).startsWith('0x') && proofData.onChain !== false
+                      ? `${SEPOLIA_EXPLORER}${d.txHash}`
+                      : '');
+                  const dtParts = formatBatchDateTime(d.disbursedAt);
 
-                    {/* Itemized Expense Breakdown */}
-                    {expensesList.length > 0 && (
-                      <div className="proof-expenses-box">
-                        <div className="narrative-label">
-                          <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>receipt_long</span>
-                          <span>Itemized Procurement Breakdown ({expensesList.length} {expensesList.length === 1 ? 'item' : 'items'})</span>
-                        </div>
-                        <div className="proof-expense-table-wrap">
-                          <table className="proof-expense-table">
-                            <thead>
-                              <tr>
-                                <th>Item / Relief Good</th>
-                                <th>Quantity</th>
-                                <th style={{ textAlign: 'right' }}>Cost (PHP)</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {expensesList.map((exp, eIdx) => (
-                                <tr key={eIdx}>
-                                  <td>{exp.description || 'Relief Supplies'}</td>
-                                  <td>{exp.quantity || '—'}</td>
-                                  <td style={{ textAlign: 'right', fontFamily: 'var(--font-mono)' }}>
-                                    ₱{parseFloat(exp.costPhp || 0).toLocaleString('en-US')}
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      </div>
-                    )}
+                  const metricCells = [
+                    {
+                      label: 'Amount Released',
+                      value: `₱${parseFloat(d.amountPhp || 0).toLocaleString('en-US')}`,
+                      accent: 'emerald',
+                      mono: true
+                    },
+                    ...(d.beneficiariesReached > 0
+                      ? [{
+                          label: 'Recipients',
+                          value: `${Number(d.beneficiariesReached).toLocaleString('en-US')} Families`
+                        }]
+                      : []),
+                    ...(proofData.location
+                      ? [{
+                          label: 'Distribution Site',
+                          value: proofData.location
+                        }]
+                      : []),
+                    ...(proofData.lguPartner
+                      ? [{
+                          label: 'LGU / Partner',
+                          value: proofData.lguPartner
+                        }]
+                      : [])
+                  ];
 
-                    {/* Evidentiary Gallery */}
-                    {proofsList.length > 0 && (
-                      <div className="proof-attachment-box">
-                        <div className="narrative-label-row">
-                          <div className="narrative-label">
-                            <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>collections</span>
-                            <span>Verified Evidentiary Documents &amp; Photos ({proofsList.length})</span>
-                          </div>
-                          <span className="proof-privacy-note">
-                            <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>shield_person</span>
-                            <span>RA 10173 Privacy-Protected</span>
+                  // Build previewable gallery list so Lightbox supports Prev/Next cycling
+                  const previewableItems = proofsList
+                    .map((proof, pIdx) => {
+                      const cat = CATEGORY_MAP[proof.category] || CATEGORY_MAP.OFFICIAL_RECEIPT;
+                      const fileKind = classifyProofFile(proof);
+                      const resolvedUrl = normalizeProofSrc(proof.url);
+                      const hostedUrl = d.id ? `${API_URL}/api/disbursements/${d.id}/proof/${pIdx}` : resolvedUrl;
+                      const downloadHref = d.id ? `${hostedUrl}?download=1` : resolvedUrl;
+                      const safeDownloadName = proof.name || `relief-proof-${d.id || idx}-${pIdx + 1}`;
+                      return {
+                        pIdx,
+                        proof,
+                        cat,
+                        fileKind,
+                        url: resolvedUrl || hostedUrl,
+                        hostedUrl,
+                        downloadHref,
+                        fileName: safeDownloadName,
+                        title: proof.caption || proof.name || 'Verifiable Document',
+                        category: cat.label
+                      };
+                    });
+
+                  const lightboxItems = previewableItems.filter((item) => item.fileKind === 'image' || item.fileKind === 'pdf');
+
+                  return (
+                    <div className="bbdrts-proof-detail" key={d.id || idx}>
+                      {/* Focused Batch Header */}
+                      <div className="proof-detail-head">
+                        <div className="proof-card-header-left">
+                          <span className="batch-pill">
+                            <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>check_circle</span>
+                            <span>Disbursement #{batchNumber}</span>
                           </span>
-                        </div>
-
-                        <div className={`proof-gallery-grid ${proofsList.length === 1 ? 'is-single' : ''}`}>
-                          {proofsList.map((proof, pIdx) => {
-                            const cat = CATEGORY_MAP[proof.category] || CATEGORY_MAP.OFFICIAL_RECEIPT;
-                            const fileKind = classifyProofFile(proof);
-                            const hostedUrl = d.id ? `${API_URL}/api/disbursements/${d.id}/proof/${pIdx}` : null;
-                            const downloadHref = hostedUrl ? `${hostedUrl}?download=1` : proof.url;
-                            const safeDownloadName = proof.name || `relief-proof-${d.id || idx}-${pIdx + 1}`;
-
-                            const handleCardClick = () => {
-                              if (fileKind === 'spreadsheet' || fileKind === 'document') {
-                                window.open(downloadHref, '_blank', 'noopener,noreferrer');
-                                return;
-                              }
-                              setActivePreview({
-                                kind: fileKind,
-                                url: proof.url,
-                                hostedUrl: hostedUrl || proof.url,
-                                downloadHref,
-                                fileName: safeDownloadName,
-                                title: proof.caption || proof.name || 'Verifiable Document',
-                                category: cat.label
-                              });
-                            };
-
-                            return (
-                              <div
-                                key={proof.id || pIdx}
-                                className="proof-gallery-card"
-                                onClick={handleCardClick}
-                              >
-                                {fileKind === 'image' ? (
-                                  <div className="proof-gallery-img-wrap">
-                                    <img src={proof.url} alt={proof.caption || 'Proof'} loading="lazy" />
-                                    <div className="proof-gallery-overlay">
-                                      <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>zoom_in</span>
-                                      <span>Inspect Full Photo</span>
-                                    </div>
-                                  </div>
-                                ) : (
-                                  <div className={`proof-gallery-doc-wrap is-${fileKind}`}>
-                                    <span className="material-symbols-outlined doc-icon">
-                                      {fileKind === 'pdf'
-                                        ? 'picture_as_pdf'
-                                        : fileKind === 'spreadsheet'
-                                          ? 'table_view'
-                                          : 'description'}
-                                    </span>
-                                    <span className="doc-kind-pill">
-                                      {fileKind === 'pdf'
-                                        ? 'PDF DOCUMENT'
-                                        : fileKind === 'spreadsheet'
-                                          ? 'EXCEL / CSV'
-                                          : 'DOCUMENT'}
-                                    </span>
-                                    {proof.fileSize && <span className="doc-size">{proof.fileSize}</span>}
-                                    <div className="proof-gallery-overlay">
-                                      <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>
-                                        {fileKind === 'pdf' ? 'visibility' : 'download'}
-                                      </span>
-                                      <span>{fileKind === 'pdf' ? 'Preview PDF' : 'Download File'}</span>
-                                    </div>
-                                  </div>
-                                )}
-
-                                <div className="proof-gallery-caption-row">
-                                  <div className="proof-gallery-badge-bar">
-                                    <span className="proof-gallery-badge">
-                                      <span className="material-symbols-outlined" style={{ fontSize: '11px' }}>{cat.icon}</span>
-                                      <span>{cat.label}</span>
-                                    </span>
-                                    <a
-                                      href={downloadHref}
-                                      download={safeDownloadName}
-                                      target="_blank"
-                                      rel="noreferrer"
-                                      className="proof-gallery-dl-btn"
-                                      title={`Download ${safeDownloadName}`}
-                                      onClick={(e) => e.stopPropagation()}
-                                    >
-                                      <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>download</span>
-                                    </a>
-                                  </div>
-                                  <span className="proof-gallery-title" title={proof.caption || proof.name}>
-                                    {proof.caption || proof.name || 'Verifiable Document'}
-                                  </span>
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* On-Chain Sepolia Hash & SHA-256 Evidence Digest */}
-                    {(d.txHash || proofData.proofDigest) && (
-                      <div className="proof-tx-box">
-                        <div className="proof-tx-header">
-                          <span className="tx-label">
-                            <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>verified_user</span>
-                            <span>Cryptographic Audit Proof</span>
-                          </span>
-                          {isLiveOnChain ? (
+                          {aidCat && (
+                            <span className="proof-aid-cat-pill">
+                              <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>{aidCat.icon}</span>
+                              <span>{aidCat.label}</span>
+                            </span>
+                          )}
+                          {isLiveOnChain && (
                             <span className="proof-chain-badge is-live">
                               <span className="chain-dot" />
-                              <span>
-                                Sepolia Confirmed{proofData.blockNumber ? ` · Block #${Number(proofData.blockNumber).toLocaleString()}` : ''}
-                              </span>
+                              <span>On-Chain</span>
                             </span>
-                          ) : proofData.onChain === false ? (
-                            <span className="proof-chain-badge is-seal">
-                              <span>SHA-256 Audit Seal</span>
-                            </span>
-                          ) : null}
+                          )}
                         </div>
+                        <span className="timestamp">
+                          <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>schedule</span>
+                          <span>
+                            {dtParts.date}
+                            {dtParts.time && (
+                              <>
+                                <span className="proof-pipe-sep" aria-hidden="true">|</span>
+                                {dtParts.time}
+                              </>
+                            )}
+                          </span>
+                        </span>
+                      </div>
 
-                        {d.txHash && (
-                          <div className="tx-row">
-                            <code className="tx-code" title={d.txHash}>{d.txHash}</code>
-                            <div className="tx-actions">
+                      {/* Hairline Metrics Bar */}
+                      <div
+                        className="proof-card-metrics"
+                        style={{ gridTemplateColumns: `repeat(${Math.min(4, Math.max(1, metricCells.length))}, minmax(0, 1fr))` }}
+                      >
+                        {metricCells.map((cell, cIdx) => (
+                          <div key={cIdx} className="metric-item">
+                            <span className="metric-label">{cell.label}</span>
+                            <strong className={`metric-val ${cell.accent || ''} ${cell.mono ? 'is-mono' : ''}`} title={cell.value}>
+                              {cell.value}
+                            </strong>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Summary Narrative */}
+                      {d.impactSummary && (
+                        <div className="proof-narrative-box">
+                          <div className="narrative-label">
+                            <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>description</span>
+                            <span>Relief Distribution Summary</span>
+                          </div>
+                          <p className="narrative-text">{d.impactSummary}</p>
+                        </div>
+                      )}
+
+                      {/* Itemized Expense Breakdown */}
+                      {expensesList.length > 0 && (
+                        <div className="proof-expenses-box">
+                          <div className="narrative-label">
+                            <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>receipt_long</span>
+                            <span>Itemized Procurement Breakdown ({expensesList.length})</span>
+                          </div>
+                          <div className="proof-expense-table-wrap">
+                            <table className="proof-expense-table">
+                              <thead>
+                                <tr>
+                                  <th>Item / Relief Good</th>
+                                  <th>Quantity</th>
+                                  <th style={{ textAlign: 'right' }}>Cost (PHP)</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {expensesList.map((exp, eIdx) => (
+                                  <tr key={eIdx}>
+                                    <td>{exp.description || 'Relief Supplies'}</td>
+                                    <td>{exp.quantity || '—'}</td>
+                                    <td style={{ textAlign: 'right', fontFamily: 'var(--font-mono)' }}>
+                                      ₱{parseFloat(exp.costPhp || 0).toLocaleString('en-US')}
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Evidentiary Gallery */}
+                      {previewableItems.length > 0 && (
+                        <div className="proof-attachment-box">
+                          <div className="narrative-label-row">
+                            <div className="narrative-label">
+                              <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>collections</span>
+                              <span>Verified Evidence &amp; Photos ({previewableItems.length})</span>
+                            </div>
+                            <span className="proof-privacy-note">
+                              <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>shield_person</span>
+                              <span>RA 10173 Privacy-Protected</span>
+                            </span>
+                          </div>
+
+                          <div className={`proof-gallery-grid ${previewableItems.length === 1 ? 'is-single' : ''}`}>
+                            {previewableItems.map((item) => {
+                              const handleCardClick = () => {
+                                if (item.fileKind === 'spreadsheet' || item.fileKind === 'document') {
+                                  window.open(item.downloadHref, '_blank', 'noopener,noreferrer');
+                                  return;
+                                }
+                                const lbIdx = lightboxItems.findIndex((x) => x.pIdx === item.pIdx);
+                                setZoomed(false);
+                                setActivePreview({
+                                  items: lightboxItems,
+                                  index: lbIdx >= 0 ? lbIdx : 0
+                                });
+                              };
+
+                              return (
+                                <div
+                                  key={item.proof.id || item.pIdx}
+                                  className="proof-gallery-card"
+                                  role="button"
+                                  tabIndex={0}
+                                  onClick={handleCardClick}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter' || e.key === ' ') {
+                                      e.preventDefault();
+                                      handleCardClick();
+                                    }
+                                  }}
+                                >
+                                  {item.fileKind === 'image' ? (
+                                    <div className="proof-gallery-img-wrap">
+                                      <img
+                                        src={item.url}
+                                        alt={item.title}
+                                        loading="lazy"
+                                        onError={(e) => {
+                                          if (item.hostedUrl && e.currentTarget.src !== item.hostedUrl) {
+                                            e.currentTarget.src = item.hostedUrl;
+                                          }
+                                        }}
+                                      />
+                                      <div className="proof-gallery-overlay">
+                                        <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>zoom_in</span>
+                                        <span>Inspect Full Photo</span>
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <div className={`proof-gallery-doc-wrap is-${item.fileKind}`}>
+                                      <span className="material-symbols-outlined doc-icon">
+                                        {item.fileKind === 'pdf'
+                                          ? 'picture_as_pdf'
+                                          : item.fileKind === 'spreadsheet'
+                                            ? 'table_view'
+                                            : 'description'}
+                                      </span>
+                                      <span className="doc-kind-pill">
+                                        {item.fileKind === 'pdf'
+                                          ? 'PDF DOCUMENT'
+                                          : item.fileKind === 'spreadsheet'
+                                            ? 'EXCEL / CSV'
+                                            : 'DOCUMENT'}
+                                      </span>
+                                      {item.proof.fileSize && <span className="doc-size">{item.proof.fileSize}</span>}
+                                      <div className="proof-gallery-overlay">
+                                        <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>
+                                          {item.fileKind === 'pdf' ? 'visibility' : 'download'}
+                                        </span>
+                                        <span>{item.fileKind === 'pdf' ? 'Preview PDF' : 'Download File'}</span>
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  <div className="proof-gallery-caption-row">
+                                    <div className="proof-gallery-badge-bar">
+                                      <span className="proof-gallery-badge">
+                                        <span className="material-symbols-outlined" style={{ fontSize: '11px' }}>{item.cat.icon}</span>
+                                        <span>{item.cat.label}</span>
+                                      </span>
+                                      <a
+                                        href={item.downloadHref}
+                                        download={item.fileName}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="proof-gallery-dl-btn"
+                                        title={`Download ${item.fileName}`}
+                                        onClick={(e) => e.stopPropagation()}
+                                      >
+                                        <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>download</span>
+                                      </a>
+                                    </div>
+                                    <span className="proof-gallery-title" title={item.title}>
+                                      {item.title}
+                                    </span>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* On-Chain Sepolia Hash & SHA-256 Evidence Digest */}
+                      {(d.txHash || proofData.proofDigest) && (
+                        <div className="proof-tx-box">
+                          <div className="proof-tx-header">
+                            <span className="tx-label">
+                              <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>verified_user</span>
+                              <span>Cryptographic Audit Proof</span>
+                            </span>
+                            {isLiveOnChain ? (
+                              <span className="proof-chain-badge is-live">
+                                <span className="chain-dot" />
+                                <span>
+                                  Sepolia Confirmed{proofData.blockNumber ? ` · Block #${Number(proofData.blockNumber).toLocaleString()}` : ''}
+                                </span>
+                              </span>
+                            ) : proofData.onChain === false ? (
+                              <span className="proof-chain-badge is-seal">
+                                <span>SHA-256 Audit Seal</span>
+                              </span>
+                            ) : null}
+                          </div>
+
+                          {d.txHash && (
+                            <div className="tx-row">
+                              <code className="tx-code" title={d.txHash}>{d.txHash}</code>
+                              <div className="tx-actions">
+                                <button
+                                  type="button"
+                                  className="proof-mini-btn"
+                                  onClick={() => handleCopyValue(`tx_${d.id || idx}`, d.txHash)}
+                                  title="Copy transaction / seal hash"
+                                >
+                                  <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>
+                                    {copiedKey === `tx_${d.id || idx}` ? 'check' : 'content_copy'}
+                                  </span>
+                                  <span>{copiedKey === `tx_${d.id || idx}` ? 'Copied' : 'Copy'}</span>
+                                </button>
+                                {explorerHref && (
+                                  <a
+                                    href={explorerHref}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="proof-mini-btn"
+                                    title="Verify on Sepolia Etherscan"
+                                  >
+                                    <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>open_in_new</span>
+                                    <span>Etherscan</span>
+                                  </a>
+                                )}
+                              </div>
+                            </div>
+                          )}
+
+                          {proofData.proofDigest && (
+                            <div className="proof-digest-row">
+                              <span className="digest-lbl">Evidence SHA-256:</span>
+                              <code className="digest-code" title={proofData.proofDigest}>
+                                {proofData.proofDigest}
+                              </code>
                               <button
                                 type="button"
-                                className="proof-mini-btn"
-                                onClick={() => handleCopyValue(`tx_${d.id || idx}`, d.txHash)}
-                                title="Copy transaction / seal hash"
+                                className="digest-copy-btn"
+                                onClick={() => handleCopyValue(`dig_${d.id || idx}`, proofData.proofDigest)}
+                                title="Copy canonical SHA-256 digest"
                               >
                                 <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>
-                                  {copiedKey === `tx_${d.id || idx}` ? 'check' : 'content_copy'}
+                                  {copiedKey === `dig_${d.id || idx}` ? 'check' : 'content_copy'}
                                 </span>
-                                <span>{copiedKey === `tx_${d.id || idx}` ? 'Copied' : 'Copy'}</span>
                               </button>
-                              {explorerHref && (
-                                <a
-                                  href={explorerHref}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="proof-mini-btn"
-                                  title="Verify on Sepolia Etherscan"
-                                >
-                                  <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>open_in_new</span>
-                                  <span>Etherscan</span>
-                                </a>
-                              )}
                             </div>
-                          </div>
-                        )}
-
-                        {proofData.proofDigest && (
-                          <div className="proof-digest-row">
-                            <span className="digest-lbl">Evidence SHA-256:</span>
-                            <code className="digest-code" title={proofData.proofDigest}>
-                              {proofData.proofDigest}
-                            </code>
-                            <button
-                              type="button"
-                              className="digest-copy-btn"
-                              onClick={() => handleCopyValue(`dig_${d.id || idx}`, proofData.proofDigest)}
-                              title="Copy canonical SHA-256 digest"
-                            >
-                              <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>
-                                {copiedKey === `dig_${d.id || idx}` ? 'check' : 'content_copy'}
-                              </span>
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </article>
-                );
-              })}
-            </div>
-          )}
-        </div>
-
-        {/* Sticky Footer */}
-        <div className="bbdrts-proof-footer">
-          <div className="footer-left">
-            <span className="material-symbols-outlined text-emerald" style={{ fontSize: '16px' }}>verified_user</span>
-            <span>Permanently synchronized with Ethereum Sepolia &amp; BBDRTS Audit Vault</span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+              </>
+            )}
           </div>
-          <button type="button" className="bbdrts-proof-done-btn" onClick={onClose}>
-            Done
-          </button>
-        </div>
 
-        {/* Image / PDF Lightbox Viewer */}
-        {activePreview && (
-          <div className="bbdrts-proof-zoom-overlay" onClick={() => setActivePreview(null)}>
-            <div className="zoom-card" onClick={(e) => e.stopPropagation()}>
-              <div className="zoom-header">
-                <div style={{ minWidth: 0, paddingRight: '16px' }}>
-                  <span className="zoom-badge">{activePreview.category}</span>
-                  <div className="zoom-title">{activePreview.title}</div>
-                </div>
-                <div className="zoom-actions">
-                  {activePreview.hostedUrl && (
-                    <a
-                      href={activePreview.hostedUrl}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="zoom-action-btn"
-                    >
-                      <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>open_in_new</span>
-                      <span>Open Tab</span>
-                    </a>
+          {/* Minimal Sticky Footer */}
+          <div className="bbdrts-proof-footer">
+            <div className="footer-left">
+              <span className="material-symbols-outlined text-emerald" style={{ fontSize: '16px' }}>verified_user</span>
+              <span>Permanently synchronized with Ethereum Sepolia &amp; BBDRTS Audit Vault</span>
+            </div>
+            <button type="button" className="bbdrts-proof-done-btn" onClick={onClose}>
+              Done
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Portaled Full-Viewport Image / PDF Lightbox (Outside transformed/overflow-hidden modal!) */}
+      {currentPreviewItem && (
+        <div
+          className="bbdrts-proof-zoom-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Evidence Preview"
+          data-theme={currentTheme}
+          onClick={() => {
+            setActivePreview(null);
+            setZoomed(false);
+          }}
+        >
+          <div className="zoom-card" onClick={(e) => e.stopPropagation()}>
+            <div className="zoom-header">
+              <div className="zoom-header-meta">
+                <div className="zoom-badge-row">
+                  <span className="zoom-badge">{currentPreviewItem.category}</span>
+                  {activePreview.items.length > 1 && (
+                    <span className="zoom-counter">
+                      {activePreview.index + 1} / {activePreview.items.length}
+                    </span>
                   )}
+                </div>
+                <div className="zoom-title" title={currentPreviewItem.title}>{currentPreviewItem.title}</div>
+              </div>
+              <div className="zoom-actions">
+                {currentPreviewItem.fileKind === 'image' && (
+                  <button
+                    type="button"
+                    className="zoom-action-btn"
+                    onClick={() => setZoomed((z) => !z)}
+                    title={zoomed ? 'Fit to screen' : 'Zoom in'}
+                  >
+                    <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>
+                      {zoomed ? 'zoom_out' : 'zoom_in'}
+                    </span>
+                    <span>{zoomed ? 'Fit' : 'Zoom'}</span>
+                  </button>
+                )}
+                {currentPreviewItem.hostedUrl && (
                   <a
-                    href={activePreview.downloadHref}
-                    download={activePreview.fileName}
+                    href={currentPreviewItem.hostedUrl}
                     target="_blank"
                     rel="noreferrer"
                     className="zoom-action-btn"
                   >
-                    <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>download</span>
-                    <span>Download</span>
+                    <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>open_in_new</span>
+                    <span>Open Tab</span>
                   </a>
-                  <button type="button" className="zoom-close-inline-btn" onClick={() => setActivePreview(null)} aria-label="Close preview">
-                    <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>close</span>
-                  </button>
-                </div>
-              </div>
-              <div className="zoom-img-container">
-                {activePreview.kind === 'pdf' ? (
-                  <iframe
-                    src={activePreview.hostedUrl || activePreview.url}
-                    title={activePreview.title}
-                    className="zoom-pdf-frame"
-                  />
-                ) : (
-                  <img src={activePreview.url} alt={activePreview.title} />
                 )}
+                <a
+                  href={currentPreviewItem.downloadHref}
+                  download={currentPreviewItem.fileName}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="zoom-action-btn"
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: '14px' }}>download</span>
+                  <span>Download</span>
+                </a>
+                <button
+                  type="button"
+                  className="zoom-close-inline-btn"
+                  onClick={() => {
+                    setActivePreview(null);
+                    setZoomed(false);
+                  }}
+                  aria-label="Close preview"
+                  title="Close (Esc)"
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>close</span>
+                </button>
               </div>
             </div>
+
+            <div className={`zoom-img-container ${zoomed ? 'is-zoomed' : ''}`}>
+              {activePreview.items.length > 1 && (
+                <button
+                  type="button"
+                  className="zoom-nav-btn is-prev"
+                  onClick={() => {
+                    setZoomed(false);
+                    setActivePreview((prev) => prev ? { ...prev, index: (prev.index - 1 + prev.items.length) % prev.items.length } : null);
+                  }}
+                  aria-label="Previous file"
+                >
+                  <span className="material-symbols-outlined">chevron_left</span>
+                </button>
+              )}
+
+              {currentPreviewItem.fileKind === 'pdf' ? (
+                <iframe
+                  src={currentPreviewItem.hostedUrl || currentPreviewItem.url}
+                  title={currentPreviewItem.title}
+                  className="zoom-pdf-frame"
+                />
+              ) : (
+                <img
+                  src={currentPreviewItem.url}
+                  alt={currentPreviewItem.title}
+                  className={zoomed ? 'is-zoomed' : ''}
+                  onClick={() => setZoomed((z) => !z)}
+                  onError={(e) => {
+                    if (currentPreviewItem.hostedUrl && e.currentTarget.src !== currentPreviewItem.hostedUrl) {
+                      e.currentTarget.src = currentPreviewItem.hostedUrl;
+                    }
+                  }}
+                />
+              )}
+
+              {activePreview.items.length > 1 && (
+                <button
+                  type="button"
+                  className="zoom-nav-btn is-next"
+                  onClick={() => {
+                    setZoomed(false);
+                    setActivePreview((prev) => prev ? { ...prev, index: (prev.index + 1) % prev.items.length } : null);
+                  }}
+                  aria-label="Next file"
+                >
+                  <span className="material-symbols-outlined">chevron_right</span>
+                </button>
+              )}
+            </div>
           </div>
-        )}
-      </div>
-    </div>,
+        </div>
+      )}
+    </>,
     document.body
   );
 }
