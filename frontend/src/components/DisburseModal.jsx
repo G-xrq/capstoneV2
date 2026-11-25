@@ -757,7 +757,7 @@ export default function DisburseModal({ camp, isOpen, onClose, onDisbursed }) {
 
                       {isOverdrawn ? (
                         <span className="hint-error">
-                          ⚠️ Exceeds available escrow balance (₱{availablePhp.toLocaleString()}) by ₱{(effectiveAmountPhp - availablePhp).toLocaleString()}.
+                          Exceeds available escrow balance (₱{availablePhp.toLocaleString()}) by ₱{(effectiveAmountPhp - availablePhp).toLocaleString()}.
                         </span>
                       ) : (
                         <div className="bbdrts-escrow-balance-card">

@@ -279,7 +279,7 @@ function openPrintableHtml(title, bodyHtml) {
 </head>
 <body>
   <div class="print-toolbar">
-    <div class="print-toolbar-title">📄 ${escHtml(title)}</div>
+    <div class="print-toolbar-title">${escHtml(title)}</div>
     <div class="print-toolbar-actions">
       <button type="button" class="print-btn primary" onclick="window.print()">Print / Save as PDF</button>
       <button type="button" class="print-btn" onclick="window.close()">Close</button>
