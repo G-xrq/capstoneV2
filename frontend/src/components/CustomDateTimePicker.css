@@ -21,7 +21,7 @@
   justify-content: space-between;
   gap: 9px;
   color: var(--text-primary);
-  font-size: 0.80rem;
+  font-size: 0.8rem;
   font-family: inherit;
   cursor: pointer;
   text-align: left;
@@ -51,6 +51,15 @@
 
 .bbdrts-custom-dt-trigger.highlight .trigger-icon {
   color: #10b981;
+}
+
+.bbdrts-custom-dt-trigger.invalid {
+  border-color: rgba(244, 63, 94, 0.55) !important;
+  box-shadow: 0 0 0 2px rgba(244, 63, 94, 0.12);
+}
+
+.bbdrts-custom-dt-trigger.invalid .trigger-icon {
+  color: #f43f5e;
 }
 
 .bbdrts-custom-dt-trigger .trigger-icon {
@@ -118,14 +127,15 @@
   position: absolute;
   top: calc(100% + 6px);
   left: 0;
+  max-width: calc(100vw - 32px);
   background: var(--bg-card);
   border: 1px solid var(--border-strong, var(--border));
   border-radius: 12px;
-  box-shadow: var(--shadow-dropdown, 0 20px 48px rgba(0, 0, 0, 0.45));
+  box-shadow: var(--shadow-dropdown, 0 20px 48px rgba(0, 0, 0, 0.5));
   display: flex;
   flex-direction: row;
   z-index: 1050;
-  animation: dtPopIn 0.15s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation: dtPopIn 0.14s cubic-bezier(0.16, 1, 0.3, 1) forwards;
   user-select: none;
   box-sizing: border-box;
 }
@@ -146,8 +156,8 @@
 
 /* ── Left Column: Calendar ── */
 .dt-cal-column {
-  width: 270px;
-  padding: 13px 14px;
+  width: 266px;
+  padding: 14px;
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
@@ -162,16 +172,17 @@
 }
 
 .dt-cal-header-btn {
+  width: 26px;
+  height: 26px;
   background: transparent;
   border: 1px solid transparent;
   color: var(--text-muted);
   cursor: pointer;
-  padding: 4px;
   border-radius: 6px;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.12s ease;
+  transition: background-color 0.12s ease, color 0.12s ease, border-color 0.12s ease;
 }
 
 .dt-cal-header-btn:hover {
@@ -201,12 +212,12 @@
   background: var(--bg-inset);
   border: 1px solid var(--border);
   color: var(--text-secondary);
-  font-size: 0.62rem;
+  font-size: 0.63rem;
   font-weight: 600;
-  padding: 1px 6px;
-  border-radius: 4px;
+  padding: 2px 7px;
+  border-radius: 5px;
   cursor: pointer;
-  transition: all 0.12s ease;
+  transition: background-color 0.12s ease, color 0.12s ease, border-color 0.12s ease;
 }
 
 .dt-cal-today-chip:hover {
@@ -237,7 +248,7 @@
   background: transparent;
   border: 1px solid transparent;
   border-radius: 6px;
-  padding: 6px 0;
+  height: 30px;
   font-size: 0.74rem;
   font-weight: 500;
   color: var(--text-primary);
@@ -245,9 +256,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.12s ease;
-  position: relative;
+  transition: background-color 0.12s ease, border-color 0.12s ease, color 0.12s ease;
   font-family: inherit;
+  font-variant-numeric: tabular-nums;
 }
 
 .dt-cal-day:hover {
@@ -256,46 +267,39 @@
 
 .dt-cal-day.outside {
   color: var(--text-muted);
-  opacity: 0.45;
+  opacity: 0.4;
 }
 
 .dt-cal-day.past {
   color: var(--text-muted);
+  opacity: 0.65;
 }
 
 .dt-cal-day.today {
-  border-color: #10b981;
+  border-color: rgba(16, 185, 129, 0.55);
   font-weight: 700;
 }
 
 .dt-cal-day.selected {
   background: #10b981 !important;
+  border-color: #10b981 !important;
   color: #ffffff !important;
   font-weight: 700 !important;
-  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.32);
-}
-
-.dt-cal-bottom-hint {
-  margin-top: auto;
-  padding-top: 10px;
-  border-top: 1px solid var(--border);
-  font-size: 0.65rem;
-  color: var(--text-muted);
-  text-align: center;
+  opacity: 1 !important;
 }
 
 /* ── Vertical Divider ── */
 .dt-cal-divider {
   width: 1px;
   background: var(--border);
-  margin: 10px 0;
+  margin: 12px 0;
   flex-shrink: 0;
 }
 
-/* ── Right Column: Time & Presets ── */
+/* ── Right Column: Clean Time Picker ── */
 .dt-time-column {
-  width: 234px;
-  padding: 13px 14px;
+  width: 218px;
+  padding: 14px;
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -306,14 +310,14 @@
 .dt-section-block {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
 }
 
 .dt-section-title {
   display: flex;
   align-items: center;
   gap: 5px;
-  font-size: 0.64rem;
+  font-size: 0.65rem;
   font-weight: 700;
   letter-spacing: 0.05em;
   color: var(--text-muted);
@@ -325,247 +329,254 @@
   color: #10b981;
 }
 
-.dt-time-picker-row {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
+/* ── Custom Stepper Time Box (Zero native selects, Zero clipping) ── */
+.dt-stepper-box {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
   gap: 6px;
   background: var(--bg-subcard);
   border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 8px 9px;
+  border-radius: 10px;
+  padding: 8px 10px;
 }
 
-.dt-time-unit {
+.dt-stepper-unit {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
+  gap: 3px;
 }
 
-.dt-time-sub {
-  font-size: 0.58rem;
-  font-weight: 700;
+.dt-step-arrow {
+  width: 100%;
+  height: 22px;
+  border-radius: 5px;
+  border: none;
+  background: transparent;
   color: var(--text-muted);
-  letter-spacing: 0.04em;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background-color 0.12s ease, color 0.12s ease;
+}
+
+.dt-step-arrow:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.dt-step-arrow .material-symbols-outlined {
+  font-size: 17px;
+}
+
+.dt-step-input {
+  width: 100%;
+  height: 34px;
+  border-radius: 7px;
+  border: 1px solid var(--border-strong, var(--border));
+  background: var(--bg-input);
+  color: var(--text-primary);
+  font-family: var(--font-mono, monospace);
+  font-variant-numeric: tabular-nums;
+  font-size: 1.05rem;
+  font-weight: 700;
+  text-align: center;
+  outline: none;
+  box-sizing: border-box;
+  transition: border-color 0.12s ease, box-shadow 0.12s ease;
+}
+
+.dt-step-input:focus {
+  border-color: #10b981;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.15);
+}
+
+.dt-step-caption {
+  font-size: 0.57rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
   line-height: 1;
 }
 
-.dt-select-input {
-  height: 30px;
-  min-width: 52px;
-  background: var(--bg-input);
-  border: 1px solid var(--border-strong, var(--border));
-  border-radius: 6px;
-  color: var(--text-primary);
-  font-size: 0.78rem;
-  font-weight: 700;
-  padding: 0 6px;
-  cursor: pointer;
-  outline: none;
+.dt-stepper-colon {
   font-family: var(--font-mono, monospace);
-  box-sizing: border-box;
-}
-
-.dt-select-input option {
-  background: var(--bg-card);
-  color: var(--text-primary);
-}
-
-.dt-select-input:focus {
-  border-color: #10b981;
-}
-
-.dt-time-colon {
-  height: 30px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.90rem;
-  font-weight: 800;
-  color: var(--text-muted);
-}
-
-.dt-ampm-switch {
-  display: flex;
-  height: 30px;
-  background: var(--bg-input);
-  border: 1px solid var(--border-strong, var(--border));
-  border-radius: 6px;
-  overflow: hidden;
-  box-sizing: border-box;
-}
-
-.dt-ampm-btn {
-  height: 100%;
-  background: transparent;
-  border: none;
-  color: var(--text-muted);
-  font-size: 0.66rem;
+  font-size: 1.05rem;
   font-weight: 700;
-  padding: 0 9px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+}
+
+/* ── Full-Width AM / PM Segmented Switch ── */
+.dt-ampm-segmented {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 3px;
+  padding: 3px;
+  background: var(--bg-subcard);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.dt-ampm-seg-btn {
+  height: 28px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
   cursor: pointer;
-  transition: all 0.12s ease;
+  transition: background-color 0.12s ease, color 0.12s ease;
 }
 
-.dt-ampm-btn:hover {
+.dt-ampm-seg-btn:hover:not(.active) {
   color: var(--text-primary);
+  background: var(--bg-hover);
 }
 
-.dt-ampm-btn.active {
+.dt-ampm-seg-btn.active {
   background: #10b981;
   color: #ffffff;
-  font-weight: 700;
 }
 
+/* ── Quick Quarter-Hour Minutes ── */
+.dt-quick-mins {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+}
+
+.dt-min-chip {
+  height: 26px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg-subcard);
+  color: var(--text-secondary);
+  font-family: var(--font-mono, monospace);
+  font-size: 0.68rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+}
+
+.dt-min-chip:hover {
+  border-color: var(--border-strong);
+  color: var(--text-primary);
+  background: var(--bg-hover);
+}
+
+.dt-min-chip.active {
+  border-color: rgba(16, 185, 129, 0.45);
+  background: rgba(16, 185, 129, 0.12);
+  color: #10b981;
+}
+
+[data-theme="light"] .dt-min-chip.active {
+  color: #047857;
+}
+
+/* ── Optional Offset Presets ── */
 .dt-presets-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 5px;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 4px;
 }
 
 .dt-preset-pill {
-  background: var(--bg-subcard);
+  height: 26px;
+  border-radius: 6px;
   border: 1px solid var(--border);
+  background: var(--bg-subcard);
   color: var(--text-secondary);
+  font-family: var(--font-mono, monospace);
   font-size: 0.68rem;
   font-weight: 600;
-  padding: 5px 6px;
-  border-radius: 6px;
   cursor: pointer;
-  text-align: center;
   transition: all 0.12s ease;
-  font-family: inherit;
 }
 
 .dt-preset-pill:hover {
-  background: var(--bg-hover);
   border-color: var(--border-strong);
+  background: var(--bg-hover);
   color: var(--text-primary);
 }
 
-.dt-preset-pill.highlight-preset {
-  grid-column: span 2;
-  color: #059669;
-  border-color: rgba(16, 185, 129, 0.32);
-  background: rgba(16, 185, 129, 0.08);
-}
-
-[data-theme="dark"] .dt-preset-pill.highlight-preset {
-  color: #10b981;
-}
-
-.dt-preset-pill.highlight-preset:hover {
-  background: rgba(16, 185, 129, 0.15);
-  border-color: #10b981;
-}
-
-/* ── Footer Preview & Actions ── */
+/* ── Column Footer Actions ── */
 .dt-column-footer {
   margin-top: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+  padding-top: 10px;
   border-top: 1px solid var(--border);
-  padding-top: 9px;
-}
-
-.dt-live-preview-box {
-  background: var(--bg-subcard);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 6px 8px;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.preview-label {
-  font-size: 0.58rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  color: var(--text-muted);
-  text-transform: uppercase;
-}
-
-.preview-val {
-  font-size: 0.73rem;
-  font-weight: 700;
-  color: #059669;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-[data-theme="dark"] .preview-val {
-  color: #10b981;
 }
 
 .dt-actions-row {
   display: flex;
   align-items: center;
-  gap: 6px;
+  justify-content: space-between;
+  gap: 8px;
 }
 
-.dt-btn-set-now {
-  flex: 1;
-  background: var(--bg-subcard);
+.dt-btn-clear {
+  height: 30px;
+  padding: 0 11px;
+  border-radius: 7px;
   border: 1px solid var(--border);
-  color: var(--text-secondary);
-  font-size: 0.69rem;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 0.72rem;
   font-weight: 600;
-  padding: 6px 8px;
-  border-radius: 6px;
   cursor: pointer;
-  transition: all 0.12s ease;
-  font-family: inherit;
+  transition: background-color 0.12s ease, color 0.12s ease, border-color 0.12s ease;
 }
 
-.dt-btn-set-now:hover {
+.dt-btn-clear:hover {
   background: var(--bg-hover);
-  color: var(--text-primary);
   border-color: var(--border-strong);
+  color: var(--text-primary);
 }
 
 .dt-btn-apply-done {
-  background: var(--pill-bg);
-  border: 1px solid var(--pill-bg);
-  color: var(--pill-text);
-  font-size: 0.69rem;
+  flex: 1;
+  height: 30px;
+  padding: 0 12px;
+  border-radius: 7px;
+  border: 1px solid var(--pill-bg, #ffffff);
+  background: var(--pill-bg, #ffffff);
+  color: var(--pill-text, #09090b);
+  font-size: 0.74rem;
   font-weight: 600;
-  padding: 6px 12px;
-  border-radius: 6px;
-  cursor: pointer;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 4px;
+  cursor: pointer;
   transition: opacity 0.12s ease;
-  font-family: inherit;
 }
 
 .dt-btn-apply-done:hover {
-  opacity: 0.88;
+  opacity: 0.9;
 }
 
 .dt-btn-apply-done .material-symbols-outlined {
-  font-size: 13px;
+  font-size: 15px;
 }
 
-@media (max-width: 580px) {
+@media (max-width: 560px) {
   .bbdrts-custom-dt-popover {
     flex-direction: column;
-    width: 290px;
+    left: 0 !important;
+    right: auto !important;
   }
   .dt-cal-column,
   .dt-time-column {
     width: 100%;
   }
   .dt-cal-divider {
-    width: 100%;
+    width: auto;
     height: 1px;
-    margin: 4px 0;
+    margin: 0 14px;
   }
 }

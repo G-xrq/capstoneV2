@@ -32,20 +32,17 @@ export default function CustomDateTimePicker({
   placeholder = 'Select date and time...',
   icon = 'event_available',
   highlight = false,
-  showPresets = true,
+  showPresets = false,
   disabled = false,
-  align = 'left'
+  align = 'left',
+  invalid = false
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef(null);
 
-  // Parse initial or incoming value
   const parsedDate = useMemo(() => parseDateSafe(value), [value]);
-
-  // Calendar view navigation (Month / Year)
   const [calViewDate, setCalViewDate] = useState(() => parsedDate || new Date());
 
-  // Internal state for selected components
   const [selectedIsoDate, setSelectedIsoDate] = useState(() => {
     if (!parsedDate) return '';
     const y = parsedDate.getFullYear();
@@ -55,22 +52,28 @@ export default function CustomDateTimePicker({
   });
 
   const [selectedHour, setSelectedHour] = useState(() => {
-    if (!parsedDate) return 12;
+    if (!parsedDate) {
+      const h = new Date().getHours() % 12;
+      return h === 0 ? 12 : h;
+    }
     const h = parsedDate.getHours() % 12;
     return h === 0 ? 12 : h;
   });
 
   const [selectedMinute, setSelectedMinute] = useState(() => {
-    if (!parsedDate) return 0;
+    if (!parsedDate) return new Date().getMinutes();
     return parsedDate.getMinutes();
   });
 
   const [selectedAmpm, setSelectedAmpm] = useState(() => {
-    if (!parsedDate) return 'PM';
+    if (!parsedDate) return new Date().getHours() >= 12 ? 'PM' : 'AM';
     return parsedDate.getHours() >= 12 ? 'PM' : 'AM';
   });
 
-  // Keep internal state synchronized when external value changes
+  // Draft text states for clean direct typing in Hour / Minute boxes
+  const [hourDraft, setHourDraft] = useState(() => String(selectedHour).padStart(2, '0'));
+  const [minuteDraft, setMinuteDraft] = useState(() => String(selectedMinute).padStart(2, '0'));
+
   useEffect(() => {
     if (parsedDate) {
       const y = parsedDate.getFullYear();
@@ -78,8 +81,12 @@ export default function CustomDateTimePicker({
       const d = String(parsedDate.getDate()).padStart(2, '0');
       setSelectedIsoDate(`${y}-${m}-${d}`);
       const h = parsedDate.getHours() % 12;
-      setSelectedHour(h === 0 ? 12 : h);
-      setSelectedMinute(parsedDate.getMinutes());
+      const h12 = h === 0 ? 12 : h;
+      const min = parsedDate.getMinutes();
+      setSelectedHour(h12);
+      setSelectedMinute(min);
+      setHourDraft(String(h12).padStart(2, '0'));
+      setMinuteDraft(String(min).padStart(2, '0'));
       setSelectedAmpm(parsedDate.getHours() >= 12 ? 'PM' : 'AM');
       setCalViewDate(parsedDate);
     } else if (!value) {
@@ -87,29 +94,24 @@ export default function CustomDateTimePicker({
     }
   }, [value, parsedDate]);
 
-  // Close on click outside or Escape
   useEffect(() => {
+    if (!isOpen) return;
     const handleClickOutside = (e) => {
       if (containerRef.current && !containerRef.current.contains(e.target)) {
         setIsOpen(false);
       }
     };
-
     const handleKeyDown = (e) => {
       if (e.key === 'Escape') setIsOpen(false);
     };
-
-    if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-      document.addEventListener('keydown', handleKeyDown);
-    }
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleKeyDown);
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
       document.removeEventListener('keydown', handleKeyDown);
     };
   }, [isOpen]);
 
-  // Compute Calendar Month Grid (Unrestricted selection, NO colored dots)
   const calMonthCells = useMemo(() => {
     const year = calViewDate.getFullYear();
     const month = calViewDate.getMonth();
@@ -122,19 +124,16 @@ export default function CustomDateTimePicker({
     const todayIso = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 
     const cells = [];
-    // Previous month tail days
     for (let i = firstDayOfWeek - 1; i >= 0; i--) {
       const dayNum = daysInPrevMonth - i;
       const prevDate = new Date(year, month - 1, dayNum);
       const iso = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
       cells.push({ dayNum, iso, isCurrentMonth: false, isPast: iso < todayIso, isToday: iso === todayIso });
     }
-    // Current month days
     for (let d = 1; d <= daysInMonth; d++) {
       const iso = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
       cells.push({ dayNum: d, iso, isCurrentMonth: true, isPast: iso < todayIso, isToday: iso === todayIso });
     }
-    // Next month head days to fill 7-col grid cleanly
     const remaining = 7 - (cells.length % 7);
     if (remaining < 7) {
       for (let j = 1; j <= remaining; j++) {
@@ -146,7 +145,6 @@ export default function CustomDateTimePicker({
     return cells;
   }, [calViewDate]);
 
-  // Build the combined Date object and notify parent
   const commitDateTime = (targetIsoDate, hour, minute, ampm) => {
     let baseDate = targetIsoDate;
     if (!baseDate) {
@@ -167,48 +165,6 @@ export default function CustomDateTimePicker({
     if (onChange) onChange(formatted, resultDate);
   };
 
-  // Day click on calendar
-  const handleSelectDay = (iso) => {
-    setSelectedIsoDate(iso);
-    commitDateTime(iso, selectedHour, selectedMinute, selectedAmpm);
-  };
-
-  // Time component changes
-  const handleHourChange = (newHour) => {
-    const val = parseInt(newHour, 10) || 12;
-    setSelectedHour(val);
-    commitDateTime(selectedIsoDate, val, selectedMinute, selectedAmpm);
-  };
-
-  const handleMinuteChange = (newMin) => {
-    const val = parseInt(newMin, 10) || 0;
-    setSelectedMinute(val);
-    commitDateTime(selectedIsoDate, selectedHour, val, selectedAmpm);
-  };
-
-  const handleAmpmChange = (newAmpm) => {
-    setSelectedAmpm(newAmpm);
-    commitDateTime(selectedIsoDate, selectedHour, selectedMinute, newAmpm);
-  };
-
-  // Preset offsets (+15m, +30m, +1h, etc.)
-  const handleApplyPreset = (minutesOffset) => {
-    const target = new Date();
-    target.setMinutes(target.getMinutes() + minutesOffset);
-    applyDateObject(target);
-  };
-
-  const handleApplyTomorrow = (targetHour24 = 9) => {
-    const target = new Date();
-    target.setDate(target.getDate() + 1);
-    target.setHours(targetHour24, 0, 0, 0);
-    applyDateObject(target);
-  };
-
-  const handleApplyNow = () => {
-    applyDateObject(new Date());
-  };
-
   const applyDateObject = (targetDate) => {
     const y = targetDate.getFullYear();
     const m = String(targetDate.getMonth() + 1).padStart(2, '0');
@@ -222,11 +178,74 @@ export default function CustomDateTimePicker({
     setSelectedIsoDate(iso);
     setSelectedHour(hour12);
     setSelectedMinute(min);
+    setHourDraft(String(hour12).padStart(2, '0'));
+    setMinuteDraft(String(min).padStart(2, '0'));
     setSelectedAmpm(ampm);
     setCalViewDate(targetDate);
 
     const formatted = formatFriendlyDate(targetDate);
     if (onChange) onChange(formatted, targetDate);
+  };
+
+  const handleSelectDay = (iso) => {
+    setSelectedIsoDate(iso);
+    commitDateTime(iso, selectedHour, selectedMinute, selectedAmpm);
+  };
+
+  const stepHour = (delta) => {
+    const next = ((selectedHour - 1 + delta + 12) % 12) + 1;
+    setSelectedHour(next);
+    setHourDraft(String(next).padStart(2, '0'));
+    commitDateTime(selectedIsoDate, next, selectedMinute, selectedAmpm);
+  };
+
+  const stepMinute = (delta) => {
+    const next = (selectedMinute + delta + 60) % 60;
+    setSelectedMinute(next);
+    setMinuteDraft(String(next).padStart(2, '0'));
+    commitDateTime(selectedIsoDate, selectedHour, next, selectedAmpm);
+  };
+
+  const setExactMinute = (min) => {
+    const clamped = Math.max(0, Math.min(59, min));
+    setSelectedMinute(clamped);
+    setMinuteDraft(String(clamped).padStart(2, '0'));
+    commitDateTime(selectedIsoDate, selectedHour, clamped, selectedAmpm);
+  };
+
+  const commitHourDraft = (rawText) => {
+    const num = parseInt(rawText, 10);
+    if (!Number.isNaN(num) && num >= 1 && num <= 12) {
+      setSelectedHour(num);
+      setHourDraft(String(num).padStart(2, '0'));
+      commitDateTime(selectedIsoDate, num, selectedMinute, selectedAmpm);
+    } else {
+      setHourDraft(String(selectedHour).padStart(2, '0'));
+    }
+  };
+
+  const commitMinuteDraft = (rawText) => {
+    const num = parseInt(rawText, 10);
+    if (!Number.isNaN(num) && num >= 0 && num <= 59) {
+      setSelectedMinute(num);
+      setMinuteDraft(String(num).padStart(2, '0'));
+      commitDateTime(selectedIsoDate, selectedHour, num, selectedAmpm);
+    } else {
+      setMinuteDraft(String(selectedMinute).padStart(2, '0'));
+    }
+  };
+
+  const handleAmpmChange = (newAmpm) => {
+    if (newAmpm === selectedAmpm) return;
+    setSelectedAmpm(newAmpm);
+    commitDateTime(selectedIsoDate, selectedHour, selectedMinute, newAmpm);
+  };
+
+  const handleApplyPreset = (minutesOffset) => {
+    const target = new Date();
+    target.setMinutes(target.getMinutes() + minutesOffset);
+    target.setSeconds(0, 0);
+    applyDateObject(target);
   };
 
   const handleClear = (e) => {
@@ -235,31 +254,17 @@ export default function CustomDateTimePicker({
     if (onChange) onChange('', null);
   };
 
-  // Human preview text of current selection
-  const previewText = useMemo(() => {
-    if (!selectedIsoDate) return 'No date selected';
-    const [y, m, d] = selectedIsoDate.split('-').map(Number);
-    let h24 = selectedHour % 12;
-    if (selectedAmpm === 'PM') h24 += 12;
-    const temp = new Date(y, m - 1, d, h24, selectedMinute, 0);
-    return formatFriendlyDate(temp);
-  }, [selectedIsoDate, selectedHour, selectedMinute, selectedAmpm]);
-
   return (
     <div className={`bbdrts-custom-dt-root ${align === 'right' ? 'align-right' : ''}`} ref={containerRef}>
-      
-      {/* ── Custom Trigger Box (Replaces Native Browser Input) ── */}
       <button
         type="button"
         disabled={disabled}
-        className={`bbdrts-custom-dt-trigger ${isOpen ? 'open' : ''} ${highlight ? 'highlight' : ''} ${value ? 'has-value' : ''}`}
-        onClick={() => !disabled && setIsOpen(prev => !prev)}
+        className={`bbdrts-custom-dt-trigger ${isOpen ? 'open' : ''} ${highlight ? 'highlight' : ''} ${invalid ? 'invalid' : ''} ${value ? 'has-value' : ''}`}
+        onClick={() => !disabled && setIsOpen((prev) => !prev)}
         aria-haspopup="dialog"
         aria-expanded={isOpen}
       >
-        <span className="material-symbols-outlined trigger-icon">
-          {icon}
-        </span>
+        <span className="material-symbols-outlined trigger-icon">{icon}</span>
 
         <span className="trigger-display-text">
           {value || placeholder}
@@ -278,26 +283,26 @@ export default function CustomDateTimePicker({
               <span className="material-symbols-outlined">close</span>
             </span>
           )}
-          <span className="material-symbols-outlined trigger-chevron">
-            expand_more
-          </span>
+          <span className="material-symbols-outlined trigger-chevron">expand_more</span>
         </div>
       </button>
 
-      {/* ── Custom Calendar Popover with Time Panel on the Side ── */}
       {isOpen && (
-        <div className="bbdrts-custom-dt-popover" role="dialog" aria-modal="true" onClick={e => e.stopPropagation()}>
-          
-          {/* ════ LEFT COLUMN: CUSTOM CALENDAR (Image 1 Style, NO Dots) ════ */}
+        <div
+          className="bbdrts-custom-dt-popover"
+          role="dialog"
+          aria-modal="false"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Left Column: Month Calendar */}
           <div className="dt-cal-column">
-            
-            {/* Header: Prev, Month Year, Today Chip, Next */}
             <div className="dt-cal-header">
               <button
                 type="button"
                 className="dt-cal-header-btn"
-                onClick={() => setCalViewDate(prev => new Date(prev.getFullYear(), prev.getMonth() - 1, 1))}
+                onClick={() => setCalViewDate((prev) => new Date(prev.getFullYear(), prev.getMonth() - 1, 1))}
                 title="Previous Month"
+                aria-label="Previous month"
               >
                 <span className="material-symbols-outlined">chevron_left</span>
               </button>
@@ -317,7 +322,7 @@ export default function CustomDateTimePicker({
                     const d = String(now.getDate()).padStart(2, '0');
                     handleSelectDay(`${y}-${m}-${d}`);
                   }}
-                  title="Select today's date"
+                  title="Jump to today"
                 >
                   Today
                 </button>
@@ -326,21 +331,20 @@ export default function CustomDateTimePicker({
               <button
                 type="button"
                 className="dt-cal-header-btn"
-                onClick={() => setCalViewDate(prev => new Date(prev.getFullYear(), prev.getMonth() + 1, 1))}
+                onClick={() => setCalViewDate((prev) => new Date(prev.getFullYear(), prev.getMonth() + 1, 1))}
                 title="Next Month"
+                aria-label="Next month"
               >
                 <span className="material-symbols-outlined">chevron_right</span>
               </button>
             </div>
 
-            {/* Weekdays Row: SU MO TU WE TH FR SA */}
             <div className="dt-cal-weekdays">
-              {['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'].map(d => (
+              {['SU', 'MO', 'TU', 'WE', 'TH', 'FR', 'SA'].map((d) => (
                 <span key={d}>{d}</span>
               ))}
             </div>
 
-            {/* 7-Col Days Grid */}
             <div className="dt-cal-grid">
               {calMonthCells.map((cell) => {
                 const isSelected = selectedIsoDate === cell.iso;
@@ -356,121 +360,158 @@ export default function CustomDateTimePicker({
                 );
               })}
             </div>
-
-            <div className="dt-cal-bottom-hint">
-              <span>Click any date to select</span>
-            </div>
           </div>
 
-          {/* ════ VERTICAL DIVIDER ════ */}
           <div className="dt-cal-divider" aria-hidden="true" />
 
-          {/* ════ RIGHT COLUMN: TIME & PRESETS PANEL (On the side of the calendar) ════ */}
+          {/* Right Column: Clean Geist Time Picker */}
           <div className="dt-time-column">
-            
-            {/* 1. Time Selection Section */}
             <div className="dt-section-block">
               <div className="dt-section-title">
                 <span className="material-symbols-outlined">schedule</span>
-                <span>SET TIME</span>
+                <span>Time</span>
               </div>
 
-              <div className="dt-time-picker-row">
-                
-                {/* Hour Selector (01 - 12) */}
-                <div className="dt-time-unit">
-                  <label htmlFor="dt-select-hour" className="dt-time-sub">HR</label>
-                  <select
-                    id="dt-select-hour"
-                    className="dt-select-input"
-                    value={selectedHour}
-                    onChange={(e) => handleHourChange(e.target.value)}
-                  >
-                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(h => (
-                      <option key={h} value={h}>
-                        {String(h).padStart(2, '0')}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <span className="dt-time-colon">:</span>
-
-                {/* Minute Selector (00 - 59) */}
-                <div className="dt-time-unit">
-                  <label htmlFor="dt-select-min" className="dt-time-sub">MIN</label>
-                  <select
-                    id="dt-select-min"
-                    className="dt-select-input"
-                    value={selectedMinute}
-                    onChange={(e) => handleMinuteChange(e.target.value)}
-                  >
-                    {Array.from({ length: 60 }, (_, m) => m).map(m => (
-                      <option key={m} value={m}>
-                        {String(m).padStart(2, '0')}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* AM / PM Segmented Control */}
-                <div className="dt-ampm-switch">
+              {/* Hour : Minute Steppers (Editable + Arrows + Wheel, zero native selects) */}
+              <div className="dt-stepper-box">
+                <div className="dt-stepper-unit">
                   <button
                     type="button"
-                    className={`dt-ampm-btn ${selectedAmpm === 'AM' ? 'active' : ''}`}
-                    onClick={() => handleAmpmChange('AM')}
+                    className="dt-step-arrow"
+                    onClick={() => stepHour(1)}
+                    aria-label="Increase hour"
                   >
-                    AM
+                    <span className="material-symbols-outlined">keyboard_arrow_up</span>
                   </button>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={2}
+                    className="dt-step-input"
+                    aria-label="Hour"
+                    value={hourDraft}
+                    onChange={(e) => {
+                      const digits = e.target.value.replace(/\D/g, '').slice(0, 2);
+                      setHourDraft(digits);
+                    }}
+                    onBlur={(e) => commitHourDraft(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'ArrowUp') { e.preventDefault(); stepHour(1); }
+                      if (e.key === 'ArrowDown') { e.preventDefault(); stepHour(-1); }
+                      if (e.key === 'Enter') commitHourDraft(hourDraft);
+                    }}
+                  />
+                  <span className="dt-step-caption">HR</span>
                   <button
                     type="button"
-                    className={`dt-ampm-btn ${selectedAmpm === 'PM' ? 'active' : ''}`}
-                    onClick={() => handleAmpmChange('PM')}
+                    className="dt-step-arrow"
+                    onClick={() => stepHour(-1)}
+                    aria-label="Decrease hour"
                   >
-                    PM
+                    <span className="material-symbols-outlined">keyboard_arrow_down</span>
                   </button>
                 </div>
 
+                <span className="dt-stepper-colon">:</span>
+
+                <div className="dt-stepper-unit">
+                  <button
+                    type="button"
+                    className="dt-step-arrow"
+                    onClick={() => stepMinute(1)}
+                    aria-label="Increase minute"
+                  >
+                    <span className="material-symbols-outlined">keyboard_arrow_up</span>
+                  </button>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    maxLength={2}
+                    className="dt-step-input"
+                    aria-label="Minute"
+                    value={minuteDraft}
+                    onChange={(e) => {
+                      const digits = e.target.value.replace(/\D/g, '').slice(0, 2);
+                      setMinuteDraft(digits);
+                    }}
+                    onBlur={(e) => commitMinuteDraft(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'ArrowUp') { e.preventDefault(); stepMinute(1); }
+                      if (e.key === 'ArrowDown') { e.preventDefault(); stepMinute(-1); }
+                      if (e.key === 'Enter') commitMinuteDraft(minuteDraft);
+                    }}
+                  />
+                  <span className="dt-step-caption">MIN</span>
+                  <button
+                    type="button"
+                    className="dt-step-arrow"
+                    onClick={() => stepMinute(-1)}
+                    aria-label="Decrease minute"
+                  >
+                    <span className="material-symbols-outlined">keyboard_arrow_down</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Full-Width AM / PM Segmented Switch (Zero Clipping) */}
+              <div className="dt-ampm-segmented" role="group" aria-label="AM or PM">
+                <button
+                  type="button"
+                  className={`dt-ampm-seg-btn ${selectedAmpm === 'AM' ? 'active' : ''}`}
+                  onClick={() => handleAmpmChange('AM')}
+                >
+                  AM
+                </button>
+                <button
+                  type="button"
+                  className={`dt-ampm-seg-btn ${selectedAmpm === 'PM' ? 'active' : ''}`}
+                  onClick={() => handleAmpmChange('PM')}
+                >
+                  PM
+                </button>
+              </div>
+
+              {/* Quick Quarter-Hour Minutes */}
+              <div className="dt-quick-mins" role="group" aria-label="Quick minutes">
+                {[0, 15, 30, 45].map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    className={`dt-min-chip ${selectedMinute === m ? 'active' : ''}`}
+                    onClick={() => setExactMinute(m)}
+                  >
+                    :{String(m).padStart(2, '0')}
+                  </button>
+                ))}
               </div>
             </div>
 
-            {/* 2. Quick Duration Presets Strip */}
             {showPresets && (
               <div className="dt-section-block">
                 <div className="dt-section-title">
                   <span className="material-symbols-outlined">bolt</span>
-                  <span>QUICK PRESETS</span>
+                  <span>Quick Offset</span>
                 </div>
-
                 <div className="dt-presets-grid">
-                  <button type="button" className="dt-preset-pill" onClick={() => handleApplyPreset(5)}>+5m</button>
                   <button type="button" className="dt-preset-pill" onClick={() => handleApplyPreset(15)}>+15m</button>
                   <button type="button" className="dt-preset-pill" onClick={() => handleApplyPreset(30)}>+30m</button>
-                  <button type="button" className="dt-preset-pill" onClick={() => handleApplyPreset(60)}>+1 Hour</button>
-                  <button type="button" className="dt-preset-pill" onClick={() => handleApplyPreset(120)}>+2 Hours</button>
-                  <button type="button" className="dt-preset-pill" onClick={() => handleApplyPreset(240)}>+4 Hours</button>
-                  <button type="button" className="dt-preset-pill highlight-preset" onClick={() => handleApplyTomorrow(9)}>Tomorrow 9 AM</button>
+                  <button type="button" className="dt-preset-pill" onClick={() => handleApplyPreset(60)}>+1h</button>
+                  <button type="button" className="dt-preset-pill" onClick={() => handleApplyPreset(120)}>+2h</button>
                 </div>
               </div>
             )}
 
-            {/* 3. Live Selected Preview & Footer Actions */}
             <div className="dt-column-footer">
-              <div className="dt-live-preview-box">
-                <span className="preview-label">Selected Target:</span>
-                <strong className="preview-val" title={previewText}>
-                  {previewText}
-                </strong>
-              </div>
-
               <div className="dt-actions-row">
                 <button
                   type="button"
-                  className="dt-btn-set-now"
-                  onClick={handleApplyNow}
-                  title="Set to current moment"
+                  className="dt-btn-clear"
+                  onClick={() => {
+                    handleClear();
+                    setIsOpen(false);
+                  }}
                 >
-                  Set to Now
+                  Clear
                 </button>
 
                 <button
@@ -483,12 +524,9 @@ export default function CustomDateTimePicker({
                 </button>
               </div>
             </div>
-
           </div>
-
         </div>
       )}
-
     </div>
   );
 }

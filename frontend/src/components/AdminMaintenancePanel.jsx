@@ -164,7 +164,8 @@ export default function AdminMaintenancePanel({ onMaintenanceStateChange, forced
   const startMs = parseMaintMs(maintenance.startTimeIso, maintenance.startTime);
   const endMs = parseMaintMs(maintenance.endTimeIso, maintenance.endTime);
   const hasInvalidWindow = Boolean(startMs && endMs && endMs <= startMs);
-  const isEndInPast = Boolean(maintenance.enabled && maintenance.autoDeactivate && endMs && endMs <= liveNowMs);
+  const isEndPastNow = Boolean(endMs && endMs <= liveNowMs);
+  const isEndInPast = Boolean(maintenance.enabled && maintenance.autoDeactivate && isEndPastNow);
   const schedulePhase = !maintenance.enabled
     ? 'OFF'
     : (maintenance.autoDeactivate && endMs && liveNowMs >= endMs)
@@ -369,15 +370,31 @@ export default function AdminMaintenancePanel({ onMaintenanceStateChange, forced
 
   const handleSetDurationFromStart = (durationMins) => {
     setMaintenance(prev => {
-      const baseMs = parseMaintMs(prev.startTimeIso, prev.startTime) || Date.now();
-      const target = new Date(baseMs + durationMins * 60000);
+      const now = Date.now();
+      const startParsed = parseMaintMs(prev.startTimeIso, prev.startTime);
+      const isFutureStart = Boolean(startParsed && startParsed > now);
+      const baseDate = new Date(isFutureStart ? startParsed : now);
+      baseDate.setSeconds(0, 0);
+      const target = new Date(baseDate.getTime() + durationMins * 60000);
       return {
         ...prev,
+        ...(!isFutureStart
+          ? { startTime: formatFriendlyDateTime(baseDate), startTimeIso: baseDate.toISOString() }
+          : {}),
         endTime: formatFriendlyDateTime(target),
         endTimeIso: target.toISOString(),
         autoDeactivate: true
       };
     });
+  };
+
+  const handleMakeOpenEnded = () => {
+    setMaintenance(prev => ({
+      ...prev,
+      endTime: '',
+      endTimeIso: '',
+      autoDeactivate: false
+    }));
   };
 
   const handleSaveMaintenance = async (e) => {
@@ -771,7 +788,7 @@ export default function AdminMaintenancePanel({ onMaintenanceStateChange, forced
                     <span className="field-caption">
                       {startMs && startMs > liveNowMs
                         ? `Auto-activates in ${formatDurationShort(startMs - liveNowMs)}`
-                        : `Shown as "${maintenance.startTime || 'In Progress'}"`}
+                        : 'Starts immediately once armed'}
                     </span>
                   </div>
 
@@ -797,55 +814,81 @@ export default function AdminMaintenancePanel({ onMaintenanceStateChange, forced
                           ...prev,
                           endTime: formattedStr,
                           endTimeIso: dateObj && !isNaN(dateObj.getTime()) ? dateObj.toISOString() : '',
-                          autoDeactivate: formattedStr ? true : prev.autoDeactivate
+                          autoDeactivate: formattedStr ? true : false
                         }));
                       }}
-                      placeholder="Select completion date & time..."
+                      placeholder="Open-ended (no completion time)..."
                       icon="event_available"
-                      highlight={true}
-                      showPresets={true}
+                      highlight={!hasInvalidWindow && !isEndPastNow && Boolean(endMs)}
+                      invalid={hasInvalidWindow || isEndPastNow}
+                      showPresets={false}
                       align="right"
                     />
-                    <span className="field-caption">
-                      Shown as &quot;{maintenance.endTime || 'Expected Shortly'}&quot;
+                    <span className={`field-caption${hasInvalidWindow || isEndPastNow ? ' is-error' : ''}`}>
+                      {hasInvalidWindow
+                        ? 'Must be later than Effective From'
+                        : isEndPastNow
+                          ? 'Completion time has already passed'
+                          : endMs
+                            ? `Duration: ${formatDurationShort(endMs - (startMs && startMs > liveNowMs ? startMs : liveNowMs))}`
+                            : 'Open-ended until turned off manually'}
                     </span>
                   </div>
                 </div>
 
                 {/* Live Schedule Window Validation & Telemetry Strip */}
-                {(hasInvalidWindow || isEndInPast || startMs || endMs) && (
-                  <div className={`maint-schedule-summary ${hasInvalidWindow || isEndInPast ? 'is-error' : schedulePhase === 'SCHEDULED' ? 'is-scheduled' : 'is-ok'}`}>
-                    <span className="material-symbols-outlined" style={{ fontSize: '16px', flexShrink: 0 }}>
-                      {hasInvalidWindow || isEndInPast ? 'error' : schedulePhase === 'SCHEDULED' ? 'schedule_send' : 'event_available'}
-                    </span>
+                <div className={`maint-schedule-summary ${hasInvalidWindow || isEndPastNow ? 'is-error' : schedulePhase === 'SCHEDULED' || (startMs && startMs > liveNowMs) ? 'is-scheduled' : endMs ? 'is-ok' : 'is-neutral'}`}>
+                  <span className="material-symbols-outlined" style={{ fontSize: '16px', flexShrink: 0, marginTop: '1px' }}>
+                    {hasInvalidWindow || isEndPastNow ? 'error' : (startMs && startMs > liveNowMs) ? 'schedule_send' : endMs ? 'event_available' : 'all_inclusive'}
+                  </span>
+                  <div className="maint-schedule-summary-body">
                     <div className="maint-schedule-summary-text">
                       {hasInvalidWindow ? (
                         <>
-                          <strong>Invalid schedule window:</strong> Completion time must be later than Effective From. Click <code>+5m</code> or <code>+15m</code> above.
+                          <strong>Invalid schedule window:</strong> Expected Completion must be later than Effective From.
                         </>
-                      ) : isEndInPast ? (
+                      ) : isEndPastNow ? (
                         <>
-                          <strong>Completion time is in the past:</strong> Pick a future Expected Completion Time or disable auto-restore.
+                          <strong>Completion time has passed:</strong> {maintenance.endTime} is in the past. Set a future completion time or make it open-ended.
                         </>
                       ) : startMs && startMs > liveNowMs ? (
                         <>
                           <strong>Scheduled Window Ready:</strong> Starts automatically in <strong>{formatDurationShort(startMs - liveNowMs)}</strong>
                           {endMs ? <> · Duration: <strong>{formatDurationShort(endMs - startMs)}</strong></> : null}
-                          {endMs && maintenance.autoDeactivate ? ' · Auto-refreshes users upon completion.' : '.'}
+                          {endMs && maintenance.autoDeactivate ? ' · Auto-restores users at completion.' : '.'}
                         </>
                       ) : endMs && endMs > liveNowMs ? (
                         <>
-                          <strong>Active Window:</strong> Runs immediately and finishes in <strong>{formatDurationShort(endMs - liveNowMs)}</strong>
+                          <strong>Timed Window Ready:</strong> Starts immediately and finishes in <strong>{formatDurationShort(endMs - liveNowMs)}</strong>
                           {maintenance.autoDeactivate ? ' · Users auto-refresh back into the live app.' : '.'}
                         </>
                       ) : (
                         <>
-                          <strong>Open-Ended Window:</strong> Runs immediately until manually turned off or given a completion time.
+                          <strong>Open-Ended Window:</strong> Runs immediately when armed until manually turned off.
                         </>
                       )}
                     </div>
+
+                    {(hasInvalidWindow || isEndPastNow) && (
+                      <div className="maint-schedule-fix-actions">
+                        <button
+                          type="button"
+                          className="maint-schedule-fix-btn"
+                          onClick={() => handleSetDurationFromStart(15)}
+                        >
+                          Set +15m
+                        </button>
+                        <button
+                          type="button"
+                          className="maint-schedule-fix-btn is-subtle"
+                          onClick={handleMakeOpenEnded}
+                        >
+                          Make Open-Ended
+                        </button>
+                      </div>
+                    )}
                   </div>
-                )}
+                </div>
 
                 <label className="auto-deactivate-tile">
                   <input
