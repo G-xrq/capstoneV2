@@ -135,6 +135,7 @@ export default function AdminMaintenancePanel({ onMaintenanceStateChange, forced
   });
   const [savingMaintenance, setSavingMaintenance] = useState(false);
   const [liveNowMs, setLiveNowMs] = useState(() => Date.now());
+  const [followLiveStart, setFollowLiveStart] = useState(true);
 
   useEffect(() => {
     const t = setInterval(() => setLiveNowMs(Date.now()), 1000);
@@ -161,7 +162,19 @@ export default function AdminMaintenancePanel({ onMaintenanceStateChange, forced
     return `${m}m ${s}s`;
   };
 
-  const startMs = parseMaintMs(maintenance.startTimeIso, maintenance.startTime);
+  const rawStartMs = parseMaintMs(maintenance.startTimeIso, maintenance.startTime);
+  // Follow real live time whenever user is in Live/Now mode OR when a non-active saved/draft start time has fallen into the past
+  const isLiveStartActive = Boolean(
+    followLiveStart ||
+    (!maintenance.enabled && (!rawStartMs || rawStartMs <= liveNowMs))
+  );
+  const effectiveStartDate = isLiveStartActive ? new Date(liveNowMs) : (rawStartMs ? new Date(rawStartMs) : null);
+  const effectiveStartDisplay = isLiveStartActive
+    ? formatFriendlyDateTime(effectiveStartDate)
+    : (maintenance.startTime || '');
+  const effectiveStartIso = effectiveStartDate ? effectiveStartDate.toISOString() : '';
+
+  const startMs = isLiveStartActive ? liveNowMs : rawStartMs;
   const endMs = parseMaintMs(maintenance.endTimeIso, maintenance.endTime);
   const hasInvalidWindow = Boolean(startMs && endMs && endMs <= startMs);
   const isEndPastNow = Boolean(endMs && endMs <= liveNowMs);
@@ -200,6 +213,10 @@ export default function AdminMaintenancePanel({ onMaintenanceStateChange, forced
       if (res.ok) {
         const data = await res.json();
         setMaintenance(data);
+        const fetchedStartMs = parseMaintMs(data.startTimeIso, data.startTime);
+        const isFutureScheduled = Boolean(fetchedStartMs && fetchedStartMs > Date.now());
+        const isActiveRunning = Boolean(data.enabled && fetchedStartMs && fetchedStartMs <= Date.now());
+        setFollowLiveStart(!isFutureScheduled && !isActiveRunning);
         if (onMaintenanceStateChange) onMaintenanceStateChange(data.enabled);
       }
     } catch (err) {
@@ -342,13 +359,22 @@ export default function AdminMaintenancePanel({ onMaintenanceStateChange, forced
 
   const handleTriggerPreview = () => {
     window.dispatchEvent(new CustomEvent('bbdrts_toggle_preview_maintenance', {
-      detail: { open: true, config: maintenance }
+      detail: {
+        open: true,
+        config: {
+          ...maintenance,
+          startTime: effectiveStartDisplay,
+          startTimeIso: effectiveStartIso
+        }
+      }
     }));
   };
 
   const handleSetStartOffset = (minsFromNow = 0) => {
+    const isNow = minsFromNow === 0;
+    setFollowLiveStart(isNow);
     const startDate = new Date(Date.now() + minsFromNow * 60000);
-    startDate.setSeconds(0, 0);
+    if (!isNow) startDate.setSeconds(0, 0);
     setMaintenance(prev => {
       const existingEndMs = parseMaintMs(prev.endTimeIso, prev.endTime);
       const next = {
@@ -372,7 +398,8 @@ export default function AdminMaintenancePanel({ onMaintenanceStateChange, forced
     setMaintenance(prev => {
       const now = Date.now();
       const startParsed = parseMaintMs(prev.startTimeIso, prev.startTime);
-      const isFutureStart = Boolean(startParsed && startParsed > now);
+      const isFutureStart = Boolean(!followLiveStart && startParsed && startParsed > now);
+      if (!isFutureStart) setFollowLiveStart(true);
       const baseDate = new Date(isFutureStart ? startParsed : now);
       baseDate.setSeconds(0, 0);
       const target = new Date(baseDate.getTime() + durationMins * 60000);
@@ -410,9 +437,12 @@ export default function AdminMaintenancePanel({ onMaintenanceStateChange, forced
 
     setSavingMaintenance(true);
     try {
+      const nowAtSave = new Date();
+      const finalStartDate = isLiveStartActive ? nowAtSave : (startMs ? new Date(startMs) : null);
       const payload = {
         ...maintenance,
-        startTimeIso: startMs ? new Date(startMs).toISOString() : '',
+        startTime: finalStartDate ? formatFriendlyDateTime(finalStartDate) : '',
+        startTimeIso: finalStartDate ? finalStartDate.toISOString() : '',
         endTimeIso: endMs ? new Date(endMs).toISOString() : ''
       };
       const token = localStorage.getItem('bbdrts_token') || localStorage.getItem('token');
@@ -765,7 +795,15 @@ export default function AdminMaintenancePanel({ onMaintenanceStateChange, forced
                         <span>Effective From</span>
                       </label>
                       <div className="schedule-quick-chips">
-                        <button type="button" className="btn-set-now" onClick={() => handleSetStartOffset(0)}>Now</button>
+                        <button
+                          type="button"
+                          className={`btn-set-now${isLiveStartActive ? ' is-live-active' : ''}`}
+                          onClick={() => handleSetStartOffset(0)}
+                          title="Follow live system clock"
+                        >
+                          {isLiveStartActive && <span className="live-chip-dot" />}
+                          <span>Now</span>
+                        </button>
                         <button type="button" className="btn-set-now" onClick={() => handleSetStartOffset(2)}>+2m</button>
                         <button type="button" className="btn-set-now" onClick={() => handleSetStartOffset(5)}>+5m</button>
                         <button type="button" className="btn-set-now" onClick={() => handleSetStartOffset(15)}>+15m</button>
@@ -773,22 +811,31 @@ export default function AdminMaintenancePanel({ onMaintenanceStateChange, forced
                     </div>
 
                     <CustomDateTimePicker
-                      value={maintenance.startTime}
+                      value={effectiveStartDisplay}
                       onChange={(formattedStr, dateObj) => {
+                        if (!formattedStr || !dateObj || isNaN(dateObj.getTime())) {
+                          setFollowLiveStart(true);
+                          setMaintenance(prev => ({ ...prev, startTime: '', startTimeIso: '' }));
+                          return;
+                        }
+                        const isFuture = dateObj.getTime() > Date.now() + 30000;
+                        setFollowLiveStart(!isFuture);
                         setMaintenance(prev => ({
                           ...prev,
                           startTime: formattedStr,
-                          startTimeIso: dateObj && !isNaN(dateObj.getTime()) ? dateObj.toISOString() : ''
+                          startTimeIso: dateObj.toISOString()
                         }));
                       }}
-                      placeholder="Immediate (or pick future start)..."
+                      placeholder="Following live time..."
                       icon="schedule"
                       showPresets={false}
                     />
-                    <span className="field-caption">
-                      {startMs && startMs > liveNowMs
-                        ? `Auto-activates in ${formatDurationShort(startMs - liveNowMs)}`
-                        : 'Starts immediately once armed'}
+                    <span className={`field-caption${isLiveStartActive ? ' is-live' : ''}`}>
+                      {isLiveStartActive
+                        ? `Live · ${new Date(liveNowMs).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true })} · Starts immediately once armed`
+                        : startMs && startMs > liveNowMs
+                          ? `Auto-activates in ${formatDurationShort(startMs - liveNowMs)}`
+                          : `Started ${maintenance.startTime}`}
                     </span>
                   </div>
 
@@ -1119,7 +1166,7 @@ export default function AdminMaintenancePanel({ onMaintenanceStateChange, forced
                       <div className="sim-times-row">
                         <div className="sim-time-box">
                           <span className="time-lbl">Started</span>
-                          <strong className="time-val">{maintenance.startTime || 'In Progress'}</strong>
+                          <strong className="time-val">{effectiveStartDisplay || 'In Progress'}</strong>
                         </div>
                         <div className="sim-time-box highlight">
                           <span className="time-lbl">Completion</span>

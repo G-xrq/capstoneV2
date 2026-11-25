@@ -827,6 +827,29 @@
   background: rgba(14, 165, 233, 0.12);
 }
 
+.btn-set-now.is-live-active {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border-color: rgba(14, 165, 233, 0.45);
+  background: rgba(14, 165, 233, 0.14);
+  color: #38bdf8;
+}
+
+[data-theme="light"] .btn-set-now.is-live-active {
+  color: #0369a1;
+  background: rgba(2, 132, 199, 0.1);
+  border-color: rgba(2, 132, 199, 0.35);
+}
+
+.live-chip-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
+}
+
 .btn-set-now.is-end {
   color: #059669;
 }
@@ -848,6 +871,10 @@
 .field-caption.is-error {
   color: #f43f5e;
   font-weight: 500;
+}
+
+.field-caption.is-live {
+  font-variant-numeric: tabular-nums;
 }
 
 .maint-schedule-summary {
