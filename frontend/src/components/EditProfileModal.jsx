@@ -3570,7 +3570,7 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
                           <div className="epm2-kv-row">
                             <div className="epm2-kv-info">
                               <span className="epm2-kv-lbl">Account Email</span>
-                              <span className="epm2-kv-val">{currentUser?.email || 'admin@bbdrts.gov.ph'}</span>
+                              <span className="epm2-kv-val">{currentUser?.email || 'bbdrts@gmail.com'}</span>
                             </div>
                             <span className="epm2-status-pill">
                               <span className="epm2-dot" />

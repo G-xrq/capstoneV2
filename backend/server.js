@@ -490,7 +490,7 @@ const authenticateToken = (req, res, next) => {
 
   // Direct Admin Access bypass for local development, demo sessions, and automated UI access
   if (token === 'direct_admin_access_token') {
-    req.user = { id: 1, email: 'admin@bbdrts.gov.ph', role: 'admin' };
+    req.user = { id: 1, email: 'bbdrts@gmail.com', role: 'admin' };
     return next();
   }
 
@@ -1103,7 +1103,7 @@ app.post('/api/auth/direct-admin', async (req, res) => {
     const [rows] = await db.query('SELECT * FROM ADMINISTRATOR WHERE Admin_ID = 1 LIMIT 1');
     const admin = rows[0] || {
       Admin_ID: 1,
-      Username: 'admin@bbdrts.gov.ph',
+      Username: 'bbdrts@gmail.com',
       Wallet_Address: '0x206e5d8b76c8c4598d1a457493a746535560b771',
       Name: 'System Administrator'
     };
@@ -5888,7 +5888,7 @@ app.post('/api/manual-donations/:id/:action', authenticateToken, async (req, res
           const [admins] = await db.query('SELECT Username FROM ADMINISTRATOR LIMIT 5');
           const adminEmails = (admins && admins.length > 0)
             ? admins.map(a => a.Username).filter(Boolean)
-            : ['admin@bbdrts.gov.ph'];
+            : ['bbdrts@gmail.com'];
           for (const aEmail of adminEmails) {
             await sendNotificationToUser({
               userEmail: aEmail,
@@ -6352,7 +6352,7 @@ app.post('/api/donations/disputes', authenticateToken, async (req, res) => {
       const [admins] = await db.query('SELECT Username FROM ADMINISTRATOR LIMIT 5');
       const adminEmails = (admins && admins.length > 0)
         ? admins.map(a => a.Username).filter(Boolean)
-        : ['admin@bbdrts.gov.ph'];
+        : ['bbdrts@gmail.com'];
       for (const aEmail of adminEmails) {
         await sendNotificationToUser({
           userEmail: aEmail,
@@ -6594,7 +6594,7 @@ app.post('/api/org/disputes/:id/respond', authenticateToken, async (req, res) =>
       const [admins] = await db.query('SELECT Username FROM ADMINISTRATOR LIMIT 5');
       const adminEmails = (admins && admins.length > 0)
         ? admins.map(a => a.Username).filter(Boolean)
-        : ['admin@bbdrts.gov.ph'];
+        : ['bbdrts@gmail.com'];
       for (const aEmail of adminEmails) {
         await sendNotificationToUser({
           userEmail: aEmail,
@@ -6739,7 +6739,7 @@ app.patch('/api/admin/disputes/:id', authenticateToken, async (req, res) => {
     const dp = rows[0];
     const cleanNotes = String(adminNotes || '').trim();
     const isClosed = cleanStatus === 'RESOLVED' || cleanStatus === 'DISMISSED';
-    const adminActor = req.user.email || 'admin@bbdrts.gov.ph';
+    const adminActor = req.user.email || 'bbdrts@gmail.com';
     const finalVerdict = cleanVerdict || dp.Admin_Verdict || null;
 
     await db.query(`
@@ -9413,7 +9413,7 @@ app.post('/api/admin/donors/:id/reset-password', authenticateToken, async (req, 
 
     const donorEmail = String(donor.Username || '').trim();
     const donorDisplayName = donor.Display_Name || donor.Legal_Name || donor.Name || donorEmail;
-    const adminEmail = req.user.email || 'admin@bbdrts.gov.ph';
+    const adminEmail = req.user.email || 'bbdrts@gmail.com';
     const adminName = req.user.name || 'System Administrator';
     const hadLockout = Boolean(
       (Number(donor.Failed_Login_Attempts || 0) > 0) ||
@@ -12572,7 +12572,7 @@ app.post('/api/system/maintenance/emergency-unlock', async (req, res) => {
       req,
       activity: 'Admin used Emergency Maintenance Unlock Gate to restore full system access',
       userName: 'Emergency Administrator',
-      userEmail: 'admin@bbdrts.gov.ph',
+      userEmail: 'bbdrts@gmail.com',
       role: 'ADMIN',
       target: 'System Maintenance Configuration',
       category: 'ADMIN_SECURITY',
@@ -12801,7 +12801,7 @@ async function resolveOptionalPresenceUser(req) {
           return {
             id: formatted.id,
             name: formatted.name || 'System Administrator',
-            email: formatted.email || 'admin@bbdrts.gov.ph',
+            email: formatted.email || 'bbdrts@gmail.com',
             role: 'admin',
             orgName: null,
             verificationStatus: 'Verified',
@@ -12813,7 +12813,7 @@ async function resolveOptionalPresenceUser(req) {
       return {
         id: 1,
         name: 'System Administrator',
-        email: 'admin@bbdrts.gov.ph',
+        email: 'bbdrts@gmail.com',
         role: 'admin',
         orgName: null,
         verificationStatus: 'Verified',

@@ -42,7 +42,7 @@ async function seedDefaultAccounts(driver) {
       sqliteDb.get('SELECT COUNT(*) as count FROM ADMINISTRATOR', (err, row) => {
         if (!err && row && row.count === 0) {
           sqliteDb.run(`INSERT INTO ADMINISTRATOR (Username, Password, Wallet_Address) VALUES (?, ?, ?)`,
-            ['admin@bbdrts.gov.ph', adminPasswordHash, '0x206e5d8b76c8c4598d1a457493a746535560b771']);
+            ['bbdrts@gmail.com', adminPasswordHash, '0x206e5d8b76c8c4598d1a457493a746535560b771']);
         }
       });
 
@@ -56,7 +56,7 @@ async function seedDefaultAccounts(driver) {
       const [adminRows] = await mysqlPool.query('SELECT COUNT(*) as count FROM ADMINISTRATOR');
       if (adminRows[0].count === 0) {
         await mysqlPool.query(`INSERT INTO ADMINISTRATOR (Username, Password, Wallet_Address) VALUES (?, ?, ?)`,
-          ['admin@bbdrts.gov.ph', adminPasswordHash, '0x206e5d8b76c8c4598d1a457493a746535560b771']);
+          ['bbdrts@gmail.com', adminPasswordHash, '0x206e5d8b76c8c4598d1a457493a746535560b771']);
       }
 
       const [donorRows] = await mysqlPool.query('SELECT COUNT(*) as count FROM DONOR');
