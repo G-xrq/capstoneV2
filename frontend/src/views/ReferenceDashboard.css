@@ -7,17 +7,24 @@
   --app-sidebar-w: 244px;
   --app-header-h: 60px;
   --app-banner-h: 40px;
-  --app-top-offset: var(--app-header-h);
+  --app-banners-h: 0px;
+  --app-top-offset: calc(var(--app-header-h) + var(--app-banners-h));
 }
 
-/* Automatically adjust dashboard & sidebar viewport height when 1 or 2 top announcement bars are mounted */
+/* Automatically stack sticky banner(s), header, and sidebar flush from top to bottom with zero scroll gap */
 .app:has(> .bbdrts-broadcast-banner),
 .app:has(> .bbdrts-maint-upcoming-bar) {
+  --app-banners-h: var(--app-banner-h);
   --app-top-offset: calc(var(--app-header-h) + var(--app-banner-h));
 }
 
 .app:has(> .bbdrts-broadcast-banner):has(> .bbdrts-maint-upcoming-bar) {
+  --app-banners-h: calc(var(--app-banner-h) * 2);
   --app-top-offset: calc(var(--app-header-h) + var(--app-banner-h) * 2);
+}
+
+.app:has(> .bbdrts-broadcast-banner) > .bbdrts-maint-upcoming-bar {
+  top: var(--app-banner-h);
 }
 
 body[data-sidebar-collapsed="true"] {
@@ -69,7 +76,7 @@ body[data-sidebar-collapsed="true"] {
   justify-content: space-between;
   gap: 16px;
   position: sticky;
-  top: var(--app-header-h, 60px);
+  top: var(--app-top-offset, 60px);
   height: calc(100dvh - var(--app-top-offset, 60px));
   overflow-y: auto;
   overflow-x: hidden;

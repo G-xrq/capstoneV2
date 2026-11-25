@@ -1031,7 +1031,8 @@ body:has(.bbdrts-maint-modal-overlay) {
 
 /* ── Non-Blocking Upcoming Maintenance Countdown Bar (In-flow above Header, never covers nav) ── */
 .bbdrts-maint-upcoming-bar {
-  position: relative;
+  position: sticky;
+  top: 0;
   width: 100%;
   min-height: var(--app-banner-h, 40px);
   display: flex;

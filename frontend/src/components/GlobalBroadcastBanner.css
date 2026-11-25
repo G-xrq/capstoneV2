@@ -1,8 +1,9 @@
 /* ── BBDRTS Global Broadcast Banner (Vercel Geist Standard) ── */
 
 .bbdrts-broadcast-banner {
-  position: relative;
-  z-index: 1000;
+  position: sticky;
+  top: 0;
+  z-index: 10002;
   width: 100%;
   min-height: var(--app-banner-h, 40px);
   display: flex;
