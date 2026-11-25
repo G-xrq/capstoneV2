@@ -3036,3 +3036,198 @@
 [data-theme="light"] .pwd-req-callout.is-valid .pwd-req-callout-icon {
   color: #10b981;
 }
+
+
+/* ── ARCHITECTURAL PROTOCOL TOPOLOGY VISUAL ── */
+.brand-protocol-stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin: auto 0;
+  padding: 8px 0;
+  color: #ffffff;
+}
+
+.brand-chain-svg {
+  width: 100%;
+  max-width: 340px;
+  height: auto;
+  overflow: visible;
+}
+
+.brand-svg-orbit {
+  stroke: rgba(255, 255, 255, 0.06);
+  stroke-width: 1;
+}
+
+.brand-svg-orbit.is-inner {
+  stroke: rgba(16, 185, 129, 0.14);
+  stroke-dasharray: 2 5;
+}
+
+.brand-svg-flow {
+  animation: bbdrtsChainFlow 2.8s linear infinite;
+}
+
+@keyframes bbdrtsChainFlow {
+  from { stroke-dashoffset: 28; }
+  to { stroke-dashoffset: 0; }
+}
+
+.brand-cube-top {
+  fill: rgba(255, 255, 255, 0.06);
+  stroke: rgba(255, 255, 255, 0.22);
+  stroke-width: 1;
+  stroke-linejoin: round;
+}
+
+.brand-cube-left {
+  fill: rgba(255, 255, 255, 0.03);
+  stroke: rgba(255, 255, 255, 0.16);
+  stroke-width: 1;
+  stroke-linejoin: round;
+}
+
+.brand-cube-right {
+  fill: rgba(255, 255, 255, 0.015);
+  stroke: rgba(255, 255, 255, 0.13);
+  stroke-width: 1;
+  stroke-linejoin: round;
+}
+
+.brand-cube-top.is-hero {
+  fill: rgba(16, 185, 129, 0.14);
+  stroke: rgba(16, 185, 129, 0.65);
+  stroke-width: 1.2;
+}
+
+.brand-cube-left.is-hero {
+  fill: rgba(16, 185, 129, 0.07);
+  stroke: rgba(16, 185, 129, 0.42);
+  stroke-width: 1.1;
+}
+
+.brand-cube-right.is-hero {
+  fill: rgba(16, 185, 129, 0.035);
+  stroke: rgba(16, 185, 129, 0.30);
+  stroke-width: 1.1;
+}
+
+.brand-protocol-nodes {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.022);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.brand-proto-node {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+}
+
+.brand-proto-idx {
+  font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: rgba(255, 255, 255, 0.40);
+}
+
+.brand-proto-node.is-accent .brand-proto-idx {
+  color: #10b981;
+}
+
+.brand-proto-lbl {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.78);
+  white-space: nowrap;
+}
+
+.brand-proto-node.is-accent .brand-proto-lbl {
+  color: #ffffff;
+}
+
+.brand-proto-sep {
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.08), rgba(16, 185, 129, 0.35), rgba(255, 255, 255, 0.08));
+}
+
+/* Light Mode Parity */
+[data-theme="light"] .brand-protocol-stage {
+  color: #18181b;
+}
+
+[data-theme="light"] .brand-svg-orbit {
+  stroke: rgba(24, 24, 27, 0.08);
+}
+
+[data-theme="light"] .brand-svg-orbit.is-inner {
+  stroke: rgba(5, 150, 105, 0.22);
+}
+
+[data-theme="light"] .brand-cube-top {
+  fill: rgba(255, 255, 255, 0.92);
+  stroke: #d4d4d8;
+}
+
+[data-theme="light"] .brand-cube-left {
+  fill: #f4f4f5;
+  stroke: #d4d4d8;
+}
+
+[data-theme="light"] .brand-cube-right {
+  fill: #e4e4e7;
+  stroke: #d4d4d8;
+}
+
+[data-theme="light"] .brand-cube-top.is-hero {
+  fill: rgba(16, 185, 129, 0.14);
+  stroke: #059669;
+}
+
+[data-theme="light"] .brand-cube-left.is-hero {
+  fill: rgba(16, 185, 129, 0.08);
+  stroke: rgba(5, 150, 105, 0.55);
+}
+
+[data-theme="light"] .brand-cube-right.is-hero {
+  fill: rgba(16, 185, 129, 0.04);
+  stroke: rgba(5, 150, 105, 0.40);
+}
+
+[data-theme="light"] .brand-protocol-nodes {
+  background: rgba(255, 255, 255, 0.72);
+  border-color: #e4e4e7;
+}
+
+[data-theme="light"] .brand-proto-idx {
+  color: #71717a;
+}
+
+[data-theme="light"] .brand-proto-node.is-accent .brand-proto-idx {
+  color: #059669;
+}
+
+[data-theme="light"] .brand-proto-lbl {
+  color: #3f3f46;
+}
+
+[data-theme="light"] .brand-proto-node.is-accent .brand-proto-lbl {
+  color: #09090b;
+}
+
+[data-theme="light"] .brand-proto-sep {
+  background: linear-gradient(90deg, #e4e4e7, rgba(5, 150, 105, 0.45), #e4e4e7);
+}

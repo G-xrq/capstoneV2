@@ -1674,6 +1674,82 @@ export default function AuthView({ onLoginSuccess, onBack, theme, onToggleTheme,
                 </div>
               </div>
 
+              {/* Minimalist Architectural Blockchain Protocol Visual */}
+              <div className="brand-protocol-stage" aria-hidden="true">
+                <svg
+                  className="brand-chain-svg"
+                  viewBox="0 0 360 164"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <defs>
+                    <linearGradient id="bbdrtsRailGrad" x1="56" y1="82" x2="304" y2="82" gradientUnits="userSpaceOnUse">
+                      <stop offset="0%" stopColor="currentColor" stopOpacity="0.18" />
+                      <stop offset="50%" stopColor="#10b981" stopOpacity="0.85" />
+                      <stop offset="100%" stopColor="currentColor" stopOpacity="0.18" />
+                    </linearGradient>
+                    <radialGradient id="bbdrtsCenterGlow" cx="50%" cy="50%" r="50%">
+                      <stop offset="0%" stopColor="#10b981" stopOpacity="0.22" />
+                      <stop offset="100%" stopColor="#10b981" stopOpacity="0" />
+                    </radialGradient>
+                  </defs>
+
+                  {/* Soft radial ambient glow behind center block */}
+                  <circle cx="180" cy="82" r="68" fill="url(#bbdrtsCenterGlow)" />
+
+                  {/* Subtle outer orbital rings */}
+                  <ellipse cx="180" cy="82" rx="146" ry="52" className="brand-svg-orbit" />
+                  <ellipse cx="180" cy="82" rx="108" ry="38" className="brand-svg-orbit is-inner" />
+
+                  {/* Connecting cryptographic rails */}
+                  <line x1="82" y1="82" x2="148" y2="82" stroke="url(#bbdrtsRailGrad)" strokeWidth="1.25" strokeDasharray="3 4" className="brand-svg-flow" />
+                  <line x1="212" y1="82" x2="278" y2="82" stroke="url(#bbdrtsRailGrad)" strokeWidth="1.25" strokeDasharray="3 4" className="brand-svg-flow" />
+
+                  {/* Left Isometric Block (Contribution) */}
+                  <g className="brand-svg-cube">
+                    <polygon points="58,58 82,70 58,82 34,70" className="brand-cube-top" />
+                    <polygon points="34,70 58,82 58,108 34,96" className="brand-cube-left" />
+                    <polygon points="82,70 58,82 58,108 82,96" className="brand-cube-right" />
+                  </g>
+
+                  {/* Center Hero Isometric Block (Verified Ledger Seal) */}
+                  <g className="brand-svg-cube is-hero">
+                    <polygon points="180,44 214,62 180,80 146,62" className="brand-cube-top is-hero" />
+                    <polygon points="146,62 180,80 180,118 146,100" className="brand-cube-left is-hero" />
+                    <polygon points="214,62 180,80 180,118 214,100" className="brand-cube-right is-hero" />
+                    <circle cx="180" cy="62" r="4" fill="#10b981" />
+                  </g>
+
+                  {/* Right Isometric Block (On-Chain Proof) */}
+                  <g className="brand-svg-cube">
+                    <polygon points="302,58 326,70 302,82 278,70" className="brand-cube-top" />
+                    <polygon points="278,70 302,82 302,108 278,96" className="brand-cube-left" />
+                    <polygon points="326,70 302,82 302,108 326,96" className="brand-cube-right" />
+                  </g>
+
+                  {/* Subtle anchor nodes */}
+                  <circle cx="115" cy="82" r="2.5" fill="#10b981" opacity="0.85" />
+                  <circle cx="245" cy="82" r="2.5" fill="#10b981" opacity="0.85" />
+                </svg>
+
+                <div className="brand-protocol-nodes">
+                  <div className="brand-proto-node">
+                    <span className="brand-proto-idx">01</span>
+                    <span className="brand-proto-lbl">PHP Transfer</span>
+                  </div>
+                  <span className="brand-proto-sep" />
+                  <div className="brand-proto-node is-accent">
+                    <span className="brand-proto-idx">02</span>
+                    <span className="brand-proto-lbl">Audit Verify</span>
+                  </div>
+                  <span className="brand-proto-sep" />
+                  <div className="brand-proto-node">
+                    <span className="brand-proto-idx">03</span>
+                    <span className="brand-proto-lbl">Sepolia Seal</span>
+                  </div>
+                </div>
+              </div>
+
               {/* Bottom Network Status Pill */}
               <div className="brand-footer-block">
                 <div className="brand-live-pill">
