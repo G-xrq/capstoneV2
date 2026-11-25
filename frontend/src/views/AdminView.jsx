@@ -858,10 +858,11 @@ export default function AdminView({
 
   const handleSelectTx = async (tx) => {
     setSelectedTx(tx);
-    if (tx.hasReceipt && !tx.receiptBase64 && !tx.Receipt_Base64 && tx.id) {
+    const receiptLookupId = tx.manualId || tx.id;
+    if (tx.hasReceipt && !tx.receiptBase64 && !tx.Receipt_Base64 && receiptLookupId) {
       try {
         const token = await getAdminToken();
-        const res = await fetch(`${API_URL}/api/admin/financial-ledger/${tx.id}/receipt`, {
+        const res = await fetch(`${API_URL}/api/admin/financial-ledger/${receiptLookupId}/receipt`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         if (res.ok) {
@@ -907,16 +908,6 @@ export default function AdminView({
     }
   };
 
-  const totalLedgerEth = useMemo(() => {
-    const onChainSum = (ledgerData.onChain || []).reduce((s, t) => s + parseFloat(t.amountEth || t.Amount || 0), 0);
-    const manualSum = (ledgerData.manual || []).reduce((s, m) => s + parseFloat(m.amountEth || 0), 0);
-    return onChainSum + manualSum;
-  }, [ledgerData]);
-
-  const totalLedgerPhp = useMemo(() => {
-    return Math.round(totalLedgerEth * 170000);
-  }, [totalLedgerEth]);
-
   const pendingManualCount = useMemo(() => {
     return (ledgerData.manual || []).filter(m => (m.status || m.Status || '').toLowerCase() === 'pending').length;
   }, [ledgerData.manual]);
@@ -924,6 +915,50 @@ export default function AdminView({
   const approvedManualCount = useMemo(() => {
     return (ledgerData.manual || []).filter(m => (m.status || m.Status || '').toLowerCase() === 'approved').length;
   }, [ledgerData.manual]);
+
+  const rejectedManualCount = useMemo(() => {
+    return (ledgerData.manual || []).filter(m => (m.status || m.Status || '').toLowerCase() === 'rejected').length;
+  }, [ledgerData.manual]);
+
+  const totalLedgerEth = useMemo(() => {
+    const onChainSum = (ledgerData.onChain || []).reduce((s, t) => s + parseFloat(t.amountEth || t.Amount || 0), 0);
+    // Only include un-notarized approved manual slips (never pending or rejected slips)
+    const approvedManualSum = (ledgerData.manual || [])
+      .filter(m => (m.status || m.Status || '').toLowerCase() === 'approved')
+      .reduce((s, m) => s + parseFloat(m.amountEth || 0), 0);
+    return onChainSum + approvedManualSum;
+  }, [ledgerData]);
+
+  const totalLedgerPhp = useMemo(() => {
+    const onChainPhp = (ledgerData.onChain || []).reduce((s, t) => {
+      const p = Number(t.amountPhp);
+      return s + (p > 0 ? p : Math.round(parseFloat(t.amountEth || t.Amount || 0) * 170000));
+    }, 0);
+    const approvedManualPhp = (ledgerData.manual || [])
+      .filter(m => (m.status || m.Status || '').toLowerCase() === 'approved')
+      .reduce((s, m) => {
+        const p = Number(m.amountPhp);
+        return s + (p > 0 ? p : Math.round(parseFloat(m.amountEth || 0) * 170000));
+      }, 0);
+    return Math.round(onChainPhp + approvedManualPhp);
+  }, [ledgerData]);
+
+  const verifiedRailCounts = useMemo(() => {
+    const verifiedRows = [
+      ...(ledgerData.onChain || []),
+      ...(ledgerData.manual || []).filter(m => (m.status || m.Status || '').toLowerCase() === 'approved')
+    ];
+    let gcash = 0;
+    let maya = 0;
+    let bank = 0;
+    for (const r of verifiedRows) {
+      const pm = String(r.paymentMethod || r.Payment_Method || '').toLowerCase();
+      if (pm.includes('gcash')) gcash++;
+      else if (pm.includes('maya')) maya++;
+      else bank++;
+    }
+    return { gcash, maya, bank, total: verifiedRows.length };
+  }, [ledgerData]);
 
   const allUnifiedLedgerList = useMemo(() => {
     const list = [
@@ -982,12 +1017,27 @@ export default function AdminView({
     return list;
   }, [ledgerData]);
 
+  const pillRailCounts = useMemo(() => {
+    let gcash = 0;
+    let maya = 0;
+    let bank = 0;
+    for (const item of allUnifiedLedgerList) {
+      const r = (item.rail || '').toLowerCase();
+      if (r.includes('gcash')) gcash++;
+      else if (r.includes('maya')) maya++;
+      else bank++;
+    }
+    return { gcash, maya, bank };
+  }, [allUnifiedLedgerList]);
+
   const unifiedLedgerList = useMemo(() => {
     return allUnifiedLedgerList.filter(item => {
+      const railLower = (item.rail || '').toLowerCase();
       if (ledgerRailFilter === 'NOTARIZED' && !item.isNotarized) return false;
-      if (ledgerRailFilter === 'GCASH' && !item.rail.toLowerCase().includes('gcash')) return false;
-      if (ledgerRailFilter === 'MAYA' && !item.rail.toLowerCase().includes('maya')) return false;
-      if (ledgerRailFilter === 'CARD' && !item.rail.toLowerCase().includes('card') && !item.rail.toLowerCase().includes('bank')) return false;
+      if (ledgerRailFilter === 'PENDING' && !String(item.status || '').toLowerCase().includes('pending')) return false;
+      if (ledgerRailFilter === 'GCASH' && !railLower.includes('gcash')) return false;
+      if (ledgerRailFilter === 'MAYA' && !railLower.includes('maya')) return false;
+      if (ledgerRailFilter === 'CARD' && (railLower.includes('gcash') || railLower.includes('maya'))) return false;
 
       if (ledgerDateFilter !== 'all') {
         const itemDate = new Date(item.timestamp || 0).getTime();
@@ -3279,80 +3329,104 @@ export default function AdminView({
                 </div>
               </div>
 
-              {/* Unified Financial Metrics Strip (Vercel Style) */}
-              <div className="admin-metric-strip">
-                <div className="admin-metric-strip-item">
-                  <div className="admin-metric-label">
-                    <span>Total Funds Received</span>
-                    <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#10b981' }}>payments</span>
-                  </div>
-                  <div className="admin-metric-value" style={{ color: '#10b981' }}>
-                    <LiveCounter value={totalLedgerPhp} prefix="₱" duration={1050} />
-                  </div>
-                  <div className="admin-metric-sub">
-                    Gasless Sepolia Blockchain Audited
-                  </div>
-                </div>
+              {/* Unified Financial Metrics Strip (Reconciled & Deduplicated) */}
+              {(() => {
+                const verifiedTotal = ledgerData.onChain.length + approvedManualCount;
+                const totalRecords = ledgerData.onChain.length + ledgerData.manual.length;
+                const verifiedPct = totalRecords > 0 ? Math.round((verifiedTotal / totalRecords) * 100) : 100;
+                const statusBreakdown = [
+                  pendingManualCount > 0 ? `${pendingManualCount} pending` : null,
+                  rejectedManualCount > 0 ? `${rejectedManualCount} rejected` : null
+                ].filter(Boolean).join(' · ');
 
-                <div className="admin-metric-strip-item">
-                  <div className="admin-metric-label">
-                    <span>Verified Transactions</span>
-                    <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#38bdf8' }}>receipt_long</span>
-                  </div>
-                  <div className="admin-metric-value">
-                    <LiveCounter value={ledgerData.onChain.length + approvedManualCount} duration={850} /> <span style={{ fontSize: '0.80rem', color: 'var(--text-muted)' }}>/ {ledgerData.onChain.length + ledgerData.manual.length}</span>
-                  </div>
-                  <div className="admin-metric-sub">
-                    100% Sepolia EVM & Slip Reconciled
-                  </div>
-                </div>
+                return (
+                  <div className="admin-metric-strip">
+                    <div className="admin-metric-strip-item">
+                      <div className="admin-metric-label">
+                        <span>Total Funds Received</span>
+                        <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#10b981' }}>payments</span>
+                      </div>
+                      <div className="admin-metric-value" style={{ color: '#10b981' }}>
+                        <LiveCounter value={totalLedgerPhp} prefix="₱" duration={1050} />
+                      </div>
+                      <div className="admin-metric-sub">
+                        Verified Sepolia &amp; Reconciled PHP Total
+                      </div>
+                    </div>
 
-                <div className="admin-metric-strip-item">
-                  <div className="admin-metric-label">
-                    <span>Payment Rails Breakdown</span>
-                    <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#c084fc' }}>account_balance_wallet</span>
-                  </div>
-                  <div className="admin-metric-value">
-                    {ledgerData.onChain.length} <span style={{ fontSize: '0.80rem', color: 'var(--text-muted)' }}>Notarized · {ledgerData.manual.length} Slips</span>
-                  </div>
-                  <div className="admin-metric-sub">
-                    GCash, Maya, Bank &amp; Card (PHP)
-                  </div>
-                </div>
+                    <div className="admin-metric-strip-item">
+                      <div className="admin-metric-label">
+                        <span>Verified Transactions</span>
+                        <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#38bdf8' }}>receipt_long</span>
+                      </div>
+                      <div className="admin-metric-value">
+                        <LiveCounter value={verifiedTotal} duration={850} /> <span style={{ fontSize: '0.80rem', color: 'var(--text-muted)' }}>/ {totalRecords}</span>
+                      </div>
+                      <div className="admin-metric-sub">
+                        {statusBreakdown
+                          ? `${verifiedPct}% verified · ${statusBreakdown}`
+                          : '100% Sepolia EVM Reconciled'}
+                      </div>
+                    </div>
 
-                <div
-                  className="admin-metric-strip-item"
-                  style={{
-                    background: pendingManualCount > 0 ? 'rgba(245, 158, 11, 0.04)' : undefined
-                  }}
-                >
-                  <div className="admin-metric-label" style={{ color: pendingManualCount > 0 ? '#f59e0b' : undefined }}>
-                    <span>Offline Verifications</span>
-                    <span className="material-symbols-outlined" style={{ fontSize: '18px', color: pendingManualCount > 0 ? '#f59e0b' : 'var(--text-muted)' }}>
-                      {pendingManualCount > 0 ? 'hourglass_top' : 'task_alt'}
-                    </span>
-                  </div>
-                  <div className="admin-metric-value" style={{ color: pendingManualCount > 0 ? '#f59e0b' : undefined }}>
-                    {pendingManualCount}
-                  </div>
-                  <div className="admin-metric-sub">
-                    {pendingManualCount > 0 ? `${pendingManualCount} slips pending audit` : 'All payment slips verified'}
-                  </div>
-                </div>
-              </div>
+                    <div className="admin-metric-strip-item">
+                      <div className="admin-metric-label">
+                        <span>Payment Rails Breakdown</span>
+                        <span className="material-symbols-outlined" style={{ fontSize: '18px', color: '#c084fc' }}>account_balance_wallet</span>
+                      </div>
+                      <div className="admin-metric-value">
+                        {verifiedRailCounts.total} <span style={{ fontSize: '0.80rem', color: 'var(--text-muted)' }}>Verified PHP</span>
+                      </div>
+                      <div className="admin-metric-sub">
+                        GCash ({verifiedRailCounts.gcash}) · Maya ({verifiedRailCounts.maya}) · Bank/Card ({verifiedRailCounts.bank})
+                      </div>
+                    </div>
 
-              {/* Image 2 Style Unified Filter Toolbar */}
+                    <div
+                      className="admin-metric-strip-item"
+                      onClick={() => {
+                        if (pendingManualCount > 0) {
+                          setLedgerRailFilter(prev => prev === 'PENDING' ? 'ALL' : 'PENDING');
+                        }
+                      }}
+                      style={{
+                        background: pendingManualCount > 0 ? 'rgba(245, 158, 11, 0.05)' : undefined,
+                        cursor: pendingManualCount > 0 ? 'pointer' : 'default'
+                      }}
+                      title={pendingManualCount > 0 ? 'Click to filter pending offline verification slips' : 'No pending slips'}
+                    >
+                      <div className="admin-metric-label" style={{ color: pendingManualCount > 0 ? '#f59e0b' : undefined }}>
+                        <span>Offline Verifications</span>
+                        <span className="material-symbols-outlined" style={{ fontSize: '18px', color: pendingManualCount > 0 ? '#f59e0b' : '#10b981' }}>
+                          {pendingManualCount > 0 ? 'hourglass_top' : 'task_alt'}
+                        </span>
+                      </div>
+                      <div className="admin-metric-value" style={{ color: pendingManualCount > 0 ? '#f59e0b' : undefined }}>
+                        {pendingManualCount} <span style={{ fontSize: '0.80rem', color: 'var(--text-muted)' }}>Pending</span>
+                      </div>
+                      <div className="admin-metric-sub">
+                        {pendingManualCount > 0
+                          ? `${pendingManualCount} ${pendingManualCount === 1 ? 'slip' : 'slips'} awaiting NGO audit`
+                          : 'All payment slips verified'}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* Unified Filter Toolbar */}
               <div className="campaign-toolbar-card" style={{ marginTop: '0', marginBottom: '4px' }}>
                 <div className="campaign-toolbar-unified-row">
                   {/* Left: Rail Filter Pills + Date Filter Popover */}
                   <div className="toolbar-filters-left">
                     <div className="vercel-pill-group">
                       {[
-                        { key: 'ALL', label: `All (${ledgerData.onChain.length + ledgerData.manual.length})` },
+                        { key: 'ALL', label: `All (${allUnifiedLedgerList.length})` },
                         { key: 'NOTARIZED', label: `On-Chain (${ledgerData.onChain.length})` },
-                        { key: 'GCASH', label: 'GCash' },
-                        { key: 'MAYA', label: 'Maya' },
-                        { key: 'CARD', label: 'Card & Bank' }
+                        { key: 'GCASH', label: `GCash (${pillRailCounts.gcash})` },
+                        { key: 'MAYA', label: `Maya (${pillRailCounts.maya})` },
+                        { key: 'CARD', label: `Card & Bank (${pillRailCounts.bank})` },
+                        ...(pendingManualCount > 0 ? [{ key: 'PENDING', label: `Pending (${pendingManualCount})` }] : [])
                       ].map(tab => (
                         <button
                           key={tab.key}
@@ -3478,7 +3552,7 @@ export default function AdminView({
                           const isRejected = (tx.status || '').toLowerCase().includes('reject');
 
                           return (
-                            <tr key={tx.Transaction_ID || tx.Manual_ID || tx.id || idx} className="vercel-table-row">
+                            <tr key={`${tx.isNotarized ? 'tx' : 'md'}-${tx.Transaction_ID || tx.Manual_ID || tx.id || idx}`} className="vercel-table-row">
                               <td style={{ whiteSpace: 'nowrap', fontSize: '0.76rem', color: 'var(--text-secondary)' }}>
                                 {tx.timestamp ? new Date(tx.timestamp).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Recent'}
                               </td>
@@ -3536,28 +3610,31 @@ export default function AdminView({
                               </td>
 
                               <td style={{ textAlign: 'right', whiteSpace: 'nowrap' }}>
-                                {tx.hasEtherscanTx ? (
-                                  <a
-                                    href={`https://sepolia.etherscan.io/tx/${tx.refCode}`}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="admin-header-btn secondary"
-                                    style={{ fontSize: '0.70rem', padding: '3px 8px', display: 'inline-flex', alignItems: 'center', gap: '3px', textDecoration: 'none' }}
-                                  >
-                                    <span>Etherscan</span>
-                                    <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>open_in_new</span>
-                                  </a>
-                                ) : (
-                                  <button
-                                    type="button"
-                                    className="admin-header-btn secondary"
-                                    onClick={() => handleSelectTx(tx)}
-                                    style={{ fontSize: '0.70rem', padding: '3px 8px', display: 'inline-flex', alignItems: 'center', gap: '3px' }}
-                                  >
-                                    <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>receipt</span>
-                                    <span>Slip</span>
-                                  </button>
-                                )}
+                                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', justifyContent: 'flex-end' }}>
+                                  {tx.hasEtherscanTx && (
+                                    <a
+                                      href={`https://sepolia.etherscan.io/tx/${tx.refCode}`}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="admin-header-btn secondary"
+                                      style={{ fontSize: '0.70rem', padding: '3px 8px', display: 'inline-flex', alignItems: 'center', gap: '3px', textDecoration: 'none' }}
+                                    >
+                                      <span>Etherscan</span>
+                                      <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>open_in_new</span>
+                                    </a>
+                                  )}
+                                  {(tx.hasReceipt || !tx.hasEtherscanTx) && (
+                                    <button
+                                      type="button"
+                                      className="admin-header-btn secondary"
+                                      onClick={() => handleSelectTx(tx)}
+                                      style={{ fontSize: '0.70rem', padding: '3px 8px', display: 'inline-flex', alignItems: 'center', gap: '3px' }}
+                                    >
+                                      <span className="material-symbols-outlined" style={{ fontSize: '13px' }}>receipt</span>
+                                      <span>Slip</span>
+                                    </button>
+                                  )}
+                                </div>
                               </td>
                             </tr>
                           );

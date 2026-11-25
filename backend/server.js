@@ -8851,13 +8851,13 @@ app.get('/api/admin/financial-ledger', authenticateToken, async (req, res) => {
       LEFT JOIN ORGANIZATION o ON c.Org_ID = o.Org_ID
       WHERE ${PHP_RAIL_SQL('dt')}
       ORDER BY dt.Transaction_ID DESC
-      LIMIT 200
+      LIMIT 1000
     `);
 
     const [manual] = await db.query(`
       SELECT 
         md.Manual_ID as id,
-        NULL as txHash,
+        md.Tx_Hash as txHash,
         COALESCE(md.Confirmed_Amount, md.Amount) as amountEth,
         ROUND(COALESCE(md.Confirmed_Amount, md.Amount) * 170000, 2) as amountPhp,
         md.Payment_Method as paymentMethod,
@@ -8869,7 +8869,9 @@ app.get('/api/admin/financial-ledger', authenticateToken, async (req, res) => {
         c.Campaign_Title as campaignTitle,
         o.Org_Name as orgName,
         md.Created_At as createdAt,
+        md.Verified_At as verifiedAt,
         md.Status as status,
+        md.Rejection_Reason as rejectionReason,
         IF(md.Receipt_Base64 IS NOT NULL AND md.Receipt_Base64 != '', 1, 0) as hasReceipt,
         NULL as receiptUrl,
         md.Reference_Number as refNo,
@@ -8881,12 +8883,52 @@ app.get('/api/admin/financial-ledger', authenticateToken, async (req, res) => {
       LEFT JOIN CAMPAIGN c ON md.Campaign_ID = c.Campaign_ID
       LEFT JOIN ORGANIZATION o ON c.Org_ID = o.Org_ID
       ORDER BY md.Manual_ID DESC
-      LIMIT 200
+      LIMIT 1000
     `);
 
+    // Deduplicate: approved MANUAL_DONATION rows already inserted into DONATION_TRANSACTION must NOT be double-counted
+    const onChainRows = (onChain || []).map(r => ({ ...r }));
+    const onChainByHash = new Map();
+    const onChainBySig = new Map();
+    const matchedOnChainIds = new Set();
+
+    for (const row of onChainRows) {
+      const hashKey = String(row.txHash || '').trim().toLowerCase();
+      if (hashKey) onChainByHash.set(hashKey, row);
+      const sigKey = `${row.campaignId || ''}|${String(row.donorEmail || '').toLowerCase()}|${Math.round(Number(row.amountPhp || 0))}`;
+      if (!onChainBySig.has(sigKey)) onChainBySig.set(sigKey, []);
+      onChainBySig.get(sigKey).push(row);
+    }
+
+    const dedupedManual = [];
+    for (const m of (manual || [])) {
+      const st = String(m.status || '').trim().toLowerCase();
+      if (st === 'approved') {
+        const mHash = String(m.txHash || '').trim().toLowerCase();
+        let matchedRow = mHash ? onChainByHash.get(mHash) : null;
+        if (!matchedRow) {
+          const sigKey = `${m.campaignId || ''}|${String(m.donorEmail || '').toLowerCase()}|${Math.round(Number(m.amountPhp || 0))}`;
+          const candidates = onChainBySig.get(sigKey) || [];
+          matchedRow = candidates.find(c => !matchedOnChainIds.has(c.id)) || null;
+        }
+        if (matchedRow) {
+          matchedOnChainIds.add(matchedRow.id);
+          // Attach receipt & OCR metadata onto the canonical on-chain row so admins can still inspect the slip
+          if (!matchedRow.manualId) matchedRow.manualId = m.id;
+          if (m.hasReceipt) matchedRow.hasReceipt = 1;
+          if (!matchedRow.refNo && m.refNo) matchedRow.refNo = m.refNo;
+          if (matchedRow.aiConfidence == null && m.aiConfidence != null) matchedRow.aiConfidence = m.aiConfidence;
+          if (!matchedRow.aiStatus && m.aiStatus) matchedRow.aiStatus = m.aiStatus;
+          if (!matchedRow.aiNotes && m.aiNotes) matchedRow.aiNotes = m.aiNotes;
+          continue;
+        }
+      }
+      dedupedManual.push(m);
+    }
+
     res.json({
-      onChain: onChain || [],
-      manual: manual || []
+      onChain: onChainRows,
+      manual: dedupedManual
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
