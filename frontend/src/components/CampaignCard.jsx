@@ -685,7 +685,8 @@ export const getCampaignCategoryInfo = (camp = {}) => {
 
 function CleanQrVoucherDisplay({ qrUrl, gatewayMethod }) {
   const [displayUrl, setDisplayUrl] = useState(qrUrl);
-  const isMaya = (gatewayMethod || '').toLowerCase() === 'maya';
+  const isBank = (gatewayMethod || '').toLowerCase().includes('bank');
+  const isMaya = !isBank && (gatewayMethod || '').toLowerCase() === 'maya';
 
   useEffect(() => {
     let active = true;
@@ -712,10 +713,12 @@ function CleanQrVoucherDisplay({ qrUrl, gatewayMethod }) {
       <div className="dt7-qr-paper">
         <div className="dt7-qr-paper-head">
           <div className="dt7-qr-brand">
-            <span className={`dt7-qr-brand-badge${isMaya ? ' is-maya' : ''}`}>
-              {isMaya ? 'm' : 'G'}
+            <span className={`dt7-qr-brand-badge${isBank ? ' is-bank' : isMaya ? ' is-maya' : ''}`}>
+              {isBank ? (
+                <span className="material-symbols-outlined" style={{ fontSize: '12px' }}>account_balance</span>
+              ) : isMaya ? 'm' : 'G'}
             </span>
-            <span className="dt7-qr-brand-name">{(gatewayMethod || 'GCash').toUpperCase()} QR</span>
+            <span className="dt7-qr-brand-name">{isBank ? 'BANK / INSTAPAY QR' : `${(gatewayMethod || 'GCash').toUpperCase()} QR`}</span>
           </div>
           <span className="dt7-qr-verified-chip">Verified</span>
         </div>
@@ -1470,8 +1473,21 @@ export default function CampaignCard(props) {
     }
 
     // Recipient Credentials Cross-Check against active Campaign receiving details
-    const expectedName = (gatewayMethod === 'Maya' ? (camp.mayaName || camp.maya_name) : (camp.gcashName || camp.gcash_name || 'CL***E JU*****E V.') || '').trim();
-    const expectedPhone = (gatewayMethod === 'Maya' ? (camp.mayaNumber || camp.maya_number) : (camp.gcashNumber || camp.gcash_number || '0997 9939521') || '').trim();
+    const isBankRail = String(gatewayMethod || '').toLowerCase().includes('bank');
+    const expectedName = (
+      isBankRail
+        ? (camp.bankAccountName || camp.bank_account_name || camp.orgName || '')
+        : gatewayMethod === 'Maya'
+          ? (camp.mayaName || camp.maya_name || '')
+          : (camp.gcashName || camp.gcash_name || 'CL***E JU*****E V.')
+    ).trim();
+    const expectedPhone = (
+      isBankRail
+        ? (camp.bankAccountNumber || camp.bank_account_number || '')
+        : gatewayMethod === 'Maya'
+          ? (camp.mayaNumber || camp.maya_number || '')
+          : (camp.gcashNumber || camp.gcash_number || '0997 9939521')
+    ).trim();
 
     const extName = (aiScanResult.recipientName || '').trim();
     const extPhone = (aiScanResult.recipientPhone || '').trim();
@@ -2513,9 +2529,10 @@ export default function CampaignCard(props) {
     setRefNumber(demoRef);
     setGatewayRefNo(demoRef);
 
-    const isMaya = gatewayMethod === 'Maya';
-    const brandColor = isMaya ? '#00D68F' : '#007DFE';
-    const brandName = isMaya ? 'Maya' : 'GCash';
+    const isBank = String(gatewayMethod || '').toLowerCase().includes('bank');
+    const isMaya = !isBank && gatewayMethod === 'Maya';
+    const brandColor = isBank ? '#7c3aed' : isMaya ? '#00D68F' : '#007DFE';
+    const brandName = isBank ? 'Bank InstaPay' : isMaya ? 'Maya' : 'GCash';
     const dateStr = new Date().toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' });
     
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 380 500" width="380" height="500" style="background:#0f172a; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;">
@@ -2678,13 +2695,18 @@ export default function CampaignCard(props) {
       const scanAbort = new AbortController();
       const scanTimer = setTimeout(() => scanAbort.abort(), 20000);
       try {
-        const expectedRecipientName = gatewayMethod === 'Maya' 
-          ? (camp.mayaName || camp.maya_name) 
-          : (camp.gcashName || camp.gcash_name || 'CL***E JU*****E V.');
+        const isBankRail = String(gatewayMethod || '').toLowerCase().includes('bank');
+        const expectedRecipientName = isBankRail
+          ? (camp.bankAccountName || camp.bank_account_name || camp.orgName || '')
+          : gatewayMethod === 'Maya'
+            ? (camp.mayaName || camp.maya_name)
+            : (camp.gcashName || camp.gcash_name || 'CL***E JU*****E V.');
 
-        const expectedRecipientPhone = gatewayMethod === 'Maya' 
-          ? (camp.mayaNumber || camp.maya_number) 
-          : (camp.gcashNumber || camp.gcash_number || '0997 9939521');
+        const expectedRecipientPhone = isBankRail
+          ? (camp.bankAccountNumber || camp.bank_account_number || '')
+          : gatewayMethod === 'Maya'
+            ? (camp.mayaNumber || camp.maya_number)
+            : (camp.gcashNumber || camp.gcash_number || '0997 9939521');
 
         const expectedOrgName = camp.orgName || camp.org_name || camp.title;
 
@@ -5022,23 +5044,28 @@ export default function CampaignCard(props) {
                 const isInstant = Boolean(xenditEnabled && checkoutMode === 'instant');
                 const parsedAmount = parseFloat(amount || 0);
                 const hasAmount = !isNaN(parsedAmount) && parsedAmount > 0;
-                const channelLabel = selectedChannel === 'Bank / Card' ? 'Bank & Cards' : selectedChannel;
+                const channelLabel = selectedChannel === 'Bank Transfer'
+                  ? 'Bank / InstaPay'
+                  : (selectedChannel === 'Card' || selectedChannel === 'Bank / Card')
+                    ? 'Credit / Debit Card'
+                    : selectedChannel;
                 const orgDisplay = getOrgDisplayName(camp.orgAddress, camp.orgName, camp.id);
                 const campDisplay = formatCampaignTitle(camp.title, camp.id);
 
                 const handleContinue = () => {
-                  if (isInstant) {
+                  if (isInstant && selectedChannel !== 'Card') {
                     if (!hasAmount || Math.round(parsedAmount) < 1) {
                       document.getElementById('vc-donate-amount-input')?.focus();
                     }
-                    startInstantCheckout(selectedChannel);
+                    startInstantCheckout(selectedChannel === 'Bank Transfer' ? 'Bank / Card' : selectedChannel);
                     return;
                   }
-                  if (selectedChannel === 'Bank / Card') {
-                    createDirectQrIntent('Bank / Card');
+                  if (selectedChannel === 'Card' || selectedChannel === 'Bank / Card') {
+                    createDirectQrIntent('Credit Card');
                     setDonateStep(6);
                     return;
                   }
+                  // GCash, Maya, and Bank Transfer (InstaPay QR) all use Step 7 Direct QR + AI Slip Scan
                   setGatewayMethod(selectedChannel);
                   setGatewayStep(0);
                   setGatewayMobile('');
@@ -5048,6 +5075,7 @@ export default function CampaignCard(props) {
                   setDonateStep(7);
                 };
 
+                const hasBankQr = Boolean(camp.bankQrUrl || camp.bank_qr_url);
                 const channels = [
                   {
                     id: 'GCash',
@@ -5064,9 +5092,20 @@ export default function CampaignCard(props) {
                     icon: 'maya'
                   },
                   {
-                    id: 'Bank / Card',
-                    name: 'Bank & Cards',
-                    desc: isInstant ? 'Dynamic QR Ph · InstaPay bank transfer' : 'Visa, Mastercard, or direct bank transfer',
+                    id: 'Bank Transfer',
+                    name: 'Bank / InstaPay',
+                    desc: isInstant
+                      ? 'Dynamic QR Ph · InstaPay bank transfer'
+                      : hasBankQr
+                        ? 'Direct NGO Bank / InstaPay QR · AI slip scan'
+                        : 'Direct bank deposit · Account number & slip scan',
+                    badgeClass: 'instapay',
+                    icon: <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>account_balance</span>
+                  },
+                  {
+                    id: 'Card',
+                    name: 'Credit / Debit Card',
+                    desc: 'Visa, Mastercard, or Amex direct card checkout',
                     badgeClass: 'bank',
                     icon: <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>credit_card</span>
                   }
@@ -6080,6 +6119,37 @@ export default function CampaignCard(props) {
                               Copy
                             </button>
                           </div>
+                          {(camp.bankQrUrl || camp.bank_qr_url) && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setGatewayMethod('Bank Transfer');
+                                setGatewayStep(0);
+                                handleRemoveProof();
+                                createDirectQrIntent('Bank Transfer');
+                                setDonateStep(7);
+                              }}
+                              style={{
+                                marginTop: '8px',
+                                width: '100%',
+                                padding: '6px 10px',
+                                borderRadius: '7px',
+                                border: '1px solid rgba(139, 92, 246, 0.35)',
+                                background: 'rgba(139, 92, 246, 0.12)',
+                                color: '#c4b5fd',
+                                fontSize: '0.73rem',
+                                fontWeight: 600,
+                                cursor: 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '5px'
+                              }}
+                            >
+                              <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>qr_code_2</span>
+                              <span>Scan Bank / InstaPay QR &amp; Upload Slip</span>
+                            </button>
+                          )}
                         </div>
                       )}
 
@@ -6771,14 +6841,28 @@ export default function CampaignCard(props) {
                 );
               })()}
 
-              {/* ── STEP 7: Direct E-Wallet Transfer & AI Receipt Terminal (Vercel Geist) ── */}
+              {/* ── STEP 7: Direct E-Wallet & Bank QR Transfer + AI Receipt Terminal (Vercel Geist) ── */}
               {!isPaymentProcessing && donateStep === 7 && (() => {
-                const isMaya = gatewayMethod === 'Maya';
-                const railLabel = isMaya ? 'Maya' : 'GCash';
-                const qrUrl = isMaya ? (camp.mayaQrUrl || camp.maya_qr_url) : (camp.gcashQrUrl || camp.gcash_qr_url);
-                const acctName = isMaya ? (camp.mayaName || camp.maya_name) : (camp.gcashName || camp.gcash_name);
-                const rawRecvNum = isMaya ? (camp.mayaNumber || camp.maya_number || '09187654321') : (camp.gcashNumber || camp.gcash_number || '09178901234');
-                const formattedRecvNum = formatPhoneNumber(rawRecvNum);
+                const isBank = String(gatewayMethod || '').toLowerCase().includes('bank');
+                const isMaya = !isBank && gatewayMethod === 'Maya';
+                const railLabel = isBank ? 'Bank / InstaPay' : (isMaya ? 'Maya' : 'GCash');
+                const qrUrl = isBank
+                  ? (camp.bankQrUrl || camp.bank_qr_url)
+                  : isMaya
+                    ? (camp.mayaQrUrl || camp.maya_qr_url)
+                    : (camp.gcashQrUrl || camp.gcash_qr_url);
+                const acctName = isBank
+                  ? (camp.bankAccountName || camp.bank_account_name || camp.orgName)
+                  : isMaya
+                    ? (camp.mayaName || camp.maya_name)
+                    : (camp.gcashName || camp.gcash_name);
+                const bankInstitution = camp.bankName || camp.bank_name || 'InstaPay / QR Ph';
+                const rawRecvNum = isBank
+                  ? (camp.bankAccountNumber || camp.bank_account_number || '')
+                  : isMaya
+                    ? (camp.mayaNumber || camp.maya_number || '09187654321')
+                    : (camp.gcashNumber || camp.gcash_number || '09178901234');
+                const formattedRecvNum = isBank ? (rawRecvNum || 'Scan QR Code') : formatPhoneNumber(rawRecvNum);
                 const cleanRecvNum = formattedRecvNum.replace(/\s+/g, '');
                 const safeNoteCode = activeIntent?.trackingCode ? String(activeIntent.trackingCode).replace(/[^A-Za-z0-9]/g, '').toUpperCase() : '';
                 const formattedStep7Amount = (() => {
@@ -6805,7 +6889,11 @@ export default function CampaignCard(props) {
                   activeAiResult?.fraudFlags?.some(f => f.includes('PAYMENT_RAIL_MISMATCH') || f.includes('RAIL_MISMATCH') || f.includes('DUPLICATE'))
                 );
                 const cleanDigits = (refNumber || gatewayRefNo || '').replace(/\D/g, '');
-                const isValidManualRef = gatewayMethod === 'GCash' ? cleanDigits.length === 13 : hasEnteredRef && (refNumber || gatewayRefNo || '').trim().length >= 8;
+                const isValidManualRef = gatewayMethod === 'GCash'
+                  ? cleanDigits.length === 13
+                  : isBank
+                    ? (hasEnteredRef && (refNumber || gatewayRefNo || '').trim().length >= 6)
+                    : (hasEnteredRef && (refNumber || gatewayRefNo || '').trim().length >= 8);
                 const isManualAuditPending = !hasHardFraud && isReceiptInvalid && isValidManualRef;
                 const isBlocked = hasHardFraud || (isReceiptInvalid && !isValidManualRef);
                 const isExplicitInvalidSlip = Boolean(activeAiResult?.fraudFlags?.some(f => f.includes('INVALID_RECEIPT')));
@@ -6840,8 +6928,10 @@ export default function CampaignCard(props) {
                     {/* Flush Recessed Header */}
                     <div className="qr8-header">
                       <div className="qr8-head-left">
-                        <div className={`vc-channel-icon ${isMaya ? 'maya' : 'gcash'}`}>
-                          {isMaya ? 'maya' : 'G'}
+                        <div className={`vc-channel-icon ${isBank ? 'instapay' : isMaya ? 'maya' : 'gcash'}`}>
+                          {isBank ? (
+                            <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>account_balance</span>
+                          ) : isMaya ? 'maya' : 'G'}
                         </div>
                         <div className="qr8-head-text">
                           <span className="qr8-head-title">{railLabel} Direct Transfer</span>
@@ -6885,17 +6975,26 @@ export default function CampaignCard(props) {
                             <CleanQrVoucherDisplay qrUrl={qrUrl} gatewayMethod={gatewayMethod} />
                           ) : (
                             <div className="dt7-qr-fallback">
-                              <div className={`vc-channel-icon ${isMaya ? 'maya' : 'gcash'}`} style={{ width: '40px', height: '40px', borderRadius: '10px', fontSize: isMaya ? '0.68rem' : '1.05rem' }}>
-                                {isMaya ? 'maya' : 'G'}
+                              <div className={`vc-channel-icon ${isBank ? 'instapay' : isMaya ? 'maya' : 'gcash'}`} style={{ width: '40px', height: '40px', borderRadius: '10px', fontSize: isMaya ? '0.68rem' : '1.05rem' }}>
+                                {isBank ? (
+                                  <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>account_balance</span>
+                                ) : isMaya ? 'maya' : 'G'}
                               </div>
-                              <div className="dt7-qr-fallback-title">Transfer by Mobile Number</div>
-                              <div className="dt7-qr-fallback-sub">No QR image uploaded. Copy the verified {railLabel} number below.</div>
+                              <div className="dt7-qr-fallback-title">{isBank ? 'Transfer by Bank Account Number' : 'Transfer by Mobile Number'}</div>
+                              <div className="dt7-qr-fallback-sub">No QR image uploaded. Copy the verified {railLabel} details below.</div>
                             </div>
                           )}
                         </div>
 
                         {/* Structured 3-Row Transfer Details Container: Recipient · Number · Note Code */}
                         <div className="qr8-meta-table dt7-details-table">
+                          {isBank && (
+                            <div className="qr8-meta-row">
+                              <span className="qr8-meta-k">Bank</span>
+                              <span className="qr8-meta-v">{bankInstitution}</span>
+                            </div>
+                          )}
+
                           <div className="qr8-meta-row">
                             <span className="qr8-meta-k">Recipient</span>
                             <span className="qr8-meta-v dt7-recipient-val" title={acctName || getOrgDisplayName(camp.orgAddress, camp.orgName, camp.id)}>
@@ -6907,7 +7006,7 @@ export default function CampaignCard(props) {
                           </div>
 
                           <div className="qr8-meta-row">
-                            <span className="qr8-meta-k">{railLabel} No.</span>
+                            <span className="qr8-meta-k">{isBank ? 'Account No.' : `${railLabel} No.`}</span>
                             <span className="qr8-meta-v qr8-meta-v--actions">
                               <span className="pp-mono dt7-strong-num">{formattedRecvNum}</span>
                               <button
@@ -7212,7 +7311,7 @@ export default function CampaignCard(props) {
                                 value={refNumber || gatewayRefNo || ''}
                                 onChange={(e) => handleReferenceChange(e.target.value)}
                                 maxLength={gatewayMethod === 'GCash' ? 15 : (gatewayMethod === 'Maya' ? 16 : 24)}
-                                placeholder={isMaya ? "9012 3456 7890" : "0044 579 175068"}
+                                placeholder={isBank ? "INSTAPAY-892410" : isMaya ? "9012 3456 7890" : "0044 579 175068"}
                                 autoComplete="off"
                               />
                             </div>

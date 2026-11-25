@@ -504,6 +504,28 @@ function checkRecipientCredentials(extractedName, extractedPhone, expectedName, 
  * @param {Object} extraExpected - Expected recipient name, phone, and org name
  * @returns {Promise<Object>} Analysis report with confidenceScore, extractedRef, fraudFlags, and isAiVerified status
  */
+function isPaymentRailMismatch(declaredRail, detectedRail) {
+  if (!declaredRail || !detectedRail) return false;
+  const dec = String(declaredRail).toLowerCase().trim();
+  const det = String(detectedRail).toLowerCase().trim();
+  if (!dec || !det || dec === det) return false;
+
+  // Bank Transfer / InstaPay / QR Ph accepts slips from any Philippine bank or e-wallet InstaPay-to-Bank transfer
+  const isDeclaredBank = /bank|instapay|pesonet|qr\s?ph|card/.test(dec);
+  if (isDeclaredBank) {
+    return false;
+  }
+
+  // Strict cross-rail check between GCash and Maya
+  const decGcash = dec.includes('gcash');
+  const decMaya = dec.includes('maya');
+  const detGcash = det.includes('gcash');
+  const detMaya = det.includes('maya');
+  if (decGcash && detGcash) return false;
+  if (decMaya && detMaya) return false;
+  return true;
+}
+
 async function auditReceiptImage(base64Data, declaredAmountEth = 0, paymentRail = 'GCash', targetRefNo = null, extraExpected = {}) {
   const {
     expectedRecipientName = null,
@@ -560,7 +582,7 @@ async function auditReceiptImage(base64Data, declaredAmountEth = 0, paymentRail 
       const amt = extractAmountPhpHeuristic(decodedSvg) || declaredPhpApprox;
       const detectedRail = detectPaymentRailFromText(decodedSvg) || paymentRail;
 
-      const hasRailMismatch = detectedRail && paymentRail && (detectedRail.toLowerCase() !== paymentRail.toLowerCase());
+      const hasRailMismatch = isPaymentRailMismatch(paymentRail, detectedRail);
       const hasAmtMismatch = amt && declaredPhpApprox > 0 && (Math.abs(amt - declaredPhpApprox) / declaredPhpApprox > 0.05);
 
       const flags = [];
@@ -836,7 +858,7 @@ Return strictly JSON:
 
               // Rail Mismatch Check
               const detectedRail = result.detectedPaymentRail;
-              const hasRailMismatch = (detectedRail && paymentRail && (detectedRail.toLowerCase() !== paymentRail.toLowerCase())) ||
+              const hasRailMismatch = isPaymentRailMismatch(paymentRail, detectedRail) ||
                 (paymentRail && paymentRail.toLowerCase() === 'maya' && digitsOnly.length === 13);
 
               if (hasRailMismatch) {
@@ -997,8 +1019,7 @@ Return strictly JSON:
         return result;
       }
 
-      const hasRailMismatch = (detectedRailTess && paymentRail && (detectedRailTess.toLowerCase() !== paymentRail.toLowerCase())) ||
-        (paymentRail && paymentRail.toLowerCase() === 'maya' && extractedRefTess && extractedRefTess.replace(/\D/g, '').length === 13);
+      const hasRailMismatch = isPaymentRailMismatch(paymentRail, detectedRailTess) ||
         (paymentRail && paymentRail.toLowerCase() === 'maya' && extractedRefTess && extractedRefTess.replace(/\D/g, '').length === 13);
 
       if (!extractedRefTess) {
