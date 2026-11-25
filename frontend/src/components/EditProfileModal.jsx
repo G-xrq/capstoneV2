@@ -3406,26 +3406,32 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
                  ══════════════════════════════════════════════════ */}
                 {isAdmin && activeTab === 'admin_profile' && (
                   <div className="epm2-pane" key="epm2-admin-profile">
-                    <div className="epm2-pane-head">
-                      <h4>Administrator Profile</h4>
-                      <p>Your display name, official title, and avatar appear in governance audit trails and live admin sessions.</p>
-                    </div>
 
-                    {/* Profile Photo Section */}
+                    {/* Borderless Avatar Identity Section */}
                     <div className="epm2-section">
                       <div className="epm2-avatar-row">
-                        <div className="epm2-avatar-box">
-                          {avatarUrl && (avatarUrl.startsWith('data:') || avatarUrl.startsWith('http')) ? (
-                            <img src={avatarUrl} alt="Admin Avatar" />
-                          ) : avatarUrl && avatarUrl.length < 30 ? (
-                            <span className="material-symbols-outlined" style={{ fontSize: '28px' }}>{avatarUrl}</span>
-                          ) : (
-                            <span>{userInitials}</span>
-                          )}
-                        </div>
+                        <button
+                          type="button"
+                          className="epm2-avatar-btn"
+                          onClick={() => fileInputRef.current?.click()}
+                          title="Upload profile photo"
+                        >
+                          <div className="epm2-avatar-circle">
+                            {avatarUrl && (avatarUrl.startsWith('data:') || avatarUrl.startsWith('http')) ? (
+                              <img src={avatarUrl} alt="Admin Avatar" />
+                            ) : avatarUrl && avatarUrl.length < 30 ? (
+                              <span className="material-symbols-outlined" style={{ fontSize: '28px' }}>{avatarUrl}</span>
+                            ) : (
+                              <span>{userInitials}</span>
+                            )}
+                          </div>
+                          <span className="epm2-avatar-overlay">
+                            <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>photo_camera</span>
+                          </span>
+                        </button>
 
                         <div className="epm2-avatar-meta">
-                          <div className="epm2-name-row">
+                          <div className="epm2-name-line">
                             <h4>{displayName || 'System Administrator'}</h4>
                             <span className="material-symbols-outlined epm2-verified-icon" title="Verified System Administrator">verified</span>
                           </div>
@@ -3552,16 +3558,18 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
                   const phoneCheck = validatePhMobile(phone, { required: false });
                   return (
                     <div className="epm2-pane" key="epm2-admin-contact">
-                      <div className="epm2-pane-head">
-                        <h4>Contact &amp; Desk</h4>
-                        <p>Governance email and direct contact number for urgent escalations and system alerts.</p>
-                      </div>
-
                       <div className="epm2-section">
-                        <div className="epm2-kv-list">
+                        <div className="epm2-field-head">
+                          <div>
+                            <span className="epm2-field-title">Governance Email</span>
+                            <p className="epm2-field-sub">Primary verified login email for administrator governance actions.</p>
+                          </div>
+                        </div>
+
+                        <div className="epm2-kv-card">
                           <div className="epm2-kv-row">
                             <div className="epm2-kv-info">
-                              <span className="epm2-kv-lbl">Governance Email</span>
+                              <span className="epm2-kv-lbl">Account Email</span>
                               <span className="epm2-kv-val">{currentUser?.email || 'admin@bbdrts.gov.ph'}</span>
                             </div>
                             <span className="epm2-status-pill">
@@ -3615,17 +3623,19 @@ export default function EditProfileModal({ currentUser, onClose, onProfileUpdate
                  ══════════════════════════════════════════════════ */}
                 {isAdmin && activeTab === 'admin_credentials' && (
                   <div className="epm2-pane" key="epm2-admin-credentials">
-                    <div className="epm2-pane-head">
-                      <h4>Access &amp; Audit Credentials</h4>
-                      <p>Read-only governance identity, privilege level, and protocol telemetry.</p>
-                    </div>
-
                     <div className="epm2-section">
-                      <div className="epm2-kv-list">
+                      <div className="epm2-field-head">
+                        <div>
+                          <span className="epm2-field-title">Governance Credentials &amp; Protocol Access</span>
+                          <p className="epm2-field-sub">Read-only system identity, privilege scope, and audit ledger binding.</p>
+                        </div>
+                      </div>
+
+                      <div className="epm2-kv-card">
                         <div className="epm2-kv-row">
                           <div className="epm2-kv-info">
                             <span className="epm2-kv-lbl">Administrator System ID</span>
-                            <span className="epm2-kv-val" style={{ fontFamily: 'var(--font-mono, monospace)' }}>
+                            <span className="epm2-kv-val epm2-mono">
                               {currentUser?.system_id || `BBDRTS-ADMIN-2026-${String(currentUser?.id || 1).padStart(5, '0')}`}
                             </span>
                           </div>

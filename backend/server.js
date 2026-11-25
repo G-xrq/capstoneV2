@@ -1116,12 +1116,7 @@ app.post('/api/auth/direct-admin', async (req, res) => {
       message: 'Direct admin session authenticated.',
       token,
       user: {
-        id: admin.Admin_ID,
-        system_id: 'BBDRTS-ADMIN-2026-00001',
-        name: admin.Name || 'System Administrator',
-        display_name: admin.Name || 'System Administrator',
-        email: admin.Username,
-        role: 'admin',
+        ...formatUserObj(admin, 'admin', 'Admin_ID'),
         wallet_address: admin.Wallet_Address || '0x206e5d8b76c8c4598d1a457493a746535560b771',
         verification_status: 'Approved'
       }
