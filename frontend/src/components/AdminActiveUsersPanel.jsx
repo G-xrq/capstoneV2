@@ -49,6 +49,58 @@ function formatPhtTimestamp(msOrIso) {
   }
 }
 
+function formatCompactPhtDateTime(msOrIso) {
+  if (!msOrIso) return '—';
+  try {
+    const d = new Date(msOrIso);
+    if (isNaN(d.getTime())) return '—';
+    return new Intl.DateTimeFormat('en-PH', {
+      timeZone: 'Asia/Manila',
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
+    }).format(d);
+  } catch (_) {
+    return '—';
+  }
+}
+
+function formatJourneyTime(msOrIso, nowMs) {
+  if (!msOrIso) return '—';
+  try {
+    const d = new Date(msOrIso);
+    if (isNaN(d.getTime())) return '—';
+    const dayFmt = new Intl.DateTimeFormat('en-PH', { timeZone: 'Asia/Manila', year: 'numeric', month: '2-digit', day: '2-digit' });
+    const sameDay = dayFmt.format(d) === dayFmt.format(new Date(nowMs || Date.now()));
+    return new Intl.DateTimeFormat('en-PH', {
+      timeZone: 'Asia/Manila',
+      ...(sameDay ? {} : { month: 'short', day: 'numeric' }),
+      hour: 'numeric',
+      minute: '2-digit',
+      second: sameDay ? '2-digit' : undefined,
+      hour12: true
+    }).format(d);
+  } catch (_) {
+    return '—';
+  }
+}
+
+function parseJourneyLabel(rawLabel) {
+  const clean = String(rawLabel || '').trim();
+  if (!clean) return { title: 'Active on platform', context: null };
+  const withoutViewing = clean.replace(/^Viewing\s+/i, '');
+  const parts = withoutViewing.split(/\s*[·•]\s*/).filter(Boolean);
+  if (parts.length >= 2) {
+    return {
+      title: parts.slice(1).join(' · '),
+      context: parts[0]
+    };
+  }
+  return { title: withoutViewing, context: null };
+}
+
 function getDeviceIcon(deviceType) {
   const lower = String(deviceType || '').toLowerCase();
   if (lower.includes('mobile') || lower.includes('phone')) return 'smartphone';
@@ -107,6 +159,15 @@ export default function AdminActiveUsersPanel({ onPresenceSummaryChange }) {
   const [roleFilter, setRoleFilter] = useState('ALL'); // 'ALL' | 'donor' | 'organization' | 'admin' | 'guest'
   const [windowMinutes, setWindowMinutes] = useState(60);
   const [selectedSession, setSelectedSession] = useState(null);
+
+  useEffect(() => {
+    if (!selectedSession) return;
+    const onKeyDown = (e) => {
+      if (e.key === 'Escape') setSelectedSession(null);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [selectedSession]);
 
   const currentSessionId = useMemo(() => getLiveSessionId(), []);
 
@@ -612,140 +673,253 @@ export default function AdminActiveUsersPanel({ onPresenceSummaryChange }) {
         )}
       </div>
 
-      {/* ── Portaled Live Session Inspector Modal ── */}
-      {selectedSession && typeof document !== 'undefined' && createPortal(
-        <div
-          className="presence-modal-backdrop"
-          onClick={() => setSelectedSession(null)}
-          role="dialog"
-          aria-modal="true"
-          aria-label="Live Session Inspector"
-        >
-          <div className="presence-modal-card" onClick={(e) => e.stopPropagation()}>
-            <div className="presence-modal-header">
-              <div className="presence-modal-title-group">
-                <div className={`presence-avatar lg ${getRoleMeta(selectedSession.role, selectedSession.isAuthenticated).cls}`}>
-                  {selectedSession.isAuthenticated ? (
-                    <span>{getInitials(selectedSession.orgName || selectedSession.userName, selectedSession.userEmail)}</span>
-                  ) : (
-                    <span className="material-symbols-outlined" style={{ fontSize: '22px' }}>person_outline</span>
-                  )}
-                  <span className={`presence-avatar-dot ${(selectedSession.liveStatus || 'OFFLINE').toLowerCase()}`} />
-                </div>
-                <div>
-                  <div className="presence-name-line">
-                    <h3>
-                      {selectedSession.isAuthenticated
-                        ? (selectedSession.orgName || selectedSession.userName || selectedSession.userEmail)
-                        : `Guest User (${selectedSession.visitorCode})`}
-                    </h3>
-                    <span className={`presence-role-badge ${getRoleMeta(selectedSession.role, selectedSession.isAuthenticated).cls}`}>
-                      {getRoleMeta(selectedSession.role, selectedSession.isAuthenticated).label}
-                    </span>
-                    {selectedSession.isNewAccount && (
-                      <span className="presence-tag tag-new">NEW ACCOUNT</span>
+      {/* ── Portaled Live Session Inspector Modal (Vercel Geist Observability) ── */}
+      {selectedSession && typeof document !== 'undefined' && createPortal((() => {
+        const roleMeta = getRoleMeta(selectedSession.role, selectedSession.isAuthenticated);
+        const statusKey = (selectedSession.liveStatus || 'OFFLINE').toLowerCase();
+        const statusLabel = selectedSession.liveStatus === 'ONLINE'
+          ? 'Online'
+          : selectedSession.liveStatus === 'IDLE'
+            ? 'Away / Idle'
+            : 'Offline';
+        const isSelf = selectedSession.sessionId === currentSessionId;
+        const durationMs = typeof selectedSession.sessionDurationMs === 'number'
+          ? Math.max(0, selectedSession.sessionDurationMs)
+          : Math.max(
+              0,
+              (selectedSession.liveStatus === 'OFFLINE'
+                ? (selectedSession.disconnectedMs || selectedSession.lastSeenMs)
+                : selectedSession.lastSeenMs) - (selectedSession.firstSeenMs || selectedSession.lastSeenMs)
+            );
+        const sessionStartMs = selectedSession.sessionStartedMs || selectedSession.firstSeenMs;
+        const cleanSessionTag = String(selectedSession.visitorCode || '').replace(/^Guest\s*/i, '').trim() || 'Active';
+        const journeyItems = Array.isArray(selectedSession.journey) && selectedSession.journey.length > 0
+          ? [...selectedSession.journey].reverse()
+          : [{
+              ts: selectedSession.lastSeenMs,
+              type: 'nav',
+              label: `Viewing ${selectedSession.currentView || 'Platform'}${selectedSession.currentSubpage ? ` · ${selectedSession.currentSubpage}` : ''}`
+            }];
+
+        return (
+          <div
+            className="presence-modal-backdrop"
+            onClick={() => setSelectedSession(null)}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Live Session Inspector"
+          >
+            <div className="presence-modal-card" onClick={(e) => e.stopPropagation()}>
+              {/* Header */}
+              <div className="presence-modal-header">
+                <div className="presence-modal-title-group">
+                  <div className={`presence-avatar lg ${roleMeta.cls}`}>
+                    {selectedSession.isAuthenticated ? (
+                      <span>{getInitials(selectedSession.orgName || selectedSession.userName, selectedSession.userEmail)}</span>
+                    ) : (
+                      <span className="material-symbols-outlined" style={{ fontSize: '20px' }}>person_outline</span>
                     )}
+                    <span className={`presence-avatar-dot ${statusKey}`} />
                   </div>
-                  <p className="presence-modal-sub">
-                    {selectedSession.isAuthenticated
-                      ? selectedSession.userEmail
-                      : 'Anonymous browsing session (no registered account signed in yet)'}
-                  </p>
+                  <div className="psi-header-copy">
+                    <div className="presence-name-line">
+                      <h3>
+                        {selectedSession.isAuthenticated
+                          ? (selectedSession.orgName || selectedSession.userName || selectedSession.userEmail)
+                          : `Guest User (${selectedSession.visitorCode})`}
+                      </h3>
+                      <span className={`presence-role-badge ${roleMeta.cls}`}>{roleMeta.label}</span>
+                      <span className={`presence-status-pill status-${statusKey} psi-header-status`}>
+                        <span className={`presence-status-dot ${statusKey}`} />
+                        {statusLabel}
+                      </span>
+                      {selectedSession.isNewAccount && (
+                        <span className="presence-tag tag-new">NEW ACCOUNT</span>
+                      )}
+                      {isSelf && <span className="presence-tag tag-self">YOU</span>}
+                    </div>
+                    <p className="presence-modal-sub">
+                      <span>
+                        {selectedSession.isAuthenticated
+                          ? selectedSession.userEmail
+                          : 'Anonymous guest session'}
+                      </span>
+                      <span className="psi-sub-sep">·</span>
+                      <span>
+                        {selectedSession.liveStatus === 'OFFLINE'
+                          ? `Left ${formatLastSeen(selectedSession.disconnectedMs || selectedSession.lastSeenMs, nowMs)}`
+                          : `Last ping ${formatLastSeen(selectedSession.lastSeenMs, nowMs)}`}
+                      </span>
+                    </p>
+                  </div>
                 </div>
+
+                <button
+                  type="button"
+                  className="presence-modal-close"
+                  onClick={() => setSelectedSession(null)}
+                  aria-label="Close session inspector"
+                  title="Close (Esc)"
+                >
+                  <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>close</span>
+                </button>
               </div>
 
-              <button
-                type="button"
-                className="presence-modal-close"
-                onClick={() => setSelectedSession(null)}
-                aria-label="Close session inspector"
-              >
-                <span className="material-symbols-outlined">close</span>
-              </button>
-            </div>
-
-            <div className="presence-modal-body">
-              {selectedSession.wasGuestConverted && selectedSession.isAuthenticated && (
-                <div className="presence-conversion-banner">
-                  <span className="material-symbols-outlined">how_to_reg</span>
-                  <div>
-                    <strong>Guest-to-Account Conversion Detected</strong>
-                    <span>
-                      This visitor originally arrived as <code>{selectedSession.visitorCode}</code> and authenticated as <strong>{selectedSession.userName || selectedSession.userEmail}</strong> during this live session.
-                    </span>
+              {/* Body */}
+              <div className="presence-modal-body">
+                {selectedSession.isNewAccount && selectedSession.wasGuestConverted && selectedSession.isAuthenticated && (
+                  <div className="presence-conversion-banner">
+                    <span className="material-symbols-outlined" style={{ fontSize: '18px' }}>how_to_reg</span>
+                    <div>
+                      <strong>New Account Conversion</strong>
+                      <span>
+                        Arrived as <code>{selectedSession.visitorCode}</code> and registered as{' '}
+                        <strong>{selectedSession.userName || selectedSession.userEmail}</strong> in this session.
+                      </span>
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
 
-              <div className="presence-detail-grid">
-                <div className="presence-detail-item">
-                  <span className="presence-detail-label">Current Screen</span>
-                  <span className="presence-detail-val">{selectedSession.currentView}</span>
-                  <span className="presence-detail-sub">{selectedSession.currentSubpage}</span>
-                </div>
-                <div className="presence-detail-item">
-                  <span className="presence-detail-label">Live Status</span>
-                  <span className="presence-detail-val">{selectedSession.liveStatus}</span>
-                  <span className="presence-detail-sub">
-                    Last ping {formatLastSeen(selectedSession.lastSeenMs, nowMs)}
-                  </span>
-                </div>
-                <div className="presence-detail-item">
-                  <span className="presence-detail-label">Device &amp; Browser</span>
-                  <span className="presence-detail-val">{selectedSession.deviceType} · {selectedSession.os}</span>
-                  <span className="presence-detail-sub">{selectedSession.browser}</span>
-                </div>
-                <div className="presence-detail-item">
-                  <span className="presence-detail-label">Network &amp; Session ID</span>
-                  <span className="presence-detail-val presence-mono">{selectedSession.ipAddress || '—'}</span>
-                  <span className="presence-detail-sub presence-mono">{selectedSession.visitorCode}</span>
-                </div>
-                <div className="presence-detail-item">
-                  <span className="presence-detail-label">Session Started</span>
-                  <span className="presence-detail-val">{formatPhtTimestamp(selectedSession.firstSeenMs)}</span>
-                  <span className="presence-detail-sub">
-                    Duration: {formatElapsed(Math.max(0, (selectedSession.disconnectedMs || nowMs) - (selectedSession.firstSeenMs || nowMs)))}
-                  </span>
-                </div>
-                <div className="presence-detail-item">
-                  <span className="presence-detail-label">Account Status &amp; Age</span>
-                  <span className="presence-detail-val">
-                    {selectedSession.isAuthenticated ? 'Verified Account' : 'Guest Visitor'}
-                  </span>
-                  <span className="presence-detail-sub">
-                    {selectedSession.accountCreatedAt
-                      ? `Account created ${formatPhtTimestamp(selectedSession.accountCreatedAt)}`
-                      : (selectedSession.isAuthenticated ? 'Existing verified account' : 'Unregistered guest')}
-                  </span>
-                </div>
-              </div>
-
-              {/* Chronological Session Journey */}
-              <div className="presence-journey-section">
-                <div className="presence-journey-header">
-                  <span className="material-symbols-outlined" style={{ fontSize: '16px' }}>timeline</span>
-                  <span>Live Session Journey</span>
-                </div>
-                <div className="presence-journey-list">
-                  {(Array.isArray(selectedSession.journey) && selectedSession.journey.length > 0
-                    ? [...selectedSession.journey].reverse()
-                    : [{ ts: selectedSession.lastSeenMs, type: 'nav', label: `Viewing ${selectedSession.currentView}` }]
-                  ).map((step, i) => (
-                    <div key={`${step.ts}-${i}`} className={`presence-journey-step type-${step.type || 'nav'}`}>
-                      <span className="presence-journey-dot" />
-                      <div className="presence-journey-content">
-                        <span className="presence-journey-label">{step.label}</span>
-                        <span className="presence-journey-time">{formatPhtTimestamp(step.ts)}</span>
+                {/* Hero Live Activity Bar */}
+                <div className="psi-now-bar">
+                  <div className="psi-now-left">
+                    <span className={`psi-now-dot status-${statusKey}`} />
+                    <div className="psi-now-copy">
+                      <span className="psi-now-kicker">Current Activity</span>
+                      <div className="psi-now-path">
+                        <span className="psi-now-view">{selectedSession.currentView || 'Public Landing Page'}</span>
+                        {selectedSession.currentSubpage && (
+                          <>
+                            <span className="material-symbols-outlined psi-now-arrow">chevron_right</span>
+                            <span className="psi-now-subpage">{selectedSession.currentSubpage}</span>
+                          </>
+                        )}
                       </div>
                     </div>
-                  ))}
+                  </div>
+                  <div className="psi-now-duration" title={`Session active duration: ${formatElapsed(durationMs)}`}>
+                    <span className="psi-now-duration-label">Session</span>
+                    <span className="psi-now-duration-val">{formatElapsed(durationMs)}</span>
+                  </div>
                 </div>
+
+                {/* Unified 2x2 Hairline Telemetry Matrix */}
+                <div className="psi-telemetry-matrix">
+                  <div className="psi-matrix-cell">
+                    <div className="psi-cell-head">
+                      <span className="material-symbols-outlined">{getDeviceIcon(selectedSession.deviceType)}</span>
+                      <span>Device &amp; Browser</span>
+                    </div>
+                    <div className="psi-cell-val">{selectedSession.os || 'Unknown OS'} · {selectedSession.browser || 'Browser'}</div>
+                    <div className="psi-cell-sub">{selectedSession.deviceType || 'Desktop'}</div>
+                  </div>
+
+                  <div className="psi-matrix-cell">
+                    <div className="psi-cell-head">
+                      <span className="material-symbols-outlined">lan</span>
+                      <span>Network &amp; Session</span>
+                    </div>
+                    <div className="psi-cell-val presence-mono">{selectedSession.ipAddress || '—'}</div>
+                    <div className="psi-cell-sub">
+                      <span className="presence-mono">Session {cleanSessionTag}</span>
+                      <span> · RA 10173 Masked</span>
+                    </div>
+                  </div>
+
+                  <div className="psi-matrix-cell">
+                    <div className="psi-cell-head">
+                      <span className="material-symbols-outlined">schedule</span>
+                      <span>Session Started</span>
+                    </div>
+                    <div className="psi-cell-val" title={formatPhtTimestamp(sessionStartMs)}>
+                      {formatCompactPhtDateTime(sessionStartMs)}
+                    </div>
+                    <div className="psi-cell-sub">
+                      {selectedSession.liveStatus === 'OFFLINE'
+                        ? `Ended ${formatCompactPhtDateTime(selectedSession.disconnectedMs || selectedSession.lastSeenMs)}`
+                        : `Active for ${formatElapsed(durationMs)}`}
+                    </div>
+                  </div>
+
+                  <div className="psi-matrix-cell">
+                    <div className="psi-cell-head">
+                      <span className="material-symbols-outlined">
+                        {selectedSession.isAuthenticated ? 'verified_user' : 'visibility'}
+                      </span>
+                      <span>Account</span>
+                    </div>
+                    <div className="psi-cell-val">
+                      {selectedSession.isAuthenticated ? 'Verified Account' : 'Guest Visitor'}
+                    </div>
+                    <div className="psi-cell-sub" title={selectedSession.accountCreatedAt ? formatPhtTimestamp(selectedSession.accountCreatedAt) : undefined}>
+                      {selectedSession.accountCreatedAt
+                        ? `Joined ${formatCompactPhtDateTime(selectedSession.accountCreatedAt)}`
+                        : (selectedSession.isAuthenticated ? 'Registered platform account' : 'Unregistered visitor')}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Live Session Journey Card */}
+                <div className="psi-journey-card">
+                  <div className="psi-journey-head">
+                    <div className="psi-journey-title">
+                      <span className="material-symbols-outlined" style={{ fontSize: '15px' }}>timeline</span>
+                      <span>Session Activity</span>
+                    </div>
+                    <span className="psi-journey-count">
+                      {journeyItems.length} {journeyItems.length === 1 ? 'event' : 'events'}
+                    </span>
+                  </div>
+
+                  <div className="psi-journey-scroll">
+                    <div className="psi-journey-timeline">
+                      {journeyItems.map((step, i) => {
+                        const parsed = parseJourneyLabel(step.label);
+                        const isLatest = i === 0;
+                        return (
+                          <div
+                            key={`${step.ts}-${i}`}
+                            className={`psi-journey-row type-${step.type || 'nav'}${isLatest ? ' is-latest' : ''}`}
+                          >
+                            <div className="psi-timeline-rail" aria-hidden="true">
+                              <span className="psi-timeline-node" />
+                              {i < journeyItems.length - 1 && <span className="psi-timeline-line" />}
+                            </div>
+                            <div className="psi-journey-main">
+                              <span className="psi-journey-label">{parsed.title}</span>
+                              {parsed.context && (
+                                <span className="psi-journey-context">{parsed.context}</span>
+                              )}
+                            </div>
+                            <span
+                              className="psi-journey-time"
+                              title={formatPhtTimestamp(step.ts)}
+                            >
+                              {formatJourneyTime(step.ts, nowMs)}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Clean Footer */}
+              <div className="psi-modal-footer">
+                <span className="psi-footer-hint">Press Esc to close · Live stream refreshes automatically</span>
+                <button
+                  type="button"
+                  className="psi-footer-close"
+                  onClick={() => setSelectedSession(null)}
+                >
+                  Close
+                </button>
               </div>
             </div>
           </div>
-        </div>,
-        document.body
-      )}
+        );
+      })(), document.body)}
     </div>
   );
 }
