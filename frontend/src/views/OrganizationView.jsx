@@ -21,6 +21,7 @@ import DeclareDirectDepositModal from '../components/DeclareDirectDepositModal';
 import FilterableExportModal from '../components/FilterableExportModal';
 import OfficialAuditVoucherModal from '../components/OfficialAuditVoucherModal';
 import ConfirmDonationModal from '../components/ConfirmDonationModal';
+import OrgDisputesPanel from '../components/OrgDisputesPanel';
 import GeistSelect, { GeistMultiSelect } from '../components/GeistSelect';
 import { useToast } from '../context/ToastContext';
 import { getRegions, getRegionForProvince } from '../data/philippineGeoData';
@@ -2121,6 +2122,39 @@ export default function OrganizationView({
     { debounceMs: 300 }
   );
 
+  // Donor Audit Disputes targeting this NGO
+  const [orgDisputes, setOrgDisputes] = useState([]);
+  const fetchOrgDisputes = async (arg) => {
+    const silent = Boolean(arg && typeof arg === 'object' && arg.silent === true);
+    try {
+      const token = localStorage.getItem('bbdrts_token') || sessionStorage.getItem('bbdrts_token');
+      if (!token) return;
+      const res = await fetch(`${API_URL}/api/org/disputes`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setOrgDisputes(Array.isArray(data) ? data : []);
+      }
+    } catch (err) {
+      if (!silent) console.error('Failed to fetch NGO disputes:', err);
+    }
+  };
+
+  useEffect(() => {
+    fetchOrgDisputes({ silent: true });
+  }, [currentUser?.id]);
+
+  useRealtimeSync(
+    ['disputes', 'donations'],
+    () => fetchOrgDisputes({ silent: true }),
+    { debounceMs: 300 }
+  );
+
+  const openOrgDisputesCount = useMemo(() => {
+    return orgDisputes.filter(d => d.status === 'OPEN' || d.status === 'UNDER_REVIEW').length;
+  }, [orgDisputes]);
+
   const handleKycCertUpload = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -2787,6 +2821,15 @@ export default function OrganizationView({
             >
               <span className="material-symbols-outlined">receipt_long</span>
               <span>Donation Ledger</span>
+              {openOrgDisputesCount > 0 && (
+                <span
+                  className="ref-nav-count tab-count"
+                  style={{ background: '#ef4444', color: '#ffffff', fontWeight: 800 }}
+                  title={`${openOrgDisputesCount} active donor audit ${openOrgDisputesCount === 1 ? 'dispute' : 'disputes'} requiring counter-proof`}
+                >
+                  {openOrgDisputesCount}
+                </span>
+              )}
             </button>
 
             {interfaceMode !== 'simplified' && (
@@ -5928,6 +5971,13 @@ export default function OrganizationView({
                 </button>
               </div>
             </div>
+
+            <OrgDisputesPanel
+              disputes={orgDisputes}
+              apiUrl={API_URL}
+              onRefresh={fetchOrgDisputes}
+              onToast={(msg) => showSuccess(msg, 'Counter-Proof Submitted')}
+            />
 
             {/* ── Unified Executive Metrics Strip — Vercel Design System (Zero Card-Ception) ── */}
             <div style={{

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import '../styles/FileDisputeModal.css';
 
@@ -14,12 +14,46 @@ const OVERCREDIT_PRESETS = [
   'Requesting admin verification of NGO audit entry'
 ];
 
+const VERDICT_LABELS = {
+  UPHELD_NGO_FAULT: 'Upheld · NGO Discrepancy Confirmed',
+  DISMISSED_DONOR_ERROR: 'Dismissed · NGO Credited Amount Verified',
+  MUTUAL_ADJUSTMENT: 'Resolved · Mutual Audit Adjustment'
+};
+
 function getStatusMeta(status) {
   const s = String(status || 'OPEN').toUpperCase();
   if (s === 'RESOLVED') return { label: 'Resolved', cls: 'resolved' };
   if (s === 'UNDER_REVIEW') return { label: 'Under Review', cls: 'review' };
   if (s === 'DISMISSED') return { label: 'Dismissed', cls: 'dismissed' };
   return { label: 'Open · Pending Admin', cls: 'open' };
+}
+
+function compressEvidenceImage(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('Failed to read image file.'));
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error('Invalid image file.'));
+      img.onload = () => {
+        const maxSide = 1280;
+        let { width, height } = img;
+        if (width > maxSide || height > maxSide) {
+          const ratio = Math.min(maxSide / width, maxSide / height);
+          width = Math.round(width * ratio);
+          height = Math.round(height * ratio);
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL('image/jpeg', 0.84));
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
 }
 
 export default function FileDisputeModal({
@@ -49,9 +83,12 @@ export default function FileDisputeModal({
         ? 'Credited amount is higher than what I actually sent'
         : ''
   );
+  const [evidenceBase64, setEvidenceBase64] = useState(null);
+  const [evidenceFileName, setEvidenceFileName] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [submittedDispute, setSubmittedDispute] = useState(null);
+  const fileInputRef = useRef(null);
 
   useEffect(() => {
     const onKey = (e) => {
@@ -67,10 +104,29 @@ export default function FileDisputeModal({
     ticketCode: tx.disputeTicket,
     status: tx.disputeStatus || 'OPEN',
     reason: tx.disputeReason,
+    ngoResponse: tx.disputeNgoResponse,
+    verdict: tx.disputeVerdict,
     adminNotes: tx.disputeAdminNotes,
     createdAt: tx.disputeCreatedAt,
     resolvedAt: tx.disputeResolvedAt
   } : null);
+
+  const handleEvidenceChange = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      setError('Please select a valid image file (PNG, JPG, or WebP).');
+      return;
+    }
+    try {
+      setError('');
+      const dataUrl = await compressEvidenceImage(file);
+      setEvidenceBase64(dataUrl);
+      setEvidenceFileName(file.name);
+    } catch (err) {
+      setError(err.message || 'Unable to process image.');
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -100,7 +156,8 @@ export default function FileDisputeModal({
           transactionId: tx.id,
           txHash: tx.txHash,
           campaignId: tx.campaignId,
-          reason: clean
+          reason: clean,
+          evidenceBase64
         })
       });
 
@@ -147,8 +204,8 @@ export default function FileDisputeModal({
               </h3>
               <p className="fdm-sub">
                 {activeTicket
-                  ? 'Formal review record submitted to BBDRTS Administrators.'
-                  : 'Escalate this credited amount discrepancy to BBDRTS Governance.'}
+                  ? 'Two-sided audit record reviewed by BBDRTS Administrators.'
+                  : 'Escalate this credited amount discrepancy with supporting proof.'}
               </p>
             </div>
           </div>
@@ -173,8 +230,8 @@ export default function FileDisputeModal({
                 </div>
                 <div style={{ fontSize: '0.76rem', color: 'var(--text-secondary)', lineHeight: 1.45 }}>
                   {submittedDispute
-                    ? 'Your dispute has been saved and both BBDRTS Administrators and the managing NGO have been notified.'
-                    : 'Your dispute is recorded in the governance audit queue. Administrators will notify you upon resolution.'}
+                    ? 'Your original payment slip, AI audit log, and dispute details have been submitted. Both Administrators and the managing NGO have been notified.'
+                    : 'Administrators compare your original slip, AI OCR audit, and the NGO counter-proof before issuing a final ruling.'}
                 </div>
               </div>
 
@@ -219,10 +276,21 @@ export default function FileDisputeModal({
                 </div>
               )}
 
-              {activeTicket.adminNotes && (
+              {activeTicket.ngoResponse && (
+                <div className="fdm-note-box" style={{ borderColor: 'rgba(245, 158, 11, 0.35)' }}>
+                  <div className="fdm-note-lbl" style={{ color: '#f59e0b' }}>NGO Audit Response</div>
+                  <div>{activeTicket.ngoResponse}</div>
+                </div>
+              )}
+
+              {(activeTicket.verdict || activeTicket.adminNotes) && (
                 <div className="fdm-note-box" style={{ borderColor: 'rgba(16, 185, 129, 0.35)' }}>
-                  <div className="fdm-note-lbl" style={{ color: '#10b981' }}>Administrator Resolution Notes</div>
-                  <div>{activeTicket.adminNotes}</div>
+                  <div className="fdm-note-lbl" style={{ color: '#10b981' }}>
+                    {activeTicket.verdict && VERDICT_LABELS[activeTicket.verdict]
+                      ? VERDICT_LABELS[activeTicket.verdict]
+                      : 'Administrator Resolution Notes'}
+                  </div>
+                  {activeTicket.adminNotes && <div>{activeTicket.adminNotes}</div>}
                 </div>
               )}
             </div>
@@ -299,6 +367,77 @@ export default function FileDisputeModal({
                   value={reason}
                   onChange={(e) => setReason(e.target.value)}
                 />
+              </div>
+
+              {/* Optional Supporting Proof Upload */}
+              <div className="fdm-field">
+                <label className="fdm-label">
+                  Additional Proof Screenshot (Optional · e.g. Wallet History or SMS Alert)
+                </label>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp,image/*"
+                  onChange={handleEvidenceChange}
+                  style={{ display: 'none' }}
+                />
+                {evidenceBase64 ? (
+                  <div className="fdm-upload-preview">
+                    <div className="fdm-upload-left">
+                      <img src={evidenceBase64} alt="Supporting proof" className="fdm-upload-thumb" />
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {evidenceFileName || 'Supporting proof attached'}
+                        </div>
+                        <div style={{ fontSize: '0.70rem', color: '#10b981' }}>
+                          Attached alongside your original donation slip
+                        </div>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      className="fdm-btn-sec"
+                      style={{ height: '30px', padding: '0 10px', fontSize: '0.73rem' }}
+                      onClick={() => {
+                        setEvidenceBase64(null);
+                        setEvidenceFileName('');
+                        if (fileInputRef.current) fileInputRef.current.value = '';
+                      }}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ) : (
+                  <div
+                    className="fdm-upload-zone"
+                    onClick={() => fileInputRef.current?.click()}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        fileInputRef.current?.click();
+                      }
+                    }}
+                  >
+                    <div className="fdm-upload-left">
+                      <span className="material-symbols-outlined" style={{ fontSize: '20px', color: '#38bdf8' }}>
+                        add_photo_alternate
+                      </span>
+                      <div>
+                        <div style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                          Attach extra bank / e-wallet history screenshot
+                        </div>
+                        <div style={{ fontSize: '0.70rem', color: 'var(--text-muted)' }}>
+                          Your original payment slip is already included automatically for Admin review.
+                        </div>
+                      </div>
+                    </div>
+                    <span style={{ fontSize: '0.72rem', fontWeight: 600, color: '#38bdf8', flexShrink: 0 }}>
+                      Browse
+                    </span>
+                  </div>
+                )}
               </div>
 
               {error && (

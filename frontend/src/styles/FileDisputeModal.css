@@ -403,3 +403,317 @@
   font-weight: 700;
   cursor: pointer;
 }
+
+/* ── Wide Two-Sided Adjudication Modal & Evidence Comparison ── */
+.fdm-modal.is-wide {
+  max-width: 860px;
+}
+
+.fdm-evidence-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.fdm-evidence-col {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 13px;
+  border-radius: 11px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  min-width: 0;
+}
+
+.fdm-col-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.fdm-col-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.76rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-primary);
+}
+
+.fdm-ai-strip {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 9px 11px;
+  border-radius: 9px;
+  background: rgba(56, 189, 248, 0.08);
+  border: 1px solid rgba(56, 189, 248, 0.24);
+  font-size: 0.74rem;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+.fdm-ai-strip-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-weight: 700;
+  color: #38bdf8;
+  font-size: 0.72rem;
+}
+
+[data-theme="light"] .fdm-ai-strip-head {
+  color: #0284c7;
+}
+
+.fdm-proof-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.fdm-proof-thumb-btn {
+  position: relative;
+  width: 100%;
+  height: 156px;
+  border-radius: 9px;
+  border: 1px solid var(--border);
+  background: var(--bg-card, #0a0a0a);
+  overflow: hidden;
+  padding: 0;
+  cursor: zoom-in;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+[data-theme="light"] .fdm-proof-thumb-btn {
+  background: #f8fafc;
+}
+
+.fdm-proof-thumb-btn img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+.fdm-proof-zoom-tag {
+  position: absolute;
+  bottom: 7px;
+  right: 7px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.78);
+  color: #ffffff;
+  font-size: 0.68rem;
+  font-weight: 600;
+}
+
+.fdm-awaiting-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 28px 16px;
+  border-radius: 9px;
+  border: 1px dashed var(--border);
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.76rem;
+  line-height: 1.45;
+}
+
+/* Evidence Image Uploader */
+.fdm-upload-zone {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 9px;
+  border: 1px dashed var(--border);
+  background: var(--bg-input);
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.fdm-upload-zone:hover {
+  border-color: #38bdf8;
+  background: rgba(56, 189, 248, 0.04);
+}
+
+.fdm-upload-left {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+}
+
+.fdm-upload-preview {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 9px;
+  border: 1px solid rgba(16, 185, 129, 0.30);
+  background: rgba(16, 185, 129, 0.06);
+}
+
+.fdm-upload-thumb {
+  width: 44px;
+  height: 44px;
+  border-radius: 6px;
+  object-fit: cover;
+  border: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+/* Fullscreen Evidence Lightbox */
+.fdm-lightbox-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 10095;
+  background: rgba(0, 0, 0, 0.90);
+  backdrop-filter: blur(8px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  gap: 12px;
+}
+
+.fdm-lightbox-bar {
+  width: 100%;
+  max-width: 960px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: #ffffff;
+  font-size: 0.86rem;
+  font-weight: 600;
+}
+
+.fdm-lightbox-img {
+  max-width: min(94vw, 960px);
+  max-height: 82vh;
+  object-fit: contain;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.7);
+}
+
+/* NGO Portal Disputes Banner Section */
+.odp-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px 18px;
+  margin-bottom: 18px;
+  border-radius: 12px;
+  border: 1px solid rgba(239, 68, 68, 0.32);
+  background: rgba(239, 68, 68, 0.04);
+}
+
+[data-theme="light"] .odp-section {
+  background: #fef2f2;
+  border-color: #fecaca;
+}
+
+.odp-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.odp-title-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.odp-title {
+  margin: 0;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.odp-sub {
+  margin: 2px 0 0;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.odp-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.odp-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: var(--bg-card, #0a0a0a);
+  border: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+
+[data-theme="light"] .odp-item {
+  background: #ffffff;
+  border-color: #e2e8f0;
+}
+
+.odp-item-main {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 240px;
+  flex: 1;
+}
+
+.odp-item-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.odp-ticket {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.77rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.odp-item-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+@media (max-width: 760px) {
+  .fdm-evidence-grid {
+    grid-template-columns: 1fr;
+  }
+}

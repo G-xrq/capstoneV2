@@ -6145,8 +6145,10 @@ app.get('/api/donations/me', authenticateToken, async (req, res) => {
         const txHashes = list.map(r => r.txHash).filter(Boolean);
         if (txHashes.length > 0) {
           const placeholders = txHashes.map(() => '?').join(',');
+          await ensureDonationDisputeTable();
           const [dispRows] = await db.query(
-            `SELECT Dispute_ID, Ticket_Code, Tx_Hash, Dispute_Type, Reason, Status, Admin_Notes, Resolved_By, Resolved_At, Created_At
+            `SELECT Dispute_ID, Ticket_Code, Tx_Hash, Dispute_Type, Reason, Ngo_Response, Ngo_Responded_At,
+                    Status, Admin_Verdict, Admin_Notes, Resolved_By, Resolved_At, Created_At
              FROM DONATION_DISPUTE
              WHERE Tx_Hash IN (${placeholders})
              ORDER BY Dispute_ID DESC`,
@@ -6165,6 +6167,9 @@ app.get('/api/donations/me', authenticateToken, async (req, res) => {
               item.disputeStatus = dp.Status;
               item.disputeType = dp.Dispute_Type;
               item.disputeReason = dp.Reason;
+              item.disputeNgoResponse = dp.Ngo_Response;
+              item.disputeNgoRespondedAt = dp.Ngo_Responded_At;
+              item.disputeVerdict = dp.Admin_Verdict;
               item.disputeAdminNotes = dp.Admin_Notes;
               item.disputeResolvedBy = dp.Resolved_By;
               item.disputeResolvedAt = dp.Resolved_At;
@@ -6203,7 +6208,12 @@ async function ensureDonationDisputeTable() {
         Variance_Php DECIMAL(14, 2) DEFAULT 0,
         Dispute_Type VARCHAR(32) DEFAULT 'SHORTAGE',
         Reason TEXT NOT NULL,
+        Donor_Evidence_Base64 LONGTEXT NULL,
+        Ngo_Response TEXT NULL,
+        Ngo_Evidence_Base64 LONGTEXT NULL,
+        Ngo_Responded_At DATETIME NULL,
         Status VARCHAR(32) DEFAULT 'OPEN',
+        Admin_Verdict VARCHAR(48) NULL,
         Admin_Notes TEXT NULL,
         Resolved_By VARCHAR(255) NULL,
         Resolved_At DATETIME NULL,
@@ -6212,6 +6222,16 @@ async function ensureDonationDisputeTable() {
       )
     `);
   } catch (_) {}
+  const extraCols = [
+    'ALTER TABLE DONATION_DISPUTE ADD COLUMN Donor_Evidence_Base64 LONGTEXT NULL',
+    'ALTER TABLE DONATION_DISPUTE ADD COLUMN Ngo_Response TEXT NULL',
+    'ALTER TABLE DONATION_DISPUTE ADD COLUMN Ngo_Evidence_Base64 LONGTEXT NULL',
+    'ALTER TABLE DONATION_DISPUTE ADD COLUMN Ngo_Responded_At DATETIME NULL',
+    'ALTER TABLE DONATION_DISPUTE ADD COLUMN Admin_Verdict VARCHAR(48) NULL'
+  ];
+  for (const ddl of extraCols) {
+    try { await db.query(ddl); } catch (_) {}
+  }
   _disputeTableEnsured = true;
 }
 
@@ -6221,7 +6241,10 @@ app.post('/api/donations/disputes', authenticateToken, async (req, res) => {
     return res.status(403).json({ error: 'Only registered donors can file a donation audit dispute.' });
   }
 
-  const { transactionId, txHash, reason = '' } = req.body || {};
+  const { transactionId, txHash, reason = '', evidenceBase64 = null } = req.body || {};
+  const cleanEvidence = (typeof evidenceBase64 === 'string' && evidenceBase64.startsWith('data:image/') && evidenceBase64.length <= 6 * 1024 * 1024)
+    ? evidenceBase64
+    : null;
   const cleanReason = String(reason || '').trim();
   if (cleanReason.length < 5) {
     return res.status(400).json({ error: 'Please explain the discrepancy (minimum 5 characters).' });
@@ -6311,12 +6334,12 @@ app.post('/api/donations/disputes', authenticateToken, async (req, res) => {
       INSERT INTO DONATION_DISPUTE (
         Ticket_Code, Transaction_ID, Tx_Hash, Campaign_ID, Org_ID, Donor_ID,
         Donor_Email, Donor_Name, Declared_Php, Credited_Php, Variance_Php,
-        Dispute_Type, Reason, Status
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'OPEN')
+        Dispute_Type, Reason, Donor_Evidence_Base64, Status
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'OPEN')
     `, [
       ticketCode, tx.id, tx.txHash, tx.campaignId || null, tx.orgId || null, req.user.id,
       donorEmail, donorName, declaredPhp, creditedPhp, variancePhp,
-      disputeType, cleanReason
+      disputeType, cleanReason, cleanEvidence
     ]);
 
     const disputeId = ins.insertId || ins[0]?.insertId;
@@ -6405,6 +6428,225 @@ app.post('/api/donations/disputes', authenticateToken, async (req, res) => {
   }
 });
 
+// ── GET /api/disputes/:id/evidence (Lazy-load original slip, donor proof, NGO counter-proof & AI OCR audit) ──
+app.get('/api/disputes/:id/evidence', authenticateToken, async (req, res) => {
+  const disputeId = parseInt(req.params.id, 10);
+  if (!disputeId || Number.isNaN(disputeId)) {
+    return res.status(400).json({ error: 'Invalid dispute ID.' });
+  }
+  try {
+    await ensureDonationDisputeTable();
+    const [rows] = await db.query(`
+      SELECT
+        dd.Dispute_ID as id,
+        dd.Org_ID as orgId,
+        dd.Donor_ID as donorId,
+        dd.Donor_Evidence_Base64 as donorEvidenceBase64,
+        dd.Ngo_Response as ngoResponse,
+        dd.Ngo_Evidence_Base64 as ngoEvidenceBase64,
+        dd.Ngo_Responded_At as ngoRespondedAt,
+        dd.Admin_Verdict as adminVerdict,
+        m.Manual_ID as manualId,
+        m.Receipt_Base64 as originalReceiptBase64,
+        m.Reference_Number as referenceNumber,
+        m.Payment_Method as paymentMethod,
+        m.Ai_Confidence_Score as aiConfidence,
+        m.Ai_Validation_Status as aiStatus,
+        m.Ai_Audit_Notes as aiNotes
+      FROM DONATION_DISPUTE dd
+      LEFT JOIN MANUAL_DONATION m ON dd.Tx_Hash = m.Tx_Hash
+      WHERE dd.Dispute_ID = ?
+      LIMIT 1
+    `, [disputeId]);
+
+    if (!rows || rows.length === 0) {
+      return res.status(404).json({ error: 'Dispute not found.' });
+    }
+    const row = rows[0];
+    const isAdmin = req.user.role === 'admin';
+    const isOwningOrg = req.user.role === 'organization' && Number(row.orgId) === Number(req.user.id);
+    const isOwningDonor = req.user.role === 'donor' && Number(row.donorId) === Number(req.user.id);
+    if (!isAdmin && !isOwningOrg && !isOwningDonor) {
+      return res.status(403).json({ error: 'Access denied.' });
+    }
+
+    return res.json({
+      id: row.id,
+      manualId: row.manualId || null,
+      originalReceiptBase64: row.originalReceiptBase64 || null,
+      donorEvidenceBase64: row.donorEvidenceBase64 || null,
+      ngoEvidenceBase64: row.ngoEvidenceBase64 || null,
+      ngoResponse: row.ngoResponse || null,
+      ngoRespondedAt: row.ngoRespondedAt || null,
+      adminVerdict: row.adminVerdict || null,
+      referenceNumber: row.referenceNumber || null,
+      paymentMethod: row.paymentMethod || null,
+      aiConfidence: row.aiConfidence != null ? Number(row.aiConfidence) : null,
+      aiStatus: row.aiStatus || null,
+      aiNotes: row.aiNotes || null
+    });
+  } catch (err) {
+    return res.status(500).json({ error: 'Failed to load dispute evidence: ' + err.message });
+  }
+});
+
+// ── GET /api/org/disputes (NGO views disputes filed against their campaigns) ──
+app.get('/api/org/disputes', authenticateToken, async (req, res) => {
+  if (req.user.role !== 'organization') {
+    return res.status(403).json({ error: 'Access denied. Organization role required.' });
+  }
+  try {
+    await ensureDonationDisputeTable();
+    const [rows] = await db.query(`
+      SELECT
+        dd.Dispute_ID as id,
+        dd.Ticket_Code as ticketCode,
+        dd.Transaction_ID as transactionId,
+        dd.Tx_Hash as txHash,
+        dd.Campaign_ID as campaignId,
+        dd.Org_ID as orgId,
+        dd.Donor_Name as donorName,
+        dd.Declared_Php as declaredPhp,
+        dd.Credited_Php as creditedPhp,
+        dd.Variance_Php as variancePhp,
+        dd.Dispute_Type as disputeType,
+        dd.Reason as reason,
+        dd.Ngo_Response as ngoResponse,
+        dd.Ngo_Responded_At as ngoRespondedAt,
+        dd.Status as status,
+        dd.Admin_Verdict as adminVerdict,
+        dd.Admin_Notes as adminNotes,
+        dd.Resolved_At as resolvedAt,
+        dd.Created_At as createdAt,
+        c.Campaign_Title as campaignTitle,
+        m.Manual_ID as manualId,
+        m.Reference_Number as referenceNumber,
+        m.Payment_Method as paymentMethod,
+        m.Ai_Confidence_Score as aiConfidence,
+        m.Ai_Validation_Status as aiStatus,
+        m.Ai_Audit_Notes as aiNotes,
+        IF(m.Receipt_Base64 IS NOT NULL AND m.Receipt_Base64 != '', 1, 0) as hasOriginalReceipt,
+        IF(dd.Donor_Evidence_Base64 IS NOT NULL AND dd.Donor_Evidence_Base64 != '', 1, 0) as hasDonorEvidence,
+        IF(dd.Ngo_Evidence_Base64 IS NOT NULL AND dd.Ngo_Evidence_Base64 != '', 1, 0) as hasNgoEvidence
+      FROM DONATION_DISPUTE dd
+      LEFT JOIN CAMPAIGN c ON dd.Campaign_ID = c.Campaign_ID
+      LEFT JOIN MANUAL_DONATION m ON dd.Tx_Hash = m.Tx_Hash
+      WHERE dd.Org_ID = ?
+      ORDER BY
+        CASE dd.Status WHEN 'OPEN' THEN 0 WHEN 'UNDER_REVIEW' THEN 1 ELSE 2 END,
+        dd.Dispute_ID DESC
+    `, [req.user.id]);
+    return res.json(rows || []);
+  } catch (err) {
+    return res.status(500).json({ error: 'Failed to load organization disputes: ' + err.message });
+  }
+});
+
+// ── POST /api/org/disputes/:id/respond (NGO submits counter-proof & official explanation) ──
+app.post('/api/org/disputes/:id/respond', authenticateToken, async (req, res) => {
+  if (req.user.role !== 'organization') {
+    return res.status(403).json({ error: 'Access denied. Organization role required.' });
+  }
+  const disputeId = parseInt(req.params.id, 10);
+  const { responseText = '', evidenceBase64 = null } = req.body || {};
+  const cleanResp = String(responseText || '').trim();
+  if (cleanResp.length < 5) {
+    return res.status(400).json({ error: 'Please provide an explanation for your credited amount (min. 5 characters).' });
+  }
+  const cleanEvidence = (typeof evidenceBase64 === 'string' && evidenceBase64.startsWith('data:image/') && evidenceBase64.length <= 6 * 1024 * 1024)
+    ? evidenceBase64
+    : null;
+
+  try {
+    await ensureDonationDisputeTable();
+    const [rows] = await db.query(
+      `SELECT dd.*, c.Campaign_Title, o.Org_Name
+       FROM DONATION_DISPUTE dd
+       LEFT JOIN CAMPAIGN c ON dd.Campaign_ID = c.Campaign_ID
+       LEFT JOIN ORGANIZATION o ON dd.Org_ID = o.Org_ID
+       WHERE dd.Dispute_ID = ? LIMIT 1`,
+      [disputeId]
+    );
+    if (!rows || rows.length === 0) {
+      return res.status(404).json({ error: 'Dispute ticket not found.' });
+    }
+    const dp = rows[0];
+    if (Number(dp.Org_ID) !== Number(req.user.id)) {
+      return res.status(403).json({ error: 'You are not authorized to respond to this dispute.' });
+    }
+    if (dp.Status === 'RESOLVED' || dp.Status === 'DISMISSED') {
+      return res.status(400).json({ error: 'This dispute has already been closed by an Administrator.' });
+    }
+
+    const nextStatus = dp.Status === 'OPEN' ? 'UNDER_REVIEW' : dp.Status;
+    await db.query(`
+      UPDATE DONATION_DISPUTE
+      SET Ngo_Response = ?,
+          Ngo_Evidence_Base64 = COALESCE(?, Ngo_Evidence_Base64),
+          Ngo_Responded_At = CURRENT_TIMESTAMP,
+          Status = ?,
+          Updated_At = CURRENT_TIMESTAMP
+      WHERE Dispute_ID = ?
+    `, [cleanResp, cleanEvidence, nextStatus, disputeId]);
+
+    // Notify Admins that NGO submitted counter-proof
+    try {
+      const [admins] = await db.query('SELECT Username FROM ADMINISTRATOR LIMIT 5');
+      const adminEmails = (admins && admins.length > 0)
+        ? admins.map(a => a.Username).filter(Boolean)
+        : ['admin@bbdrts.gov.ph'];
+      for (const aEmail of adminEmails) {
+        await sendNotificationToUser({
+          userEmail: aEmail,
+          role: 'admin',
+          type: 'SECURITY',
+          title: `NGO Counter-Proof Submitted (${dp.Ticket_Code})`,
+          message: `${dp.Org_Name || 'The NGO'} responded to dispute ${dp.Ticket_Code} for "${dp.Campaign_Title || 'Campaign'}"${cleanEvidence ? ' with an incoming bank/e-wallet proof screenshot' : ''}. Ready for side-by-side adjudication.`,
+          referenceId: dp.Ticket_Code,
+          referenceType: 'DISPUTE',
+          link: '/admin?tab=finance'
+        });
+      }
+    } catch (_) {}
+
+    // Notify Donor that NGO responded
+    if (dp.Donor_Email) {
+      sendNotificationToUser({
+        userEmail: dp.Donor_Email,
+        role: 'donor',
+        type: 'SYSTEM',
+        title: `NGO Responded to Dispute ${dp.Ticket_Code}`,
+        message: `${dp.Org_Name || 'The managing NGO'} submitted an audit response${cleanEvidence ? ' and supporting proof' : ''} for your dispute on "${dp.Campaign_Title || 'your donation'}". Administrators are now reviewing both sides.`,
+        referenceId: dp.Ticket_Code,
+        referenceType: 'DISPUTE',
+        link: '/donor?tab=receipts'
+      }).catch(() => {});
+    }
+
+    logActivity({
+      req,
+      activity: `${dp.Org_Name || req.user.email} submitted counter-evidence for dispute ${dp.Ticket_Code}`,
+      userName: dp.Org_Name || req.user.name || req.user.email,
+      userEmail: req.user.email,
+      role: 'NGO',
+      target: `Dispute ${dp.Ticket_Code}`,
+      category: 'ADMIN_SECURITY',
+      status: 'SUCCESS',
+      details: { disputeId, ticketCode: dp.Ticket_Code, hasEvidenceImage: Boolean(cleanEvidence) }
+    }).catch(() => {});
+
+    try { realtimeBus.publish(['disputes', 'audit', 'notifications'], { disputeId, action: 'ngo_responded' }); } catch (_) {}
+
+    return res.json({
+      success: true,
+      status: nextStatus,
+      message: `Counter-evidence submitted for ${dp.Ticket_Code}. Administrators have been notified for side-by-side review.`
+    });
+  } catch (err) {
+    return res.status(500).json({ error: 'Failed to submit NGO counter-evidence: ' + err.message });
+  }
+});
+
 // ── GET /api/admin/disputes (Admin Audit Dispute Queue) ──
 app.get('/api/admin/disputes', authenticateToken, async (req, res) => {
   if (req.user.role !== 'admin') {
@@ -6428,7 +6670,10 @@ app.get('/api/admin/disputes', authenticateToken, async (req, res) => {
         dd.Variance_Php as variancePhp,
         dd.Dispute_Type as disputeType,
         dd.Reason as reason,
+        dd.Ngo_Response as ngoResponse,
+        dd.Ngo_Responded_At as ngoRespondedAt,
         dd.Status as status,
+        dd.Admin_Verdict as adminVerdict,
         dd.Admin_Notes as adminNotes,
         dd.Resolved_By as resolvedBy,
         dd.Resolved_At as resolvedAt,
@@ -6440,7 +6685,12 @@ app.get('/api/admin/disputes', authenticateToken, async (req, res) => {
         m.Manual_ID as manualId,
         m.Reference_Number as referenceNumber,
         m.Payment_Method as paymentMethod,
-        IF(m.Receipt_Base64 IS NOT NULL AND m.Receipt_Base64 != '', 1, 0) as hasReceipt
+        m.Ai_Confidence_Score as aiConfidence,
+        m.Ai_Validation_Status as aiStatus,
+        m.Ai_Audit_Notes as aiNotes,
+        IF(m.Receipt_Base64 IS NOT NULL AND m.Receipt_Base64 != '', 1, 0) as hasReceipt,
+        IF(dd.Donor_Evidence_Base64 IS NOT NULL AND dd.Donor_Evidence_Base64 != '', 1, 0) as hasDonorEvidence,
+        IF(dd.Ngo_Evidence_Base64 IS NOT NULL AND dd.Ngo_Evidence_Base64 != '', 1, 0) as hasNgoEvidence
       FROM DONATION_DISPUTE dd
       LEFT JOIN CAMPAIGN c ON dd.Campaign_ID = c.Campaign_ID
       LEFT JOIN ORGANIZATION o ON dd.Org_ID = o.Org_ID
@@ -6461,11 +6711,16 @@ app.patch('/api/admin/disputes/:id', authenticateToken, async (req, res) => {
     return res.status(403).json({ error: 'Access denied. Admin privileges required.' });
   }
   const disputeId = parseInt(req.params.id, 10);
-  const { status = 'UNDER_REVIEW', adminNotes = '' } = req.body || {};
+  const { status = 'UNDER_REVIEW', adminNotes = '', verdict = null } = req.body || {};
   const allowed = ['OPEN', 'UNDER_REVIEW', 'RESOLVED', 'DISMISSED'];
   const cleanStatus = String(status || '').toUpperCase().trim();
   if (!allowed.includes(cleanStatus)) {
     return res.status(400).json({ error: 'Invalid dispute status.' });
+  }
+  const allowedVerdicts = ['UPHELD_NGO_FAULT', 'DISMISSED_DONOR_ERROR', 'MUTUAL_ADJUSTMENT', 'PENDING', ''];
+  const cleanVerdict = verdict ? String(verdict).toUpperCase().trim() : '';
+  if (cleanVerdict && !allowedVerdicts.includes(cleanVerdict)) {
+    return res.status(400).json({ error: 'Invalid governance verdict.' });
   }
 
   try {
@@ -6485,52 +6740,76 @@ app.patch('/api/admin/disputes/:id', authenticateToken, async (req, res) => {
     const cleanNotes = String(adminNotes || '').trim();
     const isClosed = cleanStatus === 'RESOLVED' || cleanStatus === 'DISMISSED';
     const adminActor = req.user.email || 'admin@bbdrts.gov.ph';
+    const finalVerdict = cleanVerdict || dp.Admin_Verdict || null;
 
     await db.query(`
       UPDATE DONATION_DISPUTE
-      SET Status = ?, Admin_Notes = ?, Resolved_By = ?, Resolved_At = ?, Updated_At = CURRENT_TIMESTAMP
+      SET Status = ?, Admin_Verdict = ?, Admin_Notes = ?, Resolved_By = ?, Resolved_At = ?, Updated_At = CURRENT_TIMESTAMP
       WHERE Dispute_ID = ?
     `, [
       cleanStatus,
+      finalVerdict,
       cleanNotes || dp.Admin_Notes || null,
       isClosed ? adminActor : dp.Resolved_By,
       isClosed ? new Date() : null,
       disputeId
     ]);
 
+    const verdictLabels = {
+      UPHELD_NGO_FAULT: 'Upheld (NGO Credit Discrepancy Confirmed)',
+      DISMISSED_DONOR_ERROR: 'Dismissed (NGO Credited Amount Verified)',
+      MUTUAL_ADJUSTMENT: 'Resolved via Mutual Audit Adjustment'
+    };
+    const verdictText = finalVerdict && verdictLabels[finalVerdict] ? ` Ruling: ${verdictLabels[finalVerdict]}.` : '';
+    const statusLabel = cleanStatus === 'RESOLVED' ? 'Resolved' : cleanStatus === 'DISMISSED' ? 'Dismissed' : cleanStatus === 'UNDER_REVIEW' ? 'Under Investigation' : 'Re-Opened';
+
     // Notify the donor of the admin's update
     if (dp.Donor_Email) {
-      const statusLabel = cleanStatus === 'RESOLVED' ? 'Resolved' : cleanStatus === 'DISMISSED' ? 'Dismissed' : cleanStatus === 'UNDER_REVIEW' ? 'Under Investigation' : 'Re-Opened';
       sendNotificationToUser({
         userEmail: dp.Donor_Email,
         role: 'donor',
         type: 'SYSTEM',
         title: `Audit Dispute ${dp.Ticket_Code}: ${statusLabel}`,
-        message: `An administrator updated your dispute for "${dp.Campaign_Title || 'your donation'}" to ${statusLabel}.${cleanNotes ? ` Admin Note: ${cleanNotes}` : ''}`,
+        message: `An administrator updated your dispute for "${dp.Campaign_Title || 'your donation'}" to ${statusLabel}.${verdictText}${cleanNotes ? ` Admin Note: ${cleanNotes}` : ''}`,
         referenceId: dp.Ticket_Code,
         referenceType: 'DISPUTE',
-        link: '/donor'
+        link: '/donor?tab=receipts'
+      }).catch(() => {});
+    }
+
+    // Notify the NGO on final ruling
+    if (isClosed && dp.Org_Email) {
+      sendNotificationToUser({
+        userEmail: dp.Org_Email,
+        role: 'organization',
+        type: 'SYSTEM',
+        title: `Audit Dispute ${dp.Ticket_Code} Closed: ${statusLabel}`,
+        message: `Governance review for "${dp.Campaign_Title || 'your campaign'}" (${dp.Ticket_Code}) is now ${statusLabel}.${verdictText}${cleanNotes ? ` Admin Note: ${cleanNotes}` : ''}`,
+        referenceId: dp.Ticket_Code,
+        referenceType: 'DISPUTE',
+        link: '/organization'
       }).catch(() => {});
     }
 
     logActivity({
       req,
-      activity: `Administrator updated dispute ${dp.Ticket_Code} status to ${cleanStatus}`,
+      activity: `Administrator updated dispute ${dp.Ticket_Code} to ${cleanStatus}${finalVerdict ? ` (${finalVerdict})` : ''}`,
       userName: req.user.name || 'System Administrator',
       userEmail: adminActor,
       role: 'ADMIN',
       target: `Dispute ${dp.Ticket_Code}`,
       category: 'ADMIN_SECURITY',
       status: 'SUCCESS',
-      details: { disputeId, ticketCode: dp.Ticket_Code, status: cleanStatus, adminNotes: cleanNotes }
+      details: { disputeId, ticketCode: dp.Ticket_Code, status: cleanStatus, verdict: finalVerdict, adminNotes: cleanNotes }
     }).catch(() => {});
 
-    try { realtimeBus.publish(['disputes', 'donations', 'audit', 'notifications'], { disputeId, status: cleanStatus }); } catch (_) {}
+    try { realtimeBus.publish(['disputes', 'donations', 'audit', 'notifications'], { disputeId, status: cleanStatus, verdict: finalVerdict }); } catch (_) {}
 
     return res.json({
       success: true,
       message: `Dispute ${dp.Ticket_Code} marked as ${cleanStatus}.`,
       status: cleanStatus,
+      verdict: finalVerdict,
       adminNotes: cleanNotes
     });
   } catch (err) {
