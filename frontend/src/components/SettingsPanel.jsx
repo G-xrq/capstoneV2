@@ -10,6 +10,7 @@ import DonorBadge, { getDonorTier } from './DonorBadge';
 import { formatPhoneNumber } from '../utils/formatters';
 import NgoProfileModal from './NgoProfileModal';
 import { autoCropQrScreenshot, extractQrVoucherText } from '../utils/qrCropper';
+import SmartQrUploadModal from './SmartQrUploadModal';
 import OtpPinBoxes from './OtpPinBoxes';
 import { getWorkspaceStrings } from '../data/workspaceTranslations';
 
@@ -931,7 +932,9 @@ export default function SettingsPanel({
   }, [currentUser?.id, currentUser?.role]);
 
   const handleNewQrFileUpload = async (e) => {
-    const file = e.target.files?.[0];
+    const file = (typeof File !== 'undefined' && e instanceof File)
+      ? e
+      : (e?.target?.files?.[0] || e?.dataTransfer?.files?.[0]);
     if (!file) return;
     if (!file.type.startsWith('image/')) {
       showWarning('Please upload a valid image file (PNG, JPG, WebP).', 'Invalid File');
@@ -2043,233 +2046,30 @@ export default function SettingsPanel({
       )}
 
       {/* ── Modal: Upload & Auto-Crop New QR Voucher ── */}
-      {showAddQrModal && createPortal(
-        <div
-          className="bbdrts-modal-backdrop"
-          onClick={() => setShowAddQrModal(false)}
-          style={{
-            position: 'fixed',
-            inset: 0,
-            background: 'rgba(0, 0, 0, 0.82)',
-            backdropFilter: 'blur(10px)',
-            zIndex: 1000000080,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '16px'
-          }}
-        >
-          <div
-            className="bbdrts-modal-container"
-            onClick={e => e.stopPropagation()}
-            style={{
-              maxWidth: '620px',
-              width: '100%',
-              background: '#0a0a0a',
-              border: '1px solid #262626',
-              borderRadius: '12px',
-              padding: '24px',
-              color: '#ededed',
-              maxHeight: '90vh',
-              overflowY: 'auto'
-            }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid #222222', paddingBottom: '14px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span className="material-symbols-outlined" style={{ fontSize: '22px', color: '#007dfe' }}>auto_fix_high</span>
-                <div>
-                  <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: 600 }}>Smart QR Auto-Crop &amp; Library Upload</h4>
-                  <p style={{ margin: 0, fontSize: '0.74rem', color: '#888888' }}>Upload a phone screenshot — edges are auto-cropped &amp; recipient text extracted via OCR</p>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowAddQrModal(false)}
-                style={{ background: 'transparent', border: 'none', color: '#888888', cursor: 'pointer', fontSize: '22px' }}
-              >
-                ×
-              </button>
-            </div>
-
-            <form onSubmit={handleSaveNewQrToLibrary} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              
-              {/* Payment Method Selector */}
-              <div>
-                <label style={{ display: 'block', fontSize: '0.76rem', fontWeight: 600, color: '#a3a3a3', marginBottom: '6px' }}>
-                  Payment Method Rail
-                </label>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '8px' }}>
-                  {['GCash', 'Maya', 'Bank'].map(method => (
-                    <button
-                      key={method}
-                      type="button"
-                      onClick={() => setNewQrMethod(method)}
-                      style={{
-                        padding: '8px',
-                        borderRadius: '6px',
-                        fontSize: '0.78rem',
-                        fontWeight: 600,
-                        border: '1px solid',
-                        cursor: 'pointer',
-                        background: newQrMethod === method ? '#ffffff' : '#141414',
-                        color: newQrMethod === method ? '#000000' : '#888888',
-                        borderColor: newQrMethod === method ? '#ffffff' : '#262626'
-                      }}
-                    >
-                      {method}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Upload Dropzone */}
-              <div>
-                <label style={{ display: 'block', fontSize: '0.76rem', fontWeight: 600, color: '#a3a3a3', marginBottom: '6px' }}>
-                  Upload QR Screenshot or Image File
-                </label>
-                <label
-                  style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    padding: '24px 16px',
-                    border: '2px dashed #2e2e2e',
-                    borderRadius: '8px',
-                    background: '#121212',
-                    cursor: 'pointer',
-                    textAlign: 'center',
-                    transition: 'border-color 150ms ease'
-                  }}
-                  onMouseEnter={e => e.currentTarget.style.borderColor = '#007dfe'}
-                  onMouseLeave={e => e.currentTarget.style.borderColor = '#2e2e2e'}
-                >
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleNewQrFileUpload}
-                    style={{ display: 'none' }}
-                  />
-                  <span className="material-symbols-outlined" style={{ fontSize: '32px', color: '#007dfe', marginBottom: '8px' }}>
-                    {isCroppingQr ? 'hourglass_top' : 'cloud_upload'}
-                  </span>
-                  <span style={{ fontSize: '0.82rem', fontWeight: 600, color: '#ededed' }}>
-                    {isCroppingQr ? 'Auto-Cropping Screenshot...' : 'Click to Upload or Drag & Drop'}
-                  </span>
-                  <span style={{ fontSize: '0.72rem', color: '#737373', marginTop: '4px' }}>
-                    Accepts PNG, JPG, WebP (GCash blue screenshots &amp; Maya dark borders auto-trimmed)
-                  </span>
-                </label>
-              </div>
-
-              {/* Live Preview & Extracted OCR Details */}
-              {newQrImage && (
-                <div style={{ background: '#141414', border: '1px solid #262626', borderRadius: '8px', padding: '14px', display: 'grid', gridTemplateColumns: '120px 1fr', gap: '14px', alignItems: 'center' }}>
-                  <div style={{ background: '#ffffff', borderRadius: '6px', padding: '6px', textAlign: 'center' }}>
-                    <img src={newQrImage} alt="Cropped QR" style={{ maxWidth: '100%', maxHeight: '120px', display: 'block', margin: '0 auto' }} />
-                  </div>
-                  <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
-                      <span className="material-symbols-outlined" style={{ fontSize: '15px', color: '#10b981' }}>check_circle</span>
-                      <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#10b981' }}>
-                        {isOcrExtracting ? 'Running OCR...' : 'Clean Voucher Matrix Ready'}
-                      </span>
-                    </div>
-                    {cropFeedback && (
-                      <p style={{ margin: 0, fontSize: '0.72rem', color: '#a3a3a3', lineHeight: 1.4 }}>
-                        {cropFeedback}
-                      </p>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              {/* Custom Identifier Name */}
-              <div>
-                <label style={{ display: 'block', fontSize: '0.76rem', fontWeight: 600, color: '#a3a3a3', marginBottom: '4px' }}>
-                  Custom QR Identifier Name *
-                </label>
-                <input
-                  type="text"
-                  value={newQrName}
-                  onChange={e => setNewQrName(e.target.value)}
-                  placeholder='e.g. Primary Disaster Relief GCash'
-                  style={{ width: '100%', padding: '8px 12px', background: '#141414', border: '1px solid #262626', borderRadius: '6px', color: '#ffffff', fontSize: '0.8rem' }}
-                  required
-                />
-              </div>
-
-              {/* Editable Extracted Account Name */}
-              <div>
-                <label style={{ display: 'block', fontSize: '0.76rem', fontWeight: 600, color: '#a3a3a3', marginBottom: '4px' }}>
-                  Account / Recipient Name (Auto-Extracted via OCR)
-                </label>
-                <input
-                  type="text"
-                  value={newQrAccountName}
-                  onChange={e => setNewQrAccountName(e.target.value)}
-                  placeholder="e.g. Philippine Red Cross"
-                  style={{ width: '100%', padding: '8px 12px', background: '#141414', border: '1px solid #262626', borderRadius: '6px', color: '#ffffff', fontSize: '0.8rem' }}
-                />
-              </div>
-
-              {/* Editable Extracted Account Number */}
-              <div>
-                <label style={{ display: 'block', fontSize: '0.76rem', fontWeight: 600, color: '#a3a3a3', marginBottom: '4px' }}>
-                  Account / Mobile Number (Auto-Extracted via OCR)
-                </label>
-                <input
-                  type="text"
-                  value={newQrAccountNumber}
-                  onChange={e => setNewQrAccountNumber(e.target.value)}
-                  placeholder="e.g. 0917 890 1430"
-                  style={{ width: '100%', padding: '8px 12px', background: '#141414', border: '1px solid #262626', borderRadius: '6px', color: '#ffffff', fontSize: '0.8rem' }}
-                />
-              </div>
-
-              {/* Set as Active Default Checkbox */}
-              <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.76rem', color: '#ededed' }}>
-                <input
-                  type="checkbox"
-                  checked={newQrIsDefault}
-                  onChange={e => setNewQrIsDefault(e.target.checked)}
-                />
-                <span>Set as Active Default Payout Rail for this payment method</span>
-              </label>
-
-              {/* Actions */}
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '10px' }}>
-                <button
-                  type="button"
-                  onClick={() => setShowAddQrModal(false)}
-                  style={{ padding: '8px 14px', borderRadius: '6px', background: 'transparent', border: '1px solid #262626', color: '#888888', fontSize: '0.8rem', cursor: 'pointer' }}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={!newQrImage || isCroppingQr}
-                  style={{
-                    padding: '8px 16px',
-                    borderRadius: '6px',
-                    background: '#ffffff',
-                    color: '#000000',
-                    border: 'none',
-                    fontSize: '0.8rem',
-                    fontWeight: 600,
-                    cursor: !newQrImage || isCroppingQr ? 'not-allowed' : 'pointer',
-                    opacity: !newQrImage || isCroppingQr ? 0.5 : 1
-                  }}
-                >
-                  Save to Reusable Library
-                </button>
-              </div>
-
-            </form>
-          </div>
-        </div>,
-        document.body
-      )}
+      <SmartQrUploadModal
+        isOpen={showAddQrModal}
+        onClose={() => setShowAddQrModal(false)}
+        onSubmit={handleSaveNewQrToLibrary}
+        onFileUpload={handleNewQrFileUpload}
+        onClearImage={() => {
+          setNewQrImage('');
+          setCropFeedback('');
+        }}
+        method={newQrMethod}
+        setMethod={setNewQrMethod}
+        qrName={newQrName}
+        setQrName={setNewQrName}
+        accountName={newQrAccountName}
+        setAccountName={setNewQrAccountName}
+        accountNumber={newQrAccountNumber}
+        setAccountNumber={setNewQrAccountNumber}
+        qrImage={newQrImage}
+        isDefault={newQrIsDefault}
+        setIsDefault={setNewQrIsDefault}
+        isCropping={isCroppingQr}
+        isOcrExtracting={isOcrExtracting}
+        cropFeedback={cropFeedback}
+      />
 
       {/* ── Lightbox: High-Resolution QR Card Viewer ── */}
       {previewQrModal && createPortal(
